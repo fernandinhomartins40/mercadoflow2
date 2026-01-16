@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:sqlite:/data/pdv2cloud.db}
+  jpa:
+    properties:
+      hibernate:
+        show_sql: false
+
+logging:
+  level:
+    root: INFO

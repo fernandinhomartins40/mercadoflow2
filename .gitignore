@@ -1,0 +1,10 @@
+dist/
+tools/
+backend/target/
+frontend/dist/
+pdv2cloud-config/dist/
+pdv2cloud-config/node_modules/
+frontend/node_modules/
+backend/.mvn/
+.env
+*.log

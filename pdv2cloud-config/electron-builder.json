@@ -1,0 +1,14 @@
+{
+  "appId": "com.pdv2cloud.config",
+  "productName": "PDV2Cloud Config",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "dist/main/**/*",
+    "dist/renderer/**/*"
+  ],
+  "win": {
+    "target": ["nsis"]
+  }
+}

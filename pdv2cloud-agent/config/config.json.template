@@ -1,0 +1,19 @@
+{
+  "api_url": "https://api.pdv2cloud.com",
+  "api_token": "",
+  "api_token_encrypted": "",
+  "market_id": "",
+  "hmac_secret": "dev-hmac",
+  "watch_paths": [
+    "C:/PDV/XMLs"
+  ],
+  "xsd_paths": [
+    "C:/ProgramData/PDV2Cloud/xsd/schemes/PL_009_V4/nfe_v4.00.xsd",
+    "C:/ProgramData/PDV2Cloud/xsd/schemes/PL_008i2/nfe_v3.10.xsd"
+  ],
+  "poll_interval_seconds": 10,
+  "retry_interval_minutes": 5,
+  "xsd_paths": [],
+  "healthcheck_enabled": true,
+  "healthcheck_port": 8765
+}
