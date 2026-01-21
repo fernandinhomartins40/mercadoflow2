@@ -19,7 +19,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL=${REACT_APP_API_BASE_URL}
+        VITE_API_URL: "${REACT_APP_API_BASE_URL}"
     depends_on:
       - mercadoflow-backend
 
