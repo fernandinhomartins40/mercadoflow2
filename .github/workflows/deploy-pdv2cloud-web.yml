@@ -210,25 +210,30 @@ jobs:
             sleep 20
 
             echo "=== Criando backup de segurança do banco de dados ==="
-            if docker exec mercadoflow-backend test -f /app/data/pdv2cloud.db; then
-              mkdir -p ${APP_DIR}/backups
-              BACKUP_FILE="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).db"
-              docker exec mercadoflow-backend sqlite3 /app/data/pdv2cloud.db ".backup /app/data/backup.db"
-              docker cp mercadoflow-backend:/app/data/backup.db "$BACKUP_FILE"
-              if [ -s "$BACKUP_FILE" ]; then
-                BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-                echo "✅ Backup criado: $BACKUP_FILE ($BACKUP_SIZE)"
-                ls -t ${APP_DIR}/backups/backup_*.db | tail -n +8 | xargs -r rm
+            if docker ps --format '{{.Names}}' | grep -q '^mercadoflow-backend$'; then
+              if docker exec mercadoflow-backend test -f /app/data/pdv2cloud.db; then
+                mkdir -p ${APP_DIR}/backups
+                BACKUP_FILE="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).db"
+                docker exec mercadoflow-backend sqlite3 /app/data/pdv2cloud.db ".backup /app/data/backup.db" || true
+                docker cp mercadoflow-backend:/app/data/backup.db "$BACKUP_FILE" || true
+                if [ -s "$BACKUP_FILE" ]; then
+                  BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+                  echo "✅ Backup criado: $BACKUP_FILE ($BACKUP_SIZE)"
+                  ls -t ${APP_DIR}/backups/backup_*.db | tail -n +8 | xargs -r rm
+                else
+                  echo "⚠️ AVISO: Backup vazio ou falhou"
+                fi
               else
-                echo "⚠️ AVISO: Backup vazio ou falhou"
+                echo "ℹ️ Banco de dados ainda não criado (primeiro deploy)"
               fi
             else
-              echo "ℹ️ Banco de dados ainda não criado (primeiro deploy)"
+              echo "⚠️ Backend não está rodando no momento do backup, pulando backup"
             fi
 
             echo "=== Configurando Nginx do sistema para porta 3300 ==="
             NGINX_CONFIG_FILE="/etc/nginx/sites-available/mercadoflow.conf"
             SSL_CONFIGURED=false
+            NGINX_RELOAD=false
 
             if [ -f "$NGINX_CONFIG_FILE" ]; then
               if grep -q "ssl_certificate.*letsencrypt" "$NGINX_CONFIG_FILE"; then
@@ -288,6 +293,7 @@ jobs:
 
               ln -sf /etc/nginx/sites-available/mercadoflow.conf /etc/nginx/sites-enabled/
               rm -f /etc/nginx/sites-enabled/default
+              NGINX_RELOAD=true
 
               echo "🔒 Configurando certificados SSL com Certbot..."
               if certbot --nginx -d mercadoflow.com -d www.mercadoflow.com --non-interactive --agree-tos --email admin@mercadoflow.com --redirect 2>&1 | tee /tmp/certbot.log; then
@@ -305,12 +311,16 @@ jobs:
               ln -sf /etc/nginx/sites-available/mercadoflow.conf /etc/nginx/sites-enabled/
             fi
 
-            if nginx -t; then
-              systemctl reload nginx
-              echo "✅ Nginx recarregado com sucesso"
+            if [ "$NGINX_RELOAD" = true ]; then
+              if nginx -t; then
+                systemctl reload nginx
+                echo "✅ Nginx recarregado com sucesso"
+              else
+                nginx -t
+                exit 1
+              fi
             else
-              nginx -t
-              exit 1
+              echo "ℹ️ Mantendo Nginx do sistema como está (SSL configurado previamente)"
             fi
 
             sleep 3
