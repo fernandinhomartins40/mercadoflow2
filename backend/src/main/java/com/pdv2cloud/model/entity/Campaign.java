@@ -5,8 +5,6 @@ import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -27,16 +25,13 @@ public class Campaign {
     @JoinColumn(name = "market_id")
     private Market market;
 
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "start_date", columnDefinition = "TEXT")
+    @Column(name = "start_date")
     private LocalDateTime startDate;
 
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "end_date", columnDefinition = "TEXT")
+    @Column(name = "end_date")
     private LocalDateTime endDate;
 
     @CreatedDate
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "created_at", columnDefinition = "TEXT")
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 }

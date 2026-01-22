@@ -6,8 +6,6 @@ import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "sales_analytics", indexes = {
@@ -28,8 +26,7 @@ public class SalesAnalytics {
     @JoinColumn(name = "product_id")
     private Product product;
 
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(columnDefinition = "TEXT")
+    @Column
     private LocalDate date;
 
     @Column(name = "quantity_sold", precision = 10, scale = 3)

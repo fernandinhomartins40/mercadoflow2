@@ -7,8 +7,6 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -44,8 +42,6 @@ public class Market {
     private Boolean isActive = true;
 
     @CreatedDate
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(columnDefinition = "TEXT")
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "market", cascade = CascadeType.ALL)
