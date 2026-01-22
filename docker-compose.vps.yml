@@ -8,6 +8,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - mercadoflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mercadoflow-backend:
     container_name: mercadoflow-backend
@@ -23,8 +28,10 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
       - REDIS_URL=${REDIS_URL}
     depends_on:
-      - mercadoflow-postgres
-      - mercadoflow-redis
+      mercadoflow-postgres:
+        condition: service_healthy
+      mercadoflow-redis:
+        condition: service_started
 
   mercadoflow-frontend:
     container_name: mercadoflow-frontend

@@ -172,18 +172,22 @@ jobs:
             echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}"
 
             echo ""
-            echo "=== Verificando se PostgreSQL precisa ser recriado ==="
+            echo "=== Forçando recriação do PostgreSQL com credenciais corretas ==="
             POSTGRES_VOLUME_EXISTS=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" || echo "")
             if [ -n "$POSTGRES_VOLUME_EXISTS" ]; then
-              echo "Volume PostgreSQL encontrado. Verificando se as credenciais mudaram..."
-              if docker run --rm -v ${POSTGRES_VOLUME_EXISTS}:/data alpine sh -c "test -f /data/postmaster.pid" 2>/dev/null; then
-                echo "PostgreSQL parece estar configurado. Removendo volume para recriar com novas credenciais..."
-                docker volume rm ${POSTGRES_VOLUME_EXISTS} || true
-                echo "Volume PostgreSQL removido. Sera recriado com as credenciais corretas."
-              fi
+              echo "⚠️  Volume PostgreSQL encontrado: $POSTGRES_VOLUME_EXISTS"
+              echo "🔄 Removendo para garantir credenciais corretas..."
+              docker volume rm $POSTGRES_VOLUME_EXISTS 2>/dev/null || true
+              echo "✅ Volume removido. Será recriado com as credenciais do .env"
             else
-              echo "Nenhum volume PostgreSQL existente. Primeiro deploy ou apos limpeza."
+              echo "✅ Nenhum volume PostgreSQL existente. Será criado com as credenciais corretas."
             fi
+
+            echo ""
+            echo "📋 Credenciais PostgreSQL configuradas:"
+            echo "   Database: ${POSTGRES_DB}"
+            echo "   User: ${POSTGRES_USER}"
+            echo "   Password: ****${DB_PASSWORD: -4}"
 
             echo ""
             echo "=== Validando estrutura do projeto antes do build ==="
