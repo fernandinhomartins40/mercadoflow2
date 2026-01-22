@@ -100,6 +100,12 @@ jobs:
             docker-compose -f docker-compose.vps.yml down || true
 
             echo ""
+            echo "=== Limpando versão antiga do MercadoFlow (sem tocar em Tagflow) ==="
+            docker ps -a --format '{{.Names}}' | grep '^mercadoflow' | xargs -r docker rm -f
+            docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep '^mercadoflow' | awk '{print $2}' | xargs -r docker rmi -f
+            docker volume ls -q | grep -E '^mercadoflow_backend_data$|^mercadoflow_redis_data$' | xargs -r docker volume rm
+
+            echo ""
             echo "=== Verificação de segurança pós-parada ==="
             BACKEND_VOLUME_AFTER=$(docker volume ls -q | grep "mercadoflow_backend_data" || echo "")
 
