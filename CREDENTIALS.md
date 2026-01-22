@@ -40,7 +40,7 @@ Perfil:   ADMIN
 ## 📝 Como Funciona
 
 1. **Primeiro Deploy:** ProductionSeeder cria automaticamente:
-   - Mercado padrão: "MercadoFlow Admin" (Plano Enterprise)
+   - Mercado padrão: "MercadoFlow Admin" (Plano Advanced)
    - Usuário admin com as credenciais acima
 
 2. **Deploys Subsequentes:** Seeder detecta que já existem usuários e **não cria novos**

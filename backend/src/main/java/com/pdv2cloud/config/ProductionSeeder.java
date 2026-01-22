@@ -48,7 +48,7 @@ public class ProductionSeeder {
             Market market = new Market();
             market.setName("MercadoFlow Admin");
             market.setCnpj("00000000000000");
-            market.setPlanType(PlanType.ENTERPRISE);
+            market.setPlanType(PlanType.ADVANCED);
             marketRepository.save(market);
             logger.info("✅ Created default market: {}", market.getName());
 
