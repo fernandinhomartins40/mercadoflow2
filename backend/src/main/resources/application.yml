@@ -10,7 +10,7 @@ spring:
         dialect: org.hibernate.community.dialect.SQLiteDialect
         format_sql: true
         type:
-          preferred_uuid_jdbc_type: CHAR
+          preferred_uuid_jdbc_type: VARCHAR
   flyway:
     enabled: true
     locations: classpath:db/migration

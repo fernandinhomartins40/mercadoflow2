@@ -6,7 +6,7 @@ spring:
       hibernate:
         show_sql: false
         type:
-          preferred_uuid_jdbc_type: CHAR
+          preferred_uuid_jdbc_type: VARCHAR
 
 logging:
   level:
