@@ -100,28 +100,37 @@ jobs:
             docker-compose -f docker-compose.vps.yml down || true
 
             echo ""
-            echo "=== Limpando versão antiga do MercadoFlow (sem tocar em Tagflow) ==="
+            echo "=== Limpando versão antiga do MercadoFlow (containers e imagens apenas) ==="
             docker ps -a --format '{{.Names}}' | grep '^mercadoflow' | xargs -r docker rm -f
             docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep '^mercadoflow' | awk '{print $2}' | xargs -r docker rmi -f
-            docker volume ls -q | grep -E 'mercadoflow.*backend_data|mercadoflow.*redis_data' | xargs -r docker volume rm
 
-            # Garantir que o histórico do Flyway não provoque mismatch caso a DB persista
+            echo ""
+            echo "=== Limpando histórico Flyway (preservando dados) ==="
             EXISTING_DB_VOLUME=$(docker volume ls -q | grep -E 'mercadoflow.*backend_data' || echo "")
             if [ -n "$EXISTING_DB_VOLUME" ]; then
-              echo "Limpando flyway_schema_history no volume $EXISTING_DB_VOLUME"
-              docker run --rm -v ${EXISTING_DB_VOLUME}:/data alpine sh -c "apk add --no-cache sqlite && sqlite3 /data/pdv2cloud.db 'DROP TABLE IF EXISTS flyway_schema_history;'" || true
+              echo "✅ Volume encontrado: $EXISTING_DB_VOLUME"
+              echo "Limpando flyway_schema_history para evitar conflitos de migração"
+              docker run --rm -v ${EXISTING_DB_VOLUME}:/data alpine sh -c "apk add --no-cache sqlite && sqlite3 /data/pdv2cloud.db 'DROP TABLE IF EXISTS flyway_schema_history;'" 2>/dev/null || echo "⚠️ Tabela Flyway não existe ou DB ainda não foi criado (normal no primeiro deploy)"
+            else
+              echo "ℹ️ Nenhum volume de dados existente (primeiro deploy)"
             fi
 
             echo ""
-            echo "=== Verificação de segurança pós-parada ==="
+            echo "=== Verificação de integridade dos volumes ==="
             BACKEND_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*backend_data" || echo "")
+            REDIS_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*redis_data" || echo "")
 
             if [ -n "$BACKEND_VOLUME" ] && [ -z "$BACKEND_VOLUME_AFTER" ]; then
               echo "❌ ERRO CRÍTICO: Volume backend_data foi removido inadvertidamente!"
               exit 1
-            else
-              echo "✅ Volumes preservados com sucesso"
             fi
+
+            if [ -n "$REDIS_VOLUME" ] && [ -z "$REDIS_VOLUME_AFTER" ]; then
+              echo "❌ ERRO CRÍTICO: Volume redis_data foi removido inadvertidamente!"
+              exit 1
+            fi
+
+            echo "✅ Volumes de dados preservados com sucesso"
 
             echo "Verificando código sincronizado..."
             ls -la
