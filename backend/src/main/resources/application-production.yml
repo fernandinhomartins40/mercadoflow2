@@ -11,3 +11,9 @@ spring:
 logging:
   level:
     root: INFO
+
+app:
+  admin:
+    email: ${ADMIN_EMAIL:admin@mercadoflow.com}
+    password: ${ADMIN_PASSWORD:MercadoFlow@2026}
+    name: ${ADMIN_NAME:Administrador}
