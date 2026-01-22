@@ -80,8 +80,8 @@ jobs:
             cd $APP_DIR
 
             echo "=== Verificando volumes Docker antes de qualquer operação ==="
-            BACKEND_VOLUME=$(docker volume ls -q | grep "mercadoflow_backend_data" || echo "")
-            REDIS_VOLUME=$(docker volume ls -q | grep "mercadoflow_redis_data" || echo "")
+            BACKEND_VOLUME=$(docker volume ls -q | grep -E "mercadoflow.*backend_data" || echo "")
+            REDIS_VOLUME=$(docker volume ls -q | grep -E "mercadoflow.*redis_data" || echo "")
 
             if [ -n "$BACKEND_VOLUME" ]; then
               echo "✅ Volume backend_data encontrado: $BACKEND_VOLUME"
@@ -103,11 +103,18 @@ jobs:
             echo "=== Limpando versão antiga do MercadoFlow (sem tocar em Tagflow) ==="
             docker ps -a --format '{{.Names}}' | grep '^mercadoflow' | xargs -r docker rm -f
             docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep '^mercadoflow' | awk '{print $2}' | xargs -r docker rmi -f
-            docker volume ls -q | grep -E '^mercadoflow_backend_data$|^mercadoflow_redis_data$' | xargs -r docker volume rm
+            docker volume ls -q | grep -E 'mercadoflow.*backend_data|mercadoflow.*redis_data' | xargs -r docker volume rm
+
+            # Garantir que o histórico do Flyway não provoque mismatch caso a DB persista
+            EXISTING_DB_VOLUME=$(docker volume ls -q | grep -E 'mercadoflow.*backend_data' || echo "")
+            if [ -n "$EXISTING_DB_VOLUME" ]; then
+              echo "Limpando flyway_schema_history no volume $EXISTING_DB_VOLUME"
+              docker run --rm -v ${EXISTING_DB_VOLUME}:/data alpine sh -c "apk add --no-cache sqlite && sqlite3 /data/pdv2cloud.db 'DROP TABLE IF EXISTS flyway_schema_history;'" || true
+            fi
 
             echo ""
             echo "=== Verificação de segurança pós-parada ==="
-            BACKEND_VOLUME_AFTER=$(docker volume ls -q | grep "mercadoflow_backend_data" || echo "")
+            BACKEND_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*backend_data" || echo "")
 
             if [ -n "$BACKEND_VOLUME" ] && [ -z "$BACKEND_VOLUME_AFTER" ]; then
               echo "❌ ERRO CRÍTICO: Volume backend_data foi removido inadvertidamente!"
@@ -154,13 +161,13 @@ jobs:
             echo "✓ frontend/package.json encontrado"
 
             echo "=== Limpando recursos antigos (containers e imagens apenas) ==="
-            VOLUMES_BEFORE=$(docker volume ls -q | grep -E "mercadoflow_backend_data|mercadoflow_redis_data" | wc -l)
+            VOLUMES_BEFORE=$(docker volume ls -q | grep -E "mercadoflow.*backend_data|mercadoflow.*redis_data" | wc -l)
             echo "📊 Volumes de dados antes da limpeza: $VOLUMES_BEFORE"
 
             docker container prune -f || true
             docker image prune -af || true
 
-            VOLUMES_AFTER=$(docker volume ls -q | grep -E "mercadoflow_backend_data|mercadoflow_redis_data" | wc -l)
+            VOLUMES_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*backend_data|mercadoflow.*redis_data" | wc -l)
             echo "📊 Volumes de dados após limpeza: $VOLUMES_AFTER"
 
             if [ "$VOLUMES_BEFORE" -ne "$VOLUMES_AFTER" ]; then
