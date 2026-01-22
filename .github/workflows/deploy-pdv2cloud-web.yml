@@ -105,6 +105,18 @@ jobs:
             docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep '^mercadoflow' | awk '{print $2}' | xargs -r docker rmi -f
 
             echo ""
+            echo "=== Removendo volumes antigos do SQLite (migracao para PostgreSQL) ==="
+            SQLITE_VOLUME=$(docker volume ls -q | grep -E "mercadoflow.*backend_data" || echo "")
+            if [ -n "$SQLITE_VOLUME" ]; then
+              echo "Detectado volume SQLite antigo: $SQLITE_VOLUME"
+              echo "Removendo para migrar para PostgreSQL..."
+              docker volume rm $SQLITE_VOLUME || true
+              echo "Volume SQLite removido com sucesso"
+            else
+              echo "Nenhum volume SQLite antigo encontrado"
+            fi
+
+            echo ""
             echo "=== Verificacao de integridade dos volumes ==="
             POSTGRES_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" || echo "")
             REDIS_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*redis_data" || echo "")
@@ -159,6 +171,21 @@ jobs:
             export BUILD_TIMESTAMP=$(date +%s)
             echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}"
 
+            echo ""
+            echo "=== Verificando se PostgreSQL precisa ser recriado ==="
+            POSTGRES_VOLUME_EXISTS=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" || echo "")
+            if [ -n "$POSTGRES_VOLUME_EXISTS" ]; then
+              echo "Volume PostgreSQL encontrado. Verificando se as credenciais mudaram..."
+              if docker run --rm -v ${POSTGRES_VOLUME_EXISTS}:/data alpine sh -c "test -f /data/postmaster.pid" 2>/dev/null; then
+                echo "PostgreSQL parece estar configurado. Removendo volume para recriar com novas credenciais..."
+                docker volume rm ${POSTGRES_VOLUME_EXISTS} || true
+                echo "Volume PostgreSQL removido. Sera recriado com as credenciais corretas."
+              fi
+            else
+              echo "Nenhum volume PostgreSQL existente. Primeiro deploy ou apos limpeza."
+            fi
+
+            echo ""
             echo "=== Validando estrutura do projeto antes do build ==="
             if [ ! -f "backend/pom.xml" ]; then
               echo "ERRO: backend/pom.xml nao encontrado!"
