@@ -8,6 +8,8 @@ import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "invoices", indexes = {
@@ -35,7 +37,8 @@ public class Invoice {
     private String serie;
     private String numero;
 
-    @Column(name = "data_emissao")
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "data_emissao", columnDefinition = "TEXT")
     private LocalDateTime dataEmissao;
 
     @Column(name = "cnpj_emitente")
@@ -50,7 +53,8 @@ public class Invoice {
     @Column(name = "raw_xml_hash")
     private String rawXmlHash;
 
-    @Column(name = "processed_at")
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "processed_at", columnDefinition = "TEXT")
     private LocalDateTime processedAt;
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)

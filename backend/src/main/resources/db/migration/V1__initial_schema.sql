@@ -9,7 +9,7 @@ create table if not exists markets (
     owner_id text,
     plan_type text,
     is_active boolean,
-    created_at timestamp
+    created_at text
 );
 
 create table if not exists users (
@@ -21,8 +21,8 @@ create table if not exists users (
     market_id text,
     industry_id varchar(36),
     is_active boolean,
-    created_at timestamp,
-    updated_at timestamp,
+    created_at text,
+    updated_at text,
     foreign key (market_id) references markets(id)
 );
 
@@ -31,7 +31,7 @@ create table if not exists pdvs (
     name text not null,
     serial_number text,
     market_id text,
-    created_at timestamp,
+    created_at text,
     foreign key (market_id) references markets(id)
 );
 
@@ -42,7 +42,7 @@ create table if not exists products (
     category text,
     brand text,
     unit text,
-    created_at timestamp
+    created_at text
 );
 
 create table if not exists invoices (
@@ -52,12 +52,12 @@ create table if not exists invoices (
     pdv_id text,
     serie text,
     numero text,
-    data_emissao timestamp,
+    data_emissao text,
     cnpj_emitente text,
     cpf_cnpj_destinatario text,
     valor_total numeric,
     raw_xml_hash text,
-    processed_at timestamp,
+    processed_at text,
     foreign key (market_id) references markets(id),
     foreign key (pdv_id) references pdvs(id)
 );
@@ -85,7 +85,7 @@ create table if not exists sales_analytics (
     id varchar(36) primary key,
     market_id text,
     product_id text,
-    date date,
+    date text,
     quantity_sold numeric,
     revenue numeric,
     average_price numeric,
@@ -103,7 +103,7 @@ create table if not exists alerts (
     product_id text,
     priority text,
     is_read boolean,
-    created_at timestamp,
+    created_at text,
     foreign key (market_id) references markets(id),
     foreign key (product_id) references products(id)
 );
@@ -113,9 +113,9 @@ create table if not exists campaigns (
     name text,
     description text,
     market_id text,
-    start_date timestamp,
-    end_date timestamp,
-    created_at timestamp,
+    start_date text,
+    end_date text,
+    created_at text,
     foreign key (market_id) references markets(id)
 );
 
