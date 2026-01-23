@@ -13,6 +13,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const requestUrl: string = error.config?.url ?? '';
+      if (requestUrl.includes('/v1/auth/me')) {
+        return Promise.reject(error);
+      }
       const publicPaths = ['/', '/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
