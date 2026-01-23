@@ -6,6 +6,7 @@ import Products from './pages/Products';
 import MarketBasket from './pages/MarketBasket';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
+import Landing from './pages/Landing';
 import { useAuth } from './context/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -23,8 +24,9 @@ const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/" element={<Landing />} />
       <Route
-        path="/"
+        path="/app"
         element={
           <ProtectedRoute>
             <Dashboard />

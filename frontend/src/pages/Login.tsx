@@ -15,7 +15,7 @@ const Login: React.FC = () => {
     setError(null);
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/app');
     } catch (err: any) {
       setError(err.message || 'Falha ao autenticar');
     }
