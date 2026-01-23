@@ -137,8 +137,8 @@ jobs:
             ls -la
 
             if [ ! -f ".jwt_secret" ]; then
-              echo "Gerando novo JWT Secret..."
-              openssl rand -hex 32 > .jwt_secret
+              echo "Gerando novo JWT Secret (512 bits para HS512)..."
+              openssl rand -hex 64 > .jwt_secret
             fi
             JWT_SECRET=$(cat .jwt_secret)
 
