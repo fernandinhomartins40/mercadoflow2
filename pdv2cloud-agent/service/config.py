@@ -20,18 +20,21 @@ def load_config() -> dict:
 
 def load_config_secure(secure_config) -> dict:
     config = load_config()
-    encrypted = config.get("api_token_encrypted")
-    plain = config.get("api_token")
+    if "api_key" not in config and "api_token" in config:
+        config["api_key"] = config.get("api_token", "")
+        config["api_key_encrypted"] = config.get("api_token_encrypted", "")
+    encrypted = config.get("api_key_encrypted") or config.get("api_token_encrypted")
+    plain = config.get("api_key") or config.get("api_token")
     if encrypted:
         try:
-            config["api_token"] = secure_config.decrypt(encrypted)
+            config["api_key"] = secure_config.decrypt(encrypted)
         except Exception:
             pass
     elif plain:
-        config["api_token_encrypted"] = secure_config.encrypt(plain)
-        config["api_token"] = ""
+        config["api_key_encrypted"] = secure_config.encrypt(plain)
+        config["api_key"] = ""
         save_config(config)
-        config["api_token"] = plain
+        config["api_key"] = plain
     return config
 
 

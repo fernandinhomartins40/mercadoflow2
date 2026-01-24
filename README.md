@@ -34,9 +34,10 @@ Swagger: `http://localhost:8080/swagger-ui/index.html`
 
 ## Agente Windows
 1. Copie `pdv2cloud-agent/config/config.json.template` para `C:/ProgramData/PDV2Cloud/config.json`
-2. Ajuste `api_url`, `api_token`, `market_id` e `hmac_secret` (mesmo valor do backend)
-3. Baixe os XSDs: `pdv2cloud-agent/scripts/download_xsd.ps1`
-4. Rode o servico: `python pdv2cloud-agent/service/windows_service.py install`
+2. Ajuste `api_url` e `api_key` (gerada no painel web em Configuracoes)
+3. Execute "Testar conexao" na UI do agente para preencher o `market_id` automaticamente
+4. Baixe os XSDs: `pdv2cloud-agent/scripts/download_xsd.ps1`
+5. Rode o servico: `python pdv2cloud-agent/service/windows_service.py install`
 
 ## Documentos
 - Arquitetura: `docs/architecture.md`

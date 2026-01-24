@@ -7,20 +7,33 @@ import requests
 
 
 class APITransmitter:
-    def __init__(self, base_url: str, api_token: str, market_id: str, hmac_secret: str):
+    def __init__(self, base_url: str, api_key: str, market_id: str, hmac_secret: str):
         self.base_url = base_url.rstrip("/")
-        self.api_token = api_token
+        self.api_key = api_key
         self.market_id = market_id
         self.hmac_secret = hmac_secret
+
+    def get_agent_profile(self) -> Dict:
+        headers = {
+            "X-API-Key": self.api_key,
+        }
+        response = requests.get(
+            f"{self.base_url}/api/v1/agent/me",
+            headers=headers,
+            timeout=20,
+        )
+        response.raise_for_status()
+        return response.json()
 
     def send_invoice(self, payload: Dict) -> bool:
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_token}",
+            "X-API-Key": self.api_key,
             "X-Agent-Version": "1.0.0",
-            "X-Market-ID": self.market_id,
             "X-Signature": self._generate_signature(payload),
         }
+        if self.market_id:
+            headers["X-Market-ID"] = self.market_id
 
         for attempt in range(5):
             try:

@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.pdv2cloud.security.AgentApiKeyAuthenticationFilter;
 import com.pdv2cloud.security.JwtAuthenticationFilter;
 
 @Configuration
@@ -27,6 +28,9 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthFilter;
+
+    @Autowired
+    private AgentApiKeyAuthenticationFilter apiKeyAuthFilter;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -41,12 +45,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                 .requestMatchers("/actuator/health", "/health", "/api/v1/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/v1/agent/me").hasRole("AGENT")
                 .requestMatchers("/api/v1/ingest/**").authenticated()
                 .requestMatchers("/api/v1/markets/**").hasAnyRole("MARKET_OWNER", "MARKET_MANAGER", "ADMIN")
                 .requestMatchers("/api/v1/industries/**").hasAnyRole("INDUSTRY_USER", "ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

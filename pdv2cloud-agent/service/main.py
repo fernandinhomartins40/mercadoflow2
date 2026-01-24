@@ -8,7 +8,7 @@ import threading
 import schedule
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from .config import load_config_secure
+from .config import load_config_secure, save_config
 from .crypto import SecureConfig
 from .queue_manager import QueueManager
 from .watcher import FileWatcher
@@ -57,6 +57,10 @@ class ServiceApp:
     def __init__(self):
         self.secure_config = SecureConfig()
         self.config = load_config_secure(self.secure_config)
+        api_key = self.config.get("api_key", "")
+        if not api_key:
+            logger.error("API key nao configurada")
+        self._hydrate_agent_config()
         self.queue_manager = QueueManager()
         self.file_watcher = FileWatcher(
             self.config["watch_paths"],
@@ -65,9 +69,9 @@ class ServiceApp:
         )
         self.transmitter = APITransmitter(
             self.config["api_url"],
-            self.config["api_token"],
-            self.config["market_id"],
-            self.config.get("hmac_secret", "dev-hmac"),
+            self.config.get("api_key", ""),
+            self.config.get("market_id", ""),
+            self.config.get("hmac_secret") or self.config.get("api_key", "dev-hmac"),
         )
         self.stop_event = threading.Event()
         self.online = False
@@ -119,6 +123,28 @@ class ServiceApp:
         port = int(self.config.get("healthcheck_port", 8765))
         server = HTTPServer(("localhost", port), HealthHandler)
         server.serve_forever()
+
+    def _hydrate_agent_config(self):
+        if self.config.get("market_id"):
+            return
+        api_key = self.config.get("api_key")
+        api_url = self.config.get("api_url")
+        if not api_key or not api_url:
+            return
+        try:
+            transmitter = APITransmitter(
+                api_url,
+                api_key,
+                self.config.get("market_id", ""),
+                self.config.get("hmac_secret") or api_key,
+            )
+            profile = transmitter.get_agent_profile()
+            market_id = profile.get("marketId")
+            if market_id:
+                self.config["market_id"] = market_id
+                save_config(self.config)
+        except Exception as exc:
+            logger.warning("Nao foi possivel resolver o mercado via API: %s", exc)
 
 
 if __name__ == "__main__":

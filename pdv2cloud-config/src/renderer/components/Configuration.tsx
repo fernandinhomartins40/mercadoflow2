@@ -3,9 +3,8 @@ import { AgentConfig } from '../../shared/types';
 
 const defaultConfig: AgentConfig = {
   api_url: '',
-  api_token: '',
+  api_key: '',
   market_id: '',
-  hmac_secret: '',
   watch_paths: [],
   poll_interval_seconds: 10,
   retry_interval_minutes: 5,
@@ -35,10 +34,16 @@ const Configuration: React.FC = () => {
   const testConnection = async () => {
     setTestMessage('Testando...');
     try {
-      const response = await fetch(`${config.api_url}/actuator/health`);
+      const response = await fetch(`${config.api_url}/api/v1/agent/me`, {
+        headers: config.api_key ? { 'X-API-Key': config.api_key } : undefined,
+      });
       if (!response.ok) {
         setTestMessage(`Falha (${response.status})`);
         return;
+      }
+      const data = await response.json();
+      if (data?.marketId) {
+        setConfig({ ...config, market_id: data.marketId });
       }
       setTestMessage('Conexao OK');
     } catch (err: any) {
@@ -65,29 +70,22 @@ const Configuration: React.FC = () => {
           <input value={config.api_url} onChange={(e) => setConfig({ ...config, api_url: e.target.value })} />
         </div>
         <div>
-          <label>Token</label>
+          <label>API Key</label>
           <input
-            value={config.api_token}
-            placeholder="Token salvo"
+            value={config.api_key}
+            placeholder="API Key salva"
             onChange={(e) =>
               setConfig({
                 ...config,
-                api_token: e.target.value,
-                api_token_encrypted: e.target.value ? '' : config.api_token_encrypted,
+                api_key: e.target.value,
+                api_key_encrypted: e.target.value ? '' : config.api_key_encrypted,
               })
             }
           />
         </div>
         <div>
-          <label>ID do supermercado</label>
-          <input value={config.market_id} onChange={(e) => setConfig({ ...config, market_id: e.target.value })} />
-        </div>
-        <div>
-          <label>HMAC Secret</label>
-          <input
-            value={config.hmac_secret || ''}
-            onChange={(e) => setConfig({ ...config, hmac_secret: e.target.value })}
-          />
+          <label>ID do supermercado (auto)</label>
+          <input value={config.market_id} readOnly />
         </div>
         <div>
           <label>Intervalo (segundos)</label>

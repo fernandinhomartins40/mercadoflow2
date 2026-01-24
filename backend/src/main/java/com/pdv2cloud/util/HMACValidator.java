@@ -23,13 +23,17 @@ public class HMACValidator {
     }
 
     public void validateSignature(Object payload, String signature, UUID marketId) {
+        validateSignature(payload, signature, hmacSecret, marketId);
+    }
+
+    public void validateSignature(Object payload, String signature, String secret, UUID marketId) {
         try {
             ObjectMapper mapper = objectMapper.copy()
                 .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
                 .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
             byte[] payloadBytes = mapper.writeValueAsBytes(payload);
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(hmacSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] digest = mac.doFinal(payloadBytes);
             String expected = bytesToHex(digest);
 

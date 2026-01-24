@@ -1,9 +1,8 @@
 {
   "api_url": "https://api.pdv2cloud.com",
-  "api_token": "",
-  "api_token_encrypted": "",
+  "api_key": "",
+  "api_key_encrypted": "",
   "market_id": "",
-  "hmac_secret": "dev-hmac",
   "watch_paths": [
     "C:/PDV/XMLs"
   ],

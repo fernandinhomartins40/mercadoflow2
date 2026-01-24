@@ -14,6 +14,12 @@ export const registerIpcHandlers = () => {
 
   ipcMain.handle('config:load', async () => {
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    if (!config.api_key && config.api_token) {
+      config.api_key = config.api_token;
+    }
+    if (config.api_key_encrypted && !config.api_key) {
+      config.api_key = '';
+    }
     if (config.api_token_encrypted && !config.api_token) {
       config.api_token = '';
     }
