@@ -17,6 +17,8 @@ const Configuration: React.FC = () => {
   const [newPath, setNewPath] = useState('');
   const [message, setMessage] = useState('');
   const [testMessage, setTestMessage] = useState('');
+  const [marketName, setMarketName] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +46,7 @@ const Configuration: React.FC = () => {
       const data = await response.json();
       if (data?.marketId) {
         setConfig({ ...config, market_id: data.marketId });
+        setMarketName(data.marketName || '');
       }
       setTestMessage('Conexao OK');
     } catch (err: any) {
@@ -64,6 +67,9 @@ const Configuration: React.FC = () => {
   return (
     <div className="card">
       <h3>Configuracao</h3>
+      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+        Cole a API Key gerada no painel web para conectar automaticamente ao mercado.
+      </p>
       <div className="grid">
         <div>
           <label>URL da API</label>
@@ -73,7 +79,7 @@ const Configuration: React.FC = () => {
           <label>API Key</label>
           <input
             value={config.api_key}
-            placeholder="API Key salva"
+            placeholder="Ex: pdv2_********"
             onChange={(e) =>
               setConfig({
                 ...config,
@@ -81,18 +87,6 @@ const Configuration: React.FC = () => {
                 api_key_encrypted: e.target.value ? '' : config.api_key_encrypted,
               })
             }
-          />
-        </div>
-        <div>
-          <label>ID do supermercado (auto)</label>
-          <input value={config.market_id} readOnly />
-        </div>
-        <div>
-          <label>Intervalo (segundos)</label>
-          <input
-            type="number"
-            value={config.poll_interval_seconds}
-            onChange={(e) => setConfig({ ...config, poll_interval_seconds: Number(e.target.value) })}
           />
         </div>
       </div>
@@ -119,6 +113,30 @@ const Configuration: React.FC = () => {
         {message && <span style={{ marginLeft: 12, color: 'var(--muted)' }}>{message}</span>}
         {testMessage && <span style={{ marginLeft: 12, color: 'var(--muted)' }}>{testMessage}</span>}
       </div>
+
+      <div style={{ marginTop: 16 }}>
+        <button onClick={() => setShowAdvanced(!showAdvanced)}>
+          {showAdvanced ? 'Ocultar avancado' : 'Mostrar avancado'}
+        </button>
+      </div>
+
+      {showAdvanced && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 8 }}>
+            <label>ID do supermercado (auto)</label>
+            <input value={config.market_id} readOnly />
+            {marketName && <div style={{ color: 'var(--muted)' }}>Mercado: {marketName}</div>}
+          </div>
+          <div>
+            <label>Intervalo (segundos)</label>
+            <input
+              type="number"
+              value={config.poll_interval_seconds}
+              onChange={(e) => setConfig({ ...config, poll_interval_seconds: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
