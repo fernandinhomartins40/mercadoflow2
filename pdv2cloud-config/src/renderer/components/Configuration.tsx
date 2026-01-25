@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AgentConfig } from '../../shared/types';
 
 const defaultConfig: AgentConfig = {
-  api_url: '',
+  api_url: 'https://mercadoflow.com',
   api_key: '',
   market_id: '',
   watch_paths: [],

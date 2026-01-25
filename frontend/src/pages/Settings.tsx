@@ -1,31 +1,60 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const Settings: React.FC = () => {
-  const { marketId } = useAuth();
+  const { marketId, role } = useAuth();
   const [keys, setKeys] = useState<Array<{ id: string; name: string; keyPrefix: string; createdAt: string }>>([]);
   const [name, setName] = useState('');
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [manualMarketId, setManualMarketId] = useState('');
+  const [markets, setMarkets] = useState<Array<{ id: string; name: string }>>([]);
+  const [listError, setListError] = useState<string | null>(null);
+  const apiBaseUrl = useMemo(() => window.location.origin, []);
 
   const loadKeys = async () => {
-    if (!marketId) return;
-    const response = await api.get('/v1/agent-keys', { params: { marketId } });
-    setKeys(response.data || []);
+    const resolvedMarketId = marketId || manualMarketId;
+    if (!resolvedMarketId) {
+      setKeys([]);
+      return;
+    }
+    try {
+      const response = await api.get('/v1/agent-keys', { params: { marketId: resolvedMarketId } });
+      setKeys(response.data || []);
+      setListError(null);
+    } catch (err: any) {
+      setListError(err?.message || 'Falha ao carregar chaves');
+    }
   };
 
   useEffect(() => {
     loadKeys();
-  }, [marketId]);
+  }, [marketId, manualMarketId]);
+
+  useEffect(() => {
+    const loadMarkets = async () => {
+      if (role !== 'ADMIN' || marketId) {
+        return;
+      }
+      try {
+        const response = await api.get('/v1/markets');
+        setMarkets(response.data || []);
+      } catch {
+        setMarkets([]);
+      }
+    };
+    loadMarkets();
+  }, [role, marketId]);
 
   const createKey = async () => {
-    if (!marketId || !name.trim()) {
-      setMessage('Informe um nome para a chave');
+    const resolvedMarketId = marketId || manualMarketId;
+    if (!resolvedMarketId || !name.trim()) {
+      setMessage('Informe um nome e o ID do supermercado');
       return;
     }
-    const response = await api.post('/v1/agent-keys', { marketId, name });
+    const response = await api.post('/v1/agent-keys', { marketId: resolvedMarketId, name });
     setGeneratedKey(response.data.apiKey);
     setName('');
     setMessage('Chave criada com sucesso');
@@ -42,8 +71,30 @@ const Settings: React.FC = () => {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>API Key do Coletor</h3>
         <p>Gere uma chave unica para conectar o PDV2Cloud Agent sem preencher varios campos.</p>
+        <div className="card" style={{ background: 'rgba(15, 28, 36, 0.7)', marginBottom: 16 }}>
+          <strong>URL da API:</strong>
+          <div style={{ marginTop: 6 }}>{apiBaseUrl}</div>
+          <span style={{ color: 'var(--muted)' }}>
+            Use esta URL no desktop junto com a API Key.
+          </span>
+        </div>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+          {role === 'ADMIN' && !marketId && (
+            <select
+              className="input"
+              value={manualMarketId}
+              onChange={(e) => setManualMarketId(e.target.value)}
+              style={{ maxWidth: 260 }}
+            >
+              <option value="">Selecione o supermercado</option>
+              {markets.map((market) => (
+                <option key={market.id} value={market.id}>
+                  {market.name}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             className="input"
             placeholder="Ex: Loja Centro"
@@ -76,7 +127,7 @@ const Settings: React.FC = () => {
             {keys.length === 0 ? (
               <tr>
                 <td colSpan={3} style={{ color: 'var(--muted)' }}>
-                  Nenhuma chave ativa encontrada.
+                  {listError || 'Nenhuma chave ativa encontrada.'}
                 </td>
               </tr>
             ) : (

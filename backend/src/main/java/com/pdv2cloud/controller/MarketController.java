@@ -2,16 +2,19 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.dto.MarketDashboardDTO;
+import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
 import com.pdv2cloud.model.dto.TopSellerDTO;
 import com.pdv2cloud.model.dto.AlertDTO;
 import com.pdv2cloud.model.entity.AlertPriority;
 import com.pdv2cloud.model.entity.AlertType;
+import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.service.AlertService;
 import com.pdv2cloud.service.AnalyticsService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +34,18 @@ public class MarketController {
 
     @Autowired
     private AlertService alertService;
+
+    @Autowired
+    private MarketRepository marketRepository;
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<MarketSummaryDTO>> listMarkets() {
+        List<MarketSummaryDTO> markets = marketRepository.findAllActive().stream()
+            .map(market -> new MarketSummaryDTO(market.getId(), market.getName()))
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(markets);
+    }
 
     @GetMapping("/{id}/dashboard")
     public ResponseEntity<MarketDashboardDTO> getDashboard(
