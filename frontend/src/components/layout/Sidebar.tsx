@@ -13,6 +13,7 @@ const Sidebar: React.FC = () => {
         <NavLink className="nav-link" to="/produtos">Produtos</NavLink>
         <NavLink className="nav-link" to="/cesta">Market Basket</NavLink>
         <NavLink className="nav-link" to="/alertas">Alertas</NavLink>
+        <NavLink className="nav-link" to="/download-agente">Download Agente</NavLink>
         <NavLink className="nav-link" to="/configuracoes">Configuracoes</NavLink>
       </nav>
     </aside>

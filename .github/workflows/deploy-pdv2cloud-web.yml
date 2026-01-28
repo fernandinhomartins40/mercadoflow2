@@ -389,6 +389,14 @@ jobs:
             netstat -tulpn | grep ":443 " || echo "WARN Nginx nao encontrado na porta 443"
             netstat -tulpn | grep ":3300 " || echo "WARN App nao encontrado na porta 3300"
 
+            echo "=== Preparando instalador do agente desktop ==="
+            if [ -f "${APP_DIR}/pdv2cloud-agent/scripts/build-installer-vps.sh" ]; then
+              chmod +x "${APP_DIR}/pdv2cloud-agent/scripts/build-installer-vps.sh"
+              bash "${APP_DIR}/pdv2cloud-agent/scripts/build-installer-vps.sh" || echo "WARN Instalador do agente nao disponivel ainda"
+            else
+              echo "INFO Script de build do instalador nao encontrado, pulando"
+            fi
+
             echo "=== Verificando health check ==="
             for i in {1..20}; do
               if curl -f http://localhost:3300/health 2>/dev/null; then

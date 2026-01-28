@@ -7,6 +7,7 @@ declare global {
       stopService: () => Promise<any>;
       restartService: () => Promise<any>;
       serviceStatus: () => Promise<any>;
+      installService: () => Promise<any>;
       loadConfig: () => Promise<any>;
       saveConfig: (config: any) => Promise<any>;
       readLogs: () => Promise<any>;

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('pdv2cloud', {
   stopService: () => ipcRenderer.invoke('service:stop'),
   restartService: () => ipcRenderer.invoke('service:restart'),
   serviceStatus: () => ipcRenderer.invoke('service:status'),
+  installService: () => ipcRenderer.invoke('service:install'),
   loadConfig: () => ipcRenderer.invoke('config:load'),
   saveConfig: (config) => ipcRenderer.invoke('config:save', config),
   readLogs: () => ipcRenderer.invoke('logs:read'),

@@ -7,6 +7,7 @@ import MarketBasket from './pages/MarketBasket';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
+import AgentDownload from './pages/AgentDownload';
 import { useAuth } from './context/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -62,6 +63,14 @@ const App: React.FC = () => {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/download-agente"
+        element={
+          <ProtectedRoute>
+            <AgentDownload />
           </ProtectedRoute>
         }
       />

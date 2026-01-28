@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  serviceInstalled: boolean;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [status, setStatus] = useState<string>('carregando');
   const [configOk, setConfigOk] = useState(false);
+  const [configPath, setConfigPath] = useState<string>('');
   const [queue, setQueue] = useState<any>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
@@ -14,14 +19,21 @@ const Dashboard: React.FC = () => {
         const service = await (window as any).pdv2cloud.serviceStatus();
         setStatus(String(service));
       } catch (err) {
-        setStatus('stopped');
+        const errorMsg = String(err);
+        if (errorMsg.includes('SERVICE_NOT_INSTALLED')) {
+          setStatus('not_installed');
+        } else {
+          setStatus('stopped');
+        }
       }
 
       try {
         await (window as any).pdv2cloud.loadConfig();
         setConfigOk(true);
-      } catch {
+        setConfigPath('C:\\ProgramData\\PDV2Cloud\\config.json');
+      } catch (err) {
         setConfigOk(false);
+        setConfigPath('');
       }
 
       try {
@@ -45,9 +57,28 @@ const Dashboard: React.FC = () => {
   return (
     <div className="card">
       <h3>Status</h3>
-      <p>Servico: <span className="badge">{status.includes('RUNNING') ? 'Running' : 'Stopped'}</span></p>
-      <p>Conectividade API: {online === null ? 'Desconhecida' : online ? 'Online' : 'Offline'}</p>
-      <p>Configuracao: {configOk ? 'OK' : 'Nao carregada'}</p>
+      {!serviceInstalled && (
+        <div className="alert alert-error" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fee', border: '1px solid #fcc', borderRadius: '4px' }}>
+          <strong>⚠️ Servico nao instalado</strong>
+          <p>O servico PDV2CloudAgent nao esta registrado no Windows.</p>
+          <p>Execute como Administrador:</p>
+          <code style={{ display: 'block', marginTop: '5px', padding: '5px', backgroundColor: '#f5f5f5' }}>
+            "C:\Program Files\PDV2Cloud\python\python.exe" "C:\Program Files\PDV2Cloud\service\installer\service_installer.py" install
+          </code>
+        </div>
+      )}
+      <p>Servico: <span className="badge">{
+        status === 'not_installed' ? '❌ Nao instalado' :
+        status.includes('RUNNING') ? '✅ Running' :
+        status === 'carregando' ? '⏳ Carregando...' :
+        '⏹️ Stopped'
+      }</span></p>
+      <p>Conectividade API: {online === null ? 'Desconhecida' : online ? '✅ Online' : '❌ Offline'}</p>
+      <p>Configuracao: {
+        configOk ?
+          <span>✅ OK <small style={{ color: '#666' }}>({configPath})</small></span> :
+          <span>❌ Nao encontrada <small style={{ color: '#666' }}>(C:\ProgramData\PDV2Cloud\config.json)</small></span>
+      }</p>
       {queue && (
         <div>
           <p>Fila: {queue.pending} pendentes, {queue.error} erros, {queue.dead_letter} dead letter</p>

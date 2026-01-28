@@ -1,6 +1,6 @@
 import { ipcMain, dialog } from 'electron';
 import fs from 'fs';
-import { startService, stopService, restartService, serviceStatus } from './service-manager';
+import { startService, stopService, restartService, serviceStatus, installService } from './service-manager';
 
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
 const LOG_PATH = 'C:/ProgramData/PDV2Cloud/logs/agent.log';
@@ -11,6 +11,7 @@ export const registerIpcHandlers = () => {
   ipcMain.handle('service:stop', async () => stopService());
   ipcMain.handle('service:restart', async () => restartService());
   ipcMain.handle('service:status', async () => serviceStatus());
+  ipcMain.handle('service:install', async () => installService());
 
   ipcMain.handle('config:load', async () => {
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));

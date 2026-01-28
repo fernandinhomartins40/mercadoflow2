@@ -8,3 +8,5 @@ frontend/node_modules/
 backend/.mvn/
 .env
 *.log
+pdv2cloud-agent/installer/Output/*.exe
+pdv2cloud-agent/installer/Output/*.sha256

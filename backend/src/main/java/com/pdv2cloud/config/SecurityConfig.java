@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                 .requestMatchers("/actuator/health", "/health", "/api/v1/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/v1/downloads/**").permitAll()
                 .requestMatchers("/api/v1/agent/me").hasRole("AGENT")
                 .requestMatchers("/api/v1/ingest/**").authenticated()
                 .requestMatchers("/api/v1/markets/**").hasAnyRole("MARKET_OWNER", "MARKET_MANAGER", "ADMIN")
