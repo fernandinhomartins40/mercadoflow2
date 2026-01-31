@@ -11,7 +11,7 @@ export const useMarketData = () => {
   useEffect(() => {
     const load = async () => {
       if (!marketId) {
-        setError('Market ID nao encontrado');
+        setError('ID do mercado não encontrado');
         setLoading(false);
         return;
       }

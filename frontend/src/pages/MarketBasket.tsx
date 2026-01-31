@@ -19,14 +19,14 @@ const MarketBasket: React.FC = () => {
   return (
     <Layout>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Market Basket</h3>
+        <h3 style={{ marginTop: 0 }}>Cesta de mercado</h3>
         <table className="table">
           <thead>
             <tr>
               <th>Antecedente</th>
               <th>Consequente</th>
               <th>Suporte</th>
-              <th>Confianca</th>
+              <th>Confiança</th>
               <th>Lift</th>
             </tr>
           </thead>

@@ -18,16 +18,16 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="metrics-grid">
-        <MetricsCard title="Vendas Hoje" value={`R$ ${Number(dashboard.todayRevenue || 0).toFixed(2)}`} icon="??" />
-        <MetricsCard title="Vendas do Mes" value={`R$ ${Number(dashboard.totalRevenue || 0).toFixed(2)}`} change={dashboard.growthPercentage} icon="??" />
-        <MetricsCard title="Alertas Pendentes" value={dashboard.unreadAlerts || 0} icon="??" variant="warning" />
-        <MetricsCard title="Produtos Ativos" value={dashboard.activeProducts || 0} icon="??" />
+        <MetricsCard title="Vendas de hoje" value={`R$ ${Number(dashboard.todayRevenue || 0).toFixed(2)}`} />
+        <MetricsCard title="Vendas do mês" value={`R$ ${Number(dashboard.totalRevenue || 0).toFixed(2)}`} change={dashboard.growthPercentage} />
+        <MetricsCard title="Alertas pendentes" value={dashboard.unreadAlerts || 0} variant="warning" />
+        <MetricsCard title="Produtos ativos" value={dashboard.activeProducts || 0} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginTop: 20 }}>
         <SalesChart data={(dashboard.salesTrend || []).map((p: any) => ({ date: p.date, revenue: Number(p.revenue) }))} />
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>Top Produtos</h3>
+          <h3 style={{ marginTop: 0 }}>Produtos com maior receita</h3>
           <ul>
             {(dashboard.topSellers || []).map((item: any) => (
               <li key={item.productId} style={{ marginBottom: 8 }}>

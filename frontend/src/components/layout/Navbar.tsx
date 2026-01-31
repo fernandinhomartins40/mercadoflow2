@@ -7,8 +7,8 @@ const Navbar: React.FC = () => {
   return (
     <div className="header">
       <div>
-        <h2 style={{ margin: 0 }}>Visao Geral</h2>
-        <span style={{ color: 'var(--muted)' }}>Role: {role || 'N/A'}</span>
+        <h2 style={{ margin: 0 }}>Visão geral</h2>
+        <span style={{ color: 'var(--muted)' }}>Perfil: {role || 'Não informado'}</span>
       </div>
       <button className="button secondary" onClick={logout}>Sair</button>
     </div>

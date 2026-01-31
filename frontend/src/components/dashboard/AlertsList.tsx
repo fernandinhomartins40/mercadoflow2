@@ -14,7 +14,7 @@ const AlertsList: React.FC<{ alerts: any[] }> = ({ alerts }) => {
             </div>
           ))
         ) : (
-          <span style={{ color: 'var(--muted)' }}>Sem alertas</span>
+          <span style={{ color: 'var(--muted)' }}>Sem alertas no momento</span>
         )}
       </div>
     </Card>

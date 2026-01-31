@@ -27,7 +27,7 @@ const Login: React.FC = () => {
         <h2>Entrar</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email</label>
+            <label>E-mail</label>
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="form-group">

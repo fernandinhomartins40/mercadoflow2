@@ -16,7 +16,7 @@ const Alerts: React.FC = () => {
             <thead>
               <tr>
                 <th>Tipo</th>
-                <th>Titulo</th>
+                <th>Título</th>
                 <th>Mensagem</th>
                 <th>Prioridade</th>
               </tr>

@@ -5,16 +5,16 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar">
       <div>
-        <h1>PDV2Cloud</h1>
-        <p style={{ color: 'var(--muted)' }}>Inteligencia de vendas</p>
+        <h1>MercadoFlow</h1>
+        <p style={{ color: 'var(--muted)' }}>Inteligência de vendas</p>
       </div>
       <nav>
-        <NavLink className="nav-link" to="/">Dashboard</NavLink>
+        <NavLink className="nav-link" to="/app">Painel</NavLink>
         <NavLink className="nav-link" to="/produtos">Produtos</NavLink>
-        <NavLink className="nav-link" to="/cesta">Market Basket</NavLink>
+        <NavLink className="nav-link" to="/cesta">Cesta de mercado</NavLink>
         <NavLink className="nav-link" to="/alertas">Alertas</NavLink>
-        <NavLink className="nav-link" to="/download-agente">Download Agente</NavLink>
-        <NavLink className="nav-link" to="/configuracoes">Configuracoes</NavLink>
+        <NavLink className="nav-link" to="/download-agente">Download do agente</NavLink>
+        <NavLink className="nav-link" to="/configuracoes">Configurações</NavLink>
       </nav>
     </aside>
   );

@@ -64,18 +64,18 @@ const Settings: React.FC = () => {
   return (
     <Layout>
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0 }}>Configuracoes</h3>
-        <p>Controle de conta, preferencia e integracoes.</p>
+        <h3 style={{ marginTop: 0 }}>Configurações</h3>
+        <p>Controle de conta, preferências e integrações.</p>
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>API Key do Coletor</h3>
-        <p>Gere uma chave unica para conectar o PDV2Cloud Agent sem preencher varios campos.</p>
-        <div className="card" style={{ background: 'rgba(15, 28, 36, 0.7)', marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Chave da API do coletor</h3>
+        <p>Gere uma chave única para conectar o agente sem preencher vários campos.</p>
+        <div className="card soft" style={{ marginBottom: 16 }}>
           <strong>URL da API:</strong>
           <div style={{ marginTop: 6 }}>{apiBaseUrl}</div>
           <span style={{ color: 'var(--muted)' }}>
-            Use esta URL no desktop junto com a API Key.
+            Use esta URL no desktop junto com a chave da API.
           </span>
         </div>
 
@@ -103,14 +103,14 @@ const Settings: React.FC = () => {
             style={{ maxWidth: 280 }}
           />
           <button className="button" onClick={createKey}>
-            Gerar API Key
+            Gerar chave da API
           </button>
           {message && <span style={{ color: 'var(--muted)' }}>{message}</span>}
         </div>
 
         {generatedKey && (
-          <div className="card" style={{ background: 'rgba(15, 28, 36, 0.8)', marginBottom: 16 }}>
-            <strong>Copie esta chave agora (nao sera exibida novamente):</strong>
+          <div className="card soft" style={{ marginBottom: 16 }}>
+            <strong>Copie esta chave agora (não será exibida novamente):</strong>
             <div style={{ marginTop: 8, wordBreak: 'break-all' }}>{generatedKey}</div>
           </div>
         )}
