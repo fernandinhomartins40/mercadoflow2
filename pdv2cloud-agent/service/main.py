@@ -71,7 +71,7 @@ class ServiceApp:
             self.config["api_url"],
             self.config.get("api_key", ""),
             self.config.get("market_id", ""),
-            self.config.get("hmac_secret") or self.config.get("api_key", "dev-hmac"),
+            self.config.get("api_key", "dev-hmac"),
         )
         self.stop_event = threading.Event()
         self.online = False
@@ -79,9 +79,27 @@ class ServiceApp:
 
     def start(self):
         logger.info("Starting PDV2Cloud service")
+        try:
+            recovered = self.queue_manager.reset_stuck_processing(max_age_minutes=60)
+            if recovered:
+                logger.info("Recovered %s stuck items back to PENDING", recovered)
+            deleted = self.queue_manager.cleanup_sent(max_age_days=30)
+            if deleted:
+                logger.info("Cleaned up %s SENT items older than retention window", deleted)
+        except Exception as exc:
+            logger.warning("Queue maintenance failed: %s", exc)
+
         self.file_watcher.start()
+        try:
+            scanned = self.file_watcher.scan_existing()
+            if scanned:
+                logger.info("Initial scan enqueued %s existing files", scanned)
+        except Exception as exc:
+            logger.warning("Initial scan failed: %s", exc)
+
         threading.Thread(target=self.file_watcher.loop, args=(self.stop_event,), daemon=True).start()
         schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
+        schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
         schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed))
         update_status(self.queue_manager, self.online, self.last_processed)
 
@@ -136,7 +154,7 @@ class ServiceApp:
                 api_url,
                 api_key,
                 self.config.get("market_id", ""),
-                self.config.get("hmac_secret") or api_key,
+                api_key,
             )
             profile = transmitter.get_agent_profile()
             market_id = profile.get("marketId")

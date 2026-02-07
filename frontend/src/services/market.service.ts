@@ -8,17 +8,33 @@ export const marketService = {
     return response.data;
   },
 
-  async getProducts(marketId: string, page = 0, size = 20, category?: string) {
+  async getProducts(marketId: string, page = 0, size = 20, category?: string, sortBy?: string) {
     const response = await api.get(`/v1/markets/${marketId}/products`, {
-      params: { page, size, category },
+      params: { page, size, category, sortBy },
     });
     return response.data;
   },
 
-  async getAlerts(marketId: string, onlyUnread = false) {
+  async getAlerts(
+    marketId: string,
+    options?: { onlyUnread?: boolean; type?: string; priority?: string }
+  ) {
     const response = await api.get(`/v1/markets/${marketId}/alerts`, {
-      params: { onlyUnread },
+      params: {
+        onlyUnread: options?.onlyUnread ?? false,
+        type: options?.type,
+        priority: options?.priority,
+      },
     });
+    return response.data;
+  },
+
+  async markAlertRead(marketId: string, alertId: string) {
+    await api.post(`/v1/markets/${marketId}/alerts/${alertId}/read`);
+  },
+
+  async markAllAlertsRead(marketId: string) {
+    const response = await api.post(`/v1/markets/${marketId}/alerts/read-all`);
     return response.data;
   },
 
@@ -33,6 +49,39 @@ export const marketService = {
     const response = await api.get(`/v1/markets/${marketId}/analytics/market-basket`, {
       params: { minSupport, minConfidence },
     });
+    return response.data;
+  },
+
+  async getCachedMarketBasket(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/analytics/market-basket/cached`);
+    return response.data;
+  },
+
+  async getDemandForecast(marketId: string, days = 7) {
+    const response = await api.get(`/v1/markets/${marketId}/analytics/demand-forecast`, { params: { days } });
+    return response.data;
+  },
+
+  async getPdvs(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/pdvs`);
+    return response.data;
+  },
+
+  async createPdv(marketId: string, payload: { name: string; serialNumber?: string }) {
+    const response = await api.post(`/v1/markets/${marketId}/pdvs`, payload);
+    return response.data;
+  },
+
+  async getCampaigns(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/campaigns`);
+    return response.data;
+  },
+
+  async createCampaign(
+    marketId: string,
+    payload: { name: string; description?: string; startDate?: string; endDate?: string }
+  ) {
+    const response = await api.post(`/v1/markets/${marketId}/campaigns`, payload);
     return response.data;
   },
 };

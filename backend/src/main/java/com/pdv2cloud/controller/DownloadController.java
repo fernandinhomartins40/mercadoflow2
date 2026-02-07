@@ -18,21 +18,33 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/v1/downloads")
 public class DownloadController {
 
-    private static final String INSTALLER_DIR = "/root/mercadoflow-web/pdv2cloud-agent/installer/Output";
     private static final String INSTALLER_FILENAME = "PDV2Cloud-Setup.exe";
     private static final String CHECKSUM_FILENAME = "PDV2Cloud-Setup.exe.sha256";
+    private static final String META_FILENAME = "PDV2Cloud-Setup.exe.meta.json";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.systemDefault());
+
+    private final ObjectMapper objectMapper;
+
+    @Value("${app.downloads.installer-dir:/opt/pdv2cloud/installer}")
+    private String installerDir;
+
+    public DownloadController(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @GetMapping("/agent-installer")
     public ResponseEntity<Resource> downloadAgentInstaller() {
         try {
-            Path installerPath = Paths.get(INSTALLER_DIR, INSTALLER_FILENAME);
+            Path installerPath = Paths.get(installerDir, INSTALLER_FILENAME);
 
             if (!Files.exists(installerPath)) {
                 return ResponseEntity.notFound().build();
@@ -65,8 +77,9 @@ public class DownloadController {
     @GetMapping("/agent-installer/info")
     public ResponseEntity<Map<String, Object>> getInstallerInfo() {
         try {
-            Path installerPath = Paths.get(INSTALLER_DIR, INSTALLER_FILENAME);
-            Path checksumPath = Paths.get(INSTALLER_DIR, CHECKSUM_FILENAME);
+            Path installerPath = Paths.get(installerDir, INSTALLER_FILENAME);
+            Path checksumPath = Paths.get(installerDir, CHECKSUM_FILENAME);
+            Path metaPath = Paths.get(installerDir, META_FILENAME);
 
             if (!Files.exists(installerPath)) {
                 return ResponseEntity.notFound().build();
@@ -92,6 +105,21 @@ public class DownloadController {
                 info.put("sha256", checksum);
             }
 
+            // Metadata (optional)
+            if (Files.exists(metaPath)) {
+                try {
+                    JsonNode meta = objectMapper.readTree(Files.readString(metaPath));
+                    if (meta.hasNonNull("version")) {
+                        info.put("version", meta.get("version").asText());
+                    }
+                    if (meta.hasNonNull("buildTimestamp")) {
+                        info.put("buildTimestamp", meta.get("buildTimestamp").asText());
+                    }
+                } catch (Exception ignored) {
+                    // Metadata is optional; ignore parsing errors to avoid breaking downloads.
+                }
+            }
+
             // Download URL
             info.put("downloadUrl", "/api/v1/downloads/agent-installer");
 
@@ -105,7 +133,8 @@ public class DownloadController {
     @GetMapping("/agent-installer/version")
     public ResponseEntity<Map<String, String>> getInstallerVersion() {
         try {
-            Path installerPath = Paths.get(INSTALLER_DIR, INSTALLER_FILENAME);
+            Path installerPath = Paths.get(installerDir, INSTALLER_FILENAME);
+            Path metaPath = Paths.get(installerDir, META_FILENAME);
 
             if (!Files.exists(installerPath)) {
                 Map<String, String> error = new HashMap<>();
@@ -114,7 +143,20 @@ public class DownloadController {
             }
 
             Map<String, String> version = new HashMap<>();
-            version.put("version", "1.0.0"); // TODO: Extract from installer or metadata file
+            String resolvedVersion = null;
+
+            if (Files.exists(metaPath)) {
+                try {
+                    JsonNode meta = objectMapper.readTree(Files.readString(metaPath));
+                    if (meta.hasNonNull("version")) {
+                        resolvedVersion = meta.get("version").asText();
+                    }
+                } catch (Exception ignored) {
+                    resolvedVersion = null;
+                }
+            }
+
+            version.put("version", resolvedVersion != null ? resolvedVersion : "unknown");
             version.put("status", "available");
 
             return ResponseEntity.ok(version);

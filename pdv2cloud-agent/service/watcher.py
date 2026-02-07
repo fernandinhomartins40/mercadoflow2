@@ -3,6 +3,7 @@ import time
 import threading
 import logging
 from pathlib import Path
+import shutil
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .parser import parse_xml, xml_hash
@@ -69,6 +70,19 @@ class FileWatcher:
             self.observer.schedule(self.handler, str(path), recursive=False)
         self.observer.start()
 
+    def scan_existing(self, limit: int = 5000):
+        processed = 0
+        for root in self.watch_paths:
+            if not root.exists():
+                continue
+            for path in sorted(root.iterdir()):
+                if processed >= limit:
+                    return processed
+                if path.is_file() and _is_valid_file(path):
+                    self._process_file(path)
+                    processed += 1
+        return processed
+
     def stop(self):
         self.observer.stop()
         self.observer.join()
@@ -81,9 +95,13 @@ class FileWatcher:
     def _process_file(self, path: Path):
         try:
             if path.suffix.lower() == ".zip":
-                from .zip_utils import process_zip
-                for xml in process_zip(path):
-                    self._enqueue_xml(xml)
+                from .zip_utils import extract_zip
+                extract_dir, xml_files = extract_zip(path)
+                try:
+                    for xml in xml_files:
+                        self._enqueue_xml(xml)
+                finally:
+                    shutil.rmtree(extract_dir, ignore_errors=True)
             else:
                 self._enqueue_xml(path)
         except Exception as exc:

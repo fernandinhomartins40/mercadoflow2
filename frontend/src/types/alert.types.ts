@@ -4,5 +4,7 @@ export interface AlertItem {
   title: string;
   message: string;
   priority: string;
+  isRead: boolean;
+  productId?: string | null;
   createdAt: string;
 }

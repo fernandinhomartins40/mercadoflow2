@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -113,6 +114,44 @@ class QueueManager:
             for item in items:
                 item.status = ProcessStatus.PENDING
             session.commit()
+        finally:
+            session.close()
+
+    def reset_stuck_processing(self, max_age_minutes: int = 60):
+        session = self.Session()
+        try:
+            cutoff = datetime.utcnow() - timedelta(minutes=max_age_minutes)
+            items = (
+                session.query(QueuedInvoice)
+                .filter(QueuedInvoice.status == ProcessStatus.PROCESSING)
+                .filter(QueuedInvoice.data_processamento != None)  # noqa: E711
+                .all()
+            )
+            changed = 0
+            for item in items:
+                if item.data_processamento and item.data_processamento < cutoff:
+                    item.status = ProcessStatus.PENDING
+                    changed += 1
+            if changed:
+                session.commit()
+            return changed
+        finally:
+            session.close()
+
+    def cleanup_sent(self, max_age_days: int = 30):
+        session = self.Session()
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=max_age_days)
+            deleted = (
+                session.query(QueuedInvoice)
+                .filter(QueuedInvoice.status == ProcessStatus.SENT)
+                .filter(QueuedInvoice.data_processamento != None)  # noqa: E711
+                .filter(QueuedInvoice.data_processamento < cutoff)
+                .delete(synchronize_session=False)
+            )
+            if deleted:
+                session.commit()
+            return deleted
         finally:
             session.close()
 

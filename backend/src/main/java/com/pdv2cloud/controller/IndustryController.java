@@ -1,7 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.repository.MarketRepository;
-import com.pdv2cloud.model.entity.Market;
+import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,10 @@ public class IndustryController {
     private MarketRepository marketRepository;
 
     @GetMapping("/markets")
-    public ResponseEntity<List<Market>> listMarkets() {
-        return ResponseEntity.ok(marketRepository.findAll());
+    public ResponseEntity<List<MarketSummaryDTO>> listMarkets() {
+        List<MarketSummaryDTO> markets = marketRepository.findAllActive().stream()
+            .map(m -> new MarketSummaryDTO(m.getId(), m.getName()))
+            .toList();
+        return ResponseEntity.ok(markets);
     }
 }

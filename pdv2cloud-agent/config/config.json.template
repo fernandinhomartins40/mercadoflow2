@@ -12,7 +12,6 @@
   ],
   "poll_interval_seconds": 10,
   "retry_interval_minutes": 5,
-  "xsd_paths": [],
   "healthcheck_enabled": true,
   "healthcheck_port": 8765
 }

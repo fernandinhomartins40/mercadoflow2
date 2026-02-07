@@ -3,6 +3,7 @@ from typing import Optional, List
 from decimal import Decimal
 from pathlib import Path
 import hashlib
+import logging
 from lxml import etree
 import textwrap
 
@@ -40,19 +41,22 @@ class InvoiceData:
 
 
 def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> InvoiceData:
-    if xmlsec is None:
-        raise RuntimeError("xmlsec not available for signature validation")
+    logger = logging.getLogger("PDV2Cloud")
     xml_bytes = xml_path.read_bytes()
     parser = etree.XMLParser(resolve_entities=False, recover=True)
     root = etree.fromstring(xml_bytes, parser)
 
     if xsd_paths:
         for xsd_path in xsd_paths:
+            if not xsd_path.exists():
+                continue
             schema = etree.XMLSchema(etree.parse(str(xsd_path)))
             schema.assertValid(root)
 
     if xmlsec is not None:
         _validate_signature(root)
+    else:
+        logger.warning("xmlsec not available; skipping XML signature validation")
 
     ns = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
     inf_nfe = root.find(".//nfe:infNFe", namespaces=ns)

@@ -6,6 +6,7 @@ set -e
 INSTALLER_DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
 INSTALLER_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe"
 CHECKSUM_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe.sha256"
+META_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe.meta.json"
 
 echo "========================================="
 echo "PDV2Cloud Installer Check"
@@ -38,9 +39,16 @@ if [ -f "$INSTALLER_FILE" ]; then
         echo "   SHA256: $(cat $CHECKSUM_FILE)"
     fi
 
+    # Optional metadata used by the /info and /version endpoints
+    if [ -f "$META_FILE" ]; then
+        echo "   Meta: $META_FILE"
+    else
+        echo "   Meta: (nao encontrado - opcional)"
+    fi
+
     echo ""
     echo "✅ Installer is ready for download"
-    echo "   API endpoint: https://mercadoflow.com/api/v1/downloads/agent-installer"
+    echo "   API endpoint: https://mercadoflow.com/api/v1/downloads/agent-installer (exige login)"
     echo "   Info endpoint: https://mercadoflow.com/api/v1/downloads/agent-installer/info"
 else
     echo "❌ Installer not found at: $INSTALLER_FILE"
@@ -53,6 +61,7 @@ else
     echo "2. Upload to VPS:"
     echo "   scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe root@72.60.10.112:$INSTALLER_DIR/"
     echo "   scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.sha256 root@72.60.10.112:$INSTALLER_DIR/"
+    echo "   scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.meta.json root@72.60.10.112:$INSTALLER_DIR/"
     echo ""
     exit 1
 fi

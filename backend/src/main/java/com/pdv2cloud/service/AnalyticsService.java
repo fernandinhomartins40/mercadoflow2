@@ -7,14 +7,22 @@ import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 import com.pdv2cloud.model.dto.TopSellerDTO;
 import com.pdv2cloud.model.entity.Alert;
+import com.pdv2cloud.model.entity.MarketBasketRule;
+import com.pdv2cloud.model.entity.Product;
 import com.pdv2cloud.repository.AlertRepository;
 import com.pdv2cloud.repository.InvoiceRepository;
+import com.pdv2cloud.repository.MarketBasketRuleRepository;
+import com.pdv2cloud.repository.ProductRepository;
 import com.pdv2cloud.repository.SalesAnalyticsRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +44,12 @@ public class AnalyticsService {
 
     @Autowired
     private MarketBasketService marketBasketService;
+
+    @Autowired
+    private MarketBasketRuleRepository marketBasketRuleRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
 
     public MarketDashboardDTO getMarketDashboard(UUID marketId, LocalDate startDate, LocalDate endDate) {
         if (startDate == null) {
@@ -79,8 +93,12 @@ public class AnalyticsService {
         return dashboard;
     }
 
-    public Page<ProductAnalyticsDTO> getProductAnalytics(UUID marketId, String category, Pageable pageable) {
-        return analyticsRepository.getProductAnalytics(marketId, category, pageable);
+    public Page<ProductAnalyticsDTO> getProductAnalytics(UUID marketId, String category, String sortBy, Pageable pageable) {
+        String normalizedSort = sortBy != null ? sortBy.trim().toUpperCase() : null;
+        if (normalizedSort != null && normalizedSort.isBlank()) {
+            normalizedSort = null;
+        }
+        return analyticsRepository.getProductAnalytics(marketId, category, normalizedSort, pageable);
     }
 
     public List<TopSellerDTO> getTopSellers(UUID marketId, int limit, LocalDate startDate, LocalDate endDate) {
@@ -90,6 +108,55 @@ public class AnalyticsService {
 
     public List<MarketBasketDTO> getMarketBasketAnalysis(UUID marketId, double minSupport, double minConfidence) {
         return marketBasketService.analyzeMarketBasket(marketId, minSupport, minConfidence);
+    }
+
+    public List<MarketBasketDTO> getCachedMarketBasketAnalysis(UUID marketId) {
+        LocalDateTime computedAt = marketBasketRuleRepository.findLatestComputedAt(marketId);
+        if (computedAt == null) {
+            return List.of();
+        }
+
+        List<MarketBasketRule> rows = marketBasketRuleRepository.findByMarketIdAndComputedAt(marketId, computedAt);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+
+        List<MarketBasketDTO> dtos = rows.stream().map(r -> {
+            MarketBasketDTO dto = new MarketBasketDTO();
+            dto.setAntecedent(parseIds(r.getAntecedent()));
+            dto.setConsequent(parseIds(r.getConsequent()));
+            dto.setSupport(r.getSupport() != null ? r.getSupport().doubleValue() : 0);
+            dto.setConfidence(r.getConfidence() != null ? r.getConfidence().doubleValue() : 0);
+            dto.setLift(r.getLift() != null ? r.getLift().doubleValue() : 0);
+            return dto;
+        }).toList();
+
+        // Enrich names in bulk
+        Set<UUID> ids = new HashSet<>();
+        for (MarketBasketDTO dto : dtos) {
+            ids.addAll(dto.getAntecedent());
+            ids.addAll(dto.getConsequent());
+        }
+        Map<UUID, String> names = productRepository.findAllById(ids).stream()
+            .collect(Collectors.toMap(Product::getId, Product::getName));
+
+        for (MarketBasketDTO dto : dtos) {
+            dto.setAntecedentNames(dto.getAntecedent().stream().map(names::get).toList());
+            dto.setConsequentNames(dto.getConsequent().stream().map(names::get).toList());
+        }
+
+        return dtos;
+    }
+
+    private List<UUID> parseIds(String ids) {
+        if (ids == null || ids.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(ids.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .map(UUID::fromString)
+            .toList();
     }
 
     private double calculateGrowth(BigDecimal current, BigDecimal previous) {

@@ -6,7 +6,6 @@ import com.pdv2cloud.model.dto.InvoiceDTO;
 import com.pdv2cloud.security.AgentAuthenticationToken;
 import com.pdv2cloud.security.AgentPrincipal;
 import com.pdv2cloud.service.InvoiceProcessingService;
-import com.pdv2cloud.util.HMACValidator;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -24,32 +23,17 @@ public class IngestController {
     @Autowired
     private InvoiceProcessingService invoiceService;
 
-    @Autowired
-    private HMACValidator hmacValidator;
-
     @PostMapping("/invoice")
     public ResponseEntity<IngestResponse> ingestInvoice(
         @Valid @RequestBody InvoiceDTO invoiceDTO,
-        @RequestHeader(value = "X-Market-ID", required = false) UUID marketId,
         @RequestHeader("X-Agent-Version") String agentVersion,
-        @RequestHeader(value = "X-Signature", required = false) String signature,
+        @RequestHeader(value = "X-Market-ID", required = false) UUID marketId,
         Authentication authentication) {
 
-        AgentPrincipal agentPrincipal = resolveAgent(authentication);
-        UUID resolvedMarketId = marketId != null ? marketId : (agentPrincipal != null ? agentPrincipal.getMarketId() : null);
-        if (resolvedMarketId == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        if (marketId != null && agentPrincipal != null && !marketId.equals(agentPrincipal.getMarketId())) {
+        AgentPrincipal agentPrincipal = requireAgent(authentication);
+        UUID resolvedMarketId = agentPrincipal.getMarketId();
+        if (marketId != null && !marketId.equals(resolvedMarketId)) {
             return ResponseEntity.status(403).build();
-        }
-
-        if (signature != null && !signature.isBlank()) {
-            if (agentPrincipal != null) {
-                hmacValidator.validateSignature(invoiceDTO, signature, agentPrincipal.getApiKey(), resolvedMarketId);
-            } else {
-                hmacValidator.validateSignature(invoiceDTO, signature, resolvedMarketId);
-            }
         }
 
         IngestResponse response = invoiceService.processInvoice(invoiceDTO, resolvedMarketId);
@@ -59,15 +43,13 @@ public class IngestController {
     @PostMapping("/batch")
     public ResponseEntity<BatchIngestResponse> ingestBatch(
         @Valid @RequestBody List<InvoiceDTO> invoices,
+        @RequestHeader("X-Agent-Version") String agentVersion,
         @RequestHeader(value = "X-Market-ID", required = false) UUID marketId,
         Authentication authentication) {
 
-        AgentPrincipal agentPrincipal = resolveAgent(authentication);
-        UUID resolvedMarketId = marketId != null ? marketId : (agentPrincipal != null ? agentPrincipal.getMarketId() : null);
-        if (resolvedMarketId == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        if (marketId != null && agentPrincipal != null && !marketId.equals(agentPrincipal.getMarketId())) {
+        AgentPrincipal agentPrincipal = requireAgent(authentication);
+        UUID resolvedMarketId = agentPrincipal.getMarketId();
+        if (marketId != null && !marketId.equals(resolvedMarketId)) {
             return ResponseEntity.status(403).build();
         }
 
@@ -75,10 +57,10 @@ public class IngestController {
         return ResponseEntity.ok(response);
     }
 
-    private AgentPrincipal resolveAgent(Authentication authentication) {
-        if (authentication instanceof AgentAuthenticationToken) {
-            return (AgentPrincipal) authentication.getPrincipal();
+    private AgentPrincipal requireAgent(Authentication authentication) {
+        if (!(authentication instanceof AgentAuthenticationToken)) {
+            throw new org.springframework.security.access.AccessDeniedException("Agent authentication required");
         }
-        return null;
+        return (AgentPrincipal) authentication.getPrincipal();
     }
 }

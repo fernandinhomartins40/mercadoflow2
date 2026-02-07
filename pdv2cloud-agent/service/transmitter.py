@@ -26,11 +26,12 @@ class APITransmitter:
         return response.json()
 
     def send_invoice(self, payload: Dict) -> bool:
+        body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
             "X-API-Key": self.api_key,
             "X-Agent-Version": "1.0.0",
-            "X-Signature": self._generate_signature(payload),
+            "X-Signature": self._generate_signature(body),
         }
         if self.market_id:
             headers["X-Market-ID"] = self.market_id
@@ -39,7 +40,7 @@ class APITransmitter:
             try:
                 response = requests.post(
                     f"{self.base_url}/api/v1/ingest/invoice",
-                    json=payload,
+                    data=body,
                     headers=headers,
                     timeout=30,
                 )
@@ -50,7 +51,6 @@ class APITransmitter:
 
         return False
 
-    def _generate_signature(self, payload: Dict) -> str:
-        body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    def _generate_signature(self, body: bytes) -> str:
         digest = hmac.new(self.hmac_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         return digest

@@ -85,6 +85,18 @@ Set-Content $HashFile $Hash
 Write-Host "  ✓ SHA256: $Hash" -ForegroundColor Gray
 Write-Host "  ✓ Checksum saved to: $HashFile" -ForegroundColor Gray
 
+# Generate metadata for the web download endpoint (optional but recommended)
+$MetaFile = Join-Path $OutputPath "PDV2Cloud-Setup.exe.meta.json"
+$Meta = @{
+    version        = $Version
+    filename       = "PDV2Cloud-Setup.exe"
+    sha256         = $Hash
+    size           = (Get-Item $InstallerFile).Length
+    buildTimestamp = (Get-Date).ToString("o")
+}
+$Meta | ConvertTo-Json -Depth 3 | Set-Content $MetaFile -Encoding UTF8
+Write-Host "  ✓ Metadata saved to: $MetaFile" -ForegroundColor Gray
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "Build completed successfully!" -ForegroundColor Green

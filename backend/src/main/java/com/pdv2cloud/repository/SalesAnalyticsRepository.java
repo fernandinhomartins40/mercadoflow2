@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.pdv2cloud.model.entity.SalesAnalytics;
@@ -13,12 +14,27 @@ import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 
 public interface SalesAnalyticsRepository extends JpaRepository<SalesAnalytics, UUID> {
-    @Query("select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(p.id, p.name, p.category, sum(sa.revenue), sum(sa.quantitySold), avg(sa.averagePrice), sum(sa.transactionCount)) " +
-           "from SalesAnalytics sa join sa.product p " +
-           "where sa.market.id = :marketId and (:category is null or p.category = :category) " +
-           "group by p.id, p.name, p.category")
+    @Query(
+        value = "select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(" +
+            "p.id, p.name, p.category, sum(sa.revenue), sum(sa.quantitySold), avg(sa.averagePrice), sum(sa.transactionCount)" +
+            ") " +
+            "from SalesAnalytics sa join sa.product p " +
+            "where sa.market.id = :marketId and (:category is null or p.category = :category) " +
+            "group by p.id, p.name, p.category " +
+            "order by " +
+            "case when :sortBy = 'REVENUE' then sum(sa.revenue) end desc, " +
+            "case when :sortBy = 'QUANTITY' then sum(sa.quantitySold) end desc, " +
+            "case when :sortBy = 'TRANSACTIONS' then sum(sa.transactionCount) end desc, " +
+            "case when :sortBy = 'PRICE' then avg(sa.averagePrice) end desc, " +
+            "case when :sortBy = 'NAME' then p.name end asc, " +
+            "p.name asc",
+        countQuery = "select count(distinct p.id) " +
+            "from SalesAnalytics sa join sa.product p " +
+            "where sa.market.id = :marketId and (:category is null or p.category = :category)"
+    )
     Page<ProductAnalyticsDTO> getProductAnalytics(@Param("marketId") UUID marketId,
                                                   @Param("category") String category,
+                                                  @Param("sortBy") String sortBy,
                                                   Pageable pageable);
 
     @Query("select new com.pdv2cloud.model.dto.SalesTrendPointDTO(sa.date, sum(sa.revenue)) " +
@@ -34,4 +50,15 @@ public interface SalesAnalyticsRepository extends JpaRepository<SalesAnalytics, 
     List<Object[]> aggregateByProduct(@Param("marketId") UUID marketId,
                                       @Param("start") LocalDate start,
                                       @Param("end") LocalDate end);
+
+    @Query("select sa.product.id, avg(sa.quantitySold) " +
+           "from SalesAnalytics sa where sa.market.id = :marketId and sa.date between :start and :end " +
+           "group by sa.product.id order by avg(sa.quantitySold) desc")
+    List<Object[]> averageDailyQuantityByProduct(@Param("marketId") UUID marketId,
+                                                 @Param("start") LocalDate start,
+                                                 @Param("end") LocalDate end);
+
+    @Modifying
+    @Query("delete from SalesAnalytics sa where sa.market.id = :marketId and sa.date = :date")
+    void deleteByMarketAndDate(@Param("marketId") UUID marketId, @Param("date") LocalDate date);
 }

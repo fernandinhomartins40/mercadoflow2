@@ -7,6 +7,9 @@ import com.pdv2cloud.model.entity.Alert;
 import com.pdv2cloud.model.entity.AlertPriority;
 import com.pdv2cloud.model.entity.AlertType;
 import java.time.LocalDateTime;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface AlertRepository extends JpaRepository<Alert, UUID> {
     long countByMarketIdAndIsReadFalse(UUID marketId);
@@ -18,4 +21,12 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
                                                                  UUID productId,
                                                                  AlertType type,
                                                                  LocalDateTime after);
+
+    @Modifying
+    @Query("update Alert a set a.isRead = true where a.market.id = :marketId and a.id = :alertId")
+    int markAsRead(@Param("marketId") UUID marketId, @Param("alertId") UUID alertId);
+
+    @Modifying
+    @Query("update Alert a set a.isRead = true where a.market.id = :marketId and a.isRead = false")
+    int markAllAsRead(@Param("marketId") UUID marketId);
 }

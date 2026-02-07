@@ -9,6 +9,7 @@ interface InstallerInfo {
   sizeFormatted: string;
   lastModified: string;
   lastModifiedTimestamp: number;
+  version?: string;
   sha256?: string;
   downloadUrl: string;
 }
@@ -120,6 +121,12 @@ const AgentDownload: React.FC = () => {
                         <span>Arquivo</span>
                         <strong>{installerInfo.filename}</strong>
                       </div>
+                      {installerInfo.version && (
+                        <div className="info-row">
+                          <span>Versão</span>
+                          <strong>{installerInfo.version}</strong>
+                        </div>
+                      )}
                       <div className="info-row">
                         <span>Tamanho</span>
                         <strong>{installerInfo.sizeFormatted}</strong>

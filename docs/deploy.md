@@ -6,12 +6,15 @@
 3. Suba os containers: `./scripts/deploy.ps1`
 
 ## Variaveis de ambiente
-- `DATABASE_URL` (SQLite ou Postgres)
-- `JWT_SECRET`
+- `DATABASE_URL` (Postgres)
+- `DATABASE_USER`
+- `DATABASE_PASSWORD`
+- `JWT_SECRET` (obrigatorio em producao)
 - `JWT_EXPIRATION_MS`
-- `HMAC_SECRET`
 - `CORS_ALLOWED_ORIGINS`
 - `AUTH_COOKIE_SAMESITE` (recomendado None em producao)
+- `INSTALLER_DIR` (diretorio com `PDV2Cloud-Setup.exe` para download)
+- `JOBS_ENABLED` (padrao `false`; no profile `jobs` ja fica `true`)
 
 ## Certificados
 Coloque `fullchain.pem` e `privkey.pem` em `./certs/`.

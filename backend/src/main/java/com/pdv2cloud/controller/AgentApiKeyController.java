@@ -4,6 +4,7 @@ import com.pdv2cloud.model.dto.AgentApiKeyCreateRequest;
 import com.pdv2cloud.model.dto.AgentApiKeyResponse;
 import com.pdv2cloud.model.entity.AgentApiKey;
 import com.pdv2cloud.model.entity.User;
+import com.pdv2cloud.model.entity.UserRole;
 import com.pdv2cloud.repository.UserRepository;
 import com.pdv2cloud.service.AgentApiKeyService;
 import jakarta.validation.Valid;
@@ -64,7 +65,7 @@ public class AgentApiKeyController {
     private UUID resolveMarketId(Authentication authentication, UUID requestedMarketId) {
         User user = userRepository.findByEmail(authentication.getName())
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        boolean isAdmin = user.getRole().name().equals("ADMIN");
+        boolean isAdmin = user.getRole() == UserRole.ADMIN;
         if (isAdmin && requestedMarketId != null) {
             return requestedMarketId;
         }

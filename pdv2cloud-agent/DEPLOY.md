@@ -28,12 +28,14 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1
 # 3. Verifique o instalador gerado
 ls ..\installer\Output\PDV2Cloud-Setup.exe
 ls ..\installer\Output\PDV2Cloud-Setup.exe.sha256
+ls ..\installer\Output\PDV2Cloud-Setup.exe.meta.json
 ```
 
 O instalador será gerado em:
 ```
 pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe
 pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.sha256
+pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.meta.json
 ```
 
 ## Upload para VPS
@@ -47,6 +49,10 @@ scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe \
 
 # Upload do checksum
 scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.sha256 \
+    root@72.60.10.112:/root/mercadoflow-web/pdv2cloud-agent/installer/Output/
+
+# Upload do metadata (opcional, mas recomendado para /version)
+scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.meta.json \
     root@72.60.10.112:/root/mercadoflow-web/pdv2cloud-agent/installer/Output/
 ```
 
@@ -65,6 +71,7 @@ scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.sha256 \
 3. Faça upload dos arquivos:
    - `PDV2Cloud-Setup.exe`
    - `PDV2Cloud-Setup.exe.sha256`
+   - `PDV2Cloud-Setup.exe.meta.json` (opcional, recomendado)
 
 ## Verificação na VPS
 
@@ -96,7 +103,7 @@ Após o upload, o instalador fica disponível em:
 
 ### API Endpoints
 ```
-GET https://mercadoflow.com/api/v1/downloads/agent-installer
+GET https://mercadoflow.com/api/v1/downloads/agent-installer (exige login)
 GET https://mercadoflow.com/api/v1/downloads/agent-installer/info
 GET https://mercadoflow.com/api/v1/downloads/agent-installer/version
 ```
@@ -175,7 +182,7 @@ rsync -avz --progress \
 - ✅ Instalador **não versionado** no Git (evita histórico com binários grandes)
 - ✅ Checksum SHA256 fornecido para validação de integridade
 - ✅ Download via HTTPS (criptografado)
-- ✅ Endpoint público (sem autenticação necessária para download)
+- ✅ Endpoint exige autenticação (o download fica disponível para usuários logados no painel)
 
 ## Backup
 

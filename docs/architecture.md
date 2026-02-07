@@ -15,9 +15,9 @@ flowchart LR
 
   subgraph Cloud
     F[API Spring Boot]
-    G[(SQLite/PostgreSQL)]
-    H[Jobs Quartz]
-    I[Analytics]
+    G[(PostgreSQL)]
+    H[Jobs (Spring Scheduler)]
+    I[Analytics/Forecast]
   end
 
   subgraph Web
@@ -25,7 +25,8 @@ flowchart LR
   end
 
   A --> B --> C --> D --> E --> F --> G
-  F --> H --> I
+  H --> G
+  H --> I
   J <--> F
 ```
 

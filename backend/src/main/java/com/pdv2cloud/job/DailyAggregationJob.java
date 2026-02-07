@@ -13,11 +13,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
+@ConditionalOnProperty(name = "jobs.enabled", havingValue = "true")
 public class DailyAggregationJob {
 
     @Autowired
@@ -47,6 +49,9 @@ public class DailyAggregationJob {
 
     private void aggregateMarketSales(UUID marketId, LocalDate date) {
         List<Object[]> results = invoiceRepository.aggregateDailySales(marketId, date);
+
+        // Ensure idempotency if job re-runs.
+        analyticsRepository.deleteByMarketAndDate(marketId, date);
 
         List<SalesAnalytics> analytics = results.stream()
             .map(row -> {

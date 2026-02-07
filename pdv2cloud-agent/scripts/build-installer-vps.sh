@@ -15,6 +15,7 @@ AGENT_ROOT="$(dirname "$SCRIPT_DIR")"
 INSTALLER_DIR="$AGENT_ROOT/installer/Output"
 INSTALLER_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe"
 CHECKSUM_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe.sha256"
+META_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe.meta.json"
 
 # Create installer directory if it doesn't exist
 mkdir -p "$INSTALLER_DIR"
@@ -56,11 +57,16 @@ echo ""
 echo "[3/3] Verifying installer is accessible..."
 if [ -f "$INSTALLER_FILE" ] && [ -r "$INSTALLER_FILE" ]; then
     echo "  ✓ Installer is readable and ready for download"
+    if [ -f "$META_FILE" ]; then
+        echo "  ✓ Metadata found: $META_FILE"
+    else
+        echo "  ℹ Metadata not found (optional): $META_FILE"
+    fi
     echo ""
     echo "=========================================="
     echo "Build completed successfully!"
     echo "Installer available at:"
-    echo "  - API: https://mercadoflow.com/api/v1/downloads/agent-installer"
+    echo "  - API: https://mercadoflow.com/api/v1/downloads/agent-installer (exige login)"
     echo "  - Web: https://mercadoflow.com/download-agente"
     echo "=========================================="
     exit 0

@@ -55,6 +55,11 @@ jobs:
             --exclude='backend/uploads' \
             --exclude='.env' \
             --exclude='.env.local' \
+            --exclude='.db_secret' \
+            --exclude='.jwt_secret' \
+            --exclude='backups' \
+            --exclude='pdv2cloud-agent/installer/Output' \
+            --exclude='pdv2cloud-agent/installer/Output/**' \
             --exclude='tools' \
             -e "ssh -o StrictHostKeyChecking=no" \
             ./ root@72.60.10.112:/root/mercadoflow-web/
@@ -81,18 +86,11 @@ jobs:
 
             echo "=== Verificando volumes Docker antes de qualquer operacao ==="
             POSTGRES_VOLUME=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" || echo "")
-            REDIS_VOLUME=$(docker volume ls -q | grep -E "mercadoflow.*redis_data" || echo "")
 
             if [ -n "$POSTGRES_VOLUME" ]; then
               echo "OK Volume postgres_data encontrado: $POSTGRES_VOLUME"
             else
               echo "INFO Volume postgres_data nao existe (sera criado no primeiro deploy)"
-            fi
-
-            if [ -n "$REDIS_VOLUME" ]; then
-              echo "OK Volume redis_data encontrado: $REDIS_VOLUME"
-            else
-              echo "INFO Volume redis_data nao existe (sera criado no primeiro deploy)"
             fi
 
             echo ""
@@ -117,21 +115,7 @@ jobs:
             fi
 
             echo ""
-            echo "=== Verificacao de integridade dos volumes ==="
-            POSTGRES_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" || echo "")
-            REDIS_VOLUME_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*redis_data" || echo "")
-
-            if [ -n "$POSTGRES_VOLUME" ] && [ -z "$POSTGRES_VOLUME_AFTER" ]; then
-              echo "ERRO CRITICO: Volume postgres_data foi removido inadvertidamente!"
-              exit 1
-            fi
-
-            if [ -n "$REDIS_VOLUME" ] && [ -z "$REDIS_VOLUME_AFTER" ]; then
-              echo "ERRO CRITICO: Volume redis_data foi removido inadvertidamente!"
-              exit 1
-            fi
-
-            echo "OK Volumes de dados preservados com sucesso"
+            echo "OK Deploy configurado para preservar volumes (nao removemos volumes neste fluxo)"
 
             echo "Verificando codigo sincronizado..."
             ls -la
@@ -160,9 +144,7 @@ jobs:
             DATABASE_URL=jdbc:postgresql://mercadoflow-postgres:5432/${POSTGRES_DB}
             DATABASE_USER=${POSTGRES_USER}
             DATABASE_PASSWORD=${DB_PASSWORD}
-            REDIS_URL=redis://mercadoflow-redis:6379
             JWT_SECRET=${JWT_SECRET}
-            HMAC_SECRET=${JWT_SECRET}
             CORS_ORIGIN=https://mercadoflow.com,https://www.mercadoflow.com
             REACT_APP_API_BASE_URL=https://mercadoflow.com/api
             BUILD_TIMESTAMP=$(date +%s)
@@ -172,16 +154,8 @@ jobs:
             echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}"
 
             echo ""
-            echo "=== Forçando recriação do PostgreSQL com credenciais corretas ==="
-            POSTGRES_VOLUME_EXISTS=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" || echo "")
-            if [ -n "$POSTGRES_VOLUME_EXISTS" ]; then
-              echo "⚠️  Volume PostgreSQL encontrado: $POSTGRES_VOLUME_EXISTS"
-              echo "🔄 Removendo para garantir credenciais corretas..."
-              docker volume rm $POSTGRES_VOLUME_EXISTS 2>/dev/null || true
-              echo "✅ Volume removido. Será recriado com as credenciais do .env"
-            else
-              echo "✅ Nenhum volume PostgreSQL existente. Será criado com as credenciais corretas."
-            fi
+            echo "=== PostgreSQL: preservando volume ==="
+            echo "INFO Não removemos volumes automaticamente neste deploy."
 
             echo ""
             echo "📋 Credenciais PostgreSQL configuradas:"
@@ -204,13 +178,13 @@ jobs:
             echo "OK frontend/package.json encontrado"
 
             echo "=== Limpando recursos antigos (containers e imagens apenas) ==="
-            VOLUMES_BEFORE=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data|mercadoflow.*redis_data" | wc -l)
+            VOLUMES_BEFORE=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" | wc -l)
             echo "Volumes de dados antes da limpeza: $VOLUMES_BEFORE"
 
             docker container prune -f || true
             docker image prune -af || true
 
-            VOLUMES_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data|mercadoflow.*redis_data" | wc -l)
+            VOLUMES_AFTER=$(docker volume ls -q | grep -E "mercadoflow.*postgres_data" | wc -l)
             echo "Volumes de dados apos limpeza: $VOLUMES_AFTER"
 
             if [ "$VOLUMES_BEFORE" -ne "$VOLUMES_AFTER" ]; then
@@ -254,13 +228,6 @@ jobs:
               exit 1
             fi
             echo "OK Container mercadoflow-frontend esta rodando"
-
-            if ! docker ps | grep -q mercadoflow-redis; then
-              echo "ERRO: Container mercadoflow-redis nao esta rodando!"
-              docker logs mercadoflow-redis --tail=50
-              exit 1
-            fi
-            echo "OK Container mercadoflow-redis esta rodando"
 
             if ! docker ps | grep -q mercadoflow-nginx; then
               echo "ERRO: Container mercadoflow-nginx nao esta rodando!"

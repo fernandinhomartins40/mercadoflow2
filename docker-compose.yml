@@ -35,19 +35,12 @@ services:
       - DATABASE_PASSWORD=pdv2cloud
       - JWT_SECRET=change-me
       - JWT_EXPIRATION_MS=86400000
-      - HMAC_SECRET=change-me
       - CORS_ALLOWED_ORIGINS=https://app.pdv2cloud.com
-      - REDIS_URL=redis://redis:6379
+      - INSTALLER_DIR=/opt/pdv2cloud/installer
     depends_on:
       - postgres
-      - redis
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
     volumes:
-      - redis-data:/data
+      - ./pdv2cloud-agent/installer/Output:/opt/pdv2cloud/installer:ro
 
   cron-jobs:
     build: ./backend
@@ -59,10 +52,8 @@ services:
       - DATABASE_PASSWORD=pdv2cloud
       - JWT_SECRET=change-me
       - JWT_EXPIRATION_MS=86400000
-      - HMAC_SECRET=change-me
     depends_on:
       - api
 
 volumes:
   postgres-data:
-  redis-data:

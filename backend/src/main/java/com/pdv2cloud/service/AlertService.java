@@ -1,5 +1,6 @@
 package com.pdv2cloud.service;
 
+import com.pdv2cloud.exception.CustomExceptions;
 import com.pdv2cloud.model.dto.AlertDTO;
 import com.pdv2cloud.model.entity.Alert;
 import com.pdv2cloud.model.entity.AlertPriority;
@@ -35,17 +36,30 @@ public class AlertService {
     private ProductRepository productRepository;
 
     public List<AlertDTO> getAlerts(UUID marketId, AlertType type, AlertPriority priority, boolean onlyUnread) {
-        List<Alert> alerts;
-        if (onlyUnread) {
-            alerts = alertRepository.findByMarketIdAndIsReadFalse(marketId);
-        } else if (type != null) {
-            alerts = alertRepository.findByMarketIdAndType(marketId, type);
-        } else if (priority != null) {
-            alerts = alertRepository.findByMarketIdAndPriority(marketId, priority);
-        } else {
-            alerts = alertRepository.findByMarketId(marketId);
+        List<Alert> alerts = onlyUnread
+            ? alertRepository.findByMarketIdAndIsReadFalse(marketId)
+            : alertRepository.findByMarketId(marketId);
+
+        if (type != null) {
+            alerts = alerts.stream().filter(a -> a.getType() == type).toList();
+        }
+        if (priority != null) {
+            alerts = alerts.stream().filter(a -> a.getPriority() == priority).toList();
         }
         return alerts.stream().map(this::mapAlert).toList();
+    }
+
+    @Transactional
+    public void markAsRead(UUID marketId, UUID alertId) {
+        int updated = alertRepository.markAsRead(marketId, alertId);
+        if (updated == 0) {
+            throw new CustomExceptions.NotFound("Alert not found");
+        }
+    }
+
+    @Transactional
+    public int markAllAsRead(UUID marketId) {
+        return alertRepository.markAllAsRead(marketId);
     }
 
     @Transactional

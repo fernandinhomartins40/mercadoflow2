@@ -14,5 +14,5 @@ public class ProductAnalyticsDTO {
     private BigDecimal revenue;
     private BigDecimal quantitySold;
     private BigDecimal averagePrice;
-    private int transactionCount;
+    private long transactionCount;
 }

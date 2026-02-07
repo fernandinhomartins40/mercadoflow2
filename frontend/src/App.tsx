@@ -5,6 +5,9 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import MarketBasket from './pages/MarketBasket';
 import Alerts from './pages/Alerts';
+import PDVs from './pages/PDVs';
+import Campaigns from './pages/Campaigns';
+import DemandForecast from './pages/DemandForecast';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
 import AgentDownload from './pages/AgentDownload';
@@ -55,6 +58,30 @@ const App: React.FC = () => {
         element={
           <ProtectedRoute>
             <Alerts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pdvs"
+        element={
+          <ProtectedRoute>
+            <PDVs />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campanhas"
+        element={
+          <ProtectedRoute>
+            <Campaigns />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/previsao-demanda"
+        element={
+          <ProtectedRoute>
+            <DemandForecast />
           </ProtectedRoute>
         }
       />

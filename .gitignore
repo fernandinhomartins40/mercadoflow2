@@ -6,7 +6,12 @@ pdv2cloud-config/dist/
 pdv2cloud-config/node_modules/
 frontend/node_modules/
 backend/.mvn/
+.claude/
+.claude/**
+pdv2cloud-agent/service/__pycache__/
+pdv2cloud-agent/service/__pycache__/**
 .env
 *.log
 pdv2cloud-agent/installer/Output/*.exe
 pdv2cloud-agent/installer/Output/*.sha256
+pdv2cloud-agent/installer/Output/*.meta.json
