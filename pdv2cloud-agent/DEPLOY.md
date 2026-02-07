@@ -103,7 +103,7 @@ Após o upload, o instalador fica disponível em:
 
 ### API Endpoints
 ```
-GET https://mercadoflow.com/api/v1/downloads/agent-installer (exige login)
+GET https://mercadoflow.com/api/v1/downloads/agent-installer
 GET https://mercadoflow.com/api/v1/downloads/agent-installer/info
 GET https://mercadoflow.com/api/v1/downloads/agent-installer/version
 ```
@@ -182,7 +182,7 @@ rsync -avz --progress \
 - ✅ Instalador **não versionado** no Git (evita histórico com binários grandes)
 - ✅ Checksum SHA256 fornecido para validação de integridade
 - ✅ Download via HTTPS (criptografado)
-- ✅ Endpoint exige autenticação (o download fica disponível para usuários logados no painel)
+- ✅ Endpoint público (sem autenticação necessária para download)
 
 ## Backup
 

@@ -48,7 +48,7 @@ if [ -f "$INSTALLER_FILE" ]; then
 
     echo ""
     echo "✅ Installer is ready for download"
-    echo "   API endpoint: https://mercadoflow.com/api/v1/downloads/agent-installer (exige login)"
+    echo "   API endpoint: https://mercadoflow.com/api/v1/downloads/agent-installer"
     echo "   Info endpoint: https://mercadoflow.com/api/v1/downloads/agent-installer/info"
 else
     echo "❌ Installer not found at: $INSTALLER_FILE"

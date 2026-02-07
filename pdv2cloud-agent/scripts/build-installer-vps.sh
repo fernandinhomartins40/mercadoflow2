@@ -66,7 +66,7 @@ if [ -f "$INSTALLER_FILE" ] && [ -r "$INSTALLER_FILE" ]; then
     echo "=========================================="
     echo "Build completed successfully!"
     echo "Installer available at:"
-    echo "  - API: https://mercadoflow.com/api/v1/downloads/agent-installer (exige login)"
+    echo "  - API: https://mercadoflow.com/api/v1/downloads/agent-installer"
     echo "  - Web: https://mercadoflow.com/download-agente"
     echo "=========================================="
     exit 0

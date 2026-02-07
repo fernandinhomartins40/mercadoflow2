@@ -10,6 +10,7 @@ import Campaigns from './pages/Campaigns';
 import DemandForecast from './pages/DemandForecast';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
+import PublicAgentDownload from './pages/PublicAgentDownload';
 import AgentDownload from './pages/AgentDownload';
 import { useAuth } from './context/AuthContext';
 
@@ -29,6 +30,7 @@ const App: React.FC = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Landing />} />
+      <Route path="/baixar-agente" element={<PublicAgentDownload />} />
       <Route
         path="/app"
         element={

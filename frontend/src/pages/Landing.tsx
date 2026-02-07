@@ -61,11 +61,24 @@ const Landing: React.FC = () => {
           <a href="#funcionalidades">Funcionalidades</a>
           <a href="#fluxo">Fluxo</a>
           <a href="#seguranca">Segurança</a>
+          <Link to="/baixar-agente">Baixar agente</Link>
           <Link className="button secondary" to="/login">
             Entrar
           </Link>
         </nav>
       </header>
+
+      <section className="landing-banner reveal">
+        <div>
+          <strong>PDV2Cloud Agent disponível para download</strong>
+          <p>Instalador público para Windows com fila offline e envio seguro.</p>
+        </div>
+        <div className="landing-banner-actions">
+          <Link className="button" to="/baixar-agente">
+            Baixar agora
+          </Link>
+        </div>
+      </section>
 
       <section className="hero reveal stagger-1">
         <div className="hero-text">
@@ -81,6 +94,9 @@ const Landing: React.FC = () => {
           <div className="hero-actions">
             <Link className="button" to="/login">
               Acessar plataforma
+            </Link>
+            <Link className="button secondary" to="/baixar-agente">
+              Baixar agente
             </Link>
             <a className="button secondary" href="#funcionalidades">
               Ver funcionalidades
