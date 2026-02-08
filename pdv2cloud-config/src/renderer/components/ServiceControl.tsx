@@ -14,7 +14,12 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
       const result = await (window as any).pdv2cloud[`${action}Service`]();
       setMessage(String(result));
     } catch (err: any) {
-      setMessage(err?.toString() || 'Erro ao controlar servico');
+      const msg = err?.toString?.() || String(err || '');
+      if (msg.includes('SERVICE_NOT_INSTALLED')) {
+        setMessage('❌ Serviço não instalado. Clique em "Instalar Serviço" abaixo (execute como Administrador).');
+        return;
+      }
+      setMessage(msg || 'Erro ao controlar servico');
     }
   };
 

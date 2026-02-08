@@ -1,7 +1,55 @@
 import { exec } from 'child_process';
 
-export const startService = () => execPromise('net start PDV2CloudAgent');
-export const stopService = () => execPromise('net stop PDV2CloudAgent');
+const SERVICE_NAME = 'PDV2CloudAgent';
+
+const looksLikeNotInstalled = (message: string) => {
+  const msg = (message || '').toString();
+  return (
+    msg.includes('1060') ||
+    msg.includes('2185') ||
+    msg.toLowerCase().includes('does not exist') ||
+    msg.toLowerCase().includes('openscmanager failed') ||
+    msg.toLowerCase().includes('openservice failed') ||
+    msg.toLowerCase().includes('nao existe') ||
+    msg.toLowerCase().includes('não existe') ||
+    msg.toLowerCase().includes('nome de servi') // "O nome de serviço é inválido"
+  );
+};
+
+const mapServiceError = (err: unknown) => {
+  const msg = String(err || '');
+  if (looksLikeNotInstalled(msg)) {
+    return new Error('SERVICE_NOT_INSTALLED');
+  }
+  return err;
+};
+
+export const startService = async () => {
+  try {
+    await serviceStatus();
+  } catch (err) {
+    throw mapServiceError(err);
+  }
+  try {
+    return await execPromise(`net start ${SERVICE_NAME}`);
+  } catch (err) {
+    throw mapServiceError(err);
+  }
+};
+
+export const stopService = async () => {
+  try {
+    await serviceStatus();
+  } catch (err) {
+    throw mapServiceError(err);
+  }
+  try {
+    return await execPromise(`net stop ${SERVICE_NAME}`);
+  } catch (err) {
+    throw mapServiceError(err);
+  }
+};
+
 export const restartService = async () => {
   await stopService();
   return startService();
@@ -9,11 +57,11 @@ export const restartService = async () => {
 
 export const serviceStatus = async () => {
   try {
-    const result = await execPromise('sc query PDV2CloudAgent');
+    const result = await execPromise(`sc query ${SERVICE_NAME}`);
     return result;
   } catch (error) {
     const errorMsg = String(error);
-    if (errorMsg.includes('1060') || errorMsg.includes('does not exist') || errorMsg.includes('HELPMSG 2185')) {
+    if (looksLikeNotInstalled(errorMsg)) {
       throw new Error('SERVICE_NOT_INSTALLED');
     }
     throw error;
