@@ -15,6 +15,7 @@ O instalador do agente desktop (PDV2Cloud-Setup.exe) **NÃO** é versionado no G
 - Windows 10/11
 - PowerShell
 - Inno Setup 6: [Download aqui](https://jrsoftware.org/isdl.php)
+- (Recomendado) Certificado de **Code Signing** + `signtool.exe` (Windows SDK) para evitar o alerta do SmartScreen
 
 ### Passos
 
@@ -23,13 +24,34 @@ O instalador do agente desktop (PDV2Cloud-Setup.exe) **NÃO** é versionado no G
 cd pdv2cloud-agent\scripts
 
 # 2. Execute o script de build
-powershell -ExecutionPolicy Bypass -File build-installer.ps1
+powershell -ExecutionPolicy Bypass -File build-installer.ps1 -Version "1.0.0"
+
+# 2b. (Recomendado) Build + assinatura do instalador (Authenticode)
+# Opção A: via env vars
+$env:PDV2CLOUD_CODESIGN_PFX="C:\\certs\\mercadoflow-codesign.pfx"
+$env:PDV2CLOUD_CODESIGN_PFX_PASSWORD="SUA_SENHA"
+$env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL="http://timestamp.digicert.com"
+powershell -ExecutionPolicy Bypass -File build-installer.ps1 -Version "1.0.0" -Sign
+
+# Opção B: via parâmetros
+powershell -ExecutionPolicy Bypass -File build-installer.ps1 -Version "1.0.0" -Sign `
+  -PfxPath "C:\\certs\\mercadoflow-codesign.pfx" `
+  -PfxPassword "SUA_SENHA" `
+  -TimestampUrl "http://timestamp.digicert.com"
 
 # 3. Verifique o instalador gerado
 ls ..\installer\Output\PDV2Cloud-Setup.exe
 ls ..\installer\Output\PDV2Cloud-Setup.exe.sha256
 ls ..\installer\Output\PDV2Cloud-Setup.exe.meta.json
 ```
+
+## SmartScreen (Windows)
+
+Se o instalador estiver **sem assinatura**, o Microsoft Defender SmartScreen pode bloquear a execução por "aplicativo não reconhecido".
+
+Para reduzir/remover o alerta:
+- Assine o `PDV2Cloud-Setup.exe` com um certificado de **Code Signing** (ideal: EV Code Signing)
+- Use timestamp (`/tr`) para manter a assinatura válida mesmo após expiração do certificado
 
 O instalador será gerado em:
 ```

@@ -3,7 +3,11 @@
 
 param(
     [string]$Version = "1.0.0",
-    [string]$OutputDir = "..\installer\Output"
+    [string]$OutputDir = "..\installer\Output",
+    [switch]$Sign,
+    [string]$PfxPath = $env:PDV2CLOUD_CODESIGN_PFX,
+    [string]$PfxPassword = $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD,
+    [string]$TimestampUrl = $env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,7 +69,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "[4/4] Verifying output..." -ForegroundColor Green
+Write-Host "[4/5] Verifying output..." -ForegroundColor Green
 $InstallerFile = Join-Path $OutputPath "PDV2Cloud-Setup.exe"
 if (-not (Test-Path $InstallerFile)) {
     Write-Host "ERROR: Installer file not found at $InstallerFile" -ForegroundColor Red
@@ -75,6 +79,73 @@ if (-not (Test-Path $InstallerFile)) {
 $FileSize = (Get-Item $InstallerFile).Length / 1MB
 Write-Host "  ✓ Installer created: $InstallerFile" -ForegroundColor Gray
 Write-Host "  ✓ Size: $([math]::Round($FileSize, 2)) MB" -ForegroundColor Gray
+
+function Resolve-SignToolPath {
+    $candidates = @(
+        "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\*\\x64\\signtool.exe",
+        "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\*\\x86\\signtool.exe",
+        "C:\\Program Files\\Windows Kits\\10\\bin\\*\\x64\\signtool.exe",
+        "C:\\Program Files\\Windows Kits\\10\\bin\\*\\x86\\signtool.exe"
+    )
+    foreach ($pattern in $candidates) {
+        $items = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
+        if ($items) {
+            # Pick the newest SDK folder if multiple match
+            return ($items | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+        }
+    }
+    return $null
+}
+
+if (-not $TimestampUrl -or $TimestampUrl.Trim() -eq "") {
+    $TimestampUrl = "http://timestamp.digicert.com"
+}
+
+if ($Sign) {
+    Write-Host ""
+    Write-Host "[5/5] Signing installer (Authenticode)..." -ForegroundColor Green
+
+    if (-not $PfxPath -or $PfxPath.Trim() -eq "") {
+        Write-Host "ERROR: PfxPath nao informado. Use -PfxPath ou defina PDV2CLOUD_CODESIGN_PFX" -ForegroundColor Red
+        exit 1
+    }
+    if (-not (Test-Path $PfxPath)) {
+        Write-Host "ERROR: Certificado nao encontrado em: $PfxPath" -ForegroundColor Red
+        exit 1
+    }
+    if (-not $PfxPassword -or $PfxPassword.Trim() -eq "") {
+        Write-Host "ERROR: PfxPassword nao informado. Use -PfxPassword ou defina PDV2CLOUD_CODESIGN_PFX_PASSWORD" -ForegroundColor Red
+        exit 1
+    }
+
+    $SignTool = Resolve-SignToolPath
+    if (-not $SignTool) {
+        Write-Host "ERROR: signtool.exe nao encontrado. Instale o Windows SDK (App Certification Kit / SignTool)." -ForegroundColor Red
+        Write-Host "Sugestao: instale 'Windows 10/11 SDK' e tente novamente." -ForegroundColor Yellow
+        exit 1
+    }
+
+    & $SignTool sign `
+        /fd SHA256 `
+        /td SHA256 `
+        /tr $TimestampUrl `
+        /f $PfxPath `
+        /p $PfxPassword `
+        $InstallerFile
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Falha ao assinar o instalador" -ForegroundColor Red
+        exit 1
+    }
+
+    & $SignTool verify /pa /v $InstallerFile | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Assinatura nao passou na verificacao do signtool" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "  ✓ Assinatura aplicada com sucesso" -ForegroundColor Gray
+}
 
 # Generate checksum
 Write-Host ""
