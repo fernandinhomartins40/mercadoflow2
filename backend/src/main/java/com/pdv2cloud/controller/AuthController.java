@@ -36,14 +36,16 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
         LoginResponse response = authService.register(request);
-        ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure());
+        // Register uses the default session duration.
+        ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), false);
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         LoginResponse response = authService.login(request);
-        ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure());
+        boolean keepConnected = request.getKeepConnected() != null && request.getKeepConnected();
+        ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), keepConnected);
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
     }
 
@@ -65,12 +67,13 @@ public class AuthController {
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).build();
     }
 
-    private ResponseCookie buildCookie(String token, boolean secure) {
+    private ResponseCookie buildCookie(String token, boolean secure, boolean keepConnected) {
+        Duration maxAge = keepConnected ? Duration.ofDays(30) : Duration.ofDays(1);
         return ResponseCookie.from(COOKIE_NAME, token)
             .httpOnly(true)
             .secure(secure)
             .path("/")
-            .maxAge(Duration.ofDays(1))
+            .maxAge(maxAge)
             .sameSite(resolveSameSite(secure))
             .build();
     }

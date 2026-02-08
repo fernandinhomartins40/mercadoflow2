@@ -10,7 +10,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, keepConnected?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -53,8 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     load();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    await authService.login(email, password);
+  const login = async (email: string, password: string, keepConnected = false) => {
+    await authService.login(email, password, keepConnected);
     const me = await authService.me();
     setState({
       role: me.role,

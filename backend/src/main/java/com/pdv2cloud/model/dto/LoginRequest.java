@@ -12,4 +12,7 @@ public class LoginRequest {
 
     @NotBlank
     private String password;
+
+    // When true, the API issues a longer-lived auth cookie.
+    private Boolean keepConnected;
 }
