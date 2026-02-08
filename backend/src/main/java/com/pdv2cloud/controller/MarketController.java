@@ -59,7 +59,7 @@ public class MarketController {
 
     @GetMapping("/{id}/dashboard")
     public ResponseEntity<MarketDashboardDTO> getDashboard(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
         Authentication authentication) {
@@ -71,7 +71,7 @@ public class MarketController {
 
     @GetMapping("/{id}/products")
     public ResponseEntity<Page<ProductAnalyticsDTO>> getProducts(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size,
         @RequestParam(required = false) String category,
@@ -86,7 +86,7 @@ public class MarketController {
 
     @GetMapping("/{id}/alerts")
     public ResponseEntity<List<AlertDTO>> getAlerts(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         @RequestParam(required = false) AlertType type,
         @RequestParam(required = false) AlertPriority priority,
         @RequestParam(defaultValue = "false") boolean onlyUnread,
@@ -99,8 +99,8 @@ public class MarketController {
 
     @PostMapping("/{id}/alerts/{alertId}/read")
     public ResponseEntity<Void> markAlertRead(
-        @PathVariable UUID id,
-        @PathVariable UUID alertId,
+        @PathVariable("id") UUID id,
+        @PathVariable("alertId") UUID alertId,
         Authentication authentication) {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
@@ -110,7 +110,7 @@ public class MarketController {
 
     @PostMapping("/{id}/alerts/read-all")
     public ResponseEntity<?> markAllAlertsRead(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         Authentication authentication) {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
@@ -120,7 +120,7 @@ public class MarketController {
 
     @GetMapping("/{id}/analytics/top-sellers")
     public ResponseEntity<List<TopSellerDTO>> getTopSellers(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         @RequestParam(defaultValue = "10") int limit,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -133,7 +133,7 @@ public class MarketController {
 
     @GetMapping("/{id}/analytics/market-basket")
     public ResponseEntity<List<MarketBasketDTO>> getMarketBasketAnalysis(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         @RequestParam(defaultValue = "0.01") double minSupport,
         @RequestParam(defaultValue = "0.5") double minConfidence,
         Authentication authentication) {
@@ -145,7 +145,7 @@ public class MarketController {
 
     @GetMapping("/{id}/analytics/market-basket/cached")
     public ResponseEntity<List<MarketBasketDTO>> getCachedMarketBasket(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         Authentication authentication) {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
@@ -154,7 +154,7 @@ public class MarketController {
 
     @GetMapping("/{id}/analytics/demand-forecast")
     public ResponseEntity<List<DemandForecastDTO>> getDemandForecast(
-        @PathVariable UUID id,
+        @PathVariable("id") UUID id,
         @RequestParam(defaultValue = "7") int days,
         Authentication authentication) {
 

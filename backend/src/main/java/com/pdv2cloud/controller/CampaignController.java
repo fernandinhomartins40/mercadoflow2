@@ -40,7 +40,7 @@ public class CampaignController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CampaignResponse>> list(@PathVariable UUID marketId, Authentication authentication) {
+    public ResponseEntity<List<CampaignResponse>> list(@PathVariable("marketId") UUID marketId, Authentication authentication) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         List<CampaignResponse> items = campaignRepository.findByMarketId(marketId).stream()
             .map(this::map)
@@ -49,7 +49,7 @@ public class CampaignController {
     }
 
     @PostMapping
-    public ResponseEntity<CampaignResponse> create(@PathVariable UUID marketId,
+    public ResponseEntity<CampaignResponse> create(@PathVariable("marketId") UUID marketId,
                                                    @Valid @RequestBody CampaignCreateRequest request,
                                                    Authentication authentication) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
@@ -86,4 +86,3 @@ public class CampaignController {
         );
     }
 }
-

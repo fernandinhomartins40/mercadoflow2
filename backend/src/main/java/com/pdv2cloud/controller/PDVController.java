@@ -38,7 +38,7 @@ public class PDVController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PDVResponse>> list(@PathVariable UUID marketId, Authentication authentication) {
+    public ResponseEntity<List<PDVResponse>> list(@PathVariable("marketId") UUID marketId, Authentication authentication) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         List<PDVResponse> items = pdvRepository.findByMarketId(marketId).stream()
             .map(p -> new PDVResponse(p.getId(), p.getName(), p.getSerialNumber(), p.getCreatedAt()))
@@ -47,7 +47,7 @@ public class PDVController {
     }
 
     @PostMapping
-    public ResponseEntity<PDVResponse> create(@PathVariable UUID marketId,
+    public ResponseEntity<PDVResponse> create(@PathVariable("marketId") UUID marketId,
                                               @Valid @RequestBody PDVCreateRequest request,
                                               Authentication authentication) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
@@ -62,4 +62,3 @@ public class PDVController {
         return ResponseEntity.ok(new PDVResponse(pdv.getId(), pdv.getName(), pdv.getSerialNumber(), pdv.getCreatedAt()));
     }
 }
-

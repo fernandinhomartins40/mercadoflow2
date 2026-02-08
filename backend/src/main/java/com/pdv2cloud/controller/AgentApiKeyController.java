@@ -47,7 +47,7 @@ public class AgentApiKeyController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
-    public ResponseEntity<List<AgentApiKeyResponse>> list(@RequestParam(required = false) UUID marketId,
+    public ResponseEntity<List<AgentApiKeyResponse>> list(@RequestParam(value = "marketId", required = false) UUID marketId,
                                                           Authentication authentication) {
         UUID resolvedMarketId = resolveMarketId(authentication, marketId);
         List<AgentApiKeyResponse> items = apiKeyService.listActive(resolvedMarketId).stream()
