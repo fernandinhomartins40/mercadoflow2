@@ -13,6 +13,9 @@ public class ProductAnalyticsDTO {
     private String category;
     private BigDecimal revenue;
     private BigDecimal quantitySold;
-    private BigDecimal averagePrice;
-    private long transactionCount;
+    // JPQL avg(...) returns Double for numeric columns in most providers (Hibernate included).
+    private Double averagePrice;
+
+    // JPQL sum(long) returns Long.
+    private Long transactionCount;
 }
