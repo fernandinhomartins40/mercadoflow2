@@ -12,6 +12,11 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const serverMessage = error.response?.data?.message;
+    const serverError = error.response?.data?.error;
+    if (typeof serverMessage === 'string' && serverMessage.trim()) {
+      error.message = serverError ? `${serverError}: ${serverMessage}` : serverMessage;
+    }
     if (error.response?.status === 401) {
       const requestUrl: string = error.config?.url ?? '';
       if (requestUrl.includes('/v1/auth/me')) {

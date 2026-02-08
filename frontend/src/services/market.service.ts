@@ -12,8 +12,11 @@ export const marketService = {
   },
 
   async getProducts(marketId: string, page = 0, size = 20, category?: string, sortBy?: string) {
+    const params: any = { page, size };
+    if (category && category.trim()) params.category = category.trim();
+    if (sortBy && sortBy.trim()) params.sortBy = sortBy.trim();
     const response = await api.get(`/v1/markets/${marketId}/products`, {
-      params: { page, size, category, sortBy },
+      params,
     });
     return response.data;
   },
@@ -22,12 +25,13 @@ export const marketService = {
     marketId: string,
     options?: { onlyUnread?: boolean; type?: string; priority?: string }
   ) {
+    const params: any = {
+      onlyUnread: options?.onlyUnread ?? false,
+    };
+    if (options?.type && options.type.trim()) params.type = options.type.trim();
+    if (options?.priority && options.priority.trim()) params.priority = options.priority.trim();
     const response = await api.get(`/v1/markets/${marketId}/alerts`, {
-      params: {
-        onlyUnread: options?.onlyUnread ?? false,
-        type: options?.type,
-        priority: options?.priority,
-      },
+      params,
     });
     return response.data;
   },
