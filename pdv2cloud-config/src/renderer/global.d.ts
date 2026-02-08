@@ -8,6 +8,7 @@ declare global {
       restartService: () => Promise<any>;
       serviceStatus: () => Promise<any>;
       installService: () => Promise<any>;
+      pickFolder: () => Promise<string | null>;
       loadConfig: () => Promise<any>;
       saveConfig: (config: any) => Promise<any>;
       readLogs: () => Promise<any>;

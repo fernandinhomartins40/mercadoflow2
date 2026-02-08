@@ -5,6 +5,7 @@ import { startService, stopService, restartService, serviceStatus, installServic
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
 const LOG_PATH = 'C:/ProgramData/PDV2Cloud/logs/agent.log';
 const STATUS_PATH = 'C:/ProgramData/PDV2Cloud/status.json';
+const DEFAULT_API_URL = 'https://mercadoflow.com';
 
 export const registerIpcHandlers = () => {
   ipcMain.handle('service:start', async () => startService());
@@ -12,6 +13,18 @@ export const registerIpcHandlers = () => {
   ipcMain.handle('service:restart', async () => restartService());
   ipcMain.handle('service:status', async () => serviceStatus());
   ipcMain.handle('service:install', async () => installService());
+
+  ipcMain.handle('dialog:pickFolder', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Selecionar pasta para monitorar',
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+      return null;
+    }
+    // Prefer forward slashes for consistency with existing configs.
+    return result.filePaths[0].replace(/\\/g, '/');
+  });
 
   ipcMain.handle('config:load', async () => {
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
@@ -23,6 +36,14 @@ export const registerIpcHandlers = () => {
     }
     if (config.api_token_encrypted && !config.api_token) {
       config.api_token = '';
+    }
+
+    // Normalize defaults (older configs may not have these).
+    if (!config.api_url) {
+      config.api_url = DEFAULT_API_URL;
+    }
+    if (!Array.isArray(config.watch_paths)) {
+      config.watch_paths = [];
     }
     return config;
   });

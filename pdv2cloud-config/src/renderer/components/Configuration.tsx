@@ -12,32 +12,50 @@ const defaultConfig: AgentConfig = {
   healthcheck_port: 8765,
 };
 
+const DEFAULT_API_URL = 'https://mercadoflow.com';
+
 const Configuration: React.FC = () => {
   const [config, setConfig] = useState<AgentConfig>(defaultConfig);
-  const [newPath, setNewPath] = useState('');
   const [message, setMessage] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [marketName, setMarketName] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const [useCustomApiUrl, setUseCustomApiUrl] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       const data = await (window as any).pdv2cloud.loadConfig();
-      setConfig(data);
+      const normalized: AgentConfig = {
+        ...defaultConfig,
+        ...data,
+        api_url: data?.api_url || DEFAULT_API_URL,
+        watch_paths: Array.isArray(data?.watch_paths) ? data.watch_paths : [],
+      };
+      setUseCustomApiUrl(normalized.api_url !== DEFAULT_API_URL);
+      setConfig(normalized);
     };
     load();
   }, []);
 
   const save = async () => {
-    await (window as any).pdv2cloud.saveConfig(config);
+    const next: AgentConfig = {
+      ...config,
+      api_url: useCustomApiUrl ? config.api_url : DEFAULT_API_URL,
+      watch_paths: (config.watch_paths || []).filter(Boolean),
+    };
+    await (window as any).pdv2cloud.saveConfig(next);
+    setConfig(next);
     setMessage('Configuracao salva');
   };
 
-  const testConnection = async () => {
+  const testConnection = async (autoSave?: boolean) => {
     setTestMessage('Testando...');
     try {
-      const response = await fetch(`${config.api_url}/api/v1/agent/me`, {
-        headers: config.api_key ? { 'X-API-Key': config.api_key } : undefined,
+      const apiUrl = (useCustomApiUrl ? config.api_url : DEFAULT_API_URL).trim();
+      const apiKey = (config.api_key || '').trim();
+      const response = await fetch(`${apiUrl}/api/v1/agent/me`, {
+        headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
       });
       if (!response.ok) {
         setTestMessage(`Falha (${response.status})`);
@@ -45,8 +63,13 @@ const Configuration: React.FC = () => {
       }
       const data = await response.json();
       if (data?.marketId) {
-        setConfig({ ...config, market_id: data.marketId });
+        const next = { ...config, api_url: apiUrl, api_key: apiKey, market_id: data.marketId };
+        setConfig(next);
         setMarketName(data.marketName || '');
+        if (autoSave) {
+          await (window as any).pdv2cloud.saveConfig(next);
+          setMessage('Conectado e salvo com sucesso');
+        }
       }
       setTestMessage('Conexao OK');
     } catch (err: any) {
@@ -54,10 +77,16 @@ const Configuration: React.FC = () => {
     }
   };
 
-  const addPath = () => {
-    if (!newPath) return;
-    setConfig({ ...config, watch_paths: [...config.watch_paths, newPath] });
-    setNewPath('');
+  const addPath = async () => {
+    const picked = await (window as any).pdv2cloud.pickFolder();
+    if (!picked) return;
+    const path = String(picked).trim();
+    if (!path) return;
+    if (config.watch_paths.includes(path)) {
+      setMessage('Esta pasta ja esta na lista');
+      return;
+    }
+    setConfig({ ...config, watch_paths: [...config.watch_paths, path] });
   };
 
   const removePath = (path: string) => {
@@ -68,34 +97,51 @@ const Configuration: React.FC = () => {
     <div className="card">
       <h3>Configuracao</h3>
       <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-        Cole a API Key gerada no painel web para conectar automaticamente ao mercado.
+        Modo rapido: cole apenas a <strong>API Key</strong>. A URL e fixa em <code>{DEFAULT_API_URL}</code>.
       </p>
       <div className="grid">
         <div>
-          <label>URL da API</label>
-          <input value={config.api_url} onChange={(e) => setConfig({ ...config, api_url: e.target.value })} />
-        </div>
-        <div>
           <label>API Key</label>
-          <input
-            value={config.api_key}
-            placeholder="Ex: pdv2_********"
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                api_key: e.target.value,
-                api_key_encrypted: e.target.value ? '' : config.api_key_encrypted,
-              })
-            }
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              value={config.api_key}
+              type={showKey ? 'text' : 'password'}
+              placeholder="Ex: pdv2_********"
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  api_key: e.target.value,
+                  api_key_encrypted: e.target.value ? '' : config.api_key_encrypted,
+                })
+              }
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey((v) => !v)}
+              style={{ position: 'absolute', right: 8, top: 8, background: 'transparent' }}
+            >
+              {showKey ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
+          <div style={{ marginTop: 8, color: 'var(--muted)' }}>
+            {config.market_id ? (
+              <span>
+                Vinculado: <strong>{marketName || config.market_id}</strong>
+              </span>
+            ) : (
+              <span>Ainda nao vinculado a um mercado.</span>
+            )}
+          </div>
         </div>
       </div>
 
       <div style={{ marginTop: 12 }}>
         <label>Pastas monitoradas</label>
-        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-          <input value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder="C:/PDV/XMLs" />
-          <button onClick={addPath}>Adicionar</button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+          <button onClick={addPath}>Selecionar pasta...</button>
+          <button onClick={() => setConfig({ ...config, watch_paths: [] })} style={{ background: '#334155' }}>
+            Limpar lista
+          </button>
         </div>
         <ul>
           {config.watch_paths.map((path) => (
@@ -108,8 +154,13 @@ const Configuration: React.FC = () => {
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <button onClick={save}>Salvar configuracoes</button>
-        <button onClick={testConnection} style={{ marginLeft: 8 }}>Testar conexao</button>
+        <button onClick={() => testConnection(true)}>Conectar e salvar</button>
+        <button onClick={save} style={{ marginLeft: 8, background: '#334155' }}>
+          Salvar
+        </button>
+        <button onClick={() => testConnection(false)} style={{ marginLeft: 8, background: '#334155' }}>
+          Testar conexao
+        </button>
         {message && <span style={{ marginLeft: 12, color: 'var(--muted)' }}>{message}</span>}
         {testMessage && <span style={{ marginLeft: 12, color: 'var(--muted)' }}>{testMessage}</span>}
       </div>
@@ -122,10 +173,26 @@ const Configuration: React.FC = () => {
 
       {showAdvanced && (
         <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 8 }}>
-            <label>ID do supermercado (auto)</label>
-            <input value={config.market_id} readOnly />
-            {marketName && <div style={{ color: 'var(--muted)' }}>Mercado: {marketName}</div>}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={useCustomApiUrl}
+                onChange={(e) => setUseCustomApiUrl(e.target.checked)}
+              />
+              Usar URL customizada (dev)
+            </label>
+            {useCustomApiUrl ? (
+              <input
+                value={config.api_url}
+                placeholder={DEFAULT_API_URL}
+                onChange={(e) => setConfig({ ...config, api_url: e.target.value })}
+              />
+            ) : (
+              <div style={{ color: 'var(--muted)' }}>
+                URL fixa: <code>{DEFAULT_API_URL}</code>
+              </div>
+            )}
           </div>
           <div>
             <label>Intervalo (segundos)</label>
@@ -133,6 +200,32 @@ const Configuration: React.FC = () => {
               type="number"
               value={config.poll_interval_seconds}
               onChange={(e) => setConfig({ ...config, poll_interval_seconds: Number(e.target.value) })}
+            />
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <label>Retry (minutos)</label>
+            <input
+              type="number"
+              value={config.retry_interval_minutes}
+              onChange={(e) => setConfig({ ...config, retry_interval_minutes: Number(e.target.value) })}
+            />
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={config.healthcheck_enabled}
+                onChange={(e) => setConfig({ ...config, healthcheck_enabled: e.target.checked })}
+              />
+              Healthcheck habilitado
+            </label>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <label>Porta do healthcheck</label>
+            <input
+              type="number"
+              value={config.healthcheck_port}
+              onChange={(e) => setConfig({ ...config, healthcheck_port: Number(e.target.value) })}
             />
           </div>
         </div>
