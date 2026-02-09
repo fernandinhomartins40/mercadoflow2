@@ -75,13 +75,20 @@ export const installService = () => {
 };
 
 const execPromise = (cmd: string) => {
-  return new Promise((resolve, reject) => {
-    exec(cmd, (error, stdout, stderr) => {
+  return new Promise<string>((resolve, reject) => {
+    exec(cmd, { windowsHide: true }, (error, stdout, stderr) => {
+      const out = String(stdout || '').trim();
+      const errOut = String(stderr || '').trim();
+
       if (error) {
-        reject(stderr || error.message);
+        // Some Windows utilities (e.g. `sc`) write failure details to stdout, so
+        // include both stdout and stderr to allow callers to classify errors.
+        const msg = [errOut, out, String(error.message || '').trim()].filter(Boolean).join('\n');
+        reject(msg || String(error.message || 'Command failed'));
         return;
       }
-      resolve(stdout);
+
+      resolve(out);
     });
   });
 };
