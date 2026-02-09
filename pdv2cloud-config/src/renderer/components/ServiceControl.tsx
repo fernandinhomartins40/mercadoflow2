@@ -15,6 +15,15 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
       setMessage(String(result));
     } catch (err: any) {
       const msg = err?.toString?.() || String(err || '');
+      if (msg.includes('SERVICE_INSTALLER_NOT_FOUND')) {
+        setMessage(
+          '❌ Arquivos do agente não encontrados.\n\n' +
+            'Instale o "PDV2Cloud Collector Agent" (PDV2Cloud-Setup.exe) e tente novamente.\n\n' +
+            'Detalhes:\n' +
+            msg
+        );
+        return;
+      }
       if (msg.includes('SERVICE_NOT_INSTALLED')) {
         setMessage('❌ Serviço não instalado. Clique em "Instalar Serviço" abaixo (execute como Administrador).');
         return;
@@ -33,7 +42,17 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
         setTimeout(() => onServiceInstalled(), 2000);
       }
     } catch (err: any) {
-      setMessage('❌ Erro ao instalar servico:\n' + (err?.toString() || 'Erro desconhecido') + '\n\nTente executar manualmente como Administrador.');
+      const msg = err?.toString?.() || String(err || '');
+      if (msg.includes('SERVICE_INSTALLER_NOT_FOUND')) {
+        setMessage(
+          '❌ Não foi possível localizar o instalador do serviço.\n\n' +
+            'Instale o "PDV2Cloud Collector Agent" (PDV2Cloud-Setup.exe) e tente novamente.\n\n' +
+            'Detalhes:\n' +
+            msg
+        );
+      } else {
+        setMessage('❌ Erro ao instalar servico:\n' + msg + '\n\nTente executar manualmente como Administrador.');
+      }
     } finally {
       setInstalling(false);
     }

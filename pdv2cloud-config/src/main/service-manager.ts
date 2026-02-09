@@ -1,6 +1,10 @@
 import { exec } from 'child_process';
+import { app } from 'electron';
+import fs from 'fs';
+import path from 'path';
 
 const SERVICE_NAME = 'PDV2CloudAgent';
+const DEFAULT_INSTALL_DIRNAME = 'PDV2Cloud';
 
 const looksLikeNotInstalled = (message: string) => {
   const msg = (message || '').toString();
@@ -69,9 +73,62 @@ export const serviceStatus = async () => {
 };
 
 export const installService = () => {
-  const pythonPath = 'C:\\Program Files\\PDV2Cloud\\python\\python.exe';
-  const installerPath = 'C:\\Program Files\\PDV2Cloud\\service\\installer\\service_installer.py';
-  return execPromise(`"${pythonPath}" "${installerPath}" install`);
+  const resolved = resolveInstallerPaths();
+  if (!resolved) {
+    throw new Error(
+      [
+        'SERVICE_INSTALLER_NOT_FOUND',
+        'Nao foi possivel localizar os arquivos do agente (python embutido e instalador do servico).',
+        'Instale/reinstale o "PDV2Cloud Collector Agent" (PDV2Cloud-Setup.exe) ou execute a Config UI dentro da pasta do PDV2Cloud.',
+        '',
+        'Caminhos verificados:',
+        ...getCandidateBaseDirs().map((d) => `- ${d}`),
+      ].join('\n')
+    );
+  }
+  return execPromise(`"${resolved.pythonPath}" "${resolved.installerPath}" install`);
+};
+
+const getCandidateBaseDirs = () => {
+  const candidates = new Set<string>();
+
+  // If this UI is launched from the full installer, it's usually under:
+  //   <base>\\config-ui\\PDV2Cloud Config.exe
+  try {
+    const exePath = app.getPath('exe') || process.execPath;
+    const exeDir = path.dirname(exePath);
+    candidates.add(path.resolve(exeDir, '..'));
+  } catch {
+    // ignore
+  }
+
+  // Common defaults.
+  const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles;
+  if (programFiles) {
+    candidates.add(path.join(programFiles, DEFAULT_INSTALL_DIRNAME));
+  }
+  const programFilesX86 = process.env['ProgramFiles(x86)'];
+  if (programFilesX86) {
+    candidates.add(path.join(programFilesX86, DEFAULT_INSTALL_DIRNAME));
+  }
+
+  // Last-resort hardcoded fallbacks (in case env vars are missing).
+  candidates.add('C:\\Program Files\\PDV2Cloud');
+  candidates.add('C:\\Program Files (x86)\\PDV2Cloud');
+
+  return Array.from(candidates).filter(Boolean);
+};
+
+const resolveInstallerPaths = () => {
+  const bases = getCandidateBaseDirs();
+  for (const base of bases) {
+    const pythonPath = path.join(base, 'python', 'python.exe');
+    const installerPath = path.join(base, 'service', 'installer', 'service_installer.py');
+    if (fs.existsSync(pythonPath) && fs.existsSync(installerPath)) {
+      return { baseDir: base, pythonPath, installerPath };
+    }
+  }
+  return null;
 };
 
 const execPromise = (cmd: string) => {
