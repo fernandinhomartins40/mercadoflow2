@@ -72,7 +72,7 @@ export const serviceStatus = async () => {
   }
 };
 
-export const installService = () => {
+export const installService = async () => {
   const resolved = resolveInstallerPaths();
   if (!resolved) {
     throw new Error(
@@ -86,6 +86,8 @@ export const installService = () => {
       ].join('\n')
     );
   }
+
+  await ensureEmbeddedPythonReady(resolved.baseDir, resolved.pythonPath);
   return execPromise(`"${resolved.pythonPath}" "${resolved.installerPath}" install`);
 };
 
@@ -131,9 +133,99 @@ const resolveInstallerPaths = () => {
   return null;
 };
 
+const ensureEmbeddedPythonReady = async (baseDir: string, pythonPath: string) => {
+  const pythonDir = path.join(baseDir, 'python');
+  ensurePythonPth(pythonDir);
+  await ensurePipInstalled(pythonPath, pythonDir);
+  await ensureRequirementsInstalled(pythonPath, baseDir);
+};
+
+const ensurePythonPth = (pythonDir: string) => {
+  if (!fs.existsSync(pythonDir)) {
+    return;
+  }
+
+  // Embedded Python uses pythonXY._pth to define sys.path. If site is disabled,
+  // pip-installed packages (e.g. pywin32) won't be importable.
+  const pthFile = fs.readdirSync(pythonDir).find((f) => /^python\d+.*\._pth$/i.test(f));
+  if (!pthFile) {
+    return;
+  }
+
+  const pthPath = path.join(pythonDir, pthFile);
+  const raw = fs.readFileSync(pthPath, 'utf-8');
+  const lines = raw.split(/\r?\n/);
+
+  let changed = false;
+  const normalized = lines.map((line) => {
+    if (line.trim() === '#import site') {
+      changed = true;
+      return 'import site';
+    }
+    return line;
+  });
+
+  const servicePathEntry = '..\\service';
+  if (!normalized.some((l) => l.trim() === servicePathEntry)) {
+    changed = true;
+    const dotIndex = normalized.findIndex((l) => l.trim() === '.');
+    if (dotIndex >= 0) {
+      normalized.splice(dotIndex + 1, 0, servicePathEntry);
+    } else {
+      normalized.unshift(servicePathEntry);
+    }
+  }
+
+  if (changed) {
+    fs.writeFileSync(pthPath, normalized.join('\r\n'), 'utf-8');
+  }
+};
+
+const ensurePipInstalled = async (pythonPath: string, pythonDir: string) => {
+  try {
+    await execPromise(`"${pythonPath}" -m pip --version`);
+    return;
+  } catch {
+    // continue
+  }
+
+  const getPip = path.join(pythonDir, 'get-pip.py');
+  if (!fs.existsSync(getPip)) {
+    throw new Error(
+      [
+        'GET_PIP_NOT_FOUND',
+        'Nao foi possivel encontrar get-pip.py para instalar o pip no Python embutido.',
+        `Caminho esperado: ${getPip}`,
+      ].join('\n')
+    );
+  }
+
+  await execPromise(`"${pythonPath}" "${getPip}"`);
+};
+
+const ensureRequirementsInstalled = async (pythonPath: string, baseDir: string) => {
+  const candidates = [
+    path.join(baseDir, 'service', 'service', 'requirements.txt'),
+    path.join(baseDir, 'service', 'requirements.txt'),
+  ];
+  const requirementsPath = candidates.find((p) => fs.existsSync(p));
+  if (!requirementsPath) {
+    throw new Error(
+      [
+        'REQUIREMENTS_NOT_FOUND',
+        'Nao foi possivel localizar o requirements.txt do agente.',
+        'Caminhos verificados:',
+        ...candidates.map((p) => `- ${p}`),
+      ].join('\n')
+    );
+  }
+
+  await execPromise(`"${pythonPath}" -m pip install -r "${requirementsPath}"`);
+};
+
 const execPromise = (cmd: string) => {
   return new Promise<string>((resolve, reject) => {
-    exec(cmd, { windowsHide: true }, (error, stdout, stderr) => {
+    exec(cmd, { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
       const out = String(stdout || '').trim();
       const errOut = String(stderr || '').trim();
 

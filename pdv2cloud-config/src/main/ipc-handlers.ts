@@ -1,5 +1,6 @@
 import { ipcMain, dialog } from 'electron';
 import fs from 'fs';
+import path from 'path';
 import { startService, stopService, restartService, serviceStatus, installService } from './service-manager';
 
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
@@ -49,7 +50,8 @@ export const registerIpcHandlers = () => {
   });
 
   ipcMain.handle('config:save', async (event, config) => {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
     return true;
   });
 

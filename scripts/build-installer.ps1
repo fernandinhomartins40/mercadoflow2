@@ -19,6 +19,30 @@ if (Test-Path $pythonDir) { Remove-Item $pythonDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $pythonDir | Out-Null
 Expand-Archive -Path $pyZip -DestinationPath $pythonDir -Force
 
+# Enable site-packages and make our bundled service importable from the embedded Python.
+$pth = Get-ChildItem -Path $pythonDir -Filter "python*._pth" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($pth -and (Test-Path $pth.FullName)) {
+  $lines = Get-Content -Path $pth.FullName
+  $updated = New-Object System.Collections.Generic.List[string]
+  foreach ($line in $lines) {
+    if ($line -eq '#import site') {
+      $updated.Add('import site')
+    } else {
+      $updated.Add($line)
+    }
+  }
+  # Ensure the app's {app}\service folder is on sys.path (relative to {app}\python).
+  if (-not ($updated -contains '..\\service')) {
+    $dotIndex = $updated.IndexOf('.')
+    if ($dotIndex -ge 0) {
+      $updated.Insert($dotIndex + 1, '..\\service')
+    } else {
+      $updated.Add('..\\service')
+    }
+  }
+  Set-Content -Path $pth.FullName -Value $updated -Encoding ASCII
+}
+
 # Add get-pip
 $getPip = Join-Path $pythonDir 'get-pip.py'
 Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile $getPip
