@@ -30,7 +30,14 @@ $OutputPath = Join-Path $InstallerDir "Output"
 if ($OutputDir -and $OutputDir.Trim() -ne "") {
     $OutputPath = Join-Path $PSScriptRoot $OutputDir
 }
-$OutputPath = (Resolve-Path -Path $OutputPath -ErrorAction SilentlyContinue)?.Path ?? $OutputPath
+try {
+    $resolved = Resolve-Path -Path $OutputPath -ErrorAction Stop
+    if ($resolved -and $resolved.Path) {
+        $OutputPath = $resolved.Path
+    }
+} catch {
+    # Keep the provided output path; we'll create it below.
+}
 
 New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
 
@@ -92,7 +99,7 @@ Set-Content $SetupScript $SetupContent -NoNewline
 Write-Host "  ✓ Version updated to $Version" -ForegroundColor Gray
 
 Write-Host "[3/5] Building installer with Inno Setup..." -ForegroundColor Green
-& $InnoSetupPath "/O$OutputPath" $SetupScript
+& $InnoSetupPath ("/O`"" + $OutputPath + "`"") $SetupScript
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Inno Setup build failed" -ForegroundColor Red
