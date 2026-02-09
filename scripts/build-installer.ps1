@@ -1,14 +1,14 @@
 $ErrorActionPreference = 'Stop'
-$root = (Get-Location)
-$tools = Join-Path $root 'tools'
-$dist = Join-Path $root 'dist'
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$tools = Join-Path $repoRoot 'tools'
+$dist = Join-Path $repoRoot 'dist'
 $pythonDir = Join-Path $dist 'python-embed'
-$serviceSrc = Join-Path $root 'pdv2cloud-agent\service'
-$installerSrc = Join-Path $root 'pdv2cloud-agent\installer'
-$configSrc = Join-Path $root 'pdv2cloud-agent\config'
-$configUiRoot = Join-Path $root 'pdv2cloud-config'
+$serviceSrc = Join-Path $repoRoot 'pdv2cloud-agent\service'
+$installerSrc = Join-Path $repoRoot 'pdv2cloud-agent\installer'
+$configSrc = Join-Path $repoRoot 'pdv2cloud-agent\config'
+$configUiRoot = Join-Path $repoRoot 'pdv2cloud-config'
 
-New-Item -ItemType Directory -Force -Path $dist, $pythonDir | Out-Null
+New-Item -ItemType Directory -Force -Path $tools, $dist, $pythonDir | Out-Null
 
 # Download Python embeddable
 $pyZip = Join-Path $tools 'python-embed.zip'
@@ -43,5 +43,5 @@ $configUiDist = Join-Path $dist 'config-ui'
 if (Test-Path $configUiDist) { Remove-Item $configUiDist -Recurse -Force }
 Copy-Item $winUnpacked -Destination $configUiDist -Recurse -Force
 
-Set-Location $root
+Set-Location $repoRoot
 Write-Host 'Build artifacts prepared in dist/'
