@@ -220,7 +220,58 @@ const ensureRequirementsInstalled = async (pythonPath: string, baseDir: string) 
     );
   }
 
-  await execPromise(`"${pythonPath}" -m pip install -r "${requirementsPath}"`);
+  try {
+    await execPromise(`"${pythonPath}" -m pip install -r "${requirementsPath}"`);
+    return;
+  } catch (err) {
+    const msg = String(err || '');
+    if (looksLikeXmlsecInstallFailure(msg)) {
+      await installRequirementsWithoutXmlsec(pythonPath, requirementsPath);
+      return;
+    }
+    throw err;
+  }
+};
+
+const looksLikeXmlsecInstallFailure = (message: string) => {
+  const msg = (message || '').toLowerCase();
+  if (!msg.includes('xmlsec')) return false;
+  return (
+    msg.includes('no matching distribution found for xmlsec') ||
+    msg.includes('could not find a version that satisfies the requirement xmlsec') ||
+    msg.includes('has inconsistent version') ||
+    msg.includes('requested xmlsec') ||
+    msg.includes('discarding') ||
+    msg.includes('metadata has') ||
+    msg.includes('yanked versions')
+  );
+};
+
+const installRequirementsWithoutXmlsec = async (pythonPath: string, requirementsPath: string) => {
+  const raw = fs.readFileSync(requirementsPath, 'utf-8');
+  const lines = raw.split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const t = (line || '').trim();
+    if (!t) return false; // keep file clean for pip
+    if (t.startsWith('#')) return false;
+    return !t.toLowerCase().startsWith('xmlsec');
+  });
+
+  if (filtered.length === 0) {
+    throw new Error('REQUIREMENTS_EMPTY_AFTER_FILTER');
+  }
+
+  const tmpPath = path.join(app.getPath('temp'), `pdv2cloud-requirements-${process.pid}-${Date.now()}.txt`);
+  fs.writeFileSync(tmpPath, filtered.join('\n') + '\n', 'utf-8');
+  try {
+    await execPromise(`"${pythonPath}" -m pip install -r "${tmpPath}"`);
+  } finally {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // ignore
+    }
+  }
 };
 
 const execPromise = (cmd: string) => {
