@@ -61,9 +61,11 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         <div className="alert alert-error" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fee', border: '1px solid #fcc', borderRadius: '4px' }}>
           <strong>⚠️ Servico nao instalado</strong>
           <p>O servico PDV2CloudAgent nao esta registrado no Windows.</p>
-          <p>Execute como Administrador:</p>
-          <code style={{ display: 'block', marginTop: '5px', padding: '5px', backgroundColor: '#f5f5f5' }}>
+          <p>Execute como Administrador (ajuste o caminho se instalou em outra pasta):</p>
+          <code style={{ display: 'block', marginTop: '5px', padding: '5px', backgroundColor: '#f5f5f5', whiteSpace: 'pre-wrap' }}>
             "C:\Program Files\PDV2Cloud\python\python.exe" "C:\Program Files\PDV2Cloud\service\installer\service_installer.py" install
+            <br />
+            "C:\Program Files (x86)\PDV2Cloud\python\python.exe" "C:\Program Files (x86)\PDV2Cloud\service\installer\service_installer.py" install
           </code>
         </div>
       )}
