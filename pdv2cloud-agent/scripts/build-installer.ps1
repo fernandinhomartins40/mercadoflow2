@@ -95,11 +95,21 @@ foreach ($dir in $RequiredDirs) {
 Write-Host "[2/5] Updating version in setup.iss..." -ForegroundColor Green
 $SetupContent = Get-Content $SetupScript -Raw
 $SetupContent = $SetupContent -replace 'AppVersion=.*', "AppVersion=$Version"
+
+# Set output directory in the script itself (more reliable than ISCC /O on CI runners).
+if ($SetupContent -match '(?m)^OutputDir=') {
+    $SetupContent = $SetupContent -replace '(?m)^OutputDir=.*$', ("OutputDir=" + $OutputPath)
+} elseif ($SetupContent -match '(?m)^OutputBaseFilename=') {
+    $SetupContent = $SetupContent -replace '(?m)^OutputBaseFilename=.*$', ('$0' + "`r`n" + ("OutputDir=" + $OutputPath))
+} else {
+    $SetupContent = $SetupContent + "`r`nOutputDir=$OutputPath`r`n"
+}
+
 Set-Content $SetupScript $SetupContent -NoNewline
 Write-Host "  ✓ Version updated to $Version" -ForegroundColor Gray
 
 Write-Host "[3/5] Building installer with Inno Setup..." -ForegroundColor Green
-& $InnoSetupPath ("/O`"" + $OutputPath + "`"") $SetupScript
+& $InnoSetupPath $SetupScript
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Inno Setup build failed" -ForegroundColor Red

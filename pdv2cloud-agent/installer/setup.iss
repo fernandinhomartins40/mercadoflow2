@@ -3,6 +3,7 @@ AppName=PDV2Cloud Collector Agent
 AppVersion=1.0.0
 DefaultDirName={pf}\PDV2Cloud
 DefaultGroupName=PDV2Cloud
+OutputDir=Output
 OutputBaseFilename=PDV2Cloud-Setup
 Compression=lzma2
 SolidCompression=yes
