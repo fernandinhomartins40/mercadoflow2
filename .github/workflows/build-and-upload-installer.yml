@@ -1,0 +1,115 @@
+name: Build and Upload PDV2Cloud Installer
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pdv2cloud-agent/**'
+      - 'pdv2cloud-config/**'
+      - 'scripts/build-installer.ps1'
+      - '.github/workflows/build-and-upload-installer.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-upload-installer
+  cancel-in-progress: true
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            pdv2cloud-config/package-lock.json
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Installer
+        shell: pwsh
+        env:
+          PDV2CLOUD_CODESIGN_PFX_BASE64: ${{ secrets.PDV2CLOUD_CODESIGN_PFX_BASE64 }}
+          PDV2CLOUD_CODESIGN_PFX_PASSWORD: ${{ secrets.PDV2CLOUD_CODESIGN_PFX_PASSWORD }}
+          PDV2CLOUD_CODESIGN_TIMESTAMP_URL: ${{ secrets.PDV2CLOUD_CODESIGN_TIMESTAMP_URL }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $version = "1.0.$env:GITHUB_RUN_NUMBER"
+          Write-Host "Building installer version: $version"
+
+          # Optional signing: provide PFX via base64 secret.
+          $sign = $false
+          if ($env:PDV2CLOUD_CODESIGN_PFX_BASE64 -and $env:PDV2CLOUD_CODESIGN_PFX_BASE64.Trim().Length -gt 0) {
+            $pfxPath = Join-Path $env:RUNNER_TEMP "pdv2cloud-codesign.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PDV2CLOUD_CODESIGN_PFX_BASE64))
+            $env:PDV2CLOUD_CODESIGN_PFX = $pfxPath
+            $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD = $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD
+            if ($env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL) {
+              $env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL = $env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL
+            }
+            $sign = $true
+          }
+
+          if ($sign) {
+            pwsh -ExecutionPolicy Bypass -File "pdv2cloud-agent/scripts/build-installer.ps1" -Version $version -PrepareArtifacts -Sign
+          } else {
+            pwsh -ExecutionPolicy Bypass -File "pdv2cloud-agent/scripts/build-installer.ps1" -Version $version -PrepareArtifacts
+          }
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv2cloud-installer
+          if-no-files-found: error
+          path: |
+            pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe
+            pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.sha256
+            pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe.meta.json
+
+  upload_vps:
+    runs-on: ubuntu-latest
+    needs: build_windows
+    timeout-minutes: 15
+
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pdv2cloud-installer
+          path: installer
+
+      - name: Upload To VPS (Atomic)
+        env:
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install -y sshpass
+
+          VPS_HOST="72.60.10.112"
+          VPS_USER="root"
+          TARGET_DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
+
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "mkdir -p '$TARGET_DIR'"
+
+          for f in PDV2Cloud-Setup.exe PDV2Cloud-Setup.exe.sha256 PDV2Cloud-Setup.exe.meta.json; do
+            if [ ! -f "installer/$f" ]; then
+              echo "Missing file: installer/$f"
+              exit 1
+            fi
+            sshpass -p "$VPS_PASSWORD" scp -o StrictHostKeyChecking=no "installer/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
+            sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f'"
+          done
+
+          # Optional: run check script if present
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "if [ -f /root/mercadoflow-web/deploy/check-installer.sh ]; then bash /root/mercadoflow-web/deploy/check-installer.sh; fi"
+

@@ -3,7 +3,8 @@
 
 param(
     [string]$Version = "1.0.0",
-    [string]$OutputDir = "..\installer\Output",
+    [string]$OutputDir = "..\\installer\\Output",
+    [switch]$PrepareArtifacts,
     [switch]$Sign,
     [string]$PfxPath = $env:PDV2CLOUD_CODESIGN_PFX,
     [string]$PfxPassword = $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD,
@@ -20,16 +21,45 @@ Write-Host ""
 
 # Paths
 $RootDir = Split-Path -Parent $PSScriptRoot
-$DistDir = Join-Path $RootDir "dist"
+$RepoRoot = Split-Path -Parent $RootDir
+$DistDir = Join-Path $RepoRoot "dist"
 $InstallerDir = Join-Path $RootDir "installer"
 $SetupScript = Join-Path $InstallerDir "setup.iss"
 $OutputPath = Join-Path $InstallerDir "Output"
 
+if ($OutputDir -and $OutputDir.Trim() -ne "") {
+    $OutputPath = Join-Path $PSScriptRoot $OutputDir
+}
+$OutputPath = (Resolve-Path -Path $OutputPath -ErrorAction SilentlyContinue)?.Path ?? $OutputPath
+
+New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
+
+# Optionally prepare dist/ (python-embed, service, config-ui) from the repo scripts.
+if ($PrepareArtifacts) {
+    Write-Host "[0/5] Preparando artifacts em dist/..." -ForegroundColor Green
+    $PrepareScript = Join-Path $RepoRoot "scripts\\build-installer.ps1"
+    if (-not (Test-Path $PrepareScript)) {
+        Write-Host "ERROR: Script nao encontrado: $PrepareScript" -ForegroundColor Red
+        exit 1
+    }
+    & powershell -ExecutionPolicy Bypass -File $PrepareScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Falha ao preparar dist/" -ForegroundColor Red
+        exit 1
+    }
+}
+
 # Check if Inno Setup is installed
-$InnoSetupPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+$InnoSetupPath = "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe"
 if (-not (Test-Path $InnoSetupPath)) {
-    Write-Host "ERROR: Inno Setup not found at $InnoSetupPath" -ForegroundColor Red
-    Write-Host "Please install Inno Setup 6 from https://jrsoftware.org/isdl.php" -ForegroundColor Yellow
+    $bundled = Join-Path $RepoRoot "tools\\innosetup\\ISCC.exe"
+    if (Test-Path $bundled) {
+        $InnoSetupPath = $bundled
+    }
+}
+if (-not (Test-Path $InnoSetupPath)) {
+    Write-Host "ERROR: ISCC.exe (Inno Setup) nao encontrado." -ForegroundColor Red
+    Write-Host "Instale o Inno Setup 6 ou use o bundle em tools/innosetup." -ForegroundColor Yellow
     exit 1
 }
 
@@ -40,7 +70,7 @@ if (-not (Test-Path $DistDir)) {
     exit 1
 }
 
-Write-Host "[1/4] Checking distribution files..." -ForegroundColor Green
+Write-Host "[1/5] Checking distribution files..." -ForegroundColor Green
 $RequiredDirs = @(
     (Join-Path $DistDir "python-embed"),
     (Join-Path $DistDir "service"),
@@ -55,14 +85,14 @@ foreach ($dir in $RequiredDirs) {
     Write-Host "  ✓ Found: $(Split-Path -Leaf $dir)" -ForegroundColor Gray
 }
 
-Write-Host "[2/4] Updating version in setup.iss..." -ForegroundColor Green
+Write-Host "[2/5] Updating version in setup.iss..." -ForegroundColor Green
 $SetupContent = Get-Content $SetupScript -Raw
 $SetupContent = $SetupContent -replace 'AppVersion=.*', "AppVersion=$Version"
 Set-Content $SetupScript $SetupContent -NoNewline
 Write-Host "  ✓ Version updated to $Version" -ForegroundColor Gray
 
-Write-Host "[3/4] Building installer with Inno Setup..." -ForegroundColor Green
-& $InnoSetupPath $SetupScript
+Write-Host "[3/5] Building installer with Inno Setup..." -ForegroundColor Green
+& $InnoSetupPath "/O$OutputPath" $SetupScript
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Inno Setup build failed" -ForegroundColor Red

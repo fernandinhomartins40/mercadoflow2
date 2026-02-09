@@ -23,7 +23,11 @@ O instalador do agente desktop (PDV2Cloud-Setup.exe) **NÃO** é versionado no G
 # 1. Navegue até o diretório de scripts
 cd pdv2cloud-agent\scripts
 
-# 2. Execute o script de build
+# 2. (Recomendado) Prepare os artifacts (python-embed + service + config-ui)
+# Isso garante que a interface desktop (config-ui) esteja atualizada.
+powershell -ExecutionPolicy Bypass -File ..\..\scripts\build-installer.ps1
+
+# 3. Execute o build do instalador (Inno Setup)
 powershell -ExecutionPolicy Bypass -File build-installer.ps1 -Version "1.0.0"
 
 # 2b. (Recomendado) Build + assinatura do instalador (Authenticode)
@@ -44,6 +48,15 @@ ls ..\installer\Output\PDV2Cloud-Setup.exe
 ls ..\installer\Output\PDV2Cloud-Setup.exe.sha256
 ls ..\installer\Output\PDV2Cloud-Setup.exe.meta.json
 ```
+
+## Deploy: por que o instalador pode ficar antigo?
+
+O workflow de deploy do servidor **não gera** um novo `.exe` automaticamente (o build do Inno Setup é Windows e o deploy roda em Linux).
+Além disso, o deploy faz `rsync --delete` mas **exclui** `dist/` e `pdv2cloud-agent/installer/Output/**` para não apagar binários e segredos.
+
+Para garantir que o instalador publicado esteja sempre atualizado, use:
+- Build local no Windows + upload via SCP; ou
+- GitHub Actions (Windows runner) para build + upload automático para a VPS.
 
 ## SmartScreen (Windows)
 
