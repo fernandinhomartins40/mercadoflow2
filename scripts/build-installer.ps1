@@ -32,12 +32,12 @@ if ($pth -and (Test-Path $pth.FullName)) {
     }
   }
   # Ensure the app's {app}\service folder is on sys.path (relative to {app}\python).
-  if (-not ($updated -contains '..\\service')) {
+  if (-not ($updated -contains '..\service')) {
     $dotIndex = $updated.IndexOf('.')
     if ($dotIndex -ge 0) {
-      $updated.Insert($dotIndex + 1, '..\\service')
+      $updated.Insert($dotIndex + 1, '..\service')
     } else {
-      $updated.Add('..\\service')
+      $updated.Add('..\service')
     }
   }
   Set-Content -Path $pth.FullName -Value $updated -Encoding ASCII
