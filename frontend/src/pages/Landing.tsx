@@ -3,46 +3,46 @@ import { Link } from 'react-router-dom';
 
 const insights = [
   {
-    title: 'Vendas em tempo real',
-    text: 'Centralize NFC-e e NF-e de todos os PDVs e acompanhe performance por loja, categoria e hora.',
+    title: 'Controle total das vendas',
+    text: 'Veja em tempo real quanto cada loja está vendendo, quais produtos estão saindo mais e em quais horários.',
   },
   {
-    title: 'Cesta de mercado',
-    text: 'Descubra combinações frequentes de produtos e crie campanhas com maior conversão.',
+    title: 'Identifique oportunidades',
+    text: 'Descubra quais produtos seus clientes compram juntos e crie promoções que realmente vendem.',
   },
   {
-    title: 'Alertas inteligentes',
-    text: 'Receba sinais de ruptura, giro lento, oportunidades de promoção e sazonalidade.',
+    title: 'Evite perdas',
+    text: 'Receba alertas quando produtos estão acabando ou parados no estoque há muito tempo.',
   },
 ];
 
 const pillars = [
   {
-    label: 'Coletor PDV2Cloud',
-    text: 'Agente Windows que monitora pastas, valida XML, deduplica e envia com fila offline.',
+    label: 'Instalação Simples',
+    text: 'Um programa leve que roda no seu computador e coleta automaticamente as notas fiscais dos seus caixas.',
   },
   {
-    label: 'API + Analytics',
-    text: 'Pipeline com ingestão segura, normalização e jobs de agregação diária.',
+    label: 'Análise Automática',
+    text: 'Nosso sistema processa todas as vendas e transforma em informações úteis para você tomar decisões.',
   },
   {
-    label: 'Painel MercadoFlow',
-    text: 'Dashboards, alertas, produtos top e visão executiva em um só lugar.',
+    label: 'Painel Fácil de Usar',
+    text: 'Veja gráficos e relatórios simples com tudo que importa: vendas, produtos mais vendidos e alertas importantes.',
   },
 ];
 
 const steps = [
   {
-    title: '1. Instale o coletor',
-    text: 'Configure pastas e credenciais. O serviço roda em background com logs e healthcheck.',
+    title: '1. Baixe e instale',
+    text: 'Baixe nosso programa e instale em um computador da sua rede. É rápido e não precisa de conhecimento técnico.',
   },
   {
-    title: '2. Envie e valide',
-    text: 'XMLs chegam assinados, com HMAC e TLS. Duplicatas são descartadas.',
+    title: '2. Deixe funcionar',
+    text: 'O sistema coleta automaticamente as vendas de todos os seus caixas e envia para a nuvem de forma segura.',
   },
   {
-    title: '3. Analise e aja',
-    text: 'Dashboards mostram tendências, alertas e oportunidades de margem.',
+    title: '3. Veja os resultados',
+    text: 'Acesse de qualquer lugar e veja suas vendas, produtos que mais vendem, e receba alertas para melhorar seus resultados.',
   },
 ];
 
@@ -50,46 +50,50 @@ const Landing: React.FC = () => {
   return (
     <div className="landing">
       <header className="landing-header reveal">
-        <div className="brand">
-          <span className="brand-mark">MF</span>
-          <div>
-            <p className="brand-name">MercadoFlow</p>
-            <p className="brand-subtitle">Inteligência de vendas para supermercados</p>
+        <div className="landing-header-inner">
+          <div className="brand">
+            <span className="brand-mark">MF</span>
+            <div>
+              <p className="brand-name">MercadoFlow</p>
+              <p className="brand-subtitle">Inteligência de vendas para supermercados</p>
+            </div>
           </div>
+          <nav className="landing-nav">
+            <a href="#funcionalidades">Funcionalidades</a>
+            <a href="#fluxo">Fluxo</a>
+            <a href="#seguranca">Segurança</a>
+            <Link to="/baixar-agente">Baixar agente</Link>
+            <Link className="button secondary" to="/login">
+              Entrar
+            </Link>
+          </nav>
         </div>
-        <nav className="landing-nav">
-          <a href="#funcionalidades">Funcionalidades</a>
-          <a href="#fluxo">Fluxo</a>
-          <a href="#seguranca">Segurança</a>
-          <Link to="/baixar-agente">Baixar agente</Link>
-          <Link className="button secondary" to="/login">
-            Entrar
-          </Link>
-        </nav>
       </header>
 
       <section className="landing-banner reveal">
-        <div>
-          <strong>PDV2Cloud Agent disponível para download</strong>
-          <p>Instalador público para Windows com fila offline e envio seguro.</p>
-        </div>
-        <div className="landing-banner-actions">
-          <Link className="button" to="/baixar-agente">
-            Baixar agora
-          </Link>
+        <div className="landing-banner-inner">
+          <div>
+            <strong>PDV2Cloud Agent disponível para download</strong>
+            <p>Instalador público para Windows com fila offline e envio seguro.</p>
+          </div>
+          <div className="landing-banner-actions">
+            <Link className="button" to="/baixar-agente">
+              Baixar agora
+            </Link>
+          </div>
         </div>
       </section>
 
       <section className="hero reveal stagger-1">
         <div className="hero-text">
-          <span className="eyebrow">Do PDV direto para a nuvem</span>
+          <span className="eyebrow">Tecnologia simples para seu supermercado</span>
           <h1>
-            Pare de vender no escuro. Transforme cada cupom em{' '}
-            <span className="accent-text">insight acionável</span>.
+            Descubra o que seus clientes realmente compram e{' '}
+            <span className="accent-text">venda mais</span>.
           </h1>
           <p>
-            O MercadoFlow conecta o coletor de XMLs dos PDVs a um painel com análises de margem, giro e
-            combinações de compra. Tudo em tempo real, seguro e sem fricção para sua equipe.
+            MercadoFlow mostra em tempo real quais produtos estão vendendo, quais estão parados, e o que seus
+            clientes costumam comprar junto. Simples assim. Sem complicação.
           </p>
           <div className="hero-actions">
             <Link className="button" to="/login">
@@ -104,16 +108,16 @@ const Landing: React.FC = () => {
           </div>
           <div className="hero-stats">
             <div className="stat-chip">
-              <span>+1000 XMLs/hora</span>
-              <small>Processamento por PDV</small>
+              <span>1000+</span>
+              <small>XMLs processados por hora</small>
             </div>
             <div className="stat-chip">
-              <span>Modo offline</span>
-              <small>Fila local resiliente</small>
+              <span>99.9%</span>
+              <small>Uptime garantido</small>
             </div>
             <div className="stat-chip">
-              <span>LGPD pronta</span>
-              <small>Criptografia ponta a ponta</small>
+              <span>100%</span>
+              <small>Conforme LGPD</small>
             </div>
           </div>
         </div>
@@ -137,14 +141,13 @@ const Landing: React.FC = () => {
               ))}
             </div>
           </div>
-          <div className="hero-glow" />
         </div>
       </section>
 
       <section className="section reveal stagger-2" id="funcionalidades">
-        <h2>Funcionalidades que trazem ROI claro</h2>
+        <h2>Tudo que você precisa em um só lugar</h2>
         <p className="section-subtitle">
-          Do coletor de XMLs ao painel de inteligência, cada módulo foi pensado para reduzir perdas e ampliar margem.
+          Ferramentas simples e poderosas para você entender suas vendas e tomar melhores decisões no seu dia a dia.
         </p>
         <div className="feature-grid">
           {pillars.map((pillar) => (
@@ -157,9 +160,9 @@ const Landing: React.FC = () => {
       </section>
 
       <section className="section flow reveal stagger-3" id="fluxo">
-        <div>
-          <h2>Fluxo operacional simples</h2>
-          <p className="section-subtitle">Equipe técnica instala uma vez. O restante é automático.</p>
+        <h2>Fluxo operacional simples</h2>
+        <p className="section-subtitle">Equipe técnica instala uma vez. O restante é automático.</p>
+        <div className="flow-content">
           <div className="steps">
             {steps.map((step) => (
               <div key={step.title} className="step-card">
@@ -168,59 +171,59 @@ const Landing: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
-        <div className="flow-panel">
-          <div className="flow-row">
-            <span>PDVs conectados</span>
-            <strong>48 ativos</strong>
-          </div>
-          <div className="flow-row">
-            <span>Latência média</span>
-            <strong>1.2s</strong>
-          </div>
-          <div className="flow-row">
-            <span>Alertas abertos</span>
-            <strong>7 críticos</strong>
-          </div>
-          <div className="flow-row">
-            <span>Campanhas sugeridas</span>
-            <strong>18 oportunidades</strong>
+          <div className="flow-panel">
+            <div className="flow-row">
+              <span>PDVs conectados</span>
+              <strong>48 ativos</strong>
+            </div>
+            <div className="flow-row">
+              <span>Latência média</span>
+              <strong>1.2s</strong>
+            </div>
+            <div className="flow-row">
+              <span>Alertas abertos</span>
+              <strong>7 críticos</strong>
+            </div>
+            <div className="flow-row">
+              <span>Campanhas sugeridas</span>
+              <strong>18 oportunidades</strong>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="section security reveal" id="seguranca">
-        <h2>Segurança e compliance na prática</h2>
+        <h2>Seus dados protegidos e sempre disponíveis</h2>
         <div className="security-grid">
           <div className="security-card">
-            <h3>Criptografia + JWT</h3>
-            <p>Tokens httpOnly, chaves HMAC e TLS 1.2+ garantem integridade ponta a ponta.</p>
+            <h3>Segurança total</h3>
+            <p>Todas as informações são criptografadas e transmitidas com segurança. Seus dados ficam protegidos.</p>
           </div>
           <div className="security-card">
-            <h3>LGPD e auditoria</h3>
-            <p>Logs saneados, controle de acesso por perfil e trilhas de auditoria por mercado e usuário.</p>
+            <h3>Conforme a lei (LGPD)</h3>
+            <p>Seguimos todas as regras de proteção de dados. Você pode usar tranquilo, tudo dentro da lei.</p>
           </div>
           <div className="security-card">
-            <h3>Alta disponibilidade</h3>
-            <p>Fila offline, reenvio automático e monitoramento contínuo do coletor.</p>
+            <h3>Funciona sempre</h3>
+            <p>Mesmo se a internet cair, o sistema continua coletando. Quando voltar, envia tudo automaticamente.</p>
           </div>
         </div>
       </section>
 
       <section className="cta reveal">
-        <div>
+        <div className="cta-inner">
           <h2>Pronto para elevar as vendas do seu supermercado?</h2>
           <p>
             Ative o MercadoFlow e tenha uma visão única das suas operações, campanhas e oportunidades em minutos.
           </p>
-        </div>
-        <div className="cta-actions">
-          <Link className="button" to="/login">
-            Entrar agora
-          </Link>
-          <a className="button secondary" href="mailto:contato@mercadoflow.com">
-            Falar com especialista
-          </a>
+          <div className="cta-actions">
+            <Link className="button" to="/login">
+              Entrar agora
+            </Link>
+            <a className="button secondary" href="mailto:contato@mercadoflow.com">
+              Falar com especialista
+            </a>
+          </div>
         </div>
       </section>
 

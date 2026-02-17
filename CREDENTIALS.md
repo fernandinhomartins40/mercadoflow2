@@ -11,6 +11,9 @@
 Email:    admin@mercadoflow.com
 Senha:    MercadoFlow@2026
 Perfil:   ADMIN
+Nome:     Administrador
+Mercado:  MercadoFlow Admin (Plano ADVANCED)
+CNPJ:     00000000000000
 ```
 
 ### ⚠️ IMPORTANTE - Segurança
@@ -29,7 +32,11 @@ Perfil:   ADMIN
 Email:    admin@demo.com
 Senha:    admin123
 Perfil:   ADMIN
+Nome:     Admin Demo
+Mercado:  Mercado Demo (Plano BASIC)
 ```
+
+**Observação:** O DevSeeder só executa no perfil `dev` e apenas se o banco estiver vazio.
 
 ## 🔒 Segurança
 
@@ -39,15 +46,23 @@ Perfil:   ADMIN
 
 ## 📝 Como Funciona
 
+### Ambiente de Produção (profile: production)
 1. **Primeiro Deploy:** ProductionSeeder cria automaticamente:
-   - Mercado padrão: "MercadoFlow Admin" (Plano Advanced)
-   - Usuário admin com as credenciais acima
+   - Mercado padrão: "MercadoFlow Admin" (Plano ADVANCED, CNPJ: 00000000000000)
+   - Usuário admin: Administrador (admin@mercadoflow.com)
 
 2. **Deploys Subsequentes:** Seeder detecta que já existem usuários e **não cria novos**
 
 3. **Reset Completo:** Para recriar o admin, você precisa:
    - Remover o volume PostgreSQL: `docker volume rm mercadoflow_postgres_data`
    - Fazer novo deploy
+
+### Ambiente de Desenvolvimento (profile: dev)
+1. **Primeiro Startup:** DevSeeder cria automaticamente:
+   - Mercado demo: "Mercado Demo" (Plano BASIC)
+   - Usuário admin: Admin Demo (admin@demo.com)
+
+2. **Startups Subsequentes:** Seeder detecta que já existem usuários e **não cria novos**
 
 ## 🔐 Banco de Dados PostgreSQL
 
