@@ -64,7 +64,7 @@ const PublicAgentDownload: React.FC = () => {
           <span className="brand-mark">MF</span>
           <div>
             <p className="brand-name">MercadoFlow</p>
-            <p className="brand-subtitle">Download do coletor PDV2Cloud</p>
+            <p className="brand-subtitle">Download do Agente Coletor</p>
           </div>
         </div>
         <nav className="landing-nav">
@@ -79,11 +79,11 @@ const PublicAgentDownload: React.FC = () => {
         <div className="hero-text">
           <span className="eyebrow">Agente Windows</span>
           <h1>
-            Baixe o instalador do <span className="accent-text">PDV2Cloud Agent</span>.
+            Baixe o instalador do <span className="accent-text">MercadoFlow Agent</span>.
           </h1>
           <p>
-            Instale no servidor/PC que recebe os XMLs do seu PDV. O serviço monitora as pastas, faz fila offline e
-            envia os dados para o MercadoFlow com integridade (HMAC) e HTTPS.
+            Instale no computador que recebe os XMLs do seu sistema de PDV. O programa monitora as pastas automaticamente,
+            guarda os dados localmente se a internet cair e envia tudo para a nuvem de forma segura.
           </p>
 
           <div className="hero-actions">
@@ -186,7 +186,7 @@ const PublicAgentDownload: React.FC = () => {
       </section>
 
       <footer className="landing-footer">
-        <span>MercadoFlow - PDV2Cloud Suite</span>
+        <span>MercadoFlow - Inteligência de Vendas</span>
         <span>contato@mercadoflow.com</span>
       </footer>
     </div>

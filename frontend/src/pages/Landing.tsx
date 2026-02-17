@@ -73,7 +73,7 @@ const Landing: React.FC = () => {
       <section className="landing-banner reveal">
         <div className="landing-banner-inner">
           <div>
-            <strong>PDV2Cloud Agent disponível para download</strong>
+            <strong>MercadoFlow Agent disponível para download</strong>
             <p>Instalador público para Windows com fila offline e envio seguro.</p>
           </div>
           <div className="landing-banner-actions">
@@ -228,7 +228,7 @@ const Landing: React.FC = () => {
       </section>
 
       <footer className="landing-footer">
-        <span>MercadoFlow - PDV2Cloud Suite</span>
+        <span>MercadoFlow - Inteligência de Vendas</span>
         <span>contato@mercadoflow.com</span>
       </footer>
     </div>
