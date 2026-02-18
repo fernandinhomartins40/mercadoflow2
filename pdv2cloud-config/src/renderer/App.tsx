@@ -59,6 +59,10 @@ const App: React.FC = () => {
     setShowOnboarding(false);
   };
 
+  const handleRestartOnboarding = () => {
+    setShowOnboarding(true);
+  };
+
   if (!onboardingChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -76,7 +80,15 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen p-6">
-      <h2 className="text-2xl font-semibold mb-4">PDV2Cloud Collector Agent</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-semibold">PDV2Cloud Collector Agent</h2>
+        <button
+          onClick={handleRestartOnboarding}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-semibold"
+        >
+          🧭 Assistente de Configuração
+        </button>
+      </div>
       <div className="grid">
         <Dashboard key={refreshKey} serviceInstalled={serviceInstalled} />
         <ServiceControl serviceInstalled={serviceInstalled} onServiceInstalled={handleServiceInstalled} />
