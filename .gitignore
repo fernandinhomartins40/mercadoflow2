@@ -15,3 +15,12 @@ pdv2cloud-agent/service/__pycache__/**
 pdv2cloud-agent/installer/Output/*.exe
 pdv2cloud-agent/installer/Output/*.sha256
 pdv2cloud-agent/installer/Output/*.meta.json
+
+# OS/temp files
+nul
+*/nul
+**/nul
+sdshow
+debug-backend.sh
+.DS_Store
+Thumbs.db
