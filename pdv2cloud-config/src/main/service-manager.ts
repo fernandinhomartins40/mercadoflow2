@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import logger from './logger';
 
 const SERVICE_NAME = 'PDV2CloudAgent';
 const DEFAULT_INSTALL_DIRNAME = 'PDV2Cloud';
@@ -73,8 +74,13 @@ export const serviceStatus = async () => {
 };
 
 export const installService = async () => {
+  logger.info('Starting service installation...');
+
   const resolved = resolveInstallerPaths();
   if (!resolved) {
+    const candidates = getCandidateBaseDirs();
+    logger.error('Service installer not found', { candidatePaths: candidates });
+
     throw new Error(
       [
         'SERVICE_INSTALLER_NOT_FOUND',
@@ -82,13 +88,24 @@ export const installService = async () => {
         'Instale/reinstale o "PDV2Cloud Collector Agent" (PDV2Cloud-Setup.exe) ou execute a Config UI dentro da pasta do PDV2Cloud.',
         '',
         'Caminhos verificados:',
-        ...getCandidateBaseDirs().map((d) => `- ${d}`),
+        ...candidates.map((d) => `- ${d}`),
       ].join('\n')
     );
   }
 
-  await ensureEmbeddedPythonReady(resolved.baseDir, resolved.pythonPath);
-  return execPromise(`"${resolved.pythonPath}" "${resolved.installerPath}" install`);
+  logger.info('Installer paths resolved', resolved);
+
+  try {
+    await ensureEmbeddedPythonReady(resolved.baseDir, resolved.pythonPath);
+    logger.info('Python environment ready');
+
+    const result = await execPromise(`"${resolved.pythonPath}" "${resolved.installerPath}" install`);
+    logger.info('Service installed successfully', { result });
+    return result;
+  } catch (err) {
+    logger.error('Failed to install service', err);
+    throw err;
+  }
 };
 
 const getCandidateBaseDirs = () => {

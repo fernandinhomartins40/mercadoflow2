@@ -2,6 +2,7 @@ import { ipcMain, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { startService, stopService, restartService, serviceStatus, installService } from './service-manager';
+import logger from './logger';
 
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
 const LOG_PATH = 'C:/ProgramData/PDV2Cloud/logs/agent.log';
@@ -9,11 +10,54 @@ const STATUS_PATH = 'C:/ProgramData/PDV2Cloud/status.json';
 const DEFAULT_API_URL = 'https://mercadoflow.com';
 
 export const registerIpcHandlers = () => {
-  ipcMain.handle('service:start', async () => startService());
-  ipcMain.handle('service:stop', async () => stopService());
-  ipcMain.handle('service:restart', async () => restartService());
-  ipcMain.handle('service:status', async () => serviceStatus());
-  ipcMain.handle('service:install', async () => installService());
+  ipcMain.handle('service:start', async () => {
+    try {
+      logger.info('IPC: service:start');
+      return await startService();
+    } catch (err) {
+      logger.error('IPC service:start failed', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('service:stop', async () => {
+    try {
+      logger.info('IPC: service:stop');
+      return await stopService();
+    } catch (err) {
+      logger.error('IPC service:stop failed', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('service:restart', async () => {
+    try {
+      logger.info('IPC: service:restart');
+      return await restartService();
+    } catch (err) {
+      logger.error('IPC service:restart failed', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('service:status', async () => {
+    try {
+      return await serviceStatus();
+    } catch (err) {
+      // Don't log this as error since it's called frequently
+      throw err;
+    }
+  });
+
+  ipcMain.handle('service:install', async () => {
+    try {
+      logger.info('IPC: service:install');
+      return await installService();
+    } catch (err) {
+      logger.error('IPC service:install failed', err);
+      throw err;
+    }
+  });
 
   ipcMain.handle('dialog:pickFolder', async () => {
     const result = await dialog.showOpenDialog({
@@ -171,5 +215,14 @@ export const registerIpcHandlers = () => {
     } catch (err) {
       throw new Error(`Failed to install update: ${err}`);
     }
+  });
+
+  // Desktop app logs
+  ipcMain.handle('desktop-logs:read', async () => {
+    return logger.getLogContent(200);
+  });
+
+  ipcMain.handle('desktop-logs:path', async () => {
+    return logger.getLogPath();
   });
 };

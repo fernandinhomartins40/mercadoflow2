@@ -18,6 +18,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const [watchPaths, setWatchPaths] = useState<string[]>([]);
   const [autoDetectedPaths, setAutoDetectedPaths] = useState<string[]>([]);
   const [installing, setInstalling] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string>('');
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   const detectCommonPaths = async () => {
     try {
@@ -66,12 +68,27 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
 
   const installService = async () => {
     setInstalling(true);
+    setErrorDetails('');
     try {
       await (window as any).electron.invoke('service:install');
       await (window as any).electron.invoke('service:start');
       return true;
     } catch (err) {
-      alert('Erro ao instalar serviço: ' + err);
+      const errorMsg = String(err);
+      setErrorDetails(errorMsg);
+      setShowErrorDetails(true);
+
+      // Try to get desktop logs for more context
+      try {
+        const desktopLogs = await (window as any).electron.invoke('desktop-logs:read');
+        if (desktopLogs && desktopLogs.length > 0) {
+          setErrorDetails(errorMsg + '\n\n=== Desktop App Logs (últimas 20 linhas) ===\n' + desktopLogs.slice(-20).join('\n'));
+        }
+      } catch {
+        // Ignore log fetch errors
+      }
+
+      alert('Erro ao instalar serviço. Clique em "Ver Detalhes" para mais informações.');
       return false;
     } finally {
       setInstalling(false);
@@ -289,6 +306,33 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
             <div className="max-w-md mx-auto">
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '75%' }}></div>
+              </div>
+            </div>
+          )}
+          {errorDetails && showErrorDetails && (
+            <div className="mt-6 max-w-2xl mx-auto">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-red-800">Detalhes do erro:</h4>
+                  <button
+                    onClick={() => setShowErrorDetails(false)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Fechar
+                  </button>
+                </div>
+                <pre className="text-xs bg-red-100 p-3 rounded overflow-x-auto max-h-64 overflow-y-auto text-left">
+                  {errorDetails}
+                </pre>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(errorDetails);
+                    alert('Erro copiado para a área de transferência!');
+                  }}
+                  className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                >
+                  Copiar para área de transferência
+                </button>
               </div>
             </div>
           )}
