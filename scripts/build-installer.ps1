@@ -51,9 +51,9 @@ Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile $getPip
 $serviceDist = Join-Path $dist 'service'
 if (Test-Path $serviceDist) { Remove-Item $serviceDist -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $serviceDist | Out-Null
-Copy-Item $serviceSrc -Destination $serviceDist -Recurse -Force
-Copy-Item $installerSrc -Destination (Join-Path $serviceDist 'installer') -Recurse -Force
-Copy-Item $configSrc -Destination (Join-Path $serviceDist 'config') -Recurse -Force
+Copy-Item "$serviceSrc\*" -Destination $serviceDist -Recurse -Force
+Copy-Item "$installerSrc\*" -Destination (Join-Path $serviceDist 'installer') -Recurse -Force
+Copy-Item "$configSrc\*" -Destination (Join-Path $serviceDist 'config') -Recurse -Force
 
 # Build config UI
 Set-Location $configUiRoot
