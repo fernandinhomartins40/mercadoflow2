@@ -13,30 +13,39 @@ from .crypto import SecureConfig
 from .queue_manager import QueueManager
 from .watcher import FileWatcher
 from .transmitter import APITransmitter
+from .messages import classify_error, get_friendly_error, STATUS_MESSAGES
+from .json_logger import configure_json_logging
+from .updater import UpdateChecker
 
 STATUS_FILE = Path("C:/ProgramData/PDV2Cloud/status.json")
 LOG_DIR = Path("C:/ProgramData/PDV2Cloud/logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger("PDV2Cloud")
-handler = logging.handlers.RotatingFileHandler(
-    LOG_DIR / "agent.log",
-    maxBytes=10 * 1024 * 1024,
-    backupCount=7,
-)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+configure_json_logging(logger, str(LOG_DIR / "agent.log"))
 
 
-def update_status(queue_manager: QueueManager, online: bool, last_processed: str | None) -> None:
+def update_status(queue_manager: QueueManager, online: bool, last_processed: str | None, last_error: dict | None = None) -> None:
     STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    queue_stats = queue_manager.stats()
+
+    # Determine user-friendly status message
+    if not online:
+        status_msg = STATUS_MESSAGES["offline"]
+    elif queue_stats.get("error", 0) > 0:
+        status_msg = STATUS_MESSAGES["error"]
+    elif queue_stats.get("pending", 0) > 0 or queue_stats.get("processing", 0) > 0:
+        status_msg = STATUS_MESSAGES["processing"]
+    else:
+        status_msg = STATUS_MESSAGES["idle"] if queue_stats.get("total", 0) == 0 else STATUS_MESSAGES["online"]
+
     status = {
         "timestamp": datetime.utcnow().isoformat(),
         "online": online,
-        "queue": queue_manager.stats(),
+        "status_message": status_msg,
+        "queue": queue_stats,
         "last_processed": last_processed,
+        "last_error": last_error,
     }
     STATUS_FILE.write_text(json.dumps(status, indent=2), encoding="utf-8")
 
@@ -76,6 +85,8 @@ class ServiceApp:
         self.stop_event = threading.Event()
         self.online = False
         self.last_processed = None
+        self.last_error = None
+        self.update_checker = UpdateChecker()
 
     def start(self):
         logger.info("Starting PDV2Cloud service")
@@ -100,8 +111,10 @@ class ServiceApp:
         threading.Thread(target=self.file_watcher.loop, args=(self.stop_event,), daemon=True).start()
         schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
         schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
-        schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed))
-        update_status(self.queue_manager, self.online, self.last_processed)
+        schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed, self.last_error))
+        schedule.every(2).minutes.do(self._send_heartbeat)
+        schedule.every().day.at("04:00").do(self._check_for_updates)  # Check for updates daily at 4 AM
+        update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
 
         if self.config.get("healthcheck_enabled", True):
             threading.Thread(target=self._start_health_server, daemon=True).start()
@@ -124,18 +137,53 @@ class ServiceApp:
         for item in pending:
             self.queue_manager.mark_processing(item.id)
             payload = json.loads(item.payload_json)
-            ok = self.transmitter.send_invoice(payload)
-            if ok:
-                self.online = True
-                self.queue_manager.mark_sent(item.id)
-                self.last_processed = datetime.utcnow().isoformat()
-            else:
+            try:
+                ok = self.transmitter.send_invoice(payload)
+                if ok:
+                    self.online = True
+                    self.last_error = None
+                    self.queue_manager.mark_sent(item.id)
+                    self.last_processed = datetime.utcnow().isoformat()
+                else:
+                    self.online = False
+                    dead = item.tentativas + 1 >= 5
+                    error_msg = get_friendly_error("connection_refused")
+                    self.last_error = error_msg
+                    self.queue_manager.mark_error(item.id, error_msg["message"], dead_letter=dead)
+            except Exception as exc:
                 self.online = False
+                error_type = classify_error(exc)
+                error_msg = get_friendly_error(error_type, str(exc))
+                self.last_error = error_msg
                 dead = item.tentativas + 1 >= 5
-                self.queue_manager.mark_error(item.id, "Failed to transmit", dead_letter=dead)
+                self.queue_manager.mark_error(item.id, error_msg["message"], dead_letter=dead)
+                logger.error("Processing error: %s", error_msg["technical"])
 
     def _retry_errors(self):
         self.queue_manager.reset_errors()
+
+    def _send_heartbeat(self):
+        try:
+            self.transmitter.send_heartbeat()
+        except Exception as exc:
+            logger.debug("Heartbeat failed: %s", exc)
+
+    def _check_for_updates(self):
+        """Check for updates and install automatically if enabled."""
+        try:
+            auto_update_enabled = self.config.get("auto_update_enabled", True)
+            if not auto_update_enabled:
+                logger.info("Auto-update is disabled in configuration")
+                return
+
+            logger.info("Checking for updates...")
+            if self.update_checker.perform_auto_update():
+                logger.info("Update installed successfully. Service will restart.")
+                # The installer will restart the service automatically
+            else:
+                logger.info("No updates performed")
+        except Exception as exc:
+            logger.error("Update check failed: %s", exc)
 
     def _start_health_server(self):
         port = int(self.config.get("healthcheck_port", 8765))

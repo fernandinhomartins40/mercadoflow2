@@ -47,6 +47,14 @@ public class AgentApiKeyService {
         return apiKeyRepository.findByMarketIdAndIsActiveTrue(marketId);
     }
 
+    @Transactional
+    public void updateHeartbeat(UUID agentKeyId) {
+        apiKeyRepository.findById(agentKeyId).ifPresent(key -> {
+            key.setLastHeartbeatAt(java.time.LocalDateTime.now());
+            apiKeyRepository.save(key);
+        });
+    }
+
     private String generateKey() {
         byte[] buffer = new byte[32];
         new SecureRandom().nextBytes(buffer);

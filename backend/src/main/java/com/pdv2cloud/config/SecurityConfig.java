@@ -21,6 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.pdv2cloud.security.AgentApiKeyAuthenticationFilter;
 import com.pdv2cloud.security.JwtAuthenticationFilter;
 import com.pdv2cloud.security.HmacSignatureFilter;
+import com.pdv2cloud.security.RateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -35,6 +36,9 @@ public class SecurityConfig {
 
     @Autowired
     private HmacSignatureFilter hmacSignatureFilter;
+
+    @Autowired
+    private RateLimitFilter rateLimitFilter;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -57,6 +61,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(hmacSignatureFilter, AgentApiKeyAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

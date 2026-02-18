@@ -37,6 +37,9 @@ public class AgentApiKey {
     @Column(name = "last_used_at")
     private LocalDateTime lastUsedAt;
 
+    @Column(name = "last_heartbeat_at")
+    private LocalDateTime lastHeartbeatAt;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

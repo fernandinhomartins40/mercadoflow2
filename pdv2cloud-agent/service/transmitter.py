@@ -27,10 +27,12 @@ class APITransmitter:
 
     def send_invoice(self, payload: Dict) -> bool:
         body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        timestamp = str(int(time.time()))
         headers = {
             "Content-Type": "application/json",
             "X-API-Key": self.api_key,
             "X-Agent-Version": "1.0.0",
+            "X-Request-Timestamp": timestamp,
             "X-Signature": self._generate_signature(body),
         }
         if self.market_id:
@@ -50,6 +52,21 @@ class APITransmitter:
                 time.sleep(2 ** attempt)
 
         return False
+
+    def send_heartbeat(self) -> bool:
+        headers = {
+            "X-API-Key": self.api_key,
+        }
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/v1/agent/heartbeat",
+                headers=headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            return True
+        except requests.exceptions.RequestException:
+            return False
 
     def _generate_signature(self, body: bytes) -> str:
         digest = hmac.new(self.hmac_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()

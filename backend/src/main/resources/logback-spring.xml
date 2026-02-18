@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Console appender with JSON format -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>marketId</includeMdcKeyName>
+            <includeMdcKeyName>agentKeyId</includeMdcKeyName>
+            <customFields>{"application":"pdv2cloud-backend"}</customFields>
+        </encoder>
+    </appender>
+
+    <!-- File appender with JSON format -->
+    <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/application.json</file>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>marketId</includeMdcKeyName>
+            <includeMdcKeyName>agentKeyId</includeMdcKeyName>
+            <customFields>{"application":"pdv2cloud-backend"}</customFields>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/application.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Standard console appender (fallback) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Use JSON logging by default, fallback to standard if logstash not available -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE_JSON"/>
+        <appender-ref ref="FILE_JSON"/>
+    </root>
+
+    <!-- Application specific logging -->
+    <logger name="com.pdv2cloud" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE_JSON"/>
+        <appender-ref ref="FILE_JSON"/>
+    </logger>
+
+    <!-- Spring Boot -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.hibernate" level="WARN"/>
+</configuration>

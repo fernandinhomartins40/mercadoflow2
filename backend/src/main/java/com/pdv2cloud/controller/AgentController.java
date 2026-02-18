@@ -4,10 +4,12 @@ import com.pdv2cloud.model.dto.AgentProfileResponse;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.security.AgentAuthenticationToken;
 import com.pdv2cloud.security.AgentPrincipal;
+import com.pdv2cloud.service.AgentApiKeyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,6 +19,9 @@ public class AgentController {
 
     @Autowired
     private MarketRepository marketRepository;
+
+    @Autowired
+    private AgentApiKeyService agentApiKeyService;
 
     @GetMapping("/me")
     public ResponseEntity<AgentProfileResponse> me(Authentication authentication) {
@@ -35,5 +40,47 @@ public class AgentController {
             .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/heartbeat")
+    public ResponseEntity<HeartbeatResponse> heartbeat(Authentication authentication) {
+        if (!(authentication instanceof AgentAuthenticationToken)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        AgentPrincipal principal = (AgentPrincipal) authentication.getPrincipal();
+        agentApiKeyService.updateHeartbeat(principal.getAgentKeyId());
+
+        HeartbeatResponse response = HeartbeatResponse.builder()
+            .status("ok")
+            .timestamp(java.time.LocalDateTime.now())
+            .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    public record HeartbeatResponse(String status, java.time.LocalDateTime timestamp) {
+        public static HeartbeatResponseBuilder builder() {
+            return new HeartbeatResponseBuilder();
+        }
+
+        public static class HeartbeatResponseBuilder {
+            private String status;
+            private java.time.LocalDateTime timestamp;
+
+            public HeartbeatResponseBuilder status(String status) {
+                this.status = status;
+                return this;
+            }
+
+            public HeartbeatResponseBuilder timestamp(java.time.LocalDateTime timestamp) {
+                this.timestamp = timestamp;
+                return this;
+            }
+
+            public HeartbeatResponse build() {
+                return new HeartbeatResponse(status, timestamp);
+            }
+        }
     }
 }

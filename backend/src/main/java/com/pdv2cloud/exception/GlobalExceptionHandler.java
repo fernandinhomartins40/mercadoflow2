@@ -17,7 +17,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
             "timestamp", LocalDateTime.now().toString(),
             "error", "invalid_signature",
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "userMessage", "A assinatura da requisição é inválida. Verifique se a versão do agente está atualizada."
         ));
     }
 
@@ -26,7 +27,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
             "timestamp", LocalDateTime.now().toString(),
             "error", "not_found",
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "userMessage", "O recurso solicitado não foi encontrado."
         ));
     }
 
@@ -35,7 +37,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
             "timestamp", LocalDateTime.now().toString(),
             "error", "forbidden",
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "userMessage", "A chave de acesso não tem permissão para esta operação."
         ));
     }
 
@@ -44,7 +47,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of(
             "timestamp", LocalDateTime.now().toString(),
             "error", "validation_error",
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "userMessage", "Os dados enviados estão incompletos ou inválidos. Verifique os arquivos XML gerados pelo seu sistema."
         ));
     }
 
@@ -53,7 +57,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of(
             "timestamp", LocalDateTime.now().toString(),
             "error", "bad_request",
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "userMessage", "Houve um problema com os dados enviados. Entre em contato com o suporte se o problema persistir."
         ));
     }
 
@@ -62,7 +67,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
             "timestamp", LocalDateTime.now().toString(),
             "error", "internal_error",
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "userMessage", "Ocorreu um erro no servidor. O sistema tentará novamente automaticamente. Se persistir, contacte o suporte."
         ));
     }
 }

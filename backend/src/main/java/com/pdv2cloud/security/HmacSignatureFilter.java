@@ -25,6 +25,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class HmacSignatureFilter extends OncePerRequestFilter {
 
     private static final String HEADER_SIGNATURE = "X-Signature";
+    private static final String HEADER_TIMESTAMP = "X-Request-Timestamp";
+    private static final long MAX_CLOCK_SKEW_SECONDS = 300; // 5 minutes
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -49,6 +51,26 @@ public class HmacSignatureFilter extends OncePerRequestFilter {
         String signature = wrapped.getHeader(HEADER_SIGNATURE);
         if (!StringUtils.hasText(signature)) {
             throw new CustomExceptions.InvalidSignature("Missing X-Signature header");
+        }
+
+        // Validate timestamp to prevent replay attacks
+        String timestampHeader = wrapped.getHeader(HEADER_TIMESTAMP);
+        if (!StringUtils.hasText(timestampHeader)) {
+            throw new CustomExceptions.InvalidSignature("Missing X-Request-Timestamp header");
+        }
+
+        try {
+            long requestTimestamp = Long.parseLong(timestampHeader);
+            long currentTimestamp = System.currentTimeMillis() / 1000; // Unix timestamp in seconds
+            long diff = Math.abs(currentTimestamp - requestTimestamp);
+
+            if (diff > MAX_CLOCK_SKEW_SECONDS) {
+                throw new CustomExceptions.InvalidSignature(
+                    "Request timestamp too old or in future (diff: " + diff + "s). Possible replay attack."
+                );
+            }
+        } catch (NumberFormatException e) {
+            throw new CustomExceptions.InvalidSignature("Invalid X-Request-Timestamp format");
         }
 
         String secret = resolveSecret();

@@ -20,11 +20,19 @@ def load_config() -> dict:
 
 def load_config_secure(secure_config) -> dict:
     config = load_config()
-    if "api_key" not in config and "api_token" in config:
-        config["api_key"] = config.get("api_token", "")
-        config["api_key_encrypted"] = config.get("api_token_encrypted", "")
-    encrypted = config.get("api_key_encrypted") or config.get("api_token_encrypted")
-    plain = config.get("api_key") or config.get("api_token")
+
+    # Migration: handle legacy api_token field
+    needs_migration = False
+    if "api_token" in config or "api_token_encrypted" in config:
+        needs_migration = True
+        if "api_key" not in config:
+            config["api_key"] = config.get("api_token", "")
+        if "api_key_encrypted" not in config:
+            config["api_key_encrypted"] = config.get("api_token_encrypted", "")
+
+    encrypted = config.get("api_key_encrypted")
+    plain = config.get("api_key")
+
     if encrypted:
         try:
             config["api_key"] = secure_config.decrypt(encrypted)
@@ -33,8 +41,22 @@ def load_config_secure(secure_config) -> dict:
     elif plain:
         config["api_key_encrypted"] = secure_config.encrypt(plain)
         config["api_key"] = ""
+        needs_migration = True
+
+    # Remove legacy fields after migration
+    if needs_migration:
+        if "api_token" in config:
+            del config["api_token"]
+        if "api_token_encrypted" in config:
+            del config["api_token_encrypted"]
         save_config(config)
-        config["api_key"] = plain
+        # Restore decrypted key for runtime use
+        if encrypted:
+            try:
+                config["api_key"] = secure_config.decrypt(config["api_key_encrypted"])
+            except Exception:
+                pass
+
     return config
 
 

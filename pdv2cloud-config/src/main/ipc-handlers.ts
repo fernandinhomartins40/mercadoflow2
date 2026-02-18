@@ -85,4 +85,91 @@ export const registerIpcHandlers = () => {
     }
     return JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
   });
+
+  // Auto-detect common PDV XML paths
+  ipcMain.handle('paths:detect', async () => {
+    const commonPaths = [
+      'C:/SAT/XML',
+      'C:/NFe/Emitidas',
+      'C:/NFCe/XML',
+      'C:/Emissor/XML',
+      'C:/NFe/XML',
+      'C:/NFCe/Emitidas',
+      'C:/Program Files/SAT/XML',
+      'C:/Arquivos de Programas/NFe/XML',
+    ];
+
+    const detected: string[] = [];
+    for (const p of commonPaths) {
+      if (fs.existsSync(p)) {
+        detected.push(p.replace(/\\/g, '/'));
+      }
+    }
+    return detected;
+  });
+
+  // Test API key validity
+  ipcMain.handle('api:testKey', async (event, apiKey: string) => {
+    try {
+      const response = await fetch(`${DEFAULT_API_URL}/api/v1/agent/me`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (err) {
+      throw new Error(`API key validation failed: ${err}`);
+    }
+  });
+
+  // Check for updates
+  ipcMain.handle('update:check', async () => {
+    try {
+      const response = await fetch(`${DEFAULT_API_URL}/api/v1/downloads/agent-installer/version`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    } catch (err) {
+      throw new Error(`Failed to check for updates: ${err}`);
+    }
+  });
+
+  // Download and install update
+  ipcMain.handle('update:install', async () => {
+    try {
+      const tempPath = path.join(require('os').tmpdir(), 'PDV2Cloud-Update.exe');
+      const response = await fetch(`${DEFAULT_API_URL}/api/v1/downloads/agent-installer`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      fs.writeFileSync(tempPath, Buffer.from(buffer));
+
+      // Launch installer
+      require('child_process').spawn(tempPath, [
+        '/VERYSILENT',
+        '/SUPPRESSMSGBOXES',
+        '/NORESTART',
+        '/CLOSEAPPLICATIONS',
+        '/RESTARTAPPLICATIONS'
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      }).unref();
+
+      return { success: true, path: tempPath };
+    } catch (err) {
+      throw new Error(`Failed to install update: ${err}`);
+    }
+  });
 };

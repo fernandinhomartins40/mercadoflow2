@@ -6,8 +6,10 @@ import com.pdv2cloud.model.dto.InvoiceDTO;
 import com.pdv2cloud.security.AgentAuthenticationToken;
 import com.pdv2cloud.security.AgentPrincipal;
 import com.pdv2cloud.service.InvoiceProcessingService;
+import com.pdv2cloud.service.AuditService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,9 @@ public class IngestController {
     @Autowired
     private InvoiceProcessingService invoiceService;
 
+    @Autowired
+    private AuditService auditService;
+
     @PostMapping("/invoice")
     public ResponseEntity<IngestResponse> ingestInvoice(
         @Valid @RequestBody InvoiceDTO invoiceDTO,
@@ -37,6 +42,20 @@ public class IngestController {
         }
 
         IngestResponse response = invoiceService.processInvoice(invoiceDTO, resolvedMarketId);
+
+        // Audit log
+        auditService.logAction(
+            "INVOICE",
+            response.getInvoiceId(),
+            "INGEST",
+            "SUCCESS".equals(response.getStatus()),
+            Map.of(
+                "chaveNFe", invoiceDTO.getChaveNFe(),
+                "agentVersion", agentVersion,
+                "status", response.getStatus()
+            )
+        );
+
         return ResponseEntity.ok(response);
     }
 

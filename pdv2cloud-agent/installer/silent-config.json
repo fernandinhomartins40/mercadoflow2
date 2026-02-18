@@ -1,0 +1,9 @@
+{
+  "api_url": "https://mercadoflow.com",
+  "api_key": "",
+  "watch_paths": [],
+  "poll_interval_seconds": 10,
+  "retry_interval_minutes": 5,
+  "healthcheck_enabled": true,
+  "healthcheck_port": 8765
+}
