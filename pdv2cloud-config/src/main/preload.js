@@ -13,3 +13,7 @@ contextBridge.exposeInMainWorld('pdv2cloud', {
   exportLogs: () => ipcRenderer.invoke('logs:export'),
   loadStatus: () => ipcRenderer.invoke('status:load'),
 });
+
+contextBridge.exposeInMainWorld('electron', {
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+});

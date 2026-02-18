@@ -33,7 +33,7 @@ const App: React.FC = () => {
     // Check if this is first run
     const checkFirstRun = async () => {
       try {
-        const config = await (window as any).pdv2cloud.loadConfig();
+        const config = await (window as any).electron.invoke('config:load');
         const isConfigured = config && config.api_key;
         setShowOnboarding(!isConfigured);
       } catch (err) {
