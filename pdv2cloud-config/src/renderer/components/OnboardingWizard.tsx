@@ -21,7 +21,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
 
   const detectCommonPaths = async () => {
     try {
-      const paths = await (window as any).electron.invoke('paths:detect'();
+      const paths = await (window as any).electron.invoke('paths:detect');
       setAutoDetectedPaths(paths || []);
     } catch (err) {
       console.error('Failed to detect paths:', err);
@@ -41,7 +41,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     }
 
     try {
-      await (window as any).electron.invoke('api:testKey'(apiKey);
+      await (window as any).electron.invoke('api:testKey', apiKey);
       return true;
     } catch (err) {
       alert('Chave de acesso inválida. Verifique e tente novamente.');
@@ -56,7 +56,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         watch_paths: watchPaths,
         api_url: 'https://mercadoflow.com',
       };
-      await (window as any).electron.invoke('config:save'(config);
+      await (window as any).electron.invoke('config:save', config);
       return true;
     } catch (err) {
       alert('Erro ao salvar configuração: ' + err);
@@ -67,8 +67,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const installService = async () => {
     setInstalling(true);
     try {
-      await (window as any).electron.invoke('service:install'();
-      await (window as any).electron.invoke('service:start'();
+      await (window as any).electron.invoke('service:install');
+      await (window as any).electron.invoke('service:start');
       return true;
     } catch (err) {
       alert('Erro ao instalar serviço: ' + err);
@@ -126,7 +126,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
 
   const addCustomPath = async () => {
     try {
-      const path = await (window as any).electron.invoke('dialog:pickFolder'();
+      const path = await (window as any).electron.invoke('dialog:pickFolder');
       if (path && !watchPaths.includes(path)) {
         setWatchPaths([...watchPaths, path]);
       }
