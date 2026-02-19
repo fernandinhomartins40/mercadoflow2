@@ -13,11 +13,23 @@ CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
 RestartApplications=no
 SetupLogging=yes
+AppPublisher=PDV2Cloud
+AllowNoIcons=no
 
 [Files]
 Source: "..\..\dist\python-embed\*"; DestDir: "{app}\python"; Flags: recursesubdirs ignoreversion
 Source: "..\..\dist\service\*"; DestDir: "{app}\service"; Flags: recursesubdirs ignoreversion
 Source: "..\..\dist\config-ui\*"; DestDir: "{app}\config-ui"; Flags: recursesubdirs ignoreversion
+
+[Icons]
+; Atalho no Menu Iniciar (aparece na busca do Windows)
+Name: "{group}\PDV2Cloud"; Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Comment: "Abrir PDV2Cloud Coletor"
+Name: "{group}\Desinstalar PDV2Cloud"; Filename: "{uninstallexe}"
+; Atalho na Área de Trabalho
+Name: "{autodesktop}\PDV2Cloud"; Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Comment: "Abrir PDV2Cloud Coletor"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"; Flags: checked
 
 [Run]
 ; Install pip in embedded Python
