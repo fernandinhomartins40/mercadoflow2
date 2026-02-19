@@ -17,14 +17,12 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [installing, setInstalling] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check for updates on mount
     checkForUpdates();
   }, []);
 
   const checkForUpdates = async () => {
     try {
       const versionInfo = await (window as any).electron.invoke('update:check');
-      // Compare versions (simple string comparison for now)
       const currentVersion = '1.0.0';
       if (versionInfo.version !== currentVersion) {
         setUpdateAvailable(true);
@@ -87,49 +85,97 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     };
 
     load();
-    const id = setInterval(load, 10000); // Update every 10 seconds
+    const id = setInterval(load, 10000);
     return () => clearInterval(id);
   }, []);
 
-  const getStatusColor = () => {
-    if (status.includes('RUNNING') && online) return 'bg-green-500';
-    if (status.includes('RUNNING') && !online) return 'bg-yellow-500';
-    return 'bg-red-500';
+  const getStatusInfo = () => {
+    if (status === 'not_installed') {
+      return {
+        color: '#ef4444',
+        bgColor: '#fee2e2',
+        icon: '⚙️',
+        title: 'Serviço não instalado',
+        subtitle: 'Clique em "Assistente de Configuração" para começar',
+        action: null
+      };
+    }
+    if (status.includes('RUNNING') && online) {
+      return {
+        color: '#10b981',
+        bgColor: '#d1fae5',
+        icon: '✓',
+        title: 'Tudo funcionando!',
+        subtitle: statusMessage || 'Coletando notas fiscais automaticamente',
+        action: null
+      };
+    }
+    if (status.includes('RUNNING') && !online) {
+      return {
+        color: '#f59e0b',
+        bgColor: '#fef3c7',
+        icon: '⚠',
+        title: 'Sem conexão com servidor',
+        subtitle: 'Verifique sua internet. Os dados serão enviados quando reconectar.',
+        action: null
+      };
+    }
+    if (status === 'carregando') {
+      return {
+        color: '#6b7280',
+        bgColor: '#f3f4f6',
+        icon: '⟳',
+        title: 'Carregando...',
+        subtitle: 'Verificando status do sistema',
+        action: null
+      };
+    }
+    return {
+      color: '#ef4444',
+      bgColor: '#fee2e2',
+      icon: '✕',
+      title: 'Serviço parado',
+      subtitle: 'Clique em "Start" abaixo para iniciar a coleta',
+      action: null
+    };
   };
 
-  const getStatusIcon = () => {
-    if (status.includes('RUNNING') && online) return '✓';
-    if (status.includes('RUNNING') && !online) return '⚠';
-    return '✕';
-  };
-
-  const getStatusText = () => {
-    if (status === 'not_installed') return 'Serviço não instalado';
-    if (status.includes('RUNNING') && online) return 'Funcionando normalmente';
-    if (status.includes('RUNNING') && !online) return 'Aguardando conexão';
-    if (status === 'carregando') return 'Carregando...';
-    return 'Serviço parado';
-  };
+  const statusInfo = getStatusInfo();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-4">
-      {/* Update Available Banner */}
+    <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '24px', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+
+      {/* Update Banner */}
       {updateAvailable && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <span className="text-blue-500 text-xl mr-3">🎉</span>
+        <div style={{ backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', padding: '16px', marginBottom: '16px', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '24px' }}>🎉</span>
               <div>
-                <h3 className="text-sm font-semibold text-blue-800">Nova atualização disponível!</h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  Versão {latestVersion} está pronta para instalação
-                </p>
+                <div style={{ fontWeight: 600, color: '#1e40af', marginBottom: '4px' }}>
+                  Nova atualização disponível!
+                </div>
+                <div style={{ fontSize: '14px', color: '#3b82f6' }}>
+                  Versão {latestVersion} está pronta
+                </div>
               </div>
             </div>
             <button
               onClick={installUpdate}
               disabled={installing}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                padding: '10px 20px',
+                backgroundColor: installing ? '#9ca3af' : '#3b82f6',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: installing ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => !installing && (e.currentTarget.style.backgroundColor = '#2563eb')}
+              onMouseLeave={(e) => !installing && (e.currentTarget.style.backgroundColor = '#3b82f6')}
             >
               {installing ? 'Instalando...' : 'Atualizar agora'}
             </button>
@@ -138,25 +184,41 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       )}
 
       {/* Main Status Card */}
-      <div className={`${getStatusColor()} text-white rounded-lg p-6 mb-4 transition-all`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-2xl">
-                {getStatusIcon()}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">{getStatusText()}</h2>
-                {statusMessage && (
-                  <p className="text-sm opacity-90 mt-1">{statusMessage}</p>
-                )}
-              </div>
-            </div>
+      <div style={{
+        backgroundColor: statusInfo.bgColor,
+        border: `2px solid ${statusInfo.color}`,
+        borderRadius: '12px',
+        padding: '24px',
+        marginBottom: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            backgroundColor: statusInfo.color,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            color: '#ffffff'
+          }}>
+            {statusInfo.icon}
           </div>
-          <div className="text-right">
-            <div className="text-xs opacity-75">Última atualização</div>
-            <div className="text-sm">
-              {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('pt-BR') : '--:--:--'}
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>
+              {statusInfo.title}
+            </h2>
+            <p style={{ fontSize: '14px', color: '#4b5563', margin: '4px 0 0 0' }}>
+              {statusInfo.subtitle}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
+              Última verificação
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#111827' }}>
+              {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
             </div>
           </div>
         </div>
@@ -164,22 +226,38 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
 
       {/* Error Alert */}
       {lastError && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <span className="text-red-500 text-xl">⚠</span>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-semibold text-red-800">{lastError.title}</h3>
-              <p className="text-sm text-red-700 mt-1">{lastError.message}</p>
+        <div style={{ backgroundColor: '#fee2e2', border: '2px solid #ef4444', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, color: '#991b1b', marginBottom: '4px' }}>
+                {lastError.title || 'Ocorreu um erro'}
+              </div>
+              <div style={{ fontSize: '14px', color: '#dc2626', marginBottom: '8px' }}>
+                {lastError.message}
+              </div>
               {lastError.technical && (
-                <details className="mt-2">
-                  <summary className="text-xs text-red-600 cursor-pointer hover:underline">
-                    Detalhes técnicos
+                <details style={{ marginTop: '8px' }}>
+                  <summary style={{
+                    fontSize: '12px',
+                    color: '#dc2626',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}>
+                    Ver detalhes técnicos
                   </summary>
-                  <code className="text-xs text-red-600 block mt-1 bg-red-100 p-2 rounded">
+                  <pre style={{
+                    fontSize: '11px',
+                    color: '#991b1b',
+                    backgroundColor: '#fecaca',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    marginTop: '8px',
+                    overflow: 'auto',
+                    maxHeight: '200px'
+                  }}>
                     {lastError.technical}
-                  </code>
+                  </pre>
                 </details>
               )}
             </div>
@@ -187,79 +265,94 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         </div>
       )}
 
-      {/* Not Installed Warning */}
-      {!serviceInstalled && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <span className="text-yellow-500 text-xl">⚠</span>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-semibold text-yellow-800">Serviço não instalado</h3>
-              <p className="text-sm text-yellow-700 mt-1">
-                O serviço precisa ser instalado para começar a coletar dados.
-              </p>
-              <button
-                onClick={() => (window as any).electron.invoke('service:install')}
-                className="mt-2 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm font-semibold"
-              >
-                Instalar agora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Grid */}
+      {/* Statistics Cards */}
       {queue && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="text-blue-600 text-sm font-semibold mb-1">Total</div>
-            <div className="text-3xl font-bold text-blue-900">{queue.total || 0}</div>
-            <div className="text-xs text-blue-600 mt-1">na fila</div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: '12px',
+          marginBottom: '20px'
+        }}>
+          <div style={{ backgroundColor: '#eff6ff', borderRadius: '8px', padding: '16px', border: '1px solid #dbeafe' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#1e40af', marginBottom: '8px' }}>
+              NOTAS PROCESSADAS
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: 700, color: '#1e3a8a' }}>
+              {queue.total || 0}
+            </div>
+            <div style={{ fontSize: '11px', color: '#3b82f6', marginTop: '4px' }}>
+              total encontrado
+            </div>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-4">
-            <div className="text-green-600 text-sm font-semibold mb-1">Enviados</div>
-            <div className="text-3xl font-bold text-green-900">{queue.sent || 0}</div>
-            <div className="text-xs text-green-600 mt-1">com sucesso</div>
+          <div style={{ backgroundColor: '#d1fae5', borderRadius: '8px', padding: '16px', border: '1px solid #a7f3d0' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#065f46', marginBottom: '8px' }}>
+              ENVIADAS COM SUCESSO
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: 700, color: '#064e3b' }}>
+              {queue.sent || 0}
+            </div>
+            <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px' }}>
+              sincronizadas
+            </div>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-4">
-            <div className="text-yellow-600 text-sm font-semibold mb-1">Pendentes</div>
-            <div className="text-3xl font-bold text-yellow-900">{queue.pending || 0}</div>
-            <div className="text-xs text-yellow-600 mt-1">aguardando</div>
+          <div style={{ backgroundColor: '#fef3c7', borderRadius: '8px', padding: '16px', border: '1px solid #fde68a' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#92400e', marginBottom: '8px' }}>
+              AGUARDANDO ENVIO
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: 700, color: '#78350f' }}>
+              {queue.pending || 0}
+            </div>
+            <div style={{ fontSize: '11px', color: '#d97706', marginTop: '4px' }}>
+              na fila
+            </div>
           </div>
 
-          <div className="bg-red-50 rounded-lg p-4">
-            <div className="text-red-600 text-sm font-semibold mb-1">Erros</div>
-            <div className="text-3xl font-bold text-red-900">{queue.error || 0}</div>
-            <div className="text-xs text-red-600 mt-1">
-              {queue.dead_letter > 0 && `(${queue.dead_letter} críticos)`}
+          <div style={{ backgroundColor: '#fee2e2', borderRadius: '8px', padding: '16px', border: '1px solid #fecaca' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#991b1b', marginBottom: '8px' }}>
+              COM ERROS
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: 700, color: '#7f1d1d' }}>
+              {queue.error || 0}
+            </div>
+            <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>
+              {queue.dead_letter > 0 ? `${queue.dead_letter} críticos` : 'nenhum crítico'}
             </div>
           </div>
         </div>
       )}
 
-      {/* Configuration Status */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <span className={configOk ? 'text-green-600' : 'text-red-600'}>
-              {configOk ? '✓' : '✕'}
-            </span>
-            <span className="text-gray-700">
-              {configOk ? 'Configuração carregada' : 'Configuração não encontrada'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={online ? 'text-green-600' : 'text-gray-400'}>
-              {online ? '●' : '○'}
-            </span>
-            <span className="text-gray-700">
-              {online === null ? 'Conectividade desconhecida' : online ? 'Conectado' : 'Offline'}
-            </span>
-          </div>
+      {/* System Status Footer */}
+      <div style={{
+        borderTop: '1px solid #e5e7eb',
+        paddingTop: '16px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: configOk ? '#10b981' : '#ef4444'
+          }}></div>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
+            {configOk ? 'Configuração OK' : 'Configure o sistema'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: online ? '#10b981' : '#9ca3af'
+          }}></div>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
+            {online === null ? 'Verificando conexão...' : online ? 'Servidor Online' : 'Servidor Offline'}
+          </span>
         </div>
       </div>
     </div>

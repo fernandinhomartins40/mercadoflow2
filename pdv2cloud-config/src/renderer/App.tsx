@@ -65,10 +65,16 @@ const App: React.FC = () => {
 
   if (!onboardingChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4 animate-spin">⚙️</div>
-          <div className="text-gray-600">Carregando...</div>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f3f4f6'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚙️</div>
+          <div style={{ fontSize: '16px', color: '#6b7280' }}>Carregando...</div>
         </div>
       </div>
     );
@@ -79,26 +85,57 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">PDV2Cloud Collector Agent</h2>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '24px' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '24px',
+        backgroundColor: '#ffffff',
+        padding: '20px 24px',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#111827', margin: '0 0 4px 0' }}>
+            PDV2Cloud
+          </h1>
+          <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
+            Coletor Automático de Notas Fiscais
+          </p>
+        </div>
         <button
           onClick={handleRestartOnboarding}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-semibold"
+          style={{
+            padding: '12px 20px',
+            backgroundColor: '#3b82f6',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
         >
-          🧭 Assistente de Configuração
+          <span>🧭</span>
+          Assistente de Configuração
         </button>
       </div>
-      <div className="grid">
+
+      {/* Main Content - Single Column Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', maxWidth: '1200px', margin: '0 auto' }}>
         <Dashboard key={refreshKey} serviceInstalled={serviceInstalled} />
         <ServiceControl serviceInstalled={serviceInstalled} onServiceInstalled={handleServiceInstalled} />
       </div>
-      <div style={{ marginTop: 16 }}>
-        <Configuration />
-      </div>
-      <div style={{ marginTop: 16 }}>
-        <LogViewer />
-      </div>
+
+      {/* Configuration and Logs hidden for simplified UX - accessible via wizard */}
     </div>
   );
 };
