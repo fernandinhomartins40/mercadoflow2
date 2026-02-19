@@ -39,7 +39,7 @@ Filename: "{app}\python\python.exe"; Parameters: "-m pip install -r requirements
 ; Create ProgramData directory structure
 Filename: "{sys}\cmd.exe"; Parameters: "/c if not exist ""C:\ProgramData\PDV2Cloud\logs"" mkdir ""C:\ProgramData\PDV2Cloud\logs"""; Flags: runhidden
 ; Launch Config UI with admin rights
-Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Description: "Abrir Assistente de Configuração"; Flags: postinstall nowait runasoriginaluser
+Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Description: "Abrir Assistente de Configuração"; Flags: postinstall nowait shellexec
 
 [UninstallRun]
 ; Stop and remove Windows service
