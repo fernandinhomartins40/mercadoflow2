@@ -225,4 +225,23 @@ export const registerIpcHandlers = () => {
   ipcMain.handle('desktop-logs:path', async () => {
     return logger.getLogPath();
   });
+
+  // Dialog handlers
+  ipcMain.handle('dialog:selectFolder', async () => {
+    try {
+      logger.info('IPC: dialog:selectFolder');
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+
+      return result.filePaths[0];
+    } catch (err) {
+      logger.error('IPC dialog:selectFolder failed', err);
+      throw err;
+    }
+  });
 };
