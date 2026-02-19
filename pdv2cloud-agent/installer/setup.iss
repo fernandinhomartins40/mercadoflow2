@@ -9,6 +9,10 @@ Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\config-ui\PDV2Cloud Config.exe
+CloseApplications=yes
+CloseApplicationsFilter=*.exe,*.dll
+RestartApplications=no
+SetupLogging=yes
 
 [Files]
 Source: "..\..\dist\python-embed\*"; DestDir: "{app}\python"; Flags: recursesubdirs ignoreversion
@@ -36,3 +40,13 @@ Type: filesandordirs; Name: "C:\ProgramData\PDV2Cloud"
 ; Clean up any temp files
 Type: files; Name: "{app}\*.log"
 Type: files; Name: "{app}\*.tmp"
+
+[Code]
+function InitializeSetup(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  // Force close PDV2Cloud Config.exe if running
+  Exec('taskkill.exe', '/F /IM "PDV2Cloud Config.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := True;
+end;
