@@ -65,19 +65,37 @@ class HealthHandler(BaseHTTPRequestHandler):
 class ServiceApp:
     def __init__(self):
         self.secure_config = SecureConfig()
-        self.config = load_config_secure(self.secure_config)
+
+        # Load config with fallback to defaults if not configured yet
+        try:
+            self.config = load_config_secure(self.secure_config)
+        except FileNotFoundError:
+            logger.warning("Configuration file not found. Service will run in standby mode until configured.")
+            self.config = {
+                "api_url": "",
+                "api_key": "",
+                "market_id": "",
+                "watch_paths": [],
+                "xsd_paths": [],
+                "retry_interval_minutes": 5,
+                "poll_interval_seconds": 10,
+                "healthcheck_enabled": True,
+                "healthcheck_port": 8765,
+                "auto_update_enabled": True
+            }
+
         api_key = self.config.get("api_key", "")
         if not api_key:
-            logger.error("API key nao configurada")
-        self._hydrate_agent_config()
+            logger.warning("API key not configured. Service running in standby mode.")
+
         self.queue_manager = QueueManager()
         self.file_watcher = FileWatcher(
-            self.config["watch_paths"],
+            self.config.get("watch_paths", []),
             self.queue_manager,
             self.config.get("xsd_paths", []),
         )
         self.transmitter = APITransmitter(
-            self.config["api_url"],
+            self.config.get("api_url", ""),
             self.config.get("api_key", ""),
             self.config.get("market_id", ""),
             self.config.get("api_key", "dev-hmac"),
@@ -109,6 +127,11 @@ class ServiceApp:
             logger.warning("Initial scan failed: %s", exc)
 
         threading.Thread(target=self.file_watcher.loop, args=(self.stop_event,), daemon=True).start()
+
+        # Hydrate agent config in background (fetch market_id from API if needed)
+        if self.config.get("api_key") and not self.config.get("market_id"):
+            threading.Thread(target=self._hydrate_agent_config, daemon=True).start()
+
         schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
         schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
         schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed, self.last_error))
