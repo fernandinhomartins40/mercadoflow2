@@ -29,7 +29,7 @@ Name: "{group}\Desinstalar PDV2Cloud"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\PDV2Cloud"; Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Comment: "Abrir PDV2Cloud Coletor"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"; Flags: checked
+Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"
 
 [Run]
 ; Install pip in embedded Python
