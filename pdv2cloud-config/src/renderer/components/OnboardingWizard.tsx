@@ -368,33 +368,33 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const progress = ((currentStep + 1) / steps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+    <div className="min-h-screen bg-gray-100 p-6" style={{ backgroundColor: '#f3f4f6' }}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">PDV2Cloud</h1>
-          <p className="text-gray-600">Assistente de Configuração</p>
+          <h1 className="text-4xl font-bold mb-2" style={{ color: '#111827' }}>PDV2Cloud</h1>
+          <p className="text-lg" style={{ color: '#374151' }}>Assistente de Configuração</p>
         </div>
 
         {/* Progress Bar */}
         <div className="mb-8">
-          <div className="flex justify-between mb-2 text-sm text-gray-600">
+          <div className="flex justify-between mb-2 text-sm font-semibold" style={{ color: '#374151' }}>
             <span>Passo {currentStep + 1} de {steps.length}</span>
             <span>{Math.round(progress)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full rounded-full h-3" style={{ backgroundColor: '#d1d5db' }}>
             <div
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              className="h-3 rounded-full transition-all duration-500"
+              style={{ width: `${progress}%`, background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }}
             ></div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+        <div className="rounded-2xl shadow-xl p-8 mb-6" style={{ backgroundColor: '#ffffff' }}>
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">{currentStepData.title}</h2>
-            <p className="text-gray-600">{currentStepData.description}</p>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: '#111827' }}>{currentStepData.title}</h2>
+            <p className="text-base" style={{ color: '#4b5563' }}>{currentStepData.description}</p>
           </div>
 
           <div className="min-h-[400px]">{currentStepData.component}</div>
@@ -404,7 +404,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         <div className="flex justify-between items-center">
           <button
             onClick={onSkip}
-            className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="px-6 py-2 font-medium transition-colors rounded"
+            style={{ color: '#6b7280', backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             Pular configuração
           </button>
@@ -413,7 +416,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
             {currentStep > 0 && currentStep < 4 && (
               <button
                 onClick={handleBack}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                className="px-6 py-3 rounded-lg font-semibold transition-colors"
+                style={{ backgroundColor: '#e5e7eb', color: '#374151' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1d5db'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
               >
                 ← Voltar
               </button>
@@ -421,7 +427,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
             <button
               onClick={handleNext}
               disabled={installing}
-              className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-colors font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-8 py-3 rounded-lg font-semibold shadow-lg transition-all"
+              style={{
+                background: installing ? '#9ca3af' : 'linear-gradient(to right, #3b82f6, #8b5cf6)',
+                color: '#ffffff',
+                cursor: installing ? 'not-allowed' : 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                if (!installing) e.currentTarget.style.background = 'linear-gradient(to right, #2563eb, #7c3aed)';
+              }}
+              onMouseLeave={(e) => {
+                if (!installing) e.currentTarget.style.background = 'linear-gradient(to right, #3b82f6, #8b5cf6)';
+              }}
             >
               {currentStep === 0 && 'Começar →'}
               {currentStep === 1 && 'Validar e Continuar →'}

@@ -9,6 +9,10 @@
     "dist/renderer/**/*"
   ],
   "win": {
-    "target": ["nsis"]
+    "target": "dir",
+    "requestedExecutionLevel": "requireAdministrator"
+  },
+  "extraMetadata": {
+    "main": "dist/main/index.js"
   }
 }
