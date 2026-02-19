@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { colors, typography, spacing, borderRadius, shadows, Icons } from '../styles/theme';
 
 interface DashboardProps {
   serviceInstalled: boolean;
@@ -92,267 +93,449 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const getStatusInfo = () => {
     if (status === 'not_installed') {
       return {
-        color: '#ef4444',
-        bgColor: '#fee2e2',
-        icon: '⚙️',
+        color: colors.error[600],
+        bgColor: colors.error[50],
+        borderColor: colors.error[200],
+        icon: <Icons.Settings />,
         title: 'Serviço não instalado',
-        subtitle: 'Clique em "Assistente de Configuração" para começar',
-        action: null
+        subtitle: 'Clique em "Assistente de Configuração" para começar'
       };
     }
     if (status.includes('RUNNING') && online) {
       return {
-        color: '#10b981',
-        bgColor: '#d1fae5',
-        icon: '✓',
-        title: 'Tudo funcionando!',
-        subtitle: statusMessage || 'Coletando notas fiscais automaticamente',
-        action: null
+        color: colors.success[600],
+        bgColor: colors.success[50],
+        borderColor: colors.success[200],
+        icon: <Icons.Check />,
+        title: 'Tudo funcionando',
+        subtitle: statusMessage || 'Coletando notas fiscais automaticamente'
       };
     }
     if (status.includes('RUNNING') && !online) {
       return {
-        color: '#f59e0b',
-        bgColor: '#fef3c7',
-        icon: '⚠',
+        color: colors.warning[600],
+        bgColor: colors.warning[50],
+        borderColor: colors.warning[200],
+        icon: <Icons.Alert />,
         title: 'Sem conexão com servidor',
-        subtitle: 'Verifique sua internet. Os dados serão enviados quando reconectar.',
-        action: null
+        subtitle: 'Verifique sua internet. Os dados serão enviados quando reconectar.'
       };
     }
     if (status === 'carregando') {
       return {
-        color: '#6b7280',
-        bgColor: '#f3f4f6',
-        icon: '⟳',
+        color: colors.neutral[500],
+        bgColor: colors.neutral[50],
+        borderColor: colors.neutral[200],
+        icon: <Icons.Loader />,
         title: 'Carregando...',
-        subtitle: 'Verificando status do sistema',
-        action: null
+        subtitle: 'Verificando status do sistema'
       };
     }
     return {
-      color: '#ef4444',
-      bgColor: '#fee2e2',
-      icon: '✕',
+      color: colors.error[600],
+      bgColor: colors.error[50],
+      borderColor: colors.error[200],
+      icon: <Icons.X />,
       title: 'Serviço parado',
-      subtitle: 'Clique em "Start" abaixo para iniciar a coleta',
-      action: null
+      subtitle: 'Clique em "Iniciar" abaixo para começar a coleta'
     };
   };
 
   const statusInfo = getStatusInfo();
 
   return (
-    <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '24px', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-
+    <div style={{
+      backgroundColor: colors.background.primary,
+      borderRadius: borderRadius.lg,
+      boxShadow: shadows.md,
+      border: `1px solid ${colors.neutral[200]}`,
+      overflow: 'hidden'
+    }}>
       {/* Update Banner */}
       {updateAvailable && (
-        <div style={{ backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', padding: '16px', marginBottom: '16px', borderRadius: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🎉</span>
-              <div>
-                <div style={{ fontWeight: 600, color: '#1e40af', marginBottom: '4px' }}>
-                  Nova atualização disponível!
-                </div>
-                <div style={{ fontSize: '14px', color: '#3b82f6' }}>
-                  Versão {latestVersion} está pronta
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={installUpdate}
-              disabled={installing}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: installing ? '#9ca3af' : '#3b82f6',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: installing ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => !installing && (e.currentTarget.style.backgroundColor = '#2563eb')}
-              onMouseLeave={(e) => !installing && (e.currentTarget.style.backgroundColor = '#3b82f6')}
-            >
-              {installing ? 'Instalando...' : 'Atualizar agora'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main Status Card */}
-      <div style={{
-        backgroundColor: statusInfo.bgColor,
-        border: `2px solid ${statusInfo.color}`,
-        borderRadius: '12px',
-        padding: '24px',
-        marginBottom: '20px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-          <div style={{
-            width: '56px',
-            height: '56px',
-            backgroundColor: statusInfo.color,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '28px',
-            color: '#ffffff'
-          }}>
-            {statusInfo.icon}
-          </div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>
-              {statusInfo.title}
-            </h2>
-            <p style={{ fontSize: '14px', color: '#4b5563', margin: '4px 0 0 0' }}>
-              {statusInfo.subtitle}
-            </p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
-              Última verificação
-            </div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: '#111827' }}>
-              {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Error Alert */}
-      {lastError && (
-        <div style={{ backgroundColor: '#fee2e2', border: '2px solid #ef4444', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <span style={{ fontSize: '20px' }}>⚠️</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, color: '#991b1b', marginBottom: '4px' }}>
-                {lastError.title || 'Ocorreu um erro'}
-              </div>
-              <div style={{ fontSize: '14px', color: '#dc2626', marginBottom: '8px' }}>
-                {lastError.message}
-              </div>
-              {lastError.technical && (
-                <details style={{ marginTop: '8px' }}>
-                  <summary style={{
-                    fontSize: '12px',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                    userSelect: 'none'
-                  }}>
-                    Ver detalhes técnicos
-                  </summary>
-                  <pre style={{
-                    fontSize: '11px',
-                    color: '#991b1b',
-                    backgroundColor: '#fecaca',
-                    padding: '8px',
-                    borderRadius: '4px',
-                    marginTop: '8px',
-                    overflow: 'auto',
-                    maxHeight: '200px'
-                  }}>
-                    {lastError.technical}
-                  </pre>
-                </details>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Statistics Cards */}
-      {queue && (
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: '12px',
-          marginBottom: '20px'
+          background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`,
+          padding: spacing.lg,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          <div style={{ backgroundColor: '#eff6ff', borderRadius: '8px', padding: '16px', border: '1px solid #dbeafe' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#1e40af', marginBottom: '8px' }}>
-              NOTAS PROCESSADAS
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+            <div style={{ color: colors.text.inverse }}>
+              <Icons.Download />
             </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: '#1e3a8a' }}>
-              {queue.total || 0}
-            </div>
-            <div style={{ fontSize: '11px', color: '#3b82f6', marginTop: '4px' }}>
-              total encontrado
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: '#d1fae5', borderRadius: '8px', padding: '16px', border: '1px solid #a7f3d0' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#065f46', marginBottom: '8px' }}>
-              ENVIADAS COM SUCESSO
-            </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: '#064e3b' }}>
-              {queue.sent || 0}
-            </div>
-            <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px' }}>
-              sincronizadas
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: '#fef3c7', borderRadius: '8px', padding: '16px', border: '1px solid #fde68a' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#92400e', marginBottom: '8px' }}>
-              AGUARDANDO ENVIO
-            </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: '#78350f' }}>
-              {queue.pending || 0}
-            </div>
-            <div style={{ fontSize: '11px', color: '#d97706', marginTop: '4px' }}>
-              na fila
+            <div>
+              <div style={{
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.text.inverse,
+                marginBottom: spacing.xs,
+                fontSize: typography.fontSize.base,
+                fontFamily: typography.fontFamily.sans
+              }}>
+                Nova atualização disponível
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.inverse,
+                opacity: 0.9,
+                fontFamily: typography.fontFamily.sans
+              }}>
+                Versão {latestVersion} está pronta para instalar
+              </div>
             </div>
           </div>
-
-          <div style={{ backgroundColor: '#fee2e2', borderRadius: '8px', padding: '16px', border: '1px solid #fecaca' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#991b1b', marginBottom: '8px' }}>
-              COM ERROS
-            </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: '#7f1d1d' }}>
-              {queue.error || 0}
-            </div>
-            <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>
-              {queue.dead_letter > 0 ? `${queue.dead_letter} críticos` : 'nenhum crítico'}
-            </div>
-          </div>
+          <button
+            onClick={installUpdate}
+            disabled={installing}
+            style={{
+              padding: `${spacing.sm} ${spacing.lg}`,
+              backgroundColor: colors.background.primary,
+              color: colors.primary[700],
+              border: 'none',
+              borderRadius: borderRadius.md,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              cursor: installing ? 'not-allowed' : 'pointer',
+              opacity: installing ? 0.7 : 1,
+              fontFamily: typography.fontFamily.sans
+            }}
+          >
+            {installing ? 'Instalando...' : 'Atualizar agora'}
+          </button>
         </div>
       )}
 
-      {/* System Status Footer */}
-      <div style={{
-        borderTop: '1px solid #e5e7eb',
-        paddingTop: '16px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: configOk ? '#10b981' : '#ef4444'
-          }}></div>
-          <span style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
-            {configOk ? 'Configuração OK' : 'Configure o sistema'}
-          </span>
+      <div style={{ padding: spacing['2xl'] }}>
+        {/* Main Status Card */}
+        <div style={{
+          backgroundColor: statusInfo.bgColor,
+          border: `2px solid ${statusInfo.borderColor}`,
+          borderRadius: borderRadius.lg,
+          padding: spacing.xl,
+          marginBottom: spacing.xl
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.lg }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              backgroundColor: statusInfo.color,
+              borderRadius: borderRadius.lg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: colors.text.inverse,
+              flexShrink: 0
+            }}>
+              {statusInfo.icon}
+            </div>
+            <div style={{ flex: 1 }}>
+              <h2 style={{
+                fontSize: typography.fontSize['2xl'],
+                fontWeight: typography.fontWeight.bold,
+                color: colors.text.primary,
+                margin: 0,
+                marginBottom: spacing.xs,
+                fontFamily: typography.fontFamily.sans
+              }}>
+                {statusInfo.title}
+              </h2>
+              <p style={{
+                fontSize: typography.fontSize.base,
+                color: colors.text.secondary,
+                margin: 0,
+                fontFamily: typography.fontFamily.sans
+              }}>
+                {statusInfo.subtitle}
+              </p>
+            </div>
+            <div style={{
+              textAlign: 'right',
+              minWidth: '100px'
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.text.tertiary,
+                marginBottom: spacing.xs,
+                fontFamily: typography.fontFamily.sans
+              }}>
+                Última verificação
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.lg,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.text.primary,
+                fontFamily: typography.fontFamily.mono
+              }}>
+                {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Error Alert */}
+        {lastError && (
           <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: online ? '#10b981' : '#9ca3af'
-          }}></div>
-          <span style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
-            {online === null ? 'Verificando conexão...' : online ? 'Servidor Online' : 'Servidor Offline'}
-          </span>
+            backgroundColor: colors.error[50],
+            border: `1px solid ${colors.error[300]}`,
+            borderRadius: borderRadius.md,
+            padding: spacing.lg,
+            marginBottom: spacing.xl
+          }}>
+            <div style={{ display: 'flex', gap: spacing.md }}>
+              <div style={{ color: colors.error[600], flexShrink: 0 }}>
+                <Icons.Alert />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.error[900],
+                  marginBottom: spacing.xs,
+                  fontSize: typography.fontSize.base,
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {lastError.title || 'Ocorreu um erro'}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.error[700],
+                  marginBottom: spacing.sm,
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {lastError.message}
+                </div>
+                {lastError.technical && (
+                  <details style={{ marginTop: spacing.sm }}>
+                    <summary style={{
+                      fontSize: typography.fontSize.xs,
+                      color: colors.error[700],
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      fontFamily: typography.fontFamily.sans
+                    }}>
+                      Ver detalhes técnicos
+                    </summary>
+                    <pre style={{
+                      fontSize: typography.fontSize.xs,
+                      color: colors.error[800],
+                      backgroundColor: colors.error[100],
+                      padding: spacing.sm,
+                      borderRadius: borderRadius.sm,
+                      marginTop: spacing.sm,
+                      overflow: 'auto',
+                      maxHeight: '200px',
+                      fontFamily: typography.fontFamily.mono
+                    }}>
+                      {lastError.technical}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Statistics Cards */}
+        {queue && (
+          <div>
+            <h3 style={{
+              fontSize: typography.fontSize.lg,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              marginBottom: spacing.lg,
+              fontFamily: typography.fontFamily.sans
+            }}>
+              Estatísticas
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: spacing.lg,
+              marginBottom: spacing.xl
+            }}>
+              <div style={{
+                backgroundColor: colors.primary[50],
+                borderRadius: borderRadius.lg,
+                padding: spacing.lg,
+                border: `1px solid ${colors.primary[200]}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.primary[700],
+                  marginBottom: spacing.md,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  Notas Processadas
+                </div>
+                <div style={{
+                  fontSize: '32px',
+                  fontWeight: typography.fontWeight.bold,
+                  color: colors.primary[700],
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {queue.total || 0}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.primary[600],
+                  marginTop: spacing.xs,
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  total encontrado
+                </div>
+              </div>
+
+              <div style={{
+                backgroundColor: colors.success[50],
+                borderRadius: borderRadius.lg,
+                padding: spacing.lg,
+                border: `1px solid ${colors.success[200]}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.success[700],
+                  marginBottom: spacing.md,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  Enviadas
+                </div>
+                <div style={{
+                  fontSize: '32px',
+                  fontWeight: typography.fontWeight.bold,
+                  color: colors.success[700],
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {queue.sent || 0}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.success[600],
+                  marginTop: spacing.xs,
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  sincronizadas
+                </div>
+              </div>
+
+              <div style={{
+                backgroundColor: colors.warning[50],
+                borderRadius: borderRadius.lg,
+                padding: spacing.lg,
+                border: `1px solid ${colors.warning[200]}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.warning[700],
+                  marginBottom: spacing.md,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  Aguardando
+                </div>
+                <div style={{
+                  fontSize: '32px',
+                  fontWeight: typography.fontWeight.bold,
+                  color: colors.warning[700],
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {queue.pending || 0}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.warning[600],
+                  marginTop: spacing.xs,
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  na fila
+                </div>
+              </div>
+
+              <div style={{
+                backgroundColor: colors.error[50],
+                borderRadius: borderRadius.lg,
+                padding: spacing.lg,
+                border: `1px solid ${colors.error[200]}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.error[700],
+                  marginBottom: spacing.md,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  Com Erros
+                </div>
+                <div style={{
+                  fontSize: '32px',
+                  fontWeight: typography.fontWeight.bold,
+                  color: colors.error[700],
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {queue.error || 0}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.error[600],
+                  marginTop: spacing.xs,
+                  fontFamily: typography.fontFamily.sans
+                }}>
+                  {queue.dead_letter > 0 ? `${queue.dead_letter} críticos` : 'nenhum crítico'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* System Status Footer */}
+        <div style={{
+          borderTop: `1px solid ${colors.neutral[200]}`,
+          paddingTop: spacing.lg,
+          display: 'flex',
+          gap: spacing.xl,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+            <div style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: borderRadius.full,
+              backgroundColor: configOk ? colors.success[500] : colors.error[500]
+            }}></div>
+            <span style={{
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.medium,
+              color: colors.text.secondary,
+              fontFamily: typography.fontFamily.sans
+            }}>
+              {configOk ? 'Configuração OK' : 'Configure o sistema'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+            <div style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: borderRadius.full,
+              backgroundColor: online ? colors.success[500] : colors.neutral[400]
+            }}></div>
+            <span style={{
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.medium,
+              color: colors.text.secondary,
+              fontFamily: typography.fontFamily.sans
+            }}>
+              {online === null ? 'Verificando conexão...' : online ? 'Servidor Online' : 'Servidor Offline'}
+            </span>
+          </div>
         </div>
       </div>
     </div>

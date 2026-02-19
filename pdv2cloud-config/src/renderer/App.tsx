@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Dashboard from './components/Dashboard';
-import Configuration from './components/Configuration';
-import LogViewer from './components/LogViewer';
 import ServiceControl from './components/ServiceControl';
 import OnboardingWizard from './components/OnboardingWizard';
+import { colors, typography, spacing, borderRadius, shadows, Icons } from './styles/theme';
 
 const App: React.FC = () => {
   const [serviceInstalled, setServiceInstalled] = useState<boolean>(true);
@@ -30,14 +29,12 @@ const App: React.FC = () => {
   }, [checkServiceStatus, refreshKey]);
 
   useEffect(() => {
-    // Check if this is first run
     const checkFirstRun = async () => {
       try {
         const config = await (window as any).electron.invoke('config:load');
         const isConfigured = config && config.api_key;
         setShowOnboarding(!isConfigured);
       } catch (err) {
-        // No config file = first run
         setShowOnboarding(true);
       } finally {
         setOnboardingChecked(true);
@@ -70,11 +67,25 @@ const App: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f3f4f6'
+        backgroundColor: colors.background.tertiary,
+        fontFamily: typography.fontFamily.sans
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚙️</div>
-          <div style={{ fontSize: '16px', color: '#6b7280' }}>Carregando...</div>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            margin: '0 auto 16px',
+            color: colors.primary[600]
+          }}>
+            <Icons.Loader />
+          </div>
+          <div style={{
+            fontSize: typography.fontSize.lg,
+            color: colors.text.secondary,
+            fontFamily: typography.fontFamily.sans
+          }}>
+            Carregando...
+          </div>
         </div>
       </div>
     );
@@ -85,57 +96,94 @@ const App: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '24px' }}>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: colors.background.tertiary,
+      padding: spacing.xl,
+      fontFamily: typography.fontFamily.sans
+    }}>
       {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '24px',
-        backgroundColor: '#ffffff',
-        padding: '20px 24px',
-        borderRadius: '12px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        marginBottom: spacing.xl,
+        backgroundColor: colors.background.primary,
+        padding: spacing.xl,
+        borderRadius: borderRadius.lg,
+        boxShadow: shadows.md,
+        border: `1px solid ${colors.neutral[200]}`
       }}>
-        <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#111827', margin: '0 0 4px 0' }}>
-            PDV2Cloud
-          </h1>
-          <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
-            Coletor Automático de Notas Fiscais
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            background: `linear-gradient(135deg, ${colors.primary[600]} 0%, ${colors.primary[700]} 100%)`,
+            borderRadius: borderRadius.lg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: colors.text.inverse
+          }}>
+            <Icons.Cloud />
+          </div>
+          <div>
+            <h1 style={{
+              fontSize: typography.fontSize['3xl'],
+              fontWeight: typography.fontWeight.bold,
+              color: colors.text.primary,
+              margin: 0,
+              marginBottom: spacing.xs,
+              fontFamily: typography.fontFamily.sans
+            }}>
+              PDV2Cloud
+            </h1>
+            <p style={{
+              fontSize: typography.fontSize.base,
+              color: colors.text.secondary,
+              margin: 0,
+              fontFamily: typography.fontFamily.sans
+            }}>
+              Coletor Automático de Notas Fiscais
+            </p>
+          </div>
         </div>
         <button
           onClick={handleRestartOnboarding}
           style={{
-            padding: '12px 20px',
-            backgroundColor: '#3b82f6',
-            color: '#ffffff',
+            padding: `${spacing.md} ${spacing.xl}`,
+            backgroundColor: colors.primary[600],
+            color: colors.text.inverse,
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 600,
+            borderRadius: borderRadius.md,
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.semibold,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            transition: 'background-color 0.2s'
+            gap: spacing.sm,
+            transition: 'background-color 0.2s',
+            fontFamily: typography.fontFamily.sans
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primary[700]}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.primary[600]}
         >
-          <span>🧭</span>
+          <Icons.Settings />
           Assistente de Configuração
         </button>
       </div>
 
-      {/* Main Content - Single Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Main Content */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr',
+        gap: spacing.xl,
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}>
         <Dashboard key={refreshKey} serviceInstalled={serviceInstalled} />
         <ServiceControl serviceInstalled={serviceInstalled} onServiceInstalled={handleServiceInstalled} />
       </div>
-
-      {/* Configuration and Logs hidden for simplified UX - accessible via wizard */}
     </div>
   );
 };

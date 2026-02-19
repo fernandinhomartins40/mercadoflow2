@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { colors, typography, spacing, borderRadius, shadows, Icons, components } from '../styles/theme';
 
 interface ServiceControlProps {
   serviceInstalled: boolean;
@@ -37,9 +38,9 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
 
   const run = async (action: 'start' | 'stop' | 'restart') => {
     const actions = {
-      start: { loading: 'Iniciando serviço...', success: 'Serviço iniciado com sucesso!', verb: 'iniciar' },
-      stop: { loading: 'Parando serviço...', success: 'Serviço parado.', verb: 'parar' },
-      restart: { loading: 'Reiniciando serviço...', success: 'Serviço reiniciado com sucesso!', verb: 'reiniciar' }
+      start: { loading: 'Iniciando serviço...', success: 'Serviço iniciado com sucesso', verb: 'iniciar' },
+      stop: { loading: 'Parando serviço...', success: 'Serviço parado', verb: 'parar' },
+      restart: { loading: 'Reiniciando serviço...', success: 'Serviço reiniciado com sucesso', verb: 'reiniciar' }
     };
 
     const actionInfo = actions[action];
@@ -68,7 +69,7 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
 
     try {
       await (window as any).pdv2cloud.installService();
-      showMessage('Serviço instalado e iniciado com sucesso!', 'success');
+      showMessage('Serviço instalado e iniciado com sucesso', 'success');
       if (onServiceInstalled) {
         setTimeout(() => onServiceInstalled(), 2000);
       }
@@ -79,7 +80,7 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
       if (msg.includes('SERVICE_INSTALLER_NOT_FOUND')) {
         showMessage('Arquivos não encontrados. Reinstale o PDV2Cloud usando o instalador oficial.', 'error');
       } else if (msg.includes('Access') || msg.includes('Acesso')) {
-        showMessage('Sem permissão! Feche este aplicativo e execute-o como Administrador (botão direito > Executar como administrador).', 'error');
+        showMessage('Sem permissão. Feche este aplicativo e execute-o como Administrador (botão direito > Executar como administrador).', 'error');
       } else {
         showMessage('Erro na instalação. Execute este aplicativo como Administrador e tente novamente.', 'error');
       }
@@ -90,22 +91,40 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
 
   const getMessageStyle = () => {
     const styles = {
-      success: { backgroundColor: '#d1fae5', color: '#065f46', border: '2px solid #10b981' },
-      error: { backgroundColor: '#fee2e2', color: '#991b1b', border: '2px solid #ef4444' },
-      info: { backgroundColor: '#dbeafe', color: '#1e40af', border: '2px solid #3b82f6' }
+      success: { backgroundColor: colors.success[50], color: colors.success[800], border: `1px solid ${colors.success[300]}` },
+      error: { backgroundColor: colors.error[50], color: colors.error[800], border: `1px solid ${colors.error[300]}` },
+      info: { backgroundColor: colors.primary[50], color: colors.primary[800], border: `1px solid ${colors.primary[300]}` }
     };
     return styles[messageType];
   };
 
   if (!serviceInstalled) {
     return (
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#111827', margin: '0 0 8px 0' }}>
+      <div style={{
+        backgroundColor: colors.background.primary,
+        borderRadius: borderRadius.lg,
+        padding: spacing['2xl'],
+        boxShadow: shadows.md,
+        border: `1px solid ${colors.neutral[200]}`
+      }}>
+        <div style={{ marginBottom: spacing.xl }}>
+          <h3 style={{
+            fontSize: typography.fontSize.xl,
+            fontWeight: typography.fontWeight.bold,
+            color: colors.text.primary,
+            margin: 0,
+            marginBottom: spacing.sm,
+            fontFamily: typography.fontFamily.sans
+          }}>
             Configure o Coletor
           </h3>
-          <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
-            O serviço de coleta automática precisa ser instalado antes de usar o sistema.
+          <p style={{
+            fontSize: typography.fontSize.base,
+            color: colors.text.secondary,
+            margin: 0,
+            fontFamily: typography.fontFamily.sans
+          }}>
+            O serviço de coleta automática precisa ser instalado antes de usar o sistema
           </p>
         </div>
 
@@ -113,138 +132,217 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
           onClick={installServiceHandler}
           disabled={installing}
           style={{
+            ...components.button.success,
             width: '100%',
-            padding: '16px 24px',
-            backgroundColor: installing ? '#9ca3af' : '#10b981',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: 600,
-            cursor: installing ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            transition: 'background-color 0.2s'
+            opacity: installing ? 0.7 : 1,
+            cursor: installing ? 'not-allowed' : 'pointer'
           }}
-          onMouseEnter={(e) => !installing && (e.currentTarget.style.backgroundColor = '#059669')}
-          onMouseLeave={(e) => !installing && (e.currentTarget.style.backgroundColor = '#10b981')}
+          onMouseEnter={(e) => !installing && (e.currentTarget.style.backgroundColor = colors.success[700])}
+          onMouseLeave={(e) => !installing && (e.currentTarget.style.backgroundColor = colors.success[600])}
         >
-          <span style={{ fontSize: '20px' }}>{installing ? '⏳' : '🔧'}</span>
-          {installing ? 'Instalando serviço...' : 'Instalar Serviço de Coleta'}
+          {installing ? (
+            <>
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: `2px solid ${colors.text.inverse}`,
+                borderTopColor: 'transparent',
+                borderRadius: borderRadius.full,
+                animation: 'spin 0.6s linear infinite'
+              }} />
+              Instalando serviço...
+            </>
+          ) : (
+            <>
+              <Icons.Settings />
+              Instalar Serviço de Coleta
+            </>
+          )}
         </button>
 
         {message && (
           <div style={{
             ...getMessageStyle(),
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginTop: '16px',
-            fontSize: '14px',
-            fontWeight: 500
+            padding: spacing.md,
+            borderRadius: borderRadius.md,
+            marginTop: spacing.lg,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.medium,
+            fontFamily: typography.fontFamily.sans
           }}>
             {message}
           </div>
         )}
+
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#111827', margin: 0 }}>
+    <div style={{
+      backgroundColor: colors.background.primary,
+      borderRadius: borderRadius.lg,
+      padding: spacing['2xl'],
+      boxShadow: shadows.md,
+      border: `1px solid ${colors.neutral[200]}`
+    }}>
+      <div style={{ marginBottom: spacing.xl }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing.sm
+        }}>
+          <h3 style={{
+            fontSize: typography.fontSize.xl,
+            fontWeight: typography.fontWeight.bold,
+            color: colors.text.primary,
+            margin: 0,
+            fontFamily: typography.fontFamily.sans
+          }}>
             Controle do Serviço
           </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: spacing.sm,
+            padding: `${spacing.xs} ${spacing.md}`,
+            backgroundColor: isRunning ? colors.success[100] : colors.error[100],
+            borderRadius: borderRadius.full,
+            border: `1px solid ${isRunning ? colors.success[300] : colors.error[300]}`
+          }}>
             <div style={{
               width: '8px',
               height: '8px',
-              borderRadius: '50%',
-              backgroundColor: isRunning ? '#10b981' : '#ef4444'
+              borderRadius: borderRadius.full,
+              backgroundColor: isRunning ? colors.success[600] : colors.error[600]
             }}></div>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: isRunning ? '#065f46' : '#991b1b' }}>
+            <span style={{
+              fontSize: typography.fontSize.xs,
+              fontWeight: typography.fontWeight.semibold,
+              color: isRunning ? colors.success[800] : colors.error[800],
+              fontFamily: typography.fontFamily.sans
+            }}>
               {checking ? 'Verificando...' : isRunning ? 'Em Execução' : 'Parado'}
             </span>
           </div>
         </div>
-        <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
+        <p style={{
+          fontSize: typography.fontSize.sm,
+          color: colors.text.secondary,
+          margin: 0,
+          fontFamily: typography.fontFamily.sans
+        }}>
           Gerencie o funcionamento do coletor de notas fiscais
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: spacing.md,
+        marginBottom: spacing.lg
+      }}>
         <button
           onClick={() => run('start')}
           disabled={isRunning}
           style={{
-            padding: '14px',
-            backgroundColor: isRunning ? '#e5e7eb' : '#10b981',
-            color: isRunning ? '#9ca3af' : '#ffffff',
+            padding: spacing.md,
+            backgroundColor: isRunning ? colors.neutral[200] : colors.success[600],
+            color: isRunning ? colors.neutral[500] : colors.text.inverse,
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 600,
+            borderRadius: borderRadius.md,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.semibold,
             cursor: isRunning ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s'
+            transition: 'background-color 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.xs,
+            fontFamily: typography.fontFamily.sans
           }}
-          onMouseEnter={(e) => !isRunning && (e.currentTarget.style.backgroundColor = '#059669')}
-          onMouseLeave={(e) => !isRunning && (e.currentTarget.style.backgroundColor = '#10b981')}
+          onMouseEnter={(e) => !isRunning && (e.currentTarget.style.backgroundColor = colors.success[700])}
+          onMouseLeave={(e) => !isRunning && (e.currentTarget.style.backgroundColor = colors.success[600])}
         >
-          ▶ Iniciar
+          <Icons.Play />
+          Iniciar
         </button>
 
         <button
           onClick={() => run('stop')}
           disabled={!isRunning}
           style={{
-            padding: '14px',
-            backgroundColor: !isRunning ? '#e5e7eb' : '#ef4444',
-            color: !isRunning ? '#9ca3af' : '#ffffff',
+            padding: spacing.md,
+            backgroundColor: !isRunning ? colors.neutral[200] : colors.error[600],
+            color: !isRunning ? colors.neutral[500] : colors.text.inverse,
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 600,
+            borderRadius: borderRadius.md,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.semibold,
             cursor: !isRunning ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s'
+            transition: 'background-color 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.xs,
+            fontFamily: typography.fontFamily.sans
           }}
-          onMouseEnter={(e) => isRunning && (e.currentTarget.style.backgroundColor = '#dc2626')}
-          onMouseLeave={(e) => isRunning && (e.currentTarget.style.backgroundColor = '#ef4444')}
+          onMouseEnter={(e) => isRunning && (e.currentTarget.style.backgroundColor = colors.error[700])}
+          onMouseLeave={(e) => isRunning && (e.currentTarget.style.backgroundColor = colors.error[600])}
         >
-          ⏹ Parar
+          <Icons.Stop />
+          Parar
         </button>
 
         <button
           onClick={() => run('restart')}
           disabled={!isRunning}
           style={{
-            padding: '14px',
-            backgroundColor: !isRunning ? '#e5e7eb' : '#f59e0b',
-            color: !isRunning ? '#9ca3af' : '#ffffff',
+            padding: spacing.md,
+            backgroundColor: !isRunning ? colors.neutral[200] : colors.warning[600],
+            color: !isRunning ? colors.neutral[500] : colors.text.inverse,
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 600,
+            borderRadius: borderRadius.md,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.semibold,
             cursor: !isRunning ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s'
+            transition: 'background-color 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.xs,
+            fontFamily: typography.fontFamily.sans
           }}
-          onMouseEnter={(e) => isRunning && (e.currentTarget.style.backgroundColor = '#d97706')}
-          onMouseLeave={(e) => isRunning && (e.currentTarget.style.backgroundColor = '#f59e0b')}
+          onMouseEnter={(e) => isRunning && (e.currentTarget.style.backgroundColor = colors.warning[700])}
+          onMouseLeave={(e) => isRunning && (e.currentTarget.style.backgroundColor = colors.warning[600])}
         >
-          ⟳ Reiniciar
+          <Icons.Refresh />
+          Reiniciar
         </button>
       </div>
 
       {message && (
         <div style={{
           ...getMessageStyle(),
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '14px',
-          fontWeight: 500
+          padding: spacing.md,
+          borderRadius: borderRadius.md,
+          fontSize: typography.fontSize.sm,
+          fontWeight: typography.fontWeight.medium,
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.sm,
+          fontFamily: typography.fontFamily.sans
         }}>
+          {messageType === 'success' && <Icons.Check />}
+          {messageType === 'error' && <Icons.Alert />}
+          {messageType === 'info' && <Icons.Loader />}
           {message}
         </div>
       )}
