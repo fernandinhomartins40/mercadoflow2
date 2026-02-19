@@ -61,11 +61,12 @@ npm install
 npm run build
 npm run package
 
-# Copy win-unpacked into dist/config-ui
+# Copy win-unpacked CONTENTS into dist/config-ui
 $winUnpacked = Join-Path $configUiRoot 'dist\win-unpacked'
 $configUiDist = Join-Path $dist 'config-ui'
 if (Test-Path $configUiDist) { Remove-Item $configUiDist -Recurse -Force }
-Copy-Item $winUnpacked -Destination $configUiDist -Recurse -Force
+New-Item -ItemType Directory -Force -Path $configUiDist | Out-Null
+Copy-Item "$winUnpacked\*" -Destination $configUiDist -Recurse -Force
 
 Set-Location $repoRoot
 Write-Host 'Build artifacts prepared in dist/'
