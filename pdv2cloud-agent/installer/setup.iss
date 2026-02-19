@@ -1,7 +1,7 @@
 [Setup]
 AppName=PDV2Cloud Collector Agent
 AppVersion=1.0.0
-DefaultDirName={pf}\PDV2Cloud
+DefaultDirName={autopf}\PDV2Cloud
 DefaultGroupName=PDV2Cloud
 OutputDir=Output
 OutputBaseFilename=PDV2Cloud-Setup
