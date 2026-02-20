@@ -13,9 +13,20 @@ import requests
 
 logger = logging.getLogger("PDV2Cloud.Updater")
 
-CURRENT_VERSION = "1.0.0"
 UPDATE_CHECK_URL = "https://mercadoflow.com/api/v1/downloads/agent-installer/version"
 INSTALLER_DOWNLOAD_URL = "https://mercadoflow.com/api/v1/downloads/agent-installer"
+
+def get_installed_version() -> str:
+    """Read the installed version from version.txt file."""
+    try:
+        version_file = Path("C:/Program Files (x86)/PDV2Cloud/version.txt")
+        if version_file.exists():
+            return version_file.read_text().strip()
+    except Exception as e:
+        logger.warning(f"Failed to read version file: {e}")
+    return "1.0.0"  # Fallback to default
+
+CURRENT_VERSION = get_installed_version()
 
 
 class UpdateChecker:

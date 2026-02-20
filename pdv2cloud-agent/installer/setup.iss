@@ -62,3 +62,15 @@ begin
   Exec('taskkill.exe', '/F /IM "PDV2Cloud Config.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  VersionFile: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    // Create version.txt file with current version
+    VersionFile := ExpandConstant('{app}\version.txt');
+    SaveStringToFile(VersionFile, '{#SetupSetting("AppVersion")}', False);
+  end;
+end;
