@@ -13,24 +13,13 @@ const createWindow = () => {
     },
   });
 
-  // Open DevTools in production for debugging
-  win.webContents.openDevTools();
-
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
+    // Open DevTools only in development
+    win.webContents.openDevTools();
   } else {
-    const htmlPath = path.join(__dirname, '../renderer/index.html');
-    console.log('Loading HTML from:', htmlPath);
-    console.log('__dirname:', __dirname);
-    win.loadFile(htmlPath).catch(err => {
-      console.error('Failed to load HTML:', err);
-    });
+    win.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
-
-  // Log any console errors from renderer
-  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    console.log(`[Renderer Console] ${message}`);
-  });
 };
 
 app.whenReady().then(() => {
