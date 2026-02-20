@@ -58,7 +58,15 @@ def install():
 
     _ensure_service_autostart()
     _ensure_service_permissions()
-    win32serviceutil.StartService(SERVICE_NAME)
+
+    # Try to start service, but don't fail installation if it times out
+    # Service may need configuration before it can start successfully
+    try:
+        win32serviceutil.StartService(SERVICE_NAME)
+        print("Service started successfully")
+    except Exception as exc:
+        print(f"WARNING: Service installed but failed to start: {exc}")
+        print("You can start the service manually after configuration")
 
 
 def remove():
