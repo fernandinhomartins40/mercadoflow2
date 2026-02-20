@@ -36,7 +36,8 @@ export const startService = async () => {
     throw mapServiceError(err);
   }
   try {
-    return await execPromise(`net start ${SERVICE_NAME}`);
+    // Use PowerShell with Start-Service which respects the service SDDL permissions
+    return await execPromise(`powershell -Command "Start-Service -Name ${SERVICE_NAME}"`);
   } catch (err) {
     throw mapServiceError(err);
   }
@@ -49,7 +50,8 @@ export const stopService = async () => {
     throw mapServiceError(err);
   }
   try {
-    return await execPromise(`net stop ${SERVICE_NAME}`);
+    // Use PowerShell with Stop-Service which respects the service SDDL permissions
+    return await execPromise(`powershell -Command "Stop-Service -Name ${SERVICE_NAME}"`);
   } catch (err) {
     throw mapServiceError(err);
   }
