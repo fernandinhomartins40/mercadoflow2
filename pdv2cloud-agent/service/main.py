@@ -142,6 +142,12 @@ class ServiceApp:
         if self.config.get("healthcheck_enabled", True):
             threading.Thread(target=self._start_health_server, daemon=True).start()
 
+        # Run main loop in background thread to avoid blocking Windows Service Control Manager
+        threading.Thread(target=self._main_loop, daemon=False).start()
+        logger.info("PDV2Cloud service started successfully")
+
+    def _main_loop(self):
+        """Main processing loop - runs in background thread"""
         while not self.stop_event.is_set():
             self.process_queue()
             schedule.run_pending()
