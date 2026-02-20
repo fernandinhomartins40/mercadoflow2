@@ -119,6 +119,15 @@ jobs:
           echo "Verifying uploaded files..."
           sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "ls -lh '$TARGET_DIR' && cat '$TARGET_DIR/PDV2Cloud-Setup.exe.meta.json'"
 
+          echo "Restarting backend container to reload installer files..."
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "cd /root/mercadoflow-web && docker compose -f docker-compose.vps.yml restart mercadoflow-backend"
+
+          echo "Waiting for backend to be ready..."
+          sleep 10
+
+          echo "Verifying installer is accessible via API..."
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "curl -s http://localhost:3300/api/v1/downloads/agent-installer/info | grep version || echo 'Warning: Could not verify installer via API'"
+
           # Optional: run check script if present
           sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "if [ -f /root/mercadoflow-web/deploy/check-installer.sh ]; then bash /root/mercadoflow-web/deploy/check-installer.sh; fi"
 
