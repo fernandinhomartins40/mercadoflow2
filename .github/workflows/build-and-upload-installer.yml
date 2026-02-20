@@ -99,16 +99,25 @@ jobs:
           VPS_USER="root"
           TARGET_DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
 
+          echo "Creating target directory on VPS..."
           sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "mkdir -p '$TARGET_DIR'"
 
+          echo "Uploading installer files..."
           for f in PDV2Cloud-Setup.exe PDV2Cloud-Setup.exe.sha256 PDV2Cloud-Setup.exe.meta.json; do
             if [ ! -f "installer/$f" ]; then
-              echo "Missing file: installer/$f"
+              echo "ERROR: Missing file: installer/$f"
               exit 1
             fi
+
+            echo "Uploading $f..."
             sshpass -p "$VPS_PASSWORD" scp -o StrictHostKeyChecking=no "installer/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
-            sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f'"
+
+            echo "Moving $f.new to $f..."
+            sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f' && echo 'Moved $f successfully'"
           done
+
+          echo "Verifying uploaded files..."
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "ls -lh '$TARGET_DIR' && cat '$TARGET_DIR/PDV2Cloud-Setup.exe.meta.json'"
 
           # Optional: run check script if present
           sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "if [ -f /root/mercadoflow-web/deploy/check-installer.sh ]; then bash /root/mercadoflow-web/deploy/check-installer.sh; fi"
