@@ -14,13 +14,14 @@ class PDV2CloudService(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self.running = True
-        self.app = ServiceApp()
+        self.app = None
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.stop_event)
         self.running = False
-        self.app.stop()
+        if self.app:
+            self.app.stop()
 
     def SvcDoRun(self):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
@@ -29,7 +30,11 @@ class PDV2CloudService(win32serviceutil.ServiceFramework):
         self.main()
 
     def main(self):
-        self.app.start()
+        try:
+            self.app = ServiceApp()
+            self.app.start()
+        except Exception as e:
+            servicemanager.LogErrorMsg(f"Service failed to start: {e}")
 
 
 if __name__ == '__main__':
