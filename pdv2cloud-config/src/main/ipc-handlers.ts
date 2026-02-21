@@ -264,4 +264,61 @@ export const registerIpcHandlers = () => {
       throw err;
     }
   });
+
+  // Service diagnostics
+  ipcMain.handle('service:diagnose', async () => {
+    try {
+      logger.info('IPC: service:diagnose');
+      const bases = getCandidateBaseDirs();
+      let pythonPath = '';
+      let testScript = '';
+
+      for (const base of bases) {
+        const p = path.join(base, 'python', 'python.exe');
+        const t = path.join(base, 'service', 'test_service_startup.py');
+        if (fs.existsSync(p) && fs.existsSync(t)) {
+          pythonPath = p;
+          testScript = t;
+          break;
+        }
+      }
+
+      if (!pythonPath || !testScript) {
+        throw new Error('Diagnostic script not found');
+      }
+
+      const result = await execPromise(`"${pythonPath}" "${testScript}"`);
+      logger.info('Service diagnostic completed', { result });
+      return result;
+    } catch (err) {
+      logger.error('IPC service:diagnose failed', err);
+      throw err;
+    }
+  });
 };
+
+function getCandidateBaseDirs() {
+  const candidates = new Set<string>();
+
+  try {
+    const exePath = require('electron').app.getPath('exe') || process.execPath;
+    const exeDir = path.dirname(exePath);
+    candidates.add(path.resolve(exeDir, '..'));
+  } catch {
+    // ignore
+  }
+
+  const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles;
+  if (programFiles) {
+    candidates.add(path.join(programFiles, 'PDV2Cloud'));
+  }
+  const programFilesX86 = process.env['ProgramFiles(x86)'];
+  if (programFilesX86) {
+    candidates.add(path.join(programFilesX86, 'PDV2Cloud'));
+  }
+
+  candidates.add('C:\\Program Files\\PDV2Cloud');
+  candidates.add('C:\\Program Files (x86)\\PDV2Cloud');
+
+  return Array.from(candidates).filter(Boolean);
+}

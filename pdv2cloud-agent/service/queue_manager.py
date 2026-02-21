@@ -4,6 +4,9 @@ from pathlib import Path
 from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import enum
+import logging
+
+logger = logging.getLogger("PDV2Cloud.QueueManager")
 
 DB_PATH = Path("C:/ProgramData/PDV2Cloud/queue.db")
 Base = declarative_base()
@@ -33,10 +36,21 @@ class QueuedInvoice(Base):
 
 class QueueManager:
     def __init__(self):
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        self.engine = create_engine(f"sqlite:///{DB_PATH}")
-        Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine)
+        try:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            logger.info("Database directory created/verified: %s", DB_PATH.parent)
+        except Exception as exc:
+            logger.error("Failed to create database directory: %s", exc)
+            raise
+
+        try:
+            self.engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+            Base.metadata.create_all(self.engine)
+            self.Session = sessionmaker(bind=self.engine)
+            logger.info("Database initialized successfully: %s", DB_PATH)
+        except Exception as exc:
+            logger.error("Failed to initialize database: %s", exc)
+            raise
 
     def enqueue(self, chave_nfe: str, payload_json: str, xml_hash: str) -> None:
         session = self.Session()

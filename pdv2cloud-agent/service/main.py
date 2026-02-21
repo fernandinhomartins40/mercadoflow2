@@ -98,7 +98,7 @@ class ServiceApp:
             self.config.get("api_url", ""),
             self.config.get("api_key", ""),
             self.config.get("market_id", ""),
-            self.config.get("api_key", "dev-hmac"),
+            self.config.get("hmac_secret", "dev-hmac"),
         )
         self.stop_event = threading.Event()
         self.online = False
@@ -223,9 +223,14 @@ class ServiceApp:
             logger.error("Update check failed: %s", exc)
 
     def _start_health_server(self):
-        port = int(self.config.get("healthcheck_port", 8765))
-        server = HTTPServer(("localhost", port), HealthHandler)
-        server.serve_forever()
+        try:
+            port = int(self.config.get("healthcheck_port", 8765))
+            server = HTTPServer(("localhost", port), HealthHandler)
+            logger.info("Health check server listening on localhost:%d", port)
+            server.serve_forever()
+        except Exception as exc:
+            logger.error("Health check server failed to start: %s", exc)
+            # Don't crash the entire service if health check fails
 
     def _hydrate_agent_config(self):
         if self.config.get("market_id"):
