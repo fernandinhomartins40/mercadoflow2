@@ -101,6 +101,10 @@ export const installService = async () => {
     await ensureEmbeddedPythonReady(resolved.baseDir, resolved.pythonPath);
     logger.info('Python environment ready');
 
+    // CRITICAL: Fix pywin32 DLL locations before installing service
+    await fixPywin32Installation(resolved.baseDir, resolved.pythonPath);
+    logger.info('pywin32 configured successfully');
+
     const result = await execPromise(`"${resolved.pythonPath}" "${resolved.installerPath}" install`);
     logger.info('Service installed successfully', { result });
     return result;
@@ -220,6 +224,23 @@ const ensurePipInstalled = async (pythonPath: string, pythonDir: string) => {
   }
 
   await execPromise(`"${pythonPath}" "${getPip}"`);
+};
+
+const fixPywin32Installation = async (baseDir: string, pythonPath: string) => {
+  const fixScript = path.join(baseDir, 'service', 'installer', 'fix_pywin32.py');
+  if (!fs.existsSync(fixScript)) {
+    logger.warn('pywin32 fix script not found, skipping');
+    return;
+  }
+
+  logger.info('Running pywin32 post-installation fix...');
+  try {
+    const result = await execPromise(`"${pythonPath}" "${fixScript}"`);
+    logger.info('pywin32 fix completed', { result });
+  } catch (err) {
+    logger.error('pywin32 fix failed, but continuing', err);
+    // Don't throw - this is a best-effort fix
+  }
 };
 
 const ensureRequirementsInstalled = async (pythonPath: string, baseDir: string) => {
