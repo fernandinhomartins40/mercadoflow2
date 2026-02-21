@@ -287,7 +287,19 @@ export const registerIpcHandlers = () => {
         throw new Error('Diagnostic script not found');
       }
 
-      const result = await execPromise(`"${pythonPath}" "${testScript}"`);
+      const result = await new Promise<string>((resolve, reject) => {
+        require('child_process').exec(`"${pythonPath}" "${testScript}"`, {
+          windowsHide: true,
+          maxBuffer: 10 * 1024 * 1024
+        }, (error: any, stdout: any, stderr: any) => {
+          if (error) {
+            reject(stderr || stdout || error.message);
+          } else {
+            resolve(stdout);
+          }
+        });
+      });
+
       logger.info('Service diagnostic completed', { result });
       return result;
     } catch (err) {
