@@ -307,6 +307,46 @@ export const registerIpcHandlers = () => {
       throw err;
     }
   });
+
+  // Check Windows Event Viewer for service errors
+  ipcMain.handle('service:checkLogs', async () => {
+    try {
+      logger.info('IPC: service:checkLogs');
+      const bases = getCandidateBaseDirs();
+      let pythonPath = '';
+      let logScript = '';
+
+      for (const base of bases) {
+        const p = path.join(base, 'python', 'python.exe');
+        const s = path.join(base, 'service', 'installer', 'check_service_logs.py');
+        if (fs.existsSync(p) && fs.existsSync(s)) {
+          pythonPath = p;
+          logScript = s;
+          break;
+        }
+      }
+
+      if (!pythonPath || !logScript) {
+        throw new Error('Log checker script not found');
+      }
+
+      const result = await new Promise<string>((resolve, reject) => {
+        require('child_process').exec(`"${pythonPath}" "${logScript}"`, {
+          windowsHide: true,
+          maxBuffer: 10 * 1024 * 1024
+        }, (error: any, stdout: any, stderr: any) => {
+          // Don't reject on error - the script may have partial output
+          resolve(stdout || stderr || '');
+        });
+      });
+
+      logger.info('Service log check completed');
+      return result;
+    } catch (err) {
+      logger.error('IPC service:checkLogs failed', err);
+      throw err;
+    }
+  });
 };
 
 function getCandidateBaseDirs() {
