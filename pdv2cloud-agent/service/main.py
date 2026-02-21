@@ -244,7 +244,7 @@ class ServiceApp:
                 api_url,
                 api_key,
                 self.config.get("market_id", ""),
-                api_key,
+                self.config.get("hmac_secret", "dev-hmac"),
             )
             profile = transmitter.get_agent_profile()
             market_id = profile.get("marketId")

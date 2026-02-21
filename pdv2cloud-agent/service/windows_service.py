@@ -35,10 +35,12 @@ class PDV2CloudService(win32serviceutil.ServiceFramework):
             self.app.start()
             # Keep service running until stop event
             import time
-            while not self.stop_event or win32event.WaitForSingleObject(self.stop_event, 1000) != win32event.WAIT_OBJECT_0:
+            while self.running and win32event.WaitForSingleObject(self.stop_event, 1000) != win32event.WAIT_OBJECT_0:
                 time.sleep(1)
         except Exception as e:
             servicemanager.LogErrorMsg(f"Service failed: {e}")
+            # Re-raise to ensure service stops properly on fatal errors
+            raise
 
 
 if __name__ == '__main__':
