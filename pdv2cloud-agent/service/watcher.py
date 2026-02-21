@@ -65,10 +65,23 @@ class FileWatcher:
         self.handler = WatchHandler(self._process_file)
 
     def start(self):
+        if not self.watch_paths:
+            logger.warning("No watch paths configured - file watcher not started")
+            return
+
         for path in self.watch_paths:
-            path.mkdir(parents=True, exist_ok=True)
-            self.observer.schedule(self.handler, str(path), recursive=False)
-        self.observer.start()
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+                self.observer.schedule(self.handler, str(path), recursive=False)
+                logger.info("Watching path: %s", path)
+            except Exception as exc:
+                logger.warning("Failed to watch path %s: %s", path, exc)
+
+        if self.observer.handlers:
+            self.observer.start()
+            logger.info("File watcher started with %d paths", len(self.observer.handlers))
+        else:
+            logger.warning("File watcher not started - no valid paths")
 
     def scan_existing(self, limit: int = 5000):
         processed = 0

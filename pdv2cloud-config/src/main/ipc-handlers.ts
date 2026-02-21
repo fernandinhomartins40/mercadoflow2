@@ -199,6 +199,8 @@ export const registerIpcHandlers = () => {
       const buffer = await response.arrayBuffer();
       fs.writeFileSync(tempPath, Buffer.from(buffer));
 
+      logger.info('Update downloaded, launching installer and quitting app');
+
       // Launch installer
       require('child_process').spawn(tempPath, [
         '/VERYSILENT',
@@ -211,9 +213,27 @@ export const registerIpcHandlers = () => {
         stdio: 'ignore'
       }).unref();
 
+      // Give the installer a moment to start, then quit the app
+      setTimeout(() => {
+        require('electron').app.quit();
+      }, 500);
+
       return { success: true, path: tempPath };
     } catch (err) {
       throw new Error(`Failed to install update: ${err}`);
+    }
+  });
+
+  // Get installed version
+  ipcMain.handle('version:get', async () => {
+    try {
+      const versionFile = 'C:/Program Files (x86)/PDV2Cloud/version.txt';
+      if (fs.existsSync(versionFile)) {
+        return fs.readFileSync(versionFile, 'utf-8').trim();
+      }
+      return '1.0.0';
+    } catch {
+      return '1.0.0';
     }
   });
 

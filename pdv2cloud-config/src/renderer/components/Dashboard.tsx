@@ -24,7 +24,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const checkForUpdates = async () => {
     try {
       const versionInfo = await (window as any).electron.invoke('update:check');
-      const currentVersion = '1.0.0';
+      const currentVersion = await (window as any).electron.invoke('version:get');
       if (versionInfo.version !== currentVersion) {
         setUpdateAvailable(true);
         setLatestVersion(versionInfo.version);
@@ -35,17 +35,16 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   };
 
   const installUpdate = async () => {
-    if (!confirm('Instalar atualização? O sistema será reiniciado.')) {
+    if (!confirm('Instalar atualização agora?\n\nO PDV2Cloud será fechado e o instalador será executado automaticamente.')) {
       return;
     }
 
     setInstalling(true);
     try {
       await (window as any).electron.invoke('update:install');
-      alert('Atualização iniciada! O sistema será reiniciado em breve.');
+      // App will be closed by the installer, no need for alert
     } catch (err) {
       alert('Erro ao instalar atualização: ' + err);
-    } finally {
       setInstalling(false);
     }
   };

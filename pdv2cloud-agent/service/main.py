@@ -108,43 +108,51 @@ class ServiceApp:
 
     def start(self):
         logger.info("Starting PDV2Cloud service")
+
+        # Wrap entire startup in try-catch to prevent Windows Service Control Manager timeout
         try:
-            recovered = self.queue_manager.reset_stuck_processing(max_age_minutes=60)
-            if recovered:
-                logger.info("Recovered %s stuck items back to PENDING", recovered)
-            deleted = self.queue_manager.cleanup_sent(max_age_days=30)
-            if deleted:
-                logger.info("Cleaned up %s SENT items older than retention window", deleted)
+            try:
+                recovered = self.queue_manager.reset_stuck_processing(max_age_minutes=60)
+                if recovered:
+                    logger.info("Recovered %s stuck items back to PENDING", recovered)
+                deleted = self.queue_manager.cleanup_sent(max_age_days=30)
+                if deleted:
+                    logger.info("Cleaned up %s SENT items older than retention window", deleted)
+            except Exception as exc:
+                logger.warning("Queue maintenance failed: %s", exc)
+
+            self.file_watcher.start()
+            try:
+                scanned = self.file_watcher.scan_existing()
+                if scanned:
+                    logger.info("Initial scan enqueued %s existing files", scanned)
+            except Exception as exc:
+                logger.warning("Initial scan failed: %s", exc)
+
+            threading.Thread(target=self.file_watcher.loop, args=(self.stop_event,), daemon=True).start()
+
+            # Hydrate agent config in background (fetch market_id from API if needed)
+            if self.config.get("api_key") and not self.config.get("market_id"):
+                threading.Thread(target=self._hydrate_agent_config, daemon=True).start()
+
+            schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
+            schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
+            schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed, self.last_error))
+            schedule.every(2).minutes.do(self._send_heartbeat)
+            schedule.every().day.at("04:00").do(self._check_for_updates)  # Check for updates daily at 4 AM
+            update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
+
+            if self.config.get("healthcheck_enabled", True):
+                threading.Thread(target=self._start_health_server, daemon=True).start()
+
+            # Run main loop in background thread to avoid blocking Windows Service Control Manager
+            threading.Thread(target=self._main_loop, daemon=False).start()
+            logger.info("PDV2Cloud service started successfully")
         except Exception as exc:
-            logger.warning("Queue maintenance failed: %s", exc)
-
-        self.file_watcher.start()
-        try:
-            scanned = self.file_watcher.scan_existing()
-            if scanned:
-                logger.info("Initial scan enqueued %s existing files", scanned)
-        except Exception as exc:
-            logger.warning("Initial scan failed: %s", exc)
-
-        threading.Thread(target=self.file_watcher.loop, args=(self.stop_event,), daemon=True).start()
-
-        # Hydrate agent config in background (fetch market_id from API if needed)
-        if self.config.get("api_key") and not self.config.get("market_id"):
-            threading.Thread(target=self._hydrate_agent_config, daemon=True).start()
-
-        schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
-        schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
-        schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed, self.last_error))
-        schedule.every(2).minutes.do(self._send_heartbeat)
-        schedule.every().day.at("04:00").do(self._check_for_updates)  # Check for updates daily at 4 AM
-        update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
-
-        if self.config.get("healthcheck_enabled", True):
-            threading.Thread(target=self._start_health_server, daemon=True).start()
-
-        # Run main loop in background thread to avoid blocking Windows Service Control Manager
-        threading.Thread(target=self._main_loop, daemon=False).start()
-        logger.info("PDV2Cloud service started successfully")
+            logger.error("CRITICAL: Service startup failed: %s", exc, exc_info=True)
+            # Still allow service to start but in degraded mode
+            # This prevents Error 1053 timeout
+            logger.warning("Service running in degraded mode - check logs for errors")
 
     def _main_loop(self):
         """Main processing loop - runs in background thread"""
