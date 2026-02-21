@@ -62,7 +62,7 @@ def copy_dlls_to_system32():
 
         try:
             shutil.copy2(src, dst)
-            print(f"  ✓ Copied {dll_name} to System32")
+            print(f"  [OK] Copied {dll_name} to System32")
         except PermissionError:
             print(f"  ERROR: Permission denied copying {dll_name}")
             print("  Run this script as Administrator!")
@@ -99,7 +99,7 @@ def copy_dlls_to_scripts():
 
         try:
             shutil.copy2(src, dst)
-            print(f"  ✓ Copied {dll_name} to Scripts")
+            print(f"  [OK] Copied {dll_name} to Scripts")
         except Exception as e:
             print(f"  WARNING: Failed to copy {dll_name} to Scripts: {e}")
 
@@ -125,7 +125,7 @@ def install_pythonservice():
 
     try:
         shutil.copy2(pythonservice_src, pythonservice_dst)
-        print(f"  ✓ Installed pythonservice.exe to {scripts_dir}")
+        print(f"  [OK] Installed pythonservice.exe to {scripts_dir}")
         return True
     except Exception as e:
         print(f"  ERROR: Failed to install pythonservice.exe: {e}")
@@ -140,19 +140,19 @@ def verify_installation():
     # Test imports
     try:
         import win32serviceutil
-        print("  ✓ win32serviceutil import OK")
+        print("  [OK] win32serviceutil import OK")
     except Exception as e:
         errors.append(f"Cannot import win32serviceutil: {e}")
 
     try:
         import pywintypes
-        print("  ✓ pywintypes import OK")
+        print("  [OK] pywintypes import OK")
     except Exception as e:
         errors.append(f"Cannot import pywintypes: {e}")
 
     try:
         import pythoncom
-        print("  ✓ pythoncom import OK")
+        print("  [OK] pythoncom import OK")
     except Exception as e:
         errors.append(f"Cannot import pythoncom: {e}")
 
@@ -160,17 +160,17 @@ def verify_installation():
     scripts_dir = Path(sys.prefix) / "Scripts"
     pythonservice = scripts_dir / "pythonservice.exe"
     if pythonservice.exists():
-        print(f"  ✓ pythonservice.exe found at {pythonservice}")
+        print(f"  [OK] pythonservice.exe found at {pythonservice}")
     else:
         errors.append(f"pythonservice.exe not found at {pythonservice}")
 
     if errors:
-        print("\n❌ Verification FAILED:")
+        print("\n[FAILED] Verification FAILED:")
         for error in errors:
             print(f"  - {error}")
         return False
 
-    print("\n✅ Verification PASSED - pywin32 is properly configured!")
+    print("\n[SUCCESS] Verification PASSED - pywin32 is properly configured!")
     return True
 
 def main():
@@ -187,13 +187,13 @@ def main():
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
 
     if not is_admin:
-        print("⚠️  WARNING: Not running as Administrator")
+        print("[WARNING] Not running as Administrator")
         print("Some operations may fail. Consider running as Administrator.")
         print()
 
     # Step 1: Copy DLLs to System32
     if not copy_dlls_to_system32():
-        print("\n❌ FAILED to copy DLLs to System32")
+        print("\n[FAILED] FAILED to copy DLLs to System32")
         return 1
 
     # Step 2: Copy DLLs to Scripts
@@ -201,7 +201,7 @@ def main():
 
     # Step 3: Install pythonservice.exe
     if not install_pythonservice():
-        print("\n❌ FAILED to install pythonservice.exe")
+        print("\n[FAILED] FAILED to install pythonservice.exe")
         return 1
 
     # Step 4: Verify
@@ -209,7 +209,7 @@ def main():
         return 1
 
     print("\n" + "=" * 60)
-    print("SUCCESS! pywin32 is now properly configured for Windows services")
+    print("[SUCCESS] pywin32 is now properly configured for Windows services")
     print("=" * 60)
     return 0
 
