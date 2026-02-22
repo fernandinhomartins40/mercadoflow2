@@ -36,6 +36,32 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
     setTimeout(() => setMessage(''), 8000);
   };
 
+  const diagnoseService = async () => {
+    try {
+      showMessage('Executando diagnóstico do serviço...', 'info');
+      const result = await (window as any).electron.invoke('service:diagnose');
+      console.log('=== DIAGNÓSTICO DO SERVIÇO ===');
+      console.log(result);
+      showMessage('Diagnóstico concluído. Veja o console (F12) para detalhes.', 'success');
+    } catch (err: any) {
+      console.error('Erro no diagnóstico:', err);
+      showMessage('Erro ao executar diagnóstico', 'error');
+    }
+  };
+
+  const checkLogs = async () => {
+    try {
+      showMessage('Verificando logs do Windows Event Viewer...', 'info');
+      const result = await (window as any).electron.invoke('service:checkLogs');
+      console.log('=== LOGS DO EVENT VIEWER ===');
+      console.log(result);
+      showMessage('Logs recuperados. Veja o console (F12) para detalhes.', 'success');
+    } catch (err: any) {
+      console.error('Erro ao verificar logs:', err);
+      showMessage('Erro ao verificar logs', 'error');
+    }
+  };
+
   const run = async (action: 'start' | 'stop' | 'restart') => {
     const actions = {
       start: { loading: 'Iniciando serviço...', success: 'Serviço iniciado com sucesso', verb: 'iniciar' },
@@ -58,7 +84,12 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
       } else if (msg.includes('Access') || msg.includes('Acesso')) {
         showMessage('Sem permissão. Execute este aplicativo como Administrador.', 'error');
       } else {
-        showMessage(`Não foi possível ${actionInfo.verb} o serviço. Verifique se você tem permissões de administrador.`, 'error');
+        // Automatically run diagnostics on startup failure
+        showMessage(`Não foi possível ${actionInfo.verb} o serviço. Executando diagnóstico...`, 'error');
+        setTimeout(() => {
+          diagnoseService();
+          checkLogs();
+        }, 1000);
       }
     }
   };
@@ -327,6 +358,69 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
           Reiniciar
         </button>
       </div>
+
+      {!isRunning && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: spacing.md,
+          marginBottom: spacing.lg,
+          padding: spacing.md,
+          backgroundColor: colors.warning[50],
+          borderRadius: borderRadius.md,
+          border: `1px solid ${colors.warning[300]}`
+        }}>
+          <button
+            onClick={diagnoseService}
+            style={{
+              padding: spacing.md,
+              backgroundColor: colors.primary[600],
+              color: colors.text.inverse,
+              border: 'none',
+              borderRadius: borderRadius.md,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing.xs,
+              fontFamily: typography.fontFamily.sans
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.primary[700])}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = colors.primary[600])}
+          >
+            <Icons.Settings />
+            Diagnosticar Serviço
+          </button>
+
+          <button
+            onClick={checkLogs}
+            style={{
+              padding: spacing.md,
+              backgroundColor: colors.primary[600],
+              color: colors.text.inverse,
+              border: 'none',
+              borderRadius: borderRadius.md,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing.xs,
+              fontFamily: typography.fontFamily.sans
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.primary[700])}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = colors.primary[600])}
+          >
+            <Icons.Alert />
+            Ver Logs de Erro
+          </button>
+        </div>
+      )}
 
       {message && (
         <div style={{
