@@ -60,9 +60,19 @@ if ($PthFile) {
     Write-Host "  ✓ Configuring Python paths ($($PthFile.Name))..." -ForegroundColor Gray
     $pthContent = Get-Content $PthFile.FullName
     $pthContent = $pthContent | Where-Object { $_ -notmatch "^#import site" }
-    $pthContent += ""
-    $pthContent += "import site"
-    $pthContent += "Lib\site-packages"
+    if (-not ($pthContent -contains "..")) {
+        $pthContent += ".."
+    }
+    if (-not ($pthContent -contains "..\service")) {
+        $pthContent += "..\service"
+    }
+    if (-not ($pthContent -contains "Lib\site-packages")) {
+        $pthContent += "Lib\site-packages"
+    }
+    if (-not ($pthContent -contains "import site")) {
+        $pthContent += ""
+        $pthContent += "import site"
+    }
     Set-Content -Path $PthFile.FullName -Value $pthContent
 }
 

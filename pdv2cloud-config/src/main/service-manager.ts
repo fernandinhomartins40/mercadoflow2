@@ -188,14 +188,17 @@ const ensurePythonPth = (pythonDir: string) => {
     return line;
   });
 
-  const servicePathEntry = '..\\service';
-  if (!normalized.some((l) => l.trim() === servicePathEntry)) {
+  const requiredEntries = ['..', '..\\service'];
+  for (const entry of requiredEntries) {
+    if (normalized.some((l) => l.trim() === entry)) {
+      continue;
+    }
     changed = true;
     const dotIndex = normalized.findIndex((l) => l.trim() === '.');
     if (dotIndex >= 0) {
-      normalized.splice(dotIndex + 1, 0, servicePathEntry);
+      normalized.splice(dotIndex + 1, 0, entry);
     } else {
-      normalized.unshift(servicePathEntry);
+      normalized.unshift(entry);
     }
   }
 

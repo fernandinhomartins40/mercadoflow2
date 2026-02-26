@@ -2,7 +2,13 @@ import win32serviceutil
 import win32service
 import win32event
 import servicemanager
-from .main import ServiceApp
+import traceback
+
+try:
+    from .main import ServiceApp
+except ImportError:
+    # Fallback for execution modes that don't preserve package context.
+    from service.main import ServiceApp
 
 
 class PDV2CloudService(win32serviceutil.ServiceFramework):
@@ -38,7 +44,8 @@ class PDV2CloudService(win32serviceutil.ServiceFramework):
             while self.running and win32event.WaitForSingleObject(self.stop_event, 1000) != win32event.WAIT_OBJECT_0:
                 time.sleep(1)
         except Exception as e:
-            servicemanager.LogErrorMsg(f"Service failed: {e}")
+            details = traceback.format_exc()
+            servicemanager.LogErrorMsg(f"Service failed: {e}\n{details}")
             # Re-raise to ensure service stops properly on fatal errors
             raise
 

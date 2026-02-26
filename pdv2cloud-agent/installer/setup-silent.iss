@@ -28,7 +28,7 @@ Source: "silent-config.json"; DestDir: "{commonappdata}\PDV2Cloud"; DestName: "c
 [Run]
 ; Install dependencies silently
 Filename: "{app}\python\python.exe"; Parameters: "get-pip.py"; WorkingDir: "{app}\python"; Flags: runhidden
-Filename: "{app}\python\python.exe"; Parameters: "-m pip install -r service\requirements.txt"; WorkingDir: "{app}\service"; Flags: runhidden
+Filename: "{app}\python\python.exe"; Parameters: "-m pip install -r requirements.txt"; WorkingDir: "{app}\service"; Flags: runhidden
 ; Install Windows service
 Filename: "{app}\python\python.exe"; Parameters: "installer\service_installer.py install"; WorkingDir: "{app}\service"; Flags: runhidden
 ; Start service automatically

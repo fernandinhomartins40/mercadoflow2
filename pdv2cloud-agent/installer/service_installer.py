@@ -5,7 +5,7 @@ import win32serviceutil
 import win32service
 
 SERVICE_NAME = "PDV2CloudAgent"
-SERVICE_SCRIPT = Path(__file__).resolve().parent.parent / "service" / "windows_service.py"
+SERVICE_CLASS = "service.windows_service.PDV2CloudService"
 
 # Grant Interactive Users start/stop rights so the UI can control the service without elevation.
 SERVICE_SDDL = (
@@ -19,6 +19,22 @@ SERVICE_SDDL = (
 
 def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+
+def _resolve_python_service_exe() -> str:
+    """Prefer pythonservice.exe for SCM integration; fallback to python.exe."""
+    embedded_candidate = Path(sys.prefix) / "Scripts" / "pythonservice.exe"
+    if embedded_candidate.exists():
+        return str(embedded_candidate)
+
+    try:
+        located = win32serviceutil.LocatePythonServiceExe()
+        if located:
+            return str(located)
+    except Exception:
+        pass
+
+    return sys.executable
 
 
 def _service_exists() -> bool:
@@ -52,17 +68,48 @@ def _ensure_service_permissions() -> None:
         print(f"WARNING: Failed to set service permissions: {exc}")
 
 
-def install():
+def _ensure_service_importable() -> None:
+    try:
+        __import__("service.windows_service")
+    except Exception as exc:
+        raise RuntimeError(
+            "Cannot import 'service.windows_service'. "
+            "Verify embedded Python path configuration (pythonXY._pth must include '..')."
+        ) from exc
+
+
+def _remove_existing_service_if_any() -> None:
     if not _service_exists():
-        win32serviceutil.InstallService(
-            pythonClassString="service.windows_service.PDV2CloudService",
-            serviceName=SERVICE_NAME,
-            displayName="PDV2Cloud Collector Agent",
-            description="Coleta e transmite dados de vendas para PDV2Cloud",
-            exeName=sys.executable,
-            exeArgs=f"{SERVICE_SCRIPT}",
-            startType=win32service.SERVICE_AUTO_START,
-        )
+        return
+
+    try:
+        state = _service_state()
+        if state is not None and state != win32service.SERVICE_STOPPED:
+            try:
+                win32serviceutil.StopService(SERVICE_NAME)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    try:
+        win32serviceutil.RemoveService(SERVICE_NAME)
+    except Exception as exc:
+        print(f"WARNING: Failed to remove existing service before reinstall: {exc}")
+
+
+def install():
+    _ensure_service_importable()
+    _remove_existing_service_if_any()
+
+    win32serviceutil.InstallService(
+        pythonClassString=SERVICE_CLASS,
+        serviceName=SERVICE_NAME,
+        displayName="PDV2Cloud Collector Agent",
+        description="Coleta e transmite dados de vendas para PDV2Cloud",
+        exeName=_resolve_python_service_exe(),
+        startType=win32service.SERVICE_AUTO_START,
+    )
 
     _ensure_service_autostart()
     _ensure_service_permissions()

@@ -31,13 +31,16 @@ if ($pth -and (Test-Path $pth.FullName)) {
       $updated.Add($line)
     }
   }
-  # Ensure the app's {app}\service folder is on sys.path (relative to {app}\python).
-  if (-not ($updated -contains '..\service')) {
-    $dotIndex = $updated.IndexOf('.')
-    if ($dotIndex -ge 0) {
-      $updated.Insert($dotIndex + 1, '..\service')
-    } else {
-      $updated.Add('..\service')
+  # Ensure service modules are importable in both package and legacy modes.
+  # '..' resolves the 'service' package, while '..\service' supports direct module imports.
+  foreach ($entry in @('..', '..\service')) {
+    if (-not ($updated -contains $entry)) {
+      $dotIndex = $updated.IndexOf('.')
+      if ($dotIndex -ge 0) {
+        $updated.Insert($dotIndex + 1, $entry)
+      } else {
+        $updated.Add($entry)
+      }
     }
   }
   Set-Content -Path $pth.FullName -Value $updated -Encoding ASCII
