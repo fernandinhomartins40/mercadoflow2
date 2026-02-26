@@ -6,6 +6,13 @@ import logger from './logger';
 
 const SERVICE_NAME = 'PDV2CloudAgent';
 const DEFAULT_INSTALL_DIRNAME = 'PDV2Cloud';
+const SERVICE_SDDL = [
+  'D:',
+  '(A;;CCLCSWRPWPDTLOCRRC;;;SY)',
+  '(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)',
+  '(A;;CCLCSWRPWPDTLOCRRC;;;IU)',
+  '(A;;CCLCSWLOCRRC;;;SU)',
+].join('');
 
 const looksLikeNotInstalled = (message: string) => {
   const msg = (message || '').toString();
@@ -18,6 +25,21 @@ const looksLikeNotInstalled = (message: string) => {
     msg.toLowerCase().includes('nao existe') ||
     msg.toLowerCase().includes('não existe') ||
     msg.toLowerCase().includes('nome de servi') // "O nome de serviço é inválido"
+  );
+};
+
+const looksLikeCouldNotStart = (message: string) => {
+  const msg = (message || '').toString().toLowerCase();
+  return (
+    msg.includes('1053') ||
+    msg.includes('couldnotstartservice') ||
+    msg.includes('could not start service') ||
+    msg.includes('cannot start service') ||
+    msg.includes('nao pode ser iniciado') ||
+    msg.includes('nÃ£o pode ser iniciado') ||
+    msg.includes('nao respondeu') ||
+    msg.includes('nÃ£o respondeu') ||
+    msg.includes('timely fashion')
   );
 };
 
@@ -39,7 +61,40 @@ export const startService = async () => {
     // Use PowerShell with Start-Service which respects the service SDDL permissions
     return await execPromise(`powershell -Command "Start-Service -Name ${SERVICE_NAME}"`);
   } catch (err) {
-    throw mapServiceError(err);
+    const mapped = mapServiceError(err);
+    const mappedMsg = String(mapped || '');
+    if (!looksLikeCouldNotStart(mappedMsg)) {
+      throw mapped;
+    }
+
+    logger.warn('Service start failed, attempting self-heal reinstall', { error: mappedMsg });
+
+    let selfHealError = '';
+    let selfHealOutput = '';
+    try {
+      const installOutput = await installService();
+      selfHealOutput = String(installOutput || '');
+      // Retry start once after forced reinstall.
+      return await execPromise(`powershell -Command "Start-Service -Name ${SERVICE_NAME}"`);
+    } catch (healErr) {
+      selfHealError = String(healErr || '');
+      logger.error('Service self-heal failed', healErr);
+    }
+
+    const diagnostics = await collectServiceDiagnostics();
+    throw new Error(
+      [
+        mappedMsg,
+        '',
+        'AUTO_REPAIR_FAILED',
+        selfHealError || 'Unknown self-heal error',
+        '',
+        'AUTO_REPAIR_OUTPUT',
+        selfHealOutput || '(empty)',
+        '',
+        diagnostics,
+      ].join('\n')
+    );
   }
 };
 
@@ -105,13 +160,111 @@ export const installService = async () => {
     await fixPywin32Installation(resolved.baseDir, resolved.pythonPath);
     logger.info('pywin32 configured successfully');
 
-    const result = await execPromise(`"${resolved.pythonPath}" "${resolved.installerPath}" install`);
+    const result = await installOrRepairService(resolved.baseDir, resolved.pythonPath, resolved.installerPath);
     logger.info('Service installed successfully', { result });
     return result;
   } catch (err) {
     logger.error('Failed to install service', err);
     throw err;
   }
+};
+
+const installOrRepairService = async (baseDir: string, pythonPath: string, installerPath: string) => {
+  // Prefer a runtime bootstrap script so we can repair legacy installs that still
+  // contain an outdated service_installer.py.
+  try {
+    return await runServiceBootstrap(baseDir, pythonPath);
+  } catch (err) {
+    logger.warn('Runtime service bootstrap failed, falling back to packaged installer', err);
+    return await execPromise(`"${pythonPath}" "${installerPath}" install`);
+  }
+};
+
+const runServiceBootstrap = async (baseDir: string, pythonPath: string) => {
+  const tmpPath = path.join(app.getPath('temp'), `pdv2cloud-service-bootstrap-${process.pid}-${Date.now()}.py`);
+  const script = buildServiceBootstrapScript(baseDir);
+
+  fs.writeFileSync(tmpPath, script, 'utf-8');
+  try {
+    return await execPromise(`"${pythonPath}" "${tmpPath}"`);
+  } finally {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // ignore
+    }
+  }
+};
+
+const buildServiceBootstrapScript = (baseDir: string) => {
+  return [
+    'import sys',
+    'from pathlib import Path',
+    'import subprocess',
+    'import win32serviceutil',
+    'import win32service',
+    '',
+    `SERVICE_NAME = ${JSON.stringify(SERVICE_NAME)}`,
+    `SERVICE_SDDL = ${JSON.stringify(SERVICE_SDDL)}`,
+    'SERVICE_CLASS = "service.windows_service.PDV2CloudService"',
+    `BASE_DIR = Path(${JSON.stringify(baseDir)})`,
+    '',
+    'def _run(cmd):',
+    '    try:',
+    '        subprocess.run(cmd, check=True, capture_output=True, text=True)',
+    '    except Exception as exc:',
+    '        print(f"WARNING: command failed: {cmd} | {exc}")',
+    '',
+    'def _service_exists():',
+    '    try:',
+    '        win32serviceutil.QueryServiceStatus(SERVICE_NAME)',
+    '        return True',
+    '    except Exception:',
+    '        return False',
+    '',
+    'sys.path.insert(0, str(BASE_DIR))',
+    'sys.path.insert(0, str(BASE_DIR / "service"))',
+    '__import__("service.windows_service")',
+    '',
+    'if _service_exists():',
+    '    try:',
+    '        status = win32serviceutil.QueryServiceStatus(SERVICE_NAME)',
+    '        if status and status[1] != win32service.SERVICE_STOPPED:',
+    '            try:',
+    '                win32serviceutil.StopService(SERVICE_NAME)',
+    '            except Exception:',
+    '                pass',
+    '    except Exception:',
+    '        pass',
+    '    try:',
+    '        win32serviceutil.RemoveService(SERVICE_NAME)',
+    '    except Exception as exc:',
+    '        print(f"WARNING: remove failed: {exc}")',
+    '',
+    'pythonservice = Path(sys.prefix) / "Scripts" / "pythonservice.exe"',
+    'exe_name = str(pythonservice) if pythonservice.exists() else str(sys.executable)',
+    'if not pythonservice.exists():',
+    '    try:',
+    '        located = win32serviceutil.LocatePythonServiceExe()',
+    '        if located:',
+    '            exe_name = str(located)',
+    '    except Exception:',
+    '        pass',
+    '',
+    'win32serviceutil.InstallService(',
+    '    pythonClassString=SERVICE_CLASS,',
+    '    serviceName=SERVICE_NAME,',
+    '    displayName="PDV2Cloud Collector Agent",',
+    '    description="Coleta e transmite dados de vendas para PDV2Cloud",',
+    '    exeName=exe_name,',
+    '    startType=win32service.SERVICE_AUTO_START,',
+    ')',
+    '',
+    '_run(["sc", "config", SERVICE_NAME, "start=", "auto"])',
+    '_run(["sc", "sdset", SERVICE_NAME, SERVICE_SDDL])',
+    'print("SERVICE_REINSTALLED_OK")',
+    '',
+  ].join('\n');
 };
 
 const getCandidateBaseDirs = () => {
@@ -315,6 +468,35 @@ const installRequirementsWithoutXmlsec = async (pythonPath: string, requirements
       // ignore
     }
   }
+};
+
+const collectServiceDiagnostics = async () => {
+  const sections: string[] = [];
+
+  const pushCmdOutput = async (title: string, cmd: string) => {
+    try {
+      const out = await execPromise(cmd);
+      sections.push(`${title}\n${out || '(empty)'}`);
+    } catch (err) {
+      sections.push(`${title}\nERROR: ${String(err || '')}`);
+    }
+  };
+
+  await pushCmdOutput('SC_QC', `sc qc ${SERVICE_NAME}`);
+  await pushCmdOutput('SC_QUERYEX', `sc queryex ${SERVICE_NAME}`);
+
+  const resolved = resolveInstallerPaths();
+  if (resolved) {
+    const checker = path.join(resolved.baseDir, 'service', 'installer', 'check_service_logs.py');
+    if (fs.existsSync(checker)) {
+      await pushCmdOutput(
+        'EVENT_LOG',
+        `"${resolved.pythonPath}" "${checker}"`
+      );
+    }
+  }
+
+  return ['SERVICE_DIAGNOSTICS', ...sections].join('\n\n');
 };
 
 const execPromise = (cmd: string) => {
