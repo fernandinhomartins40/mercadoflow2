@@ -62,7 +62,7 @@ const Landing: React.FC = () => {
             <a href="#funcionalidades">Funcionalidades</a>
             <a href="#fluxo">Fluxo</a>
             <a href="#seguranca">Segurança</a>
-            <Link to="/baixar-agente">Baixar agente</Link>
+            <Link to="/download-agente">Baixar agente</Link>
             <Link className="button secondary" to="/login">
               Entrar
             </Link>
@@ -77,7 +77,7 @@ const Landing: React.FC = () => {
             <p>Instalador público para Windows com fila offline e envio seguro.</p>
           </div>
           <div className="landing-banner-actions">
-            <Link className="button" to="/baixar-agente">
+            <Link className="button" to="/download-agente">
               Baixar agora
             </Link>
           </div>
@@ -99,7 +99,7 @@ const Landing: React.FC = () => {
             <Link className="button" to="/login">
               Acessar plataforma
             </Link>
-            <Link className="button secondary" to="/baixar-agente">
+            <Link className="button secondary" to="/download-agente">
               Baixar agente
             </Link>
             <a className="button secondary" href="#funcionalidades">

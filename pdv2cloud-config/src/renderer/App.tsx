@@ -32,7 +32,9 @@ const App: React.FC = () => {
     const checkFirstRun = async () => {
       try {
         const config = await (window as any).electron.invoke('config:load');
-        const isConfigured = config && config.api_key;
+        const isConfigured = Boolean(
+          config && (config.api_key || config.api_key_encrypted || config.api_token || config.api_token_encrypted)
+        );
         setShowOnboarding(!isConfigured);
       } catch (err) {
         setShowOnboarding(true);

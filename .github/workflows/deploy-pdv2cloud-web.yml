@@ -147,6 +147,7 @@ jobs:
             JWT_SECRET=${JWT_SECRET}
             CORS_ORIGIN=https://mercadoflow.com,https://www.mercadoflow.com
             REACT_APP_API_BASE_URL=https://mercadoflow.com/api
+            APP_PUBLIC_BASE_URL=https://mercadoflow.com
             BUILD_TIMESTAMP=$(date +%s)
             EOF
 

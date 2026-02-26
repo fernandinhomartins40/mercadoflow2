@@ -10,6 +10,7 @@ import com.pdv2cloud.model.entity.UserRole;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.UserRepository;
 import com.pdv2cloud.security.JwtTokenProvider;
+import java.time.Duration;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -70,7 +71,10 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         Authentication auth = authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-        String token = tokenProvider.generateToken(auth);
+        long tokenTtl = Boolean.TRUE.equals(request.getKeepConnected())
+            ? Duration.ofDays(30).toMillis()
+            : Duration.ofDays(1).toMillis();
+        String token = tokenProvider.generateToken(auth, tokenTtl);
 
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
         UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;

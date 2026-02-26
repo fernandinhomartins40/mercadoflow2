@@ -13,6 +13,6 @@ public class LoginRequest {
     @NotBlank
     private String password;
 
-    // When true, the API issues a longer-lived auth cookie.
+    // When true, the API issues longer-lived cookie and JWT.
     private Boolean keepConnected;
 }

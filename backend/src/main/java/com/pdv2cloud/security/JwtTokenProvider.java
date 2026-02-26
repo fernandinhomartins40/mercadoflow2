@@ -25,9 +25,14 @@ public class JwtTokenProvider {
     private long jwtExpiration;
 
     public String generateToken(Authentication authentication) {
+        return generateToken(authentication, jwtExpiration);
+    }
+
+    public String generateToken(Authentication authentication, long expirationMs) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        long resolvedExpiration = expirationMs > 0 ? expirationMs : jwtExpiration;
+        Date expiryDate = new Date(now.getTime() + resolvedExpiration);
 
         return Jwts.builder()
             .setSubject(userDetails.getUsername())

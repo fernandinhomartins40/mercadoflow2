@@ -2,10 +2,10 @@
 Auto-update module for PDV2Cloud agent.
 Checks for updates and downloads/installs them automatically.
 """
-import json
 import logging
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Optional, Dict
@@ -13,28 +13,59 @@ import requests
 
 logger = logging.getLogger("PDV2Cloud.Updater")
 
-UPDATE_CHECK_URL = "https://mercadoflow.com/api/v1/downloads/agent-installer/version"
-INSTALLER_DOWNLOAD_URL = "https://mercadoflow.com/api/v1/downloads/agent-installer"
+DEFAULT_BASE_URL = "https://mercadoflow.com"
+UPDATE_CHECK_PATH = "/api/v1/downloads/agent-installer/version"
+INSTALLER_DOWNLOAD_PATH = "/api/v1/downloads/agent-installer"
+
+
+def get_candidate_install_dirs() -> list[Path]:
+    dirs = []
+    drive = Path.home().drive or "C:"
+
+    env_pf = os.environ.get("ProgramFiles")
+    env_pfx86 = os.environ.get("ProgramFiles(x86)")
+    if env_pf:
+        dirs.append(Path(env_pf) / "PDV2Cloud")
+    if env_pfx86:
+        dirs.append(Path(env_pfx86) / "PDV2Cloud")
+
+    dirs.append(Path(f"{drive}/Program Files/PDV2Cloud"))
+    dirs.append(Path(f"{drive}/Program Files (x86)/PDV2Cloud"))
+    # Preserve order but remove duplicates.
+    seen = set()
+    unique = []
+    for d in dirs:
+        key = str(d).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(d)
+    return unique
 
 def get_installed_version() -> str:
     """Read the installed version from version.txt file."""
-    try:
-        version_file = Path("C:/Program Files (x86)/PDV2Cloud/version.txt")
-        if version_file.exists():
-            return version_file.read_text().strip()
-    except Exception as e:
-        logger.warning(f"Failed to read version file: {e}")
+    for base in get_candidate_install_dirs():
+        try:
+            version_file = base / "version.txt"
+            if version_file.exists():
+                version = version_file.read_text(encoding="utf-8").strip()
+                if version:
+                    return version
+        except Exception as e:
+            logger.warning("Failed to read version file from %s: %s", base, e)
     return "1.0.0"  # Fallback to default
 
 CURRENT_VERSION = get_installed_version()
 
 
 class UpdateChecker:
-    def __init__(self, current_version: str = CURRENT_VERSION):
-        self.current_version = current_version
+    def __init__(self, current_version: Optional[str] = None, base_url: Optional[str] = None):
+        self.current_version = current_version or CURRENT_VERSION
         self.update_available = False
         self.latest_version = None
-        self.download_url = INSTALLER_DOWNLOAD_URL
+        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        self.update_check_url = f"{self.base_url}{UPDATE_CHECK_PATH}"
+        self.download_url = f"{self.base_url}{INSTALLER_DOWNLOAD_PATH}"
 
     def check_for_updates(self) -> bool:
         """
@@ -44,7 +75,7 @@ class UpdateChecker:
             True if update is available, False otherwise
         """
         try:
-            response = requests.get(UPDATE_CHECK_URL, timeout=10)
+            response = requests.get(self.update_check_url, timeout=10)
             response.raise_for_status()
 
             data = response.json()
@@ -206,7 +237,6 @@ class UpdateChecker:
         # Create a cleanup script that deletes the installer after a delay
         cleanup_script = f"""
 import time
-import os
 from pathlib import Path
 
 time.sleep(60)  # Wait 1 minute for installation to complete
@@ -216,11 +246,20 @@ except Exception:
     pass
 """
         cleanup_file = path.parent / "cleanup_installer.py"
-        cleanup_file.write_text(cleanup_script)
+        cleanup_file.write_text(cleanup_script, encoding="utf-8")
+
+        python_path = None
+        for base in get_candidate_install_dirs():
+            candidate = base / "python" / "python.exe"
+            if candidate.exists():
+                python_path = str(candidate)
+                break
+        if python_path is None:
+            python_path = sys.executable
 
         # Run cleanup script in background
         subprocess.Popen(
-            [r"C:\Program Files\PDV2Cloud\python\python.exe", str(cleanup_file)],
+            [python_path, str(cleanup_file)],
             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
             close_fds=True
         )

@@ -14,6 +14,7 @@
 - `CORS_ALLOWED_ORIGINS`
 - `AUTH_COOKIE_SAMESITE` (recomendado None em producao)
 - `INSTALLER_DIR` (diretorio com `PDV2Cloud-Setup.exe` para download)
+- `APP_PUBLIC_BASE_URL` (URL publica usada em QR code/setup do agente)
 - `JOBS_ENABLED` (padrao `false`; no profile `jobs` ja fica `true`)
 
 ## Certificados

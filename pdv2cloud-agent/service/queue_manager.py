@@ -174,11 +174,15 @@ class QueueManager:
         try:
             total = session.query(QueuedInvoice).count()
             pending = session.query(QueuedInvoice).filter_by(status=ProcessStatus.PENDING).count()
+            processing = session.query(QueuedInvoice).filter_by(status=ProcessStatus.PROCESSING).count()
+            sent = session.query(QueuedInvoice).filter_by(status=ProcessStatus.SENT).count()
             error = session.query(QueuedInvoice).filter_by(status=ProcessStatus.ERROR).count()
             dead = session.query(QueuedInvoice).filter_by(status=ProcessStatus.DEAD_LETTER).count()
             return {
                 "total": total,
                 "pending": pending,
+                "processing": processing,
+                "sent": sent,
                 "error": error,
                 "dead_letter": dead,
             }

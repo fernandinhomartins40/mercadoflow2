@@ -8,6 +8,33 @@ const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
 const LOG_PATH = 'C:/ProgramData/PDV2Cloud/logs/agent.log';
 const STATUS_PATH = 'C:/ProgramData/PDV2Cloud/status.json';
 const DEFAULT_API_URL = 'https://mercadoflow.com';
+const VERSION_FILE = 'version.txt';
+
+type ApiTestKeyPayload = string | { apiKey?: string; apiUrl?: string };
+
+function normalizeApiUrl(value?: string | null): string {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return DEFAULT_API_URL;
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+function readConfigOrDefault() {
+  if (!fs.existsSync(CONFIG_PATH)) {
+    return { api_url: DEFAULT_API_URL };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch {
+    return { api_url: DEFAULT_API_URL };
+  }
+}
+
+function getConfiguredApiUrl(): string {
+  const config = readConfigOrDefault();
+  return normalizeApiUrl(config?.api_url);
+}
 
 export const registerIpcHandlers = () => {
   ipcMain.handle('service:start', async () => {
@@ -153,9 +180,16 @@ export const registerIpcHandlers = () => {
   });
 
   // Test API key validity
-  ipcMain.handle('api:testKey', async (event, apiKey: string) => {
+  ipcMain.handle('api:testKey', async (event, payload: ApiTestKeyPayload) => {
     try {
-      const response = await fetch(`${DEFAULT_API_URL}/api/v1/agent/me`, {
+      const apiKey = (typeof payload === 'string' ? payload : payload?.apiKey || '').trim();
+      const providedApiUrl = typeof payload === 'string' ? '' : payload?.apiUrl;
+      const apiUrl = normalizeApiUrl(providedApiUrl || getConfiguredApiUrl());
+      if (!apiKey) {
+        throw new Error('API key is empty');
+      }
+
+      const response = await fetch(`${apiUrl}/api/v1/agent/me`, {
         method: 'GET',
         headers: {
           'X-API-Key': apiKey,
@@ -176,7 +210,8 @@ export const registerIpcHandlers = () => {
   // Check for updates
   ipcMain.handle('update:check', async () => {
     try {
-      const response = await fetch(`${DEFAULT_API_URL}/api/v1/downloads/agent-installer/version`);
+      const apiUrl = getConfiguredApiUrl();
+      const response = await fetch(`${apiUrl}/api/v1/downloads/agent-installer/version`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -189,8 +224,9 @@ export const registerIpcHandlers = () => {
   // Download and install update
   ipcMain.handle('update:install', async () => {
     try {
+      const apiUrl = getConfiguredApiUrl();
       const tempPath = path.join(require('os').tmpdir(), 'PDV2Cloud-Update.exe');
-      const response = await fetch(`${DEFAULT_API_URL}/api/v1/downloads/agent-installer`);
+      const response = await fetch(`${apiUrl}/api/v1/downloads/agent-installer`);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -227,13 +263,19 @@ export const registerIpcHandlers = () => {
   // Get installed version
   ipcMain.handle('version:get', async () => {
     try {
-      const versionFile = 'C:/Program Files (x86)/PDV2Cloud/version.txt';
-      if (fs.existsSync(versionFile)) {
-        return fs.readFileSync(versionFile, 'utf-8').trim();
+      for (const base of getCandidateBaseDirs()) {
+        const versionFile = path.join(base, VERSION_FILE);
+        if (!fs.existsSync(versionFile)) {
+          continue;
+        }
+        const version = fs.readFileSync(versionFile, 'utf-8').trim();
+        if (version) {
+          return version;
+        }
       }
-      return '1.0.0';
+      return 'unknown';
     } catch {
-      return '1.0.0';
+      return 'unknown';
     }
   });
 

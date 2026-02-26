@@ -98,13 +98,13 @@ class ServiceApp:
             self.config.get("api_url", ""),
             self.config.get("api_key", ""),
             self.config.get("market_id", ""),
-            self.config.get("hmac_secret", "dev-hmac"),
         )
         self.stop_event = threading.Event()
         self.online = False
         self.last_processed = None
         self.last_error = None
-        self.update_checker = UpdateChecker()
+        configured_api_url = self.config.get("api_url") or None
+        self.update_checker = UpdateChecker(base_url=configured_api_url)
 
     def start(self):
         logger.info("Starting PDV2Cloud service")
@@ -184,7 +184,7 @@ class ServiceApp:
                 else:
                     self.online = False
                     dead = item.tentativas + 1 >= 5
-                    error_msg = get_friendly_error("connection_refused")
+                    error_msg = get_friendly_error("unknown_error")
                     self.last_error = error_msg
                     self.queue_manager.mark_error(item.id, error_msg["message"], dead_letter=dead)
             except Exception as exc:
@@ -244,7 +244,6 @@ class ServiceApp:
                 api_url,
                 api_key,
                 self.config.get("market_id", ""),
-                self.config.get("hmac_secret", "dev-hmac"),
             )
             profile = transmitter.get_agent_profile()
             market_id = profile.get("marketId")

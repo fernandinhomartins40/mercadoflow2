@@ -30,7 +30,8 @@ const App: React.FC = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Landing />} />
-      <Route path="/baixar-agente" element={<PublicAgentDownload />} />
+      <Route path="/download-agente" element={<PublicAgentDownload />} />
+      <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
       <Route
         path="/app"
         element={
@@ -96,7 +97,7 @@ const App: React.FC = () => {
         }
       />
       <Route
-        path="/download-agente"
+        path="/app/download-agente"
         element={
           <ProtectedRoute>
             <AgentDownload />

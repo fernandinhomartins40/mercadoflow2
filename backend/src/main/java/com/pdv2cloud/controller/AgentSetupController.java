@@ -6,6 +6,7 @@ import com.pdv2cloud.service.AgentApiKeyService;
 import com.pdv2cloud.service.QRCodeService;
 import com.google.zxing.WriterException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,6 +28,9 @@ public class AgentSetupController {
     private final QRCodeService qrCodeService;
     private final ObjectMapper objectMapper;
 
+    @Value("${app.public-base-url:https://mercadoflow.com}")
+    private String publicBaseUrl;
+
     /**
      * Generate QR code for agent setup with embedded credentials
      */
@@ -39,7 +43,7 @@ public class AgentSetupController {
             // In production, this should be called immediately after key creation
 
             Map<String, Object> setupData = new HashMap<>();
-            setupData.put("apiUrl", "https://mercadoflow.com");
+            setupData.put("apiUrl", publicBaseUrl);
             setupData.put("version", "1.0");
             // Note: In real implementation, include encrypted/temporary setup token
             setupData.put("setupToken", "TEMP_TOKEN_" + agentKeyId);
@@ -72,7 +76,7 @@ public class AgentSetupController {
 
             // Prepare setup data
             Map<String, Object> setupData = new HashMap<>();
-            setupData.put("apiUrl", "https://mercadoflow.com");
+            setupData.put("apiUrl", publicBaseUrl);
             setupData.put("apiKey", generatedKey.rawKey());
             setupData.put("marketId", marketId.toString());
             setupData.put("version", "1.0");
@@ -101,7 +105,7 @@ public class AgentSetupController {
     public ResponseEntity<byte[]> downloadQRCode(@PathVariable UUID agentKeyId) {
         try {
             Map<String, Object> setupData = new HashMap<>();
-            setupData.put("apiUrl", "https://mercadoflow.com");
+            setupData.put("apiUrl", publicBaseUrl);
             setupData.put("setupToken", "TEMP_TOKEN_" + agentKeyId);
 
             String jsonData = objectMapper.writeValueAsString(setupData);

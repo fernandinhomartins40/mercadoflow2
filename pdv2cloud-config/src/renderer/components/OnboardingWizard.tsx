@@ -6,6 +6,8 @@ interface OnboardingWizardProps {
   onSkip: () => void;
 }
 
+const DEFAULT_API_URL = 'https://mercadoflow.com';
+
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [apiKey, setApiKey] = useState('');
@@ -31,13 +33,17 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   }, [currentStep]);
 
   const testConnection = async () => {
-    if (!apiKey) {
+    const normalizedKey = apiKey.trim();
+    if (!normalizedKey) {
       alert('Por favor, insira a chave de acesso');
       return false;
     }
 
     try {
-      await (window as any).electron.invoke('api:testKey', apiKey);
+      await (window as any).electron.invoke('api:testKey', {
+        apiKey: normalizedKey,
+        apiUrl: DEFAULT_API_URL,
+      });
       return true;
     } catch (err) {
       alert('Chave de acesso inválida. Verifique e tente novamente.');
@@ -46,9 +52,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   };
 
   const saveConfigAndInstall = async () => {
+    const normalizedKey = apiKey.trim();
     const config = {
-      api_url: 'https://api.pdv2cloud.com',
-      api_key: apiKey,
+      api_url: DEFAULT_API_URL,
+      api_key: normalizedKey,
       watch_paths: watchPaths,
       xsd_paths: [],
       retry_interval_minutes: 5,

@@ -5,6 +5,34 @@ interface DashboardProps {
   serviceInstalled: boolean;
 }
 
+const parseVersion = (value: string): number[] | null => {
+  const raw = String(value || '').trim();
+  if (!raw || raw.toLowerCase() === 'unknown') {
+    return null;
+  }
+  const parts = raw.split('.').map((part) => Number(part));
+  if (parts.some((part) => Number.isNaN(part))) {
+    return null;
+  }
+  while (parts.length < 3) {
+    parts.push(0);
+  }
+  return parts.slice(0, 3);
+};
+
+const isNewerVersion = (latest: string, current: string): boolean => {
+  const a = parseVersion(latest);
+  if (!a) {
+    return false;
+  }
+  const b = parseVersion(current) || [0, 0, 0];
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] > b[i]) return true;
+    if (a[i] < b[i]) return false;
+  }
+  return false;
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [status, setStatus] = useState<string>('carregando');
   const [configOk, setConfigOk] = useState(false);
@@ -25,9 +53,11 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     try {
       const versionInfo = await (window as any).electron.invoke('update:check');
       const currentVersion = await (window as any).electron.invoke('version:get');
-      if (versionInfo.version !== currentVersion) {
+      if (isNewerVersion(versionInfo?.version, currentVersion)) {
         setUpdateAvailable(true);
         setLatestVersion(versionInfo.version);
+      } else {
+        setUpdateAvailable(false);
       }
     } catch (err) {
       console.error('Failed to check for updates:', err);
@@ -141,6 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   };
 
   const statusInfo = getStatusInfo();
+  const pendingTotal = Number(queue?.pending || 0) + Number(queue?.processing || 0);
 
   return (
     <div style={{
@@ -444,7 +475,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                   color: colors.warning[700],
                   fontFamily: typography.fontFamily.sans
                 }}>
-                  {queue.pending || 0}
+                  {pendingTotal}
                 </div>
                 <div style={{
                   fontSize: typography.fontSize.xs,
@@ -452,7 +483,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                   marginTop: spacing.xs,
                   fontFamily: typography.fontFamily.sans
                 }}>
-                  na fila
+                  {queue.processing > 0 ? `${queue.processing} em processamento` : 'na fila'}
                 </div>
               </div>
 

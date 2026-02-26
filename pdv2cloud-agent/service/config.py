@@ -33,12 +33,15 @@ def load_config_secure(secure_config) -> dict:
     encrypted = config.get("api_key_encrypted")
     plain = config.get("api_key")
 
+    runtime_api_key = ""
     if encrypted:
         try:
-            config["api_key"] = secure_config.decrypt(encrypted)
+            runtime_api_key = secure_config.decrypt(encrypted)
+            config["api_key"] = runtime_api_key
         except Exception:
             pass
     elif plain:
+        runtime_api_key = plain
         config["api_key_encrypted"] = secure_config.encrypt(plain)
         config["api_key"] = ""
         needs_migration = True
@@ -50,12 +53,10 @@ def load_config_secure(secure_config) -> dict:
         if "api_token_encrypted" in config:
             del config["api_token_encrypted"]
         save_config(config)
-        # Restore decrypted key for runtime use
-        if encrypted:
-            try:
-                config["api_key"] = secure_config.decrypt(config["api_key_encrypted"])
-            except Exception:
-                pass
+
+    # Always keep the plain key only in memory for runtime use.
+    if runtime_api_key:
+        config["api_key"] = runtime_api_key
 
     return config
 

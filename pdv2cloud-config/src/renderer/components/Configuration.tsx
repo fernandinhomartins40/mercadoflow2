@@ -54,14 +54,15 @@ const Configuration: React.FC = () => {
     try {
       const apiUrl = (useCustomApiUrl ? config.api_url : DEFAULT_API_URL).trim();
       const apiKey = (config.api_key || '').trim();
-      const response = await fetch(`${apiUrl}/api/v1/agent/me`, {
-        headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
+      const result = await (window as any).electron.invoke('api:testKey', {
+        apiKey,
+        apiUrl,
       });
-      if (!response.ok) {
-        setTestMessage(`Falha (${response.status})`);
+      if (!result?.success) {
+        setTestMessage('Falha');
         return;
       }
-      const data = await response.json();
+      const data = result.data;
       if (data?.marketId) {
         const next = { ...config, api_url: apiUrl, api_key: apiKey, market_id: data.marketId };
         setConfig(next);

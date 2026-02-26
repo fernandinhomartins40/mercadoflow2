@@ -12,7 +12,13 @@ const Settings: React.FC = () => {
   const [manualMarketId, setManualMarketId] = useState('');
   const [markets, setMarkets] = useState<Array<{ id: string; name: string }>>([]);
   const [listError, setListError] = useState<string | null>(null);
-  const apiBaseUrl = useMemo(() => window.location.origin, []);
+  const apiBaseUrl = useMemo(() => {
+    const configured = (import.meta.env.VITE_API_URL || '/api').trim();
+    if (configured.startsWith('http://') || configured.startsWith('https://')) {
+      return configured.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+    }
+    return window.location.origin.replace(/\/+$/, '');
+  }, []);
 
   const loadKeys = async () => {
     const resolvedMarketId = marketId || manualMarketId;

@@ -29,6 +29,14 @@ def _service_exists() -> bool:
         return False
 
 
+def _service_state() -> int | None:
+    try:
+        status = win32serviceutil.QueryServiceStatus(SERVICE_NAME)
+        return status[1]
+    except Exception:
+        return None
+
+
 def _ensure_service_autostart() -> None:
     try:
         # `sc` requires the space after `start=`. Passing args keeps it intact.
@@ -70,21 +78,51 @@ def install():
 
 
 def remove():
-    try:
-        win32serviceutil.StopService(SERVICE_NAME)
-    except Exception:
-        pass
-    win32serviceutil.RemoveService(SERVICE_NAME)
+    stop()
+    if _service_exists():
+        win32serviceutil.RemoveService(SERVICE_NAME)
+
+
+def start():
+    if not _service_exists():
+        raise RuntimeError("Service is not installed")
+    if _service_state() == win32service.SERVICE_RUNNING:
+        print("Service already running")
+        return
+    win32serviceutil.StartService(SERVICE_NAME)
+    print("Service started")
+
+
+def stop():
+    if not _service_exists():
+        print("Service is not installed")
+        return
+    if _service_state() == win32service.SERVICE_STOPPED:
+        print("Service already stopped")
+        return
+    win32serviceutil.StopService(SERVICE_NAME)
+    print("Service stopped")
+
+
+def restart():
+    stop()
+    start()
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: service_installer.py install|remove")
+        print("Usage: service_installer.py install|remove|start|stop|restart")
         sys.exit(1)
     if sys.argv[1] == "install":
         install()
     elif sys.argv[1] == "remove":
         remove()
+    elif sys.argv[1] == "start":
+        start()
+    elif sys.argv[1] == "stop":
+        stop()
+    elif sys.argv[1] == "restart":
+        restart()
     else:
         print("Unknown command")
         sys.exit(1)

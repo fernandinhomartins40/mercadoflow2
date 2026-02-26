@@ -26,6 +26,7 @@ services:
       - JWT_EXPIRATION_MS=86400000
       - CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
       - INSTALLER_DIR=/opt/pdv2cloud/installer
+      - APP_PUBLIC_BASE_URL=https://mercadoflow.com
     depends_on:
       mercadoflow-postgres:
         condition: service_healthy
