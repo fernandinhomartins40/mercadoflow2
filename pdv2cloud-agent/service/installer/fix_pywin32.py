@@ -73,40 +73,52 @@ def copy_dlls_to_system32():
 
     return True
 
-def copy_dlls_to_scripts():
-    """Copy DLLs to Scripts directory (for local execution)"""
+def _copy_dlls_to_target(target_dir: Path, label: str):
+    """Copy pywin32 runtime DLLs to a target directory."""
     pywin32_dir = find_pywin32_system32()
     if not pywin32_dir:
         return False
 
     py_ver = get_python_version_number()
-    scripts_dir = Path(sys.prefix) / "Scripts"
-    scripts_dir.mkdir(exist_ok=True)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     dlls_to_copy = [
         f"pywintypes{py_ver}.dll",
         f"pythoncom{py_ver}.dll",
     ]
 
-    print(f"Copying DLLs to {scripts_dir}...")
+    print(f"Copying DLLs to {target_dir}...")
 
     for dll_name in dlls_to_copy:
         src = pywin32_dir / dll_name
-        dst = scripts_dir / dll_name
+        dst = target_dir / dll_name
 
         if not src.exists():
             continue
 
         try:
             shutil.copy2(src, dst)
-            print(f"  [OK] Copied {dll_name} to Scripts")
+            print(f"  [OK] Copied {dll_name} to {label}")
         except Exception as e:
-            print(f"  WARNING: Failed to copy {dll_name} to Scripts: {e}")
+            print(f"  WARNING: Failed to copy {dll_name} to {label}: {e}")
 
     return True
 
+
+def copy_dlls_to_python_home():
+    """Copy DLLs next to python.exe/pythonXY.dll (required by pythonservice.exe)."""
+    python_home = Path(sys.prefix)
+    return _copy_dlls_to_target(python_home, "Python Home")
+
+
+def copy_dlls_to_scripts():
+    """Copy DLLs to Scripts directory for compatibility."""
+    scripts_dir = Path(sys.prefix) / "Scripts"
+    return _copy_dlls_to_target(scripts_dir, "Scripts")
+
+
 def install_pythonservice():
-    """Copy pythonservice.exe to Scripts directory"""
+    """Copy pythonservice.exe to Python home and Scripts."""
     site_packages = Path(sys.prefix) / "Lib" / "site-packages"
     win32_dir = site_packages / "win32"
 
@@ -119,17 +131,23 @@ def install_pythonservice():
         print(f"ERROR: pythonservice.exe not found at {pythonservice_src}")
         return False
 
-    scripts_dir = Path(sys.prefix) / "Scripts"
-    scripts_dir.mkdir(exist_ok=True)
-    pythonservice_dst = scripts_dir / "pythonservice.exe"
+    targets = [
+        (Path(sys.prefix), "Python Home"),
+        (Path(sys.prefix) / "Scripts", "Scripts"),
+    ]
 
-    try:
-        shutil.copy2(pythonservice_src, pythonservice_dst)
-        print(f"  [OK] Installed pythonservice.exe to {scripts_dir}")
-        return True
-    except Exception as e:
-        print(f"  ERROR: Failed to install pythonservice.exe: {e}")
-        return False
+    copied_any = False
+    for dst_dir, label in targets:
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        pythonservice_dst = dst_dir / "pythonservice.exe"
+        try:
+            shutil.copy2(pythonservice_src, pythonservice_dst)
+            print(f"  [OK] Installed pythonservice.exe to {label}: {pythonservice_dst}")
+            copied_any = True
+        except Exception as e:
+            print(f"  WARNING: Failed to install pythonservice.exe to {label}: {e}")
+
+    return copied_any
 
 def verify_installation():
     """Verify that pywin32 is properly installed"""
@@ -156,13 +174,15 @@ def verify_installation():
     except Exception as e:
         errors.append(f"Cannot import pythoncom: {e}")
 
-    # Check pythonservice.exe
-    scripts_dir = Path(sys.prefix) / "Scripts"
-    pythonservice = scripts_dir / "pythonservice.exe"
-    if pythonservice.exists():
-        print(f"  [OK] pythonservice.exe found at {pythonservice}")
+    # Check pythonservice.exe (prefer Python home)
+    root_pythonservice = Path(sys.prefix) / "pythonservice.exe"
+    scripts_pythonservice = Path(sys.prefix) / "Scripts" / "pythonservice.exe"
+    if root_pythonservice.exists():
+        print(f"  [OK] pythonservice.exe found at {root_pythonservice}")
+    elif scripts_pythonservice.exists():
+        print(f"  [OK] pythonservice.exe found at {scripts_pythonservice}")
     else:
-        errors.append(f"pythonservice.exe not found at {pythonservice}")
+        errors.append(f"pythonservice.exe not found at {root_pythonservice} or {scripts_pythonservice}")
 
     if errors:
         print("\n[FAILED] Verification FAILED:")
@@ -196,15 +216,18 @@ def main():
         print("\n[FAILED] FAILED to copy DLLs to System32")
         return 1
 
-    # Step 2: Copy DLLs to Scripts
+    # Step 2: Copy DLLs to Python home (required for service host)
+    copy_dlls_to_python_home()
+
+    # Step 3: Copy DLLs to Scripts (compatibility)
     copy_dlls_to_scripts()
 
-    # Step 3: Install pythonservice.exe
+    # Step 4: Install pythonservice.exe
     if not install_pythonservice():
         print("\n[FAILED] FAILED to install pythonservice.exe")
         return 1
 
-    # Step 4: Verify
+    # Step 5: Verify
     if not verify_installation():
         return 1
 

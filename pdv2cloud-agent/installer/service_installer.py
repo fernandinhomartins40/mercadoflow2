@@ -22,17 +22,22 @@ def _run(cmd: list[str]) -> None:
 
 
 def _resolve_python_service_exe() -> str:
-    """Prefer pythonservice.exe for SCM integration; fallback to python.exe."""
-    embedded_candidate = Path(sys.prefix) / "Scripts" / "pythonservice.exe"
-    if embedded_candidate.exists():
-        return str(embedded_candidate)
-
+    """Resolve pythonservice.exe via pywin32 helper; fallback to python.exe."""
     try:
         located = win32serviceutil.LocatePythonServiceExe()
         if located:
             return str(located)
     except Exception:
+        # Continue with local fallbacks below.
         pass
+
+    root_candidate = Path(sys.prefix) / "pythonservice.exe"
+    if root_candidate.exists():
+        return str(root_candidate)
+
+    scripts_candidate = Path(sys.prefix) / "Scripts" / "pythonservice.exe"
+    if scripts_candidate.exists():
+        return str(scripts_candidate)
 
     return sys.executable
 
