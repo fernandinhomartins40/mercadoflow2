@@ -196,6 +196,93 @@ export const testConfiguredConnection = async () => {
   }
 };
 
+export const loadAgentSnapshot = async () => {
+  const snapshot = {
+    statusTimestamp: '',
+    lastProcessed: '',
+    online: null as boolean | null,
+    statusMessage: '',
+    lastError: null as any,
+    queue: {
+      total: 0,
+      pending: 0,
+      processing: 0,
+      sent: 0,
+      error: 0,
+      dead_letter: 0,
+    },
+    watchPathsCount: 0,
+    marketLabel: '',
+  };
+
+  try {
+    const configPath = 'C:/ProgramData/PDV2Cloud/config.json';
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const watchPaths = Array.isArray(config?.watch_paths) ? config.watch_paths.filter(Boolean) : [];
+      snapshot.watchPathsCount = watchPaths.length;
+      snapshot.marketLabel = String(config?.market_name || config?.market_id || '').trim();
+    }
+  } catch (err) {
+    logger.debug('Failed to read agent config snapshot', err);
+  }
+
+  try {
+    const statusPath = 'C:/ProgramData/PDV2Cloud/status.json';
+    if (fs.existsSync(statusPath)) {
+      const status = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
+      snapshot.statusTimestamp = String(status?.timestamp || '');
+      snapshot.lastProcessed = String(status?.last_processed || '');
+      snapshot.online = typeof status?.online === 'boolean' ? status.online : null;
+      snapshot.statusMessage = String(status?.status_message || '');
+      snapshot.lastError = status?.last_error || null;
+      snapshot.queue = {
+        ...snapshot.queue,
+        ...(status?.queue || {}),
+      };
+    }
+  } catch (err) {
+    logger.debug('Failed to read agent status snapshot', err);
+  }
+
+  try {
+    const resolved = resolveInstallerPaths();
+    if (!resolved) {
+      return snapshot;
+    }
+
+    const queueDbPath = 'C:/ProgramData/PDV2Cloud/queue.db';
+    if (!fs.existsSync(queueDbPath)) {
+      return snapshot;
+    }
+
+    const tmpPath = path.join(app.getPath('temp'), `pdv2cloud-queue-snapshot-${process.pid}-${Date.now()}.py`);
+    fs.writeFileSync(tmpPath, buildQueueSnapshotScript(queueDbPath), 'utf-8');
+
+    try {
+      const raw = await execPromise(`"${resolved.pythonPath}" "${tmpPath}"`);
+      const parsed = JSON.parse(raw);
+      snapshot.queue = {
+        ...snapshot.queue,
+        ...(parsed?.queue || {}),
+      };
+      if (!snapshot.lastProcessed && parsed?.lastProcessed) {
+        snapshot.lastProcessed = String(parsed.lastProcessed);
+      }
+    } finally {
+      try {
+        fs.unlinkSync(tmpPath);
+      } catch {
+        // ignore
+      }
+    }
+  } catch (err) {
+    logger.debug('Failed to read queue snapshot', err);
+  }
+
+  return snapshot;
+};
+
 const installOrRepairService = async (baseDir: string, pythonPath: string, installerPath: string) => {
   // Prefer a runtime bootstrap script so we can repair legacy installs that still
   // contain an outdated service_installer.py.
@@ -346,6 +433,54 @@ const buildConnectionTestScript = (baseDir: string) => {
     '        "title": "Falha na conexão",',
     '        "message": str(exc),',
     '    }',
+    '',
+    'print(json.dumps(result, ensure_ascii=False))',
+    '',
+  ].join('\n');
+};
+
+const buildQueueSnapshotScript = (queueDbPath: string) => {
+  return [
+    'import json',
+    'import sqlite3',
+    '',
+    `DB_PATH = ${JSON.stringify(queueDbPath)}`,
+    'result = {',
+    '  "queue": {',
+    '    "total": 0,',
+    '    "pending": 0,',
+    '    "processing": 0,',
+    '    "sent": 0,',
+    '    "error": 0,',
+    '    "dead_letter": 0,',
+    '  },',
+    '  "lastProcessed": ""',
+    '}',
+    '',
+    'conn = sqlite3.connect(DB_PATH)',
+    'try:',
+    '    cur = conn.cursor()',
+    '    total = cur.execute("SELECT COUNT(*) FROM queued_invoices").fetchone()[0]',
+    '    result["queue"]["total"] = int(total or 0)',
+    '',
+    '    rows = cur.execute(',
+    '        "SELECT status, COUNT(*) FROM queued_invoices GROUP BY status"',
+    '    ).fetchall()',
+    '    for status, count in rows:',
+    '        key = str(status or "").lower()',
+    '        if key == "dead_letter":',
+    '            result["queue"]["dead_letter"] = int(count or 0)',
+    '        elif key in result["queue"]:',
+    '            result["queue"][key] = int(count or 0)',
+    '',
+    '    latest = cur.execute(',
+    '        "SELECT data_processamento FROM queued_invoices WHERE status = ? AND data_processamento IS NOT NULL ORDER BY data_processamento DESC LIMIT 1",',
+    '        ("SENT",),',
+    '    ).fetchone()',
+    '    if latest and latest[0]:',
+    '        result["lastProcessed"] = str(latest[0])',
+    'finally:',
+    '    conn.close()',
     '',
     'print(json.dumps(result, ensure_ascii=False))',
     '',

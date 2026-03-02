@@ -1,7 +1,7 @@
 import { ipcMain, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { startService, stopService, restartService, serviceStatus, installService, testConfiguredConnection } from './service-manager';
+import { startService, stopService, restartService, serviceStatus, installService, testConfiguredConnection, loadAgentSnapshot } from './service-manager';
 import logger from './logger';
 
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
@@ -165,6 +165,15 @@ export const registerIpcHandlers = () => {
       return null;
     }
     return JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
+  });
+
+  ipcMain.handle('agent:snapshot', async () => {
+    try {
+      return await loadAgentSnapshot();
+    } catch (err) {
+      logger.error('IPC agent:snapshot failed', err);
+      throw err;
+    }
   });
 
   // Auto-detect common PDV XML paths

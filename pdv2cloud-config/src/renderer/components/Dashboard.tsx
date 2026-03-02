@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { colors, typography, spacing, borderRadius, shadows, Icons } from '../styles/theme';
 
 interface DashboardProps {
@@ -69,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
   const [connectionMessage, setConnectionMessage] = useState<string>('');
   const [connectionMessageType, setConnectionMessageType] = useState<'success' | 'error' | 'info'>('info');
+  const autoConnectionAttemptedRef = useRef(false);
 
   const showConnectionMessage = (message: string, type: 'success' | 'error' | 'info') => {
     setConnectionMessage(message);
@@ -117,24 +118,22 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       );
       const watchPaths = Array.isArray(config?.watch_paths) ? config.watch_paths.filter(Boolean) : [];
       setConfigOk(hasApiKey && watchPaths.length > 0);
-      setWatchPathsCount(watchPaths.length);
-      setMarketLabel(config?.market_name || config?.market_id || '');
     } catch (err) {
       console.error('Failed to load config:', err);
       setConfigOk(false);
-      setWatchPathsCount(0);
-      setMarketLabel('');
     }
 
     try {
-      const statusFile = await (window as any).electron.invoke('status:load');
-      if (statusFile) {
-        setQueue({ ...EMPTY_QUEUE, ...(statusFile.queue || {}) });
-        setOnline(typeof statusFile.online === 'boolean' ? statusFile.online : null);
-        setStatusMessage(statusFile.status_message || '');
-        setLastUpdate(statusFile.timestamp || '');
-        setLastProcessed(statusFile.last_processed || '');
-        setLastError(statusFile.last_error || null);
+      const snapshot = await (window as any).electron.invoke('agent:snapshot');
+      if (snapshot) {
+        setQueue({ ...EMPTY_QUEUE, ...(snapshot.queue || {}) });
+        setOnline(typeof snapshot.online === 'boolean' ? snapshot.online : (nextStatus.includes('RUNNING') ? null : false));
+        setStatusMessage(String(snapshot.statusMessage || ''));
+        setLastUpdate(String(snapshot.statusTimestamp || ''));
+        setLastProcessed(String(snapshot.lastProcessed || ''));
+        setLastError(snapshot.lastError || null);
+        setWatchPathsCount(Number(snapshot.watchPathsCount || 0));
+        setMarketLabel(String(snapshot.marketLabel || ''));
       } else {
         setQueue(EMPTY_QUEUE);
         setOnline(nextStatus.includes('RUNNING') ? null : false);
@@ -142,14 +141,18 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         setLastUpdate('');
         setLastProcessed('');
         setLastError(null);
+        setWatchPathsCount(0);
+        setMarketLabel('');
       }
     } catch (err) {
-      console.error('Failed to load agent status:', err);
+      console.error('Failed to load agent snapshot:', err);
       setQueue(EMPTY_QUEUE);
       setOnline(nextStatus.includes('RUNNING') ? null : false);
       setLastUpdate('');
       setLastProcessed('');
       setLastError(null);
+      setWatchPathsCount(0);
+      setMarketLabel('');
     } finally {
       if (!silent) {
         setRefreshing(false);
@@ -166,6 +169,27 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     const id = setInterval(() => loadDashboard(true), 5000);
     return () => clearInterval(id);
   }, [loadDashboard]);
+
+  useEffect(() => {
+    const shouldAutoTest =
+      serviceInstalled &&
+      status.includes('RUNNING') &&
+      online === null &&
+      !testingConnection &&
+      !autoConnectionAttemptedRef.current;
+
+    if (!shouldAutoTest) {
+      if (!status.includes('RUNNING') || online !== null) {
+        autoConnectionAttemptedRef.current = false;
+      }
+      return;
+    }
+
+    autoConnectionAttemptedRef.current = true;
+    testConnection().catch((err) => {
+      console.error('Automatic connection test failed:', err);
+    });
+  }, [serviceInstalled, status, online, testingConnection]);
 
   const installUpdate = async () => {
     if (!confirm('Instalar atualização agora?\n\nO PDV2Cloud será fechado e o instalador será executado automaticamente.')) {
