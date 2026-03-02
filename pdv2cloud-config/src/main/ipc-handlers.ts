@@ -1,7 +1,7 @@
 import { ipcMain, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { startService, stopService, restartService, serviceStatus, installService } from './service-manager';
+import { startService, stopService, restartService, serviceStatus, installService, testConfiguredConnection } from './service-manager';
 import logger from './logger';
 
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
@@ -82,6 +82,16 @@ export const registerIpcHandlers = () => {
       return await installService();
     } catch (err) {
       logger.error('IPC service:install failed', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('connection:testConfigured', async () => {
+    try {
+      logger.info('IPC: connection:testConfigured');
+      return await testConfiguredConnection();
+    } catch (err) {
+      logger.error('IPC connection:testConfigured failed', err);
       throw err;
     }
   });

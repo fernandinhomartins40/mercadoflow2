@@ -169,6 +169,33 @@ export const installService = async () => {
   }
 };
 
+export const testConfiguredConnection = async () => {
+  const resolved = resolveInstallerPaths();
+  if (!resolved) {
+    throw new Error('SERVICE_INSTALLER_NOT_FOUND');
+  }
+
+  await ensureEmbeddedPythonReady(resolved.baseDir, resolved.pythonPath);
+  await fixPywin32Installation(resolved.baseDir, resolved.pythonPath);
+
+  const tmpPath = path.join(app.getPath('temp'), `pdv2cloud-connection-test-${process.pid}-${Date.now()}.py`);
+  fs.writeFileSync(tmpPath, buildConnectionTestScript(resolved.baseDir), 'utf-8');
+
+  try {
+    const raw = await execPromise(`"${resolved.pythonPath}" "${tmpPath}"`);
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch (err) {
+    throw new Error(`CONNECTION_TEST_FAILED\n${String(err || '')}`);
+  } finally {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // ignore
+    }
+  }
+};
+
 const installOrRepairService = async (baseDir: string, pythonPath: string, installerPath: string) => {
   // Prefer a runtime bootstrap script so we can repair legacy installs that still
   // contain an outdated service_installer.py.
@@ -266,6 +293,61 @@ const buildServiceBootstrapScript = (baseDir: string) => {
     '_run(["sc", "config", SERVICE_NAME, "start=", "auto"])',
     '_run(["sc", "sdset", SERVICE_NAME, SERVICE_SDDL])',
     'print("SERVICE_REINSTALLED_OK")',
+    '',
+  ].join('\n');
+};
+
+const buildConnectionTestScript = (baseDir: string) => {
+  return [
+    'import json',
+    'import sys',
+    'from pathlib import Path',
+    '',
+    `BASE_DIR = Path(${JSON.stringify(baseDir)})`,
+    'sys.path.insert(0, str(BASE_DIR))',
+    'sys.path.insert(0, str(BASE_DIR / "service"))',
+    '',
+    'result = {"success": False, "online": False}',
+    'try:',
+    '    from service.crypto import SecureConfig',
+    '    from service.config import load_config_secure',
+    '    from service.transmitter import APITransmitter',
+    '',
+    '    config = load_config_secure(SecureConfig())',
+    '    api_url = str(config.get("api_url") or "").rstrip("/")',
+    '    api_key = str(config.get("api_key") or "").strip()',
+    '    watch_paths = config.get("watch_paths") or []',
+    '',
+    '    if not api_url or not api_key:',
+    '        result = {',
+    '            "success": False,',
+    '            "online": False,',
+    '            "title": "Configuração incompleta",',
+    '            "message": "Configure a chave de acesso antes de testar a conexão.",',
+    '            "watchPaths": len(watch_paths),',
+    '        }',
+    '    else:',
+    '        transmitter = APITransmitter(api_url, api_key, config.get("market_id", ""))',
+    '        profile = transmitter.get_agent_profile()',
+    '        heartbeat_ok = transmitter.send_heartbeat()',
+    '        result = {',
+    '            "success": True,',
+    '            "online": True,',
+    '            "heartbeatOk": bool(heartbeat_ok),',
+    '            "apiUrl": api_url,',
+    '            "marketId": profile.get("marketId") or config.get("market_id") or "",',
+    '            "marketName": profile.get("marketName") or "",',
+    '            "watchPaths": len(watch_paths),',
+    '        }',
+    'except Exception as exc:',
+    '    result = {',
+    '        "success": False,',
+    '        "online": False,',
+    '        "title": "Falha na conexão",',
+    '        "message": str(exc),',
+    '    }',
+    '',
+    'print(json.dumps(result, ensure_ascii=False))',
     '',
   ].join('\n');
 };

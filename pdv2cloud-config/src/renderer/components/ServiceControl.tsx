@@ -4,9 +4,10 @@ import { colors, typography, spacing, borderRadius, shadows, Icons, components }
 interface ServiceControlProps {
   serviceInstalled: boolean;
   onServiceInstalled?: () => void;
+  onServiceStatusChanged?: () => void;
 }
 
-const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onServiceInstalled }) => {
+const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onServiceInstalled, onServiceStatusChanged }) => {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
   const [installing, setInstalling] = useState(false);
@@ -76,6 +77,7 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
       await (window as any).pdv2cloud[`${action}Service`]();
       showMessage(actionInfo.success, 'success');
       await checkServiceStatus();
+      onServiceStatusChanged?.();
     } catch (err: any) {
       const msg = err?.toString?.() || String(err || '');
 
@@ -105,6 +107,7 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
         setTimeout(() => onServiceInstalled(), 2000);
       }
       await checkServiceStatus();
+      onServiceStatusChanged?.();
     } catch (err: any) {
       const msg = err?.toString?.() || String(err || '');
 

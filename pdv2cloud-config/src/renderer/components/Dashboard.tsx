@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { colors, typography, spacing, borderRadius, shadows, Icons } from '../styles/theme';
 
 interface DashboardProps {
   serviceInstalled: boolean;
 }
+
+const EMPTY_QUEUE = {
+  total: 0,
+  pending: 0,
+  processing: 0,
+  sent: 0,
+  error: 0,
+  dead_letter: 0,
+};
 
 const parseVersion = (value: string): number[] | null => {
   const raw = String(value || '').trim();
@@ -33,21 +42,39 @@ const isNewerVersion = (latest: string, current: string): boolean => {
   return false;
 };
 
+const formatShortTime = (value: string) => {
+  if (!value) return '--:--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '--:--';
+  }
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [status, setStatus] = useState<string>('carregando');
   const [configOk, setConfigOk] = useState(false);
-  const [queue, setQueue] = useState<any>(null);
+  const [queue, setQueue] = useState(EMPTY_QUEUE);
   const [online, setOnline] = useState<boolean | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [lastProcessed, setLastProcessed] = useState<string>('');
   const [lastError, setLastError] = useState<any>(null);
+  const [watchPathsCount, setWatchPathsCount] = useState<number>(0);
+  const [marketLabel, setMarketLabel] = useState<string>('');
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
   const [latestVersion, setLatestVersion] = useState<string>('');
   const [installing, setInstalling] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [connectionMessage, setConnectionMessage] = useState<string>('');
+  const [connectionMessageType, setConnectionMessageType] = useState<'success' | 'error' | 'info'>('info');
 
-  useEffect(() => {
-    checkForUpdates();
-  }, []);
+  const showConnectionMessage = (message: string, type: 'success' | 'error' | 'info') => {
+    setConnectionMessage(message);
+    setConnectionMessageType(type);
+    window.setTimeout(() => setConnectionMessage(''), 7000);
+  };
 
   const checkForUpdates = async () => {
     try {
@@ -64,6 +91,82 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     }
   };
 
+  const loadDashboard = useCallback(async (silent = false) => {
+    if (!silent) {
+      setRefreshing(true);
+    }
+
+    let nextStatus = 'stopped';
+    try {
+      const service = await (window as any).electron.invoke('service:status');
+      nextStatus = String(service);
+      setStatus(nextStatus);
+    } catch (err) {
+      const errorMsg = String(err || '');
+      nextStatus = errorMsg.includes('SERVICE_NOT_INSTALLED') ? 'not_installed' : 'stopped';
+      setStatus(nextStatus);
+    }
+
+    try {
+      const config = await (window as any).electron.invoke('config:load');
+      const hasApiKey = Boolean(
+        config?.api_key ||
+        config?.api_key_encrypted ||
+        config?.api_token ||
+        config?.api_token_encrypted
+      );
+      const watchPaths = Array.isArray(config?.watch_paths) ? config.watch_paths.filter(Boolean) : [];
+      setConfigOk(hasApiKey && watchPaths.length > 0);
+      setWatchPathsCount(watchPaths.length);
+      setMarketLabel(config?.market_name || config?.market_id || '');
+    } catch (err) {
+      console.error('Failed to load config:', err);
+      setConfigOk(false);
+      setWatchPathsCount(0);
+      setMarketLabel('');
+    }
+
+    try {
+      const statusFile = await (window as any).electron.invoke('status:load');
+      if (statusFile) {
+        setQueue({ ...EMPTY_QUEUE, ...(statusFile.queue || {}) });
+        setOnline(typeof statusFile.online === 'boolean' ? statusFile.online : null);
+        setStatusMessage(statusFile.status_message || '');
+        setLastUpdate(statusFile.timestamp || '');
+        setLastProcessed(statusFile.last_processed || '');
+        setLastError(statusFile.last_error || null);
+      } else {
+        setQueue(EMPTY_QUEUE);
+        setOnline(nextStatus.includes('RUNNING') ? null : false);
+        setStatusMessage('');
+        setLastUpdate('');
+        setLastProcessed('');
+        setLastError(null);
+      }
+    } catch (err) {
+      console.error('Failed to load agent status:', err);
+      setQueue(EMPTY_QUEUE);
+      setOnline(nextStatus.includes('RUNNING') ? null : false);
+      setLastUpdate('');
+      setLastProcessed('');
+      setLastError(null);
+    } finally {
+      if (!silent) {
+        setRefreshing(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    checkForUpdates();
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+    const id = setInterval(() => loadDashboard(true), 5000);
+    return () => clearInterval(id);
+  }, [loadDashboard]);
+
   const installUpdate = async () => {
     if (!confirm('Instalar atualização agora?\n\nO PDV2Cloud será fechado e o instalador será executado automaticamente.')) {
       return;
@@ -72,52 +175,56 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     setInstalling(true);
     try {
       await (window as any).electron.invoke('update:install');
-      // App will be closed by the installer, no need for alert
     } catch (err) {
       alert('Erro ao instalar atualização: ' + err);
       setInstalling(false);
     }
   };
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const service = await (window as any).electron.invoke('service:status');
-        setStatus(String(service));
-      } catch (err) {
-        const errorMsg = String(err);
-        if (errorMsg.includes('SERVICE_NOT_INSTALLED')) {
-          setStatus('not_installed');
-        } else {
-          setStatus('stopped');
-        }
+  const testConnection = async () => {
+    setTestingConnection(true);
+    showConnectionMessage('Testando conexão com o servidor...', 'info');
+
+    try {
+      const result = await (window as any).electron.invoke('connection:testConfigured');
+      const now = new Date().toISOString();
+
+      if (!result?.success) {
+        setOnline(false);
+        setLastUpdate(now);
+        setLastError({
+          title: result?.title || 'Falha na conexão',
+          message: result?.message || 'Não foi possível validar a comunicação com o servidor.',
+          technical: result?.message || '',
+        });
+        showConnectionMessage(result?.message || 'Falha ao conectar com o servidor.', 'error');
+        return;
       }
 
-      try {
-        await (window as any).electron.invoke('config:load');
-        setConfigOk(true);
-      } catch (err) {
-        setConfigOk(false);
-      }
-
-      try {
-        const statusFile = await (window as any).electron.invoke('status:load');
-        if (statusFile) {
-          setQueue(statusFile.queue);
-          setOnline(statusFile.online);
-          setStatusMessage(statusFile.status_message || '');
-          setLastUpdate(statusFile.timestamp);
-          setLastError(statusFile.last_error);
-        }
-      } catch {
-        setQueue(null);
-      }
-    };
-
-    load();
-    const id = setInterval(load, 10000);
-    return () => clearInterval(id);
-  }, []);
+      setOnline(true);
+      setLastUpdate(now);
+      setLastError(null);
+      setMarketLabel(result.marketName || result.marketId || marketLabel);
+      setStatusMessage(
+        result.heartbeatOk === false
+          ? 'Conexão validada. O servidor respondeu, mas o heartbeat ainda não confirmou o status do agente.'
+          : 'Conexão com o servidor validada com sucesso.'
+      );
+      showConnectionMessage('Conexão com o servidor validada com sucesso.', 'success');
+    } catch (err) {
+      const message = String(err || '');
+      setOnline(false);
+      setLastUpdate(new Date().toISOString());
+      setLastError({
+        title: 'Falha na conexão',
+        message: 'Não foi possível validar a comunicação com o servidor.',
+        technical: message,
+      });
+      showConnectionMessage('Falha ao testar a conexão com o servidor.', 'error');
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const getStatusInfo = () => {
     if (status === 'not_installed') {
@@ -127,27 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         borderColor: colors.error[200],
         icon: <Icons.Settings />,
         title: 'Serviço não instalado',
-        subtitle: 'Clique em "Assistente de Configuração" para começar'
-      };
-    }
-    if (status.includes('RUNNING') && online) {
-      return {
-        color: colors.success[600],
-        bgColor: colors.success[50],
-        borderColor: colors.success[200],
-        icon: <Icons.Check />,
-        title: 'Tudo funcionando',
-        subtitle: statusMessage || 'Coletando notas fiscais automaticamente'
-      };
-    }
-    if (status.includes('RUNNING') && !online) {
-      return {
-        color: colors.warning[600],
-        bgColor: colors.warning[50],
-        borderColor: colors.warning[200],
-        icon: <Icons.Alert />,
-        title: 'Sem conexão com servidor',
-        subtitle: 'Verifique sua internet. Os dados serão enviados quando reconectar.'
+        subtitle: 'Clique em "Assistente de Configuração" para começar',
       };
     }
     if (status === 'carregando') {
@@ -157,7 +244,37 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         borderColor: colors.neutral[200],
         icon: <Icons.Loader />,
         title: 'Carregando...',
-        subtitle: 'Verificando status do sistema'
+        subtitle: 'Verificando status do sistema',
+      };
+    }
+    if (status.includes('RUNNING') && online === null) {
+      return {
+        color: colors.primary[600],
+        bgColor: colors.primary[50],
+        borderColor: colors.primary[200],
+        icon: <Icons.Loader />,
+        title: 'Verificando conexão',
+        subtitle: 'O serviço está em execução. Aguarde ou clique em "Testar conexão agora".',
+      };
+    }
+    if (status.includes('RUNNING') && online) {
+      return {
+        color: colors.success[600],
+        bgColor: colors.success[50],
+        borderColor: colors.success[200],
+        icon: <Icons.Check />,
+        title: 'Tudo funcionando',
+        subtitle: statusMessage || 'Coletando notas fiscais automaticamente',
+      };
+    }
+    if (status.includes('RUNNING') && online === false) {
+      return {
+        color: colors.warning[600],
+        bgColor: colors.warning[50],
+        borderColor: colors.warning[200],
+        icon: <Icons.Alert />,
+        title: 'Sem conexão com servidor',
+        subtitle: statusMessage || 'Verifique a conexão e use "Testar conexão agora" para validar a comunicação.',
       };
     }
     return {
@@ -166,12 +283,34 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       borderColor: colors.error[200],
       icon: <Icons.X />,
       title: 'Serviço parado',
-      subtitle: 'Clique em "Iniciar" abaixo para começar a coleta'
+      subtitle: 'Clique em "Iniciar" abaixo para começar a coleta',
+    };
+  };
+
+  const getConnectionMessageStyle = () => {
+    if (connectionMessageType === 'success') {
+      return {
+        backgroundColor: colors.success[50],
+        color: colors.success[800],
+        border: `1px solid ${colors.success[300]}`,
+      };
+    }
+    if (connectionMessageType === 'error') {
+      return {
+        backgroundColor: colors.error[50],
+        color: colors.error[800],
+        border: `1px solid ${colors.error[300]}`,
+      };
+    }
+    return {
+      backgroundColor: colors.primary[50],
+      color: colors.primary[800],
+      border: `1px solid ${colors.primary[300]}`,
     };
   };
 
   const statusInfo = getStatusInfo();
-  const pendingTotal = Number(queue?.pending || 0) + Number(queue?.processing || 0);
+  const pendingTotal = Number(queue.pending || 0) + Number(queue.processing || 0);
 
   return (
     <div style={{
@@ -179,16 +318,15 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       borderRadius: borderRadius.lg,
       boxShadow: shadows.md,
       border: `1px solid ${colors.neutral[200]}`,
-      overflow: 'hidden'
+      overflow: 'hidden',
     }}>
-      {/* Update Banner */}
       {updateAvailable && (
         <div style={{
           background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`,
           padding: spacing.lg,
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
             <div style={{ color: colors.text.inverse }}>
@@ -200,7 +338,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 color: colors.text.inverse,
                 marginBottom: spacing.xs,
                 fontSize: typography.fontSize.base,
-                fontFamily: typography.fontFamily.sans
+                fontFamily: typography.fontFamily.sans,
               }}>
                 Nova atualização disponível
               </div>
@@ -208,7 +346,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 fontSize: typography.fontSize.sm,
                 color: colors.text.inverse,
                 opacity: 0.9,
-                fontFamily: typography.fontFamily.sans
+                fontFamily: typography.fontFamily.sans,
               }}>
                 Versão {latestVersion} está pronta para instalar
               </div>
@@ -227,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               fontWeight: typography.fontWeight.semibold,
               cursor: installing ? 'not-allowed' : 'pointer',
               opacity: installing ? 0.7 : 1,
-              fontFamily: typography.fontFamily.sans
+              fontFamily: typography.fontFamily.sans,
             }}
           >
             {installing ? 'Instalando...' : 'Atualizar agora'}
@@ -236,13 +374,12 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       )}
 
       <div style={{ padding: spacing['2xl'] }}>
-        {/* Main Status Card */}
         <div style={{
           backgroundColor: statusInfo.bgColor,
           border: `2px solid ${statusInfo.borderColor}`,
           borderRadius: borderRadius.lg,
           padding: spacing.xl,
-          marginBottom: spacing.xl
+          marginBottom: spacing.lg,
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.lg }}>
             <div style={{
@@ -254,7 +391,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               alignItems: 'center',
               justifyContent: 'center',
               color: colors.text.inverse,
-              flexShrink: 0
+              flexShrink: 0,
             }}>
               {statusInfo.icon}
             </div>
@@ -265,7 +402,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 color: colors.text.primary,
                 margin: 0,
                 marginBottom: spacing.xs,
-                fontFamily: typography.fontFamily.sans
+                fontFamily: typography.fontFamily.sans,
               }}>
                 {statusInfo.title}
               </h2>
@@ -273,20 +410,58 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 fontSize: typography.fontSize.base,
                 color: colors.text.secondary,
                 margin: 0,
-                fontFamily: typography.fontFamily.sans
+                marginBottom: spacing.md,
+                fontFamily: typography.fontFamily.sans,
               }}>
                 {statusInfo.subtitle}
               </p>
+
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: spacing.sm,
+              }}>
+                <div style={{
+                  padding: `${spacing.xs} ${spacing.md}`,
+                  backgroundColor: colors.background.primary,
+                  borderRadius: borderRadius.full,
+                  border: `1px solid ${colors.neutral[200]}`,
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Pastas monitoradas: <strong>{watchPathsCount}</strong>
+                </div>
+                <div style={{
+                  padding: `${spacing.xs} ${spacing.md}`,
+                  backgroundColor: colors.background.primary,
+                  borderRadius: borderRadius.full,
+                  border: `1px solid ${colors.neutral[200]}`,
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Mercado: <strong>{marketLabel || 'não identificado'}</strong>
+                </div>
+                <div style={{
+                  padding: `${spacing.xs} ${spacing.md}`,
+                  backgroundColor: colors.background.primary,
+                  borderRadius: borderRadius.full,
+                  border: `1px solid ${colors.neutral[200]}`,
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Último envio: <strong>{formatShortTime(lastProcessed)}</strong>
+                </div>
+              </div>
             </div>
-            <div style={{
-              textAlign: 'right',
-              minWidth: '100px'
-            }}>
+            <div style={{ textAlign: 'right', minWidth: '100px' }}>
               <div style={{
                 fontSize: typography.fontSize.xs,
                 color: colors.text.tertiary,
                 marginBottom: spacing.xs,
-                fontFamily: typography.fontFamily.sans
+                fontFamily: typography.fontFamily.sans,
               }}>
                 Última verificação
               </div>
@@ -294,22 +469,92 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 fontSize: typography.fontSize.lg,
                 fontWeight: typography.fontWeight.semibold,
                 color: colors.text.primary,
-                fontFamily: typography.fontFamily.mono
+                fontFamily: typography.fontFamily.mono,
               }}>
-                {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                {formatShortTime(lastUpdate)}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Error Alert */}
+        <div style={{
+          display: 'flex',
+          gap: spacing.md,
+          flexWrap: 'wrap',
+          marginBottom: spacing.xl,
+        }}>
+          <button
+            onClick={() => loadDashboard()}
+            disabled={refreshing}
+            style={{
+              padding: `${spacing.sm} ${spacing.lg}`,
+              backgroundColor: colors.primary[600],
+              color: colors.text.inverse,
+              border: 'none',
+              borderRadius: borderRadius.md,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              cursor: refreshing ? 'not-allowed' : 'pointer',
+              opacity: refreshing ? 0.7 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm,
+              fontFamily: typography.fontFamily.sans,
+            }}
+            onMouseEnter={(e) => !refreshing && (e.currentTarget.style.backgroundColor = colors.primary[700])}
+            onMouseLeave={(e) => !refreshing && (e.currentTarget.style.backgroundColor = colors.primary[600])}
+          >
+            <Icons.Refresh />
+            {refreshing ? 'Atualizando...' : 'Atualizar painel'}
+          </button>
+
+          <button
+            onClick={testConnection}
+            disabled={testingConnection || !serviceInstalled}
+            style={{
+              padding: `${spacing.sm} ${spacing.lg}`,
+              backgroundColor: colors.success[600],
+              color: colors.text.inverse,
+              border: 'none',
+              borderRadius: borderRadius.md,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              cursor: testingConnection || !serviceInstalled ? 'not-allowed' : 'pointer',
+              opacity: testingConnection || !serviceInstalled ? 0.7 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm,
+              fontFamily: typography.fontFamily.sans,
+            }}
+            onMouseEnter={(e) => !testingConnection && serviceInstalled && (e.currentTarget.style.backgroundColor = colors.success[700])}
+            onMouseLeave={(e) => !testingConnection && serviceInstalled && (e.currentTarget.style.backgroundColor = colors.success[600])}
+          >
+            <Icons.Check />
+            {testingConnection ? 'Testando conexão...' : 'Testar conexão agora'}
+          </button>
+        </div>
+
+        {connectionMessage && (
+          <div style={{
+            ...getConnectionMessageStyle(),
+            padding: spacing.md,
+            borderRadius: borderRadius.md,
+            marginBottom: spacing.xl,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.medium,
+            fontFamily: typography.fontFamily.sans,
+          }}>
+            {connectionMessage}
+          </div>
+        )}
+
         {lastError && (
           <div style={{
             backgroundColor: colors.error[50],
             border: `1px solid ${colors.error[300]}`,
             borderRadius: borderRadius.md,
             padding: spacing.lg,
-            marginBottom: spacing.xl
+            marginBottom: spacing.xl,
           }}>
             <div style={{ display: 'flex', gap: spacing.md }}>
               <div style={{ color: colors.error[600], flexShrink: 0 }}>
@@ -321,7 +566,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                   color: colors.error[900],
                   marginBottom: spacing.xs,
                   fontSize: typography.fontSize.base,
-                  fontFamily: typography.fontFamily.sans
+                  fontFamily: typography.fontFamily.sans,
                 }}>
                   {lastError.title || 'Ocorreu um erro'}
                 </div>
@@ -329,7 +574,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                   fontSize: typography.fontSize.sm,
                   color: colors.error[700],
                   marginBottom: spacing.sm,
-                  fontFamily: typography.fontFamily.sans
+                  fontFamily: typography.fontFamily.sans,
                 }}>
                   {lastError.message}
                 </div>
@@ -340,7 +585,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                       color: colors.error[700],
                       cursor: 'pointer',
                       userSelect: 'none',
-                      fontFamily: typography.fontFamily.sans
+                      fontFamily: typography.fontFamily.sans,
                     }}>
                       Ver detalhes técnicos
                     </summary>
@@ -353,7 +598,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                       marginTop: spacing.sm,
                       overflow: 'auto',
                       maxHeight: '200px',
-                      fontFamily: typography.fontFamily.mono
+                      fontFamily: typography.fontFamily.mono,
                     }}>
                       {lastError.technical}
                     </pre>
@@ -364,189 +609,185 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
           </div>
         )}
 
-        {/* Statistics Cards */}
-        {queue && (
-          <div>
-            <h3 style={{
-              fontSize: typography.fontSize.lg,
-              fontWeight: typography.fontWeight.semibold,
-              color: colors.text.primary,
-              marginBottom: spacing.lg,
-              fontFamily: typography.fontFamily.sans
-            }}>
-              Estatísticas
-            </h3>
+        <div>
+          <h3 style={{
+            fontSize: typography.fontSize.lg,
+            fontWeight: typography.fontWeight.semibold,
+            color: colors.text.primary,
+            marginBottom: spacing.lg,
+            fontFamily: typography.fontFamily.sans,
+          }}>
+            Resumo das notas
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: spacing.lg,
+            marginBottom: spacing.xl,
+          }}>
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: spacing.lg,
-              marginBottom: spacing.xl
+              backgroundColor: colors.primary[50],
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              border: `1px solid ${colors.primary[200]}`,
             }}>
               <div style={{
-                backgroundColor: colors.primary[50],
-                borderRadius: borderRadius.lg,
-                padding: spacing.lg,
-                border: `1px solid ${colors.primary[200]}`
+                fontSize: typography.fontSize.xs,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.primary[700],
+                marginBottom: spacing.md,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontFamily: typography.fontFamily.sans,
               }}>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  fontWeight: typography.fontWeight.semibold,
-                  color: colors.primary[700],
-                  marginBottom: spacing.md,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  Notas Processadas
-                </div>
-                <div style={{
-                  fontSize: '32px',
-                  fontWeight: typography.fontWeight.bold,
-                  color: colors.primary[700],
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  {queue.total || 0}
-                </div>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  color: colors.primary[600],
-                  marginTop: spacing.xs,
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  total encontrado
-                </div>
+                Encontradas
               </div>
-
               <div style={{
-                backgroundColor: colors.success[50],
-                borderRadius: borderRadius.lg,
-                padding: spacing.lg,
-                border: `1px solid ${colors.success[200]}`
+                fontSize: '32px',
+                fontWeight: typography.fontWeight.bold,
+                color: colors.primary[700],
+                fontFamily: typography.fontFamily.sans,
               }}>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  fontWeight: typography.fontWeight.semibold,
-                  color: colors.success[700],
-                  marginBottom: spacing.md,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  Enviadas
-                </div>
-                <div style={{
-                  fontSize: '32px',
-                  fontWeight: typography.fontWeight.bold,
-                  color: colors.success[700],
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  {queue.sent || 0}
-                </div>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  color: colors.success[600],
-                  marginTop: spacing.xs,
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  sincronizadas
-                </div>
+                {queue.total || 0}
               </div>
-
               <div style={{
-                backgroundColor: colors.warning[50],
-                borderRadius: borderRadius.lg,
-                padding: spacing.lg,
-                border: `1px solid ${colors.warning[200]}`
+                fontSize: typography.fontSize.xs,
+                color: colors.primary[600],
+                marginTop: spacing.xs,
+                fontFamily: typography.fontFamily.sans,
               }}>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  fontWeight: typography.fontWeight.semibold,
-                  color: colors.warning[700],
-                  marginBottom: spacing.md,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  Aguardando
-                </div>
-                <div style={{
-                  fontSize: '32px',
-                  fontWeight: typography.fontWeight.bold,
-                  color: colors.warning[700],
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  {pendingTotal}
-                </div>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  color: colors.warning[600],
-                  marginTop: spacing.xs,
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  {queue.processing > 0 ? `${queue.processing} em processamento` : 'na fila'}
-                </div>
+                XMLs detectados pelo coletor
               </div>
+            </div>
 
+            <div style={{
+              backgroundColor: colors.success[50],
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              border: `1px solid ${colors.success[200]}`,
+            }}>
               <div style={{
-                backgroundColor: colors.error[50],
-                borderRadius: borderRadius.lg,
-                padding: spacing.lg,
-                border: `1px solid ${colors.error[200]}`
+                fontSize: typography.fontSize.xs,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.success[700],
+                marginBottom: spacing.md,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontFamily: typography.fontFamily.sans,
               }}>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  fontWeight: typography.fontWeight.semibold,
-                  color: colors.error[700],
-                  marginBottom: spacing.md,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  Com Erros
-                </div>
-                <div style={{
-                  fontSize: '32px',
-                  fontWeight: typography.fontWeight.bold,
-                  color: colors.error[700],
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  {queue.error || 0}
-                </div>
-                <div style={{
-                  fontSize: typography.fontSize.xs,
-                  color: colors.error[600],
-                  marginTop: spacing.xs,
-                  fontFamily: typography.fontFamily.sans
-                }}>
-                  {queue.dead_letter > 0 ? `${queue.dead_letter} críticos` : 'nenhum crítico'}
-                </div>
+                Enviadas
+              </div>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: typography.fontWeight.bold,
+                color: colors.success[700],
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {queue.sent || 0}
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.success[600],
+                marginTop: spacing.xs,
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                Notas sincronizadas com a web
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: colors.warning[50],
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              border: `1px solid ${colors.warning[200]}`,
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.warning[700],
+                marginBottom: spacing.md,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                Na fila
+              </div>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: typography.fontWeight.bold,
+                color: colors.warning[700],
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {pendingTotal}
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.warning[600],
+                marginTop: spacing.xs,
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {queue.processing > 0 ? `${queue.processing} em processamento agora` : 'Aguardando envio'}
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: colors.error[50],
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              border: `1px solid ${colors.error[200]}`,
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.error[700],
+                marginBottom: spacing.md,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                Com erro
+              </div>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: typography.fontWeight.bold,
+                color: colors.error[700],
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {queue.error || 0}
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.error[600],
+                marginTop: spacing.xs,
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {queue.dead_letter > 0 ? `${queue.dead_letter} falhas críticas` : 'Nenhuma falha crítica'}
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* System Status Footer */}
         <div style={{
           borderTop: `1px solid ${colors.neutral[200]}`,
           paddingTop: spacing.lg,
           display: 'flex',
           gap: spacing.xl,
-          flexWrap: 'wrap'
+          flexWrap: 'wrap',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <div style={{
               width: '10px',
               height: '10px',
               borderRadius: borderRadius.full,
-              backgroundColor: configOk ? colors.success[500] : colors.error[500]
-            }}></div>
+              backgroundColor: configOk ? colors.success[500] : colors.error[500],
+            }} />
             <span style={{
               fontSize: typography.fontSize.sm,
               fontWeight: typography.fontWeight.medium,
               color: colors.text.secondary,
-              fontFamily: typography.fontFamily.sans
+              fontFamily: typography.fontFamily.sans,
             }}>
-              {configOk ? 'Configuração OK' : 'Configure o sistema'}
+              {configOk ? 'Configuração válida' : 'Configuração incompleta'}
             </span>
           </div>
 
@@ -555,15 +796,16 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               width: '10px',
               height: '10px',
               borderRadius: borderRadius.full,
-              backgroundColor: online ? colors.success[500] : colors.neutral[400]
-            }}></div>
+              backgroundColor:
+                online === null ? colors.primary[500] : online ? colors.success[500] : colors.warning[500],
+            }} />
             <span style={{
               fontSize: typography.fontSize.sm,
               fontWeight: typography.fontWeight.medium,
               color: colors.text.secondary,
-              fontFamily: typography.fontFamily.sans
+              fontFamily: typography.fontFamily.sans,
             }}>
-              {online === null ? 'Verificando conexão...' : online ? 'Servidor Online' : 'Servidor Offline'}
+              {online === null ? 'Verificando conexão...' : online ? 'Servidor online' : 'Servidor offline'}
             </span>
           </div>
         </div>

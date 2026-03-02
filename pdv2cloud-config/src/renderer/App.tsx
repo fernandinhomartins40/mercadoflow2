@@ -184,7 +184,11 @@ const App: React.FC = () => {
         margin: '0 auto'
       }}>
         <Dashboard key={refreshKey} serviceInstalled={serviceInstalled} />
-        <ServiceControl serviceInstalled={serviceInstalled} onServiceInstalled={handleServiceInstalled} />
+        <ServiceControl
+          serviceInstalled={serviceInstalled}
+          onServiceInstalled={handleServiceInstalled}
+          onServiceStatusChanged={handleServiceInstalled}
+        />
       </div>
     </div>
   );

@@ -27,7 +27,15 @@ configure_json_logging(logger, str(LOG_DIR / "agent.log"))
 
 def update_status(queue_manager: QueueManager, online: bool, last_processed: str | None, last_error: dict | None = None) -> None:
     STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    queue_stats = queue_manager.stats()
+    queue_stats = {
+        "total": 0,
+        "pending": 0,
+        "processing": 0,
+        "sent": 0,
+        "error": 0,
+        "dead_letter": 0,
+        **(queue_manager.stats() or {}),
+    }
 
     # Determine user-friendly status message
     if not online:
@@ -137,10 +145,13 @@ class ServiceApp:
 
             schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
             schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
-            schedule.every(1).minutes.do(lambda: update_status(self.queue_manager, self.online, self.last_processed, self.last_error))
             schedule.every(2).minutes.do(self._send_heartbeat)
             schedule.every().day.at("04:00").do(self._check_for_updates)  # Check for updates daily at 4 AM
             update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
+
+            # Validate connectivity early so the desktop UI doesn't remain in an
+            # offline state until the first successful invoice transmission.
+            threading.Thread(target=self._initial_connectivity_probe, daemon=True).start()
 
             if self.config.get("healthcheck_enabled", True):
                 threading.Thread(target=self._start_health_server, daemon=True).start()
@@ -159,6 +170,7 @@ class ServiceApp:
         while not self.stop_event.is_set():
             self.process_queue()
             schedule.run_pending()
+            update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
             time.sleep(self.config.get("poll_interval_seconds", 10))
 
     def stop(self):
@@ -200,10 +212,29 @@ class ServiceApp:
         self.queue_manager.reset_errors()
 
     def _send_heartbeat(self):
+        api_url = self.config.get("api_url")
+        api_key = self.config.get("api_key")
+        if not api_url or not api_key:
+            self.online = False
+            update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
+            return
+
         try:
-            self.transmitter.send_heartbeat()
+            heartbeat_ok = self.transmitter.send_heartbeat()
+            self.online = bool(heartbeat_ok)
+            if heartbeat_ok:
+                self.last_error = None
         except Exception as exc:
+            self.online = False
             logger.debug("Heartbeat failed: %s", exc)
+        finally:
+            update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
+
+    def _initial_connectivity_probe(self):
+        try:
+            self._send_heartbeat()
+        except Exception as exc:
+            logger.debug("Initial connectivity probe failed: %s", exc)
 
     def _check_for_updates(self):
         """Check for updates and install automatically if enabled."""
