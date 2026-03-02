@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
@@ -43,17 +44,30 @@ public class IngestController {
 
         IngestResponse response = invoiceService.processInvoice(invoiceDTO, resolvedMarketId);
 
-        // Audit log
+        Map<String, Object> auditDetails = Map.of(
+            "chaveNFe", invoiceDTO.getChaveNFe(),
+            "agentVersion", agentVersion,
+            "status", response.getStatus(),
+            "message", response.getMessage()
+        );
+
+        if ("ERROR".equals(response.getStatus())) {
+            auditService.logFailure(
+                "INVOICE",
+                response.getInvoiceId(),
+                "INGEST",
+                response.getMessage(),
+                auditDetails
+            );
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
+        }
+
         auditService.logAction(
             "INVOICE",
             response.getInvoiceId(),
             "INGEST",
-            "SUCCESS".equals(response.getStatus()),
-            Map.of(
-                "chaveNFe", invoiceDTO.getChaveNFe(),
-                "agentVersion", agentVersion,
-                "status", response.getStatus()
-            )
+            true,
+            auditDetails
         );
 
         return ResponseEntity.ok(response);

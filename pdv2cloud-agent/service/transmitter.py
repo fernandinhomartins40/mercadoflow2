@@ -46,9 +46,26 @@ class APITransmitter:
                     headers=headers,
                     timeout=30,
                 )
-                response.raise_for_status()
+                if not response.ok:
+                    detail = response.text.strip()
+                    raise requests.exceptions.HTTPError(
+                        f"HTTP {response.status_code}: {detail or response.reason}",
+                        response=response,
+                    )
+
+                try:
+                    payload = response.json()
+                except ValueError:
+                    return True
+
+                status = str(payload.get("status") or "").upper()
+                if status in {"SUCCESS", "DUPLICATE"}:
+                    return True
+
+                message = str(payload.get("message") or response.text or "Unknown ingest error").strip()
+                raise RuntimeError(f"Ingest rejected with status={status or 'UNKNOWN'}: {message}")
                 return True
-            except requests.exceptions.RequestException as exc:
+            except (requests.exceptions.RequestException, RuntimeError) as exc:
                 last_exception = exc
                 # Avoid sleeping after the final attempt.
                 if attempt < 4:

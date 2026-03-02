@@ -4,9 +4,11 @@ import com.pdv2cloud.model.dto.AlertDTO;
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.dto.MarketDashboardDTO;
 import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
+import com.pdv2cloud.model.dto.RecentInvoiceSummaryDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 import com.pdv2cloud.model.dto.TopSellerDTO;
 import com.pdv2cloud.model.entity.Alert;
+import com.pdv2cloud.model.entity.Invoice;
 import com.pdv2cloud.model.entity.MarketBasketRule;
 import com.pdv2cloud.model.entity.Product;
 import com.pdv2cloud.repository.AlertRepository;
@@ -26,6 +28,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -77,6 +80,21 @@ public class AnalyticsService {
 
         long unreadAlerts = alertRepository.countByMarketIdAndIsReadFalse(marketId);
         dashboard.setUnreadAlerts(unreadAlerts);
+
+        dashboard.setTotalInvoices(invoiceRepository.countByMarket_Id(marketId));
+        dashboard.setInvoicesLast24h(
+            invoiceRepository.countByMarket_IdAndProcessedAtAfter(marketId, LocalDateTime.now().minusHours(24))
+        );
+        dashboard.setLastInvoiceProcessedAt(
+            invoiceRepository.findFirstByMarket_IdOrderByProcessedAtDesc(marketId)
+                .map(Invoice::getProcessedAt)
+                .orElse(null)
+        );
+        List<RecentInvoiceSummaryDTO> recentInvoices = invoiceRepository.findRecentInvoiceSummaries(
+            marketId,
+            PageRequest.of(0, 5)
+        );
+        dashboard.setRecentInvoices(recentInvoices);
 
         dashboard.setActiveProducts((int) invoiceRepository.countDistinctProducts(marketId));
 
