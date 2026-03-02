@@ -6,6 +6,7 @@ import logger from './logger';
 
 const SERVICE_NAME = 'PDV2CloudAgent';
 const DEFAULT_INSTALL_DIRNAME = 'PDV2Cloud';
+const REMOTE_SYNC_TTL_MS = 10 * 1000;
 const SERVICE_SDDL = [
   'D:',
   '(A;;CCLCSWRPWPDTLOCRRC;;;SY)',
@@ -13,6 +14,38 @@ const SERVICE_SDDL = [
   '(A;;CCLCSWRPWPDTLOCRRC;;;IU)',
   '(A;;CCLCSWLOCRRC;;;SU)',
 ].join('');
+
+type LocalInvoiceActivity = {
+  id: number;
+  chaveNFe: string;
+  status: string;
+  createdAt: string;
+  processedAt: string;
+  errorDetails: string;
+  numero: string;
+  serie: string;
+  valorTotal: number;
+};
+
+type RemoteSyncSnapshot = {
+  reachable: boolean;
+  checkedAt: string;
+  marketId: string;
+  marketName: string;
+  totalInvoices: number;
+  invoicesLast24h: number;
+  lastInvoiceProcessedAt: string;
+  recentInvoices: any[];
+  error: string;
+};
+
+let remoteSyncCache:
+  | {
+      expiresAt: number;
+      value: RemoteSyncSnapshot;
+    }
+  | null = null;
+let remoteSyncPromise: Promise<RemoteSyncSnapshot> | null = null;
 
 const looksLikeNotInstalled = (message: string) => {
   const msg = (message || '').toString();
@@ -213,7 +246,11 @@ export const loadAgentSnapshot = async () => {
     },
     watchPathsCount: 0,
     marketLabel: '',
+    recentLocalInvoices: [] as LocalInvoiceActivity[],
+    remoteSync: null as RemoteSyncSnapshot | null,
   };
+
+  const resolved = resolveInstallerPaths();
 
   try {
     const configPath = 'C:/ProgramData/PDV2Cloud/config.json';
@@ -246,7 +283,6 @@ export const loadAgentSnapshot = async () => {
   }
 
   try {
-    const resolved = resolveInstallerPaths();
     if (!resolved) {
       return snapshot;
     }
@@ -266,6 +302,7 @@ export const loadAgentSnapshot = async () => {
         ...snapshot.queue,
         ...(parsed?.queue || {}),
       };
+      snapshot.recentLocalInvoices = Array.isArray(parsed?.recentItems) ? parsed.recentItems : [];
       if (!snapshot.lastProcessed && parsed?.lastProcessed) {
         snapshot.lastProcessed = String(parsed.lastProcessed);
       }
@@ -280,7 +317,82 @@ export const loadAgentSnapshot = async () => {
     logger.debug('Failed to read queue snapshot', err);
   }
 
+  try {
+    if (resolved) {
+      snapshot.remoteSync = await loadRemoteSyncSnapshot(resolved.baseDir, resolved.pythonPath);
+      if (snapshot.remoteSync?.marketName) {
+        snapshot.marketLabel = snapshot.remoteSync.marketName;
+      } else if (snapshot.remoteSync?.marketId && !snapshot.marketLabel) {
+        snapshot.marketLabel = snapshot.remoteSync.marketId;
+      }
+    }
+  } catch (err) {
+    logger.debug('Failed to read remote sync snapshot', err);
+  }
+
   return snapshot;
+};
+
+const loadRemoteSyncSnapshot = async (baseDir: string, pythonPath: string): Promise<RemoteSyncSnapshot> => {
+  if (remoteSyncCache && remoteSyncCache.expiresAt > Date.now()) {
+    return remoteSyncCache.value;
+  }
+
+  if (remoteSyncPromise) {
+    return remoteSyncPromise;
+  }
+
+  remoteSyncPromise = (async () => {
+    const tmpPath = path.join(app.getPath('temp'), `pdv2cloud-remote-sync-${process.pid}-${Date.now()}.py`);
+    fs.writeFileSync(tmpPath, buildRemoteSyncSnapshotScript(baseDir), 'utf-8');
+
+    try {
+      const raw = await execPromise(`"${pythonPath}" "${tmpPath}"`);
+      const parsed = JSON.parse(raw);
+      const value: RemoteSyncSnapshot = {
+        reachable: Boolean(parsed?.reachable),
+        checkedAt: String(parsed?.checkedAt || ''),
+        marketId: String(parsed?.marketId || ''),
+        marketName: String(parsed?.marketName || ''),
+        totalInvoices: Number(parsed?.totalInvoices || 0),
+        invoicesLast24h: Number(parsed?.invoicesLast24h || 0),
+        lastInvoiceProcessedAt: String(parsed?.lastInvoiceProcessedAt || ''),
+        recentInvoices: Array.isArray(parsed?.recentInvoices) ? parsed.recentInvoices : [],
+        error: String(parsed?.error || ''),
+      };
+      remoteSyncCache = {
+        expiresAt: Date.now() + REMOTE_SYNC_TTL_MS,
+        value,
+      };
+      return value;
+    } catch (err) {
+      const value: RemoteSyncSnapshot = {
+        reachable: false,
+        checkedAt: new Date().toISOString(),
+        marketId: '',
+        marketName: '',
+        totalInvoices: 0,
+        invoicesLast24h: 0,
+        lastInvoiceProcessedAt: '',
+        recentInvoices: [],
+        error: String(err || ''),
+      };
+      remoteSyncCache = {
+        expiresAt: Date.now() + 10 * 1000,
+        value,
+      };
+      return value;
+    } finally {
+      remoteSyncPromise = null;
+      try {
+        fs.unlinkSync(tmpPath);
+      } catch {
+        // ignore
+      }
+    }
+  })();
+
+  return remoteSyncPromise;
 };
 
 const installOrRepairService = async (baseDir: string, pythonPath: string, installerPath: string) => {
@@ -457,7 +569,8 @@ const buildQueueSnapshotScript = (queueDbPath: string) => {
     '    "error": 0,',
     '    "dead_letter": 0,',
     '  },',
-    '  "lastProcessed": ""',
+    '  "lastProcessed": "",',
+    '  "recentItems": []',
     '}',
     '',
     'conn = sqlite3.connect(DB_PATH)',
@@ -482,8 +595,96 @@ const buildQueueSnapshotScript = (queueDbPath: string) => {
     '    ).fetchone()',
     '    if latest and latest[0]:',
     '        result["lastProcessed"] = str(latest[0])',
+    '',
+    '    rows = cur.execute(',
+    '        "SELECT id, chave_nfe, status, data_criacao, data_processamento, erro_detalhes, payload_json FROM queued_invoices ORDER BY COALESCE(data_processamento, data_criacao) DESC LIMIT 8"',
+    '    ).fetchall()',
+    '    for row in rows:',
+    '        payload = {}',
+    '        raw_payload = row[6] or ""',
+    '        if raw_payload:',
+    '            try:',
+    '                payload = json.loads(raw_payload)',
+    '            except Exception:',
+    '                payload = {}',
+    '        result["recentItems"].append({',
+    '            "id": int(row[0]),',
+    '            "chaveNFe": str(row[1] or ""),',
+    '            "status": str(row[2] or ""),',
+    '            "createdAt": str(row[3] or ""),',
+    '            "processedAt": str(row[4] or ""),',
+    '            "errorDetails": str(row[5] or ""),',
+    '            "numero": str(payload.get("numero") or ""),',
+    '            "serie": str(payload.get("serie") or ""),',
+    '            "valorTotal": float(payload.get("valorTotal") or 0),',
+    '        })',
     'finally:',
     '    conn.close()',
+    '',
+    'print(json.dumps(result, ensure_ascii=False))',
+    '',
+  ].join('\n');
+};
+
+const buildRemoteSyncSnapshotScript = (baseDir: string) => {
+  return [
+    'import json',
+    'import sys',
+    'from datetime import datetime',
+    'from pathlib import Path',
+    '',
+    'import requests',
+    '',
+    `BASE_DIR = Path(${JSON.stringify(baseDir)})`,
+    'sys.path.insert(0, str(BASE_DIR))',
+    'sys.path.insert(0, str(BASE_DIR / "service"))',
+    '',
+    'result = {',
+    '    "reachable": False,',
+    '    "checkedAt": datetime.utcnow().isoformat(),',
+    '    "marketId": "",',
+    '    "marketName": "",',
+    '    "totalInvoices": 0,',
+    '    "invoicesLast24h": 0,',
+    '    "lastInvoiceProcessedAt": "",',
+    '    "recentInvoices": [],',
+    '    "error": "",',
+    '}',
+    '',
+    'try:',
+    '    from service.crypto import SecureConfig',
+    '    from service.config import load_config_secure',
+    '',
+    '    config = load_config_secure(SecureConfig())',
+    '    api_url = str(config.get("api_url") or "").rstrip("/")',
+    '    api_key = str(config.get("api_key") or "").strip()',
+    '',
+    '    if not api_url or not api_key:',
+    '        result["error"] = "Configuração da API incompleta."',
+    '    else:',
+    '        headers = {"X-API-Key": api_key}',
+    '        profile_response = requests.get(f"{api_url}/api/v1/agent/me", headers=headers, timeout=20)',
+    '        profile_response.raise_for_status()',
+    '        profile = profile_response.json()',
+    '',
+    '        sync_response = requests.get(f"{api_url}/api/v1/agent/sync-status", headers=headers, timeout=20)',
+    '        sync_response.raise_for_status()',
+    '        sync_payload = sync_response.json()',
+    '',
+    '        result = {',
+    '            "reachable": True,',
+    '            "checkedAt": datetime.utcnow().isoformat(),',
+    '            "marketId": str(sync_payload.get("marketId") or profile.get("marketId") or ""),',
+    '            "marketName": str(sync_payload.get("marketName") or profile.get("marketName") or ""),',
+    '            "totalInvoices": int(sync_payload.get("totalInvoices") or 0),',
+    '            "invoicesLast24h": int(sync_payload.get("invoicesLast24h") or 0),',
+    '            "lastInvoiceProcessedAt": str(sync_payload.get("lastInvoiceProcessedAt") or ""),',
+    '            "recentInvoices": sync_payload.get("recentInvoices") or [],',
+    '            "error": "",',
+    '        }',
+    'except Exception as exc:',
+    '    result["checkedAt"] = datetime.utcnow().isoformat()',
+    '    result["error"] = str(exc)',
     '',
     'print(json.dumps(result, ensure_ascii=False))',
     '',

@@ -1,11 +1,16 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.AgentProfileResponse;
+import com.pdv2cloud.model.dto.AgentSyncStatusResponse;
+import com.pdv2cloud.model.entity.Invoice;
+import com.pdv2cloud.repository.InvoiceRepository;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.security.AgentAuthenticationToken;
 import com.pdv2cloud.security.AgentPrincipal;
 import com.pdv2cloud.service.AgentApiKeyService;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +28,9 @@ public class AgentController {
     @Autowired
     private AgentApiKeyService agentApiKeyService;
 
+    @Autowired
+    private InvoiceRepository invoiceRepository;
+
     @GetMapping("/me")
     public ResponseEntity<AgentProfileResponse> me(Authentication authentication) {
         if (!(authentication instanceof AgentAuthenticationToken)) {
@@ -37,6 +45,40 @@ public class AgentController {
             .agentKeyId(principal.getAgentKeyId())
             .marketId(principal.getMarketId())
             .marketName(marketName)
+            .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/sync-status")
+    public ResponseEntity<AgentSyncStatusResponse> syncStatus(Authentication authentication) {
+        if (!(authentication instanceof AgentAuthenticationToken)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        AgentPrincipal principal = (AgentPrincipal) authentication.getPrincipal();
+        String marketName = marketRepository.findById(principal.getMarketId())
+            .map(market -> market.getName())
+            .orElse("Mercado");
+
+        AgentSyncStatusResponse response = AgentSyncStatusResponse.builder()
+            .marketId(principal.getMarketId())
+            .marketName(marketName)
+            .totalInvoices(invoiceRepository.countByMarket_Id(principal.getMarketId()))
+            .invoicesLast24h(
+                invoiceRepository.countByMarket_IdAndProcessedAtAfter(
+                    principal.getMarketId(),
+                    LocalDateTime.now().minusHours(24)
+                )
+            )
+            .lastInvoiceProcessedAt(
+                invoiceRepository.findFirstByMarket_IdOrderByProcessedAtDesc(principal.getMarketId())
+                    .map(Invoice::getProcessedAt)
+                    .orElse(null)
+            )
+            .recentInvoices(
+                invoiceRepository.findRecentInvoiceSummaries(principal.getMarketId(), PageRequest.of(0, 5))
+            )
             .build();
 
         return ResponseEntity.ok(response);

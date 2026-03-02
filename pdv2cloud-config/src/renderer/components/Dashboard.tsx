@@ -5,6 +5,38 @@ interface DashboardProps {
   serviceInstalled: boolean;
 }
 
+type LocalInvoiceActivity = {
+  id: number;
+  chaveNFe: string;
+  status: string;
+  createdAt: string;
+  processedAt: string;
+  errorDetails: string;
+  numero: string;
+  serie: string;
+  valorTotal: number;
+};
+
+type RemoteSyncSnapshot = {
+  reachable: boolean;
+  checkedAt: string;
+  marketId: string;
+  marketName: string;
+  totalInvoices: number;
+  invoicesLast24h: number;
+  lastInvoiceProcessedAt: string;
+  recentInvoices: Array<{
+    id?: string;
+    chaveNFe?: string;
+    numero?: string;
+    serie?: string;
+    valorTotal?: number;
+    dataEmissao?: string;
+    processedAt?: string;
+  }>;
+  error: string;
+};
+
 const EMPTY_QUEUE = {
   total: 0,
   pending: 0,
@@ -52,6 +84,30 @@ const formatShortTime = (value: string) => {
   return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatDateTime = (value: string) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleString('pt-BR');
+};
+
+const formatCurrency = (value: number) => {
+  return Number(value || 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+};
+
+const statusMeta: Record<string, { label: string; bg: string; color: string }> = {
+  SENT: { label: 'Enviada', bg: colors.success[50], color: colors.success[700] },
+  PENDING: { label: 'Na fila', bg: colors.warning[50], color: colors.warning[700] },
+  PROCESSING: { label: 'Processando', bg: colors.primary[50], color: colors.primary[700] },
+  ERROR: { label: 'Erro', bg: colors.error[50], color: colors.error[700] },
+  DEAD_LETTER: { label: 'Falha crítica', bg: colors.error[100], color: colors.error[800] },
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [status, setStatus] = useState<string>('carregando');
   const [configOk, setConfigOk] = useState(false);
@@ -63,6 +119,8 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [lastError, setLastError] = useState<any>(null);
   const [watchPathsCount, setWatchPathsCount] = useState<number>(0);
   const [marketLabel, setMarketLabel] = useState<string>('');
+  const [recentLocalInvoices, setRecentLocalInvoices] = useState<LocalInvoiceActivity[]>([]);
+  const [remoteSync, setRemoteSync] = useState<RemoteSyncSnapshot | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
   const [latestVersion, setLatestVersion] = useState<string>('');
   const [installing, setInstalling] = useState<boolean>(false);
@@ -156,6 +214,8 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         setLastProcessed(String(snapshot.lastProcessed || ''));
         setLastError(shouldUseProbeOverride ? probe!.lastError : (snapshot.lastError || null));
         setWatchPathsCount(Number(snapshot.watchPathsCount || 0));
+        setRecentLocalInvoices(Array.isArray(snapshot.recentLocalInvoices) ? snapshot.recentLocalInvoices : []);
+        setRemoteSync(snapshot.remoteSync || null);
         setMarketLabel(
           shouldUseProbeOverride && probe?.marketLabel
             ? probe.marketLabel
@@ -169,6 +229,8 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         setLastProcessed('');
         setLastError(null);
         setWatchPathsCount(0);
+        setRecentLocalInvoices([]);
+        setRemoteSync(null);
         setMarketLabel('');
       }
     } catch (err) {
@@ -179,6 +241,8 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       setLastProcessed('');
       setLastError(null);
       setWatchPathsCount(0);
+      setRecentLocalInvoices([]);
+      setRemoteSync(null);
       setMarketLabel('');
     } finally {
       if (!silent) {
@@ -205,15 +269,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       !testingConnection &&
       !autoConnectionAttemptedRef.current;
 
+    if (!status.includes('RUNNING')) {
+      autoConnectionAttemptedRef.current = false;
+      return;
+    }
+
     if (!shouldAutoTest) {
-      if (!status.includes('RUNNING') || online !== null) {
-        autoConnectionAttemptedRef.current = false;
-      }
       return;
     }
 
     autoConnectionAttemptedRef.current = true;
-    testConnection().catch((err) => {
+    testConnection({ silent: true }).catch((err) => {
       console.error('Automatic connection test failed:', err);
     });
   }, [serviceInstalled, status, online, testingConnection]);
@@ -232,9 +298,11 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     }
   };
 
-  const testConnection = async () => {
+  const testConnection = async (options?: { silent?: boolean }) => {
     setTestingConnection(true);
-    showConnectionMessage('Testando conexão com o servidor...', 'info');
+    if (!options?.silent) {
+      showConnectionMessage('Testando conexão com o servidor...', 'info');
+    }
 
     try {
       const result = await (window as any).electron.invoke('connection:testConfigured');
@@ -257,7 +325,9 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         setLastUpdate(now);
         setStatusMessage(probeState.statusMessage);
         setLastError(probeState.lastError);
-        showConnectionMessage(result?.message || 'Falha ao conectar com o servidor.', 'error');
+        if (!options?.silent) {
+          showConnectionMessage(result?.message || 'Falha ao conectar com o servidor.', 'error');
+        }
         return;
       }
 
@@ -283,12 +353,14 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       setLastError(probeState.lastError);
       setMarketLabel(probeState.marketLabel);
       setStatusMessage(probeState.statusMessage);
-      showConnectionMessage(
-        result.heartbeatOk === false
-          ? 'API key válida, mas o heartbeat do agente falhou.'
-          : 'Conexão com o servidor validada com sucesso.',
-        result.heartbeatOk === false ? 'error' : 'success'
-      );
+      if (!options?.silent) {
+        showConnectionMessage(
+          result.heartbeatOk === false
+            ? 'API key válida, mas o heartbeat do agente falhou.'
+            : 'Conexão com o servidor validada com sucesso.',
+          result.heartbeatOk === false ? 'error' : 'success'
+        );
+      }
     } catch (err) {
       const message = String(err || '');
       lastProbeRef.current = {
@@ -310,7 +382,9 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         message: 'Não foi possível validar a comunicação com o servidor.',
         technical: message,
       });
-      showConnectionMessage('Falha ao testar a conexão com o servidor.', 'error');
+      if (!options?.silent) {
+        showConnectionMessage('Falha ao testar a conexão com o servidor.', 'error');
+      }
     } finally {
       setTestingConnection(false);
     }
@@ -401,6 +475,9 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
 
   const statusInfo = getStatusInfo();
   const pendingTotal = Number(queue.pending || 0) + Number(queue.processing || 0);
+  const remoteTotalInvoices = Number(remoteSync?.totalInvoices || 0);
+  const remoteRecentInvoices = Array.isArray(remoteSync?.recentInvoices) ? remoteSync!.recentInvoices : [];
+  const showHistoricalInfo = Boolean(remoteSync?.reachable && remoteTotalInvoices > 0 && Number(queue.sent || 0) === 0);
 
   return (
     <div style={{
@@ -532,6 +609,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                   fontFamily: typography.fontFamily.sans,
                 }}>
                   Mercado: <strong>{marketLabel || 'não identificado'}</strong>
+                </div>
+                <div style={{
+                  padding: `${spacing.xs} ${spacing.md}`,
+                  backgroundColor: colors.background.primary,
+                  borderRadius: borderRadius.full,
+                  border: `1px solid ${colors.neutral[200]}`,
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Na web: <strong>{remoteSync?.reachable ? remoteTotalInvoices : '--'}</strong>
                 </div>
                 <div style={{
                   padding: `${spacing.xs} ${spacing.md}`,
@@ -781,7 +869,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 marginTop: spacing.xs,
                 fontFamily: typography.fontFamily.sans,
               }}>
-                Notas sincronizadas com a web
+                Confirmadas nesta instalação do coletor
               </div>
             </div>
 
@@ -854,6 +942,325 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
                 {queue.dead_letter > 0 ? `${queue.dead_letter} falhas críticas` : 'Nenhuma falha crítica'}
               </div>
             </div>
+
+            <div style={{
+              backgroundColor: colors.neutral[50],
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              border: `1px solid ${colors.neutral[200]}`,
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.neutral[700],
+                marginBottom: spacing.md,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                Confirmadas na web
+              </div>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: typography.fontWeight.bold,
+                color: colors.neutral[800],
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {remoteSync?.reachable ? remoteTotalInvoices : '--'}
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.neutral[600],
+                marginTop: spacing.xs,
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                {remoteSync?.reachable
+                  ? `${remoteSync?.invoicesLast24h || 0} recebidas nas últimas 24h`
+                  : 'Resumo remoto indisponível no momento'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {showHistoricalInfo && (
+          <div style={{
+            backgroundColor: colors.primary[50],
+            border: `1px solid ${colors.primary[200]}`,
+            borderRadius: borderRadius.md,
+            padding: spacing.lg,
+            marginBottom: spacing.xl,
+          }}>
+            <div style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.primary[800],
+              fontWeight: typography.fontWeight.medium,
+              fontFamily: typography.fontFamily.sans,
+            }}>
+              A API já possui <strong>{remoteTotalInvoices}</strong> notas deste mercado. O contador
+              &nbsp;<strong>Enviadas</strong> acima representa apenas o histórico desta instalação local.
+            </div>
+          </div>
+        )}
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: spacing.lg,
+          marginBottom: spacing.xl,
+        }}>
+          <div style={{
+            backgroundColor: colors.background.secondary,
+            borderRadius: borderRadius.lg,
+            border: `1px solid ${colors.neutral[200]}`,
+            padding: spacing.lg,
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+              gap: spacing.md,
+            }}>
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Atividade local recente
+                </h3>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.tertiary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Últimos XMLs vistos pelo coletor nesta máquina
+                </div>
+              </div>
+            </div>
+
+            {recentLocalInvoices.length === 0 ? (
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                Ainda não há atividade local registrada na fila.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: spacing.md }}>
+                {recentLocalInvoices.map((item) => {
+                  const meta = statusMeta[item.status] || {
+                    label: item.status || 'Desconhecido',
+                    bg: colors.neutral[100],
+                    color: colors.neutral[700],
+                  };
+                  return (
+                    <div
+                      key={`${item.id}-${item.chaveNFe}`}
+                      style={{
+                        backgroundColor: colors.background.primary,
+                        border: `1px solid ${colors.neutral[200]}`,
+                        borderRadius: borderRadius.md,
+                        padding: spacing.md,
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: spacing.md,
+                        marginBottom: spacing.sm,
+                      }}>
+                        <div>
+                          <div style={{
+                            fontSize: typography.fontSize.sm,
+                            fontWeight: typography.fontWeight.semibold,
+                            color: colors.text.primary,
+                            fontFamily: typography.fontFamily.sans,
+                          }}>
+                            NF {item.numero || '-'}{item.serie ? ` / Série ${item.serie}` : ''}
+                          </div>
+                          <div style={{
+                            fontSize: typography.fontSize.xs,
+                            color: colors.text.tertiary,
+                            fontFamily: typography.fontFamily.mono,
+                            wordBreak: 'break-all',
+                          }}>
+                            {item.chaveNFe}
+                          </div>
+                        </div>
+                        <div style={{
+                          padding: `${spacing.xs} ${spacing.sm}`,
+                          borderRadius: borderRadius.full,
+                          backgroundColor: meta.bg,
+                          color: meta.color,
+                          fontSize: typography.fontSize.xs,
+                          fontWeight: typography.fontWeight.semibold,
+                          fontFamily: typography.fontFamily.sans,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {meta.label}
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: spacing.md,
+                        flexWrap: 'wrap',
+                        fontSize: typography.fontSize.xs,
+                        color: colors.text.secondary,
+                        fontFamily: typography.fontFamily.sans,
+                      }}>
+                        <span>Detectada: {formatDateTime(item.createdAt)}</span>
+                        <span>Processada: {formatDateTime(item.processedAt)}</span>
+                        <span>Valor: {formatCurrency(item.valorTotal)}</span>
+                      </div>
+                      {item.errorDetails && (
+                        <div style={{
+                          marginTop: spacing.sm,
+                          fontSize: typography.fontSize.xs,
+                          color: colors.error[700],
+                          fontFamily: typography.fontFamily.sans,
+                        }}>
+                          {item.errorDetails}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div style={{
+            backgroundColor: colors.background.secondary,
+            borderRadius: borderRadius.lg,
+            border: `1px solid ${colors.neutral[200]}`,
+            padding: spacing.lg,
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+              gap: spacing.md,
+            }}>
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Confirmadas na web
+                </h3>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.tertiary,
+                  fontFamily: typography.fontFamily.sans,
+                }}>
+                  Histórico já persistido para este mercado no servidor
+                </div>
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.text.tertiary,
+                fontFamily: typography.fontFamily.sans,
+                textAlign: 'right',
+              }}>
+                Última consulta<br />
+                <strong>{formatShortTime(remoteSync?.checkedAt || '')}</strong>
+              </div>
+            </div>
+
+            {!remoteSync?.reachable ? (
+              <div style={{
+                backgroundColor: colors.warning[50],
+                border: `1px solid ${colors.warning[200]}`,
+                borderRadius: borderRadius.md,
+                padding: spacing.md,
+                fontSize: typography.fontSize.sm,
+                color: colors.warning[800],
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                Não foi possível consultar o histórico do servidor agora.
+                {remoteSync?.error ? ` Detalhe: ${remoteSync.error}` : ''}
+              </div>
+            ) : remoteRecentInvoices.length === 0 ? (
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                fontFamily: typography.fontFamily.sans,
+              }}>
+                A API ainda não registrou notas para este mercado.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: spacing.md }}>
+                {remoteRecentInvoices.map((invoice, index) => (
+                  <div
+                    key={`${invoice.id || invoice.chaveNFe || index}`}
+                    style={{
+                      backgroundColor: colors.background.primary,
+                      border: `1px solid ${colors.neutral[200]}`,
+                      borderRadius: borderRadius.md,
+                      padding: spacing.md,
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: spacing.md,
+                      marginBottom: spacing.sm,
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: typography.fontSize.sm,
+                          fontWeight: typography.fontWeight.semibold,
+                          color: colors.text.primary,
+                          fontFamily: typography.fontFamily.sans,
+                        }}>
+                          NF {invoice.numero || '-'}{invoice.serie ? ` / Série ${invoice.serie}` : ''}
+                        </div>
+                        <div style={{
+                          fontSize: typography.fontSize.xs,
+                          color: colors.text.tertiary,
+                          fontFamily: typography.fontFamily.mono,
+                          wordBreak: 'break-all',
+                        }}>
+                          {invoice.chaveNFe || '-'}
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: typography.fontSize.sm,
+                        fontWeight: typography.fontWeight.semibold,
+                        color: colors.text.primary,
+                        fontFamily: typography.fontFamily.sans,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {formatCurrency(Number(invoice.valorTotal || 0))}
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: spacing.md,
+                      flexWrap: 'wrap',
+                      fontSize: typography.fontSize.xs,
+                      color: colors.text.secondary,
+                      fontFamily: typography.fontFamily.sans,
+                    }}>
+                      <span>Emissão: {formatDateTime(invoice.dataEmissao || '')}</span>
+                      <span>Recebida: {formatDateTime(invoice.processedAt || '')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
