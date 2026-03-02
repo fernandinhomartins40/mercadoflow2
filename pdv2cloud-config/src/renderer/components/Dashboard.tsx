@@ -13,6 +13,7 @@ const EMPTY_QUEUE = {
   error: 0,
   dead_letter: 0,
 };
+const PROBE_OVERRIDE_TTL_MS = 2 * 60 * 1000;
 
 const parseVersion = (value: string): number[] | null => {
   const raw = String(value || '').trim();
@@ -70,6 +71,13 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const [connectionMessage, setConnectionMessage] = useState<string>('');
   const [connectionMessageType, setConnectionMessageType] = useState<'success' | 'error' | 'info'>('info');
   const autoConnectionAttemptedRef = useRef(false);
+  const lastProbeRef = useRef<{
+    at: number;
+    online: boolean;
+    statusMessage: string;
+    lastError: any;
+    marketLabel: string;
+  } | null>(null);
 
   const showConnectionMessage = (message: string, type: 'success' | 'error' | 'info') => {
     setConnectionMessage(message);
@@ -126,14 +134,33 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
     try {
       const snapshot = await (window as any).electron.invoke('agent:snapshot');
       if (snapshot) {
+        const snapshotOnline =
+          typeof snapshot.online === 'boolean' ? snapshot.online : (nextStatus.includes('RUNNING') ? null : false);
+        const probe = lastProbeRef.current;
+        const shouldUseProbeOverride = Boolean(
+          probe &&
+          Date.now() - probe.at <= PROBE_OVERRIDE_TTL_MS &&
+          nextStatus.includes('RUNNING') &&
+          typeof probe.online === 'boolean' &&
+          probe.online !== snapshotOnline
+        );
+
         setQueue({ ...EMPTY_QUEUE, ...(snapshot.queue || {}) });
-        setOnline(typeof snapshot.online === 'boolean' ? snapshot.online : (nextStatus.includes('RUNNING') ? null : false));
-        setStatusMessage(String(snapshot.statusMessage || ''));
+        setOnline(shouldUseProbeOverride ? probe!.online : snapshotOnline);
+        setStatusMessage(
+          shouldUseProbeOverride
+            ? probe!.statusMessage
+            : String(snapshot.statusMessage || '')
+        );
         setLastUpdate(String(snapshot.statusTimestamp || ''));
         setLastProcessed(String(snapshot.lastProcessed || ''));
-        setLastError(snapshot.lastError || null);
+        setLastError(shouldUseProbeOverride ? probe!.lastError : (snapshot.lastError || null));
         setWatchPathsCount(Number(snapshot.watchPathsCount || 0));
-        setMarketLabel(String(snapshot.marketLabel || ''));
+        setMarketLabel(
+          shouldUseProbeOverride && probe?.marketLabel
+            ? probe.marketLabel
+            : String(snapshot.marketLabel || '')
+        );
       } else {
         setQueue(EMPTY_QUEUE);
         setOnline(nextStatus.includes('RUNNING') ? null : false);
@@ -214,31 +241,70 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
       const now = new Date().toISOString();
 
       if (!result?.success) {
+        const probeState = {
+          at: Date.now(),
+          online: false,
+          statusMessage: result?.message || 'Não foi possível validar a comunicação com o servidor.',
+          lastError: {
+            title: result?.title || 'Falha na conexão',
+            message: result?.message || 'Não foi possível validar a comunicação com o servidor.',
+            technical: result?.message || '',
+          },
+          marketLabel: result?.marketName || result?.marketId || marketLabel,
+        };
+        lastProbeRef.current = probeState;
         setOnline(false);
         setLastUpdate(now);
-        setLastError({
-          title: result?.title || 'Falha na conexão',
-          message: result?.message || 'Não foi possível validar a comunicação com o servidor.',
-          technical: result?.message || '',
-        });
+        setStatusMessage(probeState.statusMessage);
+        setLastError(probeState.lastError);
         showConnectionMessage(result?.message || 'Falha ao conectar com o servidor.', 'error');
         return;
       }
 
-      setOnline(true);
+      const probeState = {
+        at: Date.now(),
+        online: Boolean(result.online),
+        statusMessage: result.heartbeatOk === false
+          ? 'API key validada, mas o heartbeat do agente falhou.'
+          : 'Conexão com o servidor validada com sucesso.',
+        lastError: result.heartbeatOk === false
+          ? {
+              title: result?.title || 'Heartbeat falhou',
+              message: result?.message || 'A API respondeu, mas o heartbeat do agente falhou.',
+              technical: result?.message || '',
+            }
+          : null,
+        marketLabel: result.marketName || result.marketId || marketLabel,
+      };
+      lastProbeRef.current = probeState;
+
+      setOnline(Boolean(result.online));
       setLastUpdate(now);
-      setLastError(null);
-      setMarketLabel(result.marketName || result.marketId || marketLabel);
-      setStatusMessage(
+      setLastError(probeState.lastError);
+      setMarketLabel(probeState.marketLabel);
+      setStatusMessage(probeState.statusMessage);
+      showConnectionMessage(
         result.heartbeatOk === false
-          ? 'Conexão validada. O servidor respondeu, mas o heartbeat ainda não confirmou o status do agente.'
-          : 'Conexão com o servidor validada com sucesso.'
+          ? 'API key válida, mas o heartbeat do agente falhou.'
+          : 'Conexão com o servidor validada com sucesso.',
+        result.heartbeatOk === false ? 'error' : 'success'
       );
-      showConnectionMessage('Conexão com o servidor validada com sucesso.', 'success');
     } catch (err) {
       const message = String(err || '');
+      lastProbeRef.current = {
+        at: Date.now(),
+        online: false,
+        statusMessage: 'Não foi possível validar a comunicação com o servidor.',
+        lastError: {
+          title: 'Falha na conexão',
+          message: 'Não foi possível validar a comunicação com o servidor.',
+          technical: message,
+        },
+        marketLabel,
+      };
       setOnline(false);
       setLastUpdate(new Date().toISOString());
+      setStatusMessage('Não foi possível validar a comunicação com o servidor.');
       setLastError({
         title: 'Falha na conexão',
         message: 'Não foi possível validar a comunicação com o servidor.',
