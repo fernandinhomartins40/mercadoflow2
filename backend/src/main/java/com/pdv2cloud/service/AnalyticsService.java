@@ -116,7 +116,7 @@ public class AnalyticsService {
         if (normalizedSort != null && normalizedSort.isBlank()) {
             normalizedSort = null;
         }
-        return analyticsRepository.getProductAnalytics(marketId, category, normalizedSort, pageable);
+        return invoiceRepository.getProductAnalytics(marketId, category, normalizedSort, pageable);
     }
 
     public List<TopSellerDTO> getTopSellers(UUID marketId, int limit, LocalDate startDate, LocalDate endDate) {

@@ -7,10 +7,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.pdv2cloud.model.entity.Invoice;
+import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
 import com.pdv2cloud.model.dto.RecentInvoiceSummaryDTO;
 
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
@@ -41,6 +43,29 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     @Query("select count(distinct it.product.id) from InvoiceItem it join it.invoice i where i.market.id = :marketId")
     long countDistinctProducts(@Param("marketId") UUID marketId);
+
+    @Query(
+        value = "select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(" +
+            "p.id, p.name, p.category, coalesce(sum(it.valorTotal), 0), coalesce(sum(it.quantidade), 0), avg(it.valorUnitario), count(distinct i.id)" +
+            ") " +
+            "from InvoiceItem it join it.invoice i join it.product p " +
+            "where i.market.id = :marketId and (:category is null or p.category = :category) " +
+            "group by p.id, p.name, p.category " +
+            "order by " +
+            "case when :sortBy = 'REVENUE' then coalesce(sum(it.valorTotal), 0) end desc, " +
+            "case when :sortBy = 'QUANTITY' then coalesce(sum(it.quantidade), 0) end desc, " +
+            "case when :sortBy = 'TRANSACTIONS' then count(distinct i.id) end desc, " +
+            "case when :sortBy = 'PRICE' then avg(it.valorUnitario) end desc, " +
+            "case when :sortBy = 'NAME' then p.name end asc, " +
+            "p.name asc",
+        countQuery = "select count(distinct p.id) " +
+            "from InvoiceItem it join it.invoice i join it.product p " +
+            "where i.market.id = :marketId and (:category is null or p.category = :category)"
+    )
+    Page<ProductAnalyticsDTO> getProductAnalytics(@Param("marketId") UUID marketId,
+                                                  @Param("category") String category,
+                                                  @Param("sortBy") String sortBy,
+                                                  Pageable pageable);
 
     @Query("select new com.pdv2cloud.model.dto.RecentInvoiceSummaryDTO(" +
            "i.id, i.chaveNFe, i.numero, i.serie, i.valorTotal, i.dataEmissao, i.processedAt) " +
