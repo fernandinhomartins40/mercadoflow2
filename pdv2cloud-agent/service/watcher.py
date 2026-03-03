@@ -38,11 +38,20 @@ class WatchHandler(FileSystemEventHandler):
             return
         self._schedule(Path(event.src_path))
 
+    def on_moved(self, event):
+        if event.is_directory:
+            return
+        dest_path = getattr(event, "dest_path", None)
+        if not dest_path:
+            return
+        self._schedule(Path(dest_path))
+
     def _schedule(self, path: Path):
         if not _is_valid_file(path):
             return
         with self._lock:
             self._pending[path] = time.time()
+        logger.info("Detected file event for processing: %s", path)
 
     def flush(self):
         now = time.time()
@@ -107,6 +116,9 @@ class FileWatcher:
 
     def _process_file(self, path: Path):
         try:
+            if not path.exists():
+                logger.warning("Skipping disappeared file: %s", path)
+                return
             if path.suffix.lower() == ".zip":
                 from .zip_utils import extract_zip
                 extract_dir, xml_files = extract_zip(path)
@@ -148,4 +160,26 @@ class FileWatcher:
             ],
             "rawXmlHash": xml_hash(xml_path),
         }
-        self.queue_manager.enqueue(invoice.chave_nfe, json.dumps(payload), payload["rawXmlHash"])
+        enqueue_result = self.queue_manager.enqueue(
+            invoice.chave_nfe,
+            json.dumps(payload),
+            payload["rawXmlHash"]
+        )
+        if enqueue_result == "queued":
+            logger.info(
+                "Invoice queued successfully | chave=%s | file=%s",
+                invoice.chave_nfe,
+                xml_path,
+            )
+        elif enqueue_result == "duplicate_chave":
+            logger.info(
+                "Ignoring XML already known by chave | chave=%s | file=%s",
+                invoice.chave_nfe,
+                xml_path,
+            )
+        elif enqueue_result == "duplicate_hash":
+            logger.info(
+                "Ignoring XML already known by content hash | chave=%s | file=%s",
+                invoice.chave_nfe,
+                xml_path,
+            )

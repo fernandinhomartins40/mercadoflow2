@@ -52,16 +52,16 @@ class QueueManager:
             logger.error("Failed to initialize database: %s", exc)
             raise
 
-    def enqueue(self, chave_nfe: str, payload_json: str, xml_hash: str) -> None:
+    def enqueue(self, chave_nfe: str, payload_json: str, xml_hash: str) -> str:
         session = self.Session()
         try:
             exists = session.query(QueuedInvoice).filter_by(chave_nfe=chave_nfe).first()
             if exists:
-                return
+                return "duplicate_chave"
             if xml_hash:
                 hash_exists = session.query(QueuedInvoice).filter_by(xml_hash=xml_hash).first()
                 if hash_exists:
-                    return
+                    return "duplicate_hash"
             item = QueuedInvoice(
                 chave_nfe=chave_nfe,
                 payload_json=payload_json,
@@ -72,6 +72,7 @@ class QueueManager:
             )
             session.add(item)
             session.commit()
+            return "queued"
         finally:
             session.close()
 
