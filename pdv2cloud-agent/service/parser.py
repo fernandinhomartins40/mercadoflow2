@@ -43,8 +43,7 @@ class InvoiceData:
 def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> InvoiceData:
     logger = logging.getLogger("PDV2Cloud")
     xml_bytes = xml_path.read_bytes()
-    parser = etree.XMLParser(resolve_entities=False, recover=True)
-    root = etree.fromstring(xml_bytes, parser)
+    root = _parse_root(xml_bytes, logger)
 
     if xsd_paths:
         for xsd_path in xsd_paths:
@@ -59,7 +58,7 @@ def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> Invoice
         logger.warning("xmlsec not available; skipping XML signature validation")
 
     ns = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
-    inf_nfe = root.find(".//nfe:infNFe", namespaces=ns)
+    inf_nfe = _find_inf_nfe(root, ns)
     if inf_nfe is None:
         raise ValueError("infNFe not found")
 
@@ -114,6 +113,44 @@ def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> Invoice
 def xml_hash(xml_path: Path) -> str:
     data = xml_path.read_bytes()
     return hashlib.sha256(data).hexdigest()
+
+
+def _parse_root(xml_bytes: bytes, logger) -> etree._Element:
+    root = _parse_root_bytes(xml_bytes)
+    ns = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
+    if _find_inf_nfe(root, ns) is not None:
+        return root
+
+    normalized = _normalize_escaped_xml(xml_bytes)
+    if normalized != xml_bytes:
+        normalized_root = _parse_root_bytes(normalized)
+        if _find_inf_nfe(normalized_root, ns) is not None:
+            logger.warning("Detected escaped XML attributes; normalized file before parsing")
+            return normalized_root
+
+    return root
+
+
+def _parse_root_bytes(xml_bytes: bytes) -> etree._Element:
+    parser = etree.XMLParser(resolve_entities=False, recover=True)
+    return etree.fromstring(xml_bytes, parser)
+
+
+def _normalize_escaped_xml(xml_bytes: bytes) -> bytes:
+    if b'\\"' not in xml_bytes:
+        return xml_bytes
+    return xml_bytes.replace(b'\\"', b'"')
+
+
+def _find_inf_nfe(root, ns):
+    if root is None:
+        return None
+    if root.tag in {
+        "infNFe",
+        "{http://www.portalfiscal.inf.br/nfe}infNFe",
+    }:
+        return root
+    return root.find(".//nfe:infNFe", namespaces=ns)
 
 
 def _validate_signature(root) -> None:
