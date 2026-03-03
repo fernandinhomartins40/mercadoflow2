@@ -170,6 +170,45 @@ class QueueManager:
         finally:
             session.close()
 
+    def get_sent_chaves_for_reconciliation(self, limit: int = 200) -> list[str]:
+        session = self.Session()
+        try:
+            items = (
+                session.query(QueuedInvoice)
+                .filter_by(status=ProcessStatus.SENT)
+                .order_by(QueuedInvoice.data_processamento.desc(), QueuedInvoice.id.desc())
+                .limit(limit)
+                .all()
+            )
+            return [item.chave_nfe for item in items if item.chave_nfe]
+        finally:
+            session.close()
+
+    def requeue_missing_sent(self, chaves_nfe: list[str]) -> int:
+        if not chaves_nfe:
+            return 0
+
+        session = self.Session()
+        try:
+            items = (
+                session.query(QueuedInvoice)
+                .filter(QueuedInvoice.chave_nfe.in_(chaves_nfe))
+                .filter(QueuedInvoice.status == ProcessStatus.SENT)
+                .all()
+            )
+            changed = 0
+            for item in items:
+                item.status = ProcessStatus.PENDING
+                item.tentativas = 0
+                item.data_processamento = None
+                item.erro_detalhes = None
+                changed += 1
+            if changed:
+                session.commit()
+            return changed
+        finally:
+            session.close()
+
     def stats(self) -> dict:
         session = self.Session()
         try:

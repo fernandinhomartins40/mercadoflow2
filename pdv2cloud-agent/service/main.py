@@ -146,12 +146,14 @@ class ServiceApp:
             schedule.every(self.config.get("retry_interval_minutes", 5)).minutes.do(self._retry_errors)
             schedule.every().day.at("03:00").do(lambda: self.queue_manager.cleanup_sent(max_age_days=30))
             schedule.every(2).minutes.do(self._send_heartbeat)
+            schedule.every(10).minutes.do(self._reconcile_sent_invoices)
             schedule.every().day.at("04:00").do(self._check_for_updates)  # Check for updates daily at 4 AM
             update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
 
             # Validate connectivity early so the desktop UI doesn't remain in an
             # offline state until the first successful invoice transmission.
             threading.Thread(target=self._initial_connectivity_probe, daemon=True).start()
+            threading.Thread(target=self._reconcile_sent_invoices, daemon=True).start()
 
             if self.config.get("healthcheck_enabled", True):
                 threading.Thread(target=self._start_health_server, daemon=True).start()
@@ -235,6 +237,31 @@ class ServiceApp:
             self._send_heartbeat()
         except Exception as exc:
             logger.debug("Initial connectivity probe failed: %s", exc)
+
+    def _reconcile_sent_invoices(self):
+        api_url = self.config.get("api_url")
+        api_key = self.config.get("api_key")
+        if not api_url or not api_key:
+            return
+
+        try:
+            known_sent = self.queue_manager.get_sent_chaves_for_reconciliation(limit=200)
+            if not known_sent:
+                return
+
+            presence = self.transmitter.check_invoice_presence(known_sent)
+            missing = presence.get("missing") or []
+            if not missing:
+                return
+
+            requeued = self.queue_manager.requeue_missing_sent(missing)
+            if requeued:
+                logger.warning(
+                    "Remote reconciliation requeued %s invoices missing on server",
+                    requeued,
+                )
+        except Exception as exc:
+            logger.warning("Sent invoice reconciliation failed: %s", exc)
 
     def _check_for_updates(self):
         """Check for updates and install automatically if enabled."""

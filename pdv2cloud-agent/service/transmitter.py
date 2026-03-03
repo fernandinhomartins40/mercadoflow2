@@ -24,6 +24,24 @@ class APITransmitter:
         response.raise_for_status()
         return response.json()
 
+    def check_invoice_presence(self, chaves_nfe: list[str]) -> Dict:
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": self.api_key,
+        }
+        response = requests.post(
+            f"{self.base_url}/api/v1/agent/invoices/presence",
+            headers=headers,
+            json={"chavesNFe": chaves_nfe},
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json() or {}
+        return {
+            "present": payload.get("present") or [],
+            "missing": payload.get("missing") or [],
+        }
+
     def send_invoice(self, payload: Dict) -> bool:
         body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         timestamp = str(int(time.time()))

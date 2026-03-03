@@ -46,4 +46,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
            "i.id, i.chaveNFe, i.numero, i.serie, i.valorTotal, i.dataEmissao, i.processedAt) " +
            "from Invoice i where i.market.id = :marketId order by i.processedAt desc")
     List<RecentInvoiceSummaryDTO> findRecentInvoiceSummaries(@Param("marketId") UUID marketId, Pageable pageable);
+
+    @Query("select i.chaveNFe from Invoice i where i.market.id = :marketId and i.chaveNFe in :chavesNFe")
+    List<String> findExistingChavesByMarketIdAndChaveNFeIn(
+        @Param("marketId") UUID marketId,
+        @Param("chavesNFe") List<String> chavesNFe
+    );
 }

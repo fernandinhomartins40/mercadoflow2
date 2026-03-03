@@ -1,6 +1,8 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.AgentProfileResponse;
+import com.pdv2cloud.model.dto.AgentInvoicePresenceRequest;
+import com.pdv2cloud.model.dto.AgentInvoicePresenceResponse;
 import com.pdv2cloud.model.dto.AgentSyncStatusResponse;
 import com.pdv2cloud.model.entity.Invoice;
 import com.pdv2cloud.repository.InvoiceRepository;
@@ -9,12 +11,16 @@ import com.pdv2cloud.security.AgentAuthenticationToken;
 import com.pdv2cloud.security.AgentPrincipal;
 import com.pdv2cloud.service.AgentApiKeyService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -79,6 +85,54 @@ public class AgentController {
             .recentInvoices(
                 invoiceRepository.findRecentInvoiceSummaries(principal.getMarketId(), PageRequest.of(0, 5))
             )
+            .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/invoices/presence")
+    public ResponseEntity<AgentInvoicePresenceResponse> invoicePresence(
+        @RequestBody(required = false) AgentInvoicePresenceRequest request,
+        Authentication authentication
+    ) {
+        if (!(authentication instanceof AgentAuthenticationToken)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        AgentPrincipal principal = (AgentPrincipal) authentication.getPrincipal();
+        List<String> requested = request != null && request.getChavesNFe() != null
+            ? request.getChavesNFe()
+            : List.of();
+
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String chave : requested) {
+            if (chave == null) {
+                continue;
+            }
+            String trimmed = chave.trim();
+            if (!trimmed.isEmpty()) {
+                normalized.add(trimmed);
+            }
+            if (normalized.size() >= 500) {
+                break;
+            }
+        }
+
+        List<String> present = normalized.isEmpty()
+            ? List.of()
+            : invoiceRepository.findExistingChavesByMarketIdAndChaveNFeIn(
+                principal.getMarketId(),
+                new ArrayList<>(normalized)
+            );
+
+        LinkedHashSet<String> presentSet = new LinkedHashSet<>(present);
+        List<String> missing = normalized.stream()
+            .filter(chave -> !presentSet.contains(chave))
+            .toList();
+
+        AgentInvoicePresenceResponse response = AgentInvoicePresenceResponse.builder()
+            .present(new ArrayList<>(presentSet))
+            .missing(missing)
             .build();
 
         return ResponseEntity.ok(response);
