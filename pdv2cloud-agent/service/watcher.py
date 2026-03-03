@@ -72,23 +72,28 @@ class FileWatcher:
         self.xsd_paths = [Path(p) for p in (xsd_paths or [])]
         self.observer = Observer()
         self.handler = WatchHandler(self._process_file)
+        self._scheduled_paths = 0
+        self._started = False
 
     def start(self):
         if not self.watch_paths:
             logger.warning("No watch paths configured - file watcher not started")
             return
 
+        self._scheduled_paths = 0
         for path in self.watch_paths:
             try:
                 path.mkdir(parents=True, exist_ok=True)
                 self.observer.schedule(self.handler, str(path), recursive=False)
+                self._scheduled_paths += 1
                 logger.info("Watching path: %s", path)
             except Exception as exc:
                 logger.warning("Failed to watch path %s: %s", path, exc)
 
-        if self.observer.handlers:
+        if self._scheduled_paths > 0:
             self.observer.start()
-            logger.info("File watcher started with %d paths", len(self.observer.handlers))
+            self._started = True
+            logger.info("File watcher started with %d paths", self._scheduled_paths)
         else:
             logger.warning("File watcher not started - no valid paths")
 
@@ -106,8 +111,11 @@ class FileWatcher:
         return processed
 
     def stop(self):
+        if not self._started:
+            return
         self.observer.stop()
         self.observer.join()
+        self._started = False
 
     def loop(self, stop_event):
         while not stop_event.is_set():
