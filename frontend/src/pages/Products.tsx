@@ -17,6 +17,7 @@ const Products: React.FC = () => {
 
   const products = useMemo(() => pageData?.content || [], [pageData]);
   const totalPages = pageData?.totalPages ?? 0;
+  const totalElements = pageData?.totalElements ?? 0;
 
   useEffect(() => {
     const load = async () => {
@@ -66,8 +67,8 @@ const Products: React.FC = () => {
             >
               <option value="REVENUE">Ordenar por receita</option>
               <option value="QUANTITY">Ordenar por quantidade</option>
-              <option value="TRANSACTIONS">Ordenar por transações</option>
-              <option value="PRICE">Ordenar por preço médio</option>
+              <option value="TRANSACTIONS">Ordenar por transacoes</option>
+              <option value="PRICE">Ordenar por preco medio</option>
               <option value="NAME">Ordenar por nome</option>
             </select>
           </div>
@@ -75,12 +76,18 @@ const Products: React.FC = () => {
 
         {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
 
+        {!loading && !error && (
+          <p style={{ color: 'var(--muted)', marginTop: 12 }}>
+            {totalElements} produto{totalElements === 1 ? '' : 's'} padronizado{totalElements === 1 ? '' : 's'} neste mercado.
+          </p>
+        )}
+
         {loading ? <p>Carregando...</p> : <ProductTable products={products} />}
 
         {!loading && pageData && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, gap: 10, flexWrap: 'wrap' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Página {pageData.number + 1} de {Math.max(totalPages, 1)}
+              Pagina {pageData.number + 1} de {Math.max(totalPages, 1)}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <Button variant="secondary" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>
@@ -91,7 +98,7 @@ const Products: React.FC = () => {
                 onClick={() => setPage((p) => p + 1)}
                 disabled={totalPages === 0 || page >= totalPages - 1}
               >
-                Próxima
+                Proxima
               </Button>
             </div>
           </div>

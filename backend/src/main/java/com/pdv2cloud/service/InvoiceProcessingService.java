@@ -10,10 +10,7 @@ import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.model.entity.Product;
 import com.pdv2cloud.repository.InvoiceRepository;
 import com.pdv2cloud.repository.MarketRepository;
-import com.pdv2cloud.repository.ProductRepository;
 import com.pdv2cloud.util.DateUtils;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,10 +29,10 @@ public class InvoiceProcessingService {
     private InvoiceRepository invoiceRepository;
 
     @Autowired
-    private ProductRepository productRepository;
+    private MarketRepository marketRepository;
 
     @Autowired
-    private MarketRepository marketRepository;
+    private ProductCatalogService productCatalogService;
 
     public IngestResponse processInvoice(InvoiceDTO dto, UUID marketId) {
         try {
@@ -43,7 +40,7 @@ public class InvoiceProcessingService {
                 return IngestResponse.duplicate(dto.getChaveNFe());
             }
 
-            List<Product> products = resolveProducts(dto.getItems(), marketId);
+            List<Product> products = productCatalogService.resolveProducts(dto.getItems(), marketId);
             Invoice invoice = mapToEntity(dto, marketId);
             invoice.setProcessedAt(LocalDateTime.now());
 
@@ -52,8 +49,9 @@ public class InvoiceProcessingService {
                 item.setProduct(products.get(i));
             }
 
-            invoiceRepository.save(invoice);
-            return IngestResponse.success(invoice.getId(), dto.getChaveNFe());
+            Invoice savedInvoice = invoiceRepository.save(invoice);
+            productCatalogService.recordInvoiceCatalogData(savedInvoice);
+            return IngestResponse.success(savedInvoice.getId(), dto.getChaveNFe());
         } catch (Exception e) {
             log.error("Error processing invoice: {}", dto.getChaveNFe(), e);
             return IngestResponse.error(dto.getChaveNFe(), e.getMessage());
@@ -83,75 +81,6 @@ public class InvoiceProcessingService {
         }
 
         return new BatchIngestResponse(invoices.size(), success, duplicates, errors, results);
-    }
-
-    private List<Product> resolveProducts(List<InvoiceItemDTO> items, UUID marketId) {
-        List<Product> products = new ArrayList<>();
-
-        for (InvoiceItemDTO item : items) {
-            String resolvedEan = resolveEan(item, marketId);
-            Product product = productRepository.findByEan(resolvedEan)
-                .orElseGet(() -> {
-                    Product newProduct = new Product();
-                    newProduct.setEan(resolvedEan);
-                    newProduct.setName(item.getDescricao());
-                    newProduct.setCategory(null);
-                    newProduct.setBrand(null);
-                    newProduct.setUnit(null);
-                    return productRepository.save(newProduct);
-                });
-            products.add(product);
-        }
-
-        return products;
-    }
-
-    private String resolveEan(InvoiceItemDTO item, UUID marketId) {
-        String raw = item.getCodigoEAN();
-        String normalized = normalizeEan(raw);
-        if (normalized != null) {
-            return normalized;
-        }
-
-        String internal = item.getCodigoInterno();
-        if (internal != null && !internal.isBlank()) {
-            return "INT:" + marketId + ":" + internal.trim();
-        }
-
-        String desc = item.getDescricao() != null ? item.getDescricao().trim().toLowerCase() : "item";
-        return "DESC:" + marketId + ":" + sha256Hex(desc).substring(0, 12);
-    }
-
-    private String normalizeEan(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        if (trimmed.isBlank()) {
-            return null;
-        }
-        String upper = trimmed.toUpperCase();
-        if ("SEM GTIN".equals(upper) || "SEMGTIN".equals(upper) || "NULL".equals(upper)) {
-            return null;
-        }
-        if (trimmed.replace("0", "").isBlank()) { // "0", "000000", etc.
-            return null;
-        }
-        return trimmed;
-    }
-
-    private String sha256Hex(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(hash.length * 2);
-            for (byte b : hash) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Unable to hash value", ex);
-        }
     }
 
     private Invoice mapToEntity(InvoiceDTO dto, UUID marketId) {

@@ -46,11 +46,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     @Query(
         value = "select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(" +
-            "p.id, p.name, p.category, coalesce(sum(it.valorTotal), 0), coalesce(sum(it.quantidade), 0), avg(it.valorUnitario), count(distinct i.id)" +
+            "p.id, p.ean, p.name, p.category, coalesce(sum(it.valorTotal), 0), coalesce(sum(it.quantidade), 0), avg(it.valorUnitario), count(distinct i.id), " +
+            "p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount" +
             ") " +
             "from InvoiceItem it join it.invoice i join it.product p " +
             "where i.market.id = :marketId and (:category is null or p.category = :category) " +
-            "group by p.id, p.name, p.category " +
+            "group by p.id, p.ean, p.name, p.category, p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount " +
             "order by " +
             "case when :sortBy = 'REVENUE' then coalesce(sum(it.valorTotal), 0) end desc, " +
             "case when :sortBy = 'QUANTITY' then coalesce(sum(it.quantidade), 0) end desc, " +

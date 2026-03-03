@@ -16,11 +16,12 @@ import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 public interface SalesAnalyticsRepository extends JpaRepository<SalesAnalytics, UUID> {
     @Query(
         value = "select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(" +
-            "p.id, p.name, p.category, sum(sa.revenue), sum(sa.quantitySold), avg(sa.averagePrice), sum(sa.transactionCount)" +
+            "p.id, p.ean, p.name, p.category, sum(sa.revenue), sum(sa.quantitySold), avg(sa.averagePrice), sum(sa.transactionCount), " +
+            "p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount" +
             ") " +
             "from SalesAnalytics sa join sa.product p " +
             "where sa.market.id = :marketId and (:category is null or p.category = :category) " +
-            "group by p.id, p.name, p.category " +
+            "group by p.id, p.ean, p.name, p.category, p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount " +
             "order by " +
             "case when :sortBy = 'REVENUE' then sum(sa.revenue) end desc, " +
             "case when :sortBy = 'QUANTITY' then sum(sa.quantitySold) end desc, " +
