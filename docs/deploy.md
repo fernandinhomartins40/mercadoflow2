@@ -3,7 +3,13 @@
 ## Docker
 1. Ajuste `docker-compose.yml` e `nginx.conf` com dominios e certificados.
 2. Build do frontend: `./scripts/build-frontend.ps1`
-3. Suba os containers: `./scripts/deploy.ps1`
+3. Atualize os containers com `./scripts/deploy.ps1`
+
+## Regra operacional
+- O deploy deve atualizar containers com `docker compose up -d --build --force-recreate --remove-orphans`.
+- Nao use `docker compose down -v`, `docker volume rm` ou limpezas agressivas de volumes no fluxo padrao.
+- Volumes do banco devem ser preservados entre releases.
+- Em producao, o workflow usa `deploy/deploy-web.sh`, que valida compose, faz backup logico do PostgreSQL e atualiza a aplicacao sem destruir volumes.
 
 ## Variaveis de ambiente
 - `DATABASE_URL` (Postgres)
