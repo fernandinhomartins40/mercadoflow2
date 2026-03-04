@@ -53,6 +53,21 @@ public class ProductObservation {
     @Column(name = "total_price", precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(name = "freight_amount", precision = 10, scale = 2)
+    private BigDecimal freightAmount;
+
+    @Column(name = "other_amount", precision = 10, scale = 2)
+    private BigDecimal otherAmount;
+
+    @Column(name = "net_unit_price", precision = 10, scale = 2)
+    private BigDecimal netUnitPrice;
+
+    @Column(name = "net_total_price", precision = 10, scale = 2)
+    private BigDecimal netTotalPrice;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false)
     private ProductDataSource sourceType = ProductDataSource.INVOICE;

@@ -24,3 +24,4 @@ sdshow
 debug-backend.sh
 .DS_Store
 Thumbs.db
+.m2/

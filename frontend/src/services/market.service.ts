@@ -63,6 +63,41 @@ export const marketService = {
     return response.data;
   },
 
+  async getProductPriceTimeline(marketId: string, productId: string, startDate?: string, endDate?: string) {
+    const params: any = {};
+    if (startDate && startDate.trim()) params.startDate = startDate.trim();
+    if (endDate && endDate.trim()) params.endDate = endDate.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/products/${productId}/price-timeline`, {
+      params,
+    });
+    return response.data;
+  },
+
+  async getProductPriceEvents(marketId: string, productId: string, startDate?: string, endDate?: string) {
+    const params: any = {};
+    if (startDate && startDate.trim()) params.startDate = startDate.trim();
+    if (endDate && endDate.trim()) params.endDate = endDate.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/products/${productId}/price-events`, {
+      params,
+    });
+    return response.data;
+  },
+
+  async getProductPromotionWindows(marketId: string, productId: string, startDate?: string, endDate?: string) {
+    const params: any = {};
+    if (startDate && startDate.trim()) params.startDate = startDate.trim();
+    if (endDate && endDate.trim()) params.endDate = endDate.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/products/${productId}/promotion-windows`, {
+      params,
+    });
+    return response.data;
+  },
+
+  async rebuildPriceIntelligence(marketId: string) {
+    const response = await api.post(`/v1/markets/${marketId}/analytics/price-intelligence/rebuild`);
+    return response.data;
+  },
+
   async getAlerts(
     marketId: string,
     options?: { onlyUnread?: boolean; type?: string; priority?: string }

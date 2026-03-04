@@ -46,6 +46,8 @@ app:
   downloads:
     installer-dir: ${INSTALLER_DIR:/opt/pdv2cloud/installer}
   public-base-url: ${APP_PUBLIC_BASE_URL:https://mercadoflow.com}
+  price-intelligence:
+    fixed-delay-ms: ${PRICE_INTELLIGENCE_FIXED_DELAY_MS:900000}
 
 logging:
   level:

@@ -203,6 +203,11 @@ public class ProductCatalogService {
         observation.setQuantity(item.getQuantidade());
         observation.setUnitPrice(item.getValorUnitario());
         observation.setTotalPrice(item.getValorTotal());
+        observation.setDiscountAmount(item.getValorDesconto());
+        observation.setFreightAmount(item.getValorFrete());
+        observation.setOtherAmount(item.getValorOutros());
+        observation.setNetTotalPrice(resolveNetTotal(item));
+        observation.setNetUnitPrice(resolveNetUnitPrice(item, observation.getNetTotalPrice()));
         observation.setSourceType(ProductDataSource.INVOICE);
         observation.setObservedAt(observedAt);
         observation.setCreatedAt(LocalDateTime.now());
@@ -454,6 +459,22 @@ public class ProductCatalogService {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveNetTotal(InvoiceItem item) {
+        BigDecimal gross = item.getValorTotal() != null ? item.getValorTotal() : BigDecimal.ZERO;
+        BigDecimal discount = item.getValorDesconto() != null ? item.getValorDesconto() : BigDecimal.ZERO;
+        BigDecimal freight = item.getValorFrete() != null ? item.getValorFrete() : BigDecimal.ZERO;
+        BigDecimal others = item.getValorOutros() != null ? item.getValorOutros() : BigDecimal.ZERO;
+        BigDecimal explicitNet = item.getValorLiquido();
+        return explicitNet != null ? explicitNet : gross.subtract(discount).add(freight).add(others);
+    }
+
+    private BigDecimal resolveNetUnitPrice(InvoiceItem item, BigDecimal netTotal) {
+        if (item.getQuantidade() != null && item.getQuantidade().compareTo(BigDecimal.ZERO) > 0) {
+            return netTotal.divide(item.getQuantidade(), 2, RoundingMode.HALF_UP);
+        }
+        return item.getValorUnitario() != null ? item.getValorUnitario() : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     }
 
     private record ProductIdentity(String key, ProductIdentityType identityType) {

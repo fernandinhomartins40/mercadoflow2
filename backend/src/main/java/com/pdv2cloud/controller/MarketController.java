@@ -6,7 +6,10 @@ import com.pdv2cloud.model.dto.MarketDashboardDTO;
 import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
 import com.pdv2cloud.model.dto.ProductDashboardDTO;
+import com.pdv2cloud.model.dto.ProductPriceEventDTO;
+import com.pdv2cloud.model.dto.ProductPriceTimelineDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
+import com.pdv2cloud.model.dto.ProductPromotionWindowDTO;
 import com.pdv2cloud.model.dto.CampaignImpactDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
 import com.pdv2cloud.model.dto.TopSellerDTO;
@@ -20,8 +23,10 @@ import com.pdv2cloud.service.AdvancedAnalyticsService;
 import com.pdv2cloud.service.AnalyticsService;
 import com.pdv2cloud.service.ForecastService;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PriceIntelligenceService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +61,9 @@ public class MarketController {
 
     @Autowired
     private ForecastService forecastService;
+
+    @Autowired
+    private PriceIntelligenceService priceIntelligenceService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -133,6 +141,55 @@ public class MarketController {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
         return ResponseEntity.ok(advancedAnalyticsService.getProductDashboard(id, productId, startDate, endDate));
+    }
+
+    @GetMapping("/{id}/analytics/products/{productId}/price-timeline")
+    public ResponseEntity<ProductPriceTimelineDTO> getProductPriceTimeline(
+        @PathVariable("id") UUID id,
+        @PathVariable("productId") UUID productId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(priceIntelligenceService.getProductPriceTimeline(id, productId, startDate, endDate));
+    }
+
+    @GetMapping("/{id}/analytics/products/{productId}/price-events")
+    public ResponseEntity<List<ProductPriceEventDTO>> getProductPriceEvents(
+        @PathVariable("id") UUID id,
+        @PathVariable("productId") UUID productId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(priceIntelligenceService.getProductPriceEvents(id, productId, startDate, endDate));
+    }
+
+    @GetMapping("/{id}/analytics/products/{productId}/promotion-windows")
+    public ResponseEntity<List<ProductPromotionWindowDTO>> getPromotionWindows(
+        @PathVariable("id") UUID id,
+        @PathVariable("productId") UUID productId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(priceIntelligenceService.getProductPromotionWindows(id, productId, startDate, endDate));
+    }
+
+    @PostMapping("/{id}/analytics/price-intelligence/rebuild")
+    public ResponseEntity<Map<String, Object>> rebuildPriceIntelligence(
+        @PathVariable("id") UUID id,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        int products = priceIntelligenceService.rebuildMarket(id);
+        return ResponseEntity.ok(Map.of(
+            "status", "REBUILT",
+            "products", products
+        ));
     }
 
     @GetMapping("/{id}/alerts")

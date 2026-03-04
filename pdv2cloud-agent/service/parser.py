@@ -23,6 +23,10 @@ class InvoiceItem:
     quantidade: Decimal
     valor_unitario: Decimal
     valor_total: Decimal
+    valor_desconto: Decimal
+    valor_frete: Decimal
+    valor_outros: Decimal
+    valor_liquido: Decimal
     icms: Optional[Decimal]
     pis: Optional[Decimal]
     cofins: Optional[Decimal]
@@ -92,6 +96,13 @@ def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> Invoice
             quantidade=Decimal(_text(prod, "nfe:qCom", ns) or "0"),
             valor_unitario=Decimal(_text(prod, "nfe:vUnCom", ns) or "0"),
             valor_total=Decimal(_text(prod, "nfe:vProd", ns) or "0"),
+            valor_desconto=Decimal(_text(prod, "nfe:vDesc", ns) or "0"),
+            valor_frete=Decimal(_text(prod, "nfe:vFrete", ns) or "0"),
+            valor_outros=Decimal(_text(prod, "nfe:vOutro", ns) or "0"),
+            valor_liquido=Decimal(_text(prod, "nfe:vProd", ns) or "0")
+                - Decimal(_text(prod, "nfe:vDesc", ns) or "0")
+                + Decimal(_text(prod, "nfe:vFrete", ns) or "0")
+                + Decimal(_text(prod, "nfe:vOutro", ns) or "0"),
             icms=_parse_tax(imposto, "nfe:ICMS", ns, "nfe:vICMS"),
             pis=_parse_tax(imposto, "nfe:PIS", ns, "nfe:vPIS"),
             cofins=_parse_tax(imposto, "nfe:COFINS", ns, "nfe:vCOFINS"),

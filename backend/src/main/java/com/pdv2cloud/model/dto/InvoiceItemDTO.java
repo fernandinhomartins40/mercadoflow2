@@ -27,6 +27,11 @@ public class InvoiceItemDTO {
     @NotNull
     private BigDecimal valorTotal;
 
+    private BigDecimal valorDesconto;
+    private BigDecimal valorFrete;
+    private BigDecimal valorOutros;
+    private BigDecimal valorLiquido;
+
     private BigDecimal icms;
     private BigDecimal pis;
     private BigDecimal cofins;

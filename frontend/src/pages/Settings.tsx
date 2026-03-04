@@ -155,10 +155,10 @@ const Settings: React.FC = () => {
       <div className="page analytics-page settings-page">
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
-            <span className="pill">Central de configuracoes</span>
-            <h1 className="analytics-hero-title">Controle credenciais, contexto do mercado e integracao do agente em um unico lugar.</h1>
+            <span className="pill">Central de configurações</span>
+            <h1 className="analytics-hero-title">Controle credenciais, contexto do mercado e integração do agente em um único lugar.</h1>
             <p className="analytics-hero-text">
-              Esta pagina agora concentra a URL real da API, a distribuicao do instalador, o contexto do mercado e o gerenciamento completo das chaves do coletor desktop.
+              Esta página agora concentra a URL real da API, a distribuição do instalador, o contexto do mercado e o gerenciamento completo das chaves do coletor desktop.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">Perfil {role || '--'}</span>
@@ -168,7 +168,7 @@ const Settings: React.FC = () => {
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">Conexao principal do agente</span>
+              <span className="section-kicker">Conexão principal do agente</span>
               <h3>{apiBaseUrl}</h3>
               <strong>{heartbeatFreshKeys.length}</strong>
               <p>chaves com heartbeat recente nos últimos 10 minutos. Isso ajuda a separar credenciais vivas das que ficaram esquecidas.</p>
@@ -178,16 +178,16 @@ const Settings: React.FC = () => {
 
         <div className="metrics-grid analytics-metrics-grid">
           <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" caption="credenciais prontas para uso" />
-          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="historico desativado" />
+          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="histórico desativado" />
           <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" caption="atividade do agente" />
-          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponivel'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
+          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponível'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
         </div>
 
         <div className="analytics-grid analytics-grid-main">
           <div className="analytics-panel reveal">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Contexto da aplicacao</span>
+                <span className="section-kicker">Contexto da aplicação</span>
                 <h3>Identidade e endpoints</h3>
               </div>
             </div>
@@ -208,7 +208,7 @@ const Settings: React.FC = () => {
               </div>
               <div className="settings-line-card">
                 <div>
-                  <strong>Usuario logado</strong>
+                  <strong>Usuário logado</strong>
                   <span>{userName || '--'} | {email || '--'}</span>
                 </div>
                 <span className="status-pill positive">{role || '--'}</span>
@@ -288,17 +288,17 @@ const Settings: React.FC = () => {
                       <strong>{formatDateTime(key.createdAt)}</strong>
                     </div>
                     <div>
-                      <span>Ultimo uso</span>
+                      <span>Último uso</span>
                       <strong>{formatDateTime(key.lastUsedAt)}</strong>
                     </div>
                     <div>
-                      <span>Ultimo heartbeat</span>
+                      <span>Último heartbeat</span>
                       <strong>{formatDateTime(key.lastHeartbeatAt)}</strong>
                     </div>
                   </div>
                   <div className="settings-key-actions">
                     <Button variant="secondary" onClick={() => copyText(key.keyPrefix, `prefixo-${key.id}`)}>{copied === `prefixo-${key.id}` ? 'Copiado' : 'Copiar prefixo'}</Button>
-                    <Button variant="secondary" onClick={() => revokeKey(key)} disabled={busyKeyId === key.id || key.isActive === false}>{busyKeyId === key.id ? 'Excluindo...' : key.isActive === false ? 'Ja revogada' : 'Excluir chave'}</Button>
+                    <Button variant="secondary" onClick={() => revokeKey(key)} disabled={busyKeyId === key.id || key.isActive === false}>{busyKeyId === key.id ? 'Excluindo...' : key.isActive === false ? 'Já revogada' : 'Excluir chave'}</Button>
                   </div>
                 </article>
               ))
@@ -309,8 +309,8 @@ const Settings: React.FC = () => {
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
             <div>
-              <span className="section-kicker">Aplicacao</span>
-              <h3>Checklist rapido de configuracao</h3>
+              <span className="section-kicker">Aplicação</span>
+              <h3>Checklist rápido de configuração</h3>
             </div>
           </div>
           <div className="settings-checklist">
@@ -319,11 +319,11 @@ const Settings: React.FC = () => {
               <span>Use exatamente {apiBaseUrl} ao configurar o coletor.</span>
             </div>
             <div className="settings-check-item">
-              <strong>2. Gere uma chave por instalacao ou PDV</strong>
-              <span>Evite compartilhar a mesma credencial entre maquinas para manter rastreabilidade real.</span>
+              <strong>2. Gere uma chave por instalação ou PDV</strong>
+              <span>Evite compartilhar a mesma credencial entre máquinas para manter rastreabilidade real.</span>
             </div>
             <div className="settings-check-item">
-              <strong>3. Revogue chaves antigas assim que trocar a maquina</strong>
+              <strong>3. Revogue chaves antigas assim que trocar a máquina</strong>
               <span>A exclusão aqui corta o acesso do agente imediatamente sem mexer nas notas já recebidas.</span>
             </div>
           </div>

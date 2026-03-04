@@ -11,6 +11,7 @@ import com.pdv2cloud.model.entity.Product;
 import com.pdv2cloud.repository.InvoiceRepository;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.util.DateUtils;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,9 @@ public class InvoiceProcessingService {
     @Autowired
     private ProductCatalogService productCatalogService;
 
+    @Autowired
+    private PriceIntelligenceService priceIntelligenceService;
+
     public IngestResponse processInvoice(InvoiceDTO dto, UUID marketId) {
         try {
             if (invoiceRepository.existsByChaveNFe(dto.getChaveNFe())) {
@@ -51,6 +55,11 @@ public class InvoiceProcessingService {
 
             Invoice savedInvoice = invoiceRepository.save(invoice);
             productCatalogService.recordInvoiceCatalogData(savedInvoice);
+            try {
+                priceIntelligenceService.recomputeFromInvoice(savedInvoice);
+            } catch (Exception ignored) {
+                log.warn("Price intelligence update failed for invoice {}", dto.getChaveNFe());
+            }
             return IngestResponse.success(savedInvoice.getId(), dto.getChaveNFe());
         } catch (Exception e) {
             log.error("Error processing invoice: {}", dto.getChaveNFe(), e);
@@ -108,6 +117,10 @@ public class InvoiceProcessingService {
             item.setQuantidade(itemDto.getQuantidade());
             item.setValorUnitario(itemDto.getValorUnitario());
             item.setValorTotal(itemDto.getValorTotal());
+            item.setValorDesconto(itemDto.getValorDesconto());
+            item.setValorFrete(itemDto.getValorFrete());
+            item.setValorOutros(itemDto.getValorOutros());
+            item.setValorLiquido(resolveNetTotal(itemDto));
             item.setIcms(itemDto.getIcms());
             item.setPis(itemDto.getPis());
             item.setCofins(itemDto.getCofins());
@@ -116,5 +129,16 @@ public class InvoiceProcessingService {
         invoice.setItems(items);
 
         return invoice;
+    }
+
+    private BigDecimal resolveNetTotal(InvoiceItemDTO itemDto) {
+        if (itemDto.getValorLiquido() != null) {
+            return itemDto.getValorLiquido();
+        }
+        BigDecimal gross = itemDto.getValorTotal() != null ? itemDto.getValorTotal() : BigDecimal.ZERO;
+        BigDecimal discount = itemDto.getValorDesconto() != null ? itemDto.getValorDesconto() : BigDecimal.ZERO;
+        BigDecimal freight = itemDto.getValorFrete() != null ? itemDto.getValorFrete() : BigDecimal.ZERO;
+        BigDecimal others = itemDto.getValorOutros() != null ? itemDto.getValorOutros() : BigDecimal.ZERO;
+        return gross.subtract(discount).add(freight).add(others);
     }
 }

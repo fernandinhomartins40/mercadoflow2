@@ -10,4 +10,7 @@ public class ProductDashboardDTO {
     private List<SeasonalityPointDTO> weekdaySeasonality;
     private List<ProductBranchPerformanceDTO> branchPerformance;
     private List<ProductPairInsightDTO> relatedPairs;
+    private ProductPriceTimelineDTO priceTimeline;
+    private List<ProductPriceEventDTO> priceEvents;
+    private List<ProductPromotionWindowDTO> promotionWindows;
 }

@@ -7,10 +7,10 @@ const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1
 
 const ProductTable: React.FC<{ products: ProductPerformance[] }> = ({ products }) => {
   if (!products.length) {
-    return <p style={{ color: 'var(--muted)' }}>Nenhum produto encontrado neste periodo.</p>;
+    return <p style={{ color: 'var(--muted)' }}>Nenhum produto encontrado neste período.</p>;
   }
 
-  const headers = ['Produto', 'GTIN', 'Receita', 'Qtd', 'Preco medio', 'Giro', 'Tendencia', 'Share promo', 'Faixa', 'Ultima venda'];
+  const headers = ['Produto', 'GTIN', 'Receita', 'Qtd', 'Preço médio', 'Giro', 'Tendência', 'Share promo', 'Faixa', 'Última venda'];
   const rows = products.map((p) => [
     <div>
       <div>{p.name}</div>

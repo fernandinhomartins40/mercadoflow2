@@ -145,4 +145,60 @@ export interface ProductDashboard {
   weekdaySeasonality: SeasonalityPoint[];
   branchPerformance: ProductBranchPerformance[];
   relatedPairs: ProductPairInsight[];
+  priceTimeline?: ProductPriceTimeline | null;
+  priceEvents?: ProductPriceEvent[];
+  promotionWindows?: ProductPromotionWindow[];
+}
+
+export interface ProductPriceTimelinePoint {
+  date: string;
+  weightedAveragePrice: number;
+  medianPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  stdDevPrice: number;
+  madPrice: number;
+  totalQuantity: number;
+  totalRevenue: number;
+  transactionCount: number;
+}
+
+export interface ProductPriceTimeline {
+  dynamicThresholdPercent: number;
+  firstObservedPrice: number;
+  lastObservedPrice: number;
+  firstVariationAt?: string | null;
+  lastVariationAt?: string | null;
+  maxIncreasePercent: number;
+  maxDecreasePercent: number;
+  detectedPromotionWindows: number;
+  points: ProductPriceTimelinePoint[];
+}
+
+export interface ProductPriceEvent {
+  id: string;
+  eventAt: string;
+  oldPrice: number;
+  newPrice: number;
+  deltaAmount: number;
+  deltaPercent: number;
+  direction: 'UP' | 'DOWN' | string;
+  baselinePrice: number;
+  dynamicThresholdPercent: number;
+  confidenceScore: number;
+  triggerType: string;
+}
+
+export interface ProductPromotionWindow {
+  id: string;
+  startAt: string;
+  endAt?: string | null;
+  baselinePrice: number;
+  promoPrice: number;
+  discountPercent: number;
+  quantityLiftPercent: number;
+  revenueLiftPercent: number;
+  dynamicThresholdPercent: number;
+  confidenceScore: number;
+  status: 'SUSPECTED' | 'CONFIRMED' | 'CLOSED' | string;
 }

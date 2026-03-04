@@ -60,6 +60,9 @@ public class AdvancedAnalyticsService {
     @Autowired
     private MarketBasketService marketBasketService;
 
+    @Autowired
+    private PriceIntelligenceService priceIntelligenceService;
+
     public MarketCockpitDTO getCockpit(UUID marketId, LocalDate startDate, LocalDate endDate) {
         Window window = resolveWindow(startDate, endDate, 90);
         List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null, null, null);
@@ -103,10 +106,14 @@ public class AdvancedAnalyticsService {
         Pageable pageable
     ) {
         Window window = resolveWindow(startDate, endDate, 90);
-        List<ProductPerformanceDTO> rows = sortProducts(loadProductPerformanceRows(marketId, window, category, search, null), sortBy);
-        int fromIndex = Math.min((int) pageable.getOffset(), rows.size());
-        int toIndex = Math.min(fromIndex + pageable.getPageSize(), rows.size());
-        return new PageImpl<>(rows.subList(fromIndex, toIndex), pageable, rows.size());
+        MapSqlParameterSource params = baseProductParams(marketId, window, category, search, null);
+        long total = countMarketProducts(params);
+        if (total == 0) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
+
+        List<ProductPerformanceDTO> rows = loadProductPerformancePage(params, sortBy, pageable);
+        return new PageImpl<>(rows, pageable, total);
     }
 
     public ProductDashboardDTO getProductDashboard(UUID marketId, UUID productId, LocalDate startDate, LocalDate endDate) {
@@ -121,6 +128,9 @@ public class AdvancedAnalyticsService {
         dashboard.setWeekdaySeasonality(fetchProductWeekdaySeasonality(marketId, productId, window));
         dashboard.setBranchPerformance(fetchProductBranchPerformance(marketId, productId, window));
         dashboard.setRelatedPairs(fetchProductRelatedPairs(marketId, productId, 6));
+        dashboard.setPriceTimeline(priceIntelligenceService.getProductPriceTimeline(marketId, productId, window.start(), window.end()));
+        dashboard.setPriceEvents(priceIntelligenceService.getProductPriceEvents(marketId, productId, window.start(), window.end()));
+        dashboard.setPromotionWindows(priceIntelligenceService.getProductPromotionWindows(marketId, productId, window.start(), window.end()));
         return dashboard;
     }
 
@@ -130,6 +140,163 @@ public class AdvancedAnalyticsService {
 
     public List<SeasonalityPointDTO> getWeekdaySeasonality(UUID marketId, LocalDate startDate, LocalDate endDate) {
         return fetchSeasonality(marketId, resolveWindow(startDate, endDate, 90), SeasonalityGranularity.WEEKDAY);
+    }
+
+    private long countMarketProducts(MapSqlParameterSource params) {
+        StringBuilder sql = new StringBuilder(
+            "select count(*) from (" +
+            "select distinct p.id " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "join products p on p.id = it.product_id " +
+            "where i.market_id = :marketId "
+        );
+        appendProductFilters(sql, params, "p");
+        sql.append(") mp");
+        Long total = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return total != null ? total : 0L;
+    }
+
+    private List<ProductPerformanceDTO> loadProductPerformancePage(
+        MapSqlParameterSource params,
+        String sortBy,
+        Pageable pageable
+    ) {
+        params.addValue("limit", pageable.getPageSize(), Types.INTEGER);
+        params.addValue("offset", pageable.getOffset(), Types.BIGINT);
+
+        String orderBy = buildPerformanceOrderByClause(sortBy);
+        StringBuilder sql = new StringBuilder(
+            "with market_products as ( " +
+            "   select distinct p.id as product_id, p.ean, p.name, p.category " +
+            "   from invoice_items it " +
+            "   join invoices i on i.id = it.invoice_id " +
+            "   join products p on p.id = it.product_id " +
+            "   where i.market_id = :marketId "
+        );
+        appendProductFilters(sql, params, "p");
+        sql.append("), ");
+        sql.append(
+            "baseline as ( " +
+            "   select it.product_id, avg(it.valor_unitario) as baseline_price " +
+            "   from invoice_items it " +
+            "   join invoices i on i.id = it.invoice_id " +
+            "   join market_products mp on mp.product_id = it.product_id " +
+            "   where i.market_id = :marketId and i.data_emissao >= :baselineStart and i.data_emissao < :endExclusive " +
+            "   group by it.product_id " +
+            "), " +
+            "current_period as ( " +
+            "   select it.product_id, " +
+            "          coalesce(sum(it.valor_total), 0) as revenue, " +
+            "          coalesce(sum(it.quantidade), 0) as quantity_sold, " +
+            "          coalesce(avg(it.valor_unitario), 0) as average_price, " +
+            "          count(distinct i.id) as transaction_count, " +
+            "          count(distinct cast(i.data_emissao as date)) as sales_days, " +
+            "          coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as promo_revenue, " +
+            "          coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.quantidade else 0 end), 0) as promo_quantity, " +
+            "          coalesce(sum(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as normal_revenue, " +
+            "          coalesce(sum(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.quantidade else 0 end), 0) as normal_quantity, " +
+            "          coalesce(avg(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_unitario end), 0) as promo_average_price, " +
+            "          coalesce(avg(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_unitario end), 0) as normal_average_price, " +
+            "          max(i.data_emissao) as last_sold_at " +
+            "   from invoice_items it " +
+            "   join invoices i on i.id = it.invoice_id " +
+            "   join market_products mp on mp.product_id = it.product_id " +
+            "   left join baseline b on b.product_id = it.product_id " +
+            "   where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
+            "   group by it.product_id " +
+            "), " +
+            "previous_period as ( " +
+            "   select it.product_id, coalesce(sum(it.valor_total), 0) as previous_revenue " +
+            "   from invoice_items it " +
+            "   join invoices i on i.id = it.invoice_id " +
+            "   join market_products mp on mp.product_id = it.product_id " +
+            "   where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate " +
+            "   group by it.product_id " +
+            ") " +
+            "select mp.product_id, mp.ean, mp.name, mp.category, " +
+            "       coalesce(cp.revenue, 0) as revenue, " +
+            "       coalesce(cp.quantity_sold, 0) as quantity_sold, " +
+            "       coalesce(cp.average_price, 0) as average_price, " +
+            "       coalesce(cp.transaction_count, 0) as transaction_count, " +
+            "       coalesce(cp.sales_days, 0) as sales_days, " +
+            "       case " +
+            "           when coalesce(cp.sales_days, 0) > 0 then round(coalesce(cp.quantity_sold, 0) / cp.sales_days, 3) " +
+            "           when coalesce(cp.quantity_sold, 0) > 0 then round(coalesce(cp.quantity_sold, 0), 3) " +
+            "           else 0 " +
+            "       end as sales_velocity, " +
+            "       coalesce(cp.promo_revenue, 0) as promo_revenue, " +
+            "       coalesce(cp.promo_quantity, 0) as promo_quantity, " +
+            "       coalesce(cp.normal_revenue, 0) as normal_revenue, " +
+            "       coalesce(cp.normal_quantity, 0) as normal_quantity, " +
+            "       coalesce(b.baseline_price, cp.average_price, 0) as baseline_price, " +
+            "       coalesce(cp.promo_average_price, 0) as promo_average_price, " +
+            "       coalesce(cp.normal_average_price, 0) as normal_average_price, " +
+            "       case when coalesce(cp.revenue, 0) > 0 then round(coalesce(cp.promo_revenue, 0) / cp.revenue, 4) else 0 end as promo_revenue_share, " +
+            "       case when coalesce(b.baseline_price, 0) > 0 then round(coalesce(cp.average_price, 0) / b.baseline_price, 4) else 1 end as price_index, " +
+            "       case " +
+            "           when coalesce(pp.previous_revenue, 0) > 0 then round(((coalesce(cp.revenue, 0) - pp.previous_revenue) / pp.previous_revenue) * 100, 2) " +
+            "           when coalesce(cp.revenue, 0) > 0 then 100 " +
+            "           else 0 " +
+            "       end as revenue_trend_percentage, " +
+            "       cp.last_sold_at, " +
+            "       case " +
+            "           when (case when coalesce(cp.sales_days, 0) > 0 then coalesce(cp.quantity_sold, 0) / cp.sales_days else coalesce(cp.quantity_sold, 0) end) >= 12 then 'HIGH' " +
+            "           when (case when coalesce(cp.sales_days, 0) > 0 then coalesce(cp.quantity_sold, 0) / cp.sales_days else coalesce(cp.quantity_sold, 0) end) >= 4 then 'MEDIUM' " +
+            "           else 'LOW' " +
+            "       end as turnover_band " +
+            "from market_products mp " +
+            "left join current_period cp on cp.product_id = mp.product_id " +
+            "left join previous_period pp on pp.product_id = mp.product_id " +
+            "left join baseline b on b.product_id = mp.product_id " +
+            "order by " + orderBy + " " +
+            "limit :limit offset :offset"
+        );
+
+        return jdbcTemplate.query(
+            sql.toString(),
+            params,
+            (rs, rowNum) -> new ProductPerformanceDTO(
+                uuid(rs, "product_id"),
+                rs.getString("ean"),
+                rs.getString("name"),
+                rs.getString("category"),
+                defaultBigDecimal(rs.getBigDecimal("revenue")),
+                defaultBigDecimal(rs.getBigDecimal("quantity_sold")),
+                defaultBigDecimal(rs.getBigDecimal("average_price")),
+                rs.getLong("transaction_count"),
+                rs.getInt("sales_days"),
+                defaultBigDecimal(rs.getBigDecimal("sales_velocity")),
+                defaultBigDecimal(rs.getBigDecimal("promo_revenue")),
+                defaultBigDecimal(rs.getBigDecimal("promo_quantity")),
+                defaultBigDecimal(rs.getBigDecimal("normal_revenue")),
+                defaultBigDecimal(rs.getBigDecimal("normal_quantity")),
+                defaultBigDecimal(rs.getBigDecimal("baseline_price")),
+                defaultBigDecimal(rs.getBigDecimal("promo_average_price")),
+                defaultBigDecimal(rs.getBigDecimal("normal_average_price")),
+                defaultBigDecimal(rs.getBigDecimal("promo_revenue_share")),
+                defaultBigDecimal(rs.getBigDecimal("price_index")),
+                rs.getDouble("revenue_trend_percentage"),
+                localDateTime(rs, "last_sold_at"),
+                rs.getString("turnover_band")
+            )
+        );
+    }
+
+    private String buildPerformanceOrderByClause(String sortBy) {
+        String normalized = sortBy == null ? "REVENUE" : sortBy.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "QUANTITY" -> "quantity_sold desc, revenue desc, name asc";
+            case "TRANSACTIONS" -> "transaction_count desc, revenue desc, name asc";
+            case "PRICE" -> "average_price desc, revenue desc, name asc";
+            case "TURNOVER" -> "sales_velocity desc, revenue desc, name asc";
+            case "TURNOVER_ASC" -> "sales_velocity asc, revenue asc, name asc";
+            case "TREND" -> "revenue_trend_percentage desc, revenue desc, name asc";
+            case "TREND_ASC" -> "revenue_trend_percentage asc, sales_velocity asc, name asc";
+            case "PROMO" -> "promo_revenue_share desc, revenue desc, name asc";
+            case "NAME" -> "name asc";
+            default -> "revenue desc, quantity_sold desc, name asc";
+        };
     }
 
     private List<ProductPerformanceDTO> loadProductPerformanceRows(

@@ -299,14 +299,14 @@ const Dashboard: React.FC = () => {
           <SalesChart data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))} />
           <div className="analytics-side-stack">
             {renderProductStrip('Produtos que aceleram o caixa', 'Motor de crescimento', dashboard.topProducts || [], 'mint')}
-            {renderProductStrip('Produtos que perderam ritmo', 'Desaceleracao', dashboard.slowMovers || [], 'orange')}
+            {renderProductStrip('Produtos que perderam ritmo', 'Desaceleração', dashboard.slowMovers || [], 'orange')}
           </div>
         </div>
 
         <div className="analytics-grid analytics-grid-main">
           <div className="analytics-side-stack">
             {renderProductStrip('Maior giro', 'Velocidade', dashboard.topTurnoverProducts || [], 'amber')}
-            {renderProductStrip('Menor giro', 'Atenuacao', dashboard.lowTurnoverProducts || [], 'orange')}
+            {renderProductStrip('Menor giro', 'Atenuação', dashboard.lowTurnoverProducts || [], 'orange')}
           </div>
           <div className="analytics-panel basket-showcase reveal">
             <div className="analytics-panel-head">
@@ -351,7 +351,7 @@ const Dashboard: React.FC = () => {
           <div className="section-heading-row">
             <div>
               <span className="section-kicker">Campanhas</span>
-              <h2>Antes, durante e depois da acao</h2>
+              <h2>Antes, durante e depois da ação</h2>
             </div>
           </div>
           {renderCampaignCards(dashboard.campaignImpacts || [])}
@@ -360,7 +360,7 @@ const Dashboard: React.FC = () => {
         <div className="analytics-card-grid three-cols">
           {renderSeasonalityCard('Dia da semana', dashboard.weekdaySeasonality || [], 'mint')}
           {renderSeasonalityCard('Hora do dia', dashboard.hourlySeasonality || [], 'orange')}
-          {renderSeasonalityCard('Mes do ano', dashboard.monthlySeasonality || [], 'amber')}
+          {renderSeasonalityCard('Mês do ano', dashboard.monthlySeasonality || [], 'amber')}
         </div>
 
         <div className="analytics-grid analytics-grid-main">
@@ -368,7 +368,7 @@ const Dashboard: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Fluxo recente</span>
-                <h3>Ultimas notas recebidas</h3>
+                <h3>Últimas notas recebidas</h3>
               </div>
             </div>
             {(dashboard.recentInvoices || []).length === 0 ? (

@@ -44,6 +44,18 @@ public class InvoiceItem {
     @Column(name = "valor_total", precision = 10, scale = 2)
     private BigDecimal valorTotal;
 
+    @Column(name = "valor_desconto", precision = 10, scale = 2)
+    private BigDecimal valorDesconto;
+
+    @Column(name = "valor_frete", precision = 10, scale = 2)
+    private BigDecimal valorFrete;
+
+    @Column(name = "valor_outros", precision = 10, scale = 2)
+    private BigDecimal valorOutros;
+
+    @Column(name = "valor_liquido", precision = 10, scale = 2)
+    private BigDecimal valorLiquido;
+
     @Column(precision = 10, scale = 2)
     private BigDecimal icms;
 
