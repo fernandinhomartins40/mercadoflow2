@@ -208,16 +208,18 @@ public class AdvancedAnalyticsService {
     }
 
     private Map<UUID, ProductSnapshot> loadMarketProducts(MapSqlParameterSource params) {
-        return jdbcTemplate.query(
+        StringBuilder sql = new StringBuilder(
             "select distinct p.id as product_id, p.ean, p.name, p.category " +
             "from invoice_items it " +
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
-            "where i.market_id = :marketId " +
-            "  and (:category is null or p.category = :category) " +
-            "  and (:productId is null or p.id = :productId) " +
-            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
-            "order by p.name asc",
+            "where i.market_id = :marketId "
+        );
+        appendProductFilters(sql, params, "p");
+        sql.append(" order by p.name asc");
+
+        return jdbcTemplate.query(
+            sql.toString(),
             params,
             rs -> {
                 Map<UUID, ProductSnapshot> rows = new LinkedHashMap<>();
@@ -248,31 +250,36 @@ public class AdvancedAnalyticsService {
     }
 
     private Map<UUID, BigDecimal> loadPreviousRevenues(MapSqlParameterSource params) {
-        return jdbcTemplate.query(
+        StringBuilder sql = new StringBuilder(
             "select it.product_id, coalesce(sum(it.valor_total), 0) as previous_revenue " +
             "from invoice_items it " +
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
-            "where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate " +
-            "  and (:category is null or p.category = :category) " +
-            "  and (:productId is null or p.id = :productId) " +
-            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
-            "group by it.product_id",
+            "where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate "
+        );
+        appendProductFilters(sql, params, "p");
+        sql.append(" group by it.product_id");
+
+        return jdbcTemplate.query(
+            sql.toString(),
             params,
             (ResultSet rs) -> mapBigDecimalByUuid(rs, "product_id", "previous_revenue")
         );
     }
 
     private Map<UUID, LocalDateTime> loadLastSales(MapSqlParameterSource params) {
-        return jdbcTemplate.query(
+        StringBuilder sql = new StringBuilder(
             "select it.product_id, max(i.data_emissao) as last_sold_at " +
             "from invoice_items it " +
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
-            "where i.market_id = :marketId and (:category is null or p.category = :category) " +
-            "  and (:productId is null or p.id = :productId) " +
-            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
-            "group by it.product_id",
+            "where i.market_id = :marketId "
+        );
+        appendProductFilters(sql, params, "p");
+        sql.append(" group by it.product_id");
+
+        return jdbcTemplate.query(
+            sql.toString(),
             params,
             rs -> {
                 Map<UUID, LocalDateTime> rows = new LinkedHashMap<>();
@@ -292,7 +299,7 @@ public class AdvancedAnalyticsService {
             "where i2.market_id = :marketId and i2.data_emissao >= :baselineStart and i2.data_emissao < :endExclusive " +
             "group by it2.product_id";
 
-        return jdbcTemplate.query(
+        StringBuilder sql = new StringBuilder(
             "select p.id as product_id, " +
             "       coalesce(sum(it.valor_total), 0) as revenue, " +
             "       coalesce(sum(it.quantidade), 0) as quantity_sold, " +
@@ -309,11 +316,13 @@ public class AdvancedAnalyticsService {
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
             "left join (" + baselineSubquery + ") b on b.product_id = p.id " +
-            "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
-            "  and (:category is null or p.category = :category) " +
-            "  and (:productId is null or p.id = :productId) " +
-            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
-            "group by p.id",
+            "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive "
+        );
+        appendProductFilters(sql, params, "p");
+        sql.append(" group by p.id");
+
+        return jdbcTemplate.query(
+            sql.toString(),
             params,
             rs -> {
                 Map<UUID, CurrentAggregate> rows = new LinkedHashMap<>();
@@ -703,6 +712,26 @@ public class AdvancedAnalyticsService {
             .addValue("category", category == null || category.isBlank() ? null : category.trim(), Types.VARCHAR)
             .addValue("searchLike", normalizedSearch, Types.VARCHAR)
             .addValue("productId", productId, Types.OTHER);
+    }
+
+    private void appendProductFilters(StringBuilder sql, MapSqlParameterSource params, String productAlias) {
+        Object category = params.getValue("category");
+        Object productId = params.getValue("productId");
+        Object searchLike = params.getValue("searchLike");
+
+        if (category != null) {
+            sql.append(" and ").append(productAlias).append(".category = :category");
+        }
+        if (productId != null) {
+            sql.append(" and ").append(productAlias).append(".id = :productId");
+        }
+        if (searchLike != null) {
+            sql.append(" and (lower(coalesce(")
+                .append(productAlias)
+                .append(".name, '')) like :searchLike or lower(coalesce(")
+                .append(productAlias)
+                .append(".ean, '')) like :searchLike)");
+        }
     }
 
     private Map<UUID, BigDecimal> mapBigDecimalByUuid(ResultSet rs, String idColumn, String valueColumn) throws SQLException {

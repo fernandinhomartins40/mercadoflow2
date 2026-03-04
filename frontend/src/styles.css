@@ -2269,6 +2269,68 @@ button {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.executive-canvas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.executive-card,
+.action-lab-card {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid #e7ebf3;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(20, 24, 38, 0.06);
+}
+
+.executive-card h3,
+.action-lab-card h3 {
+  font-family: 'Sora', sans-serif;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.executive-card p,
+.action-lab-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.executive-card.blue {
+  background: #eef4ff;
+}
+
+.executive-card.coral {
+  background: #ffe7e2;
+}
+
+.executive-card.amber {
+  background: #fff1ca;
+}
+
+.executive-card.mint {
+  background: #d9f6eb;
+}
+
+.action-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.action-lab-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.action-lab-card:hover {
+  transform: translateY(-2px);
+  border-color: #bfd2ff;
+  box-shadow: 0 22px 44px rgba(20, 24, 38, 0.08);
+}
+
 .metric-card {
   padding: 22px;
 }
@@ -2469,6 +2531,11 @@ button {
   .metrics-grid.analytics-metrics-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .executive-canvas,
+  .action-lab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 980px) {
@@ -2498,6 +2565,11 @@ button {
   .metrics-grid.analytics-metrics-grid,
   .mini-metric-grid.triple {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .executive-canvas,
+  .action-lab-grid {
+    grid-template-columns: 1fr;
   }
 
   .product-detail-grid {

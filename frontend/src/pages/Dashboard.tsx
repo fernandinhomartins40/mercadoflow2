@@ -32,6 +32,9 @@ const Dashboard: React.FC = () => {
   const leadPair = dashboard.topPairs?.[0];
   const leadPromotion = dashboard.promotionHighlights?.[0];
   const hottestCampaign = [...(dashboard.campaignImpacts || [])].sort((a, b) => Number(b.revenueLiftPercent || 0) - Number(a.revenueLiftPercent || 0))[0];
+  const highPriorityAlerts = (dashboard.recentAlerts || []).filter((alert) => alert.priority === 'HIGH').length;
+  const hottestHour = [...(dashboard.hourlySeasonality || [])].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0];
+  const strongestWeekday = [...(dashboard.weekdaySeasonality || [])].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0];
 
   const renderProductStrip = (title: string, subtitle: string, rows: ProductPerformance[], tone: 'mint' | 'orange' | 'amber') => (
     <div className={`analytics-panel product-strip ${tone} reveal`}>
@@ -216,6 +219,52 @@ const Dashboard: React.FC = () => {
           <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressao de preco" />
           <MetricsCard title="Campanhas em curso" value={dashboard.campaignsRunning} icon="CP" variant="danger" caption="janelas abertas para validar" />
         </div>
+
+        <section className="executive-canvas reveal">
+          <article className="executive-card blue">
+            <span className="section-kicker">Momento de venda</span>
+            <h3>{strongestWeekday?.label || '--'} e {hottestHour?.label || '--'}</h3>
+            <p>O mercado concentra mais receita nesse recorte. Use esse pulso para compra, escala e exposição.</p>
+          </article>
+          <article className="executive-card coral">
+            <span className="section-kicker">Produto para negociar</span>
+            <h3>{leadProduct?.name || '--'}</h3>
+            <p>{leadProduct ? `${formatMoney(leadProduct.revenue)} de receita e giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia.` : 'Sem produto dominante no período.'}</p>
+          </article>
+          <article className="executive-card amber">
+            <span className="section-kicker">Resposta a promo</span>
+            <h3>{leadPromotion?.name || '--'}</h3>
+            <p>{leadPromotion ? `Lift de volume ${formatPercent(leadPromotion.quantityLiftPercent)} com preço promo em ${formatMoney(leadPromotion.promoAveragePrice)}.` : 'Ainda não há item com resposta promocional forte.'}</p>
+          </article>
+          <article className="executive-card mint">
+            <span className="section-kicker">Atenção imediata</span>
+            <h3>{highPriorityAlerts} alertas altos</h3>
+            <p>{weakestProduct ? `${weakestProduct.name} segue entre os menores giros e merece revisão imediata.` : 'Sem alerta crítico recente.'}</p>
+          </article>
+        </section>
+
+        <section className="action-lab-grid reveal">
+          <Link className="action-lab-card" to="/app/produtos">
+            <span className="section-kicker">Fornecedor</span>
+            <h3>Consultar produto antes da compra</h3>
+            <p>Abra o dashboard do item, veja sazonalidade, preço, giro e distribuição por PDV.</p>
+          </Link>
+          <Link className="action-lab-card" to="/app/campanhas">
+            <span className="section-kicker">Promoções</span>
+            <h3>Validar o que realmente deu resultado</h3>
+            <p>Compare antes, durante e depois da ação para parar de decidir no feeling.</p>
+          </Link>
+          <Link className="action-lab-card" to="/app/cesta">
+            <span className="section-kicker">Exposição</span>
+            <h3>Montar combos e compra casada</h3>
+            <p>Use os pares com maior lift para reforçar venda conjunta no salão e no caixa.</p>
+          </Link>
+          <Link className="action-lab-card" to="/app/alertas">
+            <span className="section-kicker">Operação</span>
+            <h3>Atacar risco e desaceleração</h3>
+            <p>Veja os sinais que exigem ação e corrija antes que virem perda de margem.</p>
+          </Link>
+        </section>
 
         <div className="analytics-grid analytics-grid-main">
           <div className="analytics-panel reveal product-radar-panel">
