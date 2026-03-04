@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
@@ -10,20 +11,33 @@ const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1
 
 const Products: React.FC = () => {
   const { marketId } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pageData, setPageData] = useState<{ content: ProductPerformance[]; totalPages: number; totalElements: number; number: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [size] = useState(20);
   const [category, setCategory] = useState('');
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState<'REVENUE' | 'QUANTITY' | 'TRANSACTIONS' | 'PRICE' | 'TURNOVER' | 'TREND' | 'PROMO' | 'NAME'>('REVENUE');
+  const querySearch = searchParams.get('search') || '';
 
   const products = useMemo(() => pageData?.content || [], [pageData]);
   const totalPages = pageData?.totalPages ?? 0;
   const totalElements = pageData?.totalElements ?? 0;
   const leadProduct = products[0];
+  const searchLead = querySearch ? products[0] : null;
   const avgVelocity = products.length ? products.reduce((sum, product) => sum + Number(product.salesVelocity || 0), 0) / products.length : 0;
   const avgPromoShare = products.length ? products.reduce((sum, product) => sum + Number(product.promoRevenueShare || 0), 0) / products.length : 0;
+
+  useEffect(() => {
+    setSearchInput(querySearch);
+  }, [querySearch]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [querySearch]);
 
   useEffect(() => {
     const load = async () => {
@@ -33,7 +47,14 @@ const Products: React.FC = () => {
       }
       setLoading(true);
       try {
-        const data = await marketService.getProductPerformance(marketId, page, size, category || undefined, sortBy);
+        const data = await marketService.getProductPerformance(
+          marketId,
+          page,
+          size,
+          category || undefined,
+          querySearch || undefined,
+          sortBy
+        );
         setPageData(data);
         setError(null);
       } catch (err: any) {
@@ -44,7 +65,7 @@ const Products: React.FC = () => {
       }
     };
     load();
-  }, [marketId, page, size, category, sortBy]);
+  }, [marketId, page, size, category, querySearch, sortBy]);
 
   const bandLabel = (value?: string | null) => {
     switch (value) {
@@ -52,6 +73,19 @@ const Products: React.FC = () => {
       case 'MEDIUM': return 'Giro medio';
       default: return 'Giro baixo';
     }
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const next = new URLSearchParams(searchParams);
+    const normalized = searchInput.trim();
+    setPage(0);
+    if (normalized) {
+      next.set('search', normalized);
+    } else {
+      next.delete('search');
+    }
+    setSearchParams(next);
   };
 
   return (
@@ -62,20 +96,29 @@ const Products: React.FC = () => {
             <span className="pill">Performance de produtos</span>
             <h1 className="analytics-hero-title">Veja quem puxa margem, quem trava capital e quem responde a preco.</h1>
             <p className="analytics-hero-text">
-              Esta visao troca a tabela fria por um mosaico de produtos, combinando receita, giro, tendencia, share promocional e ultimo sinal de venda.
+              Esta visao troca a tabela fria por um mosaico de produtos, combinando receita, giro, tendencia, share promocional, ultimo sinal de venda e acesso direto ao painel do item.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">{totalElements} produtos conhecidos</span>
               <span className="hero-chip">Giro medio {avgVelocity.toFixed(2)}/dia</span>
               <span className="hero-chip">Share promo medio {formatPercent(avgPromoShare * 100)}</span>
+              {querySearch ? <span className="hero-chip">Busca ativa: {querySearch}</span> : null}
             </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">Produto em destaque na pagina</span>
-              <h3>{leadProduct?.name || 'Sem produto destacado'}</h3>
-              <strong>{leadProduct ? formatMoney(leadProduct.revenue) : 'R$ 0.00'}</strong>
-              <p>{leadProduct ? `${bandLabel(leadProduct.turnoverBand)} | Tendencia ${formatPercent(leadProduct.revenueTrendPercentage)} | Share promo ${formatPercent((leadProduct.promoRevenueShare || 0) * 100)}` : 'A ordenacao escolhida passa a destacar o produto certo aqui.'}</p>
+              <span className="section-kicker">{querySearch ? 'Melhor correspondencia' : 'Produto em destaque na pagina'}</span>
+              <h3>{(searchLead || leadProduct)?.name || 'Sem produto destacado'}</h3>
+              <strong>{(searchLead || leadProduct) ? formatMoney((searchLead || leadProduct)?.revenue) : 'R$ 0.00'}</strong>
+              <p>{(searchLead || leadProduct) ? `${bandLabel((searchLead || leadProduct)?.turnoverBand)} | Tendencia ${formatPercent((searchLead || leadProduct)?.revenueTrendPercentage)} | Share promo ${formatPercent(((searchLead || leadProduct)?.promoRevenueShare || 0) * 100)}` : 'A ordenacao escolhida passa a destacar o produto certo aqui.'}</p>
+              {(searchLead || leadProduct) ? (
+                <button
+                  className="button hero-inline-button"
+                  onClick={() => navigate(`/app/produtos/${(searchLead || leadProduct)?.productId}`)}
+                >
+                  Abrir dashboard do produto
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -83,9 +126,33 @@ const Products: React.FC = () => {
         <div className="analytics-panel filter-bar reveal">
           <div className="filter-bar-copy">
             <span className="section-kicker">Filtro analitico</span>
-            <h3>Refine o recorte sem cair em relatorio cru</h3>
+            <h3>Procure o item e abra sua leitura por filiais</h3>
           </div>
           <div className="filter-bar-controls">
+            <form className="product-search-form" onSubmit={handleSearchSubmit}>
+              <input
+                className="input"
+                placeholder="Buscar por nome ou GTIN"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              <Button type="submit">Buscar</Button>
+              {querySearch ? (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setPage(0);
+                    const next = new URLSearchParams(searchParams);
+                    next.delete('search');
+                    setSearchParams(next);
+                  }}
+                >
+                  Limpar
+                </Button>
+              ) : null}
+            </form>
             <input
               className="input"
               placeholder="Filtrar por categoria"
@@ -125,7 +192,11 @@ const Products: React.FC = () => {
               <div className="analytics-panel"><div className="panel-empty">Nenhum produto encontrado neste recorte.</div></div>
             ) : (
               products.map((product) => (
-                <article key={product.productId} className={`product-mosaic-card ${String(product.turnoverBand || '').toLowerCase()} reveal`}>
+                <article
+                  key={product.productId}
+                  className={`product-mosaic-card ${String(product.turnoverBand || '').toLowerCase()} reveal is-clickable`}
+                  onClick={() => navigate(`/app/produtos/${product.productId}`)}
+                >
                   <div className="product-mosaic-head">
                     <div>
                       <span className="section-kicker">{product.category || 'Sem categoria'}</span>
@@ -174,6 +245,7 @@ const Products: React.FC = () => {
                     <span>Ultima venda {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</span>
                     <span>GTIN {product.ean || '--'}</span>
                   </div>
+                  <div className="product-card-link">Abrir dashboard do produto</div>
                 </article>
               ))
             )}

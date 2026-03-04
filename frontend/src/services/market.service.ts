@@ -36,16 +36,28 @@ export const marketService = {
     page = 0,
     size = 20,
     category?: string,
+    search?: string,
     sortBy?: string,
     startDate?: string,
     endDate?: string
   ) {
     const params: any = { page, size };
     if (category && category.trim()) params.category = category.trim();
+    if (search && search.trim()) params.search = search.trim();
     if (sortBy && sortBy.trim()) params.sortBy = sortBy.trim();
     if (startDate && startDate.trim()) params.startDate = startDate.trim();
     if (endDate && endDate.trim()) params.endDate = endDate.trim();
     const response = await api.get(`/v1/markets/${marketId}/analytics/products/performance`, {
+      params,
+    });
+    return response.data;
+  },
+
+  async getProductDashboard(marketId: string, productId: string, startDate?: string, endDate?: string) {
+    const params: any = {};
+    if (startDate && startDate.trim()) params.startDate = startDate.trim();
+    if (endDate && endDate.trim()) params.endDate = endDate.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/products/${productId}`, {
       params,
     });
     return response.data;

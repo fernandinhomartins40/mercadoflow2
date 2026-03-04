@@ -33,24 +33,13 @@ const Chart: React.FC<ChartProps> = ({ data }) => {
   return (
     <div className="chart-shell">
       <svg className="chart-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="chart-line" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#fe7a46" />
-            <stop offset="100%" stopColor="#1fa971" />
-          </linearGradient>
-          <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(31, 169, 113, 0.35)" />
-            <stop offset="100%" stopColor="rgba(31, 169, 113, 0.02)" />
-          </linearGradient>
-        </defs>
-
         {guideLevels.map((level) => {
           const y = paddingTop + chartHeight - chartHeight * level;
           return <line key={level} x1={paddingX} x2={width - paddingX} y1={y} y2={y} className="chart-guide" />;
         })}
 
-        <path d={fillPath} fill="url(#chart-fill)" />
-        <polyline fill="none" stroke="url(#chart-line)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={polyline} />
+        <path d={fillPath} fill="rgba(36, 99, 235, 0.12)" />
+        <polyline fill="none" stroke="#2463eb" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={polyline} />
 
         {points.map((point, index) => (
           <g key={`${point.x}-${point.y}-${index}`}>

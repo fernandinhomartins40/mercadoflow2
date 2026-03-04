@@ -23,6 +23,17 @@ export interface ProductPerformance {
   turnoverBand: string;
 }
 
+export interface ProductBranchPerformance {
+  branchId?: string | null;
+  branchName: string;
+  revenue: number;
+  quantitySold: number;
+  averagePrice: number;
+  transactionCount: number;
+  promoRevenueShare: number;
+  lastSoldAt?: string | null;
+}
+
 export interface ProductPairInsight {
   antecedentId?: string | null;
   consequentId?: string | null;
@@ -126,4 +137,12 @@ export interface MarketCockpit {
   salesTrend: SalesTrendPoint[];
   recentInvoices: RecentInvoice[];
   recentAlerts: AlertItem[];
+}
+
+export interface ProductDashboard {
+  overview: ProductPerformance;
+  salesTrend: SalesTrendPoint[];
+  weekdaySeasonality: SeasonalityPoint[];
+  branchPerformance: ProductBranchPerformance[];
+  relatedPairs: ProductPairInsight[];
 }

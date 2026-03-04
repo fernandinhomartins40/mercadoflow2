@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AgentApiKeyRepository extends JpaRepository<AgentApiKey, UUID> {
     Optional<AgentApiKey> findByKeyHashAndIsActiveTrue(String keyHash);
     List<AgentApiKey> findByMarketIdAndIsActiveTrue(UUID marketId);
+    List<AgentApiKey> findByMarketIdOrderByCreatedAtDesc(UUID marketId);
+    Optional<AgentApiKey> findByIdAndMarketId(UUID id, UUID marketId);
 }

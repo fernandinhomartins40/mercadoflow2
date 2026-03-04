@@ -50,16 +50,29 @@ public class AgentApiKeyController {
     public ResponseEntity<List<AgentApiKeyResponse>> list(@RequestParam(value = "marketId", required = false) UUID marketId,
                                                           Authentication authentication) {
         UUID resolvedMarketId = resolveMarketId(authentication, marketId);
-        List<AgentApiKeyResponse> items = apiKeyService.listActive(resolvedMarketId).stream()
+        List<AgentApiKeyResponse> items = apiKeyService.listAll(resolvedMarketId).stream()
             .map(key -> AgentApiKeyResponse.builder()
                 .id(key.getId())
                 .marketId(key.getMarket().getId())
                 .name(key.getName())
                 .keyPrefix(key.getKeyPrefix())
                 .createdAt(key.getCreatedAt())
+                .lastUsedAt(key.getLastUsedAt())
+                .lastHeartbeatAt(key.getLastHeartbeatAt())
+                .isActive(key.getIsActive())
                 .build())
             .collect(Collectors.toList());
         return ResponseEntity.ok(items);
+    }
+
+    @DeleteMapping("/{keyId}")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
+    public ResponseEntity<Void> revoke(@PathVariable("keyId") UUID keyId,
+                                       @RequestParam(value = "marketId", required = false) UUID marketId,
+                                       Authentication authentication) {
+        UUID resolvedMarketId = resolveMarketId(authentication, marketId);
+        apiKeyService.revokeKey(resolvedMarketId, keyId);
+        return ResponseEntity.noContent().build();
     }
 
     private UUID resolveMarketId(Authentication authentication, UUID requestedMarketId) {

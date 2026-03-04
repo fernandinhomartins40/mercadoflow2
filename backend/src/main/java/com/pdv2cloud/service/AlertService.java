@@ -68,7 +68,7 @@ public class AlertService {
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusDays(13);
         List<ProductPerformanceDTO> results = advancedAnalyticsService
-            .getProductPerformance(marketId, start, end, null, "TURNOVER", PageRequest.of(0, 5))
+            .getProductPerformance(marketId, start, end, null, null, "TURNOVER", PageRequest.of(0, 5))
             .getContent();
 
         results.stream()
@@ -89,7 +89,7 @@ public class AlertService {
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusDays(29);
         List<ProductPerformanceDTO> results = advancedAnalyticsService
-            .getProductPerformance(marketId, start, end, null, "TURNOVER_ASC", PageRequest.of(0, 10))
+            .getProductPerformance(marketId, start, end, null, null, "TURNOVER_ASC", PageRequest.of(0, 10))
             .getContent();
 
         results.stream()
@@ -112,7 +112,7 @@ public class AlertService {
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusDays(59);
         List<ProductPerformanceDTO> results = advancedAnalyticsService
-            .getProductPerformance(marketId, start, end, null, "TREND_ASC", PageRequest.of(0, 20))
+            .getProductPerformance(marketId, start, end, null, null, "TREND_ASC", PageRequest.of(0, 20))
             .getContent();
 
         results.stream()
@@ -135,7 +135,7 @@ public class AlertService {
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusDays(29);
         List<ProductPerformanceDTO> results = advancedAnalyticsService
-            .getProductPerformance(marketId, start, end, null, "TREND", PageRequest.of(0, 10))
+            .getProductPerformance(marketId, start, end, null, null, "TREND", PageRequest.of(0, 10))
             .getContent();
 
         results.stream()

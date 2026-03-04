@@ -13,5 +13,8 @@ public class AgentApiKeyResponse {
     private String name;
     private String keyPrefix;
     private LocalDateTime createdAt;
+    private LocalDateTime lastUsedAt;
+    private LocalDateTime lastHeartbeatAt;
+    private Boolean isActive;
     private String apiKey;
 }

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
+import ProductDetail from './pages/ProductDetail';
 import MarketBasket from './pages/MarketBasket';
 import Alerts from './pages/Alerts';
 import PDVs from './pages/PDVs';
@@ -37,6 +38,7 @@ const App: React.FC = () => {
 
       <Route path="/app" element={secure(<Dashboard />)} />
       <Route path="/app/produtos" element={secure(<Products />)} />
+      <Route path="/app/produtos/:productId" element={secure(<ProductDetail />)} />
       <Route path="/app/cesta" element={secure(<MarketBasket />)} />
       <Route path="/app/alertas" element={secure(<Alerts />)} />
       <Route path="/app/pdvs" element={secure(<PDVs />)} />

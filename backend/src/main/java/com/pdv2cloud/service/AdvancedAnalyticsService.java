@@ -5,6 +5,8 @@ import com.pdv2cloud.model.dto.CampaignImpactDTO;
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.ProductPairInsightDTO;
+import com.pdv2cloud.model.dto.ProductBranchPerformanceDTO;
+import com.pdv2cloud.model.dto.ProductDashboardDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.PromotionImpactDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
@@ -60,7 +62,7 @@ public class AdvancedAnalyticsService {
 
     public MarketCockpitDTO getCockpit(UUID marketId, LocalDate startDate, LocalDate endDate) {
         Window window = resolveWindow(startDate, endDate, 90);
-        List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null);
+        List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null, null, null);
 
         MarketCockpitDTO cockpit = new MarketCockpitDTO();
         Overview overview = buildOverview(marketId, window, performance);
@@ -96,14 +98,30 @@ public class AdvancedAnalyticsService {
         LocalDate startDate,
         LocalDate endDate,
         String category,
+        String search,
         String sortBy,
         Pageable pageable
     ) {
         Window window = resolveWindow(startDate, endDate, 90);
-        List<ProductPerformanceDTO> rows = sortProducts(loadProductPerformanceRows(marketId, window, category), sortBy);
+        List<ProductPerformanceDTO> rows = sortProducts(loadProductPerformanceRows(marketId, window, category, search, null), sortBy);
         int fromIndex = Math.min((int) pageable.getOffset(), rows.size());
         int toIndex = Math.min(fromIndex + pageable.getPageSize(), rows.size());
         return new PageImpl<>(rows.subList(fromIndex, toIndex), pageable, rows.size());
+    }
+
+    public ProductDashboardDTO getProductDashboard(UUID marketId, UUID productId, LocalDate startDate, LocalDate endDate) {
+        Window window = resolveWindow(startDate, endDate, 90);
+        ProductPerformanceDTO overview = loadProductPerformanceRows(marketId, window, null, null, productId).stream()
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Product not found for market"));
+
+        ProductDashboardDTO dashboard = new ProductDashboardDTO();
+        dashboard.setOverview(overview);
+        dashboard.setSalesTrend(fetchProductSalesTrend(marketId, productId, window));
+        dashboard.setWeekdaySeasonality(fetchProductWeekdaySeasonality(marketId, productId, window));
+        dashboard.setBranchPerformance(fetchProductBranchPerformance(marketId, productId, window));
+        dashboard.setRelatedPairs(fetchProductRelatedPairs(marketId, productId, 6));
+        return dashboard;
     }
 
     public List<CampaignImpactDTO> getCampaignImpacts(UUID marketId) {
@@ -114,8 +132,14 @@ public class AdvancedAnalyticsService {
         return fetchSeasonality(marketId, resolveWindow(startDate, endDate, 90), SeasonalityGranularity.WEEKDAY);
     }
 
-    private List<ProductPerformanceDTO> loadProductPerformanceRows(UUID marketId, Window window, String category) {
-        MapSqlParameterSource params = baseProductParams(marketId, window, category);
+    private List<ProductPerformanceDTO> loadProductPerformanceRows(
+        UUID marketId,
+        Window window,
+        String category,
+        String search,
+        UUID productId
+    ) {
+        MapSqlParameterSource params = baseProductParams(marketId, window, category, search, productId);
         Map<UUID, ProductSnapshot> products = loadMarketProducts(params);
         Map<UUID, BigDecimal> baselinePrices = loadBaselinePrices(params);
         Map<UUID, BigDecimal> previousRevenues = loadPreviousRevenues(params);
@@ -189,7 +213,10 @@ public class AdvancedAnalyticsService {
             "from invoice_items it " +
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
-            "where i.market_id = :marketId and (:category is null or p.category = :category) " +
+            "where i.market_id = :marketId " +
+            "  and (:category is null or p.category = :category) " +
+            "  and (:productId is null or p.id = :productId) " +
+            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
             "order by p.name asc",
             params,
             rs -> {
@@ -228,6 +255,8 @@ public class AdvancedAnalyticsService {
             "join products p on p.id = it.product_id " +
             "where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate " +
             "  and (:category is null or p.category = :category) " +
+            "  and (:productId is null or p.id = :productId) " +
+            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
             "group by it.product_id",
             params,
             (ResultSet rs) -> mapBigDecimalByUuid(rs, "product_id", "previous_revenue")
@@ -241,6 +270,8 @@ public class AdvancedAnalyticsService {
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
             "where i.market_id = :marketId and (:category is null or p.category = :category) " +
+            "  and (:productId is null or p.id = :productId) " +
+            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
             "group by it.product_id",
             params,
             rs -> {
@@ -280,6 +311,8 @@ public class AdvancedAnalyticsService {
             "left join (" + baselineSubquery + ") b on b.product_id = p.id " +
             "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
             "  and (:category is null or p.category = :category) " +
+            "  and (:productId is null or p.id = :productId) " +
+            "  and (:searchLike is null or lower(coalesce(p.name, '')) like :searchLike or lower(coalesce(p.ean, '')) like :searchLike) " +
             "group by p.id",
             params,
             rs -> {
@@ -305,7 +338,7 @@ public class AdvancedAnalyticsService {
     }
 
     private Overview buildOverview(UUID marketId, Window window, List<ProductPerformanceDTO> performance) {
-        MapSqlParameterSource params = baseProductParams(marketId, window, null);
+        MapSqlParameterSource params = baseProductParams(marketId, window, null, null, null);
         BigDecimal totalRevenue = performance.stream()
             .map(ProductPerformanceDTO::getRevenue)
             .map(this::defaultBigDecimal)
@@ -473,7 +506,7 @@ public class AdvancedAnalyticsService {
             "from invoice_items it join invoices i on i.id = it.invoice_id " +
             "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
             "group by " + groupBy + " order by " + orderBy,
-            baseProductParams(marketId, window, null),
+            baseProductParams(marketId, window, null, null, null),
             (rs, rowNum) -> mapSeasonality(granularity, rs)
         );
     }
@@ -483,12 +516,98 @@ public class AdvancedAnalyticsService {
             "select cast(i.data_emissao as date) as sale_date, coalesce(sum(i.valor_total), 0) as revenue " +
             "from invoices i where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
             "group by cast(i.data_emissao as date) order by sale_date",
-            baseProductParams(marketId, window, null),
+            baseProductParams(marketId, window, null, null, null),
             (rs, rowNum) -> new SalesTrendPointDTO(
                 rs.getDate("sale_date").toLocalDate(),
                 defaultBigDecimal(rs.getBigDecimal("revenue"))
             )
         );
+    }
+
+    private List<SalesTrendPointDTO> fetchProductSalesTrend(UUID marketId, UUID productId, Window window) {
+        return jdbcTemplate.query(
+            "select cast(i.data_emissao as date) as sale_date, coalesce(sum(it.valor_total), 0) as revenue " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :marketId and it.product_id = :productId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
+            "group by cast(i.data_emissao as date) order by sale_date",
+            baseProductParams(marketId, window, null, null, productId),
+            (rs, rowNum) -> new SalesTrendPointDTO(
+                rs.getDate("sale_date").toLocalDate(),
+                defaultBigDecimal(rs.getBigDecimal("revenue"))
+            )
+        );
+    }
+
+    private List<SeasonalityPointDTO> fetchProductWeekdaySeasonality(UUID marketId, UUID productId, Window window) {
+        return jdbcTemplate.query(
+            "select cast(extract(dow from i.data_emissao) as integer) as bucket, " +
+            "coalesce(sum(it.valor_total), 0) as revenue, coalesce(sum(it.quantidade), 0) as quantity, " +
+            "count(distinct i.id) as transactions, coalesce(sum(it.valor_total) / nullif(count(distinct i.id), 0), 0) as average_ticket " +
+            "from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :marketId and it.product_id = :productId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
+            "group by cast(extract(dow from i.data_emissao) as integer) order by bucket",
+            baseProductParams(marketId, window, null, null, productId),
+            (rs, rowNum) -> mapSeasonality(SeasonalityGranularity.WEEKDAY, rs)
+        );
+    }
+
+    private List<ProductBranchPerformanceDTO> fetchProductBranchPerformance(UUID marketId, UUID productId, Window window) {
+        String baselineSubquery =
+            "select it2.product_id, avg(it2.valor_unitario) as baseline_price " +
+            "from invoice_items it2 " +
+            "join invoices i2 on i2.id = it2.invoice_id " +
+            "where i2.market_id = :marketId and i2.data_emissao >= :baselineStart and i2.data_emissao < :endExclusive " +
+            "group by it2.product_id";
+
+        return jdbcTemplate.query(
+            "select pdv.id as branch_id, coalesce(pdv.name, 'Operacao sem PDV') as branch_name, " +
+            "coalesce(sum(it.valor_total), 0) as revenue, coalesce(sum(it.quantidade), 0) as quantity_sold, " +
+            "coalesce(avg(it.valor_unitario), 0) as average_price, count(distinct i.id) as transaction_count, " +
+            "coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as promo_revenue, " +
+            "max(i.data_emissao) as last_sold_at " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "left join pdvs pdv on pdv.id = i.pdv_id " +
+            "left join (" + baselineSubquery + ") b on b.product_id = it.product_id " +
+            "where i.market_id = :marketId and it.product_id = :productId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
+            "group by pdv.id, pdv.name order by revenue desc, quantity_sold desc, branch_name asc",
+            baseProductParams(marketId, window, null, null, productId),
+            (rs, rowNum) -> {
+                BigDecimal revenue = defaultBigDecimal(rs.getBigDecimal("revenue"));
+                BigDecimal promoRevenue = defaultBigDecimal(rs.getBigDecimal("promo_revenue"));
+                BigDecimal share = revenue.compareTo(BigDecimal.ZERO) > 0
+                    ? promoRevenue.divide(revenue, 4, RoundingMode.HALF_UP)
+                    : zero(4);
+                return new ProductBranchPerformanceDTO(
+                    uuid(rs, "branch_id"),
+                    rs.getString("branch_name"),
+                    revenue,
+                    defaultBigDecimal(rs.getBigDecimal("quantity_sold")),
+                    defaultBigDecimal(rs.getBigDecimal("average_price")),
+                    rs.getLong("transaction_count"),
+                    share,
+                    localDateTime(rs, "last_sold_at")
+                );
+            }
+        );
+    }
+
+    private List<ProductPairInsightDTO> fetchProductRelatedPairs(UUID marketId, UUID productId, int limit) {
+        return marketBasketService.analyzeMarketBasket(marketId, 0.01, 0.15).stream()
+            .filter(rule -> rule.getAntecedent().contains(productId) || rule.getConsequent().contains(productId))
+            .limit(limit)
+            .map(rule -> new ProductPairInsightDTO(
+                rule.getAntecedent().isEmpty() ? null : rule.getAntecedent().get(0),
+                rule.getConsequent().isEmpty() ? null : rule.getConsequent().get(0),
+                rule.getAntecedentNames() == null || rule.getAntecedentNames().isEmpty() ? null : rule.getAntecedentNames().get(0),
+                rule.getConsequentNames() == null || rule.getConsequentNames().isEmpty() ? null : rule.getConsequentNames().get(0),
+                rule.getSupport(),
+                rule.getConfidence(),
+                rule.getLift(),
+                rule.getPairCount()
+            ))
+            .toList();
     }
 
     private List<CampaignImpactDTO> fetchCampaignImpacts(UUID marketId) {
@@ -564,13 +683,26 @@ public class AdvancedAnalyticsService {
     }
 
     private MapSqlParameterSource baseProductParams(UUID marketId, Window window, String category) {
+        return baseProductParams(marketId, window, category, null, null);
+    }
+
+    private MapSqlParameterSource baseProductParams(
+        UUID marketId,
+        Window window,
+        String category,
+        String search,
+        UUID productId
+    ) {
+        String normalizedSearch = search == null || search.isBlank() ? null : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
         return new MapSqlParameterSource()
             .addValue("marketId", marketId)
             .addValue("startDate", window.start().atStartOfDay())
             .addValue("endExclusive", window.end().plusDays(1).atStartOfDay())
             .addValue("previousStart", window.start().minusDays(window.lengthDays()).atStartOfDay())
             .addValue("baselineStart", window.start().minusDays(Math.max(window.lengthDays(), 90)).atStartOfDay())
-            .addValue("category", category == null || category.isBlank() ? null : category.trim(), Types.VARCHAR);
+            .addValue("category", category == null || category.isBlank() ? null : category.trim(), Types.VARCHAR)
+            .addValue("searchLike", normalizedSearch, Types.VARCHAR)
+            .addValue("productId", productId, Types.OTHER);
     }
 
     private Map<UUID, BigDecimal> mapBigDecimalByUuid(ResultSet rs, String idColumn, String valueColumn) throws SQLException {
@@ -725,3 +857,4 @@ public class AdvancedAnalyticsService {
         MONTH
     }
 }
+

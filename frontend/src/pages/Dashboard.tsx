@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -40,25 +41,25 @@ const Dashboard: React.FC = () => {
           <h3>{title}</h3>
         </div>
       </div>
-      {rows.length === 0 ? (
-        <div className="panel-empty">Sem dados suficientes neste periodo.</div>
-      ) : (
-        <div className="product-strip-list">
-          {rows.map((row, index) => (
-            <div key={row.productId} className="product-strip-row">
-              <div className="rank-pill">{index + 1}</div>
-              <div className="product-strip-copy">
-                <strong>{row.name}</strong>
-                <span>{row.category || 'Sem categoria'} | Giro {Number(row.salesVelocity || 0).toFixed(2)}/dia</span>
-              </div>
-              <div className="product-strip-metric">
-                <strong>{formatMoney(row.revenue)}</strong>
-                <span>{formatPercent(row.revenueTrendPercentage)}</span>
-              </div>
+          {rows.length === 0 ? (
+            <div className="panel-empty">Sem dados suficientes neste periodo.</div>
+          ) : (
+            <div className="product-strip-list">
+              {rows.map((row, index) => (
+                <Link key={row.productId} to={`/app/produtos/${row.productId}`} className="product-strip-row is-link">
+                  <div className="rank-pill">{index + 1}</div>
+                  <div className="product-strip-copy">
+                    <strong>{row.name}</strong>
+                    <span>{row.category || 'Sem categoria'} | Giro {Number(row.salesVelocity || 0).toFixed(2)}/dia</span>
+                  </div>
+                  <div className="product-strip-metric">
+                    <strong>{formatMoney(row.revenue)}</strong>
+                    <span>{formatPercent(row.revenueTrendPercentage)}</span>
+                  </div>
+                </Link>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
     </div>
   );
 
@@ -214,6 +215,35 @@ const Dashboard: React.FC = () => {
           <MetricsCard title="Produtos ativos" value={dashboard.activeProducts} icon="SKU" caption="com venda no periodo" />
           <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressao de preco" />
           <MetricsCard title="Campanhas em curso" value={dashboard.campaignsRunning} icon="CP" variant="danger" caption="janelas abertas para validar" />
+        </div>
+
+        <div className="analytics-grid analytics-grid-main">
+          <div className="analytics-panel reveal product-radar-panel">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Radar de produto</span>
+                <h3>Consulte um item antes de negociar com o fornecedor</h3>
+              </div>
+              <Link className="button" to="/app/produtos">Abrir mapa de produtos</Link>
+            </div>
+            <p className="panel-copy">
+              Busque por nome ou GTIN e abra o dashboard do produto para ver performance, resposta a preco, sazonalidade e comparacao por PDV.
+            </p>
+            <div className="mini-metric-grid triple">
+              <div>
+                <span>Produto mais quente</span>
+                <strong>{leadProduct?.name || '--'}</strong>
+              </div>
+              <div>
+                <span>Produto mais lento</span>
+                <strong>{weakestProduct?.name || '--'}</strong>
+              </div>
+              <div>
+                <span>Melhor compra casada</span>
+                <strong>{leadPair ? `${leadPair.antecedentName} + ${leadPair.consequentName}` : '--'}</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="analytics-grid analytics-grid-main">

@@ -5,6 +5,7 @@ import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.MarketDashboardDTO;
 import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
+import com.pdv2cloud.model.dto.ProductDashboardDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.CampaignImpactDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
@@ -109,6 +110,7 @@ public class MarketController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size,
         @RequestParam(required = false) String category,
+        @RequestParam(required = false) String search,
         @RequestParam(required = false) String sortBy,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -117,8 +119,20 @@ public class MarketController {
         marketAccessService.assertCanAccessMarket(id, authentication);
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-            advancedAnalyticsService.getProductPerformance(id, startDate, endDate, category, sortBy, pageable)
+            advancedAnalyticsService.getProductPerformance(id, startDate, endDate, category, search, sortBy, pageable)
         );
+    }
+
+    @GetMapping("/{id}/analytics/products/{productId}")
+    public ResponseEntity<ProductDashboardDTO> getProductDashboard(
+        @PathVariable("id") UUID id,
+        @PathVariable("productId") UUID productId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(advancedAnalyticsService.getProductDashboard(id, productId, startDate, endDate));
     }
 
     @GetMapping("/{id}/alerts")

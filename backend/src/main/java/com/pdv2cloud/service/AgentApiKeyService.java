@@ -47,6 +47,18 @@ public class AgentApiKeyService {
         return apiKeyRepository.findByMarketIdAndIsActiveTrue(marketId);
     }
 
+    public List<AgentApiKey> listAll(UUID marketId) {
+        return apiKeyRepository.findByMarketIdOrderByCreatedAtDesc(marketId);
+    }
+
+    @Transactional
+    public void revokeKey(UUID marketId, UUID keyId) {
+        AgentApiKey key = apiKeyRepository.findByIdAndMarketId(keyId, marketId)
+            .orElseThrow(() -> new IllegalArgumentException("Agent key not found"));
+        key.setIsActive(false);
+        apiKeyRepository.save(key);
+    }
+
     @Transactional
     public void updateHeartbeat(UUID agentKeyId) {
         apiKeyRepository.findById(agentKeyId).ifPresent(key -> {

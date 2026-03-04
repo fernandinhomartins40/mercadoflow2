@@ -4,11 +4,14 @@ import { NavLink } from 'react-router-dom';
 const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar">
-      <div>
-        <h1>MercadoFlow</h1>
-        <p style={{ color: 'var(--muted)' }}>Cockpit de vendas e promocoes</p>
+      <div className="sidebar-brand">
+        <div className="sidebar-brand-mark">MF</div>
+        <div>
+          <h1>MercadoFlow</h1>
+          <p style={{ color: 'var(--muted)' }}>Operacao, giro e decisao de compra</p>
+        </div>
       </div>
-      <nav>
+      <nav className="sidebar-nav">
         <NavLink className="nav-link" to="/app">Cockpit</NavLink>
         <NavLink className="nav-link" to="/app/produtos">Produtos</NavLink>
         <NavLink className="nav-link" to="/app/cesta">Compra casada</NavLink>
@@ -19,6 +22,11 @@ const Sidebar: React.FC = () => {
         <NavLink className="nav-link" to="/app/download-agente">Download do agente</NavLink>
         <NavLink className="nav-link" to="/app/configuracoes">Configuracoes</NavLink>
       </nav>
+      <div className="sidebar-note">
+        <span className="section-kicker">Fluxo de decisao</span>
+        <strong>Comece em Produtos</strong>
+        <p>Busque o item, abra o dashboard e compare o comportamento por PDV antes de comprar ou promover.</p>
+      </div>
     </aside>
   );
 };

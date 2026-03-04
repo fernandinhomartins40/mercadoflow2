@@ -1,5 +1,5 @@
-import React from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -17,17 +17,59 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
 const Navbar: React.FC = () => {
   const { logout, role, name } = useAuth();
   const location = useLocation();
-  const header = TITLES[location.pathname] || TITLES['/app'];
+  const navigate = useNavigate();
+  const [productQuery, setProductQuery] = useState('');
+
+  useEffect(() => {
+    if (location.pathname === '/app/produtos') {
+      const params = new URLSearchParams(location.search);
+      setProductQuery(params.get('search') || '');
+      return;
+    }
+    if (!location.pathname.startsWith('/app/produtos/')) {
+      setProductQuery('');
+    }
+  }, [location.pathname, location.search]);
+
+  const header = useMemo(() => {
+    if (location.pathname.startsWith('/app/produtos/')) {
+      return { title: 'Produto', subtitle: 'Painel por produto e PDV' };
+    }
+    return TITLES[location.pathname] || TITLES['/app'];
+  }, [location.pathname]);
+
+  const handleProductSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    const normalized = productQuery.trim();
+    if (!normalized) {
+      navigate('/app/produtos');
+      return;
+    }
+    navigate(`/app/produtos?search=${encodeURIComponent(normalized)}`);
+  };
 
   return (
     <div className="header">
-      <div>
+      <div className="header-copy">
         <h2 style={{ margin: 0 }}>{header.title}</h2>
-        <span style={{ color: 'var(--muted)' }}>
+        <span className="header-subtitle">
           {header.subtitle} | {name || 'Usuario'} | Perfil: {role || 'Nao informado'}
         </span>
       </div>
-      <button className="button secondary" onClick={logout}>Sair</button>
+      <div className="header-actions">
+        <form className="header-search" onSubmit={handleProductSearch}>
+          <input
+            className="input header-search-input"
+            placeholder="Buscar produto por nome ou GTIN"
+            value={productQuery}
+            onChange={(event) => setProductQuery(event.target.value)}
+          />
+          <button className="button header-search-submit" type="submit">
+            Buscar
+          </button>
+        </form>
+        <button className="button secondary" onClick={logout}>Sair</button>
+      </div>
     </div>
   );
 };
