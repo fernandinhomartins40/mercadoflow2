@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/app': { title: 'Cockpit', subtitle: 'Visao executiva do mercado' },
+  '/app': { title: 'Painel Geral', subtitle: 'Visao executiva do negocio' },
   '/app/produtos': { title: 'Produtos', subtitle: 'Giro, tendencia e elasticidade' },
   '/app/cesta': { title: 'Compra casada', subtitle: 'Produtos que se reforcam nas vendas' },
   '/app/previsao-demanda': { title: 'Previsao', subtitle: 'Demanda futura por produto' },
@@ -33,7 +33,7 @@ const Navbar: React.FC = () => {
 
   const header = useMemo(() => {
     if (location.pathname.startsWith('/app/produtos/')) {
-      return { title: 'Produto', subtitle: 'Painel por produto e PDV' };
+      return { title: 'Painel do Produto', subtitle: 'Performance por produto e PDV' };
     }
     return TITLES[location.pathname] || TITLES['/app'];
   }, [location.pathname]);

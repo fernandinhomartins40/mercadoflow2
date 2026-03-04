@@ -12,7 +12,7 @@ const Sidebar: React.FC = () => {
         </div>
       </div>
       <nav className="sidebar-nav">
-        <NavLink className="nav-link" to="/app">Cockpit</NavLink>
+        <NavLink className="nav-link" to="/app">Painel geral</NavLink>
         <NavLink className="nav-link" to="/app/produtos">Produtos</NavLink>
         <NavLink className="nav-link" to="/app/cesta">Compra casada</NavLink>
         <NavLink className="nav-link" to="/app/previsao-demanda">Previsao</NavLink>

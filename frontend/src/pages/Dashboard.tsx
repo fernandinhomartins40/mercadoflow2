@@ -173,7 +173,7 @@ const Dashboard: React.FC = () => {
       <div className="page analytics-page">
         <section className="analytics-hero reveal">
           <div className="analytics-hero-copy">
-            <span className="pill">Cockpit analitico vivo</span>
+            <span className="pill">Painel de gestao em tempo real</span>
             <h1 className="analytics-hero-title">Onde a venda ganha tracao, perde ritmo e responde a preco.</h1>
             <p className="analytics-hero-text">
               O painel cruza notas reais para mostrar quais produtos puxam faturamento, quais empacam giro, quando o mercado esquenta e que combinacoes merecem exposicao conjunta.
