@@ -171,7 +171,7 @@ const Settings: React.FC = () => {
               <span className="section-kicker">Conexao principal do agente</span>
               <h3>{apiBaseUrl}</h3>
               <strong>{heartbeatFreshKeys.length}</strong>
-              <p>chaves com heartbeat recente nos ultimos 10 minutos. Isso ajuda a separar credenciais vivas das que ficaram esquecidas.</p>
+              <p>chaves com heartbeat recente nos últimos 10 minutos. Isso ajuda a separar credenciais vivas das que ficaram esquecidas.</p>
             </div>
           </div>
         </section>
@@ -216,7 +216,7 @@ const Settings: React.FC = () => {
               <div className="settings-line-card">
                 <div>
                   <strong>Instalador do agente</strong>
-                  <span>{installerInfo?.version || 'Versao nao informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
+                  <span>{installerInfo?.version || 'Versão não informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
                 </div>
                 <a className="button secondary" href="/app/download-agente">Abrir download</a>
               </div>
@@ -247,7 +247,7 @@ const Settings: React.FC = () => {
             {message && <div className="settings-message">{message}</div>}
             {generatedKey && (
               <div className="settings-secret-card">
-                <strong>Copie esta chave agora. Ela so aparece uma vez.</strong>
+                <strong>Copie esta chave agora. Ela só aparece uma vez.</strong>
                 <div className="code-box" style={{ marginTop: 10 }}>{generatedKey}</div>
                 <div className="panel-actions" style={{ marginTop: 10 }}>
                   <Button variant="secondary" onClick={() => copyText(generatedKey, 'chave gerada')}>{copied === 'chave gerada' ? 'Copiado' : 'Copiar chave'}</Button>
@@ -262,7 +262,7 @@ const Settings: React.FC = () => {
           <div className="section-heading-row">
             <div>
               <span className="section-kicker">Gerenciamento de chaves</span>
-              <h2>Excluir, auditar e identificar quais credenciais ainda estao vivas</h2>
+              <h2>Excluir, auditar e identificar quais credenciais ainda estão vivas</h2>
             </div>
           </div>
           <div className="analytics-card-grid settings-key-grid">
@@ -324,7 +324,7 @@ const Settings: React.FC = () => {
             </div>
             <div className="settings-check-item">
               <strong>3. Revogue chaves antigas assim que trocar a maquina</strong>
-              <span>A exclusao aqui corta o acesso do agente imediatamente sem mexer nas notas ja recebidas.</span>
+              <span>A exclusão aqui corta o acesso do agente imediatamente sem mexer nas notas já recebidas.</span>
             </div>
           </div>
         </section>

@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
   }
 
   if (error || !dashboard) {
-    return <Layout><div className="card">{error || 'Painel indisponivel'}</div></Layout>;
+    return <Layout><div className="card">{error || 'Painel indisponível'}</div></Layout>;
   }
 
   const leadProduct = dashboard.topProducts?.[0];
@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
           {rows.length === 0 ? (
-            <div className="panel-empty">Sem dados suficientes neste periodo.</div>
+            <div className="panel-empty">Sem dados suficientes neste período.</div>
           ) : (
             <div className="product-strip-list">
               {rows.map((row, index) => (
@@ -102,24 +102,24 @@ const Dashboard: React.FC = () => {
   const renderPromotionCards = (rows: PromotionImpact[]) => (
     <div className="analytics-card-grid three-cols">
       {rows.length === 0 ? (
-        <div className="analytics-panel reveal"><div className="panel-empty">Nenhum produto com variacao de preco relevante.</div></div>
+        <div className="analytics-panel reveal"><div className="panel-empty">Nenhum produto com variação de preço relevante.</div></div>
       ) : (
         rows.map((row) => (
           <div key={row.productId} className="analytics-panel promo-card reveal">
             <div className="analytics-panel-head compact">
               <div>
-                <span className="section-kicker">Elasticidade de preco</span>
+                <span className="section-kicker">Elasticidade de preço</span>
                 <h3>{row.name}</h3>
               </div>
               <span className="status-pill positive">{formatPercent(row.quantityLiftPercent)}</span>
             </div>
             <div className="promo-metric-row">
               <div>
-                <span>Preco base</span>
+                <span>Preço base</span>
                 <strong>{formatMoney(row.baselinePrice)}</strong>
               </div>
               <div>
-                <span>Preco promo</span>
+                <span>Preço promo</span>
                 <strong>{formatMoney(row.promoAveragePrice)}</strong>
               </div>
             </div>
@@ -173,13 +173,13 @@ const Dashboard: React.FC = () => {
       <div className="page analytics-page">
         <section className="analytics-hero reveal">
           <div className="analytics-hero-copy">
-            <span className="pill">Painel de gestao em tempo real</span>
-            <h1 className="analytics-hero-title">Onde a venda ganha tracao, perde ritmo e responde a preco.</h1>
+            <span className="pill">Painel de gestão em tempo real</span>
+            <h1 className="analytics-hero-title">Onde a venda ganha tração, perde ritmo e responde a preço.</h1>
             <p className="analytics-hero-text">
-              O painel cruza notas reais para mostrar quais produtos puxam faturamento, quais empacam giro, quando o mercado esquenta e que combinacoes merecem exposicao conjunta.
+              O painel cruza notas reais para mostrar quais produtos puxam faturamento, quais empacam giro, quando o mercado esquenta e que combinações merecem exposição conjunta.
             </p>
             <div className="hero-chip-row">
-              <span className="hero-chip">{dashboard.totalTransactions} transacoes reais</span>
+              <span className="hero-chip">{dashboard.totalTransactions} transações reais</span>
               <span className="hero-chip">{dashboard.activeProducts} produtos ativos</span>
               <span className="hero-chip">Share promo {formatPercent((dashboard.promoRevenueShare || 0) * 100)}</span>
             </div>
@@ -189,18 +189,18 @@ const Dashboard: React.FC = () => {
               <span className="section-kicker">Produto que mais puxa receita</span>
               <h3>{leadProduct?.name || 'Sem destaque ainda'}</h3>
               <strong>{leadProduct ? formatMoney(leadProduct.revenue) : 'R$ 0.00'}</strong>
-              <p>{leadProduct ? `Giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia e tendencia ${formatPercent(leadProduct.revenueTrendPercentage)}` : 'Assim que houver massa critica, o destaque aparece aqui.'}</p>
+              <p>{leadProduct ? `Giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia e tendência ${formatPercent(leadProduct.revenueTrendPercentage)}` : 'Assim que houver massa crítica, o destaque aparece aqui.'}</p>
             </div>
             <div className="hero-focus-stack">
               <div className="hero-mini-card orange">
                 <span>Compra casada mais forte</span>
                 <strong>{leadPair ? `${leadPair.antecedentName} + ${leadPair.consequentName}` : 'Sem par dominante'}</strong>
-                <small>{leadPair ? `Lift ${leadPair.lift.toFixed(2)} em ${leadPair.pairCount} compras` : 'Sem recorrencia suficiente'}</small>
+                <small>{leadPair ? `Lift ${leadPair.lift.toFixed(2)} em ${leadPair.pairCount} compras` : 'Sem recorrência suficiente'}</small>
               </div>
               <div className="hero-mini-card amber">
-                <span>Promocao com maior resposta</span>
+                <span>Promoção com maior resposta</span>
                 <strong>{leadPromotion?.name || 'Sem resposta promocional'}</strong>
-                <small>{leadPromotion ? `Lift de volume ${formatPercent(leadPromotion.quantityLiftPercent)}` : 'Ainda sem comparacoes confiaveis'}</small>
+                <small>{leadPromotion ? `Lift de volume ${formatPercent(leadPromotion.quantityLiftPercent)}` : 'Ainda sem comparações confiáveis'}</small>
               </div>
               <div className="hero-mini-card mint">
                 <span>Campanha mais forte</span>
@@ -212,11 +212,11 @@ const Dashboard: React.FC = () => {
         </section>
 
         <div className="metrics-grid analytics-metrics-grid">
-          <MetricsCard title="Receita do periodo" value={formatMoney(dashboard.totalRevenue)} change={dashboard.growthPercentage} icon="R$" caption="comparado ao periodo anterior" />
-          <MetricsCard title="Ticket medio" value={formatMoney(dashboard.averageTicket)} icon="TM" caption="valor por compra" />
-          <MetricsCard title="Transacoes" value={dashboard.totalTransactions} icon="NF" caption="notas processadas" />
-          <MetricsCard title="Produtos ativos" value={dashboard.activeProducts} icon="SKU" caption="com venda no periodo" />
-          <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressao de preco" />
+          <MetricsCard title="Receita do período" value={formatMoney(dashboard.totalRevenue)} change={dashboard.growthPercentage} icon="R$" caption="comparado ao período anterior" />
+          <MetricsCard title="Ticket médio" value={formatMoney(dashboard.averageTicket)} icon="TM" caption="valor por compra" />
+          <MetricsCard title="Transações" value={dashboard.totalTransactions} icon="NF" caption="notas processadas" />
+          <MetricsCard title="Produtos ativos" value={dashboard.activeProducts} icon="SKU" caption="com venda no período" />
+          <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressão de preço" />
           <MetricsCard title="Campanhas em curso" value={dashboard.campaignsRunning} icon="CP" variant="danger" caption="janelas abertas para validar" />
         </div>
 
@@ -276,7 +276,7 @@ const Dashboard: React.FC = () => {
               <Link className="button" to="/app/produtos">Abrir mapa de produtos</Link>
             </div>
             <p className="panel-copy">
-              Busque por nome ou GTIN e abra o dashboard do produto para ver performance, resposta a preco, sazonalidade e comparacao por PDV.
+              Busque por nome ou GTIN e abra o dashboard do produto para ver performance, resposta a preço, sazonalidade e comparação por PDV.
             </p>
             <div className="mini-metric-grid triple">
               <div>
@@ -312,11 +312,11 @@ const Dashboard: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Comportamento de cesta</span>
-                <h3>Pares que pedem exposicao conjunta</h3>
+                <h3>Pares que pedem exposição conjunta</h3>
               </div>
             </div>
             {(dashboard.topPairs || []).length === 0 ? (
-              <div className="panel-empty">Sem pares relevantes no periodo.</div>
+              <div className="panel-empty">Sem pares relevantes no período.</div>
             ) : (
               <div className="pair-grid">
                 {(dashboard.topPairs || []).slice(0, 6).map((pair: ProductPairInsight) => (
@@ -324,7 +324,7 @@ const Dashboard: React.FC = () => {
                     <strong>{pair.antecedentName} + {pair.consequentName}</strong>
                     <div className="pair-meta">
                       <span>Lift {pair.lift.toFixed(2)}</span>
-                      <span>Confianca {formatPercent(pair.confidence * 100)}</span>
+                      <span>Confiança {formatPercent(pair.confidence * 100)}</span>
                     </div>
                     <div className="pair-meta subtle">
                       <span>{pair.pairCount} compras juntas</span>
@@ -340,8 +340,8 @@ const Dashboard: React.FC = () => {
         <section className="analytics-section reveal">
           <div className="section-heading-row">
             <div>
-              <span className="section-kicker">Preco e promocao</span>
-              <h2>O que reage a reducao de preco</h2>
+              <span className="section-kicker">Preço e promoção</span>
+              <h2>O que reage à redução de preço</h2>
             </div>
           </div>
           {renderPromotionCards(dashboard.promotionHighlights || [])}
@@ -395,7 +395,7 @@ const Dashboard: React.FC = () => {
 
         {weakestProduct ? (
           <div className="analytics-footer-callout reveal">
-            <strong>Leitura rapida:</strong> {weakestProduct.name} esta entre os menores giros e merece revisao de exposicao, preco ou sortimento antes de consumir espaco de gondola sem retorno.
+            <strong>Leitura rápida:</strong> {weakestProduct.name} está entre os menores giros e merece revisão de exposição, preço ou sortimento antes de consumir espaço de gôndola sem retorno.
           </div>
         ) : null}
       </div>

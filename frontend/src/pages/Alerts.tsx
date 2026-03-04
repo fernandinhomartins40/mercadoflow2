@@ -15,7 +15,7 @@ const Alerts: React.FC = () => {
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--muted)' }}>
                 <input type="checkbox" checked={onlyUnread} onChange={(e) => setOnlyUnread(e.target.checked)} />
-                Somente nao lidos
+                Somente não lidos
               </label>
               <Button variant="secondary" onClick={refresh} disabled={loading}>
                 Atualizar
@@ -36,11 +36,11 @@ const Alerts: React.FC = () => {
                   <tr>
                     <th>Status</th>
                     <th>Tipo</th>
-                    <th>Titulo</th>
+                    <th>Título</th>
                     <th>Mensagem</th>
                     <th>Prioridade</th>
                     <th>Criado em</th>
-                    <th style={{ width: 160 }}>Acoes</th>
+                    <th style={{ width: 160 }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -26,7 +26,7 @@ const DemandForecast: React.FC = () => {
       setRows((data || []).sort((a: ForecastRow, b: ForecastRow) => Number(b.predictedQuantity || 0) - Number(a.predictedQuantity || 0)));
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Erro ao carregar previsao');
+      setError(err?.message || 'Erro ao carregar previsão');
       setRows([]);
     } finally {
       setLoading(false);
@@ -45,21 +45,21 @@ const DemandForecast: React.FC = () => {
       <div className="page analytics-page">
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
-            <span className="pill">Previsao de demanda</span>
-            <h1 className="analytics-hero-title">Antecipe volume e prepare operacao antes do pico chegar.</h1>
+            <span className="pill">Previsão de demanda</span>
+            <h1 className="analytics-hero-title">Antecipe volume e prepare a operação antes do pico chegar.</h1>
             <p className="analytics-hero-text">
-              A leitura abaixo mostra previsoes ja ordenadas por pressao de demanda, priorizando os produtos que podem exigir reposicao, compra ou ajuste de equipe.
+              A leitura abaixo mostra previsões já ordenadas por pressão de demanda, priorizando os produtos que podem exigir reposição, compra ou ajuste de equipe.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">Horizonte de {days} dias</span>
-              <span className="hero-chip">{rows.length} combinacoes previstas</span>
+              <span className="hero-chip">{rows.length} combinações previstas</span>
               <span className="hero-chip">Total previsto {totalPredicted.toFixed(2)}</span>
             </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">Maior pressao prevista</span>
-              <h3>{strongest?.productName || 'Sem previsao dominante'}</h3>
+              <span className="section-kicker">Maior pressão prevista</span>
+              <h3>{strongest?.productName || 'Sem previsão dominante'}</h3>
               <strong>{strongest ? Number(strongest.predictedQuantity || 0).toFixed(3) : '0.000'}</strong>
               <p>{strongest ? `Esperado para ${new Date(strongest.forecastDate).toLocaleDateString('pt-BR')}` : 'Quando houver base suficiente, o produto mais pressionado aparece aqui.'}</p>
             </div>
@@ -69,7 +69,7 @@ const DemandForecast: React.FC = () => {
         <div className="analytics-panel filter-bar reveal">
           <div className="filter-bar-copy">
             <span className="section-kicker">Horizonte</span>
-            <h3>Ajuste a janela de previsao</h3>
+            <h3>Ajuste a janela de previsão</h3>
           </div>
           <div className="filter-bar-controls">
             <input
@@ -90,7 +90,7 @@ const DemandForecast: React.FC = () => {
         ) : (
           <div className="analytics-card-grid forecast-grid">
             {rows.length === 0 ? (
-              <div className="analytics-panel"><div className="panel-empty">Nenhuma previsao disponivel.</div></div>
+              <div className="analytics-panel"><div className="panel-empty">Nenhuma previsão disponível.</div></div>
             ) : (
               rows.map((row, idx) => (
                 <article key={`${row.productId}-${row.forecastDate}-${idx}`} className="forecast-card reveal">

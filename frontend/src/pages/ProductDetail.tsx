@@ -25,7 +25,7 @@ const ProductDetail: React.FC = () => {
     const load = async () => {
       if (!marketId || !productId) {
         setLoading(false);
-        setError('Produto nao encontrado');
+        setError('Produto não encontrado');
         return;
       }
       setLoading(true);
@@ -74,7 +74,7 @@ const ProductDetail: React.FC = () => {
 
   const renderBranches = (rows: ProductBranchPerformance[]) => {
     if (rows.length === 0) {
-      return <div className="panel-empty">Sem distribuicao por PDV neste periodo.</div>;
+      return <div className="panel-empty">Sem distribuição por PDV neste período.</div>;
     }
     const maxRevenue = Math.max(...rows.map((row) => Number(row.revenue || 0)), 1);
     return (
@@ -98,11 +98,11 @@ const ProductDetail: React.FC = () => {
                 <strong>{Number(branch.quantitySold || 0).toFixed(2)}</strong>
               </div>
               <div>
-                <span>Preco medio</span>
+                <span>Preço médio</span>
                 <strong>{formatMoney(branch.averagePrice)}</strong>
               </div>
               <div>
-                <span>Transacoes</span>
+                <span>Transações</span>
                 <strong>{branch.transactionCount || 0}</strong>
               </div>
             </div>
@@ -110,7 +110,7 @@ const ProductDetail: React.FC = () => {
               <div className="progress-fill solid-pink" style={{ width: `${(Number(branch.revenue || 0) / maxRevenue) * 100}%` }} />
             </div>
             <div className="product-card-foot">
-              <span>Ultima venda {formatDate(branch.lastSoldAt)}</span>
+              <span>Última venda {formatDate(branch.lastSoldAt)}</span>
             </div>
           </article>
         ))}
@@ -126,7 +126,7 @@ const ProductDetail: React.FC = () => {
     return (
       <Layout>
         <div className="page analytics-page">
-          <div className="card" style={{ color: 'var(--danger)' }}>{error || 'Dashboard do produto indisponivel'}</div>
+          <div className="card" style={{ color: 'var(--danger)' }}>{error || 'Dashboard do produto indisponível'}</div>
         </div>
       </Layout>
     );
@@ -140,12 +140,12 @@ const ProductDetail: React.FC = () => {
             <span className="pill">Dashboard do produto</span>
             <h1 className="analytics-hero-title">{overview.name}</h1>
             <p className="analytics-hero-text">
-              Um painel unico para entender se este item vende por tracao real, depende de preco, muda por dia da semana e em qual PDV vale negociar mais compra ou rever exposicao.
+              Um painel único para entender se este item vende por tração real, depende de preço, muda por dia da semana e em qual PDV vale negociar mais compra ou rever exposição.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">Categoria {overview.category || 'Sem categoria'}</span>
               <span className="hero-chip">GTIN {overview.ean || '--'}</span>
-              <span className="hero-chip">Ultima venda {formatDate(overview.lastSoldAt)}</span>
+              <span className="hero-chip">Última venda {formatDate(overview.lastSoldAt)}</span>
             </div>
             <div className="hero-inline-actions">
               <Link className="button secondary" to="/app/produtos">Voltar ao mapa de produtos</Link>
@@ -153,25 +153,25 @@ const ProductDetail: React.FC = () => {
           </div>
           <div className="analytics-hero-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">Receita do periodo</span>
+              <span className="section-kicker">Receita do período</span>
               <h3>{formatMoney(overview.revenue)}</h3>
-              <p>{Number(overview.quantitySold || 0).toFixed(2)} unidades vendidas em {overview.transactionCount || 0} transacoes.</p>
+              <p>{Number(overview.quantitySold || 0).toFixed(2)} unidades vendidas em {overview.transactionCount || 0} transações.</p>
             </div>
             <div className="hero-focus-stack">
               <div className="hero-mini-card blue">
                 <span>Giro</span>
                 <strong>{Number(overview.salesVelocity || 0).toFixed(2)}/dia</strong>
-                <small>{overview.turnoverBand === 'HIGH' ? 'Alta velocidade' : overview.turnoverBand === 'MEDIUM' ? 'Velocidade media' : 'Baixa velocidade'}</small>
+                <small>{overview.turnoverBand === 'HIGH' ? 'Alta velocidade' : overview.turnoverBand === 'MEDIUM' ? 'Velocidade média' : 'Baixa velocidade'}</small>
               </div>
               <div className="hero-mini-card coral">
-                <span>Resposta a preco</span>
+                <span>Resposta a preço</span>
                 <strong>{formatPercent((overview.promoRevenueShare || 0) * 100)}</strong>
-                <small>share de receita sob preco abaixo do baseline</small>
+                <small>share de receita sob preço abaixo do baseline</small>
               </div>
               <div className="hero-mini-card mint">
                 <span>PDV mais forte</span>
                 <strong>{bestBranch?.branchName || '--'}</strong>
-                <small>{bestBranch ? formatMoney(bestBranch.revenue) : 'Sem distribuicao por PDV'}</small>
+                <small>{bestBranch ? formatMoney(bestBranch.revenue) : 'Sem distribuição por PDV'}</small>
               </div>
             </div>
           </div>
@@ -179,22 +179,22 @@ const ProductDetail: React.FC = () => {
 
         <div className="metrics-grid analytics-metrics-grid">
           <div className="metric-card metric-card-default reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Preco medio</span><span className="metric-card-icon">R$</span></div>
+            <div className="metric-card-top"><span className="metric-card-title">Preço médio</span><span className="metric-card-icon">R$</span></div>
             <strong className="metric-card-value">{formatMoney(overview.averagePrice)}</strong>
             <div className="metric-card-bottom"><span className="metric-card-meta">baseline {formatMoney(overview.baselinePrice)}</span></div>
           </div>
           <div className="metric-card metric-card-default reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Tendencia</span><span className="metric-card-icon">TR</span></div>
+            <div className="metric-card-top"><span className="metric-card-title">Tendência</span><span className="metric-card-icon">TR</span></div>
             <strong className="metric-card-value">{formatPercent(overview.revenueTrendPercentage)}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">comparado ao periodo anterior</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">comparado ao período anterior</span></div>
           </div>
           <div className="metric-card metric-card-warning reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Preco promocional</span><span className="metric-card-icon">PR</span></div>
+            <div className="metric-card-top"><span className="metric-card-title">Preço promocional</span><span className="metric-card-icon">PR</span></div>
             <strong className="metric-card-value">{formatMoney(overview.promoAveragePrice)}</strong>
             <div className="metric-card-bottom"><span className="metric-card-meta">normal {formatMoney(overview.normalAveragePrice)}</span></div>
           </div>
           <div className="metric-card metric-card-danger reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Indice de preco</span><span className="metric-card-icon">PX</span></div>
+            <div className="metric-card-top"><span className="metric-card-title">Índice de preço</span><span className="metric-card-icon">PX</span></div>
             <strong className="metric-card-value">{Number(overview.priceIndex || 0).toFixed(2)}x</strong>
             <div className="metric-card-bottom"><span className="metric-card-meta">1.00 significa alinhado ao baseline</span></div>
           </div>
@@ -206,8 +206,8 @@ const ProductDetail: React.FC = () => {
             <div className="analytics-panel reveal">
               <div className="analytics-panel-head compact">
                 <div>
-                  <span className="section-kicker">Leitura rapida</span>
-                  <h3>Como comprar melhor este item</h3>
+                <span className="section-kicker">Leitura rápida</span>
+                <h3>Como comprar melhor este item</h3>
                 </div>
               </div>
               <div className="decision-stack">
@@ -219,12 +219,12 @@ const ProductDetail: React.FC = () => {
                 <div className="decision-card coral">
                   <strong>PDV mais forte</strong>
                   <span>{bestBranch?.branchName || '--'}</span>
-                  <small>{bestBranch ? `${Number(bestBranch.quantitySold || 0).toFixed(2)} unidades` : 'Sem comparacao por PDV'}</small>
+                  <small>{bestBranch ? `${Number(bestBranch.quantitySold || 0).toFixed(2)} unidades` : 'Sem comparação por PDV'}</small>
                 </div>
                 <div className="decision-card mint">
                   <strong>Compra casada</strong>
                   <span>{strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : '--'}</span>
-                  <small>{strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)}` : 'Sem relacao forte detectada'}</small>
+                  <small>{strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)}` : 'Sem relação forte detectada'}</small>
                 </div>
               </div>
             </div>
@@ -235,7 +235,7 @@ const ProductDetail: React.FC = () => {
           <div className="analytics-panel reveal">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Comparacao por filial</span>
+                <span className="section-kicker">Comparação por filial</span>
                 <h3>Onde o produto performa melhor</h3>
               </div>
             </div>
@@ -245,7 +245,7 @@ const ProductDetail: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Sazonalidade</span>
-                <h3>Quando esse item ganha tracao</h3>
+                <h3>Quando esse item ganha tração</h3>
               </div>
             </div>
             {renderSeasonality(dashboard.weekdaySeasonality || [])}
@@ -274,7 +274,7 @@ const ProductDetail: React.FC = () => {
                   </div>
                   <div className="mini-metric-grid dual">
                     <div>
-                      <span>Confianca</span>
+                      <span>Confiança</span>
                       <strong>{formatPercent((pair.confidence || 0) * 100)}</strong>
                     </div>
                     <div>
@@ -282,7 +282,7 @@ const ProductDetail: React.FC = () => {
                       <strong>{formatPercent((pair.support || 0) * 100)}</strong>
                     </div>
                     <div>
-                      <span>Ocorrencias</span>
+                      <span>Ocorrências</span>
                       <strong>{pair.pairCount || 0}</strong>
                     </div>
                   </div>

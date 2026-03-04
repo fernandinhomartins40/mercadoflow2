@@ -51,7 +51,7 @@ const MarketBasket: React.FC = () => {
   const actionHint = (rule: BasketRule) => {
     if (Number(rule.lift || 0) >= 2.2) return 'Expor lado a lado e testar kit leve.';
     if (Number(rule.confidence || 0) >= 0.45) return 'Sinal claro para cross-sell no caixa.';
-    return 'Manter monitoramento para nova confirmacao.';
+    return 'Manter monitoramento para nova confirmação.';
   };
 
   return (
@@ -62,12 +62,12 @@ const MarketBasket: React.FC = () => {
             <span className="pill">Compra casada</span>
             <h1 className="analytics-hero-title">Os pares que realmente se atraem no carrinho.</h1>
             <p className="analytics-hero-text">
-              Em vez de uma grade fria, a leitura abaixo destaca pares com sustentacao, confianca e lift para apoiar exposicao, combo e sugestao de venda.
+              Em vez de uma grade fria, a leitura abaixo destaca pares com sustentação, confiança e lift para apoiar exposição, combo e sugestão de venda.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">{rules.length} pares avaliados</span>
-              <span className="hero-chip">Confianca media {formatPercent(averageConfidence * 100)}</span>
-              <span className="hero-chip">{totalOccurrences} ocorrencias somadas</span>
+              <span className="hero-chip">Confiança média {formatPercent(averageConfidence * 100)}</span>
+              <span className="hero-chip">{totalOccurrences} ocorrências somadas</span>
             </div>
           </div>
           <div className="analytics-hero-board single-board">
@@ -75,7 +75,7 @@ const MarketBasket: React.FC = () => {
               <span className="section-kicker">Par com maior lift</span>
               <h3>{strongestRule ? `${(strongestRule.antecedentNames || strongestRule.antecedent || []).join(', ')} + ${(strongestRule.consequentNames || strongestRule.consequent || []).join(', ')}` : 'Sem par dominante'}</h3>
               <strong>{strongestRule ? strongestRule.lift.toFixed(2) : '0.00'}</strong>
-              <p>{strongestRule ? `${strongestRule.pairCount} compras em conjunto e confianca de ${formatPercent(strongestRule.confidence * 100)}` : 'Assim que a cesta ganhar densidade, o par campeao aparece aqui.'}</p>
+              <p>{strongestRule ? `${strongestRule.pairCount} compras em conjunto e confiança de ${formatPercent(strongestRule.confidence * 100)}` : 'Assim que a cesta ganhar densidade, o par campeão aparece aqui.'}</p>
             </div>
           </div>
         </section>
@@ -83,11 +83,11 @@ const MarketBasket: React.FC = () => {
         <div className="analytics-panel filter-bar reveal">
           <div className="filter-bar-copy">
             <span className="section-kicker">Origem</span>
-            <h3>Escolha entre analise ao vivo e cache noturno</h3>
+            <h3>Escolha entre análise ao vivo e cache noturno</h3>
           </div>
           <label className="toggle-row">
             <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} />
-            <span>{useCached ? 'Usando cache noturno' : 'Usando analise ao vivo'}</span>
+            <span>{useCached ? 'Usando cache noturno' : 'Usando análise ao vivo'}</span>
           </label>
         </div>
 
@@ -110,10 +110,10 @@ const MarketBasket: React.FC = () => {
                   <div className="pair-arrow">combina com</div>
                   <h4>{(rule.consequentNames || rule.consequent || []).join(', ')}</h4>
                   <div className="mini-metric-grid dual">
-                    <div><span>Confianca</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
+                    <div><span>Confiança</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
                     <div><span>Suporte</span><strong>{formatPercent(Number(rule.support || 0) * 100)}</strong></div>
-                    <div><span>Ocorrencias</span><strong>{rule.pairCount || 0}</strong></div>
-                    <div><span>Acao</span><strong>{actionHint(rule)}</strong></div>
+                    <div><span>Ocorrências</span><strong>{rule.pairCount || 0}</strong></div>
+                    <div><span>Ação</span><strong>{actionHint(rule)}</strong></div>
                   </div>
                 </article>
               ))

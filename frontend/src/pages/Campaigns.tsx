@@ -81,9 +81,9 @@ const Campaigns: React.FC = () => {
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
             <span className="pill">Campanhas</span>
-            <h1 className="analytics-hero-title">Cadastre a acao, acompanhe a janela e veja se ela devolveu resultado.</h1>
+            <h1 className="analytics-hero-title">Cadastre a ação, acompanhe a janela e veja se ela devolveu resultado.</h1>
             <p className="analytics-hero-text">
-              A pagina agora destaca campanhas como experimentos de negocio: cadastro, status e impacto real antes, durante e depois da execucao.
+              A página agora destaca campanhas como experimentos de negócio: cadastro, status e impacto real antes, durante e depois da execução.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">{items.length} campanhas cadastradas</span>
@@ -96,7 +96,7 @@ const Campaigns: React.FC = () => {
               <span className="section-kicker">Campanha mais forte</span>
               <h3>{bestImpact?.name || 'Sem campanha com impacto medido'}</h3>
               <strong>{bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</strong>
-              <p>{bestImpact ? `Durante a campanha a receita foi para ${formatMoney(bestImpact.duringRevenue)} contra ${formatMoney(bestImpact.beforeRevenue)} antes da acao.` : 'Cadastre campanhas com datas fechadas para comparar com janelas equivalentes.'}</p>
+              <p>{bestImpact ? `Durante a campanha a receita foi para ${formatMoney(bestImpact.duringRevenue)} contra ${formatMoney(bestImpact.beforeRevenue)} antes da ação.` : 'Cadastre campanhas com datas fechadas para comparar com janelas equivalentes.'}</p>
             </div>
           </div>
         </section>
@@ -106,15 +106,15 @@ const Campaigns: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Nova campanha</span>
-                <h3>Registrar janela de acao</h3>
+                <h3>Registrar janela de ação</h3>
               </div>
               <Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>
             </div>
             <div className="form-grid-analytics">
               <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="input" placeholder="Inicio (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <input className="input" placeholder="Início (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               <input className="input" placeholder="Fim (ISO)" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              <input className="input full" placeholder="Descricao" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <input className="input full" placeholder="Descrição" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div className="panel-actions">
               <Button onClick={create}>Criar campanha</Button>
@@ -136,10 +136,10 @@ const Campaigns: React.FC = () => {
                   <div key={campaign.id} className="campaign-stack-card">
                     <div>
                       <strong>{campaign.name}</strong>
-                      <span>{campaign.description || 'Sem descricao'}</span>
+                      <span>{campaign.description || 'Sem descrição'}</span>
                     </div>
                     <div className="campaign-stack-side">
-                      <strong>{formatDateTime(campaign.startDate)} ate {formatDateTime(campaign.endDate)}</strong>
+                      <strong>{formatDateTime(campaign.startDate)} até {formatDateTime(campaign.endDate)}</strong>
                       <span>Criada em {formatDateTime(campaign.createdAt)}</span>
                     </div>
                   </div>
@@ -155,7 +155,7 @@ const Campaigns: React.FC = () => {
           {loading ? (
             <div className="analytics-panel"><div className="panel-empty">Carregando...</div></div>
           ) : impacts.length === 0 ? (
-            <div className="analytics-panel"><div className="panel-empty">Nenhuma campanha com dados suficientes para comparacao.</div></div>
+            <div className="analytics-panel"><div className="panel-empty">Nenhuma campanha com dados suficientes para comparação.</div></div>
           ) : (
             impacts.map((impact) => (
               <div key={impact.campaignId} className="analytics-panel campaign-card reveal">
@@ -176,7 +176,7 @@ const Campaigns: React.FC = () => {
                   <strong>{formatPercent(impact.revenueLiftPercent)}</strong>
                 </div>
                 <div className="campaign-lift-row subtle">
-                  <span>Lift transacoes</span>
+                  <span>Lift transações</span>
                   <strong>{formatPercent(impact.transactionLiftPercent)}</strong>
                 </div>
               </div>

@@ -70,7 +70,7 @@ const Products: React.FC = () => {
   const bandLabel = (value?: string | null) => {
     switch (value) {
       case 'HIGH': return 'Giro alto';
-      case 'MEDIUM': return 'Giro medio';
+      case 'MEDIUM': return 'Giro médio';
       default: return 'Giro baixo';
     }
   };
@@ -94,23 +94,23 @@ const Products: React.FC = () => {
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
             <span className="pill">Performance de produtos</span>
-            <h1 className="analytics-hero-title">Veja quem puxa margem, quem trava capital e quem responde a preco.</h1>
+            <h1 className="analytics-hero-title">Veja quem puxa margem, quem trava capital e quem responde a preço.</h1>
             <p className="analytics-hero-text">
-              Esta visao troca a tabela fria por um mosaico de produtos, combinando receita, giro, tendencia, share promocional, ultimo sinal de venda e acesso direto ao painel do item.
+              Esta visão troca a tabela fria por um mosaico de produtos, combinando receita, giro, tendência, share promocional, último sinal de venda e acesso direto ao painel do item.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">{totalElements} produtos conhecidos</span>
-              <span className="hero-chip">Giro medio {avgVelocity.toFixed(2)}/dia</span>
-              <span className="hero-chip">Share promo medio {formatPercent(avgPromoShare * 100)}</span>
+              <span className="hero-chip">Giro médio {avgVelocity.toFixed(2)}/dia</span>
+              <span className="hero-chip">Share promo médio {formatPercent(avgPromoShare * 100)}</span>
               {querySearch ? <span className="hero-chip">Busca ativa: {querySearch}</span> : null}
             </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">{querySearch ? 'Melhor correspondencia' : 'Produto em destaque na pagina'}</span>
+              <span className="section-kicker">{querySearch ? 'Melhor correspondência' : 'Produto em destaque na página'}</span>
               <h3>{(searchLead || leadProduct)?.name || 'Sem produto destacado'}</h3>
               <strong>{(searchLead || leadProduct) ? formatMoney((searchLead || leadProduct)?.revenue) : 'R$ 0.00'}</strong>
-              <p>{(searchLead || leadProduct) ? `${bandLabel((searchLead || leadProduct)?.turnoverBand)} | Tendencia ${formatPercent((searchLead || leadProduct)?.revenueTrendPercentage)} | Share promo ${formatPercent(((searchLead || leadProduct)?.promoRevenueShare || 0) * 100)}` : 'A ordenacao escolhida passa a destacar o produto certo aqui.'}</p>
+              <p>{(searchLead || leadProduct) ? `${bandLabel((searchLead || leadProduct)?.turnoverBand)} | Tendência ${formatPercent((searchLead || leadProduct)?.revenueTrendPercentage)} | Share promo ${formatPercent(((searchLead || leadProduct)?.promoRevenueShare || 0) * 100)}` : 'A ordenação escolhida passa a destacar o produto certo aqui.'}</p>
               {(searchLead || leadProduct) ? (
                 <button
                   className="button hero-inline-button"
@@ -125,7 +125,7 @@ const Products: React.FC = () => {
 
         <div className="analytics-panel filter-bar reveal">
           <div className="filter-bar-copy">
-            <span className="section-kicker">Filtro analitico</span>
+            <span className="section-kicker">Filtro analítico</span>
             <h3>Procure o item e abra sua leitura por filiais</h3>
           </div>
           <div className="filter-bar-controls">
@@ -172,10 +172,10 @@ const Products: React.FC = () => {
             >
               <option value="REVENUE">Ordenar por receita</option>
               <option value="QUANTITY">Ordenar por quantidade</option>
-              <option value="TRANSACTIONS">Ordenar por transacoes</option>
-              <option value="PRICE">Ordenar por preco medio</option>
+              <option value="TRANSACTIONS">Ordenar por transações</option>
+              <option value="PRICE">Ordenar por preço médio</option>
               <option value="TURNOVER">Ordenar por giro</option>
-              <option value="TREND">Ordenar por tendencia</option>
+              <option value="TREND">Ordenar por tendência</option>
               <option value="PROMO">Ordenar por share promocional</option>
               <option value="NAME">Ordenar por nome</option>
             </select>
@@ -215,11 +215,11 @@ const Products: React.FC = () => {
                       <strong>{Number(product.quantitySold || 0).toFixed(2)}</strong>
                     </div>
                     <div>
-                      <span>Preco medio</span>
+                      <span>Preço médio</span>
                       <strong>{formatMoney(product.averagePrice)}</strong>
                     </div>
                     <div>
-                      <span>Transacoes</span>
+                      <span>Transações</span>
                       <strong>{product.transactionCount || 0}</strong>
                     </div>
                   </div>
@@ -241,8 +241,8 @@ const Products: React.FC = () => {
                   </div>
 
                   <div className="product-card-foot">
-                    <span>Tendencia {formatPercent(product.revenueTrendPercentage)}</span>
-                    <span>Ultima venda {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</span>
+                    <span>Tendência {formatPercent(product.revenueTrendPercentage)}</span>
+                    <span>Última venda {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</span>
                     <span>GTIN {product.ean || '--'}</span>
                   </div>
                   <div className="product-card-link">Abrir dashboard do produto</div>
@@ -255,15 +255,15 @@ const Products: React.FC = () => {
         {!loading && pageData && (
           <div className="analytics-panel pager-panel reveal">
             <div>
-              <span className="section-kicker">Navegacao</span>
-              <h3>Pagina {pageData.number + 1} de {Math.max(totalPages, 1)}</h3>
+              <span className="section-kicker">Navegação</span>
+              <h3>Página {pageData.number + 1} de {Math.max(totalPages, 1)}</h3>
             </div>
             <div className="pager-actions">
               <Button variant="secondary" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>
                 Anterior
               </Button>
               <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={totalPages === 0 || page >= totalPages - 1}>
-                Proxima
+                Próxima
               </Button>
             </div>
           </div>
