@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
+import { MarketCockpit } from '../types/analytics.types';
 
 export const useMarketData = () => {
   const { marketId } = useAuth();
-  const [dashboard, setDashboard] = useState<any>(null);
+  const [dashboard, setDashboard] = useState<MarketCockpit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,8 +17,9 @@ export const useMarketData = () => {
         return;
       }
       try {
-        const data = await marketService.getDashboard(marketId);
+        const data = await marketService.getCockpit(marketId);
         setDashboard(data);
+        setError(null);
       } catch (err: any) {
         setError(err.message || 'Erro ao carregar dashboard');
       } finally {

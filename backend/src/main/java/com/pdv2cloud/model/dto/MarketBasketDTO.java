@@ -13,4 +13,5 @@ public class MarketBasketDTO {
     private double support;
     private double confidence;
     private double lift;
+    private long pairCount;
 }

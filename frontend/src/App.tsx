@@ -25,6 +25,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const secure = (element: React.ReactNode) => <ProtectedRoute>{element}</ProtectedRoute>;
+
 const App: React.FC = () => {
   return (
     <Routes>
@@ -32,78 +34,25 @@ const App: React.FC = () => {
       <Route path="/" element={<Landing />} />
       <Route path="/download-agente" element={<PublicAgentDownload />} />
       <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
-      <Route
-        path="/app"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/produtos"
-        element={
-          <ProtectedRoute>
-            <Products />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/cesta"
-        element={
-          <ProtectedRoute>
-            <MarketBasket />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/alertas"
-        element={
-          <ProtectedRoute>
-            <Alerts />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/pdvs"
-        element={
-          <ProtectedRoute>
-            <PDVs />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/campanhas"
-        element={
-          <ProtectedRoute>
-            <Campaigns />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/previsao-demanda"
-        element={
-          <ProtectedRoute>
-            <DemandForecast />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/configuracoes"
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/app/download-agente"
-        element={
-          <ProtectedRoute>
-            <AgentDownload />
-          </ProtectedRoute>
-        }
-      />
+
+      <Route path="/app" element={secure(<Dashboard />)} />
+      <Route path="/app/produtos" element={secure(<Products />)} />
+      <Route path="/app/cesta" element={secure(<MarketBasket />)} />
+      <Route path="/app/alertas" element={secure(<Alerts />)} />
+      <Route path="/app/pdvs" element={secure(<PDVs />)} />
+      <Route path="/app/campanhas" element={secure(<Campaigns />)} />
+      <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
+      <Route path="/app/configuracoes" element={secure(<Settings />)} />
+      <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
+
+      <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
+      <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />
+      <Route path="/alertas" element={<Navigate to="/app/alertas" replace />} />
+      <Route path="/pdvs" element={<Navigate to="/app/pdvs" replace />} />
+      <Route path="/campanhas" element={<Navigate to="/app/campanhas" replace />} />
+      <Route path="/previsao-demanda" element={<Navigate to="/app/previsao-demanda" replace />} />
+      <Route path="/configuracoes" element={<Navigate to="/app/configuracoes" replace />} />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -109,6 +109,7 @@ public class MarketBasketService {
                 rule.setConsequent(List.of(item2));
                 rule.setSupport((double) entry.getValue() / totalTransactions);
                 rule.setConfidence(confidence1);
+                rule.setPairCount(entry.getValue());
                 rules.add(rule);
             }
 
@@ -119,6 +120,7 @@ public class MarketBasketService {
                 rule.setConsequent(List.of(item1));
                 rule.setSupport((double) entry.getValue() / totalTransactions);
                 rule.setConfidence(confidence2);
+                rule.setPairCount(entry.getValue());
                 rules.add(rule);
             }
         }

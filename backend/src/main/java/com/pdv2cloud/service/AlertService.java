@@ -2,6 +2,7 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.exception.CustomExceptions;
 import com.pdv2cloud.model.dto.AlertDTO;
+import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.entity.Alert;
 import com.pdv2cloud.model.entity.AlertPriority;
 import com.pdv2cloud.model.entity.AlertType;
@@ -10,13 +11,12 @@ import com.pdv2cloud.model.entity.Product;
 import com.pdv2cloud.repository.AlertRepository;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.ProductRepository;
-import com.pdv2cloud.repository.SalesAnalyticsRepository;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +30,7 @@ public class AlertService {
     private MarketRepository marketRepository;
 
     @Autowired
-    private SalesAnalyticsRepository analyticsRepository;
+    private AdvancedAnalyticsService advancedAnalyticsService;
 
     @Autowired
     private ProductRepository productRepository;
@@ -64,80 +64,90 @@ public class AlertService {
 
     @Transactional
     public void checkLowStock(UUID marketId) {
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(7);
-        List<Object[]> results = analyticsRepository.aggregateByProduct(marketId, start, end);
         Market market = marketRepository.getReferenceById(marketId);
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(13);
+        List<ProductPerformanceDTO> results = advancedAnalyticsService
+            .getProductPerformance(marketId, start, end, null, "TURNOVER", PageRequest.of(0, 5))
+            .getContent();
 
         results.stream()
-            .limit(5)
+            .filter(row -> row.getTransactionCount() != null && row.getTransactionCount() >= 3)
             .forEach(row -> createAlertForProduct(
                 market,
-                row[0],
+                row.getProductId(),
                 AlertType.LOW_STOCK,
                 AlertPriority.MEDIUM,
-                "Risco de ruptura",
-                "Produto com alta demanda nos ultimos dias"
+                "Alta rotacao recente",
+                "Produto com alta saida nos ultimos dias. Vale conferir estoque e reposicao."
             ));
     }
 
     @Transactional
     public void checkSlowMoving(UUID marketId) {
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(30);
-        List<Object[]> results = analyticsRepository.aggregateByProduct(marketId, start, end);
         Market market = marketRepository.getReferenceById(marketId);
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(29);
+        List<ProductPerformanceDTO> results = advancedAnalyticsService
+            .getProductPerformance(marketId, start, end, null, "TURNOVER_ASC", PageRequest.of(0, 10))
+            .getContent();
 
         results.stream()
-            .filter(row -> ((BigDecimal) row[1]).compareTo(new BigDecimal("200")) < 0)
+            .filter(row -> row.getTransactionCount() != null && row.getTransactionCount() >= 1)
+            .filter(row -> row.getRevenueTrendPercentage() != null && row.getRevenueTrendPercentage() < 0)
             .limit(5)
             .forEach(row -> createAlertForProduct(
                 market,
-                row[0],
+                row.getProductId(),
                 AlertType.SLOW_MOVING,
                 AlertPriority.LOW,
                 "Produtos com giro baixo",
-                "Produto com receita baixa no periodo"
+                "Produto com baixa velocidade de venda e perda de tracao no periodo."
             ));
     }
 
     @Transactional
     public void checkPromotionOpportunities(UUID marketId) {
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(60);
-        List<Object[]> results = analyticsRepository.aggregateByProduct(marketId, start, end);
         Market market = marketRepository.getReferenceById(marketId);
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(59);
+        List<ProductPerformanceDTO> results = advancedAnalyticsService
+            .getProductPerformance(marketId, start, end, null, "TREND_ASC", PageRequest.of(0, 20))
+            .getContent();
 
         results.stream()
-            .filter(row -> ((BigDecimal) row[1]).compareTo(new BigDecimal("1000")) < 0)
+            .filter(row -> row.getPriceIndex() != null && row.getPriceIndex().compareTo(java.math.BigDecimal.valueOf(1.03)) > 0)
+            .filter(row -> row.getRevenueTrendPercentage() != null && row.getRevenueTrendPercentage() < -5)
             .limit(5)
             .forEach(row -> createAlertForProduct(
                 market,
-                row[0],
+                row.getProductId(),
                 AlertType.PROMOTION_OPPORTUNITY,
                 AlertPriority.MEDIUM,
                 "Oportunidade de promocao",
-                "Produto com baixa receita e potencial promocional"
+                "Preco acima da base historica e queda recente de receita. Teste promocao ou ajuste de exposicao."
             ));
     }
 
     @Transactional
     public void checkHighPerformers(UUID marketId) {
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(7);
-        List<Object[]> results = analyticsRepository.aggregateByProduct(marketId, start, end);
         Market market = marketRepository.getReferenceById(marketId);
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(29);
+        List<ProductPerformanceDTO> results = advancedAnalyticsService
+            .getProductPerformance(marketId, start, end, null, "TREND", PageRequest.of(0, 10))
+            .getContent();
 
         results.stream()
-            .filter(row -> ((BigDecimal) row[1]).compareTo(new BigDecimal("8000")) > 0)
+            .filter(row -> row.getRevenueTrendPercentage() != null && row.getRevenueTrendPercentage() > 10)
             .limit(5)
             .forEach(row -> createAlertForProduct(
                 market,
-                row[0],
+                row.getProductId(),
                 AlertType.HIGH_PERFORMING,
                 AlertPriority.HIGH,
                 "Alto desempenho",
-                "Produto com receita alta no ultimo periodo"
+                "Produto acelerando receita e mantendo bom giro no periodo."
             ));
     }
 

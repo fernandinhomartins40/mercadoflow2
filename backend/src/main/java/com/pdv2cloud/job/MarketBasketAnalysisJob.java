@@ -56,6 +56,7 @@ public class MarketBasketAnalysisJob {
                 r.setSupport(BigDecimal.valueOf(dto.getSupport()));
                 r.setConfidence(BigDecimal.valueOf(dto.getConfidence()));
                 r.setLift(BigDecimal.valueOf(dto.getLift()));
+                r.setPairCount(dto.getPairCount());
                 return r;
             })
             .toList();

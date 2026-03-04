@@ -38,6 +38,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
            "group by p.id")
     List<Object[]> aggregateDailySales(@Param("marketId") UUID marketId, @Param("date") LocalDate date);
 
+    @Query("select p.id, date(i.dataEmissao), sum(it.quantidade) " +
+           "from InvoiceItem it join it.invoice i join it.product p " +
+           "where i.market.id = :marketId and date(i.dataEmissao) between :start and :end " +
+           "group by p.id, date(i.dataEmissao)")
+    List<Object[]> aggregateDailyQuantityByProductBetween(@Param("marketId") UUID marketId,
+                                                          @Param("start") LocalDate start,
+                                                          @Param("end") LocalDate end);
+
     @Query("select i from Invoice i join fetch i.items it join fetch it.product where i.market.id = :marketId and i.dataEmissao >= :since")
     List<Invoice> findRecentInvoices(@Param("marketId") UUID marketId, @Param("since") LocalDateTime since);
 

@@ -45,5 +45,7 @@ public class MarketBasketRule {
 
     @Column(precision = 10, scale = 6)
     private BigDecimal lift;
-}
 
+    @Column(name = "pair_count")
+    private Long pairCount;
+}

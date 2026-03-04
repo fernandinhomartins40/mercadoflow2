@@ -8,6 +8,7 @@
   --text-primary: #1a1a1a;
   --text-secondary: #525252;
   --text-tertiary: #a3a3a3;
+  --muted: #525252;
 
   /* Primary: Verde vibrante (frescor, natural, energia) */
   --accent-primary: #10b981;
@@ -194,6 +195,7 @@ button {
   padding: 12px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  vertical-align: top;
 }
 
 .table th {

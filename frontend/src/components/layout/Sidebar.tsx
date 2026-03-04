@@ -6,18 +6,18 @@ const Sidebar: React.FC = () => {
     <aside className="sidebar">
       <div>
         <h1>MercadoFlow</h1>
-        <p style={{ color: 'var(--muted)' }}>Inteligência de vendas</p>
+        <p style={{ color: 'var(--muted)' }}>Cockpit de vendas e promocoes</p>
       </div>
       <nav>
-        <NavLink className="nav-link" to="/app">Painel</NavLink>
-        <NavLink className="nav-link" to="/produtos">Produtos</NavLink>
-        <NavLink className="nav-link" to="/previsao-demanda">Previsão de demanda</NavLink>
-        <NavLink className="nav-link" to="/cesta">Cesta de mercado</NavLink>
-        <NavLink className="nav-link" to="/alertas">Alertas</NavLink>
-        <NavLink className="nav-link" to="/pdvs">PDVs</NavLink>
-        <NavLink className="nav-link" to="/campanhas">Campanhas</NavLink>
+        <NavLink className="nav-link" to="/app">Cockpit</NavLink>
+        <NavLink className="nav-link" to="/app/produtos">Produtos</NavLink>
+        <NavLink className="nav-link" to="/app/cesta">Compra casada</NavLink>
+        <NavLink className="nav-link" to="/app/previsao-demanda">Previsao</NavLink>
+        <NavLink className="nav-link" to="/app/campanhas">Campanhas</NavLink>
+        <NavLink className="nav-link" to="/app/alertas">Alertas</NavLink>
+        <NavLink className="nav-link" to="/app/pdvs">PDVs</NavLink>
         <NavLink className="nav-link" to="/app/download-agente">Download do agente</NavLink>
-        <NavLink className="nav-link" to="/configuracoes">Configurações</NavLink>
+        <NavLink className="nav-link" to="/app/configuracoes">Configuracoes</NavLink>
       </nav>
     </aside>
   );

@@ -13,7 +13,7 @@ interface ForecastRow {
 
 const DemandForecast: React.FC = () => {
   const { marketId } = useAuth();
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(14);
   const [rows, setRows] = useState<ForecastRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +23,10 @@ const DemandForecast: React.FC = () => {
     setLoading(true);
     try {
       const data = await marketService.getDemandForecast(marketId, days);
-      setRows(data || []);
+      setRows((data || []).sort((a: ForecastRow, b: ForecastRow) => Number(b.predictedQuantity || 0) - Number(a.predictedQuantity || 0)));
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Erro ao carregar previsão');
+      setError(err?.message || 'Erro ao carregar previsao');
       setRows([]);
     } finally {
       setLoading(false);
@@ -39,10 +39,16 @@ const DemandForecast: React.FC = () => {
 
   return (
     <Layout>
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <h3 style={{ marginTop: 0, marginBottom: 0 }}>Previsão de demanda</h3>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="page">
+        <div className="page-header">
+          <div>
+            <span className="pill">Previsao de demanda</span>
+            <h1 className="page-title">Tendencia por dia e dia da semana</h1>
+            <p className="page-subtitle">
+              A previsao considera historico diario, padrao por dia da semana e tendencia recente de volume.
+            </p>
+          </div>
+          <div className="page-actions">
             <label style={{ color: 'var(--muted)', display: 'flex', gap: 8, alignItems: 'center' }}>
               Dias:
               <input
@@ -59,42 +65,43 @@ const DemandForecast: React.FC = () => {
           </div>
         </div>
 
-        {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+        <div className="card">
+          {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
 
-        {loading ? (
-          <p>Carregando...</p>
-        ) : (
-          <table className="table" style={{ marginTop: 14 }}>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Produto</th>
-                <th>Qtd prevista</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
+          {loading ? (
+            <p>Carregando...</p>
+          ) : (
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan={3} style={{ color: 'var(--muted)' }}>
-                    Nenhuma previsão disponível (aguarde o job noturno ou verifique se há vendas agregadas).
-                  </td>
+                  <th>Produto</th>
+                  <th>Data</th>
+                  <th>Qtd prevista</th>
                 </tr>
-              ) : (
-                rows.map((r, idx) => (
-                  <tr key={`${r.productId}-${r.forecastDate}-${idx}`}>
-                    <td>{r.forecastDate ? new Date(r.forecastDate).toLocaleDateString('pt-BR') : '-'}</td>
-                    <td>{r.productName || r.productId}</td>
-                    <td>{Number(r.predictedQuantity || 0).toFixed(3)}</td>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} style={{ color: 'var(--muted)' }}>
+                      Nenhuma previsao disponivel.
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+                ) : (
+                  rows.map((row, idx) => (
+                    <tr key={`${row.productId}-${row.forecastDate}-${idx}`}>
+                      <td>{row.productName || row.productId}</td>
+                      <td>{row.forecastDate ? new Date(row.forecastDate).toLocaleDateString('pt-BR') : '-'}</td>
+                      <td>{Number(row.predictedQuantity || 0).toFixed(3)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </Layout>
   );
 };
 
 export default DemandForecast;
-

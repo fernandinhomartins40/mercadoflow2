@@ -1,9 +1,13 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.MarketBasketDTO;
+import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.MarketDashboardDTO;
 import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
+import com.pdv2cloud.model.dto.ProductPerformanceDTO;
+import com.pdv2cloud.model.dto.CampaignImpactDTO;
+import com.pdv2cloud.model.dto.SeasonalityPointDTO;
 import com.pdv2cloud.model.dto.TopSellerDTO;
 import com.pdv2cloud.model.dto.AlertDTO;
 import com.pdv2cloud.model.dto.DemandForecastDTO;
@@ -11,6 +15,7 @@ import com.pdv2cloud.model.entity.AlertPriority;
 import com.pdv2cloud.model.entity.AlertType;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.service.AlertService;
+import com.pdv2cloud.service.AdvancedAnalyticsService;
 import com.pdv2cloud.service.AnalyticsService;
 import com.pdv2cloud.service.ForecastService;
 import com.pdv2cloud.service.MarketAccessService;
@@ -35,6 +40,9 @@ public class MarketController {
 
     @Autowired
     private AnalyticsService analyticsService;
+
+    @Autowired
+    private AdvancedAnalyticsService advancedAnalyticsService;
 
     @Autowired
     private AlertService alertService;
@@ -69,6 +77,17 @@ public class MarketController {
         return ResponseEntity.ok(dashboard);
     }
 
+    @GetMapping("/{id}/analytics/cockpit")
+    public ResponseEntity<MarketCockpitDTO> getCockpit(
+        @PathVariable("id") UUID id,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(advancedAnalyticsService.getCockpit(id, startDate, endDate));
+    }
+
     @GetMapping("/{id}/products")
     public ResponseEntity<Page<ProductAnalyticsDTO>> getProducts(
         @PathVariable("id") UUID id,
@@ -82,6 +101,24 @@ public class MarketController {
         Pageable pageable = PageRequest.of(page, size);
         Page<ProductAnalyticsDTO> products = analyticsService.getProductAnalytics(id, category, sortBy, pageable);
         return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/{id}/analytics/products/performance")
+    public ResponseEntity<Page<ProductPerformanceDTO>> getProductPerformance(
+        @PathVariable("id") UUID id,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String sortBy,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+            advancedAnalyticsService.getProductPerformance(id, startDate, endDate, category, sortBy, pageable)
+        );
     }
 
     @GetMapping("/{id}/alerts")
@@ -160,5 +197,25 @@ public class MarketController {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
         return ResponseEntity.ok(forecastService.getForecast(id, days));
+    }
+
+    @GetMapping("/{id}/analytics/campaign-impact")
+    public ResponseEntity<List<CampaignImpactDTO>> getCampaignImpact(
+        @PathVariable("id") UUID id,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(advancedAnalyticsService.getCampaignImpacts(id));
+    }
+
+    @GetMapping("/{id}/analytics/seasonality/weekday")
+    public ResponseEntity<List<SeasonalityPointDTO>> getWeekdaySeasonality(
+        @PathVariable("id") UUID id,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(advancedAnalyticsService.getWeekdaySeasonality(id, startDate, endDate));
     }
 }

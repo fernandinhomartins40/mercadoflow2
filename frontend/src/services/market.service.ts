@@ -11,11 +11,41 @@ export const marketService = {
     return response.data;
   },
 
+  async getCockpit(marketId: string, startDate?: string, endDate?: string) {
+    const params: any = {};
+    if (startDate && startDate.trim()) params.startDate = startDate.trim();
+    if (endDate && endDate.trim()) params.endDate = endDate.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/cockpit`, {
+      params,
+    });
+    return response.data;
+  },
+
   async getProducts(marketId: string, page = 0, size = 20, category?: string, sortBy?: string) {
     const params: any = { page, size };
     if (category && category.trim()) params.category = category.trim();
     if (sortBy && sortBy.trim()) params.sortBy = sortBy.trim();
     const response = await api.get(`/v1/markets/${marketId}/products`, {
+      params,
+    });
+    return response.data;
+  },
+
+  async getProductPerformance(
+    marketId: string,
+    page = 0,
+    size = 20,
+    category?: string,
+    sortBy?: string,
+    startDate?: string,
+    endDate?: string
+  ) {
+    const params: any = { page, size };
+    if (category && category.trim()) params.category = category.trim();
+    if (sortBy && sortBy.trim()) params.sortBy = sortBy.trim();
+    if (startDate && startDate.trim()) params.startDate = startDate.trim();
+    if (endDate && endDate.trim()) params.endDate = endDate.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/products/performance`, {
       params,
     });
     return response.data;
@@ -69,6 +99,11 @@ export const marketService = {
 
   async getDemandForecast(marketId: string, days = 7) {
     const response = await api.get(`/v1/markets/${marketId}/analytics/demand-forecast`, { params: { days } });
+    return response.data;
+  },
+
+  async getCampaignImpact(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/analytics/campaign-impact`);
     return response.data;
   },
 
