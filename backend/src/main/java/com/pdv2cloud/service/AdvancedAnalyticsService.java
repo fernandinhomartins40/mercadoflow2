@@ -2,12 +2,11 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.dto.AlertDTO;
 import com.pdv2cloud.model.dto.CampaignImpactDTO;
-import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.MarketBasketDTO;
+import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.ProductPairInsightDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.PromotionImpactDTO;
-import com.pdv2cloud.model.dto.RecentInvoiceSummaryDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
 import com.pdv2cloud.model.entity.Alert;
@@ -20,11 +19,13 @@ import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,9 +33,8 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -59,9 +59,10 @@ public class AdvancedAnalyticsService {
 
     public MarketCockpitDTO getCockpit(UUID marketId, LocalDate startDate, LocalDate endDate) {
         Window window = resolveWindow(startDate, endDate, 90);
+        List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null);
 
         MarketCockpitDTO cockpit = new MarketCockpitDTO();
-        Overview overview = loadOverview(marketId, window);
+        Overview overview = buildOverview(marketId, window, performance);
         cockpit.setTotalRevenue(overview.totalRevenue());
         cockpit.setAverageTicket(overview.averageTicket());
         cockpit.setTotalTransactions(overview.totalTransactions());
@@ -69,11 +70,11 @@ public class AdvancedAnalyticsService {
         cockpit.setGrowthPercentage(overview.growthPercentage());
         cockpit.setPromoRevenueShare(overview.promoRevenueShare());
         cockpit.setCampaignsRunning(countRunningCampaigns(marketId));
-        cockpit.setTopProducts(fetchProductPerformance(marketId, window, null, "REVENUE", PageRequest.of(0, 5)).getContent());
-        cockpit.setSlowMovers(fetchProductPerformance(marketId, window, null, "TURNOVER_ASC", PageRequest.of(0, 5)).getContent());
-        cockpit.setTopTurnoverProducts(fetchProductPerformance(marketId, window, null, "TURNOVER", PageRequest.of(0, 5)).getContent());
-        cockpit.setLowTurnoverProducts(fetchProductPerformance(marketId, window, null, "TREND_ASC", PageRequest.of(0, 5)).getContent());
-        cockpit.setPromotionHighlights(fetchPromotionHighlights(marketId, window, 6));
+        cockpit.setTopProducts(topProducts(performance, "REVENUE", 5));
+        cockpit.setSlowMovers(topProducts(performance, "TREND_ASC", 5));
+        cockpit.setTopTurnoverProducts(topProducts(performance, "TURNOVER", 5));
+        cockpit.setLowTurnoverProducts(topProducts(performance, "TURNOVER_ASC", 5));
+        cockpit.setPromotionHighlights(fetchPromotionHighlights(performance, 6));
         cockpit.setWeekdaySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.WEEKDAY));
         cockpit.setHourlySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.HOUR));
         cockpit.setMonthlySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.MONTH));
@@ -98,7 +99,10 @@ public class AdvancedAnalyticsService {
         Pageable pageable
     ) {
         Window window = resolveWindow(startDate, endDate, 90);
-        return fetchProductPerformance(marketId, window, category, sortBy, pageable);
+        List<ProductPerformanceDTO> rows = sortProducts(loadProductPerformanceRows(marketId, window, category), sortBy);
+        int fromIndex = Math.min((int) pageable.getOffset(), rows.size());
+        int toIndex = Math.min(fromIndex + pageable.getPageSize(), rows.size());
+        return new PageImpl<>(rows.subList(fromIndex, toIndex), pageable, rows.size());
     }
 
     public List<CampaignImpactDTO> getCampaignImpacts(UUID marketId) {
@@ -109,64 +113,214 @@ public class AdvancedAnalyticsService {
         return fetchSeasonality(marketId, resolveWindow(startDate, endDate, 90), SeasonalityGranularity.WEEKDAY);
     }
 
-    private Page<ProductPerformanceDTO> fetchProductPerformance(
-        UUID marketId,
-        Window window,
-        String category,
-        String sortBy,
-        Pageable pageable
-    ) {
-        String orderBy = resolveSort(sortBy);
-        MapSqlParameterSource params = baseProductParams(marketId, window, category)
-            .addValue("limit", pageable.getPageSize())
-            .addValue("offset", pageable.getOffset());
+    private List<ProductPerformanceDTO> loadProductPerformanceRows(UUID marketId, Window window, String category) {
+        MapSqlParameterSource params = baseProductParams(marketId, window, category);
+        Map<UUID, ProductSnapshot> products = loadMarketProducts(params);
+        Map<UUID, BigDecimal> baselinePrices = loadBaselinePrices(params);
+        Map<UUID, BigDecimal> previousRevenues = loadPreviousRevenues(params);
+        Map<UUID, LocalDateTime> lastSales = loadLastSales(params);
+        Map<UUID, CurrentAggregate> currentAggregates = loadCurrentAggregates(params);
 
-        String cte = productPerformanceCte();
-        List<ProductPerformanceDTO> content = jdbcTemplate.query(
-            cte +
-            "select cp.product_id, cp.ean, cp.name, cp.category, cp.revenue, cp.quantity_sold, cp.average_price, cp.transaction_count, " +
-            "cp.sales_days, cp.sales_velocity, cp.promo_revenue, cp.promo_quantity, cp.normal_revenue, cp.normal_quantity, " +
-            "cp.baseline_price, cp.promo_average_price, cp.normal_average_price, cp.promo_revenue_share, cp.price_index, " +
-            "cp.revenue_trend_percentage, cp.last_sold_at, cp.turnover_band " +
-            "from current_period cp order by " + orderBy + " limit :limit offset :offset",
-            params,
-            productPerformanceRowMapper()
-        );
+        List<ProductPerformanceDTO> rows = new ArrayList<>();
+        for (ProductSnapshot product : products.values()) {
+            CurrentAggregate current = currentAggregates.get(product.productId());
+            BigDecimal revenue = current != null ? current.revenue() : zero(2);
+            BigDecimal quantitySold = current != null ? current.quantitySold() : zero(3);
+            BigDecimal averagePrice = current != null ? current.averagePrice() : zero(2);
+            Long transactionCount = current != null ? current.transactionCount() : 0L;
+            Integer salesDays = current != null ? current.salesDays() : 0;
+            BigDecimal promoRevenue = current != null ? current.promoRevenue() : zero(2);
+            BigDecimal promoQuantity = current != null ? current.promoQuantity() : zero(3);
+            BigDecimal normalRevenue = current != null ? current.normalRevenue() : zero(2);
+            BigDecimal normalQuantity = current != null ? current.normalQuantity() : zero(3);
+            BigDecimal promoAveragePrice = current != null ? current.promoAveragePrice() : zero(2);
+            BigDecimal normalAveragePrice = current != null ? current.normalAveragePrice() : zero(2);
+            BigDecimal baselinePrice = defaultBigDecimal(baselinePrices.get(product.productId()));
+            if (baselinePrice.compareTo(BigDecimal.ZERO) == 0) {
+                baselinePrice = averagePrice;
+            }
 
-        Long total = jdbcTemplate.queryForObject(
-            cte + "select count(*) from current_period",
-            params,
-            Long.class
-        );
+            BigDecimal salesVelocity = salesDays > 0
+                ? quantitySold.divide(BigDecimal.valueOf(salesDays), 3, RoundingMode.HALF_UP)
+                : quantitySold.compareTo(BigDecimal.ZERO) > 0
+                    ? quantitySold.setScale(3, RoundingMode.HALF_UP)
+                    : zero(3);
 
-        return new PageImpl<>(content, pageable, total != null ? total : 0);
+            BigDecimal promoRevenueShare = revenue.compareTo(BigDecimal.ZERO) > 0
+                ? promoRevenue.divide(revenue, 4, RoundingMode.HALF_UP)
+                : zero(4);
+
+            BigDecimal priceIndex = baselinePrice.compareTo(BigDecimal.ZERO) > 0
+                ? averagePrice.divide(baselinePrice, 4, RoundingMode.HALF_UP)
+                : BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP);
+
+            rows.add(new ProductPerformanceDTO(
+                product.productId(),
+                product.ean(),
+                product.name(),
+                product.category(),
+                revenue,
+                quantitySold,
+                averagePrice,
+                transactionCount,
+                salesDays,
+                salesVelocity,
+                promoRevenue,
+                promoQuantity,
+                normalRevenue,
+                normalQuantity,
+                baselinePrice,
+                promoAveragePrice,
+                normalAveragePrice,
+                promoRevenueShare,
+                priceIndex,
+                calculateGrowth(revenue, previousRevenues.get(product.productId())),
+                lastSales.get(product.productId()),
+                resolveTurnoverBand(salesVelocity)
+            ));
+        }
+        return rows;
     }
 
-    private Overview loadOverview(UUID marketId, Window window) {
-        MapSqlParameterSource params = baseProductParams(marketId, window, null);
-        BigDecimal totalRevenue = jdbcTemplate.queryForObject(
-            "select coalesce(sum(i.valor_total), 0) from invoices i " +
-            "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive",
+    private Map<UUID, ProductSnapshot> loadMarketProducts(MapSqlParameterSource params) {
+        return jdbcTemplate.query(
+            "select distinct p.id as product_id, p.ean, p.name, p.category " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "join products p on p.id = it.product_id " +
+            "where i.market_id = :marketId and (:category is null or p.category = :category) " +
+            "order by p.name asc",
             params,
-            BigDecimal.class
+            rs -> {
+                Map<UUID, ProductSnapshot> rows = new LinkedHashMap<>();
+                while (rs.next()) {
+                    UUID productId = uuid(rs, "product_id");
+                    rows.put(productId, new ProductSnapshot(
+                        productId,
+                        rs.getString("ean"),
+                        rs.getString("name"),
+                        rs.getString("category")
+                    ));
+                }
+                return rows;
+            }
         );
+    }
+
+    private Map<UUID, BigDecimal> loadBaselinePrices(MapSqlParameterSource params) {
+        return jdbcTemplate.query(
+            "select it.product_id, avg(it.valor_unitario) as baseline_price " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :marketId and i.data_emissao >= :baselineStart and i.data_emissao < :endExclusive " +
+            "group by it.product_id",
+            params,
+            (ResultSet rs) -> mapBigDecimalByUuid(rs, "product_id", "baseline_price")
+        );
+    }
+
+    private Map<UUID, BigDecimal> loadPreviousRevenues(MapSqlParameterSource params) {
+        return jdbcTemplate.query(
+            "select it.product_id, coalesce(sum(it.valor_total), 0) as previous_revenue " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "join products p on p.id = it.product_id " +
+            "where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate " +
+            "  and (:category is null or p.category = :category) " +
+            "group by it.product_id",
+            params,
+            (ResultSet rs) -> mapBigDecimalByUuid(rs, "product_id", "previous_revenue")
+        );
+    }
+
+    private Map<UUID, LocalDateTime> loadLastSales(MapSqlParameterSource params) {
+        return jdbcTemplate.query(
+            "select it.product_id, max(i.data_emissao) as last_sold_at " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "join products p on p.id = it.product_id " +
+            "where i.market_id = :marketId and (:category is null or p.category = :category) " +
+            "group by it.product_id",
+            params,
+            rs -> {
+                Map<UUID, LocalDateTime> rows = new LinkedHashMap<>();
+                while (rs.next()) {
+                    rows.put(uuid(rs, "product_id"), localDateTime(rs, "last_sold_at"));
+                }
+                return rows;
+            }
+        );
+    }
+
+    private Map<UUID, CurrentAggregate> loadCurrentAggregates(MapSqlParameterSource params) {
+        String baselineSubquery =
+            "select it2.product_id, avg(it2.valor_unitario) as baseline_price " +
+            "from invoice_items it2 " +
+            "join invoices i2 on i2.id = it2.invoice_id " +
+            "where i2.market_id = :marketId and i2.data_emissao >= :baselineStart and i2.data_emissao < :endExclusive " +
+            "group by it2.product_id";
+
+        return jdbcTemplate.query(
+            "select p.id as product_id, " +
+            "       coalesce(sum(it.valor_total), 0) as revenue, " +
+            "       coalesce(sum(it.quantidade), 0) as quantity_sold, " +
+            "       coalesce(avg(it.valor_unitario), 0) as average_price, " +
+            "       count(distinct i.id) as transaction_count, " +
+            "       count(distinct cast(i.data_emissao as date)) as sales_days, " +
+            "       coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as promo_revenue, " +
+            "       coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.quantidade else 0 end), 0) as promo_quantity, " +
+            "       coalesce(sum(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as normal_revenue, " +
+            "       coalesce(sum(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.quantidade else 0 end), 0) as normal_quantity, " +
+            "       coalesce(avg(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_unitario end), 0) as promo_average_price, " +
+            "       coalesce(avg(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_unitario end), 0) as normal_average_price " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "join products p on p.id = it.product_id " +
+            "left join (" + baselineSubquery + ") b on b.product_id = p.id " +
+            "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
+            "  and (:category is null or p.category = :category) " +
+            "group by p.id",
+            params,
+            rs -> {
+                Map<UUID, CurrentAggregate> rows = new LinkedHashMap<>();
+                while (rs.next()) {
+                    rows.put(uuid(rs, "product_id"), new CurrentAggregate(
+                        defaultBigDecimal(rs.getBigDecimal("revenue")),
+                        defaultBigDecimal(rs.getBigDecimal("quantity_sold")),
+                        defaultBigDecimal(rs.getBigDecimal("average_price")),
+                        rs.getLong("transaction_count"),
+                        rs.getInt("sales_days"),
+                        defaultBigDecimal(rs.getBigDecimal("promo_revenue")),
+                        defaultBigDecimal(rs.getBigDecimal("promo_quantity")),
+                        defaultBigDecimal(rs.getBigDecimal("normal_revenue")),
+                        defaultBigDecimal(rs.getBigDecimal("normal_quantity")),
+                        defaultBigDecimal(rs.getBigDecimal("promo_average_price")),
+                        defaultBigDecimal(rs.getBigDecimal("normal_average_price"))
+                    ));
+                }
+                return rows;
+            }
+        );
+    }
+
+    private Overview buildOverview(UUID marketId, Window window, List<ProductPerformanceDTO> performance) {
+        MapSqlParameterSource params = baseProductParams(marketId, window, null);
+        BigDecimal totalRevenue = performance.stream()
+            .map(ProductPerformanceDTO::getRevenue)
+            .map(this::defaultBigDecimal)
+            .reduce(zero(2), BigDecimal::add);
+        BigDecimal promoRevenue = performance.stream()
+            .map(ProductPerformanceDTO::getPromoRevenue)
+            .map(this::defaultBigDecimal)
+            .reduce(zero(2), BigDecimal::add);
+        long activeProducts = performance.stream()
+            .filter(row -> defaultBigDecimal(row.getRevenue()).compareTo(BigDecimal.ZERO) > 0)
+            .count();
         Long totalTransactions = jdbcTemplate.queryForObject(
             "select count(*) from invoices i " +
             "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive",
             params,
             Long.class
-        );
-        Integer activeProducts = jdbcTemplate.queryForObject(
-            "select count(distinct it.product_id) from invoice_items it " +
-            "join invoices i on i.id = it.invoice_id " +
-            "where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive",
-            params,
-            Integer.class
-        );
-        BigDecimal promoRevenue = jdbcTemplate.queryForObject(
-            productPerformanceCte() + "select coalesce(sum(cp.promo_revenue), 0) from current_period cp",
-            params,
-            BigDecimal.class
         );
         BigDecimal previousRevenue = jdbcTemplate.queryForObject(
             "select coalesce(sum(i.valor_total), 0) from invoices i " +
@@ -175,25 +329,78 @@ public class AdvancedAnalyticsService {
             BigDecimal.class
         );
 
-        totalRevenue = defaultBigDecimal(totalRevenue);
-        previousRevenue = defaultBigDecimal(previousRevenue);
-        promoRevenue = defaultBigDecimal(promoRevenue);
-        long transactions = totalTransactions != null ? totalTransactions : 0;
+        long transactions = totalTransactions != null ? totalTransactions : 0L;
         BigDecimal averageTicket = transactions > 0
             ? totalRevenue.divide(BigDecimal.valueOf(transactions), 2, RoundingMode.HALF_UP)
-            : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            : zero(2);
         BigDecimal promoRevenueShare = totalRevenue.compareTo(BigDecimal.ZERO) > 0
             ? promoRevenue.divide(totalRevenue, 4, RoundingMode.HALF_UP)
-            : BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
+            : zero(4);
 
         return new Overview(
             totalRevenue,
             averageTicket,
             transactions,
-            activeProducts != null ? activeProducts : 0,
+            (int) activeProducts,
             calculateGrowth(totalRevenue, previousRevenue),
             promoRevenueShare
         );
+    }
+
+    private List<ProductPerformanceDTO> topProducts(List<ProductPerformanceDTO> performance, String sortBy, int limit) {
+        return sortProducts(performance, sortBy).stream().limit(limit).toList();
+    }
+
+    private List<ProductPerformanceDTO> sortProducts(List<ProductPerformanceDTO> performance, String sortBy) {
+        List<ProductPerformanceDTO> sorted = new ArrayList<>(performance);
+        sorted.sort(resolveComparator(sortBy));
+        return sorted;
+    }
+
+    private Comparator<ProductPerformanceDTO> resolveComparator(String sortBy) {
+        String normalized = sortBy == null ? "REVENUE" : sortBy.trim().toUpperCase(Locale.ROOT);
+        Comparator<ProductPerformanceDTO> byName = Comparator.comparing(
+            row -> row.getName() == null ? "" : row.getName(),
+            String.CASE_INSENSITIVE_ORDER
+        );
+        Comparator<ProductPerformanceDTO> byRevenueDesc = Comparator
+            .comparing((ProductPerformanceDTO row) -> defaultBigDecimal(row.getRevenue()))
+            .reversed();
+        Comparator<ProductPerformanceDTO> byRevenueAsc = Comparator.comparing(row -> defaultBigDecimal(row.getRevenue()));
+        Comparator<ProductPerformanceDTO> byQuantityDesc = Comparator
+            .comparing((ProductPerformanceDTO row) -> defaultBigDecimal(row.getQuantitySold()))
+            .reversed();
+        Comparator<ProductPerformanceDTO> byTransactionDesc = Comparator
+            .comparingLong((ProductPerformanceDTO row) -> row.getTransactionCount() != null ? row.getTransactionCount() : 0L)
+            .reversed();
+        Comparator<ProductPerformanceDTO> byAveragePriceDesc = Comparator
+            .comparing((ProductPerformanceDTO row) -> defaultBigDecimal(row.getAveragePrice()))
+            .reversed();
+        Comparator<ProductPerformanceDTO> byVelocityDesc = Comparator
+            .comparing((ProductPerformanceDTO row) -> defaultBigDecimal(row.getSalesVelocity()))
+            .reversed();
+        Comparator<ProductPerformanceDTO> byVelocityAsc = Comparator.comparing(row -> defaultBigDecimal(row.getSalesVelocity()));
+        Comparator<ProductPerformanceDTO> byPromoDesc = Comparator
+            .comparing((ProductPerformanceDTO row) -> defaultBigDecimal(row.getPromoRevenueShare()))
+            .reversed();
+        Comparator<ProductPerformanceDTO> byTrendDesc = Comparator
+            .comparingDouble((ProductPerformanceDTO row) -> row.getRevenueTrendPercentage() != null ? row.getRevenueTrendPercentage() : -Double.MAX_VALUE)
+            .reversed();
+        Comparator<ProductPerformanceDTO> byTrendAsc = Comparator
+            .comparingDouble((ProductPerformanceDTO row) -> row.getRevenueTrendPercentage() != null ? row.getRevenueTrendPercentage() : -Double.MAX_VALUE);
+
+        return switch (normalized) {
+            case "QUANTITY" -> byQuantityDesc.thenComparing(byRevenueDesc).thenComparing(byName);
+            case "TRANSACTIONS" -> byTransactionDesc.thenComparing(byRevenueDesc).thenComparing(byName);
+            case "PRICE" -> byAveragePriceDesc.thenComparing(byRevenueDesc).thenComparing(byName);
+            case "TURNOVER" -> byVelocityDesc.thenComparing(byRevenueDesc).thenComparing(byName);
+            case "TURNOVER_ASC" -> byVelocityAsc.thenComparing(byRevenueAsc).thenComparing(byName);
+            case "TREND" -> byTrendDesc.thenComparing(byRevenueDesc).thenComparing(byName);
+            case "TREND_ASC" -> byTrendAsc.thenComparing(byVelocityAsc).thenComparing(byName);
+            case "PROMO" -> byPromoDesc.thenComparing(byRevenueDesc).thenComparing(byName);
+            case "NAME" -> byName;
+            default -> byRevenueDesc.thenComparing(byQuantityDesc).thenComparing(byName);
+        };
     }
 
     private List<ProductPairInsightDTO> fetchBasketHighlights(UUID marketId, int limit) {
@@ -213,35 +420,25 @@ public class AdvancedAnalyticsService {
             .toList();
     }
 
-    private List<PromotionImpactDTO> fetchPromotionHighlights(UUID marketId, Window window, int limit) {
-        return fetchProductPerformance(marketId, window, null, "PROMO", PageRequest.of(0, limit * 2)).getContent().stream()
+    private List<PromotionImpactDTO> fetchPromotionHighlights(List<ProductPerformanceDTO> performance, int limit) {
+        return sortProducts(performance, "PROMO").stream()
             .filter(row -> defaultBigDecimal(row.getPromoRevenue()).compareTo(BigDecimal.ZERO) > 0
                 || defaultBigDecimal(row.getPromoQuantity()).compareTo(BigDecimal.ZERO) > 0)
             .limit(limit)
-            .map(row -> {
-                double quantityLift = calculateLift(
-                    defaultBigDecimal(row.getPromoQuantity()),
-                    defaultBigDecimal(row.getNormalQuantity())
-                );
-                double revenueLift = calculateLift(
-                    defaultBigDecimal(row.getPromoRevenue()),
-                    defaultBigDecimal(row.getNormalRevenue())
-                );
-                return new PromotionImpactDTO(
-                    row.getProductId(),
-                    row.getName(),
-                    row.getCategory(),
-                    row.getBaselinePrice(),
-                    row.getPromoAveragePrice(),
-                    row.getNormalAveragePrice(),
-                    row.getPromoRevenue(),
-                    row.getNormalRevenue(),
-                    row.getPromoQuantity(),
-                    row.getNormalQuantity(),
-                    quantityLift,
-                    revenueLift
-                );
-            })
+            .map(row -> new PromotionImpactDTO(
+                row.getProductId(),
+                row.getName(),
+                row.getCategory(),
+                row.getBaselinePrice(),
+                row.getPromoAveragePrice(),
+                row.getNormalAveragePrice(),
+                row.getPromoRevenue(),
+                row.getNormalRevenue(),
+                row.getPromoQuantity(),
+                row.getNormalQuantity(),
+                calculateLift(defaultBigDecimal(row.getPromoQuantity()), defaultBigDecimal(row.getNormalQuantity())),
+                calculateLift(defaultBigDecimal(row.getPromoRevenue()), defaultBigDecimal(row.getNormalRevenue()))
+            ))
             .toList();
     }
 
@@ -282,9 +479,9 @@ public class AdvancedAnalyticsService {
 
     private List<SalesTrendPointDTO> fetchSalesTrend(UUID marketId, Window window) {
         return jdbcTemplate.query(
-            "select date(i.data_emissao) as sale_date, coalesce(sum(i.valor_total), 0) as revenue " +
+            "select cast(i.data_emissao as date) as sale_date, coalesce(sum(i.valor_total), 0) as revenue " +
             "from invoices i where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
-            "group by date(i.data_emissao) order by sale_date",
+            "group by cast(i.data_emissao as date) order by sale_date",
             baseProductParams(marketId, window, null),
             (rs, rowNum) -> new SalesTrendPointDTO(
                 rs.getDate("sale_date").toLocalDate(),
@@ -375,134 +572,12 @@ public class AdvancedAnalyticsService {
             .addValue("category", category == null || category.isBlank() ? null : category.trim());
     }
 
-    private String productPerformanceCte() {
-        return
-            "with market_products as (" +
-            "    select distinct p.id, p.ean, p.name, p.category " +
-            "    from invoice_items it " +
-            "    join invoices i on i.id = it.invoice_id " +
-            "    join products p on p.id = it.product_id " +
-            "    where i.market_id = :marketId and (:category is null or p.category = :category)" +
-            "), baseline as (" +
-            "    select it.product_id, avg(it.valor_unitario) as baseline_price " +
-            "    from invoice_items it " +
-            "    join invoices i on i.id = it.invoice_id " +
-            "    where i.market_id = :marketId and i.data_emissao >= :baselineStart and i.data_emissao < :endExclusive " +
-            "    group by it.product_id" +
-            "), current_period_raw as (" +
-            "    select p.id as product_id, p.ean, p.name, p.category, " +
-            "           coalesce(sum(it.valor_total), 0) as revenue, " +
-            "           coalesce(sum(it.quantidade), 0) as quantity_sold, " +
-            "           avg(it.valor_unitario) as average_price, " +
-            "           count(distinct i.id) as transaction_count, " +
-            "           count(distinct date(i.data_emissao)) as sales_days, " +
-            "           max(i.data_emissao) as last_sold_at, " +
-            "           coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as promo_revenue, " +
-            "           coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.quantidade else 0 end), 0) as promo_quantity, " +
-            "           coalesce(sum(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as normal_revenue, " +
-            "           coalesce(sum(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.quantidade else 0 end), 0) as normal_quantity, " +
-            "           avg(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_unitario end) as promo_average_price, " +
-            "           avg(case when it.valor_unitario > coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_unitario end) as normal_average_price, " +
-            "           coalesce(avg(case when coalesce(b.baseline_price, 0) > 0 then it.valor_unitario / b.baseline_price end), 1) as price_index, " +
-            "           coalesce(b.baseline_price, avg(it.valor_unitario)) as baseline_price " +
-            "    from invoice_items it " +
-            "    join invoices i on i.id = it.invoice_id " +
-            "    join products p on p.id = it.product_id " +
-            "    left join baseline b on b.product_id = p.id " +
-            "    where i.market_id = :marketId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
-            "      and (:category is null or p.category = :category) " +
-            "    group by p.id, p.ean, p.name, p.category, b.baseline_price" +
-            "), previous_period as (" +
-            "    select it.product_id, coalesce(sum(it.valor_total), 0) as previous_revenue " +
-            "    from invoice_items it " +
-            "    join invoices i on i.id = it.invoice_id " +
-            "    join products p on p.id = it.product_id " +
-            "    where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate " +
-            "      and (:category is null or p.category = :category) " +
-            "    group by it.product_id" +
-            "), last_sales as (" +
-            "    select it.product_id, max(i.data_emissao) as last_sold_at " +
-            "    from invoice_items it " +
-            "    join invoices i on i.id = it.invoice_id " +
-            "    where i.market_id = :marketId " +
-            "    group by it.product_id" +
-            "), current_period as (" +
-            "    select mp.id as product_id, mp.ean, mp.name, mp.category, " +
-            "           coalesce(cpr.revenue, 0) as revenue, " +
-            "           coalesce(cpr.quantity_sold, 0) as quantity_sold, " +
-            "           coalesce(cpr.average_price, b.baseline_price, 0) as average_price, " +
-            "           coalesce(cpr.transaction_count, 0) as transaction_count, " +
-            "           coalesce(cpr.sales_days, 0) as sales_days, " +
-            "           ls.last_sold_at, " +
-            "           coalesce(cpr.promo_revenue, 0) as promo_revenue, " +
-            "           coalesce(cpr.promo_quantity, 0) as promo_quantity, " +
-            "           coalesce(cpr.normal_revenue, 0) as normal_revenue, " +
-            "           coalesce(cpr.normal_quantity, 0) as normal_quantity, " +
-            "           coalesce(cpr.promo_average_price, 0) as promo_average_price, " +
-            "           coalesce(cpr.normal_average_price, 0) as normal_average_price, " +
-            "           coalesce(cpr.price_index, 1) as price_index, " +
-            "           coalesce(cpr.baseline_price, b.baseline_price, 0) as baseline_price, " +
-            "           round((coalesce(cpr.quantity_sold, 0) / nullif(greatest(coalesce(cpr.sales_days, 0), 1), 0))::numeric, 3) as sales_velocity, " +
-            "           round(case when coalesce(cpr.revenue, 0) > 0 then (coalesce(cpr.promo_revenue, 0) / cpr.revenue) else 0 end, 4) as promo_revenue_share, " +
-            "           round(case when pp.previous_revenue > 0 then (((coalesce(cpr.revenue, 0) - pp.previous_revenue) / pp.previous_revenue) * 100) else 0 end, 2) as revenue_trend_percentage, " +
-            "           case " +
-            "             when (coalesce(cpr.quantity_sold, 0) / nullif(greatest(coalesce(cpr.sales_days, 0), 1), 0)) >= 12 then 'HIGH' " +
-            "             when (coalesce(cpr.quantity_sold, 0) / nullif(greatest(coalesce(cpr.sales_days, 0), 1), 0)) >= 4 then 'MEDIUM' " +
-            "             else 'LOW' " +
-            "           end as turnover_band " +
-            "    from market_products mp " +
-            "    left join current_period_raw cpr on cpr.product_id = mp.id " +
-            "    left join previous_period pp on pp.product_id = mp.id " +
-            "    left join baseline b on b.product_id = mp.id " +
-            "    left join last_sales ls on ls.product_id = mp.id" +
-            ") ";
-    }
-
-    private String resolveSort(String sortBy) {
-        String normalized = sortBy == null ? "REVENUE" : sortBy.trim().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "QUANTITY" -> "cp.quantity_sold desc, cp.revenue desc, cp.name asc";
-            case "TRANSACTIONS" -> "cp.transaction_count desc, cp.revenue desc, cp.name asc";
-            case "PRICE" -> "cp.average_price desc nulls last, cp.revenue desc, cp.name asc";
-            case "TURNOVER" -> "cp.sales_velocity desc, cp.revenue desc, cp.name asc";
-            case "TURNOVER_ASC" -> "cp.sales_velocity asc, cp.revenue asc, cp.name asc";
-            case "TREND" -> "cp.revenue_trend_percentage desc nulls last, cp.revenue desc, cp.name asc";
-            case "TREND_ASC" -> "cp.revenue_trend_percentage asc nulls first, cp.sales_velocity asc, cp.name asc";
-            case "PROMO" -> "cp.promo_revenue_share desc, cp.promo_revenue desc, cp.name asc";
-            case "NAME" -> "cp.name asc";
-            default -> "cp.revenue desc, cp.quantity_sold desc, cp.name asc";
-        };
-    }
-
-    private ProductPerformanceDTO mapProductPerformance(ResultSet rs) throws SQLException {
-        return new ProductPerformanceDTO(
-            uuid(rs, "product_id"),
-            rs.getString("ean"),
-            rs.getString("name"),
-            rs.getString("category"),
-            defaultBigDecimal(rs.getBigDecimal("revenue")),
-            defaultBigDecimal(rs.getBigDecimal("quantity_sold")),
-            defaultBigDecimal(rs.getBigDecimal("average_price")),
-            rs.getLong("transaction_count"),
-            rs.getInt("sales_days"),
-            defaultBigDecimal(rs.getBigDecimal("sales_velocity")),
-            defaultBigDecimal(rs.getBigDecimal("promo_revenue")),
-            defaultBigDecimal(rs.getBigDecimal("promo_quantity")),
-            defaultBigDecimal(rs.getBigDecimal("normal_revenue")),
-            defaultBigDecimal(rs.getBigDecimal("normal_quantity")),
-            defaultBigDecimal(rs.getBigDecimal("baseline_price")),
-            defaultBigDecimal(rs.getBigDecimal("promo_average_price")),
-            defaultBigDecimal(rs.getBigDecimal("normal_average_price")),
-            defaultBigDecimal(rs.getBigDecimal("promo_revenue_share")),
-            defaultBigDecimal(rs.getBigDecimal("price_index")),
-            rs.getObject("revenue_trend_percentage") != null ? rs.getDouble("revenue_trend_percentage") : null,
-            localDateTime(rs, "last_sold_at"),
-            rs.getString("turnover_band")
-        );
-    }
-
-    private RowMapper<ProductPerformanceDTO> productPerformanceRowMapper() {
-        return (rs, rowNum) -> mapProductPerformance(rs);
+    private Map<UUID, BigDecimal> mapBigDecimalByUuid(ResultSet rs, String idColumn, String valueColumn) throws SQLException {
+        Map<UUID, BigDecimal> rows = new LinkedHashMap<>();
+        while (rs.next()) {
+            rows.put(uuid(rs, idColumn), defaultBigDecimal(rs.getBigDecimal(valueColumn)));
+        }
+        return rows;
     }
 
     private SeasonalityPointDTO mapSeasonality(SeasonalityGranularity granularity, ResultSet rs) throws SQLException {
@@ -547,7 +622,11 @@ public class AdvancedAnalyticsService {
     }
 
     private BigDecimal defaultBigDecimal(BigDecimal value) {
-        return value != null ? value : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        return value != null ? value : zero(2);
+    }
+
+    private BigDecimal zero(int scale) {
+        return BigDecimal.ZERO.setScale(scale, RoundingMode.HALF_UP);
     }
 
     private UUID uuid(ResultSet rs, String column) throws SQLException {
@@ -561,6 +640,16 @@ public class AdvancedAnalyticsService {
     private LocalDateTime localDateTime(ResultSet rs, String column) throws SQLException {
         Timestamp timestamp = rs.getTimestamp(column);
         return timestamp != null ? timestamp.toLocalDateTime() : null;
+    }
+
+    private String resolveTurnoverBand(BigDecimal salesVelocity) {
+        if (salesVelocity.compareTo(BigDecimal.valueOf(12)) >= 0) {
+            return "HIGH";
+        }
+        if (salesVelocity.compareTo(BigDecimal.valueOf(4)) >= 0) {
+            return "MEDIUM";
+        }
+        return "LOW";
     }
 
     private double calculateGrowth(BigDecimal current, BigDecimal previous) {
@@ -596,6 +685,24 @@ public class AdvancedAnalyticsService {
         long lengthDays() {
             return ChronoUnit.DAYS.between(start, end) + 1;
         }
+    }
+
+    private record ProductSnapshot(UUID productId, String ean, String name, String category) {
+    }
+
+    private record CurrentAggregate(
+        BigDecimal revenue,
+        BigDecimal quantitySold,
+        BigDecimal averagePrice,
+        Long transactionCount,
+        Integer salesDays,
+        BigDecimal promoRevenue,
+        BigDecimal promoQuantity,
+        BigDecimal normalRevenue,
+        BigDecimal normalQuantity,
+        BigDecimal promoAveragePrice,
+        BigDecimal normalAveragePrice
+    ) {
     }
 
     private record Overview(

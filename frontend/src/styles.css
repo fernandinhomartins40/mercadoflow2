@@ -1122,3 +1122,772 @@ button {
     padding: 48px 32px;
   }
 }
+
+.analytics-page {
+  gap: 24px;
+}
+
+.analytics-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+  gap: 24px;
+  padding: 32px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(254, 122, 70, 0.22), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(31, 169, 113, 0.2), transparent 30%),
+    linear-gradient(135deg, #fffaf5 0%, #f5fbf8 52%, #ffffff 100%);
+  border: 1px solid rgba(31, 169, 113, 0.12);
+  overflow: hidden;
+}
+
+.analytics-hero.compact {
+  padding: 28px;
+}
+
+.analytics-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -80px -120px auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(254, 122, 70, 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+.analytics-hero-title {
+  margin: 14px 0 12px;
+  font-family: 'Cal Sans', 'Inter', sans-serif;
+  font-size: clamp(34px, 4vw, 54px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.analytics-hero-text {
+  max-width: 720px;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.analytics-hero-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.analytics-hero-board.single-board {
+  grid-template-columns: 1fr;
+}
+
+.hero-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.hero-chip {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(31, 169, 113, 0.12);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.hero-focus-card,
+.hero-mini-card,
+.analytics-panel,
+.product-mosaic-card,
+.pair-spotlight-card,
+.forecast-card,
+.analytics-footer-callout {
+  border-radius: 24px;
+  border: 1px solid rgba(26, 26, 26, 0.06);
+  box-shadow: 0 24px 48px rgba(14, 28, 22, 0.08);
+}
+
+.hero-focus-card {
+  padding: 24px;
+  background: linear-gradient(160deg, #13271d, #1f4f39);
+  color: white;
+  min-height: 240px;
+}
+
+.hero-focus-card.primary strong {
+  display: block;
+  margin: 16px 0 10px;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1;
+}
+
+.hero-focus-card p,
+.hero-mini-card small {
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.6;
+}
+
+.hero-focus-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.hero-mini-card {
+  padding: 18px;
+  color: #142018;
+  background: white;
+}
+
+.hero-mini-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 18px;
+}
+
+.hero-mini-card.orange {
+  background: linear-gradient(160deg, #fff1e8, #fff7f2);
+}
+
+.hero-mini-card.amber {
+  background: linear-gradient(160deg, #fff8dd, #fffdf5);
+}
+
+.hero-mini-card.mint {
+  background: linear-gradient(160deg, #ebfff4, #f7fffb);
+}
+
+.analytics-metrics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--gradient-primary);
+}
+
+.metric-card-warning::before {
+  background: var(--gradient-sunset);
+}
+
+.metric-card-danger::before {
+  background: linear-gradient(180deg, #ff6b6b, #b42318);
+}
+
+.metric-card-top,
+.analytics-panel-head,
+.product-mosaic-head,
+.pair-spotlight-top,
+.forecast-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.analytics-panel-head.compact {
+  align-items: center;
+}
+
+.metric-card-title,
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metric-card-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(31, 169, 113, 0.16), rgba(254, 122, 70, 0.16));
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.metric-card-value {
+  display: block;
+  margin-top: 12px;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.metric-card-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.metric-card-delta,
+.metric-card-meta,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metric-card-delta.positive,
+.status-pill.positive,
+.status-pill.running,
+.status-pill.high {
+  background: rgba(31, 169, 113, 0.12);
+  color: #0d7a50;
+}
+
+.metric-card-delta.negative,
+.status-pill.negative,
+.status-pill.ended,
+.status-pill.low {
+  background: rgba(255, 107, 107, 0.12);
+  color: #b42318;
+}
+
+.metric-card-meta,
+.status-pill.medium,
+.status-pill.scheduled {
+  background: rgba(251, 191, 36, 0.14);
+  color: #9a6700;
+}
+
+.analytics-grid,
+.analytics-card-grid,
+.analytics-side-stack,
+.product-strip-list,
+.signal-list,
+.invoice-feed,
+.campaign-stack,
+.alert-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.analytics-grid-main {
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
+  align-items: start;
+}
+
+.analytics-panel {
+  padding: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,251,249,0.98));
+}
+
+.analytics-panel h3,
+.analytics-section h2,
+.product-mosaic-head h3,
+.pair-spotlight-card h3,
+.forecast-card h3 {
+  margin: 6px 0 0;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.panel-copy,
+.panel-empty,
+.alert-card p,
+.campaign-stack-card span,
+.product-strip-copy span,
+.product-card-foot span,
+.forecast-caption,
+.pair-arrow {
+  color: var(--text-secondary);
+}
+
+.chart-panel {
+  min-height: 100%;
+}
+
+.chart-callout {
+  padding: 12px 16px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #f3fff8, #ffffff);
+  border: 1px solid rgba(31, 169, 113, 0.14);
+  display: grid;
+  gap: 4px;
+}
+
+.chart-callout span,
+.chart-axis span,
+.signal-row span,
+.progress-row span,
+.product-mosaic-metrics span,
+.promo-metric-row span,
+.mini-metric-grid span,
+.campaign-lift-row span,
+.invoice-card span,
+.forecast-card span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.chart-callout strong {
+  font-size: 18px;
+}
+
+.chart-shell {
+  margin-top: 18px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 240px;
+}
+
+.chart-guide {
+  stroke: rgba(82, 82, 82, 0.12);
+  stroke-dasharray: 4 6;
+}
+
+.chart-node-shadow {
+  fill: rgba(31, 169, 113, 0.15);
+}
+
+.chart-node {
+  fill: white;
+  stroke: #1fa971;
+  stroke-width: 2;
+}
+
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chart-empty {
+  color: var(--text-secondary);
+  padding: 24px 0;
+}
+
+.product-strip.mint {
+  background: linear-gradient(180deg, #f3fff8, #ffffff);
+}
+
+.product-strip.orange {
+  background: linear-gradient(180deg, #fff5ed, #ffffff);
+}
+
+.product-strip.amber {
+  background: linear-gradient(180deg, #fff9e8, #ffffff);
+}
+
+.product-strip-row,
+.invoice-card,
+.campaign-stack-card,
+.signal-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(26, 26, 26, 0.06);
+}
+
+.product-strip-row:first-child,
+.invoice-card:first-child,
+.campaign-stack-card:first-child,
+.signal-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.rank-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #12261c, #1f4f39);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.product-strip-copy strong,
+.invoice-card strong,
+.campaign-stack-card strong,
+.pair-card strong,
+.signal-row strong,
+.forecast-card strong,
+.product-mosaic-card strong {
+  display: block;
+}
+
+.product-strip-metric {
+  text-align: right;
+}
+
+.analytics-card-grid.three-cols,
+.product-mosaic-grid,
+.forecast-grid,
+.pair-grid-dense {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.pair-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.pair-card,
+.alert-card,
+.forecast-card,
+.product-mosaic-card,
+.pair-spotlight-card {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 18px;
+}
+
+.pair-meta,
+.product-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 10px;
+}
+
+.pair-meta.subtle {
+  margin-top: 6px;
+}
+
+.analytics-section {
+  display: grid;
+  gap: 18px;
+}
+
+.section-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+}
+
+.seasonality-card.mint {
+  background: linear-gradient(180deg, #f3fff8, #ffffff);
+}
+
+.seasonality-card.orange {
+  background: linear-gradient(180deg, #fff5ed, #ffffff);
+}
+
+.seasonality-card.amber {
+  background: linear-gradient(180deg, #fff9e8, #ffffff);
+}
+
+.signal-row {
+  grid-template-columns: minmax(72px, 100px) minmax(0, 1fr) auto;
+}
+
+.signal-bar-shell,
+.progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.06);
+  overflow: hidden;
+}
+
+.signal-bar-fill,
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fe7a46, #1fa971);
+}
+
+.progress-fill.orange {
+  background: linear-gradient(90deg, #fe7a46, #ffb347);
+}
+
+.progress-fill.amber {
+  background: linear-gradient(90deg, #fbbf24, #ffd86b);
+}
+
+.progress-fill.mint {
+  background: linear-gradient(90deg, #1fa971, #64d6a3);
+}
+
+.promo-card,
+.campaign-card {
+  display: grid;
+  gap: 16px;
+}
+
+.promo-metric-row,
+.mini-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mini-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mini-metric-grid.dual {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.promo-metric-row > div,
+.mini-metric-grid > div {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(20, 32, 24, 0.04);
+}
+
+.promo-metric-row strong,
+.mini-metric-grid strong,
+.campaign-lift-row strong {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.campaign-lift-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.campaign-lift-row.subtle {
+  padding-top: 6px;
+  border-top: 1px solid rgba(26, 26, 26, 0.06);
+}
+
+.invoice-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(20, 32, 24, 0.03);
+}
+
+.invoice-card span {
+  display: block;
+  margin-top: 4px;
+}
+
+.invoice-card-side {
+  text-align: right;
+}
+
+.alert-stack {
+  margin-top: 16px;
+}
+
+.alert-card {
+  border: 1px solid rgba(26, 26, 26, 0.06);
+}
+
+.alert-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.filter-bar-controls,
+.pager-actions,
+.panel-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-bar-controls .input,
+.filter-bar-controls select {
+  min-width: 220px;
+}
+
+.toggle-row {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.product-mosaic-card,
+.pair-spotlight-card,
+.forecast-card {
+  display: grid;
+  gap: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,251,248,0.98));
+}
+
+.product-mosaic-card.high {
+  border-color: rgba(31, 169, 113, 0.22);
+}
+
+.product-mosaic-card.medium {
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.product-mosaic-card.low {
+  border-color: rgba(254, 122, 70, 0.22);
+}
+
+.product-mosaic-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.product-mosaic-metrics > div,
+.product-progress-block,
+.forecast-card {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(20, 32, 24, 0.04);
+}
+
+.product-progress-block {
+  display: grid;
+  gap: 10px;
+}
+
+.progress-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.product-card-foot {
+  padding-top: 4px;
+  border-top: 1px solid rgba(26, 26, 26, 0.06);
+}
+
+.pager-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pair-spotlight-card h4 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.pair-arrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.form-panel {
+  min-height: 100%;
+}
+
+.form-grid-analytics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.form-grid-analytics .full {
+  grid-column: 1 / -1;
+}
+
+.campaign-stack-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(20, 32, 24, 0.03);
+}
+
+.campaign-stack-side {
+  text-align: right;
+}
+
+.forecast-card {
+  gap: 14px;
+}
+
+.forecast-card strong {
+  font-size: 30px;
+}
+
+.analytics-footer-callout {
+  padding: 18px 22px;
+  background: linear-gradient(135deg, #13271d, #274f3d);
+  color: white;
+  line-height: 1.7;
+}
+
+@media (max-width: 1100px) {
+  .analytics-hero,
+  .analytics-grid-main {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-hero-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .filter-bar,
+  .pager-panel,
+  .section-heading-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-grid-analytics,
+  .promo-metric-row,
+  .mini-metric-grid,
+  .product-mosaic-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .product-strip-row,
+  .campaign-stack-card,
+  .signal-row,
+  .invoice-card {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-card-side,
+  .campaign-stack-side,
+  .product-strip-metric {
+    text-align: left;
+  }
+}

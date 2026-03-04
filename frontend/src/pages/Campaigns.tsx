@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import { marketService } from '../services/market.service';
@@ -16,6 +16,7 @@ interface CampaignItem {
 
 const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
 const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString('pt-BR') : '-');
+const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1)}%`;
 
 const Campaigns: React.FC = () => {
   const { marketId } = useAuth();
@@ -28,6 +29,8 @@ const Campaigns: React.FC = () => {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const bestImpact = useMemo(() => [...impacts].sort((a, b) => Number(b.revenueLiftPercent || 0) - Number(a.revenueLiftPercent || 0))[0], [impacts]);
 
   const load = async () => {
     if (!marketId) return;
@@ -74,114 +77,111 @@ const Campaigns: React.FC = () => {
 
   return (
     <Layout>
-      <div className="page">
-        <div className="page-header">
-          <div>
+      <div className="page analytics-page">
+        <section className="analytics-hero compact reveal">
+          <div className="analytics-hero-copy">
             <span className="pill">Campanhas</span>
-            <h1 className="page-title">Cadastre e valide impacto</h1>
-            <p className="page-subtitle">
-              Cada campanha passa a ser comparada com janelas equivalentes antes e depois para mostrar se houve resultado real.
+            <h1 className="analytics-hero-title">Cadastre a acao, acompanhe a janela e veja se ela devolveu resultado.</h1>
+            <p className="analytics-hero-text">
+              A pagina agora destaca campanhas como experimentos de negocio: cadastro, status e impacto real antes, durante e depois da execucao.
             </p>
+            <div className="hero-chip-row">
+              <span className="hero-chip">{items.length} campanhas cadastradas</span>
+              <span className="hero-chip">{impacts.length} campanhas comparadas</span>
+              <span className="hero-chip">Melhor lift {bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</span>
+            </div>
           </div>
-          <Button variant="secondary" onClick={load} disabled={loading}>
-            Atualizar
-          </Button>
+          <div className="analytics-hero-board single-board">
+            <div className="hero-focus-card primary">
+              <span className="section-kicker">Campanha mais forte</span>
+              <h3>{bestImpact?.name || 'Sem campanha com impacto medido'}</h3>
+              <strong>{bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</strong>
+              <p>{bestImpact ? `Durante a campanha a receita foi para ${formatMoney(bestImpact.duringRevenue)} contra ${formatMoney(bestImpact.beforeRevenue)} antes da acao.` : 'Cadastre campanhas com datas fechadas para comparar com janelas equivalentes.'}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="analytics-grid analytics-grid-main">
+          <div className="analytics-panel form-panel reveal">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Nova campanha</span>
+                <h3>Registrar janela de acao</h3>
+              </div>
+              <Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>
+            </div>
+            <div className="form-grid-analytics">
+              <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="input" placeholder="Inicio (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <input className="input" placeholder="Fim (ISO)" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <input className="input full" placeholder="Descricao" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <div className="panel-actions">
+              <Button onClick={create}>Criar campanha</Button>
+            </div>
+          </div>
+
+          <div className="analytics-panel reveal">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Mapa de cadastro</span>
+                <h3>Campanhas existentes</h3>
+              </div>
+            </div>
+            {items.length === 0 ? (
+              <div className="panel-empty">Nenhuma campanha cadastrada.</div>
+            ) : (
+              <div className="campaign-stack">
+                {items.map((campaign) => (
+                  <div key={campaign.id} className="campaign-stack-card">
+                    <div>
+                      <strong>{campaign.name}</strong>
+                      <span>{campaign.description || 'Sem descricao'}</span>
+                    </div>
+                    <div className="campaign-stack-side">
+                      <strong>{formatDateTime(campaign.startDate)} ate {formatDateTime(campaign.endDate)}</strong>
+                      <span>Criada em {formatDateTime(campaign.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="card soft">
-          <strong>Nova campanha</strong>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 10 }}>
-            <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="input" placeholder="Inicio (ISO, opcional)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            <input className="input" placeholder="Fim (ISO, opcional)" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            <input
-              className="input"
-              placeholder="Descricao (opcional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{ gridColumn: '1 / -1' }}
-            />
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <Button onClick={create}>Criar</Button>
-          </div>
-        </div>
+        {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
 
-        {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Campanhas cadastradas</h3>
+        <div className="analytics-card-grid three-cols">
           {loading ? (
-            <p>Carregando...</p>
+            <div className="analytics-panel"><div className="panel-empty">Carregando...</div></div>
+          ) : impacts.length === 0 ? (
+            <div className="analytics-panel"><div className="panel-empty">Nenhuma campanha com dados suficientes para comparacao.</div></div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Periodo</th>
-                  <th>Descricao</th>
-                  <th>Criada em</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ color: 'var(--muted)' }}>
-                      Nenhuma campanha cadastrada.
-                    </td>
-                  </tr>
-                ) : (
-                  items.map((campaign) => (
-                    <tr key={campaign.id}>
-                      <td>{campaign.name}</td>
-                      <td>{formatDateTime(campaign.startDate)} ate {formatDateTime(campaign.endDate)}</td>
-                      <td>{campaign.description || '-'}</td>
-                      <td>{formatDateTime(campaign.createdAt)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            impacts.map((impact) => (
+              <div key={impact.campaignId} className="analytics-panel campaign-card reveal">
+                <div className="analytics-panel-head compact">
+                  <div>
+                    <span className="section-kicker">Janela de campanha</span>
+                    <h3>{impact.name}</h3>
+                  </div>
+                  <span className={`status-pill ${String(impact.status || '').toLowerCase()}`}>{impact.status}</span>
+                </div>
+                <div className="mini-metric-grid">
+                  <div><span>Antes</span><strong>{formatMoney(impact.beforeRevenue)}</strong></div>
+                  <div><span>Durante</span><strong>{formatMoney(impact.duringRevenue)}</strong></div>
+                  <div><span>Depois</span><strong>{formatMoney(impact.afterRevenue)}</strong></div>
+                </div>
+                <div className="campaign-lift-row">
+                  <span>Lift receita</span>
+                  <strong>{formatPercent(impact.revenueLiftPercent)}</strong>
+                </div>
+                <div className="campaign-lift-row subtle">
+                  <span>Lift transacoes</span>
+                  <strong>{formatPercent(impact.transactionLiftPercent)}</strong>
+                </div>
+              </div>
+            ))
           )}
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Resultado das campanhas</h3>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Campanha</th>
-                <th>Status</th>
-                <th>Antes</th>
-                <th>Durante</th>
-                <th>Depois</th>
-                <th>Lift receita</th>
-              </tr>
-            </thead>
-            <tbody>
-              {impacts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ color: 'var(--muted)' }}>
-                    Nenhuma campanha com dados suficientes para comparacao.
-                  </td>
-                </tr>
-              ) : (
-                impacts.map((impact) => (
-                  <tr key={impact.campaignId}>
-                    <td>
-                      <div>{impact.name}</div>
-                      <div style={{ color: 'var(--muted)', fontSize: 12 }}>{impact.durationDays} dias</div>
-                    </td>
-                    <td>{impact.status}</td>
-                    <td>{formatMoney(impact.beforeRevenue)}</td>
-                    <td>{formatMoney(impact.duringRevenue)}</td>
-                    <td>{formatMoney(impact.afterRevenue)}</td>
-                    <td>{Number(impact.revenueLiftPercent || 0).toFixed(1)}%</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
     </Layout>

@@ -3,18 +3,26 @@ import Card from '../common/Card';
 
 const AlertsList: React.FC<{ alerts: any[] }> = ({ alerts }) => {
   return (
-    <Card>
-      <h3 style={{ marginTop: 0 }}>Alertas recentes</h3>
-      <div className="alerts-list">
+    <Card className="analytics-panel reveal stagger-2">
+      <div className="analytics-panel-head">
+        <div>
+          <span className="section-kicker">Atencao operacional</span>
+          <h3>Alertas recentes</h3>
+        </div>
+      </div>
+      <div className="alert-stack">
         {alerts?.length ? (
           alerts.map((alert) => (
-            <div key={alert.id}>
-              <strong>{alert.title}</strong>
-              <p style={{ margin: '4px 0', color: 'var(--muted)' }}>{alert.message}</p>
+            <div key={alert.id} className="alert-card">
+              <div className="alert-card-top">
+                <strong>{alert.title}</strong>
+                <span className={`status-pill ${String(alert.priority || '').toLowerCase()}`}>{alert.priority || 'INFO'}</span>
+              </div>
+              <p>{alert.message}</p>
             </div>
           ))
         ) : (
-          <span style={{ color: 'var(--muted)' }}>Sem alertas no momento</span>
+          <span className="panel-empty">Sem alertas no momento.</span>
         )}
       </div>
     </Card>

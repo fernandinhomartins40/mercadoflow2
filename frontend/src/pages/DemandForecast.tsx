@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import { marketService } from '../services/market.service';
@@ -37,68 +37,76 @@ const DemandForecast: React.FC = () => {
     load();
   }, [marketId, days]);
 
+  const strongest = rows[0];
+  const totalPredicted = useMemo(() => rows.reduce((sum, row) => sum + Number(row.predictedQuantity || 0), 0), [rows]);
+
   return (
     <Layout>
-      <div className="page">
-        <div className="page-header">
-          <div>
+      <div className="page analytics-page">
+        <section className="analytics-hero compact reveal">
+          <div className="analytics-hero-copy">
             <span className="pill">Previsao de demanda</span>
-            <h1 className="page-title">Tendencia por dia e dia da semana</h1>
-            <p className="page-subtitle">
-              A previsao considera historico diario, padrao por dia da semana e tendencia recente de volume.
+            <h1 className="analytics-hero-title">Antecipe volume e prepare operacao antes do pico chegar.</h1>
+            <p className="analytics-hero-text">
+              A leitura abaixo mostra previsoes ja ordenadas por pressao de demanda, priorizando os produtos que podem exigir reposicao, compra ou ajuste de equipe.
             </p>
+            <div className="hero-chip-row">
+              <span className="hero-chip">Horizonte de {days} dias</span>
+              <span className="hero-chip">{rows.length} combinacoes previstas</span>
+              <span className="hero-chip">Total previsto {totalPredicted.toFixed(2)}</span>
+            </div>
           </div>
-          <div className="page-actions">
-            <label style={{ color: 'var(--muted)', display: 'flex', gap: 8, alignItems: 'center' }}>
-              Dias:
-              <input
-                className="input"
-                type="number"
-                value={days}
-                onChange={(e) => setDays(Math.max(1, Math.min(30, Number(e.target.value))))}
-                style={{ width: 90 }}
-              />
-            </label>
-            <Button variant="secondary" onClick={load} disabled={loading}>
-              Atualizar
-            </Button>
+          <div className="analytics-hero-board single-board">
+            <div className="hero-focus-card primary">
+              <span className="section-kicker">Maior pressao prevista</span>
+              <h3>{strongest?.productName || 'Sem previsao dominante'}</h3>
+              <strong>{strongest ? Number(strongest.predictedQuantity || 0).toFixed(3) : '0.000'}</strong>
+              <p>{strongest ? `Esperado para ${new Date(strongest.forecastDate).toLocaleDateString('pt-BR')}` : 'Quando houver base suficiente, o produto mais pressionado aparece aqui.'}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="analytics-panel filter-bar reveal">
+          <div className="filter-bar-copy">
+            <span className="section-kicker">Horizonte</span>
+            <h3>Ajuste a janela de previsao</h3>
+          </div>
+          <div className="filter-bar-controls">
+            <input
+              className="input"
+              type="number"
+              value={days}
+              onChange={(e) => setDays(Math.max(1, Math.min(30, Number(e.target.value))))}
+              style={{ maxWidth: 120 }}
+            />
+            <Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>
           </div>
         </div>
 
-        <div className="card">
-          {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+        {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
 
-          {loading ? (
-            <p>Carregando...</p>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>Data</th>
-                  <th>Qtd prevista</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} style={{ color: 'var(--muted)' }}>
-                      Nenhuma previsao disponivel.
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((row, idx) => (
-                    <tr key={`${row.productId}-${row.forecastDate}-${idx}`}>
-                      <td>{row.productName || row.productId}</td>
-                      <td>{row.forecastDate ? new Date(row.forecastDate).toLocaleDateString('pt-BR') : '-'}</td>
-                      <td>{Number(row.predictedQuantity || 0).toFixed(3)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
+        {loading ? (
+          <div className="card">Carregando...</div>
+        ) : (
+          <div className="analytics-card-grid forecast-grid">
+            {rows.length === 0 ? (
+              <div className="analytics-panel"><div className="panel-empty">Nenhuma previsao disponivel.</div></div>
+            ) : (
+              rows.map((row, idx) => (
+                <article key={`${row.productId}-${row.forecastDate}-${idx}`} className="forecast-card reveal">
+                  <div className="forecast-card-top">
+                    <span className="rank-pill">#{idx + 1}</span>
+                    <span>{new Date(row.forecastDate).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  <h3>{row.productName || row.productId}</h3>
+                  <strong>{Number(row.predictedQuantity || 0).toFixed(3)}</strong>
+                  <div className="progress-track"><div className="progress-fill amber" style={{ width: `${Math.min(Number(row.predictedQuantity || 0) * 12, 100)}%` }} /></div>
+                  <span className="forecast-caption">Quantidade prevista para o dia.</span>
+                </article>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   );
