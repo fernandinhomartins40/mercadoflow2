@@ -19,6 +19,7 @@ import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
@@ -569,7 +570,7 @@ public class AdvancedAnalyticsService {
             .addValue("endExclusive", window.end().plusDays(1).atStartOfDay())
             .addValue("previousStart", window.start().minusDays(window.lengthDays()).atStartOfDay())
             .addValue("baselineStart", window.start().minusDays(Math.max(window.lengthDays(), 90)).atStartOfDay())
-            .addValue("category", category == null || category.isBlank() ? null : category.trim());
+            .addValue("category", category == null || category.isBlank() ? null : category.trim(), Types.VARCHAR);
     }
 
     private Map<UUID, BigDecimal> mapBigDecimalByUuid(ResultSet rs, String idColumn, String valueColumn) throws SQLException {
