@@ -10,6 +10,10 @@ HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-24}"
 HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-10}"
 POSTGRES_DB="${POSTGRES_DB:-pdv2cloud}"
 POSTGRES_USER="${POSTGRES_USER:-pdv2cloud}"
+SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-superadmin@mercadoflow.com}"
+SUPER_ADMIN_PASSWORD="${SUPER_ADMIN_PASSWORD:-SuperAdmin@2026}"
+SUPER_ADMIN_NAME="${SUPER_ADMIN_NAME:-Super Administrador}"
+CATALOG_HARVESTER_INTERVAL_MINUTES="${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -59,6 +63,10 @@ JWT_SECRET=${jwt_secret}
 CORS_ORIGIN=https://mercadoflow.com,https://www.mercadoflow.com
 REACT_APP_API_BASE_URL=https://mercadoflow.com/api
 APP_PUBLIC_BASE_URL=https://mercadoflow.com
+SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
+SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
+CATALOG_HARVESTER_INTERVAL_MINUTES=${CATALOG_HARVESTER_INTERVAL_MINUTES}
 MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
@@ -278,7 +286,8 @@ main() {
     mercadoflow-backend \
     mercadoflow-frontend \
     mercadoflow-cron \
-    mercadoflow-nginx
+    mercadoflow-nginx \
+    mercadoflow-catalog-harvester
 
   log "Status dos containers após atualização"
   compose ps

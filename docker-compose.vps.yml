@@ -27,6 +27,9 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
       - INSTALLER_DIR=/opt/pdv2cloud/installer
       - APP_PUBLIC_BASE_URL=https://mercadoflow.com
+      - APP_SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+      - APP_SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
+      - APP_SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
     depends_on:
       mercadoflow-postgres:
         condition: service_healthy
@@ -66,6 +69,27 @@ services:
     depends_on:
       - mercadoflow-backend
       - mercadoflow-frontend
+
+  mercadoflow-catalog-harvester:
+    container_name: mercadoflow-catalog-harvester
+    image: python:3.11-slim
+    restart: unless-stopped
+    working_dir: /workspace
+    command: >
+      sh -c "pip install --no-cache-dir requests &&
+      python /workspace/scripts/catalog/supermarket_catalog_service.py
+      --watch
+      --interval-minutes ${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}
+      --api-base http://mercadoflow-backend:8080/api
+      --login-endpoint /v1/super-admin/auth/login
+      --config-api-endpoint /v1/super-admin/catalog/crawler/export-config
+      --email ${SUPER_ADMIN_EMAIL}
+      --password ${SUPER_ADMIN_PASSWORD}"
+    volumes:
+      - ./scripts/catalog:/workspace/scripts/catalog:ro
+      - ./data/catalog:/workspace/data/catalog
+    depends_on:
+      - mercadoflow-backend
 
 volumes:
   mercadoflow_postgres_data:

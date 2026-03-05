@@ -10,6 +10,10 @@ backend/.mvn/
 .claude/**
 pdv2cloud-agent/service/__pycache__/
 pdv2cloud-agent/service/__pycache__/**
+scripts/catalog/__pycache__/
+scripts/catalog/__pycache__/**
+data/catalog/supermarket_products.json
+data/catalog/supermarket_products.csv
 .env
 *.log
 pdv2cloud-agent/installer/Output/*.exe

@@ -18,7 +18,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String COOKIE_NAME = "pdv2cloud_token";
+    private static final String MAIN_COOKIE_NAME = "pdv2cloud_token";
+    private static final String SUPER_ADMIN_COOKIE_NAME = "pdv2cloud_superadmin_token";
 
     @Autowired
     private JwtTokenProvider tokenProvider;
@@ -52,9 +53,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         Cookie[] cookies = request.getCookies();
+        String preferredCookie = request.getRequestURI() != null && request.getRequestURI().startsWith("/api/v1/super-admin")
+            ? SUPER_ADMIN_COOKIE_NAME
+            : MAIN_COOKIE_NAME;
+        String fallbackCookie = MAIN_COOKIE_NAME.equals(preferredCookie) ? SUPER_ADMIN_COOKIE_NAME : MAIN_COOKIE_NAME;
+
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (COOKIE_NAME.equals(cookie.getName())) {
+                if (preferredCookie.equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+            for (Cookie cookie : cookies) {
+                if (fallbackCookie.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }

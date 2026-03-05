@@ -77,7 +77,25 @@ public class AuthService {
         String token = tokenProvider.generateToken(auth, tokenTtl);
 
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            throw new IllegalArgumentException("Use o login do painel Super Admin");
+        }
         UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;
         return new LoginResponse(token, user.getId(), user.getRole().name(), marketId);
+    }
+
+    public LoginResponse superAdminLogin(LoginRequest request) {
+        Authentication auth = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        long tokenTtl = Boolean.TRUE.equals(request.getKeepConnected())
+            ? Duration.ofDays(30).toMillis()
+            : Duration.ofDays(1).toMillis();
+        String token = tokenProvider.generateToken(auth, tokenTtl);
+
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        if (user.getRole() != UserRole.SUPER_ADMIN) {
+            throw new IllegalArgumentException("Credenciais sem permissao de Super Admin");
+        }
+        return new LoginResponse(token, user.getId(), user.getRole().name(), null);
     }
 }

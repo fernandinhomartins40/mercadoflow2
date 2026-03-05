@@ -1,0 +1,89 @@
+{
+  "userAgent": "MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)",
+  "sources": [
+    {
+      "name": "Carrefour Brasil",
+      "provider": "CARREFOUR_WEB_BR",
+      "sourceLicense": "Public website data (respect provider terms and robots)",
+      "seeds": [
+        "https://www.carrefour.com.br/sitemap.xml"
+      ],
+      "allowedDomains": [
+        "www.carrefour.com.br",
+        "carrefour.com.br"
+      ],
+      "productPathHints": [
+        "/produto",
+        "/p/",
+        "/sitemap"
+      ],
+      "maxPages": 400,
+      "maxRecords": 4000,
+      "rateLimitMs": 1200,
+      "requestTimeoutSec": 25
+    },
+    {
+      "name": "Pao de Acucar",
+      "provider": "PAODEACUCAR_WEB_BR",
+      "sourceLicense": "Public website data (respect provider terms and robots)",
+      "seeds": [
+        "https://www.paodeacucar.com/sitemap.xml"
+      ],
+      "allowedDomains": [
+        "www.paodeacucar.com",
+        "paodeacucar.com"
+      ],
+      "productPathHints": [
+        "/produto",
+        "/p/",
+        "/sitemap"
+      ],
+      "maxPages": 350,
+      "maxRecords": 3500,
+      "rateLimitMs": 1200,
+      "requestTimeoutSec": 25
+    },
+    {
+      "name": "Extra",
+      "provider": "EXTRA_WEB_BR",
+      "sourceLicense": "Public website data (respect provider terms and robots)",
+      "seeds": [
+        "https://www.clubeextra.com.br/sitemap.xml"
+      ],
+      "allowedDomains": [
+        "www.clubeextra.com.br",
+        "clubeextra.com.br"
+      ],
+      "productPathHints": [
+        "/produto",
+        "/p/",
+        "/sitemap"
+      ],
+      "maxPages": 250,
+      "maxRecords": 2500,
+      "rateLimitMs": 1200,
+      "requestTimeoutSec": 25
+    },
+    {
+      "name": "Drogaria Sao Paulo",
+      "provider": "DROGARIASP_WEB_BR",
+      "sourceLicense": "Public website data (respect provider terms and robots)",
+      "seeds": [
+        "https://www.drogariasaopaulo.com.br/sitemap.xml"
+      ],
+      "allowedDomains": [
+        "www.drogariasaopaulo.com.br",
+        "drogariasaopaulo.com.br"
+      ],
+      "productPathHints": [
+        "/produto",
+        "/p/",
+        "/sitemap"
+      ],
+      "maxPages": 250,
+      "maxRecords": 2500,
+      "rateLimitMs": 1200,
+      "requestTimeoutSec": 25
+    }
+  ]
+}

@@ -14,7 +14,13 @@ import Landing from './pages/Landing';
 import PublicAgentDownload from './pages/PublicAgentDownload';
 import AgentDownload from './pages/AgentDownload';
 import AdminCatalog from './pages/AdminCatalog';
+import SuperAdminLogin from './pages/SuperAdminLogin';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SuperAdminUsers from './pages/SuperAdminUsers';
+import SuperAdminCatalogManager from './pages/SuperAdminCatalogManager';
+import SuperAdminCrawlerConfig from './pages/SuperAdminCrawlerConfig';
 import { useAuth } from './context/AuthContext';
+import { useSuperAdminAuth } from './context/SuperAdminAuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userId, loading } = useAuth();
@@ -29,10 +35,24 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const secure = (element: React.ReactNode) => <ProtectedRoute>{element}</ProtectedRoute>;
 
+const SuperAdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { userId, role, loading } = useSuperAdminAuth();
+  if (loading) {
+    return <div className="card">Carregando...</div>;
+  }
+  if (!userId || role !== 'SUPER_ADMIN') {
+    return <Navigate to="/super-admin/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+const secureSuperAdmin = (element: React.ReactNode) => <SuperAdminProtectedRoute>{element}</SuperAdminProtectedRoute>;
+
 const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/super-admin/login" element={<SuperAdminLogin />} />
       <Route path="/" element={<Landing />} />
       <Route path="/download-agente" element={<PublicAgentDownload />} />
       <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
@@ -48,6 +68,11 @@ const App: React.FC = () => {
       <Route path="/app/configuracoes" element={secure(<Settings />)} />
       <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
       <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
+
+      <Route path="/super-admin" element={secureSuperAdmin(<SuperAdminDashboard />)} />
+      <Route path="/super-admin/usuarios" element={secureSuperAdmin(<SuperAdminUsers />)} />
+      <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
+      <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
 
       <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
       <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />

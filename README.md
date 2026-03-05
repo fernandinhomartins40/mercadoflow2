@@ -53,3 +53,17 @@ Swagger: `http://localhost:8080/swagger-ui/index.html`
 `python scripts/catalog/extract_infoprice_products.py --email <email> --password <senha> --output data/catalog/infoprice_products.json`
 2. Importar no catalogo global:
 `python scripts/catalog/import_catalog_records.py --input data/catalog/infoprice_products.json --api-base http://localhost:8080/api --email <admin> --password <senha> --provider INFOPRICE_ISA`
+
+## Catalogo web continuo (supermercados/farmacias)
+1. Ajuste as fontes em `scripts/catalog/supermarket_sources.json`
+2. Coleta unica e import para API:
+`python scripts/catalog/supermarket_catalog_service.py --api-base http://localhost:8080/api --email <admin> --password <senha>`
+3. Coleta continua (job):
+`python scripts/catalog/supermarket_catalog_service.py --watch --interval-minutes 360 --api-base http://localhost:8080/api --token <token-admin>`
+4. Coleta com configuracao do painel Super Admin:
+`python scripts/catalog/supermarket_catalog_service.py --watch --api-base http://localhost:8080/api --login-endpoint /v1/super-admin/auth/login --config-api-endpoint /v1/super-admin/catalog/crawler/export-config --email <super-admin-email> --password <super-admin-password>`
+
+## Painel Super Admin
+- Login separado: `/super-admin/login`
+- Credenciais de seed: `SUPER_ADMIN_TEST_CREDENTIALS.md`
+- Escopo: usuarios, planos/bloqueios, catalogo global (CRUD) e configuracao do crawler web.

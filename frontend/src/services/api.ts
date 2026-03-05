@@ -19,13 +19,17 @@ api.interceptors.response.use(
     }
     if (error.response?.status === 401) {
       const requestUrl: string = error.config?.url ?? '';
-      if (requestUrl.includes('/v1/auth/me')) {
+      if (requestUrl.includes('/v1/auth/me') || requestUrl.includes('/v1/super-admin/auth/me')) {
         return Promise.reject(error);
       }
-      const publicPaths = ['/', '/login'];
+      const publicPaths = ['/', '/login', '/download-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
-        window.location.href = '/login';
+        if (window.location.pathname.startsWith('/super-admin')) {
+          window.location.href = '/super-admin/login';
+        } else {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

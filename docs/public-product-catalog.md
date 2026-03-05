@@ -63,6 +63,36 @@ Scripts adicionados:
 - Tenta primeiro o endpoint em lote (`/catalog/import/records`).
 - Se o backend ainda estiver sem esse endpoint, faz fallback para `POST /api/v1/admin/catalog/enrichments` item a item.
 
+## Coleta continua em sites de supermercados e farmacias
+
+Novo servico Python:
+- `scripts/catalog/supermarket_catalog_service.py`
+
+Arquivo de fontes:
+- `scripts/catalog/supermarket_sources.json`
+
+O servico:
+- visita seeds/sitemaps das redes configuradas
+- respeita `robots.txt` por padrao (use `--ignore-robots` apenas para debug)
+- extrai dados de produto por JSON-LD e fallback HTML
+- grava `JSON` e `CSV` locais para auditoria
+- envia em lote para `POST /api/v1/admin/catalog/import/records`
+
+Execucao unica (sem importar para API):
+- `python scripts/catalog/supermarket_catalog_service.py --skip-api-import`
+
+Execucao unica com import para API:
+- `python scripts/catalog/supermarket_catalog_service.py --api-base http://localhost:8080/api --email <admin> --password <senha>`
+
+Execucao continua (6 em 6 horas):
+- `python scripts/catalog/supermarket_catalog_service.py --watch --interval-minutes 360 --api-base http://localhost:8080/api --token <token-admin>`
+
+Execucao com configuracao dinamica do painel Super Admin:
+- `python scripts/catalog/supermarket_catalog_service.py --watch --api-base http://localhost:8080/api --login-endpoint /v1/super-admin/auth/login --config-api-endpoint /v1/super-admin/catalog/crawler/export-config --email <super-admin-email> --password <super-admin-password>`
+
+Agendamento via cron (alternativa ao `--watch`):
+- `0 */6 * * * cd /opt/mercadoflow && /usr/bin/python3 scripts/catalog/supermarket_catalog_service.py --api-base http://localhost:8080/api --token <token-admin> >> /var/log/mercadoflow/catalog-harvester.log 2>&1`
+
 ## Painel admin da base global
 
 Nova pagina (somente ADMIN):

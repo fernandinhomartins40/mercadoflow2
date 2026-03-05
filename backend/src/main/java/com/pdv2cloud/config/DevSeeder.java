@@ -22,23 +22,38 @@ public class DevSeeder {
                                   MarketRepository marketRepository,
                                   PasswordEncoder passwordEncoder) {
         return args -> {
-            if (userRepository.count() > 0) {
-                return;
+            Market market = marketRepository.findAll().stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    Market created = new Market();
+                    created.setName("Mercado Demo");
+                    created.setCnpj("00000000000000");
+                    created.setPlanType(PlanType.BASIC);
+                    created.setIsActive(true);
+                    return marketRepository.save(created);
+                });
+
+            if (userRepository.findByEmail("admin@demo.com").isEmpty()) {
+                User admin = new User();
+                admin.setEmail("admin@demo.com");
+                admin.setName("Admin Demo");
+                admin.setPassword(passwordEncoder.encode("admin123"));
+                admin.setRole(UserRole.ADMIN);
+                admin.setMarket(market);
+                admin.setIsActive(true);
+                userRepository.save(admin);
             }
 
-            Market market = new Market();
-            market.setName("Mercado Demo");
-            market.setCnpj("00000000000000");
-            market.setPlanType(PlanType.BASIC);
-            marketRepository.save(market);
-
-            User admin = new User();
-            admin.setEmail("admin@demo.com");
-            admin.setName("Admin Demo");
-            admin.setPassword(passwordEncoder.encode("admin123"));
-            admin.setRole(UserRole.ADMIN);
-            admin.setMarket(market);
-            userRepository.save(admin);
+            if (userRepository.findByEmail("superadmin@demo.com").isEmpty()) {
+                User superAdmin = new User();
+                superAdmin.setEmail("superadmin@demo.com");
+                superAdmin.setName("Super Admin Demo");
+                superAdmin.setPassword(passwordEncoder.encode("superadmin123"));
+                superAdmin.setRole(UserRole.SUPER_ADMIN);
+                superAdmin.setMarket(null);
+                superAdmin.setIsActive(true);
+                userRepository.save(superAdmin);
+            }
         };
     }
 }

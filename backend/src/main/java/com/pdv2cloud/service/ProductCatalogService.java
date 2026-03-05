@@ -4,6 +4,7 @@ import com.pdv2cloud.model.dto.InvoiceItemDTO;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.ProductCatalogBackfillResponse;
 import com.pdv2cloud.model.dto.ProductEnrichmentUpsertRequest;
+import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
 import com.pdv2cloud.model.entity.Invoice;
 import com.pdv2cloud.model.entity.InvoiceItem;
 import com.pdv2cloud.model.entity.Market;
@@ -193,34 +194,63 @@ public class ProductCatalogService {
         String normalizedSearchPattern = buildSearchPattern(search);
 
         return productEnrichmentRepository.searchCatalogForAdmin(normalizedProvider, normalizedSearchPattern, pageable)
-            .map(enrichment -> {
-                Product product = enrichment.getProduct();
-                String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(
-                    enrichment.getCanonicalName() != null ? enrichment.getCanonicalName() : product.getName()
-                );
-                return new CatalogAdminProductDTO(
-                    enrichment.getId(),
-                    product.getId(),
-                    product.getEan(),
-                    canonicalName,
-                    ProductCatalogUtils.canonicalizeDisplayName(
-                        enrichment.getBrand() != null ? enrichment.getBrand() : product.getBrand()
-                    ),
-                    ProductCatalogUtils.canonicalizeDisplayName(
-                        enrichment.getCategory() != null ? enrichment.getCategory() : product.getCategory()
-                    ),
-                    ProductCatalogUtils.canonicalizeDisplayName(
-                        enrichment.getPackageDescription() != null
-                            ? enrichment.getPackageDescription()
-                            : product.getPackageDescription()
-                    ),
-                    enrichment.getProvider(),
-                    enrichment.getConfidenceScore(),
-                    enrichment.getFetchedAt(),
-                    enrichment.getLastVerifiedAt(),
-                    product.getObservationCount()
-                );
-            });
+            .map(this::toCatalogAdminProductDTO);
+    }
+
+    public CatalogAdminProductDTO upsertManualCatalogProduct(SuperAdminCatalogProductUpsertRequest request) {
+        String gtin = ProductCatalogUtils.normalizeGtin(request.getGtin());
+        if (gtin == null) {
+            throw new IllegalArgumentException("GTIN invalido");
+        }
+        String provider = ProductCatalogUtils.canonicalizeDisplayName(request.getProvider());
+        if (provider == null) {
+            provider = "MANUAL_SUPER_ADMIN";
+        }
+
+        Product product = productRepository.findByEan(gtin).orElseGet(() -> {
+            Product created = new Product();
+            created.setEan(gtin);
+            created.setIdentityType(ProductIdentityType.GTIN);
+            created.setSourceBest(ProductDataSource.MANUAL);
+            created.setObservationCount(0);
+            created.setConfidenceScore(scaleConfidence(request.getConfidenceScore() != null ? request.getConfidenceScore() : BigDecimal.valueOf(0.98)));
+            created.setFirstSeenAt(LocalDateTime.now());
+            created.setLastSeenAt(LocalDateTime.now());
+            return created;
+        });
+
+        applyManualProductFields(product, request);
+        product = productRepository.save(product);
+
+        ProductEnrichment enrichment = productEnrichmentRepository
+            .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
+            .orElseGet(ProductEnrichment::new);
+
+        applyManualEnrichmentFields(enrichment, product, request, provider, gtin);
+        enrichment = productEnrichmentRepository.save(enrichment);
+
+        return toCatalogAdminProductDTO(enrichment);
+    }
+
+    public CatalogAdminProductDTO updateManualCatalogProduct(UUID productId, SuperAdminCatalogProductUpsertRequest request) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new IllegalArgumentException("Produto nao encontrado"));
+
+        applyManualProductFields(product, request);
+        product = productRepository.save(product);
+
+        String provider = ProductCatalogUtils.canonicalizeDisplayName(request.getProvider());
+        if (provider == null) {
+            provider = "MANUAL_SUPER_ADMIN";
+        }
+        ProductEnrichment enrichment = productEnrichmentRepository
+            .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
+            .orElseGet(ProductEnrichment::new);
+
+        String providerProductId = product.getEan() != null ? product.getEan() : "manual-" + product.getId();
+        applyManualEnrichmentFields(enrichment, product, request, provider, providerProductId);
+        enrichment = productEnrichmentRepository.save(enrichment);
+        return toCatalogAdminProductDTO(enrichment);
     }
 
     private CatalogMutation recordObservation(Invoice invoice, InvoiceItem item) {
@@ -537,6 +567,91 @@ public class ProductCatalogService {
             return "";
         }
         return "%" + trimmed.toLowerCase(Locale.ROOT) + "%";
+    }
+
+    private void applyManualProductFields(Product product, SuperAdminCatalogProductUpsertRequest request) {
+        String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(request.getName());
+        if (canonicalName != null) {
+            product.setName(canonicalName);
+            product.setNormalizedName(ProductCatalogUtils.normalizeName(canonicalName));
+        }
+        String brand = ProductCatalogUtils.canonicalizeDisplayName(request.getBrand());
+        if (brand != null) {
+            product.setBrand(brand);
+        }
+        String category = ProductCatalogUtils.canonicalizeDisplayName(request.getCategory());
+        if (category != null) {
+            product.setCategory(category);
+        }
+        String unit = ProductCatalogUtils.canonicalizeDisplayName(request.getUnit());
+        if (unit != null) {
+            product.setUnit(unit);
+        }
+        String packageDescription = ProductCatalogUtils.canonicalizeDisplayName(request.getPackageDescription());
+        if (packageDescription != null) {
+            product.setPackageDescription(packageDescription);
+        }
+        product.setSourceBest(ProductDataSource.MANUAL);
+        product.setIdentityType(ProductIdentityType.GTIN);
+        product.setLastVerifiedAt(LocalDateTime.now());
+        if (request.getConfidenceScore() != null) {
+            product.setConfidenceScore(scaleConfidence(request.getConfidenceScore()));
+        } else if (product.getConfidenceScore() == null) {
+            product.setConfidenceScore(scaleConfidence(BigDecimal.valueOf(0.98)));
+        }
+    }
+
+    private void applyManualEnrichmentFields(
+        ProductEnrichment enrichment,
+        Product product,
+        SuperAdminCatalogProductUpsertRequest request,
+        String provider,
+        String providerProductId
+    ) {
+        enrichment.setProduct(product);
+        enrichment.setProvider(provider);
+        enrichment.setProviderProductId(ProductCatalogUtils.canonicalizeDisplayName(providerProductId));
+        enrichment.setCanonicalName(ProductCatalogUtils.canonicalizeDisplayName(request.getName()));
+        enrichment.setBrand(ProductCatalogUtils.canonicalizeDisplayName(request.getBrand()));
+        enrichment.setCategory(ProductCatalogUtils.canonicalizeDisplayName(request.getCategory()));
+        enrichment.setUnit(ProductCatalogUtils.canonicalizeDisplayName(request.getUnit()));
+        enrichment.setPackageDescription(ProductCatalogUtils.canonicalizeDisplayName(request.getPackageDescription()));
+        enrichment.setSourceLicense(ProductCatalogUtils.canonicalizeDisplayName(request.getSourceLicense()));
+        enrichment.setRawPayload("{\"origin\":\"SUPER_ADMIN_MANUAL\"}");
+        enrichment.setConfidenceScore(
+            scaleConfidence(request.getConfidenceScore() != null ? request.getConfidenceScore() : BigDecimal.valueOf(0.99))
+        );
+        enrichment.setFetchedAt(LocalDateTime.now());
+        enrichment.setLastVerifiedAt(LocalDateTime.now());
+    }
+
+    private CatalogAdminProductDTO toCatalogAdminProductDTO(ProductEnrichment enrichment) {
+        Product product = enrichment.getProduct();
+        String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(
+            enrichment.getCanonicalName() != null ? enrichment.getCanonicalName() : product.getName()
+        );
+        return new CatalogAdminProductDTO(
+            enrichment.getId(),
+            product.getId(),
+            product.getEan(),
+            canonicalName,
+            ProductCatalogUtils.canonicalizeDisplayName(
+                enrichment.getBrand() != null ? enrichment.getBrand() : product.getBrand()
+            ),
+            ProductCatalogUtils.canonicalizeDisplayName(
+                enrichment.getCategory() != null ? enrichment.getCategory() : product.getCategory()
+            ),
+            ProductCatalogUtils.canonicalizeDisplayName(
+                enrichment.getPackageDescription() != null
+                    ? enrichment.getPackageDescription()
+                    : product.getPackageDescription()
+            ),
+            enrichment.getProvider(),
+            enrichment.getConfidenceScore(),
+            enrichment.getFetchedAt(),
+            enrichment.getLastVerifiedAt(),
+            product.getObservationCount()
+        );
     }
 
     private record ProductIdentity(String key, ProductIdentityType identityType) {

@@ -51,6 +51,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
+                .requestMatchers("/api/v1/super-admin/auth/login", "/api/v1/super-admin/auth/logout").permitAll()
                 .requestMatchers("/actuator/health", "/health", "/api/v1/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/downloads/**").permitAll()
@@ -58,7 +59,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/ingest/**").hasRole("AGENT")
                 .requestMatchers("/api/v1/markets/**").hasAnyRole("MARKET_OWNER", "MARKET_MANAGER", "ADMIN")
                 .requestMatchers("/api/v1/industries/**").hasAnyRole("INDUSTRY_USER", "ADMIN")
-                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/super-admin/**").hasRole("SUPER_ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
