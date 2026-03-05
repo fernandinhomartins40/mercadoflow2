@@ -1,67 +1,103 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 
-const insights = [
+const operationalHighlights = [
   {
-    title: 'Controle total das vendas',
-    text: 'Veja em tempo real quanto cada loja está vendendo, quais produtos estão saindo mais e em quais horários.',
+    title: 'Painel geral da operacao',
+    text: 'Receita, ticket medio, produtos ativos, sazonalidade e alertas em uma visao unica.',
   },
   {
-    title: 'Identifique oportunidades',
-    text: 'Descubra quais produtos seus clientes compram juntos e crie promoções que realmente vendem.',
+    title: 'Inteligencia por produto',
+    text: 'Historico de preco, eventos de variacao, janelas de promocao e desempenho por PDV.',
   },
   {
-    title: 'Evite perdas',
-    text: 'Receba alertas quando produtos estão acabando ou parados no estoque há muito tempo.',
+    title: 'Decisao comercial orientada por dados',
+    text: 'Compra casada, impacto de campanha e previsao para reduzir erro de compra e promocao.',
   },
 ];
 
-const pillars = [
+const modules = [
   {
-    label: 'Instalação Simples',
-    text: 'Um programa leve que roda no seu computador e coleta automaticamente as notas fiscais dos seus caixas.',
+    label: 'Painel geral',
+    text: 'Leitura executiva da operacao com dados de vendas reais.',
   },
   {
-    label: 'Análise Automática',
-    text: 'Nosso sistema processa todas as vendas e transforma em informações úteis para você tomar decisões.',
+    label: 'Mapa de produtos',
+    text: 'Busca por nome ou codigo para abrir o dashboard do item.',
   },
   {
-    label: 'Painel Fácil de Usar',
-    text: 'Veja gráficos e relatórios simples com tudo que importa: vendas, produtos mais vendidos e alertas importantes.',
+    label: 'Inteligencia de preco',
+    text: 'Linha do tempo de valor e deteccao automatica de eventos e promocoes.',
+  },
+  {
+    label: 'Compra casada',
+    text: 'Pares com suporte, confianca e lift para orientar exposicao conjunta.',
+  },
+  {
+    label: 'Campanhas',
+    text: 'Comparacao antes, durante e depois para validar resultado real.',
+  },
+  {
+    label: 'Configuracoes e agente',
+    text: 'Gestao de chaves API, revogacao, heartbeat e download do coletor.',
   },
 ];
 
 const steps = [
   {
-    title: '1. Baixe e instale',
-    text: 'Baixe nosso programa e instale em um computador da sua rede. É rápido e não precisa de conhecimento técnico.',
+    title: 'Instale o agente desktop',
+    text: 'Configure a chave da API e as pastas de XML/NFCe no Windows.',
   },
   {
-    title: '2. Deixe funcionar',
-    text: 'O sistema coleta automaticamente as vendas de todos os seus caixas e envia para a nuvem de forma segura.',
+    title: 'Coleta e envio automaticos',
+    text: 'O agente monitora as pastas, cria fila local e envia quando a conexao estiver disponivel.',
   },
   {
-    title: '3. Veja os resultados',
-    text: 'Acesse de qualquer lugar e veja suas vendas, produtos que mais vendem, e receba alertas para melhorar seus resultados.',
+    title: 'Analise no painel web',
+    text: 'Use dashboards de operacao e produto para orientar compra, promocao e mix.',
+  },
+];
+
+const pricingSignals = [
+  'Preco medio liquido por dia (sem perder historico)',
+  'Primeira e ultima variacao de preco detectadas',
+  'Maior alta e maior queda por periodo',
+  'Janelas promocionais com confianca e lift estimado',
+  'Eventos de variacao relevantes para decisao de compra',
+];
+
+const securityAndReliability = [
+  {
+    title: 'Fila offline no desktop',
+    text: 'Se a internet oscilar, os XMLs ficam em fila local e sao enviados quando a conexao retorna.',
+  },
+  {
+    title: 'Chave de API por agente',
+    text: 'Controle granular: criar, revogar e acompanhar atividade por credencial.',
+  },
+  {
+    title: 'Sincronizacao com API web',
+    text: 'Desktop e web operam com a mesma base de dados, sem tela isolada com dados simulados.',
   },
 ];
 
 const Landing: React.FC = () => {
   return (
-    <div className="landing">
+    <div className="landing landing-v2">
       <header className="landing-header reveal">
         <div className="landing-header-inner">
           <div className="brand">
             <span className="brand-mark">MF</span>
             <div>
               <p className="brand-name">MercadoFlow</p>
-              <p className="brand-subtitle">Inteligência de vendas para supermercados</p>
+              <p className="brand-subtitle">Inteligencia de vendas para supermercados e farmacias</p>
             </div>
           </div>
           <nav className="landing-nav">
-            <a href="#funcionalidades">Funcionalidades</a>
+            <a href="#recursos">Recursos</a>
+            <a href="#preco">Inteligencia de preco</a>
             <a href="#fluxo">Fluxo</a>
-            <a href="#seguranca">Segurança</a>
+            <a href="#seguranca">Confiabilidade</a>
             <Link to="/download-agente">Baixar agente</Link>
             <Link className="button secondary" to="/login">
               Entrar
@@ -73,8 +109,8 @@ const Landing: React.FC = () => {
       <section className="landing-banner reveal">
         <div className="landing-banner-inner">
           <div>
-            <strong>MercadoFlow Agent disponível para download</strong>
-            <p>Instalador público para Windows com fila offline e envio seguro.</p>
+            <strong>Desktop e web sincronizados em uma unica operacao</strong>
+            <p>Coleta NFCe no Windows, fila offline e analise completa no painel web.</p>
           </div>
           <div className="landing-banner-actions">
             <Link className="button" to="/download-agente">
@@ -84,151 +120,167 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      <section className="hero reveal stagger-1">
-        <div className="hero-text">
-          <span className="eyebrow">Tecnologia simples para seu supermercado</span>
-          <h1>
-            Descubra o que seus clientes realmente compram e{' '}
-            <span className="accent-text">venda mais</span>.
-          </h1>
-          <p>
-            MercadoFlow mostra em tempo real quais produtos estão vendendo, quais estão parados, e o que seus
-            clientes costumam comprar junto. Simples assim. Sem complicação.
-          </p>
-          <div className="hero-actions">
-            <Link className="button" to="/login">
-              Acessar plataforma
-            </Link>
-            <Link className="button secondary" to="/download-agente">
-              Baixar agente
-            </Link>
-            <a className="button secondary" href="#funcionalidades">
-              Ver funcionalidades
-            </a>
-          </div>
-          <div className="hero-stats">
-            <div className="stat-chip">
-              <span>1000+</span>
-              <small>XMLs processados por hora</small>
+      <main className="landing-app page analytics-page">
+        <section className="analytics-hero reveal stagger-1">
+          <div className="analytics-hero-copy">
+            <span className="pill">Plataforma de decisao comercial com dados reais</span>
+            <h1 className="analytics-hero-title">Pare de decidir no feeling. Compre, promova e exponha com inteligencia.</h1>
+            <p className="analytics-hero-text">
+              O MercadoFlow une coleta automatica de notas no desktop com analise web de performance por produto, variacao de preco,
+              compra casada, sazonalidade e impacto de campanha.
+            </p>
+            <div className="hero-chip-row">
+              <span className="hero-chip">Sem mock: dados vindos de NFCe/XML</span>
+              <span className="hero-chip">Dashboard por produto com visao por PDV</span>
+              <span className="hero-chip">Sincronizacao desktop + API web</span>
             </div>
-            <div className="stat-chip">
-              <span>99.9%</span>
-              <small>Uptime garantido</small>
-            </div>
-            <div className="stat-chip">
-              <span>100%</span>
-              <small>Conforme LGPD</small>
+            <div className="hero-inline-actions">
+              <Link className="button" to="/login">Acessar plataforma</Link>
+              <Link className="button secondary" to="/download-agente">Baixar agente</Link>
             </div>
           </div>
-        </div>
-        <div className="hero-board">
-          <div className="hero-card">
-            <p className="hero-card-title">Radar de performance</p>
-            <div className="hero-metric">
-              <h3>R$ 2,45M</h3>
-              <span>Receita dos últimos 30 dias</span>
+
+          <div className="analytics-hero-board">
+            <div className="hero-focus-card primary">
+              <span className="section-kicker">Leitura central da operacao</span>
+              <h3>Painel unico para dono, gestor e comprador</h3>
+              <strong>8 modulos</strong>
+              <p>Produtos, preco, cesta, campanha, previsao, alerta, PDV e configuracoes.</p>
             </div>
-            <div className="hero-metric">
-              <h3>+12,4%</h3>
-              <span>Crescimento semanal</span>
-            </div>
-            <div className="hero-list">
-              {insights.map((insight) => (
-                <div key={insight.title}>
-                  <strong>{insight.title}</strong>
-                  <p>{insight.text}</p>
+            <div className="hero-focus-stack">
+              {operationalHighlights.map((item, index) => (
+                <div key={item.title} className={`hero-mini-card ${index === 0 ? 'orange' : index === 1 ? 'amber' : 'mint'}`}>
+                  <span>{item.title}</span>
+                  <strong>{index === 0 ? 'Visao executiva' : index === 1 ? 'Radar de preco' : 'Acao orientada'}</strong>
+                  <small>{item.text}</small>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="section reveal stagger-2" id="funcionalidades">
-        <h2>Tudo que você precisa em um só lugar</h2>
-        <p className="section-subtitle">
-          Ferramentas simples e poderosas para você entender suas vendas e tomar melhores decisões no seu dia a dia.
-        </p>
-        <div className="feature-grid">
-          {pillars.map((pillar) => (
-            <div className="feature-card" key={pillar.label}>
-              <h3>{pillar.label}</h3>
-              <p>{pillar.text}</p>
+        <div className="metrics-grid analytics-metrics-grid landing-metrics reveal">
+          <div className="metric-card metric-card-default">
+            <div className="metric-card-top"><span className="metric-card-title">Coleta</span><span className="metric-card-icon">NF</span></div>
+            <strong className="metric-card-value">Automatica</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">monitoramento de pastas XML</span></div>
+          </div>
+          <div className="metric-card metric-card-default">
+            <div className="metric-card-top"><span className="metric-card-title">Conexao</span><span className="metric-card-icon">Q</span></div>
+            <strong className="metric-card-value">Fila offline</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">envio quando a internet voltar</span></div>
+          </div>
+          <div className="metric-card metric-card-warning">
+            <div className="metric-card-top"><span className="metric-card-title">Produto</span><span className="metric-card-icon">SKU</span></div>
+            <strong className="metric-card-value">Dashboard do item</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">giro, preco, sazonalidade e PDV</span></div>
+          </div>
+          <div className="metric-card metric-card-danger">
+            <div className="metric-card-top"><span className="metric-card-title">Preco</span><span className="metric-card-icon">PX</span></div>
+            <strong className="metric-card-value">Timeline real</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">eventos e promocoes detectadas</span></div>
+          </div>
+        </div>
+
+        <section className="analytics-section reveal stagger-2" id="recursos">
+          <div className="section-heading-row">
+            <div>
+              <span className="section-kicker">Recursos atuais da plataforma</span>
+              <h2>Tudo integrado ao fluxo real de vendas</h2>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="section flow reveal stagger-3" id="fluxo">
-        <h2>Fluxo operacional simples</h2>
-        <p className="section-subtitle">Equipe técnica instala uma vez. O restante é automático.</p>
-        <div className="flow-content">
-          <div className="steps">
-            {steps.map((step) => (
-              <div key={step.title} className="step-card">
-                <h4>{step.title}</h4>
-                <p>{step.text}</p>
-              </div>
+          </div>
+          <div className="analytics-card-grid three-cols">
+            {modules.map((module) => (
+              <article key={module.label} className="analytics-panel landing-module-card">
+                <div className="analytics-panel-head compact">
+                  <div>
+                    <span className="section-kicker">Modulo</span>
+                    <h3>{module.label}</h3>
+                  </div>
+                </div>
+                <p className="panel-copy">{module.text}</p>
+              </article>
             ))}
           </div>
-          <div className="flow-panel">
-            <div className="flow-row">
-              <span>PDVs conectados</span>
-              <strong>48 ativos</strong>
-            </div>
-            <div className="flow-row">
-              <span>Latência média</span>
-              <strong>1.2s</strong>
-            </div>
-            <div className="flow-row">
-              <span>Alertas abertos</span>
-              <strong>7 críticos</strong>
-            </div>
-            <div className="flow-row">
-              <span>Campanhas sugeridas</span>
-              <strong>18 oportunidades</strong>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="section security reveal" id="seguranca">
-        <h2>Seus dados protegidos e sempre disponíveis</h2>
-        <div className="security-grid">
-          <div className="security-card">
-            <h3>Segurança total</h3>
-            <p>Todas as informações são criptografadas e transmitidas com segurança. Seus dados ficam protegidos.</p>
+        <section className="analytics-grid analytics-grid-main reveal" id="preco">
+          <div className="analytics-panel">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Inteligencia de preco</span>
+                <h3>O que muda no valor de cada produto ao longo do tempo</h3>
+              </div>
+            </div>
+            <p className="panel-copy">
+              A plataforma preserva historico de preco por observacao e gera sinais para identificar
+              variacoes relevantes, possiveis promocoes e mudancas estruturais no comportamento de venda.
+            </p>
+            <div className="landing-signal-list">
+              {pricingSignals.map((signal) => (
+                <div key={signal} className="landing-signal-item">
+                  <span className="status-pill positive">Ativo</span>
+                  <strong>{signal}</strong>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="security-card">
-            <h3>Conforme a lei (LGPD)</h3>
-            <p>Seguimos todas as regras de proteção de dados. Você pode usar tranquilo, tudo dentro da lei.</p>
-          </div>
-          <div className="security-card">
-            <h3>Funciona sempre</h3>
-            <p>Mesmo se a internet cair, o sistema continua coletando. Quando voltar, envia tudo automaticamente.</p>
-          </div>
-        </div>
-      </section>
 
-      <section className="cta reveal">
-        <div className="cta-inner">
-          <h2>Pronto para elevar as vendas do seu supermercado?</h2>
-          <p>
-            Ative o MercadoFlow e tenha uma visão única das suas operações, campanhas e oportunidades em minutos.
-          </p>
-          <div className="cta-actions">
-            <Link className="button" to="/login">
-              Entrar agora
-            </Link>
-            <a className="button secondary" href="mailto:contato@mercadoflow.com">
-              Falar com especialista
-            </a>
+          <div className="analytics-panel" id="fluxo">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Desdobramento no dia a dia</span>
+                <h3>Como isso vira decisao de compra</h3>
+              </div>
+            </div>
+            <div className="landing-step-stack">
+              {steps.map((step, index) => (
+                <article key={step.title} className="landing-step-card">
+                  <div className="rank-pill">{index + 1}</div>
+                  <div>
+                    <strong>{step.title}</strong>
+                    <p>{step.text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section className="analytics-section reveal" id="seguranca">
+          <div className="section-heading-row">
+            <div>
+              <span className="section-kicker">Confiabilidade operacional</span>
+              <h2>Desktop e web trabalhando no mesmo fluxo</h2>
+            </div>
+          </div>
+          <div className="analytics-card-grid three-cols">
+            {securityAndReliability.map((item) => (
+              <article key={item.title} className="analytics-panel landing-module-card">
+                <div className="analytics-panel-head compact">
+                  <div>
+                    <span className="section-kicker">Operacao</span>
+                    <h3>{item.title}</h3>
+                  </div>
+                </div>
+                <p className="panel-copy">{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="analytics-footer-callout reveal landing-cta">
+          <strong>Objetivo do MercadoFlow:</strong> transformar nota fiscal em decisao comercial pratica.
+          Consulte produto, valide promocao, compare filiais e ajuste compra com base no que realmente vende.
+          <div className="hero-inline-actions">
+            <Link className="button" to="/login">Entrar agora</Link>
+            <Link className="button secondary" to="/download-agente">Baixar agente desktop</Link>
+          </div>
+        </section>
+      </main>
 
       <footer className="landing-footer">
-        <span>MercadoFlow - Inteligência de Vendas</span>
+        <span>MercadoFlow - Inteligencia de Vendas</span>
         <span>contato@mercadoflow.com</span>
       </footer>
     </div>

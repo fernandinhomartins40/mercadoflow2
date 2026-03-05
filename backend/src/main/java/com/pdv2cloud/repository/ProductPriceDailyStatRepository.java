@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 public interface ProductPriceDailyStatRepository extends JpaRepository<ProductPriceDailyStat, UUID> {
+    boolean existsByMarket_IdAndProduct_Id(UUID marketId, UUID productId);
+
     @Transactional
     @Modifying
     @Query("delete from ProductPriceDailyStat s where s.market.id = :marketId and s.product.id = :productId")
@@ -25,4 +27,3 @@ public interface ProductPriceDailyStatRepository extends JpaRepository<ProductPr
         LocalDate endDate
     );
 }
-

@@ -216,13 +216,14 @@ public class PriceIntelligenceService {
         promotionWindowRepository.saveAll(windowEntities);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ProductPriceTimelineDTO getProductPriceTimeline(
         UUID marketId,
         UUID productId,
         LocalDate startDate,
         LocalDate endDate
     ) {
+        ensureProductPriceHistory(marketId, productId);
         List<ProductPriceDailyStat> points = loadTimelinePoints(marketId, productId, startDate, endDate);
         List<ProductPriceEvent> events = loadEvents(marketId, productId, startDate, endDate);
         List<ProductPromotionWindow> windows = loadPromotionWindows(marketId, productId, startDate, endDate);
@@ -277,13 +278,14 @@ public class PriceIntelligenceService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ProductPriceEventDTO> getProductPriceEvents(
         UUID marketId,
         UUID productId,
         LocalDate startDate,
         LocalDate endDate
     ) {
+        ensureProductPriceHistory(marketId, productId);
         return loadEvents(marketId, productId, startDate, endDate).stream()
             .map(event -> new ProductPriceEventDTO(
                 event.getId(),
@@ -301,13 +303,14 @@ public class PriceIntelligenceService {
             .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ProductPromotionWindowDTO> getProductPromotionWindows(
         UUID marketId,
         UUID productId,
         LocalDate startDate,
         LocalDate endDate
     ) {
+        ensureProductPriceHistory(marketId, productId);
         return loadPromotionWindows(marketId, productId, startDate, endDate).stream()
             .map(window -> new ProductPromotionWindowDTO(
                 window.getId(),
@@ -323,6 +326,13 @@ public class PriceIntelligenceService {
                 window.getStatus() != null ? window.getStatus().name() : null
             ))
             .toList();
+    }
+
+    private void ensureProductPriceHistory(UUID marketId, UUID productId) {
+        if (dailyStatRepository.existsByMarket_IdAndProduct_Id(marketId, productId)) {
+            return;
+        }
+        recomputeProduct(marketId, productId);
     }
 
     private List<ProductPriceDailyStat> loadTimelinePoints(UUID marketId, UUID productId, LocalDate startDate, LocalDate endDate) {
@@ -759,6 +769,8 @@ public class PriceIntelligenceService {
         private final Set<UUID> invoices = new HashSet<>();
         private BigDecimal quantity = BigDecimal.ZERO;
         private BigDecimal revenue = BigDecimal.ZERO;
+        private LocalDateTime closeObservedAt;
+        private BigDecimal closePrice = BigDecimal.ZERO;
 
         private DailyAccumulator(LocalDate date) {
             this.date = date;
@@ -782,15 +794,21 @@ public class PriceIntelligenceService {
             weightedPrices.add(price.multiply(qty));
             quantity = quantity.add(qty);
             revenue = revenue.add(lineRevenue);
+            LocalDateTime observedAt = observation.getObservedAt();
+            if (observedAt != null && (closeObservedAt == null || observedAt.isAfter(closeObservedAt))) {
+                closeObservedAt = observedAt;
+                closePrice = price;
+            }
             if (observation.getInvoiceId() != null) {
                 invoices.add(observation.getInvoiceId());
             }
         }
 
         private DailyAggregate toAggregate() {
-            BigDecimal weightedAvg = quantity.compareTo(BigDecimal.ZERO) > 0
+            BigDecimal weightedAverage = quantity.compareTo(BigDecimal.ZERO) > 0
                 ? weightedPrices.stream().reduce(BigDecimal.ZERO, BigDecimal::add).divide(quantity, 6, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
+            BigDecimal periodPrice = closePrice.compareTo(BigDecimal.ZERO) > 0 ? closePrice : weightedAverage;
             BigDecimal median = medianStatic(prices);
             BigDecimal min = prices.stream().min(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
             BigDecimal max = prices.stream().max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
@@ -798,7 +816,7 @@ public class PriceIntelligenceService {
             BigDecimal mad = madStatic(prices, median);
             return new DailyAggregate(
                 date,
-                weightedAvg,
+                periodPrice,
                 median,
                 min,
                 max,
