@@ -24,6 +24,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -188,10 +189,10 @@ public class ProductCatalogService {
 
     @Transactional(readOnly = true)
     public Page<CatalogAdminProductDTO> listCatalogProducts(String provider, String search, Pageable pageable) {
-        String normalizedProvider = normalizeFilter(provider);
-        String normalizedSearch = normalizeFilter(search);
+        String normalizedProvider = normalizeProviderFilter(provider);
+        String normalizedSearchPattern = buildSearchPattern(search);
 
-        return productEnrichmentRepository.searchCatalogForAdmin(normalizedProvider, normalizedSearch, pageable)
+        return productEnrichmentRepository.searchCatalogForAdmin(normalizedProvider, normalizedSearchPattern, pageable)
             .map(enrichment -> {
                 Product product = enrichment.getProduct();
                 String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(
@@ -519,12 +520,23 @@ public class ProductCatalogService {
         return item.getValorUnitario() != null ? item.getValorUnitario() : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private String normalizeFilter(String value) {
+    private String normalizeProviderFilter(String value) {
         if (value == null) {
-            return null;
+            return "";
         }
         String trimmed = value.trim();
-        return trimmed.isBlank() ? null : trimmed;
+        return trimmed.isBlank() ? "" : trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    private String buildSearchPattern(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        if (trimmed.isBlank()) {
+            return "";
+        }
+        return "%" + trimmed.toLowerCase(Locale.ROOT) + "%";
     }
 
     private record ProductIdentity(String key, ProductIdentityType identityType) {

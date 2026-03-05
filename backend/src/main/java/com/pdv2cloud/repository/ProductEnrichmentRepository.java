@@ -16,19 +16,19 @@ public interface ProductEnrichmentRepository extends JpaRepository<ProductEnrich
         select pe
         from ProductEnrichment pe
         join pe.product p
-        where (:provider is null or lower(pe.provider) = lower(:provider))
+        where (:provider = '' or lower(pe.provider) = :provider)
           and (
-            :search is null
-            or lower(coalesce(pe.canonicalName, '')) like lower(concat('%', :search, '%'))
-            or lower(coalesce(pe.brand, '')) like lower(concat('%', :search, '%'))
-            or lower(coalesce(p.name, '')) like lower(concat('%', :search, '%'))
-            or lower(coalesce(p.ean, '')) like lower(concat('%', :search, '%'))
+            :searchPattern = ''
+            or lower(coalesce(pe.canonicalName, '')) like :searchPattern
+            or lower(coalesce(pe.brand, '')) like :searchPattern
+            or lower(coalesce(p.name, '')) like :searchPattern
+            or lower(coalesce(p.ean, '')) like :searchPattern
           )
         order by pe.fetchedAt desc
         """)
     Page<ProductEnrichment> searchCatalogForAdmin(
         @Param("provider") String provider,
-        @Param("search") String search,
+        @Param("searchPattern") String searchPattern,
         Pageable pageable
     );
 }
