@@ -20,7 +20,7 @@ public interface SalesAnalyticsRepository extends JpaRepository<SalesAnalytics, 
             "p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount" +
             ") " +
             "from SalesAnalytics sa join sa.product p " +
-            "where sa.market.id = :marketId and (:category is null or p.category = :category) " +
+            "where sa.market.id = :marketId " +
             "group by p.id, p.ean, p.name, p.category, p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount " +
             "order by " +
             "case when :sortBy = 'REVENUE' then sum(sa.revenue) end desc, " +
@@ -31,12 +31,35 @@ public interface SalesAnalyticsRepository extends JpaRepository<SalesAnalytics, 
             "p.name asc",
         countQuery = "select count(distinct p.id) " +
             "from SalesAnalytics sa join sa.product p " +
-            "where sa.market.id = :marketId and (:category is null or p.category = :category)"
+            "where sa.market.id = :marketId"
     )
     Page<ProductAnalyticsDTO> getProductAnalytics(@Param("marketId") UUID marketId,
-                                                  @Param("category") String category,
                                                   @Param("sortBy") String sortBy,
                                                   Pageable pageable);
+
+    @Query(
+        value = "select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(" +
+            "p.id, p.ean, p.name, p.category, sum(sa.revenue), sum(sa.quantitySold), avg(sa.averagePrice), sum(sa.transactionCount), " +
+            "p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount" +
+            ") " +
+            "from SalesAnalytics sa join sa.product p " +
+            "where sa.market.id = :marketId and p.category = :category " +
+            "group by p.id, p.ean, p.name, p.category, p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount " +
+            "order by " +
+            "case when :sortBy = 'REVENUE' then sum(sa.revenue) end desc, " +
+            "case when :sortBy = 'QUANTITY' then sum(sa.quantitySold) end desc, " +
+            "case when :sortBy = 'TRANSACTIONS' then sum(sa.transactionCount) end desc, " +
+            "case when :sortBy = 'PRICE' then avg(sa.averagePrice) end desc, " +
+            "case when :sortBy = 'NAME' then p.name end asc, " +
+            "p.name asc",
+        countQuery = "select count(distinct p.id) " +
+            "from SalesAnalytics sa join sa.product p " +
+            "where sa.market.id = :marketId and p.category = :category"
+    )
+    Page<ProductAnalyticsDTO> getProductAnalyticsByCategory(@Param("marketId") UUID marketId,
+                                                            @Param("category") String category,
+                                                            @Param("sortBy") String sortBy,
+                                                            Pageable pageable);
 
     @Query("select new com.pdv2cloud.model.dto.SalesTrendPointDTO(sa.date, sum(sa.revenue)) " +
            "from SalesAnalytics sa where sa.market.id = :marketId and sa.date between :start and :end " +

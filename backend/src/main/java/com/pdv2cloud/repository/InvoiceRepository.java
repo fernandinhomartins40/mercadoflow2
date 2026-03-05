@@ -58,7 +58,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
             "p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount" +
             ") " +
             "from InvoiceItem it join it.invoice i join it.product p " +
-            "where i.market.id = :marketId and (:category is null or p.category = :category) " +
+            "where i.market.id = :marketId " +
             "group by p.id, p.ean, p.name, p.category, p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount " +
             "order by " +
             "case when :sortBy = 'REVENUE' then coalesce(sum(it.valorTotal), 0) end desc, " +
@@ -69,12 +69,35 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
             "p.name asc",
         countQuery = "select count(distinct p.id) " +
             "from InvoiceItem it join it.invoice i join it.product p " +
-            "where i.market.id = :marketId and (:category is null or p.category = :category)"
+            "where i.market.id = :marketId"
     )
     Page<ProductAnalyticsDTO> getProductAnalytics(@Param("marketId") UUID marketId,
-                                                  @Param("category") String category,
                                                   @Param("sortBy") String sortBy,
                                                   Pageable pageable);
+
+    @Query(
+        value = "select new com.pdv2cloud.model.dto.ProductAnalyticsDTO(" +
+            "p.id, p.ean, p.name, p.category, coalesce(sum(it.valorTotal), 0), coalesce(sum(it.quantidade), 0), avg(it.valorUnitario), count(distinct i.id), " +
+            "p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount" +
+            ") " +
+            "from InvoiceItem it join it.invoice i join it.product p " +
+            "where i.market.id = :marketId and p.category = :category " +
+            "group by p.id, p.ean, p.name, p.category, p.sourceBest, p.confidenceScore, p.firstSeenAt, p.lastSeenAt, p.observationCount " +
+            "order by " +
+            "case when :sortBy = 'REVENUE' then coalesce(sum(it.valorTotal), 0) end desc, " +
+            "case when :sortBy = 'QUANTITY' then coalesce(sum(it.quantidade), 0) end desc, " +
+            "case when :sortBy = 'TRANSACTIONS' then count(distinct i.id) end desc, " +
+            "case when :sortBy = 'PRICE' then avg(it.valorUnitario) end desc, " +
+            "case when :sortBy = 'NAME' then p.name end asc, " +
+            "p.name asc",
+        countQuery = "select count(distinct p.id) " +
+            "from InvoiceItem it join it.invoice i join it.product p " +
+            "where i.market.id = :marketId and p.category = :category"
+    )
+    Page<ProductAnalyticsDTO> getProductAnalyticsByCategory(@Param("marketId") UUID marketId,
+                                                            @Param("category") String category,
+                                                            @Param("sortBy") String sortBy,
+                                                            Pageable pageable);
 
     @Query("select new com.pdv2cloud.model.dto.RecentInvoiceSummaryDTO(" +
            "i.id, i.chaveNFe, i.numero, i.serie, i.valorTotal, i.dataEmissao, i.processedAt) " +

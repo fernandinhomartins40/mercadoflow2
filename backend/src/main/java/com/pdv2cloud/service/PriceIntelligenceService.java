@@ -25,6 +25,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,48 +64,36 @@ public class PriceIntelligenceService {
             .map(PriceIntelligenceCheckpoint::getLastObservedAt)
             .orElse(null);
 
-        List<UUID> changedProducts = productObservationRepository
-            .findDistinctProductIdsByMarketIdAndObservedAtAfter(marketId, checkpoint);
-        if (changedProducts.isEmpty()) {
+        Set<UUID> productsToRecompute = new LinkedHashSet<>(checkpoint == null
+            ? productObservationRepository.findDistinctProductIdsByMarketId(marketId)
+            : productObservationRepository.findDistinctProductIdsByMarketIdAndObservedAtAfter(marketId, checkpoint));
+        productsToRecompute.addAll(productObservationRepository.findDistinctProductIdsByMarketIdWithoutDailyStats(marketId));
+
+        if (productsToRecompute.isEmpty()) {
             return;
         }
 
-        for (UUID productId : changedProducts) {
+        for (UUID productId : productsToRecompute) {
             recomputeProduct(marketId, productId);
         }
 
-        LocalDateTime maxObservedAt = productObservationRepository
-            .findMaxObservedAtByMarketIdAndObservedAtAfter(marketId, checkpoint);
+        LocalDateTime maxObservedAt = checkpoint == null
+            ? productObservationRepository.findMaxObservedAtByMarketId(marketId)
+            : productObservationRepository.findMaxObservedAtByMarketIdAndObservedAtAfter(marketId, checkpoint);
         if (maxObservedAt != null) {
-            PriceIntelligenceCheckpoint entity = checkpointRepository.findById(marketId).orElseGet(() -> {
-                PriceIntelligenceCheckpoint created = new PriceIntelligenceCheckpoint();
-                created.setMarketId(marketId);
-                return created;
-            });
-            entity.setLastObservedAt(maxObservedAt);
-            entity.setUpdatedAt(LocalDateTime.now());
-            checkpointRepository.save(entity);
+            saveCheckpoint(marketId, maxObservedAt);
         }
     }
 
     @Transactional
     public int rebuildMarket(UUID marketId) {
-        List<UUID> productIds = productObservationRepository
-            .findDistinctProductIdsByMarketIdAndObservedAtAfter(marketId, null);
+        List<UUID> productIds = productObservationRepository.findDistinctProductIdsByMarketId(marketId);
         for (UUID productId : productIds) {
             recomputeProduct(marketId, productId);
         }
 
-        LocalDateTime maxObservedAt = productObservationRepository
-            .findMaxObservedAtByMarketIdAndObservedAtAfter(marketId, null);
-        PriceIntelligenceCheckpoint entity = checkpointRepository.findById(marketId).orElseGet(() -> {
-            PriceIntelligenceCheckpoint created = new PriceIntelligenceCheckpoint();
-            created.setMarketId(marketId);
-            return created;
-        });
-        entity.setLastObservedAt(maxObservedAt);
-        entity.setUpdatedAt(LocalDateTime.now());
-        checkpointRepository.save(entity);
+        LocalDateTime maxObservedAt = productObservationRepository.findMaxObservedAtByMarketId(marketId);
+        saveCheckpoint(marketId, maxObservedAt);
 
         return productIds.size();
     }
@@ -326,6 +315,17 @@ public class PriceIntelligenceService {
                 window.getStatus() != null ? window.getStatus().name() : null
             ))
             .toList();
+    }
+
+    private void saveCheckpoint(UUID marketId, LocalDateTime lastObservedAt) {
+        PriceIntelligenceCheckpoint entity = checkpointRepository.findById(marketId).orElseGet(() -> {
+            PriceIntelligenceCheckpoint created = new PriceIntelligenceCheckpoint();
+            created.setMarketId(marketId);
+            return created;
+        });
+        entity.setLastObservedAt(lastObservedAt);
+        entity.setUpdatedAt(LocalDateTime.now());
+        checkpointRepository.save(entity);
     }
 
     private void ensureProductPriceHistory(UUID marketId, UUID productId) {

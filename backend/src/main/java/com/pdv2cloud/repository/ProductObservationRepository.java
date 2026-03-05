@@ -27,7 +27,15 @@ public interface ProductObservationRepository extends JpaRepository<ProductObser
 
     @Query(
         "select distinct po.product.id from ProductObservation po " +
-        "where po.market.id = :marketId and (:after is null or po.observedAt > :after)"
+        "where po.market.id = :marketId"
+    )
+    List<UUID> findDistinctProductIdsByMarketId(
+        @Param("marketId") UUID marketId
+    );
+
+    @Query(
+        "select distinct po.product.id from ProductObservation po " +
+        "where po.market.id = :marketId and po.observedAt > :after"
     )
     List<UUID> findDistinctProductIdsByMarketIdAndObservedAtAfter(
         @Param("marketId") UUID marketId,
@@ -36,10 +44,29 @@ public interface ProductObservationRepository extends JpaRepository<ProductObser
 
     @Query(
         "select max(po.observedAt) from ProductObservation po " +
-        "where po.market.id = :marketId and (:after is null or po.observedAt > :after)"
+        "where po.market.id = :marketId"
+    )
+    LocalDateTime findMaxObservedAtByMarketId(
+        @Param("marketId") UUID marketId
+    );
+
+    @Query(
+        "select max(po.observedAt) from ProductObservation po " +
+        "where po.market.id = :marketId and po.observedAt > :after"
     )
     LocalDateTime findMaxObservedAtByMarketIdAndObservedAtAfter(
         @Param("marketId") UUID marketId,
         @Param("after") LocalDateTime after
+    );
+
+    @Query(
+        "select distinct po.product.id from ProductObservation po " +
+        "where po.market.id = :marketId and not exists (" +
+        "select 1 from ProductPriceDailyStat s " +
+        "where s.market.id = po.market.id and s.product.id = po.product.id" +
+        ")"
+    )
+    List<UUID> findDistinctProductIdsByMarketIdWithoutDailyStats(
+        @Param("marketId") UUID marketId
     );
 }
