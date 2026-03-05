@@ -33,7 +33,7 @@ services:
       - DATABASE_URL=jdbc:postgresql://postgres:5432/pdv2cloud
       - DATABASE_USER=pdv2cloud
       - DATABASE_PASSWORD=pdv2cloud
-      - JWT_SECRET=change-me
+      - JWT_SECRET=CWkVPciXTxXTcBAh8BXGQYqcyX3Ci6ekGsnfr14YiQz+N6xsAfFIYi/IEhBTx7uyAM/su+p7994Mk4Qex0Ht1Q==
       - JWT_EXPIRATION_MS=86400000
       - CORS_ALLOWED_ORIGINS=https://app.pdv2cloud.com
       - INSTALLER_DIR=/opt/pdv2cloud/installer
@@ -51,7 +51,7 @@ services:
       - DATABASE_URL=jdbc:postgresql://postgres:5432/pdv2cloud
       - DATABASE_USER=pdv2cloud
       - DATABASE_PASSWORD=pdv2cloud
-      - JWT_SECRET=change-me
+      - JWT_SECRET=CWkVPciXTxXTcBAh8BXGQYqcyX3Ci6ekGsnfr14YiQz+N6xsAfFIYi/IEhBTx7uyAM/su+p7994Mk4Qex0Ht1Q==
       - JWT_EXPIRATION_MS=86400000
     depends_on:
       - api

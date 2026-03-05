@@ -29,7 +29,7 @@ server:
       charset: UTF-8
 
 jwt:
-  secret: ${JWT_SECRET:dev-secret}
+  secret: ${JWT_SECRET:CWkVPciXTxXTcBAh8BXGQYqcyX3Ci6ekGsnfr14YiQz+N6xsAfFIYi/IEhBTx7uyAM/su+p7994Mk4Qex0Ht1Q==}
   expiration: ${JWT_EXPIRATION_MS:86400000}
 
 cors:
@@ -48,6 +48,15 @@ app:
   public-base-url: ${APP_PUBLIC_BASE_URL:https://mercadoflow.com}
   price-intelligence:
     fixed-delay-ms: ${PRICE_INTELLIGENCE_FIXED_DELAY_MS:900000}
+  catalog:
+    web-import:
+      enabled: ${CATALOG_WEB_IMPORT_ENABLED:false}
+      initial-delay-ms: ${CATALOG_WEB_IMPORT_INITIAL_DELAY_MS:180000}
+      fixed-delay-ms: ${CATALOG_WEB_IMPORT_FIXED_DELAY_MS:86400000}
+      max-pages-per-source: ${CATALOG_WEB_IMPORT_MAX_PAGES:5}
+      page-size: ${CATALOG_WEB_IMPORT_PAGE_SIZE:100}
+      include-beauty-facts: ${CATALOG_WEB_IMPORT_INCLUDE_BEAUTY:true}
+      include-open-products-facts: ${CATALOG_WEB_IMPORT_INCLUDE_OPEN_PRODUCTS:true}
 
 logging:
   level:

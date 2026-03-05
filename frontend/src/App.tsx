@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import Landing from './pages/Landing';
 import PublicAgentDownload from './pages/PublicAgentDownload';
 import AgentDownload from './pages/AgentDownload';
+import AdminCatalog from './pages/AdminCatalog';
 import { useAuth } from './context/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,6 +47,7 @@ const App: React.FC = () => {
       <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
       <Route path="/app/configuracoes" element={secure(<Settings />)} />
       <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
+      <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
 
       <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
       <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />

@@ -1,6 +1,7 @@
 package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.dto.InvoiceItemDTO;
+import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.ProductCatalogBackfillResponse;
 import com.pdv2cloud.model.dto.ProductEnrichmentUpsertRequest;
 import com.pdv2cloud.model.entity.Invoice;
@@ -26,6 +27,8 @@ import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -107,6 +110,7 @@ public class ProductCatalogService {
         if (gtin == null) {
             throw new IllegalArgumentException("GTIN invalido para enriquecimento");
         }
+        String provider = request.getProvider().trim();
 
         Product product = productRepository.findByEan(gtin).orElseGet(() -> {
             Product created = new Product();
@@ -122,9 +126,11 @@ public class ProductCatalogService {
             product = productRepository.save(product);
         }
 
-        ProductEnrichment enrichment = new ProductEnrichment();
+        ProductEnrichment enrichment = productEnrichmentRepository
+            .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
+            .orElseGet(ProductEnrichment::new);
         enrichment.setProduct(product);
-        enrichment.setProvider(request.getProvider().trim());
+        enrichment.setProvider(provider);
         enrichment.setProviderProductId(ProductCatalogUtils.canonicalizeDisplayName(request.getProviderProductId()));
         enrichment.setCanonicalName(ProductCatalogUtils.canonicalizeDisplayName(request.getCanonicalName()));
         enrichment.setBrand(ProductCatalogUtils.canonicalizeDisplayName(request.getBrand()));
@@ -178,6 +184,42 @@ public class ProductCatalogService {
             aliasesTouched,
             productsUpdated
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CatalogAdminProductDTO> listCatalogProducts(String provider, String search, Pageable pageable) {
+        String normalizedProvider = normalizeFilter(provider);
+        String normalizedSearch = normalizeFilter(search);
+
+        return productEnrichmentRepository.searchCatalogForAdmin(normalizedProvider, normalizedSearch, pageable)
+            .map(enrichment -> {
+                Product product = enrichment.getProduct();
+                String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(
+                    enrichment.getCanonicalName() != null ? enrichment.getCanonicalName() : product.getName()
+                );
+                return new CatalogAdminProductDTO(
+                    enrichment.getId(),
+                    product.getId(),
+                    product.getEan(),
+                    canonicalName,
+                    ProductCatalogUtils.canonicalizeDisplayName(
+                        enrichment.getBrand() != null ? enrichment.getBrand() : product.getBrand()
+                    ),
+                    ProductCatalogUtils.canonicalizeDisplayName(
+                        enrichment.getCategory() != null ? enrichment.getCategory() : product.getCategory()
+                    ),
+                    ProductCatalogUtils.canonicalizeDisplayName(
+                        enrichment.getPackageDescription() != null
+                            ? enrichment.getPackageDescription()
+                            : product.getPackageDescription()
+                    ),
+                    enrichment.getProvider(),
+                    enrichment.getConfidenceScore(),
+                    enrichment.getFetchedAt(),
+                    enrichment.getLastVerifiedAt(),
+                    product.getObservationCount()
+                );
+            });
     }
 
     private CatalogMutation recordObservation(Invoice invoice, InvoiceItem item) {
@@ -475,6 +517,14 @@ public class ProductCatalogService {
             return netTotal.divide(item.getQuantidade(), 2, RoundingMode.HALF_UP);
         }
         return item.getValorUnitario() != null ? item.getValorUnitario() : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String normalizeFilter(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
 
     private record ProductIdentity(String key, ProductIdentityType identityType) {

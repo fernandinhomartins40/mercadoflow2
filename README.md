@@ -43,6 +43,13 @@ Swagger: `http://localhost:8080/swagger-ui/index.html`
 - Arquitetura: `docs/architecture.md`
 - Deploy: `docs/deploy.md`
 - API: `docs/api.md`
+- Catalogo publico de produtos: `docs/public-product-catalog.md`
 - Troubleshooting: `docs/troubleshooting.md`
 - Manual do usuario: `docs/user-manual.md`
 - Backup: `docs/backup.md`
+
+## Catalogo externo (InfoPrice)
+1. Extrair produtos do InfoPrice:
+`python scripts/catalog/extract_infoprice_products.py --email <email> --password <senha> --output data/catalog/infoprice_products.json`
+2. Importar no catalogo global:
+`python scripts/catalog/import_catalog_records.py --input data/catalog/infoprice_products.json --api-base http://localhost:8080/api --email <admin> --password <senha> --provider INFOPRICE_ISA`

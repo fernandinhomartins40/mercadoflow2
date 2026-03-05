@@ -2999,3 +2999,24 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+.catalog-admin-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.catalog-admin-table {
+  min-width: 980px;
+}
+
+.catalog-admin-page .filter-bar-controls {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .catalog-admin-page .filter-bar-controls {
+    grid-template-columns: 1fr !important;
+  }
+}

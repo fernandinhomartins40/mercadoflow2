@@ -3,15 +3,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/app': { title: 'Painel Geral', subtitle: 'Visão executiva do negócio' },
-  '/app/produtos': { title: 'Produtos', subtitle: 'Giro, tendência e elasticidade' },
-  '/app/cesta': { title: 'Compra casada', subtitle: 'Produtos que se reforçam nas vendas' },
-  '/app/previsao-demanda': { title: 'Previsão', subtitle: 'Demanda futura por produto' },
+  '/app': { title: 'Painel Geral', subtitle: 'Visao executiva do negocio' },
+  '/app/produtos': { title: 'Produtos', subtitle: 'Giro, tendencia e elasticidade' },
+  '/app/cesta': { title: 'Compra casada', subtitle: 'Produtos que se reforcam nas vendas' },
+  '/app/previsao-demanda': { title: 'Previsao', subtitle: 'Demanda futura por produto' },
   '/app/campanhas': { title: 'Campanhas', subtitle: 'Impacto antes, durante e depois' },
-  '/app/alertas': { title: 'Alertas', subtitle: 'Sinais acionáveis do mercado' },
+  '/app/alertas': { title: 'Alertas', subtitle: 'Sinais acionaveis do mercado' },
   '/app/pdvs': { title: 'PDVs', subtitle: 'Origem operacional das vendas' },
-  '/app/configuracoes': { title: 'Configurações', subtitle: 'Acesso e integrações' },
-  '/app/download-agente': { title: 'Agente', subtitle: 'Distribuição do coletor desktop' },
+  '/app/admin/catalogo': { title: 'Catalogo Global', subtitle: 'Base unificada de produtos externos' },
+  '/app/configuracoes': { title: 'Configuracoes', subtitle: 'Acesso e integracoes' },
+  '/app/download-agente': { title: 'Agente', subtitle: 'Distribuicao do coletor desktop' },
 };
 
 const Navbar: React.FC = () => {
@@ -53,7 +54,7 @@ const Navbar: React.FC = () => {
       <div className="header-copy">
         <h2 style={{ margin: 0 }}>{header.title}</h2>
         <span className="header-subtitle">
-          {header.subtitle} | {name || 'Usuário'} | Perfil: {role || 'Não informado'}
+          {header.subtitle} | {name || 'Usuario'} | Perfil: {role || 'Nao informado'}
         </span>
       </div>
       <div className="header-actions">
