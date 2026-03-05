@@ -91,6 +91,27 @@ services:
     depends_on:
       - mercadoflow-backend
 
+  mercadoflow-barcode-enricher:
+    container_name: mercadoflow-barcode-enricher
+    image: python:3.11-slim
+    restart: unless-stopped
+    working_dir: /workspace
+    command: >
+      sh -c "pip install --no-cache-dir requests &&
+      python /workspace/scripts/catalog/barcode_enrichment_service.py
+      --watch
+      --interval-minutes ${BARCODE_ENRICH_INTERVAL_MINUTES:-720}
+      --api-base http://mercadoflow-backend:8080/api
+      --login-endpoint /v1/super-admin/auth/login
+      --email ${SUPER_ADMIN_EMAIL}
+      --password ${SUPER_ADMIN_PASSWORD}
+      --fetch-catalog-from-api"
+    volumes:
+      - ./scripts/catalog:/workspace/scripts/catalog:ro
+      - ./data/catalog:/workspace/data/catalog
+    depends_on:
+      - mercadoflow-backend
+
 volumes:
   mercadoflow_postgres_data:
     external: true

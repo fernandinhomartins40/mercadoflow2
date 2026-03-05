@@ -37,6 +37,18 @@ public class ProductEnrichment {
     @Column(name = "package_description")
     private String packageDescription;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "image_storage_key")
+    private String imageStorageKey;
+
+    private String description;
+    private String manufacturer;
+
+    @Column(name = "attributes_json", columnDefinition = "text")
+    private String attributesJson;
+
     @Column(name = "raw_payload", columnDefinition = "text")
     private String rawPayload;
 

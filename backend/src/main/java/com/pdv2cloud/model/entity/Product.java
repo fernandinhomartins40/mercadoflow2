@@ -28,6 +28,7 @@ public class Product {
     private String brand;
     private String unit;
     private String packageDescription;
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

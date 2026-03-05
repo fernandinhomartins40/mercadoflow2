@@ -5,6 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunFinishRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunStartRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerSourceDTO;
 import com.pdv2cloud.model.dto.SuperAdminMarketCreateRequest;
 import com.pdv2cloud.model.dto.SuperAdminMarketDTO;
@@ -15,11 +20,13 @@ import com.pdv2cloud.model.dto.SuperAdminUserDTO;
 import com.pdv2cloud.model.dto.SuperAdminUserRoleUpdateRequest;
 import com.pdv2cloud.model.dto.SuperAdminUserStatusRequest;
 import com.pdv2cloud.model.entity.CatalogCrawlerConfig;
+import com.pdv2cloud.model.entity.CatalogCrawlerRun;
 import com.pdv2cloud.model.entity.CatalogCrawlerSource;
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.model.entity.User;
 import com.pdv2cloud.model.entity.UserRole;
 import com.pdv2cloud.repository.CatalogCrawlerConfigRepository;
+import com.pdv2cloud.repository.CatalogCrawlerRunRepository;
 import com.pdv2cloud.repository.CatalogCrawlerSourceRepository;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.ProductEnrichmentRepository;
@@ -27,13 +34,18 @@ import com.pdv2cloud.repository.ProductRepository;
 import com.pdv2cloud.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,6 +77,9 @@ public class SuperAdminService {
 
     @Autowired
     private CatalogCrawlerSourceRepository crawlerSourceRepository;
+
+    @Autowired
+    private CatalogCrawlerRunRepository crawlerRunRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -207,14 +222,41 @@ public class SuperAdminService {
         crawlerConfigRepository.save(config);
 
         List<CatalogCrawlerSource> existing = crawlerSourceRepository.findAll();
-        crawlerSourceRepository.deleteAll(existing);
+        Map<UUID, CatalogCrawlerSource> existingById = new HashMap<>();
+        Map<String, CatalogCrawlerSource> existingByProvider = new HashMap<>();
+        for (CatalogCrawlerSource source : existing) {
+            existingById.put(source.getId(), source);
+            existingByProvider.put(source.getProvider().toUpperCase(Locale.ROOT), source);
+        }
 
-        List<CatalogCrawlerSource> toSave = new ArrayList<>();
+        Set<UUID> keepIds = new HashSet<>();
+        Set<String> requestedProviders = new HashSet<>();
         List<SuperAdminCrawlerSourceDTO> sources = request.getSources() == null ? Collections.emptyList() : request.getSources();
         for (SuperAdminCrawlerSourceDTO sourceDTO : sources) {
-            CatalogCrawlerSource source = new CatalogCrawlerSource();
+            if (sourceDTO.getProvider() == null || sourceDTO.getProvider().isBlank()) {
+                throw new IllegalArgumentException("Provider da fonte nao pode ser vazio");
+            }
+            String normalizedProvider = sourceDTO.getProvider().trim().toUpperCase(Locale.ROOT);
+            if (!requestedProviders.add(normalizedProvider)) {
+                throw new IllegalArgumentException("Provider duplicado na configuracao: " + normalizedProvider);
+            }
+
+            CatalogCrawlerSource source = null;
+            if (sourceDTO.getId() != null) {
+                source = existingById.get(sourceDTO.getId());
+            }
+            CatalogCrawlerSource sourceByProvider = existingByProvider.get(normalizedProvider);
+            if (sourceByProvider != null && (source == null || !sourceByProvider.getId().equals(source.getId()))) {
+                source = sourceByProvider;
+            } else if (source == null) {
+                source = sourceByProvider;
+            }
+            if (source == null) {
+                source = new CatalogCrawlerSource();
+            }
+
             source.setName(sourceDTO.getName().trim());
-            source.setProvider(sourceDTO.getProvider().trim().toUpperCase(Locale.ROOT));
+            source.setProvider(normalizedProvider);
             source.setSourceLicense(sourceDTO.getSourceLicense());
             source.setSeedsJson(toJsonArray(sourceDTO.getSeeds()));
             source.setAllowedDomainsJson(toJsonArray(sourceDTO.getAllowedDomains()));
@@ -228,10 +270,93 @@ public class SuperAdminService {
             source.setRateLimitMs(sourceDTO.getRateLimitMs() != null ? Math.max(sourceDTO.getRateLimitMs(), 100) : 1000);
             source.setRequestTimeoutSec(sourceDTO.getRequestTimeoutSec() != null ? Math.max(sourceDTO.getRequestTimeoutSec(), 5) : 20);
             source.setIsEnabled(sourceDTO.getEnabled() == null || sourceDTO.getEnabled());
-            toSave.add(source);
+
+            CatalogCrawlerSource saved = crawlerSourceRepository.save(source);
+            keepIds.add(saved.getId());
         }
-        crawlerSourceRepository.saveAll(toSave);
+
+        for (CatalogCrawlerSource source : existing) {
+            if (!keepIds.contains(source.getId())) {
+                crawlerSourceRepository.delete(source);
+            }
+        }
+
         return getCrawlerConfig(false);
+    }
+
+    @Transactional(readOnly = true)
+    public SuperAdminCrawlerMonitorDTO getCrawlerMonitor(int size) {
+        int safeSize = Math.max(1, Math.min(size, 30));
+        Page<CatalogCrawlerRun> runsPage = crawlerRunRepository.findAllByOrderByRequestedAtDesc(
+            PageRequest.of(0, safeSize)
+        );
+
+        SuperAdminCrawlerMonitorDTO monitor = new SuperAdminCrawlerMonitorDTO();
+        monitor.setQueuedRuns(crawlerRunRepository.countByStatus("QUEUED"));
+        monitor.setRunningRuns(crawlerRunRepository.countByStatus("RUNNING"));
+        monitor.setRecentRuns(runsPage.getContent().stream().map(this::toCrawlerRunDTO).toList());
+        crawlerRunRepository.findTopByOrderByRequestedAtDesc().ifPresent(run -> monitor.setLatestRun(toCrawlerRunDTO(run)));
+        return monitor;
+    }
+
+    public SuperAdminCrawlerRunDTO triggerCrawlerRun(String triggeredBy) {
+        CatalogCrawlerRun run = new CatalogCrawlerRun();
+        run.setRequestedAt(LocalDateTime.now());
+        run.setStatus("QUEUED");
+        run.setMessage("Execucao enfileirada aguardando servico Python.");
+        run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
+        run.setSourcesJson(exportEnabledSourcesAsJson());
+        return toCrawlerRunDTO(crawlerRunRepository.save(run));
+    }
+
+    public SuperAdminCrawlerRunDTO claimPendingCrawlerRun(SuperAdminCrawlerRunClaimRequestDTO request) {
+        String workerName = request != null ? request.getWorkerName() : null;
+        return crawlerRunRepository.findFirstByStatusOrderByRequestedAtAsc("QUEUED")
+            .map(run -> {
+                run.setStatus("RUNNING");
+                run.setStartedAt(LocalDateTime.now());
+                run.setMessage("Execucao iniciada pelo crawler.");
+                if (run.getTriggeredBy() == null || run.getTriggeredBy().isBlank()) {
+                    run.setTriggeredBy(cleanLabel(workerName, "PYTHON_CRAWLER"));
+                }
+                return toCrawlerRunDTO(crawlerRunRepository.save(run));
+            })
+            .orElse(null);
+    }
+
+    public SuperAdminCrawlerRunDTO startCrawlerRun(SuperAdminCrawlerRunStartRequestDTO request) {
+        CatalogCrawlerRun run = new CatalogCrawlerRun();
+        run.setRequestedAt(LocalDateTime.now());
+        run.setStartedAt(LocalDateTime.now());
+        run.setStatus("RUNNING");
+        run.setTriggeredBy(cleanLabel(request != null ? request.getTriggeredBy() : null, "SCHEDULED_CRAWLER"));
+        run.setMessage(cleanMessage(request != null ? request.getMessage() : null));
+        run.setSourcesJson(toJsonArray(request != null ? request.getSources() : Collections.emptyList()));
+        return toCrawlerRunDTO(crawlerRunRepository.save(run));
+    }
+
+    public SuperAdminCrawlerRunDTO finishCrawlerRun(UUID runId, SuperAdminCrawlerRunFinishRequestDTO request) {
+        CatalogCrawlerRun run = crawlerRunRepository.findById(runId)
+            .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+
+        run.setStatus(normalizeRunStatus(request != null ? request.getStatus() : null));
+        if (run.getStartedAt() == null) {
+            run.setStartedAt(LocalDateTime.now());
+        }
+        run.setFinishedAt(LocalDateTime.now());
+        run.setScannedProducts(safeInt(request != null ? request.getScannedProducts() : null));
+        run.setImportedProducts(safeInt(request != null ? request.getImportedProducts() : null));
+        run.setSkippedInvalidGtin(safeInt(request != null ? request.getSkippedInvalidGtin() : null));
+        run.setSkippedMissingName(safeInt(request != null ? request.getSkippedMissingName() : null));
+        run.setSkippedMedication(safeInt(request != null ? request.getSkippedMedication() : null));
+        run.setSkippedDuplicateGtin(safeInt(request != null ? request.getSkippedDuplicateGtin() : null));
+        run.setErrors(safeInt(request != null ? request.getErrors() : null));
+        run.setMessage(cleanMessage(request != null ? request.getMessage() : null));
+        List<String> sources = request != null ? request.getSources() : Collections.emptyList();
+        if (sources != null && !sources.isEmpty()) {
+            run.setSourcesJson(toJsonArray(sources));
+        }
+        return toCrawlerRunDTO(crawlerRunRepository.save(run));
     }
 
     private SuperAdminUserDTO toUserDTO(User user) {
@@ -277,6 +402,26 @@ public class SuperAdminService {
         dto.setRateLimitMs(source.getRateLimitMs());
         dto.setRequestTimeoutSec(source.getRequestTimeoutSec());
         dto.setEnabled(source.getIsEnabled());
+        return dto;
+    }
+
+    private SuperAdminCrawlerRunDTO toCrawlerRunDTO(CatalogCrawlerRun run) {
+        SuperAdminCrawlerRunDTO dto = new SuperAdminCrawlerRunDTO();
+        dto.setId(run.getId());
+        dto.setStatus(run.getStatus());
+        dto.setRequestedAt(run.getRequestedAt());
+        dto.setStartedAt(run.getStartedAt());
+        dto.setFinishedAt(run.getFinishedAt());
+        dto.setScannedProducts(run.getScannedProducts());
+        dto.setImportedProducts(run.getImportedProducts());
+        dto.setSkippedInvalidGtin(run.getSkippedInvalidGtin());
+        dto.setSkippedMissingName(run.getSkippedMissingName());
+        dto.setSkippedMedication(run.getSkippedMedication());
+        dto.setSkippedDuplicateGtin(run.getSkippedDuplicateGtin());
+        dto.setErrors(run.getErrors());
+        dto.setMessage(run.getMessage());
+        dto.setTriggeredBy(run.getTriggeredBy());
+        dto.setSources(parseJsonArray(run.getSourcesJson()));
         return dto;
     }
 
@@ -344,6 +489,14 @@ public class SuperAdminService {
         return source;
     }
 
+    private String exportEnabledSourcesAsJson() {
+        List<String> providers = crawlerSourceRepository.findAllByOrderByNameAsc().stream()
+            .filter(source -> Boolean.TRUE.equals(source.getIsEnabled()))
+            .map(CatalogCrawlerSource::getProvider)
+            .toList();
+        return toJsonArray(providers);
+    }
+
     private String normalizeSearch(String search) {
         if (search == null || search.isBlank()) {
             return "";
@@ -372,5 +525,36 @@ public class SuperAdminService {
         } catch (Exception ex) {
             return new ArrayList<>();
         }
+    }
+
+    private String cleanLabel(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 120 ? trimmed.substring(0, 120) : trimmed;
+    }
+
+    private String cleanMessage(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 2000 ? trimmed.substring(0, 2000) : trimmed;
+    }
+
+    private String normalizeRunStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "SUCCESS";
+        }
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "SUCCESS", "FAILED", "RUNNING", "QUEUED", "CANCELLED" -> normalized;
+            default -> "SUCCESS";
+        };
+    }
+
+    private Integer safeInt(Integer value) {
+        return value == null ? 0 : Math.max(0, value);
     }
 }

@@ -294,6 +294,7 @@ public class WebCatalogImportService {
 
     private JsonNode fetchSourcePage(String baseUrl, int page, int pageSize) {
         String fields = "code,product_name,product_name_pt,generic_name,generic_name_pt,brands,categories,categories_tags,labels,quantity";
+        fields += ",image_url,image_front_url,manufacturing_places,nutriments";
         String query = "countries_tags=" + encode(COUNTRIES_TAG) +
             "&page=" + page +
             "&page_size=" + pageSize +
@@ -360,7 +361,10 @@ public class WebCatalogImportService {
         request.setCanonicalName(canonicalName);
         request.setBrand(normalizeBrand(readText(node, "brands")));
         request.setCategory(resolveCategory(node));
+        request.setManufacturer(readText(node, "manufacturing_places"));
         request.setPackageDescription(readText(node, "quantity"));
+        request.setDescription(firstNonBlank(readText(node, "generic_name_pt"), readText(node, "generic_name")));
+        request.setImageUrl(firstNonBlank(readText(node, "image_front_url"), readText(node, "image_url")));
         request.setSourceLicense(SOURCE_LICENSE);
         request.setConfidenceScore(DEFAULT_CONFIDENCE);
         request.setRawPayload(node.toString());
@@ -385,7 +389,14 @@ public class WebCatalogImportService {
         mapped.setCanonicalName(ProductCatalogUtils.canonicalizeDisplayName(record.getName()));
         mapped.setBrand(ProductCatalogUtils.canonicalizeDisplayName(record.getBrand()));
         mapped.setCategory(ProductCatalogUtils.canonicalizeDisplayName(record.getCategory()));
+        mapped.setNcm(ProductCatalogUtils.canonicalizeDisplayName(record.getNcm()));
+        mapped.setUnit(ProductCatalogUtils.canonicalizeDisplayName(record.getUnit()));
+        mapped.setDescription(ProductCatalogUtils.canonicalizeDisplayName(record.getDescription()));
+        mapped.setManufacturer(ProductCatalogUtils.canonicalizeDisplayName(record.getManufacturer()));
         mapped.setPackageDescription(ProductCatalogUtils.canonicalizeDisplayName(record.getPackageDescription()));
+        mapped.setImageUrl(ProductCatalogUtils.canonicalizeDisplayName(record.getImageUrl()));
+        mapped.setImageStorageKey(ProductCatalogUtils.canonicalizeDisplayName(record.getImageStorageKey()));
+        mapped.setAttributesJson(record.getAttributesJson());
         mapped.setSourceLicense(sourceLicense);
         mapped.setConfidenceScore(scaleConfidence(request.getConfidenceScore()));
         mapped.setRawPayload(resolveRawPayload(record));

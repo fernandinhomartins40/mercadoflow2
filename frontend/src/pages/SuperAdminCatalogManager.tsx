@@ -37,6 +37,8 @@ const SuperAdminCatalogManager: React.FC = () => {
   const [rowsPage, setRowsPage] = useState<PageResponse<CatalogRow> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -68,18 +70,49 @@ const SuperAdminCatalogManager: React.FC = () => {
   }, [page]);
 
   const save = async () => {
-    const payload = {
-      ...form,
-      confidenceScore: Number(form.confidenceScore),
-    };
-    if (editingProductId) {
-      await api.put(`/v1/super-admin/catalog/products/${editingProductId}`, payload);
-    } else {
-      await api.post('/v1/super-admin/catalog/products', payload);
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const gtinDigits = (form.gtin || '').replace(/\D/g, '');
+      if (gtinDigits.length < 8 || gtinDigits.length > 14) {
+        throw new Error('GTIN invalido. Informe entre 8 e 14 digitos.');
+      }
+
+      const confidence = Number(form.confidenceScore);
+      if (Number.isNaN(confidence) || confidence < 0 || confidence > 1) {
+        throw new Error('Confianca invalida. Use um valor entre 0 e 1.');
+      }
+
+      if (!form.name.trim()) {
+        throw new Error('Nome do produto e obrigatorio.');
+      }
+
+      const payload = {
+        ...form,
+        gtin: gtinDigits,
+        name: form.name.trim(),
+        provider: (form.provider || 'MANUAL_SUPER_ADMIN').trim().toUpperCase(),
+        sourceLicense: (form.sourceLicense || 'Cadastro manual Super Admin').trim(),
+        confidenceScore: confidence,
+      };
+
+      if (editingProductId) {
+        await api.put(`/v1/super-admin/catalog/products/${editingProductId}`, payload);
+        setSuccess('Produto atualizado com sucesso.');
+      } else {
+        await api.post('/v1/super-admin/catalog/products', payload);
+        setSuccess('Produto criado com sucesso.');
+      }
+
+      setForm(EMPTY_FORM);
+      setEditingProductId('');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao salvar produto');
+    } finally {
+      setSaving(false);
     }
-    setForm(EMPTY_FORM);
-    setEditingProductId('');
-    await load();
   };
 
   const startEdit = (row: CatalogRow) => {
@@ -91,10 +124,12 @@ const SuperAdminCatalogManager: React.FC = () => {
       category: row.category || '',
       packageDescription: row.packageDescription || '',
       unit: '',
-      provider: row.provider || 'MANUAL_SUPER_ADMIN',
+      provider: 'MANUAL_SUPER_ADMIN',
       sourceLicense: 'Cadastro manual Super Admin',
       confidenceScore: String(row.confidenceScore ?? 0.99),
     });
+    setError(null);
+    setSuccess(null);
   };
 
   return (
@@ -124,7 +159,7 @@ const SuperAdminCatalogManager: React.FC = () => {
             <input className="input" placeholder="Unidade" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
             <input className="input" placeholder="Provider" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
             <input className="input" placeholder="Confianca (0-1)" value={form.confidenceScore} onChange={(e) => setForm({ ...form, confidenceScore: e.target.value })} />
-            <Button onClick={save}>{editingProductId ? 'Salvar alteracoes' : 'Criar produto'}</Button>
+            <Button onClick={save} disabled={saving}>{saving ? 'Salvando...' : (editingProductId ? 'Salvar alteracoes' : 'Criar produto')}</Button>
             {editingProductId ? <Button variant="secondary" onClick={() => { setEditingProductId(''); setForm(EMPTY_FORM); }}>Cancelar edicao</Button> : null}
           </div>
         </section>
@@ -141,6 +176,7 @@ const SuperAdminCatalogManager: React.FC = () => {
             <Button onClick={() => { setPage(0); load(); }}>Buscar</Button>
           </div>
           {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+          {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
           {loading ? (
             <div className="card">Carregando catalogo...</div>
           ) : (

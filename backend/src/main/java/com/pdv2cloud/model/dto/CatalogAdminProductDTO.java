@@ -18,6 +18,7 @@ public class CatalogAdminProductDTO {
     private String brand;
     private String category;
     private String packageDescription;
+    private String imageUrl;
     private String provider;
     private BigDecimal confidenceScore;
     private LocalDateTime fetchedAt;

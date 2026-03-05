@@ -14,6 +14,7 @@ SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-superadmin@mercadoflow.com}"
 SUPER_ADMIN_PASSWORD="${SUPER_ADMIN_PASSWORD:-SuperAdmin@2026}"
 SUPER_ADMIN_NAME="${SUPER_ADMIN_NAME:-Super Administrador}"
 CATALOG_HARVESTER_INTERVAL_MINUTES="${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}"
+BARCODE_ENRICH_INTERVAL_MINUTES="${BARCODE_ENRICH_INTERVAL_MINUTES:-720}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -67,6 +68,7 @@ SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
 SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
 SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
 CATALOG_HARVESTER_INTERVAL_MINUTES=${CATALOG_HARVESTER_INTERVAL_MINUTES}
+BARCODE_ENRICH_INTERVAL_MINUTES=${BARCODE_ENRICH_INTERVAL_MINUTES}
 MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
@@ -287,7 +289,8 @@ main() {
     mercadoflow-frontend \
     mercadoflow-cron \
     mercadoflow-nginx \
-    mercadoflow-catalog-harvester
+    mercadoflow-catalog-harvester \
+    mercadoflow-barcode-enricher
 
   log "Status dos containers após atualização"
   compose ps

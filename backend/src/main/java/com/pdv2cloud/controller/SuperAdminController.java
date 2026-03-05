@@ -3,6 +3,11 @@ package com.pdv2cloud.controller;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunFinishRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunStartRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminMarketCreateRequest;
 import com.pdv2cloud.model.dto.SuperAdminMarketDTO;
 import com.pdv2cloud.model.dto.SuperAdminMarketUpdateRequest;
@@ -19,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -142,5 +148,45 @@ public class SuperAdminController {
     @GetMapping("/catalog/crawler/export-config")
     public ResponseEntity<SuperAdminCrawlerConfigDTO> exportCrawlerConfig() {
         return ResponseEntity.ok(superAdminService.getCrawlerConfig(true));
+    }
+
+    @GetMapping("/catalog/crawler/monitor")
+    public ResponseEntity<SuperAdminCrawlerMonitorDTO> getCrawlerMonitor(
+        @RequestParam(defaultValue = "12") int size
+    ) {
+        return ResponseEntity.ok(superAdminService.getCrawlerMonitor(size));
+    }
+
+    @PostMapping("/catalog/crawler/runs/trigger")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> triggerCrawlerRun(
+        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy
+    ) {
+        return ResponseEntity.ok(superAdminService.triggerCrawlerRun(triggeredBy));
+    }
+
+    @PostMapping("/catalog/crawler/runs/claim")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> claimCrawlerRun(
+        @RequestBody(required = false) SuperAdminCrawlerRunClaimRequestDTO request
+    ) {
+        SuperAdminCrawlerRunDTO run = superAdminService.claimPendingCrawlerRun(request);
+        if (run == null) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+        return ResponseEntity.ok(run);
+    }
+
+    @PostMapping("/catalog/crawler/runs/start")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> startCrawlerRun(
+        @RequestBody(required = false) SuperAdminCrawlerRunStartRequestDTO request
+    ) {
+        return ResponseEntity.ok(superAdminService.startCrawlerRun(request == null ? new SuperAdminCrawlerRunStartRequestDTO() : request));
+    }
+
+    @PostMapping("/catalog/crawler/runs/{runId}/finish")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> finishCrawlerRun(
+        @PathVariable UUID runId,
+        @RequestBody(required = false) SuperAdminCrawlerRunFinishRequestDTO request
+    ) {
+        return ResponseEntity.ok(superAdminService.finishCrawlerRun(runId, request == null ? new SuperAdminCrawlerRunFinishRequestDTO() : request));
     }
 }

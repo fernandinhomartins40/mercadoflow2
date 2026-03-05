@@ -87,7 +87,14 @@ class Record:
     name: str
     brand: str
     category: str
+    ncm: str
+    unit: str
+    description: str
+    manufacturer: str
     package_description: str
+    image_url: str
+    image_storage_key: str
+    attributes_json: str
     price: Optional[float]
     currency: str
     source_url: str
@@ -100,7 +107,14 @@ class Record:
             "name": self.name,
             "brand": self.brand or None,
             "category": self.category or None,
+            "ncm": self.ncm or None,
+            "unit": self.unit or None,
+            "description": self.description or None,
+            "manufacturer": self.manufacturer or None,
             "packageDescription": self.package_description or None,
+            "imageUrl": self.image_url or None,
+            "imageStorageKey": self.image_storage_key or None,
+            "attributesJson": self.attributes_json or None,
             "rawPayload": json.dumps(
                 {
                     "providerProductId": self.provider_product_id,
@@ -133,6 +147,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--confidence", type=float, default=0.9)
     parser.add_argument("--batch-size", type=int, default=300)
     parser.add_argument("--skip-medication", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--download-images", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--images-dir", default="data/catalog/images")
+    parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
+    parser.add_argument("--worker-name", default="MERCADOFLOW_CATALOG_HARVESTER")
+    parser.add_argument("--runs-start-endpoint", default="/v1/super-admin/catalog/crawler/runs/start")
+    parser.add_argument("--runs-claim-endpoint", default="/v1/super-admin/catalog/crawler/runs/claim")
+    parser.add_argument("--runs-finish-endpoint", default="/v1/super-admin/catalog/crawler/runs/{runId}/finish")
+    parser.add_argument("--manual-poll-seconds", type=int, default=30)
     return parser.parse_args()
 
 
@@ -175,6 +197,32 @@ def parse_price(v: Any) -> Optional[float]:
     except Exception:
         return None
     return round(p, 4) if p >= 0 else None
+
+
+def to_json_text(value: Any) -> str:
+    if value is None:
+        return ""
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except Exception:
+        return ""
+
+
+def infer_extension(content_type: str, url: str) -> str:
+    content = (content_type or "").lower()
+    if "png" in content:
+        return ".png"
+    if "webp" in content:
+        return ".webp"
+    if "gif" in content:
+        return ".gif"
+    if "jpeg" in content or "jpg" in content:
+        return ".jpg"
+    path = (urlparse(url).path or "").lower()
+    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        if path.endswith(ext):
+            return ext
+    return ".jpg"
 
 
 def canonical_url(url: str) -> str:
@@ -295,6 +343,13 @@ def extract_record(source: Source, page_url: str, body: str) -> Optional[Record]
             brand = norm_text(node.get("brand", {}).get("name") if isinstance(node.get("brand"), dict) else node.get("brand"))[:120]
             category = norm_text(node.get("category"))[:120]
             package = norm_text(node.get("size") or node.get("weight") or node.get("description"))[:255]
+            description = norm_text(node.get("description"))[:1024]
+            manufacturer = norm_text(node.get("manufacturer", {}).get("name") if isinstance(node.get("manufacturer"), dict) else node.get("manufacturer"))[:255]
+            image_candidate = node.get("image")
+            if isinstance(image_candidate, list):
+                image_url = canonical_url(norm_text(image_candidate[0])) if image_candidate else ""
+            else:
+                image_url = canonical_url(norm_text(image_candidate))
             offers = node.get("offers")
             price, currency = None, ""
             if isinstance(offers, dict):
@@ -315,7 +370,14 @@ def extract_record(source: Source, page_url: str, body: str) -> Optional[Record]
                 name=name[:255],
                 brand=brand,
                 category=category,
+                ncm=norm_text(node.get("ncm"))[:32],
+                unit=norm_text(node.get("unitCode") or node.get("unitText") or node.get("unit"))[:32],
+                description=description,
+                manufacturer=manufacturer,
                 package_description=package,
+                image_url=image_url,
+                image_storage_key="",
+                attributes_json=to_json_text(node.get("additionalProperty") or node.get("additionalProperties")),
                 price=price,
                 currency=currency,
                 source_url=page_url,
@@ -334,6 +396,8 @@ def extract_record(source: Source, page_url: str, body: str) -> Optional[Record]
     url_m = URL_CODE_RE.search(page_url)
     provider_id = gtin or (url_m.group(1) if url_m else f"url-{hashlib.sha1(page_url.encode('utf-8')).hexdigest()[:16]}")
     price_m = PRICE_META_RE.search(body)
+    image_match = re.search(r"""<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']""", body, re.I)
+    image_url = canonical_url(norm_text(image_match.group(1))) if image_match else ""
     return Record(
         provider=source.provider,
         source_license=source.source_license,
@@ -341,7 +405,14 @@ def extract_record(source: Source, page_url: str, body: str) -> Optional[Record]
         name=name[:255],
         brand="",
         category="",
+        ncm="",
+        unit="",
+        description="",
+        manufacturer="",
         package_description="",
+        image_url=image_url,
+        image_storage_key="",
+        attributes_json="",
         price=parse_price(price_m.group(1)) if price_m else None,
         currency="BRL",
         source_url=page_url,
@@ -446,6 +517,84 @@ class Crawler:
         return list(records.values()), stats
 
 
+class ImageStore:
+    def __init__(self, images_dir: Path, max_bytes: int, user_agent: str):
+        self.images_dir = images_dir
+        self.max_bytes = max(256_000, max_bytes)
+        self.images_dir.mkdir(parents=True, exist_ok=True)
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "User-Agent": user_agent,
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            }
+        )
+        self.cache: Dict[str, str] = {}
+
+    def _sanitize_part(self, value: str, fallback: str) -> str:
+        normalized = re.sub(r"[^a-zA-Z0-9_-]+", "-", value or "").strip("-")
+        return (normalized or fallback)[:120]
+
+    def store(self, record: Record, timeout_sec: int = 20) -> str:
+        image_url = canonical_url(record.image_url)
+        if not image_url:
+            return ""
+        if image_url in self.cache:
+            return self.cache[image_url]
+
+        provider_part = self._sanitize_part(record.provider.lower(), "provider")
+        code_part = self._sanitize_part(record.code, "item")
+        digest = hashlib.sha1(image_url.encode("utf-8")).hexdigest()[:12]
+
+        try:
+            response = self.session.get(image_url, timeout=timeout_sec, stream=True, allow_redirects=True)
+            response.raise_for_status()
+            extension = infer_extension(response.headers.get("content-type", ""), image_url)
+            relative = f"{provider_part}/{code_part}-{digest}{extension}"
+            target = self.images_dir / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+            written = 0
+            with target.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=16_384):
+                    if not chunk:
+                        continue
+                    written += len(chunk)
+                    if written > self.max_bytes:
+                        raise RuntimeError("image exceeds max size")
+                    handle.write(chunk)
+
+            self.cache[image_url] = relative.replace("\\", "/")
+            return self.cache[image_url]
+        except Exception:
+            return ""
+
+
+def api_post(
+    api_base: str,
+    endpoint: str,
+    token: str,
+    payload: Dict[str, Any],
+    timeout: int = 60,
+    accept_no_content: bool = False,
+) -> Optional[Dict[str, Any]]:
+    if not api_base or not endpoint or not token:
+        return None
+    path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+    response = requests.post(
+        f"{api_base.rstrip('/')}{path}",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=timeout,
+    )
+    if accept_no_content and response.status_code == 204:
+        return None
+    response.raise_for_status()
+    if not response.text:
+        return None
+    return response.json()
+
+
 def load_config(path: Path) -> Tuple[str, List[Source]]:
     cfg = json.loads(path.read_text(encoding="utf-8"))
     user_agent = norm_text(cfg.get("userAgent")) or DEFAULT_UA
@@ -489,7 +638,14 @@ def write_output(path: Path, records: Sequence[Record], summary: Sequence[Dict[s
                 "name": r.name,
                 "brand": r.brand,
                 "category": r.category,
+                "ncm": r.ncm,
+                "unit": r.unit,
+                "description": r.description,
+                "manufacturer": r.manufacturer,
                 "packageDescription": r.package_description,
+                "imageUrl": r.image_url,
+                "imageStorageKey": r.image_storage_key,
+                "attributesJson": r.attributes_json,
                 "price": r.price,
                 "currency": r.currency,
                 "sourceUrl": r.source_url,
@@ -504,9 +660,43 @@ def write_output(path: Path, records: Sequence[Record], summary: Sequence[Dict[s
     csv_path = path.with_suffix(".csv")
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["provider", "code", "name", "brand", "category", "price", "currency", "source_url", "provider_product_id"])
+        w.writerow([
+            "provider",
+            "code",
+            "name",
+            "brand",
+            "category",
+            "ncm",
+            "unit",
+            "manufacturer",
+            "description",
+            "package_description",
+            "image_url",
+            "image_storage_key",
+            "price",
+            "currency",
+            "source_url",
+            "provider_product_id",
+        ])
         for r in records:
-            w.writerow([r.provider, r.code, r.name, r.brand, r.category, r.price if r.price is not None else "", r.currency, r.source_url, r.provider_product_id])
+            w.writerow([
+                r.provider,
+                r.code,
+                r.name,
+                r.brand,
+                r.category,
+                r.ncm,
+                r.unit,
+                r.manufacturer,
+                r.description,
+                r.package_description,
+                r.image_url,
+                r.image_storage_key,
+                r.price if r.price is not None else "",
+                r.currency,
+                r.source_url,
+                r.provider_product_id,
+            ])
     print(f"saved JSON: {path}")
     print(f"saved CSV:  {csv_path}")
 
@@ -576,15 +766,89 @@ def import_api(
     return totals
 
 
-def run_cycle(args: argparse.Namespace, crawler: Crawler, sources: Sequence[Source], output_path: Path) -> int:
+def claim_remote_run(api_base: str, endpoint: str, token: str, worker_name: str) -> Optional[Dict[str, Any]]:
+    try:
+        return api_post(
+            api_base=api_base,
+            endpoint=endpoint,
+            token=token,
+            payload={"workerName": worker_name},
+            timeout=60,
+            accept_no_content=True,
+        )
+    except Exception as exc:
+        print(f"claim run failed: {exc}", file=sys.stderr)
+        return None
+
+
+def start_remote_run(
+    api_base: str,
+    endpoint: str,
+    token: str,
+    worker_name: str,
+    sources: Sequence[Source],
+    message: str,
+) -> Optional[str]:
+    try:
+        payload = {
+            "triggeredBy": worker_name,
+            "message": message,
+            "sources": [s.provider for s in sources],
+        }
+        response = api_post(api_base, endpoint, token, payload, timeout=60)
+        if not response:
+            return None
+        return str(response.get("id") or "")
+    except Exception as exc:
+        print(f"start run failed: {exc}", file=sys.stderr)
+        return None
+
+
+def finish_remote_run(
+    api_base: str,
+    endpoint_template: str,
+    token: str,
+    run_id: str,
+    result: Dict[str, Any],
+) -> None:
+    if not run_id:
+        return
+    endpoint = endpoint_template.replace("{runId}", run_id)
+    payload = {
+        "status": result.get("status", "SUCCESS"),
+        "scannedProducts": int(result.get("scannedProducts", 0)),
+        "importedProducts": int(result.get("importedProducts", 0)),
+        "skippedInvalidGtin": int(result.get("skippedInvalidGtin", 0)),
+        "skippedMissingName": int(result.get("skippedMissingName", 0)),
+        "skippedMedication": int(result.get("skippedMedication", 0)),
+        "skippedDuplicateGtin": int(result.get("skippedDuplicateGtin", 0)),
+        "errors": int(result.get("errors", 0)),
+        "message": str(result.get("message") or ""),
+        "sources": [str(s.get("provider")) for s in result.get("summary", []) if s.get("provider")],
+    }
+    try:
+        api_post(api_base, endpoint, token, payload, timeout=120)
+    except Exception as exc:
+        print(f"finish run failed: {exc}", file=sys.stderr)
+
+
+def run_cycle(
+    args: argparse.Namespace,
+    crawler: Crawler,
+    sources: Sequence[Source],
+    output_path: Path,
+    image_store: Optional[ImageStore],
+) -> Dict[str, Any]:
     all_records: Dict[str, Record] = {}
     summary: List[Dict[str, Any]] = []
+    total_page_errors = 0
 
     for source in sources:
         print(f"source={source.name} provider={source.provider} started_at={now_iso()}")
         recs, stats = crawler.crawl(source, args.max_pages_per_source, args.max_records_per_source)
         for r in recs:
             all_records[f"{r.provider}:{r.code}"] = r
+        total_page_errors += int(stats.get("errors", 0))
         summary.append({"source": source.name, "provider": source.provider, **stats})
         print(
             f"source={source.name} scanned={stats['scannedPages']} "
@@ -592,20 +856,53 @@ def run_cycle(args: argparse.Namespace, crawler: Crawler, sources: Sequence[Sour
         )
 
     records = list(all_records.values())
+    image_saved = 0
+    if image_store is not None:
+        for record in records:
+            if not record.image_url:
+                continue
+            key = image_store.store(record)
+            if key:
+                record.image_storage_key = key
+                image_saved += 1
+
     write_output(output_path, records, summary)
-    print(f"cycle summary: records={len(records)} sources={len(sources)}")
+    print(f"cycle summary: records={len(records)} sources={len(sources)} images_saved={image_saved}")
 
     if args.skip_api_import or not args.api_base:
         if not args.skip_api_import and not args.api_base:
             print("api import skipped: --api-base not provided")
-        return 0
+        return {
+            "status": "SUCCESS",
+            "message": "Coleta concluida sem importacao por API.",
+            "summary": summary,
+            "scannedProducts": len(records),
+            "importedProducts": 0,
+            "skippedInvalidGtin": 0,
+            "skippedMissingName": 0,
+            "skippedMedication": 0,
+            "skippedDuplicateGtin": 0,
+            "errors": total_page_errors,
+        }
 
     token = norm_text(args.token)
     if not token:
         if not args.email or not args.password:
             print("api import skipped: provide --token or --email/--password")
-            return 0
+            return {
+                "status": "FAILED",
+                "message": "Coleta executada, mas sem token para importacao.",
+                "summary": summary,
+                "scannedProducts": len(records),
+                "importedProducts": 0,
+                "skippedInvalidGtin": 0,
+                "skippedMissingName": 0,
+                "skippedMedication": 0,
+                "skippedDuplicateGtin": 0,
+                "errors": total_page_errors + 1,
+            }
         token = login(args.api_base, args.login_endpoint, args.email, args.password)
+        args.token = token
 
     totals = import_api(
         api_base=args.api_base,
@@ -617,13 +914,26 @@ def run_cycle(args: argparse.Namespace, crawler: Crawler, sources: Sequence[Sour
     )
     print("api import summary")
     print(json.dumps(totals, ensure_ascii=False, indent=2))
-    return 0
+
+    return {
+        "status": "SUCCESS" if int(totals.get("errors", 0)) == 0 else "FAILED",
+        "message": "Ciclo concluido com importacao via API.",
+        "summary": summary,
+        "scannedProducts": int(totals.get("scannedProducts", len(records))),
+        "importedProducts": int(totals.get("importedProducts", 0)),
+        "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+        "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+        "skippedMedication": int(totals.get("skippedMedication", 0)),
+        "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+        "errors": int(totals.get("errors", 0)) + total_page_errors,
+    }
 
 
 def main() -> int:
     args = parse_args()
     output_path = Path(args.output).resolve()
     config_path = Path(args.config).resolve()
+    images_dir = Path(args.images_dir).resolve()
 
     def resolve_cycle_inputs() -> Tuple[Crawler, List[Source], Optional[str], int]:
         if args.config_api_endpoint:
@@ -646,34 +956,110 @@ def main() -> int:
         user_agent, local_sources = load_config(config_path)
         return Crawler(user_agent=user_agent, ignore_robots=args.ignore_robots), local_sources, None, args.interval_minutes
 
+    def run_with_reporting(
+        crawler: Crawler,
+        sources: Sequence[Source],
+        token: str,
+        run_id: str,
+    ) -> int:
+        try:
+            image_store = ImageStore(images_dir, args.max_image_bytes, crawler.user_agent) if args.download_images else None
+            result = run_cycle(args, crawler, sources, output_path, image_store)
+        except Exception as exc:
+            result = {
+                "status": "FAILED",
+                "message": f"cycle failed: {exc}",
+                "summary": [{"provider": s.provider, "source": s.name} for s in sources],
+                "scannedProducts": 0,
+                "importedProducts": 0,
+                "skippedInvalidGtin": 0,
+                "skippedMissingName": 0,
+                "skippedMedication": 0,
+                "skippedDuplicateGtin": 0,
+                "errors": 1,
+            }
+            print(result["message"], file=sys.stderr)
+
+        if run_id and token and args.api_base:
+            finish_remote_run(args.api_base, args.runs_finish_endpoint, token, run_id, result)
+
+        return 0 if result.get("status") != "FAILED" else 1
+
+    def ensure_token(current_token: Optional[str]) -> str:
+        token = norm_text(current_token or args.token)
+        if token:
+            return token
+        if args.api_base and args.email and args.password:
+            token = login(args.api_base, args.login_endpoint, args.email, args.password)
+            args.token = token
+            return token
+        return ""
+
     if not args.watch:
         try:
             crawler, sources, cycle_token, _ = resolve_cycle_inputs()
-            if cycle_token:
-                args.token = cycle_token
-            return run_cycle(args, crawler, sources, output_path)
+            token = ensure_token(cycle_token)
+            run_id = ""
+            if token and args.api_base:
+                run_id = start_remote_run(
+                    args.api_base,
+                    args.runs_start_endpoint,
+                    token,
+                    args.worker_name,
+                    sources,
+                    "Execucao iniciada manualmente do servico Python.",
+                ) or ""
+            return run_with_reporting(crawler, sources, token, run_id)
         except Exception as exc:
             print(f"cycle failed: {exc}", file=sys.stderr)
             return 1
 
-    print(f"watch mode enabled interval={args.interval_minutes}m")
+    poll_seconds = max(5, int(args.manual_poll_seconds))
+    next_scheduled_at = time.time()
+    print(f"watch mode enabled interval={args.interval_minutes}m poll={poll_seconds}s")
     while True:
         try:
             crawler, sources, cycle_token, dynamic_interval = resolve_cycle_inputs()
-            if cycle_token:
-                args.token = cycle_token
-            code = run_cycle(args, crawler, sources, output_path)
-            if code != 0:
-                return code
-            wait = max(60, int(dynamic_interval) * 60)
+            token = ensure_token(cycle_token)
+            interval_seconds = max(60, int(dynamic_interval) * 60)
+
+            claimed = None
+            run_id = ""
+            now = time.time()
+            if token and args.api_base:
+                claimed = claim_remote_run(args.api_base, args.runs_claim_endpoint, token, args.worker_name)
+
+            should_run_scheduled = now >= next_scheduled_at
+            if claimed is None and not should_run_scheduled:
+                time.sleep(poll_seconds)
+                continue
+
+            if should_run_scheduled:
+                next_scheduled_at = time.time() + interval_seconds
+
+            if claimed is not None and claimed.get("id"):
+                run_id = str(claimed.get("id"))
+                print(f"manual run claimed id={run_id}")
+            elif token and args.api_base:
+                run_id = start_remote_run(
+                    args.api_base,
+                    args.runs_start_endpoint,
+                    token,
+                    args.worker_name,
+                    sources,
+                    "Execucao automatica por intervalo.",
+                ) or ""
+
+            code = run_with_reporting(crawler, sources, token, run_id)
+            if code != 0 and claimed is None:
+                time.sleep(poll_seconds)
+                continue
         except KeyboardInterrupt:
             print("stopped by user")
             return 0
         except Exception as exc:
             print(f"cycle failed: {exc}", file=sys.stderr)
-            wait = max(60, int(args.interval_minutes) * 60)
-        print(f"sleeping {max(1, wait // 60)} minutes")
-        time.sleep(wait)
+            time.sleep(poll_seconds)
 
 
 if __name__ == "__main__":

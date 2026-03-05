@@ -139,7 +139,12 @@ public class ProductCatalogService {
         enrichment.setCategory(ProductCatalogUtils.canonicalizeDisplayName(request.getCategory()));
         enrichment.setNcm(ProductCatalogUtils.canonicalizeDisplayName(request.getNcm()));
         enrichment.setUnit(ProductCatalogUtils.canonicalizeDisplayName(request.getUnit()));
+        enrichment.setDescription(ProductCatalogUtils.canonicalizeDisplayName(request.getDescription()));
+        enrichment.setManufacturer(ProductCatalogUtils.canonicalizeDisplayName(request.getManufacturer()));
         enrichment.setPackageDescription(ProductCatalogUtils.canonicalizeDisplayName(request.getPackageDescription()));
+        enrichment.setImageUrl(ProductCatalogUtils.canonicalizeDisplayName(request.getImageUrl()));
+        enrichment.setImageStorageKey(ProductCatalogUtils.canonicalizeDisplayName(request.getImageStorageKey()));
+        enrichment.setAttributesJson(request.getAttributesJson());
         enrichment.setRawPayload(request.getRawPayload());
         enrichment.setSourceLicense(ProductCatalogUtils.canonicalizeDisplayName(request.getSourceLicense()));
         enrichment.setConfidenceScore(scaleConfidence(request.getConfidenceScore() != null ? request.getConfidenceScore() : BigDecimal.valueOf(0.85)));
@@ -198,10 +203,7 @@ public class ProductCatalogService {
     }
 
     public CatalogAdminProductDTO upsertManualCatalogProduct(SuperAdminCatalogProductUpsertRequest request) {
-        String gtin = ProductCatalogUtils.normalizeGtin(request.getGtin());
-        if (gtin == null) {
-            throw new IllegalArgumentException("GTIN invalido");
-        }
+        String gtin = normalizeAndValidateManualGtin(request.getGtin());
         String provider = ProductCatalogUtils.canonicalizeDisplayName(request.getProvider());
         if (provider == null) {
             provider = "MANUAL_SUPER_ADMIN";
@@ -235,6 +237,15 @@ public class ProductCatalogService {
     public CatalogAdminProductDTO updateManualCatalogProduct(UUID productId, SuperAdminCatalogProductUpsertRequest request) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new IllegalArgumentException("Produto nao encontrado"));
+        String requestedGtin = normalizeAndValidateManualGtin(request.getGtin());
+        if (product.getEan() == null || !requestedGtin.equals(product.getEan())) {
+            productRepository.findByEan(requestedGtin)
+                .filter(found -> !found.getId().equals(productId))
+                .ifPresent(found -> {
+                    throw new IllegalArgumentException("GTIN ja cadastrado em outro produto");
+                });
+            product.setEan(requestedGtin);
+        }
 
         applyManualProductFields(product, request);
         product = productRepository.save(product);
@@ -247,8 +258,7 @@ public class ProductCatalogService {
             .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
             .orElseGet(ProductEnrichment::new);
 
-        String providerProductId = product.getEan() != null ? product.getEan() : "manual-" + product.getId();
-        applyManualEnrichmentFields(enrichment, product, request, provider, providerProductId);
+        applyManualEnrichmentFields(enrichment, product, request, provider, requestedGtin);
         enrichment = productEnrichmentRepository.save(enrichment);
         return toCatalogAdminProductDTO(enrichment);
     }
@@ -424,6 +434,9 @@ public class ProductCatalogService {
             && enrichment.getPackageDescription() != null) {
             product.setPackageDescription(enrichment.getPackageDescription());
         }
+        if ((product.getImageUrl() == null || product.getImageUrl().isBlank()) && enrichment.getImageUrl() != null) {
+            product.setImageUrl(enrichment.getImageUrl());
+        }
 
         product.setSourceBest(ProductDataSource.WEB);
         product.setLastVerifiedAt(enrichment.getLastVerifiedAt());
@@ -569,6 +582,14 @@ public class ProductCatalogService {
         return "%" + trimmed.toLowerCase(Locale.ROOT) + "%";
     }
 
+    private String normalizeAndValidateManualGtin(String rawGtin) {
+        String gtin = ProductCatalogUtils.normalizeGtin(rawGtin);
+        if (gtin == null) {
+            throw new IllegalArgumentException("GTIN invalido. Informe entre 8 e 14 digitos numericos.");
+        }
+        return gtin;
+    }
+
     private void applyManualProductFields(Product product, SuperAdminCatalogProductUpsertRequest request) {
         String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(request.getName());
         if (canonicalName != null) {
@@ -645,6 +666,9 @@ public class ProductCatalogService {
                 enrichment.getPackageDescription() != null
                     ? enrichment.getPackageDescription()
                     : product.getPackageDescription()
+            ),
+            ProductCatalogUtils.canonicalizeDisplayName(
+                enrichment.getImageUrl() != null ? enrichment.getImageUrl() : product.getImageUrl()
             ),
             enrichment.getProvider(),
             enrichment.getConfidenceScore(),
