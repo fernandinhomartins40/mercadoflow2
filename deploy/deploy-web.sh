@@ -4,6 +4,7 @@ set -Eeuo pipefail
 APP_DIR="${APP_DIR:-/root/mercadoflow-web}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.vps.yml}"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-mercadoflow-web}"
+POSTGRES_VOLUME_NAME="${MERCADOFLOW_POSTGRES_VOLUME:-${PROJECT_NAME}_mercadoflow_postgres_data}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3300/health}"
 HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-24}"
 HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-10}"
@@ -58,6 +59,7 @@ JWT_SECRET=${jwt_secret}
 CORS_ORIGIN=https://mercadoflow.com,https://www.mercadoflow.com
 REACT_APP_API_BASE_URL=https://mercadoflow.com/api
 APP_PUBLIC_BASE_URL=https://mercadoflow.com
+MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
 
@@ -88,6 +90,16 @@ backup_database() {
 
   rm -f "$backup_file"
   log "WARN: backup não pôde ser concluído"
+}
+
+ensure_catalog_volume() {
+  if docker volume inspect "${POSTGRES_VOLUME_NAME}" >/dev/null 2>&1; then
+    log "Volume do catálogo já existe: ${POSTGRES_VOLUME_NAME}"
+    return
+  fi
+
+  log "Criando volume persistente do PostgreSQL: ${POSTGRES_VOLUME_NAME}"
+  docker volume create "${POSTGRES_VOLUME_NAME}" >/dev/null
 }
 
 wait_for_health() {
@@ -244,8 +256,10 @@ main() {
   log "Validando docker compose"
   compose config -q
 
+  ensure_catalog_volume
+
   log "Preservando volumes existentes"
-  docker volume ls --format '{{.Name}}' | grep 'postgres_data' || true
+  docker volume ls --format '{{.Name}}' | grep "${POSTGRES_VOLUME_NAME}" || true
 
   backup_database
 

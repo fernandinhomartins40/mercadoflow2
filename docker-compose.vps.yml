@@ -69,3 +69,5 @@ services:
 
 volumes:
   mercadoflow_postgres_data:
+    external: true
+    name: ${MERCADOFLOW_POSTGRES_VOLUME:-mercadoflow-web_mercadoflow_postgres_data}
