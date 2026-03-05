@@ -282,6 +282,9 @@ const Landing: React.FC = () => {
       <footer className="landing-footer">
         <span>MercadoFlow - Inteligencia de Vendas</span>
         <span>contato@mercadoflow.com</span>
+        <Link className="button secondary" to="/super-admin/login">
+          Acessar Super Admin
+        </Link>
       </footer>
     </div>
   );
