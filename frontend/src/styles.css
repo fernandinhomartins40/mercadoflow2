@@ -3010,6 +3010,51 @@ button {
   min-width: 980px;
 }
 
+.catalog-admin-product-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 280px;
+}
+
+.catalog-admin-product-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.catalog-admin-product-copy strong,
+.catalog-admin-product-copy span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.catalog-admin-product-copy span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.catalog-admin-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  border: 1px solid #dbe3f2;
+  object-fit: cover;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.catalog-admin-thumb.placeholder {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  background: #f6f8fb;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-align: center;
+}
+
 .catalog-admin-page .filter-bar-controls {
   display: grid;
   gap: 12px;

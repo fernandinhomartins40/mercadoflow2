@@ -11,11 +11,13 @@ python scripts/catalog/import_catalog_records.py \
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional, Sequence
+from urllib.parse import urlparse
 
 import requests
 
@@ -29,6 +31,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--token", default="", help="Bearer token (optional if email/password is provided)")
     parser.add_argument("--email", default="", help="Admin email for login")
     parser.add_argument("--password", default="", help="Admin password for login")
+    parser.add_argument("--login-endpoint", default="/v1/auth/login", help="Login endpoint path")
+    parser.add_argument("--import-endpoint", default="/v1/admin/catalog/import/records", help="Batch import endpoint path")
+    parser.add_argument("--enrichment-endpoint", default="/v1/admin/catalog/enrichments", help="Fallback per-item import endpoint path")
     parser.add_argument("--provider", default="INFOPRICE_ISA", help="Provider label")
     parser.add_argument("--source-license", default="InfoPrice ISA - uso autorizado pelo cliente", help="Source license string")
     parser.add_argument("--confidence", type=float, default=0.93, help="Confidence score [0,1]")
@@ -39,6 +44,9 @@ def parse_args() -> argparse.Namespace:
         help="Skip potential medications (use --no-skip-medication to disable)",
     )
     parser.add_argument("--batch-size", type=int, default=300, help="Records per request")
+    parser.add_argument("--download-images", action=argparse.BooleanOptionalAction, default=True, help="Persist images locally before import")
+    parser.add_argument("--images-dir", default="data/catalog/images", help="Directory used to store imported catalog images")
+    parser.add_argument("--max-image-bytes", type=int, default=3_000_000, help="Maximum allowed image size")
     return parser.parse_args()
 
 
@@ -56,9 +64,105 @@ def chunks(items: List[Dict[str, Any]], size: int) -> Iterable[List[Dict[str, An
         yield items[start:start + size]
 
 
-def login_and_get_token(api_base: str, email: str, password: str) -> str:
+def norm_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).split()).strip()
+
+
+def canonical_url(value: Any) -> str:
+    text = norm_text(value)
+    if text.startswith("http://") or text.startswith("https://"):
+        return text
+    return ""
+
+
+def infer_extension(content_type: str, url: str) -> str:
+    content = (content_type or "").lower()
+    if "png" in content:
+        return ".png"
+    if "webp" in content:
+        return ".webp"
+    if "gif" in content:
+        return ".gif"
+    if "jpeg" in content or "jpg" in content:
+        return ".jpg"
+    path = (urlparse(url).path or "").lower()
+    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        if path.endswith(ext):
+            return ext
+    return ".jpg"
+
+
+class LocalImageStorage:
+    def __init__(self, base_dir: Path, max_bytes: int):
+        self.base_dir = base_dir
+        self.max_bytes = max(256_000, max_bytes)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.cache: Dict[str, str] = {}
+
+    def _safe_name(self, value: str) -> str:
+        return re.sub(r"[^a-zA-Z0-9_-]+", "-", value).strip("-")[:120] or "item"
+
+    def save(self, provider: str, code: str, image_url: str) -> str:
+        url = canonical_url(image_url)
+        if not url:
+            return ""
+        cached = self.cache.get(url)
+        if cached:
+            return cached
+
+        response = requests.get(url, stream=True, timeout=25)
+        response.raise_for_status()
+
+        provider_part = self._safe_name(provider.lower())
+        code_part = self._safe_name(code)
+        digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:10]
+        extension = infer_extension(response.headers.get("content-type", ""), url)
+        rel = f"{provider_part}/{code_part}-{digest}{extension}"
+        target = self.base_dir / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        written = 0
+        with target.open("wb") as handle:
+            for chunk in response.iter_content(chunk_size=16_384):
+                if not chunk:
+                    continue
+                written += len(chunk)
+                if written > self.max_bytes:
+                    raise RuntimeError("image too large")
+                handle.write(chunk)
+
+        rel_key = rel.replace("\\", "/")
+        self.cache[url] = rel_key
+        return rel_key
+
+
+def persist_item_images(items: Sequence[Dict[str, Any]], provider: str, base_dir: Path, max_bytes: int) -> None:
+    image_store = LocalImageStorage(base_dir, max_bytes)
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if norm_text(item.get("imageStorageKey")):
+            continue
+        image_url = canonical_url(item.get("imageUrl"))
+        if not image_url:
+            continue
+        code = norm_text(item.get("code") or item.get("gtin") or item.get("ean"))
+        if not code:
+            continue
+        try:
+            key = image_store.save(provider, code, image_url)
+        except Exception:
+            key = ""
+        if key:
+            item["imageStorageKey"] = key
+
+
+def login_and_get_token(api_base: str, login_endpoint: str, email: str, password: str) -> str:
+    path = login_endpoint if login_endpoint.startswith("/") else f"/{login_endpoint}"
     response = requests.post(
-        f"{api_base.rstrip('/')}/v1/auth/login",
+        f"{api_base.rstrip('/')}{path}",
         json={"email": email, "password": password, "keepConnected": True},
         timeout=60,
     )
@@ -72,6 +176,8 @@ def login_and_get_token(api_base: str, email: str, password: str) -> str:
 def post_import_batch(
     api_base: str,
     token: str,
+    import_endpoint: str,
+    enrichment_endpoint: str,
     provider: str,
     source_license: str,
     confidence: float,
@@ -108,7 +214,8 @@ def post_import_batch(
         "Content-Type": "application/json",
     }
 
-    batch_url = f"{api_base.rstrip('/')}/v1/admin/catalog/import/records"
+    batch_path = import_endpoint if import_endpoint.startswith("/") else f"/{import_endpoint}"
+    batch_url = f"{api_base.rstrip('/')}{batch_path}"
     response = requests.post(batch_url, json=body, headers=headers, timeout=120)
     if response.ok:
         return response.json()
@@ -126,7 +233,7 @@ def post_import_batch(
         response.raise_for_status()
 
     print("batch endpoint unavailable, falling back to per-item import (/catalog/enrichments)")
-    return import_items_one_by_one(api_base, headers, provider, source_license, confidence, batch)
+    return import_items_one_by_one(api_base, headers, provider, source_license, confidence, batch, enrichment_endpoint)
 
 
 def normalize_gtin(value: Any) -> str:
@@ -147,6 +254,7 @@ def import_items_one_by_one(
     source_license: str,
     confidence: float,
     batch: List[Dict[str, Any]],
+    enrichment_endpoint: str,
 ) -> Dict[str, Any]:
     scanned = len(batch)
     imported = 0
@@ -186,8 +294,9 @@ def import_items_one_by_one(
         }
 
         try:
+            path = enrichment_endpoint if enrichment_endpoint.startswith("/") else f"/{enrichment_endpoint}"
             res = requests.post(
-                f"{api_base.rstrip('/')}/v1/admin/catalog/enrichments",
+                f"{api_base.rstrip('/')}{path}",
                 json=payload,
                 headers=headers,
                 timeout=60,
@@ -228,13 +337,21 @@ def main() -> int:
         print("no items to import")
         return 0
 
+    if args.download_images:
+        persist_item_images(
+            items,
+            args.provider,
+            Path(args.images_dir).resolve(),
+            int(args.max_image_bytes),
+        )
+
     token = args.token.strip()
     if not token:
         if not args.email or not args.password:
             print("provide --token or both --email and --password", file=sys.stderr)
             return 1
         try:
-            token = login_and_get_token(args.api_base, args.email, args.password)
+            token = login_and_get_token(args.api_base, args.login_endpoint, args.email, args.password)
         except Exception as exc:
             print(f"login failed: {exc}", file=sys.stderr)
             return 1
@@ -253,6 +370,8 @@ def main() -> int:
             result = post_import_batch(
                 args.api_base,
                 token,
+                args.import_endpoint,
+                args.enrichment_endpoint,
                 args.provider,
                 args.source_license,
                 args.confidence,

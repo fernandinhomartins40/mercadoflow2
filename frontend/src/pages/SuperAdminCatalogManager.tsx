@@ -11,8 +11,13 @@ interface CatalogRow {
   brand?: string | null;
   category?: string | null;
   packageDescription?: string | null;
+  imageUrl?: string | null;
   provider: string;
+  sourceLicense?: string | null;
   confidenceScore?: number | null;
+  fetchedAt?: string | null;
+  lastVerifiedAt?: string | null;
+  observationCount?: number | null;
 }
 
 interface PageResponse<T> {
@@ -28,9 +33,16 @@ const EMPTY_FORM = {
   category: '',
   packageDescription: '',
   unit: '',
+  imageUrl: '',
   provider: 'MANUAL_SUPER_ADMIN',
   sourceLicense: 'Cadastro manual Super Admin',
   confidenceScore: '0.99',
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '--';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '--' : parsed.toLocaleString('pt-BR');
 };
 
 const SuperAdminCatalogManager: React.FC = () => {
@@ -92,6 +104,7 @@ const SuperAdminCatalogManager: React.FC = () => {
         ...form,
         gtin: gtinDigits,
         name: form.name.trim(),
+        imageUrl: form.imageUrl.trim() || undefined,
         provider: (form.provider || 'MANUAL_SUPER_ADMIN').trim().toUpperCase(),
         sourceLicense: (form.sourceLicense || 'Cadastro manual Super Admin').trim(),
         confidenceScore: confidence,
@@ -124,8 +137,9 @@ const SuperAdminCatalogManager: React.FC = () => {
       category: row.category || '',
       packageDescription: row.packageDescription || '',
       unit: '',
-      provider: 'MANUAL_SUPER_ADMIN',
-      sourceLicense: 'Cadastro manual Super Admin',
+      imageUrl: row.imageUrl || '',
+      provider: row.provider || 'MANUAL_SUPER_ADMIN',
+      sourceLicense: row.sourceLicense || 'Cadastro manual Super Admin',
       confidenceScore: String(row.confidenceScore ?? 0.99),
     });
     setError(null);
@@ -157,6 +171,7 @@ const SuperAdminCatalogManager: React.FC = () => {
             <input className="input" placeholder="Categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
             <input className="input" placeholder="Embalagem" value={form.packageDescription} onChange={(e) => setForm({ ...form, packageDescription: e.target.value })} />
             <input className="input" placeholder="Unidade" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+            <input className="input" placeholder="URL da imagem" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
             <input className="input" placeholder="Provider" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
             <input className="input" placeholder="Confianca (0-1)" value={form.confidenceScore} onChange={(e) => setForm({ ...form, confidenceScore: e.target.value })} />
             <Button onClick={save} disabled={saving}>{saving ? 'Salvando...' : (editingProductId ? 'Salvar alteracoes' : 'Criar produto')}</Button>
@@ -195,7 +210,20 @@ const SuperAdminCatalogManager: React.FC = () => {
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.enrichmentId}>
-                      <td>{row.canonicalName}</td>
+                      <td>
+                        <div className="catalog-admin-product-cell">
+                          {row.imageUrl ? (
+                            <img className="catalog-admin-thumb" src={row.imageUrl} alt={row.canonicalName} loading="lazy" />
+                          ) : (
+                            <div className="catalog-admin-thumb placeholder">Sem imagem</div>
+                          )}
+                          <div className="catalog-admin-product-copy">
+                            <strong>{row.canonicalName}</strong>
+                            <span>{row.packageDescription || '--'}</span>
+                            <span>Atualizado em {formatDate(row.lastVerifiedAt || row.fetchedAt)}</span>
+                          </div>
+                        </div>
+                      </td>
                       <td>{row.gtin || '--'}</td>
                       <td>{row.brand || '--'}</td>
                       <td>{row.category || '--'}</td>

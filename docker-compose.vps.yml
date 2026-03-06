@@ -27,6 +27,7 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
       - INSTALLER_DIR=/opt/pdv2cloud/installer
       - APP_PUBLIC_BASE_URL=https://mercadoflow.com
+      - APP_CATALOG_IMAGES_DIR=/opt/pdv2cloud/catalog-data/images
       - APP_SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - APP_SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
       - APP_SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
@@ -35,6 +36,7 @@ services:
         condition: service_healthy
     volumes:
       - ./pdv2cloud-agent/installer/Output:/opt/pdv2cloud/installer:ro
+      - ./data/catalog:/opt/pdv2cloud/catalog-data
 
   mercadoflow-frontend:
     container_name: mercadoflow-frontend

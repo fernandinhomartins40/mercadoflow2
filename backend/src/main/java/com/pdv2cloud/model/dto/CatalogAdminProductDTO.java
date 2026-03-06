@@ -20,6 +20,7 @@ public class CatalogAdminProductDTO {
     private String packageDescription;
     private String imageUrl;
     private String provider;
+    private String sourceLicense;
     private BigDecimal confidenceScore;
     private LocalDateTime fetchedAt;
     private LocalDateTime lastVerifiedAt;

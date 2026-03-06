@@ -17,6 +17,7 @@ public class SuperAdminCatalogProductUpsertRequest {
     private String category;
     private String packageDescription;
     private String unit;
+    private String imageUrl;
     private String provider = "MANUAL_SUPER_ADMIN";
     private String sourceLicense = "Cadastro manual Super Admin";
 

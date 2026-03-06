@@ -55,6 +55,9 @@ public class ProductCatalogService {
     @Autowired
     private InvoiceItemRepository invoiceItemRepository;
 
+    @Autowired
+    private CatalogImageUrlResolver catalogImageUrlResolver;
+
     public List<Product> resolveProducts(List<InvoiceItemDTO> items, UUID marketId) {
         List<Product> products = new ArrayList<>();
 
@@ -434,8 +437,9 @@ public class ProductCatalogService {
             && enrichment.getPackageDescription() != null) {
             product.setPackageDescription(enrichment.getPackageDescription());
         }
-        if ((product.getImageUrl() == null || product.getImageUrl().isBlank()) && enrichment.getImageUrl() != null) {
-            product.setImageUrl(enrichment.getImageUrl());
+        String resolvedImageUrl = catalogImageUrlResolver.resolve(enrichment.getImageUrl(), enrichment.getImageStorageKey());
+        if (shouldPromoteProductImage(product.getImageUrl(), resolvedImageUrl)) {
+            product.setImageUrl(resolvedImageUrl);
         }
 
         product.setSourceBest(ProductDataSource.WEB);
@@ -465,6 +469,18 @@ public class ProductCatalogService {
         }
 
         return scoreDisplayName(candidateName) > scoreDisplayName(product.getName());
+    }
+
+    private boolean shouldPromoteProductImage(String currentImageUrl, String candidateImageUrl) {
+        if (candidateImageUrl == null || candidateImageUrl.isBlank()) {
+            return false;
+        }
+        if (currentImageUrl == null || currentImageUrl.isBlank()) {
+            return true;
+        }
+        boolean currentManaged = catalogImageUrlResolver.isManagedImage(currentImageUrl);
+        boolean candidateManaged = catalogImageUrlResolver.isManagedImage(candidateImageUrl);
+        return candidateManaged && !currentManaged;
     }
 
     private int scoreDisplayName(String value) {
@@ -612,6 +628,10 @@ public class ProductCatalogService {
         if (packageDescription != null) {
             product.setPackageDescription(packageDescription);
         }
+        String imageUrl = catalogImageUrlResolver.resolve(request.getImageUrl(), null);
+        if (imageUrl != null) {
+            product.setImageUrl(imageUrl);
+        }
         product.setSourceBest(ProductDataSource.MANUAL);
         product.setIdentityType(ProductIdentityType.GTIN);
         product.setLastVerifiedAt(LocalDateTime.now());
@@ -637,6 +657,7 @@ public class ProductCatalogService {
         enrichment.setCategory(ProductCatalogUtils.canonicalizeDisplayName(request.getCategory()));
         enrichment.setUnit(ProductCatalogUtils.canonicalizeDisplayName(request.getUnit()));
         enrichment.setPackageDescription(ProductCatalogUtils.canonicalizeDisplayName(request.getPackageDescription()));
+        enrichment.setImageUrl(catalogImageUrlResolver.resolve(request.getImageUrl(), null));
         enrichment.setSourceLicense(ProductCatalogUtils.canonicalizeDisplayName(request.getSourceLicense()));
         enrichment.setRawPayload("{\"origin\":\"SUPER_ADMIN_MANUAL\"}");
         enrichment.setConfidenceScore(
@@ -650,6 +671,10 @@ public class ProductCatalogService {
         Product product = enrichment.getProduct();
         String canonicalName = ProductCatalogUtils.canonicalizeDisplayName(
             enrichment.getCanonicalName() != null ? enrichment.getCanonicalName() : product.getName()
+        );
+        String resolvedImageUrl = selectCatalogImage(
+            catalogImageUrlResolver.resolve(enrichment.getImageUrl(), enrichment.getImageStorageKey()),
+            catalogImageUrlResolver.resolve(product.getImageUrl(), null)
         );
         return new CatalogAdminProductDTO(
             enrichment.getId(),
@@ -667,15 +692,21 @@ public class ProductCatalogService {
                     ? enrichment.getPackageDescription()
                     : product.getPackageDescription()
             ),
-            ProductCatalogUtils.canonicalizeDisplayName(
-                enrichment.getImageUrl() != null ? enrichment.getImageUrl() : product.getImageUrl()
-            ),
+            resolvedImageUrl,
             enrichment.getProvider(),
+            enrichment.getSourceLicense(),
             enrichment.getConfidenceScore(),
             enrichment.getFetchedAt(),
             enrichment.getLastVerifiedAt(),
             product.getObservationCount()
         );
+    }
+
+    private String selectCatalogImage(String enrichmentImageUrl, String productImageUrl) {
+        if (shouldPromoteProductImage(enrichmentImageUrl, productImageUrl)) {
+            return productImageUrl;
+        }
+        return enrichmentImageUrl != null ? enrichmentImageUrl : productImageUrl;
     }
 
     private record ProductIdentity(String key, ProductIdentityType identityType) {

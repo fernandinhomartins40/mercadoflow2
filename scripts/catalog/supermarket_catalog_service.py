@@ -172,6 +172,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-base", default="")
     parser.add_argument("--token", default="")
     parser.add_argument("--login-endpoint", default="/v1/auth/login")
+    parser.add_argument("--import-endpoint", default="/v1/admin/catalog/import/records")
     parser.add_argument("--email", default="")
     parser.add_argument("--password", default="")
     parser.add_argument("--confidence", type=float, default=0.9)
@@ -1213,6 +1214,7 @@ def chunks(items: Sequence[Record], size: int) -> Iterable[List[Record]]:
 def import_api(
     api_base: str,
     token: str,
+    import_endpoint: str,
     confidence: float,
     skip_medication: bool,
     batch_size: int,
@@ -1232,6 +1234,7 @@ def import_api(
         "errors": 0,
     }
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    path = import_endpoint if import_endpoint.startswith("/") else f"/{import_endpoint}"
 
     for (provider, source_license), items in grouped.items():
         for batch in chunks(items, max(1, min(batch_size, 2000))):
@@ -1243,7 +1246,7 @@ def import_api(
                 "items": [r.as_import_item() for r in batch],
             }
             resp = requests.post(
-                f"{api_base.rstrip('/')}/v1/admin/catalog/import/records",
+                f"{api_base.rstrip('/')}{path}",
                 headers=headers,
                 json=body,
                 timeout=180,
@@ -1397,6 +1400,7 @@ def run_cycle(
     totals = import_api(
         api_base=args.api_base,
         token=token,
+        import_endpoint=args.import_endpoint,
         confidence=args.confidence,
         skip_medication=args.skip_medication,
         batch_size=args.batch_size,

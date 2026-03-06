@@ -46,9 +46,8 @@ app:
   downloads:
     installer-dir: ${INSTALLER_DIR:/opt/pdv2cloud/installer}
   public-base-url: ${APP_PUBLIC_BASE_URL:https://mercadoflow.com}
-  price-intelligence:
-    fixed-delay-ms: ${PRICE_INTELLIGENCE_FIXED_DELAY_MS:900000}
   catalog:
+    images-dir: ${APP_CATALOG_IMAGES_DIR:../data/catalog/images}
     web-import:
       enabled: ${CATALOG_WEB_IMPORT_ENABLED:false}
       initial-delay-ms: ${CATALOG_WEB_IMPORT_INITIAL_DELAY_MS:180000}
@@ -57,6 +56,8 @@ app:
       page-size: ${CATALOG_WEB_IMPORT_PAGE_SIZE:100}
       include-beauty-facts: ${CATALOG_WEB_IMPORT_INCLUDE_BEAUTY:true}
       include-open-products-facts: ${CATALOG_WEB_IMPORT_INCLUDE_OPEN_PRODUCTS:true}
+  price-intelligence:
+    fixed-delay-ms: ${PRICE_INTELLIGENCE_FIXED_DELAY_MS:900000}
 
 logging:
   level:
