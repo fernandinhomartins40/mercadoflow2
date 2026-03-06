@@ -3,28 +3,6 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import api from '../services/api';
 
-interface CrawlerSource {
-  id?: string;
-  name: string;
-  provider: string;
-  sourceLicense?: string;
-  seeds: string[];
-  allowedDomains: string[];
-  productPathHints: string[];
-  maxPages: number;
-  maxRecords: number;
-  rateLimitMs: number;
-  requestTimeoutSec: number;
-  enabled: boolean;
-}
-
-interface CrawlerConfig {
-  userAgent: string;
-  intervalMinutes: number;
-  enabled: boolean;
-  sources: CrawlerSource[];
-}
-
 interface CrawlerRun {
   id: string;
   status: string;
@@ -50,19 +28,20 @@ interface CrawlerMonitor {
   recentRuns: CrawlerRun[];
 }
 
-const DEFAULT_SOURCE: CrawlerSource = {
-  name: '',
-  provider: '',
-  sourceLicense: 'Public website data (respect provider terms and robots)',
-  seeds: [''],
-  allowedDomains: [''],
-  productPathHints: ['/produto', '/product', '/p/', '/sitemap'],
-  maxPages: 250,
-  maxRecords: 2500,
-  rateLimitMs: 1000,
-  requestTimeoutSec: 20,
-  enabled: true,
-};
+interface CrawlerJob {
+  provider: string;
+  name: string;
+  scopeLabel: string;
+  extractorType: string;
+  scriptName: string;
+  description: string;
+  sourceLicense?: string | null;
+  includesMedication?: boolean | null;
+  downloadsImages?: boolean | null;
+  queuedRuns?: number | null;
+  runningRuns?: number | null;
+  lastRun?: CrawlerRun | null;
+}
 
 const formatDate = (value?: string | null) => {
   if (!value) return '--';
@@ -90,12 +69,7 @@ const runStatusClass = (value?: string | null) => {
 };
 
 const SuperAdminCrawlerConfig: React.FC = () => {
-  const [config, setConfig] = useState<CrawlerConfig>({
-    userAgent: 'MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)',
-    intervalMinutes: 360,
-    enabled: true,
-    sources: [],
-  });
+  const [jobs, setJobs] = useState<CrawlerJob[]>([]);
   const [monitor, setMonitor] = useState<CrawlerMonitor>({
     queuedRuns: 0,
     runningRuns: 0,
@@ -103,8 +77,8 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     recentRuns: [],
   });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [triggering, setTriggering] = useState(false);
+  const [triggeringAll, setTriggeringAll] = useState(false);
+  const [triggeringProvider, setTriggeringProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -113,24 +87,28 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     () => (monitor.recentRuns || []).reduce((sum, run) => sum + Number(run.importedProducts || 0), 0),
     [monitor.recentRuns]
   );
+  const activeJobs = useMemo(
+    () => jobs.filter((job) => Number(job.runningRuns || 0) > 0 || (job.lastRun?.status || '').toUpperCase() === 'RUNNING').length,
+    [jobs]
+  );
 
-  const loadConfig = async () => {
-    const response = await api.get('/v1/super-admin/catalog/crawler/config');
-    setConfig(response.data);
+  const loadJobs = async () => {
+    const response = await api.get('/v1/super-admin/catalog/crawler/jobs');
+    setJobs(response.data || []);
   };
 
   const loadMonitor = async () => {
-    const response = await api.get('/v1/super-admin/catalog/crawler/monitor', { params: { size: 10 } });
+    const response = await api.get('/v1/super-admin/catalog/crawler/monitor', { params: { size: 12 } });
     setMonitor(response.data);
   };
 
   const load = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadConfig(), loadMonitor()]);
+      await Promise.all([loadJobs(), loadMonitor()]);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar configuracao e monitor do crawler');
+      setError(err?.message || 'Falha ao carregar painel do crawler');
     } finally {
       setLoading(false);
     }
@@ -142,79 +120,39 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
   useEffect(() => {
     const handle = window.setInterval(() => {
-      loadMonitor().catch(() => null);
+      Promise.all([loadJobs(), loadMonitor()]).catch(() => null);
     }, 10000);
     return () => window.clearInterval(handle);
   }, []);
 
-  const save = async () => {
-    setSaving(true);
-    setSuccess(null);
-    setError(null);
-    try {
-      const normalizedProviders = new Set<string>();
-      for (const source of config.sources) {
-        const provider = (source.provider || '').trim().toUpperCase();
-        if (!provider) {
-          throw new Error('Cada fonte precisa ter um provider preenchido.');
-        }
-        if (normalizedProviders.has(provider)) {
-          throw new Error(`Provider duplicado no formulario: ${provider}`);
-        }
-        normalizedProviders.add(provider);
-      }
-
-      const normalizedConfig: CrawlerConfig = {
-        ...config,
-        sources: config.sources.map((source) => ({
-          ...source,
-          provider: source.provider.trim().toUpperCase(),
-          name: source.name.trim(),
-        })),
-      };
-
-      await api.put('/v1/super-admin/catalog/crawler/config', normalizedConfig);
-      setSuccess('Configuracao salva com sucesso.');
-      await Promise.all([loadConfig(), loadMonitor()]);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao salvar configuracao');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const triggerManualRun = async () => {
-    setTriggering(true);
+  const triggerAll = async () => {
+    setTriggeringAll(true);
     setError(null);
     setSuccess(null);
     try {
-      await api.post('/v1/super-admin/catalog/crawler/runs/trigger?triggeredBy=MANUAL_SUPER_ADMIN');
-      setSuccess('Execucao enfileirada com sucesso. O monitor sera atualizado automaticamente.');
-      await loadMonitor();
+      await api.post('/v1/super-admin/catalog/crawler/runs/trigger?triggeredBy=MANUAL_SUPER_ADMIN_ALL');
+      setSuccess('Execucao completa enfileirada. O worker vai disparar os scripts fixos de todos os mercados.');
+      await Promise.all([loadJobs(), loadMonitor()]);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao enfileirar execucao manual');
+      setError(err?.message || 'Falha ao enfileirar execucao completa');
     } finally {
-      setTriggering(false);
+      setTriggeringAll(false);
     }
   };
 
-  const updateSource = (index: number, partial: Partial<CrawlerSource>) => {
-    const next = [...config.sources];
-    next[index] = { ...next[index], ...partial };
-    setConfig({ ...config, sources: next });
-  };
-
-  const removeSource = (index: number) => {
-    const next = config.sources.filter((_, idx) => idx !== index);
-    setConfig({ ...config, sources: next });
-  };
-
-  const updateStringList = (sourceIndex: number, field: 'seeds' | 'allowedDomains' | 'productPathHints', value: string) => {
-    const items = value
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean);
-    updateSource(sourceIndex, { [field]: items } as Partial<CrawlerSource>);
+  const triggerProvider = async (provider: string) => {
+    setTriggeringProvider(provider);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.post(`/v1/super-admin/catalog/crawler/jobs/${provider}/trigger?triggeredBy=MANUAL_SUPER_ADMIN`);
+      setSuccess(`Execucao enfileirada para ${provider}.`);
+      await Promise.all([loadJobs(), loadMonitor()]);
+    } catch (err: any) {
+      setError(err?.message || `Falha ao enfileirar execucao de ${provider}`);
+    } finally {
+      setTriggeringProvider(null);
+    }
   };
 
   return (
@@ -223,17 +161,17 @@ const SuperAdminCrawlerConfig: React.FC = () => {
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
             <span className="pill">Crawler Python</span>
-            <h1 className="analytics-hero-title">Configuracao das fontes web</h1>
+            <h1 className="analytics-hero-title">Jobs fixos por mercado</h1>
             <p className="analytics-hero-text">
-              Defina os mercados monitorados e acompanhe em tempo real quando o crawler executou, quantos produtos encontrou e quantos foram importados.
+              O painel agora aciona pipelines dedicados por rede. Cada mercado roda com um script proprio, sem configuracao manual de seed, dominio ou hint.
             </p>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">Ultima execucao</span>
+              <span className="section-kicker">Ultima execucao global</span>
               <h3>{latestRun ? formatStatus(latestRun.status) : 'Sem historico'}</h3>
               <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
-              <p>{latestRun?.message || 'Ainda nao houve execucoes registradas.'}</p>
+              <p>{latestRun?.message || 'Nenhuma execucao registrada ate o momento.'}</p>
             </div>
           </div>
         </section>
@@ -243,141 +181,99 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
         <section className="metrics-grid analytics-metrics-grid">
           <div className="card">
+            <span className="section-kicker">Mercados ativos</span>
+            <h3>{jobs.length}</h3>
+            <p>scripts fixos disponiveis no worker.</p>
+          </div>
+          <div className="card">
             <span className="section-kicker">Fila</span>
             <h3>{monitor.queuedRuns || 0}</h3>
-            <p>execucoes aguardando o worker Python.</p>
+            <p>execucoes aguardando processamento.</p>
           </div>
           <div className="card">
-            <span className="section-kicker">Em execucao</span>
-            <h3>{monitor.runningRuns || 0}</h3>
-            <p>processos ativos neste momento.</p>
+            <span className="section-kicker">Executando</span>
+            <h3>{activeJobs || monitor.runningRuns || 0}</h3>
+            <p>mercados com ciclo em andamento.</p>
           </div>
           <div className="card">
-            <span className="section-kicker">Importados (10 ultimas)</span>
+            <span className="section-kicker">Importados (12 ultimas)</span>
             <h3>{totalImportedRecent}</h3>
-            <p>produtos cadastrados recentemente.</p>
-          </div>
-          <div className="card">
-            <span className="section-kicker">Ultimo lote</span>
-            <h3>{Number(latestRun?.importedProducts || 0)}</h3>
-            <p>importados de {Number(latestRun?.scannedProducts || 0)} analisados.</p>
+            <p>produtos injetados recentemente no catalogo global.</p>
           </div>
         </section>
 
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
             <div>
-              <span className="section-kicker">Controle operacional</span>
-              <h3>Executar agora</h3>
+              <span className="section-kicker">Execucao global</span>
+              <h3>Rodar todos os mercados</h3>
             </div>
-            <Button onClick={triggerManualRun} disabled={triggering}>
-              {triggering ? 'Enfileirando...' : 'Executar crawler agora'}
+            <Button onClick={triggerAll} disabled={triggeringAll}>
+              {triggeringAll ? 'Enfileirando...' : 'Executar todos'}
             </Button>
           </div>
           <div className="panel-empty" style={{ textAlign: 'left' }}>
-            A execucao manual entra na fila e o worker Python coleta os dados no proximo ciclo de poll. O historico abaixo atualiza automaticamente.
+            O worker processa os providers enfileirados e executa o script fixo correspondente: GPA API para Pao de Acucar e Extra, VTEX API para Drogaria Sao Paulo e VTEX sitemap + detalhe por slug para Carrefour.
           </div>
         </section>
 
         {loading ? (
-          <div className="card">Carregando configuracao...</div>
+          <div className="card">Carregando painel...</div>
         ) : (
           <>
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head">
-                <div>
-                  <span className="section-kicker">Parametros globais</span>
-                  <h3>Execucao automatica</h3>
-                </div>
-              </div>
-              <div className="filter-bar-controls super-admin-form-grid">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={config.enabled}
-                    onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-                  />
-                  <span>Crawler habilitado</span>
-                </label>
-                <input
-                  className="input"
-                  placeholder="User agent"
-                  value={config.userAgent}
-                  onChange={(e) => setConfig({ ...config, userAgent: e.target.value })}
-                />
-                <input
-                  className="input"
-                  type="number"
-                  min={5}
-                  placeholder="Intervalo em minutos"
-                  value={config.intervalMinutes}
-                  onChange={(e) => setConfig({ ...config, intervalMinutes: Number(e.target.value) || 360 })}
-                />
-              </div>
-            </section>
-
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head">
-                <div>
-                  <span className="section-kicker">Fontes</span>
-                  <h3>Mercados e links monitorados</h3>
-                </div>
-                <Button variant="secondary" onClick={() => setConfig({ ...config, sources: [...config.sources, { ...DEFAULT_SOURCE }] })}>
-                  Adicionar fonte
-                </Button>
-              </div>
-
-              <div className="super-admin-source-list">
-                {config.sources.map((source, index) => (
-                  <div className="card super-admin-source-card" key={`${source.provider || 'source'}-${index}`}>
-                    <div className="super-admin-source-head">
-                      <strong>Fonte {index + 1}</strong>
-                      <Button variant="secondary" onClick={() => removeSource(index)}>Remover</Button>
+            <section className="super-admin-crawler-job-grid">
+              {jobs.map((job) => (
+                <article className="card super-admin-crawler-job-card" key={job.provider}>
+                  <div className="super-admin-crawler-job-head">
+                    <div>
+                      <span className="section-kicker">{job.scopeLabel || 'Catalogo completo'}</span>
+                      <h3>{job.name}</h3>
                     </div>
-                    <div className="filter-bar-controls super-admin-form-grid">
-                      <input className="input" placeholder="Nome" value={source.name} onChange={(e) => updateSource(index, { name: e.target.value })} />
-                      <input className="input" placeholder="Provider (unico)" value={source.provider} onChange={(e) => updateSource(index, { provider: e.target.value })} />
-                      <input className="input" placeholder="Licenca da fonte" value={source.sourceLicense || ''} onChange={(e) => updateSource(index, { sourceLicense: e.target.value })} />
-                      <textarea
-                        className="input"
-                        rows={4}
-                        placeholder="Seeds (1 URL por linha)"
-                        value={source.seeds.join('\n')}
-                        onChange={(e) => updateStringList(index, 'seeds', e.target.value)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={4}
-                        placeholder="Dominios permitidos (1 por linha)"
-                        value={source.allowedDomains.join('\n')}
-                        onChange={(e) => updateStringList(index, 'allowedDomains', e.target.value)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={4}
-                        placeholder="Hints de caminho (1 por linha)"
-                        value={(source.productPathHints || []).join('\n')}
-                        onChange={(e) => updateStringList(index, 'productPathHints', e.target.value)}
-                      />
-                      <input className="input" type="number" min={1} value={source.maxPages} onChange={(e) => updateSource(index, { maxPages: Number(e.target.value) || 250 })} />
-                      <input className="input" type="number" min={1} value={source.maxRecords} onChange={(e) => updateSource(index, { maxRecords: Number(e.target.value) || 2500 })} />
-                      <input className="input" type="number" min={100} value={source.rateLimitMs} onChange={(e) => updateSource(index, { rateLimitMs: Number(e.target.value) || 1000 })} />
-                      <input className="input" type="number" min={5} value={source.requestTimeoutSec} onChange={(e) => updateSource(index, { requestTimeoutSec: Number(e.target.value) || 20 })} />
-                      <label className="checkbox">
-                        <input type="checkbox" checked={source.enabled} onChange={(e) => updateSource(index, { enabled: e.target.checked })} />
-                        <span>Fonte habilitada</span>
-                      </label>
+                    <span className={`status-pill ${runStatusClass(job.lastRun?.status)}`}>
+                      {formatStatus(job.lastRun?.status)}
+                    </span>
+                  </div>
+
+                  <div className="super-admin-crawler-job-meta">
+                    <span className="pill secondary">{job.provider}</span>
+                    <span className="pill secondary">{job.extractorType}</span>
+                    <span className="pill secondary">{job.scriptName}</span>
+                    {job.downloadsImages ? <span className="pill secondary">Imagens locais</span> : null}
+                    {job.includesMedication ? <span className="pill secondary">Inclui medicamentos</span> : null}
+                  </div>
+
+                  <p className="super-admin-crawler-job-text">{job.description}</p>
+
+                  <div className="super-admin-crawler-job-stats">
+                    <div>
+                      <span className="section-kicker">Ultimo fechamento</span>
+                      <strong>{formatDate(job.lastRun?.finishedAt || job.lastRun?.startedAt || job.lastRun?.requestedAt)}</strong>
+                    </div>
+                    <div>
+                      <span className="section-kicker">Importados</span>
+                      <strong>{Number(job.lastRun?.importedProducts || 0)} / {Number(job.lastRun?.scannedProducts || 0)}</strong>
+                    </div>
+                    <div>
+                      <span className="section-kicker">Fila local</span>
+                      <strong>{Number(job.queuedRuns || 0)} na fila, {Number(job.runningRuns || 0)} executando</strong>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="super-admin-crawler-job-footer">
+                    <div className="super-admin-crawler-job-license">{job.sourceLicense || '--'}</div>
+                    <Button onClick={() => triggerProvider(job.provider)} disabled={triggeringProvider === job.provider}>
+                      {triggeringProvider === job.provider ? 'Enfileirando...' : `Executar ${job.name}`}
+                    </Button>
+                  </div>
+                </article>
+              ))}
             </section>
 
             <section className="analytics-panel reveal">
               <div className="analytics-panel-head">
                 <div>
                   <span className="section-kicker">Historico</span>
-                  <h3>Ultimas execucoes do crawler</h3>
+                  <h3>Ultimas execucoes do dispatcher</h3>
                 </div>
               </div>
               {monitor.recentRuns.length === 0 ? (
@@ -390,9 +286,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                         <th>Status</th>
                         <th>Solicitado</th>
                         <th>Finalizado</th>
+                        <th>Providers</th>
                         <th>Importados</th>
                         <th>Erros</th>
-                        <th>Origem</th>
                         <th>Mensagem</th>
                       </tr>
                     </thead>
@@ -402,9 +298,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           <td><span className={`status-pill ${runStatusClass(run.status)}`}>{formatStatus(run.status)}</span></td>
                           <td>{formatDate(run.requestedAt)}</td>
                           <td>{formatDate(run.finishedAt || run.startedAt)}</td>
+                          <td>{(run.sources || []).join(', ') || '--'}</td>
                           <td>{Number(run.importedProducts || 0)} / {Number(run.scannedProducts || 0)}</td>
                           <td>{Number(run.errors || 0)}</td>
-                          <td>{run.triggeredBy || '--'}</td>
                           <td>{run.message || '--'}</td>
                         </tr>
                       ))}
@@ -413,10 +309,6 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                 </div>
               )}
             </section>
-
-            <div className="super-admin-actions">
-              <Button onClick={save} disabled={saving}>{saving ? 'Salvando...' : 'Salvar configuracao do crawler'}</Button>
-            </div>
           </>
         )}
       </div>

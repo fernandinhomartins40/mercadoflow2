@@ -11,6 +11,7 @@ public interface CatalogCrawlerRunRepository extends JpaRepository<CatalogCrawle
     Page<CatalogCrawlerRun> findAllByOrderByRequestedAtDesc(Pageable pageable);
     Optional<CatalogCrawlerRun> findTopByOrderByRequestedAtDesc();
     Optional<CatalogCrawlerRun> findFirstByStatusOrderByRequestedAtAsc(String status);
+    Optional<CatalogCrawlerRun> findTopBySourcesJsonContainingOrderByRequestedAtDesc(String sourcesJson);
     long countByStatus(String status);
+    long countByStatusAndSourcesJsonContaining(String status, String sourcesJson);
 }
-

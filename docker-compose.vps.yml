@@ -79,12 +79,12 @@ services:
     working_dir: /workspace
     command: >
       sh -c "pip install --no-cache-dir requests &&
-      python /workspace/scripts/catalog/supermarket_catalog_service.py
+      python /workspace/scripts/catalog/market_catalog_dispatcher.py
       --watch
       --interval-minutes ${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}
       --api-base http://mercadoflow-backend:8080/api
       --login-endpoint /v1/super-admin/auth/login
-      --config-api-endpoint /v1/super-admin/catalog/crawler/export-config
+      --config-endpoint /v1/super-admin/catalog/crawler/config
       --email ${SUPER_ADMIN_EMAIL}
       --password ${SUPER_ADMIN_PASSWORD}"
     volumes:

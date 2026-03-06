@@ -3,6 +3,7 @@ package com.pdv2cloud.controller;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
@@ -20,6 +21,7 @@ import com.pdv2cloud.service.ProductCatalogService;
 import com.pdv2cloud.service.SuperAdminService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -157,11 +159,24 @@ public class SuperAdminController {
         return ResponseEntity.ok(superAdminService.getCrawlerMonitor(size));
     }
 
+    @GetMapping("/catalog/crawler/jobs")
+    public ResponseEntity<List<SuperAdminCrawlerJobDTO>> listCrawlerJobs() {
+        return ResponseEntity.ok(superAdminService.listCrawlerJobs());
+    }
+
     @PostMapping("/catalog/crawler/runs/trigger")
     public ResponseEntity<SuperAdminCrawlerRunDTO> triggerCrawlerRun(
         @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy
     ) {
         return ResponseEntity.ok(superAdminService.triggerCrawlerRun(triggeredBy));
+    }
+
+    @PostMapping("/catalog/crawler/jobs/{provider}/trigger")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> triggerCrawlerRunForProvider(
+        @PathVariable String provider,
+        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy
+    ) {
+        return ResponseEntity.ok(superAdminService.triggerCrawlerRunForProvider(provider, triggeredBy));
     }
 
     @PostMapping("/catalog/crawler/runs/claim")

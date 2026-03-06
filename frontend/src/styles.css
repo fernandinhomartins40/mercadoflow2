@@ -3187,6 +3187,64 @@ button {
   justify-content: flex-end;
 }
 
+.super-admin-crawler-job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.super-admin-crawler-job-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #d6deea;
+}
+
+.super-admin-crawler-job-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.super-admin-crawler-job-head h3 {
+  margin: 4px 0 0;
+}
+
+.super-admin-crawler-job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.super-admin-crawler-job-text {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.super-admin-crawler-job-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.super-admin-crawler-job-stats strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.super-admin-crawler-job-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.super-admin-crawler-job-license {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 @media (max-width: 980px) {
   .super-admin-shell {
     grid-template-columns: 1fr;
@@ -3195,5 +3253,10 @@ button {
   .super-admin-sidebar {
     border-right: 0;
     border-bottom: 1px solid #dde3ec;
+  }
+
+  .super-admin-crawler-job-footer {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

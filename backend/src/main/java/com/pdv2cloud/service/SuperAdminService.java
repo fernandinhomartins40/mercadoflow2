@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
@@ -56,6 +57,60 @@ public class SuperAdminService {
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
     private static final String DEFAULT_USER_AGENT = "MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)";
+    private static final List<FixedCrawlerJob> FIXED_CRAWLER_JOBS = List.of(
+        new FixedCrawlerJob(
+            "Pao de Acucar",
+            "PAODEACUCAR_WEB_BR",
+            "Todas as categorias",
+            "GPA public API + bestPrices",
+            "extract_and_import_paodeacucar.py",
+            "Importa todas as categorias usando a API publica do GPA, com detalhe por produto para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of("https://api.vendas.gpa.digital/pa/v4/products/categories/ecom"),
+            List.of("api.vendas.gpa.digital", "www.paodeacucar.com", "paodeacucar.com")
+        ),
+        new FixedCrawlerJob(
+            "Extra Mercado",
+            "EXTRA_WEB_BR",
+            "Todas as categorias",
+            "GPA public API + bestPrices",
+            "extract_and_import_extra.py",
+            "Importa todas as categorias usando a API publica do GPA para a bandeira Extra, com detalhe por produto para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of("https://api.vendas.gpa.digital/ex/v4/products/categories/ecom"),
+            List.of("api.vendas.gpa.digital", "www.extramercado.com.br", "extramercado.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Carrefour Brasil",
+            "CARREFOUR_WEB_BR",
+            "Todas as categorias",
+            "VTEX sitemap + product API",
+            "extract_and_import_carrefour.py",
+            "Enumera todos os produtos via sitemap oficial e busca o detalhe estruturado da VTEX por slug para maximizar recuperacao de GTIN e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of("https://www.carrefour.com.br/sitemap.xml"),
+            List.of("www.carrefour.com.br", "carrefour.com.br", "carrefourbr.vtexcommercestable.com.br", "carrefourbr.myvtex.com")
+        ),
+        new FixedCrawlerJob(
+            "Drogaria Sao Paulo",
+            "DROGARIASP_WEB_BR",
+            "Todas as categorias",
+            "VTEX catalog API",
+            "extract_and_import_drogariasp.py",
+            "Importa todas as categorias pela API publica da VTEX e inclui medicamentos quando o provider expuser GTIN.",
+            "Public website/API data (respect provider terms and robots)",
+            true,
+            true,
+            List.of("https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
+            List.of("www.drogariasaopaulo.com.br", "drogariasaopaulo.com.br")
+        )
+    );
 
     @Autowired
     private UserRepository userRepository;
@@ -190,8 +245,6 @@ public class SuperAdminService {
 
     public SuperAdminCrawlerConfigDTO getCrawlerConfig(boolean onlyEnabledSources) {
         CatalogCrawlerConfig config = ensureCrawlerConfig();
-        ensureDefaultCrawlerSources();
-        List<CatalogCrawlerSource> sources = crawlerSourceRepository.findAllByOrderByNameAsc();
 
         SuperAdminCrawlerConfigDTO dto = new SuperAdminCrawlerConfigDTO();
         dto.setUserAgent(config.getUserAgent());
@@ -199,11 +252,8 @@ public class SuperAdminService {
         dto.setEnabled(config.getIsEnabled());
 
         List<SuperAdminCrawlerSourceDTO> sourceDTOs = new ArrayList<>();
-        for (CatalogCrawlerSource source : sources) {
-            if (onlyEnabledSources && !Boolean.TRUE.equals(source.getIsEnabled())) {
-                continue;
-            }
-            sourceDTOs.add(toCrawlerSourceDTO(source));
+        for (FixedCrawlerJob job : FIXED_CRAWLER_JOBS) {
+            sourceDTOs.add(toCrawlerSourceDTO(job));
         }
         dto.setSources(sourceDTOs);
         return dto;
@@ -220,67 +270,6 @@ public class SuperAdminService {
         config.setIsEnabled(request.getEnabled() == null || request.getEnabled());
         config.setUpdatedAt(LocalDateTime.now());
         crawlerConfigRepository.save(config);
-
-        List<CatalogCrawlerSource> existing = crawlerSourceRepository.findAll();
-        Map<UUID, CatalogCrawlerSource> existingById = new HashMap<>();
-        Map<String, CatalogCrawlerSource> existingByProvider = new HashMap<>();
-        for (CatalogCrawlerSource source : existing) {
-            existingById.put(source.getId(), source);
-            existingByProvider.put(source.getProvider().toUpperCase(Locale.ROOT), source);
-        }
-
-        Set<UUID> keepIds = new HashSet<>();
-        Set<String> requestedProviders = new HashSet<>();
-        List<SuperAdminCrawlerSourceDTO> sources = request.getSources() == null ? Collections.emptyList() : request.getSources();
-        for (SuperAdminCrawlerSourceDTO sourceDTO : sources) {
-            if (sourceDTO.getProvider() == null || sourceDTO.getProvider().isBlank()) {
-                throw new IllegalArgumentException("Provider da fonte nao pode ser vazio");
-            }
-            String normalizedProvider = sourceDTO.getProvider().trim().toUpperCase(Locale.ROOT);
-            if (!requestedProviders.add(normalizedProvider)) {
-                throw new IllegalArgumentException("Provider duplicado na configuracao: " + normalizedProvider);
-            }
-
-            CatalogCrawlerSource source = null;
-            if (sourceDTO.getId() != null) {
-                source = existingById.get(sourceDTO.getId());
-            }
-            CatalogCrawlerSource sourceByProvider = existingByProvider.get(normalizedProvider);
-            if (sourceByProvider != null && (source == null || !sourceByProvider.getId().equals(source.getId()))) {
-                source = sourceByProvider;
-            } else if (source == null) {
-                source = sourceByProvider;
-            }
-            if (source == null) {
-                source = new CatalogCrawlerSource();
-            }
-
-            source.setName(sourceDTO.getName().trim());
-            source.setProvider(normalizedProvider);
-            source.setSourceLicense(sourceDTO.getSourceLicense());
-            source.setSeedsJson(toJsonArray(sourceDTO.getSeeds()));
-            source.setAllowedDomainsJson(toJsonArray(sourceDTO.getAllowedDomains()));
-            source.setProductPathHintsJson(toJsonArray(
-                sourceDTO.getProductPathHints() == null || sourceDTO.getProductPathHints().isEmpty()
-                    ? List.of("/produto", "/product", "/p/", "/sitemap")
-                    : sourceDTO.getProductPathHints()
-            ));
-            source.setMaxPages(sourceDTO.getMaxPages() != null ? Math.max(sourceDTO.getMaxPages(), 1) : 250);
-            source.setMaxRecords(sourceDTO.getMaxRecords() != null ? Math.max(sourceDTO.getMaxRecords(), 1) : 2500);
-            source.setRateLimitMs(sourceDTO.getRateLimitMs() != null ? Math.max(sourceDTO.getRateLimitMs(), 100) : 1000);
-            source.setRequestTimeoutSec(sourceDTO.getRequestTimeoutSec() != null ? Math.max(sourceDTO.getRequestTimeoutSec(), 5) : 20);
-            source.setIsEnabled(sourceDTO.getEnabled() == null || sourceDTO.getEnabled());
-
-            CatalogCrawlerSource saved = crawlerSourceRepository.save(source);
-            keepIds.add(saved.getId());
-        }
-
-        for (CatalogCrawlerSource source : existing) {
-            if (!keepIds.contains(source.getId())) {
-                crawlerSourceRepository.delete(source);
-            }
-        }
-
         return getCrawlerConfig(false);
     }
 
@@ -299,13 +288,29 @@ public class SuperAdminService {
         return monitor;
     }
 
+    @Transactional(readOnly = true)
+    public List<SuperAdminCrawlerJobDTO> listCrawlerJobs() {
+        return FIXED_CRAWLER_JOBS.stream().map(this::toCrawlerJobDTO).toList();
+    }
+
     public SuperAdminCrawlerRunDTO triggerCrawlerRun(String triggeredBy) {
         CatalogCrawlerRun run = new CatalogCrawlerRun();
         run.setRequestedAt(LocalDateTime.now());
         run.setStatus("QUEUED");
         run.setMessage("Execucao enfileirada aguardando servico Python.");
         run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
-        run.setSourcesJson(exportEnabledSourcesAsJson());
+        run.setSourcesJson(exportFixedProvidersAsJson());
+        return toCrawlerRunDTO(crawlerRunRepository.save(run));
+    }
+
+    public SuperAdminCrawlerRunDTO triggerCrawlerRunForProvider(String provider, String triggeredBy) {
+        FixedCrawlerJob job = findFixedCrawlerJob(provider);
+        CatalogCrawlerRun run = new CatalogCrawlerRun();
+        run.setRequestedAt(LocalDateTime.now());
+        run.setStatus("QUEUED");
+        run.setMessage("Execucao enfileirada aguardando servico Python.");
+        run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
+        run.setSourcesJson(toJsonArray(List.of(job.provider())));
         return toCrawlerRunDTO(crawlerRunRepository.save(run));
     }
 
@@ -405,6 +410,22 @@ public class SuperAdminService {
         return dto;
     }
 
+    private SuperAdminCrawlerSourceDTO toCrawlerSourceDTO(FixedCrawlerJob job) {
+        SuperAdminCrawlerSourceDTO dto = new SuperAdminCrawlerSourceDTO();
+        dto.setName(job.name());
+        dto.setProvider(job.provider());
+        dto.setSourceLicense(job.sourceLicense());
+        dto.setSeeds(job.seeds());
+        dto.setAllowedDomains(job.allowedDomains());
+        dto.setProductPathHints(List.of("/produto", "/p/", "/api/catalog_system/pub/products/search"));
+        dto.setMaxPages(5000);
+        dto.setMaxRecords(2_000_000);
+        dto.setRateLimitMs(250);
+        dto.setRequestTimeoutSec(40);
+        dto.setEnabled(true);
+        return dto;
+    }
+
     private SuperAdminCrawlerRunDTO toCrawlerRunDTO(CatalogCrawlerRun run) {
         SuperAdminCrawlerRunDTO dto = new SuperAdminCrawlerRunDTO();
         dto.setId(run.getId());
@@ -422,6 +443,25 @@ public class SuperAdminService {
         dto.setMessage(run.getMessage());
         dto.setTriggeredBy(run.getTriggeredBy());
         dto.setSources(parseJsonArray(run.getSourcesJson()));
+        return dto;
+    }
+
+    private SuperAdminCrawlerJobDTO toCrawlerJobDTO(FixedCrawlerJob job) {
+        String quotedProvider = "\"" + job.provider() + "\"";
+        SuperAdminCrawlerJobDTO dto = new SuperAdminCrawlerJobDTO();
+        dto.setProvider(job.provider());
+        dto.setName(job.name());
+        dto.setScopeLabel(job.scopeLabel());
+        dto.setExtractorType(job.extractorType());
+        dto.setScriptName(job.scriptName());
+        dto.setDescription(job.description());
+        dto.setSourceLicense(job.sourceLicense());
+        dto.setIncludesMedication(job.includesMedication());
+        dto.setDownloadsImages(job.downloadsImages());
+        dto.setQueuedRuns((int) crawlerRunRepository.countByStatusAndSourcesJsonContaining("QUEUED", quotedProvider));
+        dto.setRunningRuns((int) crawlerRunRepository.countByStatusAndSourcesJsonContaining("RUNNING", quotedProvider));
+        crawlerRunRepository.findTopBySourcesJsonContainingOrderByRequestedAtDesc(quotedProvider)
+            .ifPresent(run -> dto.setLastRun(toCrawlerRunDTO(run)));
         return dto;
     }
 
@@ -489,12 +529,16 @@ public class SuperAdminService {
         return source;
     }
 
-    private String exportEnabledSourcesAsJson() {
-        List<String> providers = crawlerSourceRepository.findAllByOrderByNameAsc().stream()
-            .filter(source -> Boolean.TRUE.equals(source.getIsEnabled()))
-            .map(CatalogCrawlerSource::getProvider)
-            .toList();
-        return toJsonArray(providers);
+    private String exportFixedProvidersAsJson() {
+        return toJsonArray(FIXED_CRAWLER_JOBS.stream().map(FixedCrawlerJob::provider).toList());
+    }
+
+    private FixedCrawlerJob findFixedCrawlerJob(String provider) {
+        String normalizedProvider = provider == null ? "" : provider.trim().toUpperCase(Locale.ROOT);
+        return FIXED_CRAWLER_JOBS.stream()
+            .filter(job -> job.provider().equals(normalizedProvider))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Provider fixo do crawler nao encontrado: " + normalizedProvider));
     }
 
     private String normalizeSearch(String search) {
@@ -556,5 +600,20 @@ public class SuperAdminService {
 
     private Integer safeInt(Integer value) {
         return value == null ? 0 : Math.max(0, value);
+    }
+
+    private record FixedCrawlerJob(
+        String name,
+        String provider,
+        String scopeLabel,
+        String extractorType,
+        String scriptName,
+        String description,
+        String sourceLicense,
+        boolean includesMedication,
+        boolean downloadsImages,
+        List<String> seeds,
+        List<String> allowedDomains
+    ) {
     }
 }
