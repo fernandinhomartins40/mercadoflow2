@@ -27,7 +27,8 @@
       "provider": "PAODEACUCAR_WEB_BR",
       "sourceLicense": "Public website data (respect provider terms and robots)",
       "seeds": [
-        "https://www.paodeacucar.com/sitemap.xml"
+        "https://www.paodeacucar.com/categoria/alimentos",
+        "https://www.paodeacucar.com/produto/137385/vodka-destilada-absolut-garrafa-1l"
       ],
       "allowedDomains": [
         "www.paodeacucar.com",
@@ -48,9 +49,12 @@
       "provider": "EXTRA_WEB_BR",
       "sourceLicense": "Public website data (respect provider terms and robots)",
       "seeds": [
-        "https://www.clubeextra.com.br/sitemap.xml"
+        "https://www.extramercado.com.br/categoria/alimentos",
+        "https://www.extramercado.com.br/produto/115441/molho-de-soja-shoyu-qualita-garrafa-500ml"
       ],
       "allowedDomains": [
+        "www.extramercado.com.br",
+        "extramercado.com.br",
         "www.clubeextra.com.br",
         "clubeextra.com.br"
       ],
