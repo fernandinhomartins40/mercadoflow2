@@ -31,6 +31,7 @@ interface CrawlerMonitor {
 interface CrawlerJob {
   provider: string;
   name: string;
+  enabled?: boolean | null;
   scopeLabel: string;
   extractorType: string;
   scriptName: string;
@@ -229,8 +230,8 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                       <span className="section-kicker">{job.scopeLabel || 'Catalogo completo'}</span>
                       <h3>{job.name}</h3>
                     </div>
-                    <span className={`status-pill ${runStatusClass(job.lastRun?.status)}`}>
-                      {formatStatus(job.lastRun?.status)}
+                    <span className={`status-pill ${job.enabled === false ? 'neutral' : runStatusClass(job.lastRun?.status)}`}>
+                      {job.enabled === false ? 'Desabilitado' : formatStatus(job.lastRun?.status)}
                     </span>
                   </div>
 
@@ -243,6 +244,11 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                   </div>
 
                   <p className="super-admin-crawler-job-text">{job.description}</p>
+                  {job.enabled === false ? (
+                    <div className="panel-empty" style={{ textAlign: 'left' }}>
+                      Execucao temporariamente desabilitada. O historico e os dados ja coletados continuam preservados.
+                    </div>
+                  ) : null}
 
                   <div className="super-admin-crawler-job-stats">
                     <div>
@@ -261,7 +267,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
                   <div className="super-admin-crawler-job-footer">
                     <div className="super-admin-crawler-job-license">{job.sourceLicense || '--'}</div>
-                    <Button onClick={() => triggerProvider(job.provider)} disabled={triggeringProvider === job.provider}>
+                    <Button onClick={() => triggerProvider(job.provider)} disabled={job.enabled === false || triggeringProvider === job.provider}>
                       {triggeringProvider === job.provider ? 'Enfileirando...' : `Executar ${job.name}`}
                     </Button>
                   </div>
@@ -295,13 +301,13 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                     <tbody>
                       {monitor.recentRuns.map((run) => (
                         <tr key={run.id}>
-                          <td><span className={`status-pill ${runStatusClass(run.status)}`}>{formatStatus(run.status)}</span></td>
-                          <td>{formatDate(run.requestedAt)}</td>
-                          <td>{formatDate(run.finishedAt || run.startedAt)}</td>
-                          <td>{(run.sources || []).join(', ') || '--'}</td>
-                          <td>{Number(run.importedProducts || 0)} / {Number(run.scannedProducts || 0)}</td>
-                          <td>{Number(run.errors || 0)}</td>
-                          <td>{run.message || '--'}</td>
+                          <td data-label="Status"><span className={`status-pill ${runStatusClass(run.status)}`}>{formatStatus(run.status)}</span></td>
+                          <td data-label="Solicitado">{formatDate(run.requestedAt)}</td>
+                          <td data-label="Finalizado">{formatDate(run.finishedAt || run.startedAt)}</td>
+                          <td data-label="Providers">{(run.sources || []).join(', ') || '--'}</td>
+                          <td data-label="Importados">{Number(run.importedProducts || 0)} / {Number(run.scannedProducts || 0)}</td>
+                          <td data-label="Erros">{Number(run.errors || 0)}</td>
+                          <td data-label="Mensagem">{run.message || '--'}</td>
                         </tr>
                       ))}
                     </tbody>

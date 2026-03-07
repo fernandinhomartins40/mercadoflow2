@@ -371,13 +371,18 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "DROGARIASP_WEB_BR": run_drogariasp,
     "ATACADAO_WEB_BR": run_atacadao,
 }
+DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR"}
+
+
+def enabled_providers() -> List[str]:
+    return [provider for provider in RUNNERS.keys() if provider not in DISABLED_PROVIDERS]
 
 
 def resolve_providers(raw: Sequence[str]) -> List[str]:
     providers = [norm_text(value).upper() for value in raw if norm_text(value)]
     if not providers:
-        return list(RUNNERS.keys())
-    return providers
+        return enabled_providers()
+    return [provider for provider in providers if provider in RUNNERS and provider not in DISABLED_PROVIDERS]
 
 
 def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[str, Any]:
@@ -386,7 +391,19 @@ def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[st
     messages: List[str] = []
     failed = False
 
+    if not providers:
+        return {
+            "status": "SUCCESS",
+            "message": "Nenhum provider habilitado para executar nesta rodada.",
+            "summary": [],
+            **totals,
+        }
+
     for provider in providers:
+        if provider in DISABLED_PROVIDERS:
+            messages.append(f"{provider}: temporariamente desabilitado")
+            summary.append({"provider": provider, "source": provider, "disabled": True})
+            continue
         runner = RUNNERS.get(provider)
         if runner is None:
             failed = True
@@ -422,7 +439,7 @@ def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[st
 
 def main() -> int:
     args = parse_args()
-    explicit_providers = resolve_providers(args.providers.split(",")) if args.providers else list(RUNNERS.keys())
+    explicit_providers = resolve_providers(args.providers.split(",")) if args.providers else enabled_providers()
 
     if not args.watch:
         result = run_providers(args, explicit_providers)
@@ -432,7 +449,7 @@ def main() -> int:
     token = login(args.api_base, args.login_endpoint, args.email, args.password)
     poll_seconds = max(5, int(args.manual_poll_seconds))
     next_scheduled_at = time.time()
-    print(f"watch mode enabled providers={','.join(RUNNERS.keys())} poll={poll_seconds}s")
+    print(f"watch mode enabled providers={','.join(enabled_providers())} poll={poll_seconds}s")
 
     while True:
         try:
@@ -445,7 +462,7 @@ def main() -> int:
                 time.sleep(poll_seconds)
                 continue
 
-            providers = list(RUNNERS.keys())
+            providers = enabled_providers()
             run_id = ""
             if claimed is not None:
                 claimed_sources = claimed.get("sources") or []

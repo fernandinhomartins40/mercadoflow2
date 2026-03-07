@@ -6,6 +6,7 @@ import lombok.Data;
 public class SuperAdminCrawlerJobDTO {
     private String provider;
     private String name;
+    private Boolean enabled;
     private String scopeLabel;
     private String extractorType;
     private String scriptName;

@@ -61,6 +61,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Pao de Acucar",
             "PAODEACUCAR_WEB_BR",
+            true,
             "Todas as categorias",
             "GPA public API + bestPrices",
             "extract_and_import_paodeacucar.py",
@@ -74,6 +75,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Extra Mercado",
             "EXTRA_WEB_BR",
+            true,
             "Todas as categorias",
             "GPA public API + bestPrices",
             "extract_and_import_extra.py",
@@ -87,6 +89,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Carrefour Brasil",
             "CARREFOUR_WEB_BR",
+            false,
             "Categorias de supermercado",
             "VTEX catalog API",
             "extract_and_import_carrefour.py",
@@ -100,6 +103,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Drogaria Sao Paulo",
             "DROGARIASP_WEB_BR",
+            true,
             "Todas as categorias",
             "VTEX catalog API",
             "extract_and_import_drogariasp.py",
@@ -113,6 +117,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Atacadao Online",
             "ATACADAO_WEB_BR",
+            true,
             "Categorias de supermercado",
             "VTEX catalog API",
             "extract_and_import_atacadao.py",
@@ -266,6 +271,9 @@ public class SuperAdminService {
 
         List<SuperAdminCrawlerSourceDTO> sourceDTOs = new ArrayList<>();
         for (FixedCrawlerJob job : FIXED_CRAWLER_JOBS) {
+            if (onlyEnabledSources && !job.enabled()) {
+                continue;
+            }
             sourceDTOs.add(toCrawlerSourceDTO(job));
         }
         dto.setSources(sourceDTOs);
@@ -312,12 +320,15 @@ public class SuperAdminService {
         run.setStatus("QUEUED");
         run.setMessage("Execucao enfileirada aguardando servico Python.");
         run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
-        run.setSourcesJson(exportFixedProvidersAsJson());
+        run.setSourcesJson(exportEnabledProvidersAsJson());
         return toCrawlerRunDTO(crawlerRunRepository.save(run));
     }
 
     public SuperAdminCrawlerRunDTO triggerCrawlerRunForProvider(String provider, String triggeredBy) {
         FixedCrawlerJob job = findFixedCrawlerJob(provider);
+        if (!job.enabled()) {
+            throw new IllegalArgumentException("Provider temporariamente desabilitado no crawler: " + job.provider());
+        }
         CatalogCrawlerRun run = new CatalogCrawlerRun();
         run.setRequestedAt(LocalDateTime.now());
         run.setStatus("QUEUED");
@@ -435,7 +446,7 @@ public class SuperAdminService {
         dto.setMaxRecords(2_000_000);
         dto.setRateLimitMs(250);
         dto.setRequestTimeoutSec(40);
-        dto.setEnabled(true);
+        dto.setEnabled(job.enabled());
         return dto;
     }
 
@@ -464,6 +475,7 @@ public class SuperAdminService {
         SuperAdminCrawlerJobDTO dto = new SuperAdminCrawlerJobDTO();
         dto.setProvider(job.provider());
         dto.setName(job.name());
+        dto.setEnabled(job.enabled());
         dto.setScopeLabel(job.scopeLabel());
         dto.setExtractorType(job.extractorType());
         dto.setScriptName(job.scriptName());
@@ -542,8 +554,11 @@ public class SuperAdminService {
         return source;
     }
 
-    private String exportFixedProvidersAsJson() {
-        return toJsonArray(FIXED_CRAWLER_JOBS.stream().map(FixedCrawlerJob::provider).toList());
+    private String exportEnabledProvidersAsJson() {
+        return toJsonArray(FIXED_CRAWLER_JOBS.stream()
+            .filter(FixedCrawlerJob::enabled)
+            .map(FixedCrawlerJob::provider)
+            .toList());
     }
 
     private FixedCrawlerJob findFixedCrawlerJob(String provider) {
@@ -618,6 +633,7 @@ public class SuperAdminService {
     private record FixedCrawlerJob(
         String name,
         String provider,
+        boolean enabled,
         String scopeLabel,
         String extractorType,
         String scriptName,
