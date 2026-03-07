@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ class VtexJobConfig:
     mode: str
     sitemap_index_url: str = ""
     allowed_category_keywords: Tuple[str, ...] = ()
+    selected_categories: Tuple[str, ...] = ()
 
 
 def build_session() -> requests.Session:
@@ -141,45 +143,95 @@ def product_to_record(job: VtexJobConfig, product: Dict[str, Any]) -> Dict[str, 
 
 def category_matches(job: VtexJobConfig, product: Dict[str, Any]) -> bool:
     keywords = [normalize_key(value) for value in job.allowed_category_keywords if normalize_key(value)]
-    if not keywords:
-        return True
     categories = product.get("categories") if isinstance(product, dict) else None
     normalized_categories = normalize_key(" ".join(categories)) if isinstance(categories, list) else ""
+    if keywords and not normalized_categories:
+        return False
+    if keywords and not any(keyword in normalized_categories for keyword in keywords):
+        return False
+    selected = [normalize_key(value) for value in job.selected_categories if normalize_key(value)]
+    if not selected:
+        return True
     if not normalized_categories:
         return False
-    return any(keyword in normalized_categories for keyword in keywords)
+    return any(category in normalized_categories for category in selected)
 
 
 def fetch_search_page(job: VtexJobConfig, start: int, end: int) -> Tuple[List[Dict[str, Any]], int]:
-    response = build_session().get(
-        f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search",
-        params={"_from": start, "_to": end},
-        timeout=45,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    return (payload if isinstance(payload, list) else []), parse_resources_total(response)
+    last_error: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            response = build_session().get(
+                f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search",
+                params={"_from": start, "_to": end},
+                timeout=45,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return (payload if isinstance(payload, list) else []), parse_resources_total(response)
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 0
+            if status_code < 500 or attempt >= 3:
+                raise
+            last_error = exc
+        except requests.RequestException as exc:
+            last_error = exc
+        time.sleep(min(2.0, 0.35 * attempt))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("search page request failed without explicit error")
 
 
 def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[str, Any]]:
     path = urlparse(product_url).path or ""
     if not path:
         return None
-    response = build_session().get(
-        f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search{path}",
-        timeout=45,
-    )
-    if response.status_code != 200:
-        return None
-    payload = response.json()
-    if not isinstance(payload, list) or not payload:
-        return None
-    return payload[0] if isinstance(payload[0], dict) else None
+    last_error: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            response = build_session().get(
+                f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search{path}",
+                timeout=45,
+            )
+            if response.status_code in {404, 410}:
+                return None
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list) or not payload:
+                return None
+            return payload[0] if isinstance(payload[0], dict) else None
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 0
+            if status_code in {404, 410}:
+                return None
+            if status_code < 500 or attempt >= 3:
+                raise
+            last_error = exc
+        except requests.RequestException as exc:
+            last_error = exc
+        time.sleep(min(2.5, 0.4 * attempt))
+    if last_error is not None:
+        raise last_error
+    return None
 
 
 def fetch_sitemap_product_urls(sitemap_url: str) -> List[str]:
-    response = build_session().get(sitemap_url, timeout=45)
-    response.raise_for_status()
+    last_error: Optional[Exception] = None
+    response: Optional[requests.Response] = None
+    for attempt in range(1, 4):
+        try:
+            response = build_session().get(sitemap_url, timeout=45)
+            response.raise_for_status()
+            break
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt >= 3:
+                raise
+            time.sleep(min(2.0, 0.35 * attempt))
+    if response is None:
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("sitemap request failed without response")
     root = ET.fromstring(response.text)
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     return [
@@ -190,8 +242,22 @@ def fetch_sitemap_product_urls(sitemap_url: str) -> List[str]:
 
 
 def fetch_sitemap_index(job: VtexJobConfig) -> List[str]:
-    response = build_session().get(job.sitemap_index_url, timeout=45)
-    response.raise_for_status()
+    last_error: Optional[Exception] = None
+    response: Optional[requests.Response] = None
+    for attempt in range(1, 4):
+        try:
+            response = build_session().get(job.sitemap_index_url, timeout=45)
+            response.raise_for_status()
+            break
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt >= 3:
+                raise
+            time.sleep(min(2.0, 0.35 * attempt))
+    if response is None:
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("sitemap index request failed without response")
     root = ET.fromstring(response.text)
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     urls = [
@@ -234,6 +300,7 @@ def run_vtex_paged_job(
                     "totalHint": total_hint,
                     "skippedCategoryMismatch": skipped_unmatched,
                     "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                    "selectedCategories": list(job.selected_categories),
                 },
                 flush_pending=False,
             )
@@ -286,6 +353,7 @@ def run_vtex_paged_job(
                         "totalHint": total_hint,
                         "skippedCategoryMismatch": skipped_unmatched,
                         "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                        "selectedCategories": list(job.selected_categories),
                     },
                     flush_pending=False,
                 )
@@ -325,6 +393,7 @@ def run_vtex_paged_job(
             "totalHint": total_hint,
             "skippedCategoryMismatch": skipped_unmatched,
             "selectedCategoryKeywords": list(job.allowed_category_keywords),
+            "selectedCategories": list(job.selected_categories),
         }
     )
     total_errors = page_errors + int(totals.get("errors", 0))
@@ -362,6 +431,7 @@ def run_vtex_sitemap_job(
 ) -> Dict[str, Any]:
     sitemap_errors = 0
     detail_errors = 0
+    skipped_missing_detail = 0
     skipped_unmatched = 0
     sitemap_urls = fetch_sitemap_index(job)
     session_import = MarketImportSession(options, cancel_check=cancel_check)
@@ -374,8 +444,10 @@ def run_vtex_sitemap_job(
                     "source": "VTEX_SITEMAP_PRODUCT_API",
                     "sitemapsFetched": len(sitemap_urls),
                     "productsDiscovered": discovered_products,
+                    "skippedMissingDetail": skipped_missing_detail,
                     "skippedCategoryMismatch": skipped_unmatched,
                     "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                    "selectedCategories": list(job.selected_categories),
                 },
                 flush_pending=False,
             )
@@ -427,7 +499,7 @@ def run_vtex_sitemap_job(
                     print(f"[{job.provider}] detail error url={product_url} error={exc}")
                     continue
                 if not product:
-                    detail_errors += 1
+                    skipped_missing_detail += 1
                     continue
                 if not category_matches(job, product):
                     skipped_unmatched += 1
@@ -451,8 +523,10 @@ def run_vtex_sitemap_job(
                     "source": "VTEX_SITEMAP_PRODUCT_API",
                     "sitemapsFetched": len(sitemap_urls),
                     "productsDiscovered": discovered_products,
+                    "skippedMissingDetail": skipped_missing_detail,
                     "skippedCategoryMismatch": skipped_unmatched,
                     "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                    "selectedCategories": list(job.selected_categories),
                 },
                 flush_pending=False,
             )
@@ -483,8 +557,10 @@ def run_vtex_sitemap_job(
             "source": "VTEX_SITEMAP_PRODUCT_API",
             "sitemapsFetched": len(sitemap_urls),
             "productsDiscovered": discovered_products,
+            "skippedMissingDetail": skipped_missing_detail,
             "skippedCategoryMismatch": skipped_unmatched,
             "selectedCategoryKeywords": list(job.allowed_category_keywords),
+            "selectedCategories": list(job.selected_categories),
         }
     )
     total_errors = sitemap_errors + detail_errors + int(totals.get("errors", 0))

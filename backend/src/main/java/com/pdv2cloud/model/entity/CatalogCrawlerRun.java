@@ -62,6 +62,9 @@ public class CatalogCrawlerRun {
     @Column(name = "sources_json", columnDefinition = "text")
     private String sourcesJson;
 
+    @Column(name = "filters_json", columnDefinition = "text")
+    private String filtersJson;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -93,4 +96,3 @@ public class CatalogCrawlerRun {
         updatedAt = LocalDateTime.now();
     }
 }
-

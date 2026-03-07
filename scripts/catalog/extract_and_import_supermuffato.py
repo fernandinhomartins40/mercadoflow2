@@ -9,11 +9,11 @@ from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_sitemap_job
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Extract + import Carrefour catalog")
+    parser = argparse.ArgumentParser(description="Extract + import Super Muffato catalog")
     parser.add_argument("--page-size", type=int, default=50)
     parser.add_argument("--max-pages", type=int, default=0)
     parser.add_argument("--product-workers", type=int, default=12)
-    parser.add_argument("--output", default="data/catalog/carrefour_web_br_catalog")
+    parser.add_argument("--output", default="data/catalog/supermuffato_web_br_catalog")
     parser.add_argument("--do-import", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--api-base", default="https://mercadoflow.com/api")
     parser.add_argument("--login-endpoint", default="/v1/super-admin/auth/login")
@@ -31,52 +31,14 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     job = VtexJobConfig(
-        name="Carrefour Brasil",
-        provider="CARREFOUR_WEB_BR",
+        name="Super Muffato",
+        provider="SUPERMUFFATO_WEB_BR",
         source_license="Public website/API data (respect provider terms and robots)",
         output=args.output,
-        site_base="https://mercado.carrefour.com.br",
-        catalog_api_base="https://carrefourbrfood.vtexcommercestable.com.br",
+        site_base="https://www.supermuffato.com.br",
+        catalog_api_base="https://www.supermuffato.com.br",
         mode="sitemap",
-        sitemap_index_url="https://mercado.carrefour.com.br/sitemap.xml",
-        allowed_category_keywords=(
-            "mercearia",
-            "alimentos basicos",
-            "arroz",
-            "feijao",
-            "massas",
-            "matinais",
-            "cafe",
-            "achocolatado",
-            "cereais",
-            "snacks",
-            "biscoitos",
-            "bebidas nao alcoolicas",
-            "acougue",
-            "peixaria",
-            "bebidas",
-            "whisky",
-            "vodka",
-            "drogaria",
-            "comemoracoes",
-            "diet",
-            "saudaveis",
-            "veganos",
-            "frios",
-            "laticinios",
-            "padaria",
-            "congelados",
-            "sobremesas",
-            "hortifruti",
-            "bebe",
-            "infantil",
-            "limpeza",
-            "higiene",
-            "perfumaria",
-            "casa",
-            "eletro",
-            "pet care",
-        ),
+        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
     )
     options = ImportOptions(
         provider=job.provider,

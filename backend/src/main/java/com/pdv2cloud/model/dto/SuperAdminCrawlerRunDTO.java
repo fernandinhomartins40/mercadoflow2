@@ -23,5 +23,5 @@ public class SuperAdminCrawlerRunDTO {
     private String message;
     private String triggeredBy;
     private List<String> sources = new ArrayList<>();
+    private List<String> selectedCategories = new ArrayList<>();
 }
-

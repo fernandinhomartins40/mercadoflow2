@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCategoryOptionDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
@@ -44,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.text.Normalizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -92,13 +94,16 @@ public class SuperAdminService {
             "CARREFOUR_WEB_BR",
             false,
             "Categorias de supermercado",
-            "VTEX catalog API",
+            "VTEX sitemap + detail",
             "extract_and_import_carrefour.py",
-            "Importa o tenant oficial Mercado Carrefour e filtra as categorias de supermercado definidas para mercearia, bebidas, acougue, hortifruti, limpeza, higiene, casa e pet.",
+            "Importa o tenant oficial Mercado Carrefour por sitemap de produtos e detalhe por slug, filtrando as categorias de supermercado definidas para mercearia, bebidas, acougue, hortifruti, limpeza, higiene, casa e pet.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
-            List.of("https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
+            List.of(
+                "https://mercado.carrefour.com.br/sitemap.xml",
+                "https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/products/search/arroz/p"
+            ),
             List.of("mercado.carrefour.com.br", "carrefourbrfood.vtexcommercestable.com.br", "carrefourbrfood.myvtex.com")
         ),
         new FixedCrawlerJob(
@@ -106,13 +111,16 @@ public class SuperAdminService {
             "DROGARIASP_WEB_BR",
             true,
             "Todas as categorias",
-            "VTEX catalog API",
+            "VTEX sitemap + detail",
             "extract_and_import_drogariasp.py",
-            "Importa todas as categorias pela API publica da VTEX e inclui medicamentos quando o provider expuser GTIN.",
+            "Importa todas as categorias por sitemap de produtos e detalhe por slug na VTEX, incluindo medicamentos quando o provider expuser GTIN.",
             "Public website/API data (respect provider terms and robots)",
             true,
             true,
-            List.of("https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
+            List.of(
+                "https://www.drogariasaopaulo.com.br/sitemap.xml",
+                "https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search/dorflex/p"
+            ),
             List.of("www.drogariasaopaulo.com.br", "drogariasaopaulo.com.br")
         ),
         new FixedCrawlerJob(
@@ -120,14 +128,69 @@ public class SuperAdminService {
             "ATACADAO_WEB_BR",
             true,
             "Categorias de supermercado",
-            "VTEX catalog API",
+            "VTEX sitemap + detail",
             "extract_and_import_atacadao.py",
-            "Importa o catalogo oficial do Atacadao Online e filtra bebidas, mercearia, limpeza, higiene, padaria, pet shop, automotivo, frios, hortifruti, carnes, vestuario e utilidades domesticas.",
+            "Importa o catalogo oficial do Atacadao Online por sitemap de produtos e detalhe por slug, filtrando bebidas, mercearia, limpeza, higiene, padaria, pet shop, automotivo, frios, hortifruti, carnes, vestuario e utilidades domesticas.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
-            List.of("https://www.atacadao.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
+            List.of(
+                "https://www.atacadao.com.br/sitemap.xml",
+                "https://www.atacadao.com.br/api/catalog_system/pub/products/search/arroz/p"
+            ),
             List.of("www.atacadao.com.br", "atacadao.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Super Muffato",
+            "SUPERMUFFATO_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX sitemap + detail",
+            "extract_and_import_supermuffato.py",
+            "Importa o catalogo completo do Super Muffato por sitemap de produtos e detalhe por slug para recuperar GTIN, preco e imagem principal.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.supermuffato.com.br/sitemap.xml",
+                "https://www.supermuffato.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"
+            ),
+            List.of("www.supermuffato.com.br", "supermuffato.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Amigao",
+            "AMIGAO_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX sitemap + detail",
+            "extract_and_import_amigao.py",
+            "Importa o catalogo completo do Amigao por sitemap de produtos e detalhe na VTEX do tenant oficial, sem depender das paginas de produto que hoje estao instaveis.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.amigao.com/sitemap.xml",
+                "https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"
+            ),
+            List.of("www.amigao.com", "amigao.com", "novo.amigao.com", "amigao.vtexcommercestable.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Super Koch",
+            "SUPERKOCH_WEB_BR",
+            true,
+            "Catalogo completo",
+            "Sitemap + GraphQL",
+            "extract_and_import_superkoch.py",
+            "Importa o catalogo do Super Koch por sitemap de produtos e consulta GraphQL oficial por item para recuperar GTIN, preco e imagem quando disponivel.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.superkoch.com.br/sitemap.xml",
+                "https://www.superkoch.com.br/categorias/",
+                "https://api.superkoch.com.br:443/graphql"
+            ),
+            List.of("www.superkoch.com.br", "superkoch.com.br", "api.superkoch.com.br")
         )
     );
 
@@ -157,6 +220,9 @@ public class SuperAdminService {
 
     @Autowired
     private CatalogCrawlerRunArtifactsService catalogCrawlerRunArtifactsService;
+
+    @Autowired
+    private CatalogCrawlerCategoryService catalogCrawlerCategoryService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -318,22 +384,38 @@ public class SuperAdminService {
         return FIXED_CRAWLER_JOBS.stream().map(this::toCrawlerJobDTO).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<SuperAdminCrawlerCategoryOptionDTO> listCrawlerCategories(String provider) {
+        findFixedCrawlerJob(provider);
+        return catalogCrawlerCategoryService.listCategories(provider);
+    }
+
     public SuperAdminCrawlerRunDTO triggerCrawlerRun(String triggeredBy) {
         throw new IllegalArgumentException("Execucao global desativada. O crawler agora roda manualmente um supermercado por vez.");
     }
 
-    public SuperAdminCrawlerRunDTO triggerCrawlerRunForProvider(String provider, String triggeredBy) {
+    public SuperAdminCrawlerRunDTO triggerCrawlerRunForProvider(
+        String provider,
+        String triggeredBy,
+        List<String> selectedCategories
+    ) {
         FixedCrawlerJob job = findFixedCrawlerJob(provider);
         if (!job.enabled()) {
             throw new IllegalArgumentException("Provider temporariamente desabilitado no crawler: " + job.provider());
         }
         ensureNoActiveCrawlerRun(null);
+        List<String> sanitizedCategories = sanitizeSelectedCategories(job.provider(), selectedCategories);
         CatalogCrawlerRun run = new CatalogCrawlerRun();
         run.setRequestedAt(LocalDateTime.now());
         run.setStatus("QUEUED");
-        run.setMessage("Execucao manual enfileirada. O dispatcher vai rodar somente este supermercado.");
+        run.setMessage(
+            sanitizedCategories.isEmpty()
+                ? "Execucao manual enfileirada. O dispatcher vai rodar somente este supermercado."
+                : "Execucao manual enfileirada com " + sanitizedCategories.size() + " categorias selecionadas."
+        );
         run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
         run.setSourcesJson(toJsonArray(List.of(job.provider())));
+        run.setFiltersJson(toFiltersJson(sanitizedCategories));
         return toCrawlerRunDTO(crawlerRunRepository.save(run));
     }
 
@@ -388,6 +470,7 @@ public class SuperAdminService {
         newRun.setStatus("QUEUED");
         newRun.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN_RESTART"));
         newRun.setSourcesJson(toJsonArray(sourceProviders));
+        newRun.setFiltersJson(sourceRun.getFiltersJson());
         newRun.setMessage(cleanMessage("Reexecucao solicitada a partir do run " + sourceRun.getId()));
         return toCrawlerRunDTO(crawlerRunRepository.save(newRun));
     }
@@ -533,6 +616,7 @@ public class SuperAdminService {
         dto.setMessage(run.getMessage());
         dto.setTriggeredBy(run.getTriggeredBy());
         dto.setSources(parseJsonArray(run.getSourcesJson()));
+        dto.setSelectedCategories(parseSelectedCategories(run.getFiltersJson()));
         return dto;
     }
 
@@ -663,6 +747,63 @@ public class SuperAdminService {
         } catch (Exception ex) {
             return new ArrayList<>();
         }
+    }
+
+    private String toFiltersJson(List<String> selectedCategories) {
+        return toJsonArray(selectedCategories == null ? Collections.emptyList() : selectedCategories);
+    }
+
+    private List<String> parseSelectedCategories(String filtersJson) {
+        return parseJsonArray(filtersJson);
+    }
+
+    private List<String> sanitizeSelectedCategories(String provider, List<String> selectedCategories) {
+        if (selectedCategories == null || selectedCategories.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Set<String> allowed = new HashSet<>();
+        for (SuperAdminCrawlerCategoryOptionDTO option : catalogCrawlerCategoryService.listCategories(provider)) {
+            String normalized = normalizeCategoryValue(option.getValue());
+            if (!normalized.isBlank()) {
+                allowed.add(normalized);
+            }
+        }
+
+        List<String> sanitized = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String value : selectedCategories) {
+            String cleanValue = cleanCategoryValue(value);
+            String normalized = normalizeCategoryValue(cleanValue);
+            if (normalized.isBlank()) {
+                continue;
+            }
+            if (!allowed.isEmpty() && !allowed.contains(normalized)) {
+                continue;
+            }
+            if (seen.add(normalized)) {
+                sanitized.add(cleanValue);
+            }
+        }
+        return sanitized;
+    }
+
+    private String cleanCategoryValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 255 ? trimmed.substring(0, 255) : trimmed;
+    }
+
+    private String normalizeCategoryValue(String value) {
+        String cleaned = cleanCategoryValue(value).toLowerCase(Locale.ROOT);
+        if (cleaned.isBlank()) {
+            return "";
+        }
+        return Normalizer.normalize(cleaned, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+", "")
+            .replaceAll("[^a-z0-9]+", " ")
+            .trim();
     }
 
     private String cleanLabel(String value, String fallback) {

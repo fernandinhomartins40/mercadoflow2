@@ -14,7 +14,8 @@ import requests
 
 from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
-from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_paged_job, run_vtex_sitemap_job
+from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_sitemap_job
+from fixed_market_catalog_koch import KochJobConfig, run_koch_catalog_job
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,8 +46,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpa-detail-workers", type=int, default=16)
     parser.add_argument("--dsp-page-size", type=int, default=50)
     parser.add_argument("--dsp-max-pages", type=int, default=0)
+    parser.add_argument("--dsp-product-workers", type=int, default=12)
     parser.add_argument("--atacadao-page-size", type=int, default=50)
     parser.add_argument("--atacadao-max-pages", type=int, default=0)
+    parser.add_argument("--atacadao-product-workers", type=int, default=12)
+    parser.add_argument("--muffato-page-size", type=int, default=50)
+    parser.add_argument("--muffato-max-pages", type=int, default=0)
+    parser.add_argument("--muffato-product-workers", type=int, default=12)
+    parser.add_argument("--amigao-page-size", type=int, default=50)
+    parser.add_argument("--amigao-max-pages", type=int, default=0)
+    parser.add_argument("--amigao-product-workers", type=int, default=12)
+    parser.add_argument("--carrefour-product-workers", type=int, default=12)
+    parser.add_argument("--koch-product-workers", type=int, default=12)
+    parser.add_argument("--koch-max-products", type=int, default=0)
     return parser.parse_args()
 
 
@@ -199,6 +211,14 @@ def build_options(args: argparse.Namespace, provider: str, source_license: str, 
     )
 
 
+def selected_categories_for_provider(args: argparse.Namespace, provider: str) -> tuple[str, ...]:
+    selected_map = getattr(args, "_selected_categories_map", {}) or {}
+    raw_values = selected_map.get(provider) or []
+    if not isinstance(raw_values, list):
+        return ()
+    return tuple(value for value in raw_values if norm_text(value))
+
+
 def run_paodeacucar(args: argparse.Namespace) -> Dict[str, Any]:
     job = GpaJobConfig(
         name="Pao de Acucar",
@@ -219,6 +239,7 @@ def run_paodeacucar(args: argparse.Namespace) -> Dict[str, Any]:
             "PetShop",
             "Textil",
         ),
+        selected_categories=selected_categories_for_provider(args, "PAODEACUCAR_WEB_BR"),
     )
     return run_gpa_catalog_job(
         job,
@@ -249,6 +270,7 @@ def run_extra(args: argparse.Namespace) -> Dict[str, Any]:
             "PetShop",
             "Textil",
         ),
+        selected_categories=selected_categories_for_provider(args, "EXTRA_WEB_BR"),
     )
     return run_gpa_catalog_job(
         job,
@@ -267,7 +289,8 @@ def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/carrefour_web_br_catalog",
         site_base="https://mercado.carrefour.com.br",
         catalog_api_base="https://carrefourbrfood.vtexcommercestable.com.br",
-        mode="paged_search",
+        mode="sitemap",
+        sitemap_index_url="https://mercado.carrefour.com.br/sitemap.xml",
         allowed_category_keywords=(
             "mercearia",
             "alimentos basicos",
@@ -306,13 +329,12 @@ def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
             "eletro",
             "pet care",
         ),
+        selected_categories=selected_categories_for_provider(args, "CARREFOUR_WEB_BR"),
     )
-    return run_vtex_paged_job(
+    return run_vtex_sitemap_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        page_size=args.carrefour_page_size,
-        max_pages=args.carrefour_max_pages,
-        slug_fallback=True,
+        product_workers=max(4, min(32, args.carrefour_product_workers)),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -325,14 +347,14 @@ def run_drogariasp(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/drogariasp_web_br_catalog",
         site_base="https://www.drogariasaopaulo.com.br",
         catalog_api_base="https://www.drogariasaopaulo.com.br",
-        mode="paged_search",
+        mode="sitemap",
+        sitemap_index_url="https://www.drogariasaopaulo.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "DROGARIASP_WEB_BR"),
     )
-    return run_vtex_paged_job(
+    return run_vtex_sitemap_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        page_size=args.dsp_page_size,
-        max_pages=args.dsp_max_pages,
-        slug_fallback=True,
+        product_workers=max(4, min(32, args.dsp_product_workers)),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -345,7 +367,8 @@ def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/atacadao_web_br_catalog",
         site_base="https://www.atacadao.com.br",
         catalog_api_base="https://www.atacadao.com.br",
-        mode="paged_search",
+        mode="sitemap",
+        sitemap_index_url="https://www.atacadao.com.br/sitemap.xml",
         allowed_category_keywords=(
             "bebidas",
             "mercearia",
@@ -374,13 +397,73 @@ def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
             "esporte",
             "lazer",
         ),
+        selected_categories=selected_categories_for_provider(args, "ATACADAO_WEB_BR"),
     )
-    return run_vtex_paged_job(
+    return run_vtex_sitemap_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        page_size=args.atacadao_page_size,
-        max_pages=args.atacadao_max_pages,
-        slug_fallback=True,
+        product_workers=max(4, min(32, args.atacadao_product_workers)),
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_supermuffato(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Super Muffato",
+        provider="SUPERMUFFATO_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/supermuffato_web_br_catalog",
+        site_base="https://www.supermuffato.com.br",
+        catalog_api_base="https://www.supermuffato.com.br",
+        mode="sitemap",
+        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "SUPERMUFFATO_WEB_BR"),
+    )
+    return run_vtex_sitemap_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        product_workers=max(4, min(32, args.muffato_product_workers)),
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_amigao(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Amigao",
+        provider="AMIGAO_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/amigao_web_br_catalog",
+        site_base="https://novo.amigao.com",
+        catalog_api_base="https://amigao.vtexcommercestable.com.br",
+        mode="sitemap",
+        sitemap_index_url="https://www.amigao.com/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "AMIGAO_WEB_BR"),
+    )
+    return run_vtex_sitemap_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        product_workers=max(4, min(32, args.amigao_product_workers)),
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_superkoch(args: argparse.Namespace) -> Dict[str, Any]:
+    job = KochJobConfig(
+        name="Super Koch",
+        provider="SUPERKOCH_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/superkoch_web_br_catalog",
+        site_base="https://www.superkoch.com.br",
+        sitemap_url="https://www.superkoch.com.br/sitemap.xml",
+        graphql_url="https://api.superkoch.com.br:443/graphql",
+        categories_url="https://www.superkoch.com.br/categorias/",
+        selected_categories=selected_categories_for_provider(args, "SUPERKOCH_WEB_BR"),
+    )
+    return run_koch_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        product_workers=args.koch_product_workers,
+        max_products=args.koch_max_products,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -391,6 +474,9 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "CARREFOUR_WEB_BR": run_carrefour,
     "DROGARIASP_WEB_BR": run_drogariasp,
     "ATACADAO_WEB_BR": run_atacadao,
+    "SUPERMUFFATO_WEB_BR": run_supermuffato,
+    "AMIGAO_WEB_BR": run_amigao,
+    "SUPERKOCH_WEB_BR": run_superkoch,
 }
 DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR"}
 
@@ -406,12 +492,18 @@ def resolve_providers(raw: Sequence[str]) -> List[str]:
     return [provider for provider in providers if provider in RUNNERS and provider not in DISABLED_PROVIDERS]
 
 
-def run_providers(args: argparse.Namespace, providers: Sequence[str], cancel_check: Optional[Callable[[], bool]] = None) -> Dict[str, Any]:
+def run_providers(
+    args: argparse.Namespace,
+    providers: Sequence[str],
+    cancel_check: Optional[Callable[[], bool]] = None,
+    selected_categories_map: Optional[Dict[str, List[str]]] = None,
+) -> Dict[str, Any]:
     totals = empty_totals()
     summary: List[Dict[str, Any]] = []
     messages: List[str] = []
     failed = False
     args._cancel_check = cancel_check
+    args._selected_categories_map = selected_categories_map or {}
 
     if not providers:
         return {
@@ -533,6 +625,11 @@ def main() -> int:
 
             claimed_sources = claimed.get("sources") or []
             providers = resolve_providers(claimed_sources)
+            selected_categories_map = {}
+            if len(providers) == 1:
+                selected_categories_map[providers[0]] = [
+                    value for value in (claimed.get("selectedCategories") or []) if norm_text(value)
+                ]
             run_id = ""
 
             def cancel_check() -> bool:
@@ -563,8 +660,16 @@ def main() -> int:
 
             try:
                 with capture_run_output(run_log_path):
-                    print(f"manual run claimed id={run_id} providers={providers}")
-                    result = run_providers(args, providers, cancel_check=cancel_check)
+                    print(
+                        f"manual run claimed id={run_id} providers={providers} "
+                        f"selected_categories={selected_categories_map.get(providers[0], []) if providers else []}"
+                    )
+                    result = run_providers(
+                        args,
+                        providers,
+                        cancel_check=cancel_check,
+                        selected_categories_map=selected_categories_map,
+                    )
             except Exception as exc:
                 with capture_run_output(run_log_path):
                     print(f"dispatcher cycle failed for run {run_id}: {exc}", file=sys.stderr)

@@ -20,6 +20,7 @@ interface CrawlerRun {
   message?: string | null;
   triggeredBy?: string | null;
   sources?: string[] | null;
+  selectedCategories?: string[] | null;
 }
 
 interface CrawlerRunDetails {
@@ -154,9 +155,14 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                 <p>{details.run.triggeredBy || '--'}</p>
               </div>
               <div className="card">
-                <span className="section-kicker">Providers</span>
-                <h3>{(details.run.sources || []).length}</h3>
-                <p>{(details.run.sources || []).join(', ') || '--'}</p>
+                <span className="section-kicker">Escopo</span>
+                <h3>{details.run.selectedCategories && details.run.selectedCategories.length > 0 ? details.run.selectedCategories.length : 'Completo'}</h3>
+                <p>
+                  {(details.run.sources || []).join(', ') || '--'}
+                  {details.run.selectedCategories && details.run.selectedCategories.length > 0
+                    ? ` | ${details.run.selectedCategories.join(', ')}`
+                    : ' | catalogo completo'}
+                </p>
               </div>
               <div className="card">
                 <span className="section-kicker">Captados</span>

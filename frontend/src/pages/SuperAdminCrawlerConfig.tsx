@@ -20,6 +20,7 @@ interface CrawlerRun {
   message?: string | null;
   triggeredBy?: string | null;
   sources?: string[] | null;
+  selectedCategories?: string[] | null;
 }
 
 interface CrawlerMonitor {
@@ -43,6 +44,12 @@ interface CrawlerJob {
   queuedRuns?: number | null;
   runningRuns?: number | null;
   lastRun?: CrawlerRun | null;
+}
+
+interface CrawlerCategoryOption {
+  value: string;
+  label: string;
+  childrenCount?: number | null;
 }
 
 const formatDate = (value?: string | null) => {
@@ -82,6 +89,11 @@ const SuperAdminCrawlerConfig: React.FC = () => {
   const [triggeringProvider, setTriggeringProvider] = useState<string | null>(null);
   const [stoppingRunId, setStoppingRunId] = useState<string | null>(null);
   const [restartingRunId, setRestartingRunId] = useState<string | null>(null);
+  const [categoryJob, setCategoryJob] = useState<CrawlerJob | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<CrawlerCategoryOption[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -98,6 +110,11 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     () => jobs.filter((job) => Number(job.runningRuns || 0) > 0 || (job.lastRun?.status || '').toUpperCase() === 'RUNNING').length,
     [jobs]
   );
+  const filteredCategoryOptions = useMemo(() => {
+    const search = categorySearch.trim().toLowerCase();
+    if (!search) return categoryOptions;
+    return categoryOptions.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(search));
+  }, [categoryOptions, categorySearch]);
 
   const loadJobs = async () => {
     const response = await api.get('/v1/super-admin/catalog/crawler/jobs');
@@ -132,19 +149,79 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     return () => window.clearInterval(handle);
   }, []);
 
-  const triggerProvider = async (provider: string) => {
+  const closeCategoryModal = () => {
+    setCategoryJob(null);
+    setCategoryOptions([]);
+    setSelectedCategories([]);
+    setCategorySearch('');
+    setCategoriesLoading(false);
+  };
+
+  const triggerProvider = async (provider: string, categories: string[] = []) => {
     setTriggeringProvider(provider);
     setError(null);
     setSuccess(null);
     try {
-      await api.post(`/v1/super-admin/catalog/crawler/jobs/${provider}/trigger?triggeredBy=MANUAL_SUPER_ADMIN`);
-      setSuccess(`Execucao manual enfileirada para ${provider}. O dispatcher agora roda um supermercado por vez.`);
+      await api.post(`/v1/super-admin/catalog/crawler/jobs/${provider}/trigger?triggeredBy=MANUAL_SUPER_ADMIN`, {
+        triggeredBy: 'MANUAL_SUPER_ADMIN',
+        selectedCategories: categories,
+      });
+      setSuccess(
+        categories.length > 0
+          ? `Execucao manual enfileirada para ${provider} com ${categories.length} categorias selecionadas.`
+          : `Execucao manual enfileirada para ${provider} com catalogo completo.`
+      );
+      closeCategoryModal();
       await Promise.all([loadJobs(), loadMonitor()]);
     } catch (err: any) {
       setError(err?.message || `Falha ao enfileirar execucao de ${provider}`);
     } finally {
       setTriggeringProvider(null);
     }
+  };
+
+  const prepareProviderTrigger = async (job: CrawlerJob) => {
+    setError(null);
+    setSuccess(null);
+    setCategoryJob(job);
+    setCategoryOptions([]);
+    setSelectedCategories([]);
+    setCategorySearch('');
+    setCategoriesLoading(true);
+    try {
+      const response = await api.get(`/v1/super-admin/catalog/crawler/jobs/${job.provider}/categories`);
+      const options = Array.isArray(response.data) ? response.data : [];
+      if (options.length === 0) {
+        closeCategoryModal();
+        await triggerProvider(job.provider, []);
+        return;
+      }
+      setCategoryOptions(options);
+      setSelectedCategories([]);
+    } catch (err: any) {
+      closeCategoryModal();
+      setError(err?.message || `Falha ao carregar categorias de ${job.provider}`);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const toggleSelectedCategory = (value: string) => {
+    setSelectedCategories((current) =>
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+    );
+  };
+
+  const selectVisibleCategories = () => {
+    setSelectedCategories((current) => {
+      const next = new Set(current);
+      filteredCategoryOptions.forEach((option) => next.add(option.value));
+      return Array.from(next);
+    });
+  };
+
+  const clearCategorySelection = () => {
+    setSelectedCategories([]);
   };
 
   const stopRun = async (runId: string) => {
@@ -292,7 +369,10 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           Ver detalhes
                         </Link>
                       ) : null}
-                      <Button onClick={() => triggerProvider(job.provider)} disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}>
+                      <Button
+                        onClick={() => prepareProviderTrigger(job)}
+                        disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}
+                      >
                         {triggeringProvider === job.provider ? 'Enfileirando...' : hasActiveRun ? 'Aguarde o run atual' : `Executar ${job.name}`}
                       </Button>
                     </div>
@@ -331,7 +411,14 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           <td data-label="Status"><span className={`status-pill ${runStatusClass(run.status)}`}>{formatStatus(run.status)}</span></td>
                           <td data-label="Solicitado">{formatDate(run.requestedAt)}</td>
                           <td data-label="Finalizado">{formatDate(run.finishedAt || run.startedAt)}</td>
-                          <td data-label="Providers">{(run.sources || []).join(', ') || '--'}</td>
+                          <td data-label="Providers">
+                            {(run.sources || []).join(', ') || '--'}
+                            <div className="table-subtext">
+                              {run.selectedCategories && run.selectedCategories.length > 0
+                                ? `Categorias: ${run.selectedCategories.slice(0, 3).join(', ')}${run.selectedCategories.length > 3 ? ` +${run.selectedCategories.length - 3}` : ''}`
+                                : 'Categorias: catalogo completo'}
+                            </div>
+                          </td>
                           <td data-label="Importados">{Number(run.importedProducts || 0)} / {Number(run.scannedProducts || 0)}</td>
                           <td data-label="Erros">{Number(run.errors || 0)}</td>
                           <td data-label="Mensagem">{run.message || '--'}</td>
@@ -365,6 +452,113 @@ const SuperAdminCrawlerConfig: React.FC = () => {
             </section>
           </>
         )}
+
+        {categoryJob ? (
+          <div className="catalog-admin-modal-backdrop" role="presentation" onClick={closeCategoryModal}>
+            <div
+              className="catalog-admin-modal card crawler-category-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="crawler-category-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="catalog-admin-modal-head">
+                <div>
+                  <span className="section-kicker">{categoryJob.provider}</span>
+                  <h3 id="crawler-category-modal-title">Selecionar categorias para {categoryJob.name}</h3>
+                  <p className="super-admin-crawler-job-text">
+                    Escolha apenas as categorias que devem ser capturadas neste run. Se nenhuma categoria ficar marcada, o crawler roda o catalogo inteiro do supermercado.
+                  </p>
+                </div>
+                <Button variant="secondary" onClick={closeCategoryModal} disabled={triggeringProvider === categoryJob.provider}>
+                  Fechar
+                </Button>
+              </div>
+
+              {categoriesLoading ? (
+                <div className="panel-empty">Carregando categorias disponiveis...</div>
+              ) : (
+                <>
+                  <div className="crawler-category-toolbar">
+                    <label className="crawler-category-search">
+                      <span className="section-kicker">Buscar categoria</span>
+                      <input
+                        className="input"
+                        type="text"
+                        value={categorySearch}
+                        onChange={(event) => setCategorySearch(event.target.value)}
+                        placeholder="Ex.: bebidas, higiene, mercearia"
+                      />
+                    </label>
+                    <div className="crawler-category-toolbar-actions">
+                      <Button variant="secondary" onClick={selectVisibleCategories}>
+                        Selecionar visiveis
+                      </Button>
+                      <Button variant="secondary" onClick={clearCategorySelection}>
+                        Limpar tudo
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="crawler-category-summary">
+                    <span>{selectedCategories.length} categorias selecionadas</span>
+                    <span>{filteredCategoryOptions.length} categorias exibidas</span>
+                  </div>
+
+                  {filteredCategoryOptions.length === 0 ? (
+                    <div className="panel-empty">Nenhuma categoria encontrada para o filtro informado.</div>
+                  ) : (
+                    <div className="crawler-category-grid">
+                      {filteredCategoryOptions.map((option) => {
+                        const checked = selectedCategories.includes(option.value);
+                        return (
+                          <label className={`crawler-category-option ${checked ? 'selected' : ''}`} key={option.value}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleSelectedCategory(option.value)}
+                            />
+                            <div>
+                              <strong>{option.label}</strong>
+                              <span>
+                                {Number(option.childrenCount || 0) > 0
+                                  ? `${Number(option.childrenCount || 0)} subcategorias diretas`
+                                  : 'Categoria final'}
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="crawler-category-footer">
+                    <div className="super-admin-crawler-job-license">
+                      {selectedCategories.length > 0
+                        ? 'O run sera filtrado por estas categorias.'
+                        : 'Sem selecao o run captura o catalogo completo.'}
+                    </div>
+                    <div className="crawler-run-actions">
+                      <Button variant="secondary" onClick={closeCategoryModal} disabled={triggeringProvider === categoryJob.provider}>
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={() => triggerProvider(categoryJob.provider, selectedCategories)}
+                        disabled={triggeringProvider === categoryJob.provider}
+                      >
+                        {triggeringProvider === categoryJob.provider
+                          ? 'Enfileirando...'
+                          : selectedCategories.length > 0
+                            ? `Executar ${selectedCategories.length} categorias`
+                            : 'Executar catalogo completo'}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     </SuperAdminLayout>
   );

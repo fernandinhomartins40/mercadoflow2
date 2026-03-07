@@ -3,6 +3,7 @@ package com.pdv2cloud.controller;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCategoryOptionDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
@@ -10,6 +11,7 @@ import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDetailsDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunFinishRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunStartRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunTriggerRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminMarketCreateRequest;
 import com.pdv2cloud.model.dto.SuperAdminMarketDTO;
 import com.pdv2cloud.model.dto.SuperAdminMarketUpdateRequest;
@@ -165,6 +167,13 @@ public class SuperAdminController {
         return ResponseEntity.ok(superAdminService.listCrawlerJobs());
     }
 
+    @GetMapping("/catalog/crawler/jobs/{provider}/categories")
+    public ResponseEntity<List<SuperAdminCrawlerCategoryOptionDTO>> listCrawlerCategories(
+        @PathVariable String provider
+    ) {
+        return ResponseEntity.ok(superAdminService.listCrawlerCategories(provider));
+    }
+
     @PostMapping("/catalog/crawler/runs/trigger")
     public ResponseEntity<SuperAdminCrawlerRunDTO> triggerCrawlerRun(
         @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy
@@ -175,9 +184,14 @@ public class SuperAdminController {
     @PostMapping("/catalog/crawler/jobs/{provider}/trigger")
     public ResponseEntity<SuperAdminCrawlerRunDTO> triggerCrawlerRunForProvider(
         @PathVariable String provider,
-        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy
+        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy,
+        @RequestBody(required = false) SuperAdminCrawlerRunTriggerRequestDTO request
     ) {
-        return ResponseEntity.ok(superAdminService.triggerCrawlerRunForProvider(provider, triggeredBy));
+        String effectiveTriggeredBy = request != null && request.getTriggeredBy() != null && !request.getTriggeredBy().isBlank()
+            ? request.getTriggeredBy()
+            : triggeredBy;
+        List<String> selectedCategories = request != null ? request.getSelectedCategories() : List.of();
+        return ResponseEntity.ok(superAdminService.triggerCrawlerRunForProvider(provider, effectiveTriggeredBy, selectedCategories));
     }
 
     @GetMapping("/catalog/crawler/runs/{runId}")

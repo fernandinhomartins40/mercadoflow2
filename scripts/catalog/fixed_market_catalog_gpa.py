@@ -25,6 +25,7 @@ class GpaJobConfig:
     output: str
     site_base: str
     allowed_root_categories: Tuple[str, ...] = ()
+    selected_categories: Tuple[str, ...] = ()
 
 
 def build_session() -> requests.Session:
@@ -229,6 +230,7 @@ def run_gpa_catalog_job(
                 "source": "GPA_PUBLIC_API",
                 "storeId": job.store_id,
                 "selectedRootCategories": selected_roots,
+                "selectedCategories": list(job.selected_categories),
                 "shelvesDiscovered": len(shelf_ids),
                 "rowsTotal": listing_rows_total,
                 "productsUnique": len(unique_rows),
@@ -259,15 +261,28 @@ def run_gpa_catalog_job(
 
     shelf_paths: Dict[int, str] = {}
     allowed_roots = {normalize_key(value) for value in job.allowed_root_categories if normalize_key(value)}
+    selected_categories = tuple(normalize_key(value) for value in job.selected_categories if normalize_key(value))
     selected_roots: List[str] = []
+
+    def shelf_matches_selection(path: str) -> bool:
+        normalized_path = normalize_key(path)
+        if not selected_categories:
+            return True
+        if not normalized_path:
+            return False
+        return any(selected in normalized_path for selected in selected_categories)
+
     for root_node in categories.get("content") or []:
         root_name = norm_text(root_node.get("name")) if isinstance(root_node, dict) else ""
         if allowed_roots and normalize_key(root_name) not in allowed_roots:
             continue
-        if root_name:
-            selected_roots.append(root_name)
         for shelf_id, trail in iter_shelf_nodes(root_node):
+            if not shelf_matches_selection(trail):
+                continue
             shelf_paths.setdefault(shelf_id, trail)
+            root_label = trail.split(" > ", 1)[0]
+            if root_label and root_label not in selected_roots:
+                selected_roots.append(root_label)
     shelf_ids = sorted(shelf_paths.keys())
     print(f"[{job.provider}] shelves discovered={len(shelf_ids)} roots={selected_roots or 'ALL'}")
 
@@ -348,6 +363,7 @@ def run_gpa_catalog_job(
             "source": "GPA_PUBLIC_API",
             "storeId": job.store_id,
             "selectedRootCategories": selected_roots,
+            "selectedCategories": list(job.selected_categories),
             "shelvesDiscovered": len(shelf_ids),
             "rowsTotal": listing_rows_total,
             "productsUnique": len(unique_rows),
