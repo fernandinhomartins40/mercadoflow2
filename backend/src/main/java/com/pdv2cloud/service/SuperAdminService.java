@@ -87,15 +87,15 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Carrefour Brasil",
             "CARREFOUR_WEB_BR",
-            "Todas as categorias",
-            "VTEX sitemap + product API",
+            "Categorias de supermercado",
+            "VTEX catalog API",
             "extract_and_import_carrefour.py",
-            "Enumera todos os produtos via sitemap oficial e busca o detalhe estruturado da VTEX por slug para maximizar recuperacao de GTIN e imagem.",
+            "Importa o tenant oficial Mercado Carrefour e filtra as categorias de supermercado definidas para mercearia, bebidas, acougue, hortifruti, limpeza, higiene, casa e pet.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
-            List.of("https://www.carrefour.com.br/sitemap.xml"),
-            List.of("www.carrefour.com.br", "carrefour.com.br", "carrefourbr.vtexcommercestable.com.br", "carrefourbr.myvtex.com")
+            List.of("https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
+            List.of("mercado.carrefour.com.br", "carrefourbrfood.vtexcommercestable.com.br", "carrefourbrfood.myvtex.com")
         ),
         new FixedCrawlerJob(
             "Drogaria Sao Paulo",
@@ -109,6 +109,19 @@ public class SuperAdminService {
             true,
             List.of("https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
             List.of("www.drogariasaopaulo.com.br", "drogariasaopaulo.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Atacadao Online",
+            "ATACADAO_WEB_BR",
+            "Categorias de supermercado",
+            "VTEX catalog API",
+            "extract_and_import_atacadao.py",
+            "Importa o catalogo oficial do Atacadao Online e filtra bebidas, mercearia, limpeza, higiene, padaria, pet shop, automotivo, frios, hortifruti, carnes, vestuario e utilidades domesticas.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of("https://www.atacadao.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"),
+            List.of("www.atacadao.com.br", "atacadao.com.br")
         )
     );
 

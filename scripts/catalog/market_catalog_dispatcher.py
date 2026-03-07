@@ -34,11 +34,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
     parser.add_argument("--worker-name", default="MERCADOFLOW_MARKET_DISPATCHER")
     parser.add_argument("--providers", default="")
-    parser.add_argument("--carrefour-product-workers", type=int, default=16)
+    parser.add_argument("--carrefour-page-size", type=int, default=50)
+    parser.add_argument("--carrefour-max-pages", type=int, default=0)
     parser.add_argument("--gpa-list-workers", type=int, default=8)
     parser.add_argument("--gpa-detail-workers", type=int, default=16)
     parser.add_argument("--dsp-page-size", type=int, default=50)
     parser.add_argument("--dsp-max-pages", type=int, default=0)
+    parser.add_argument("--atacadao-page-size", type=int, default=50)
+    parser.add_argument("--atacadao-max-pages", type=int, default=0)
     return parser.parse_args()
 
 
@@ -189,6 +192,17 @@ def run_paodeacucar(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/paodeacucar_web_br_catalog",
         site_base="https://www.paodeacucar.com",
+        allowed_root_categories=(
+            "Alimentos",
+            "Bebidas",
+            "Limpeza",
+            "Descartaveis",
+            "Bebe e Crianca",
+            "Perfumaria",
+            "Bazar",
+            "PetShop",
+            "Textil",
+        ),
     )
     return run_gpa_catalog_job(
         job,
@@ -207,6 +221,17 @@ def run_extra(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/extra_web_br_catalog",
         site_base="https://www.extramercado.com.br",
+        allowed_root_categories=(
+            "Alimentos",
+            "Bebidas",
+            "Limpeza",
+            "Descartaveis",
+            "Bebe e Crianca",
+            "Perfumaria",
+            "Bazar",
+            "PetShop",
+            "Textil",
+        ),
     )
     return run_gpa_catalog_job(
         job,
@@ -222,15 +247,54 @@ def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
         provider="CARREFOUR_WEB_BR",
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/carrefour_web_br_catalog",
-        site_base="https://www.carrefour.com.br",
-        catalog_api_base="https://carrefourbr.vtexcommercestable.com.br",
-        mode="sitemap_slug",
-        sitemap_index_url="https://www.carrefour.com.br/sitemap.xml",
+        site_base="https://mercado.carrefour.com.br",
+        catalog_api_base="https://carrefourbrfood.vtexcommercestable.com.br",
+        mode="paged_search",
+        allowed_category_keywords=(
+            "mercearia",
+            "alimentos basicos",
+            "arroz",
+            "feijao",
+            "massas",
+            "matinais",
+            "cafe",
+            "achocolatado",
+            "cereais",
+            "snacks",
+            "biscoitos",
+            "bebidas nao alcoolicas",
+            "acougue",
+            "peixaria",
+            "bebidas",
+            "whisky",
+            "vodka",
+            "drogaria",
+            "comemoracoes",
+            "diet",
+            "saudaveis",
+            "veganos",
+            "frios",
+            "laticinios",
+            "padaria",
+            "congelados",
+            "sobremesas",
+            "hortifruti",
+            "bebe",
+            "infantil",
+            "limpeza",
+            "higiene",
+            "perfumaria",
+            "casa",
+            "eletro",
+            "pet care",
+        ),
     )
-    return run_vtex_sitemap_job(
+    return run_vtex_paged_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        product_workers=args.carrefour_product_workers,
+        page_size=args.carrefour_page_size,
+        max_pages=args.carrefour_max_pages,
+        slug_fallback=True,
     )
 
 
@@ -253,11 +317,59 @@ def run_drogariasp(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
 
+def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Atacadao Online",
+        provider="ATACADAO_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/atacadao_web_br_catalog",
+        site_base="https://www.atacadao.com.br",
+        catalog_api_base="https://www.atacadao.com.br",
+        mode="paged_search",
+        allowed_category_keywords=(
+            "bebidas",
+            "mercearia",
+            "limpeza",
+            "higiene",
+            "perfumaria",
+            "padaria",
+            "matinais",
+            "papelaria",
+            "pet shop",
+            "petshop",
+            "automotivo",
+            "frios",
+            "congelados",
+            "eletronicos",
+            "eletroportateis",
+            "hortifruti",
+            "carnes",
+            "aves",
+            "peixes",
+            "vestuario",
+            "utilidades domesticas",
+            "jardinagem",
+            "descartaveis",
+            "embalagens",
+            "esporte",
+            "lazer",
+        ),
+    )
+    return run_vtex_paged_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=args.atacadao_page_size,
+        max_pages=args.atacadao_max_pages,
+        slug_fallback=True,
+    )
+
+
 RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "PAODEACUCAR_WEB_BR": run_paodeacucar,
     "EXTRA_WEB_BR": run_extra,
     "CARREFOUR_WEB_BR": run_carrefour,
     "DROGARIASP_WEB_BR": run_drogariasp,
+    "ATACADAO_WEB_BR": run_atacadao,
 }
 
 

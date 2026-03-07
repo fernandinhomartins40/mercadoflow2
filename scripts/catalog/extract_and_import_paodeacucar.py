@@ -39,6 +39,17 @@ def main() -> int:
         source_license="Public website/API data (respect provider terms and robots)",
         output=args.output,
         site_base="https://www.paodeacucar.com",
+        allowed_root_categories=(
+            "Alimentos",
+            "Bebidas",
+            "Limpeza",
+            "Descartaveis",
+            "Bebe e Crianca",
+            "Perfumaria",
+            "Bazar",
+            "PetShop",
+            "Textil",
+        ),
     )
     options = ImportOptions(
         provider=job.provider,

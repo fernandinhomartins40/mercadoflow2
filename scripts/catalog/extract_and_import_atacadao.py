@@ -5,16 +5,14 @@ import argparse
 import json
 
 from fixed_market_catalog_common import ImportOptions
-from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
+from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_paged_job
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Extract + import Extra Mercado catalog")
-    parser.add_argument("--store-id", type=int, default=483)
-    parser.add_argument("--max-workers-list", type=int, default=8)
-    parser.add_argument("--max-workers-detail", type=int, default=16)
-    parser.add_argument("--pause-ms", type=int, default=0)
-    parser.add_argument("--output", default="data/catalog/extra_web_br_catalog")
+    parser = argparse.ArgumentParser(description="Extract + import Atacadao catalog")
+    parser.add_argument("--page-size", type=int, default=50)
+    parser.add_argument("--max-pages", type=int, default=0)
+    parser.add_argument("--output", default="data/catalog/atacadao_web_br_catalog")
     parser.add_argument("--do-import", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--api-base", default="https://mercadoflow.com/api")
     parser.add_argument("--login-endpoint", default="/v1/super-admin/auth/login")
@@ -31,24 +29,41 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    job = GpaJobConfig(
-        name="Extra Mercado",
-        brand="ex",
-        store_id=args.store_id,
-        provider="EXTRA_WEB_BR",
+    job = VtexJobConfig(
+        name="Atacadao Online",
+        provider="ATACADAO_WEB_BR",
         source_license="Public website/API data (respect provider terms and robots)",
         output=args.output,
-        site_base="https://www.extramercado.com.br",
-        allowed_root_categories=(
-            "Alimentos",
-            "Bebidas",
-            "Limpeza",
-            "Descartaveis",
-            "Bebe e Crianca",
-            "Perfumaria",
-            "Bazar",
-            "PetShop",
-            "Textil",
+        site_base="https://www.atacadao.com.br",
+        catalog_api_base="https://www.atacadao.com.br",
+        mode="paged_search",
+        allowed_category_keywords=(
+            "bebidas",
+            "mercearia",
+            "limpeza",
+            "higiene",
+            "perfumaria",
+            "padaria",
+            "matinais",
+            "papelaria",
+            "pet shop",
+            "petshop",
+            "automotivo",
+            "frios",
+            "congelados",
+            "eletronicos",
+            "eletroportateis",
+            "hortifruti",
+            "carnes",
+            "aves",
+            "peixes",
+            "vestuario",
+            "utilidades domesticas",
+            "jardinagem",
+            "descartaveis",
+            "embalagens",
+            "esporte",
+            "lazer",
         ),
     )
     options = ImportOptions(
@@ -68,13 +83,7 @@ def main() -> int:
         max_image_bytes=args.max_image_bytes,
         output=job.output,
     )
-    result = run_gpa_catalog_job(
-        job,
-        options,
-        max_workers_list=args.max_workers_list,
-        max_workers_detail=args.max_workers_detail,
-        pause_ms=args.pause_ms,
-    )
+    result = run_vtex_paged_job(job, options, page_size=args.page_size, max_pages=args.max_pages, slug_fallback=True)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") != "FAILED" else 1
 

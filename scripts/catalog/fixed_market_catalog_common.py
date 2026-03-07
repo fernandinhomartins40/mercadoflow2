@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -55,6 +56,15 @@ def infer_extension(content_type: str, url: str) -> str:
 
 def safe_slug(value: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]+", "-", value).strip("-")[:120] or "item"
+
+
+def normalize_key(value: Any) -> str:
+    text = norm_text(value).lower()
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFKD", text)
+    ascii_only = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", " ", ascii_only).strip()
 
 
 def provider_output_base(provider: str, output: str = "") -> Path:

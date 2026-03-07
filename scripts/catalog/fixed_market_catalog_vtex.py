@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, canonical_url, norm_gtin, norm_text
+from fixed_market_catalog_common import ImportOptions, MarketImportSession, canonical_url, norm_gtin, norm_text, normalize_key
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,7 @@ class VtexJobConfig:
     catalog_api_base: str
     mode: str
     sitemap_index_url: str = ""
+    allowed_category_keywords: Tuple[str, ...] = ()
 
 
 def build_session() -> requests.Session:
@@ -138,6 +139,17 @@ def product_to_record(job: VtexJobConfig, product: Dict[str, Any]) -> Dict[str, 
     }
 
 
+def category_matches(job: VtexJobConfig, product: Dict[str, Any]) -> bool:
+    keywords = [normalize_key(value) for value in job.allowed_category_keywords if normalize_key(value)]
+    if not keywords:
+        return True
+    categories = product.get("categories") if isinstance(product, dict) else None
+    normalized_categories = normalize_key(" ".join(categories)) if isinstance(categories, list) else ""
+    if not normalized_categories:
+        return False
+    return any(keyword in normalized_categories for keyword in keywords)
+
+
 def fetch_search_page(job: VtexJobConfig, start: int, end: int) -> Tuple[List[Dict[str, Any]], int]:
     response = build_session().get(
         f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search",
@@ -209,6 +221,7 @@ def run_vtex_paged_job(
     pages = 0
     total_hint = 0
     page_errors = 0
+    skipped_unmatched = 0
     session_import = MarketImportSession(options)
 
     while True:
@@ -223,6 +236,9 @@ def run_vtex_paged_job(
             break
 
         for product in products:
+            if not category_matches(job, product):
+                skipped_unmatched += 1
+                continue
             record = product_to_record(job, product)
             if slug_fallback and not norm_gtin(record.get("code")):
                 detail = fetch_product_by_url(job, build_source_url(job.site_base, norm_text(product.get("linkText"))))
@@ -243,6 +259,8 @@ def run_vtex_paged_job(
             "source": "VTEX_SEARCH_API",
             "pagesFetched": pages,
             "totalHint": total_hint,
+            "skippedCategoryMismatch": skipped_unmatched,
+            "selectedCategoryKeywords": list(job.allowed_category_keywords),
         }
     )
     total_errors = page_errors + int(totals.get("errors", 0))
@@ -279,6 +297,7 @@ def run_vtex_sitemap_job(
 ) -> Dict[str, Any]:
     sitemap_errors = 0
     detail_errors = 0
+    skipped_unmatched = 0
     sitemap_urls = fetch_sitemap_index(job)
     session_import = MarketImportSession(options)
     discovered_products = 0
@@ -308,6 +327,9 @@ def run_vtex_sitemap_job(
                 if not product:
                     detail_errors += 1
                     continue
+                if not category_matches(job, product):
+                    skipped_unmatched += 1
+                    continue
                 session_import.push(product_to_record(job, product))
                 if index % 200 == 0 or index == len(future_to_url):
                     print(
@@ -320,6 +342,8 @@ def run_vtex_sitemap_job(
             "source": "VTEX_SITEMAP_PRODUCT_API",
             "sitemapsFetched": len(sitemap_urls),
             "productsDiscovered": discovered_products,
+            "skippedCategoryMismatch": skipped_unmatched,
+            "selectedCategoryKeywords": list(job.allowed_category_keywords),
         }
     )
     total_errors = sitemap_errors + detail_errors + int(totals.get("errors", 0))

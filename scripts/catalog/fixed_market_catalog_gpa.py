@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, norm_gtin, norm_text
+from fixed_market_catalog_common import ImportOptions, MarketImportSession, norm_gtin, norm_text, normalize_key
 
 _THREAD_LOCAL = threading.local()
 
@@ -24,6 +24,7 @@ class GpaJobConfig:
     source_license: str
     output: str
     site_base: str
+    allowed_root_categories: Tuple[str, ...] = ()
 
 
 def build_session() -> requests.Session:
@@ -221,10 +222,18 @@ def run_gpa_catalog_job(
     categories = fetch_categories(session, job)
 
     shelf_paths: Dict[int, str] = {}
-    for shelf_id, trail in iter_shelf_nodes(categories.get("content") or []):
-        shelf_paths.setdefault(shelf_id, trail)
+    allowed_roots = {normalize_key(value) for value in job.allowed_root_categories if normalize_key(value)}
+    selected_roots: List[str] = []
+    for root_node in categories.get("content") or []:
+        root_name = norm_text(root_node.get("name")) if isinstance(root_node, dict) else ""
+        if allowed_roots and normalize_key(root_name) not in allowed_roots:
+            continue
+        if root_name:
+            selected_roots.append(root_name)
+        for shelf_id, trail in iter_shelf_nodes(root_node):
+            shelf_paths.setdefault(shelf_id, trail)
     shelf_ids = sorted(shelf_paths.keys())
-    print(f"[{job.provider}] shelves discovered={len(shelf_ids)}")
+    print(f"[{job.provider}] shelves discovered={len(shelf_ids)} roots={selected_roots or 'ALL'}")
 
     unique_rows: Dict[str, Dict[str, Any]] = {}
     listing_errors = 0
@@ -279,6 +288,7 @@ def run_gpa_catalog_job(
         {
             "source": "GPA_PUBLIC_API",
             "storeId": job.store_id,
+            "selectedRootCategories": selected_roots,
             "shelvesDiscovered": len(shelf_ids),
             "rowsTotal": listing_rows_total,
             "productsUnique": len(unique_rows),
