@@ -4,6 +4,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointBatchItemDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointBatchRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCatalogImageStatusDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCatalogImageStatusRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCategoryOptionDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
@@ -23,12 +28,14 @@ import com.pdv2cloud.model.dto.SuperAdminUserDTO;
 import com.pdv2cloud.model.dto.SuperAdminUserRoleUpdateRequest;
 import com.pdv2cloud.model.dto.SuperAdminUserStatusRequest;
 import com.pdv2cloud.model.entity.CatalogCrawlerConfig;
+import com.pdv2cloud.model.entity.CatalogCrawlerCheckpoint;
 import com.pdv2cloud.model.entity.CatalogCrawlerRun;
 import com.pdv2cloud.model.entity.CatalogCrawlerSource;
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.model.entity.User;
 import com.pdv2cloud.model.entity.UserRole;
 import com.pdv2cloud.repository.CatalogCrawlerConfigRepository;
+import com.pdv2cloud.repository.CatalogCrawlerCheckpointRepository;
 import com.pdv2cloud.repository.CatalogCrawlerRunRepository;
 import com.pdv2cloud.repository.CatalogCrawlerSourceRepository;
 import com.pdv2cloud.repository.MarketRepository;
@@ -213,6 +220,9 @@ public class SuperAdminService {
     private CatalogCrawlerConfigRepository crawlerConfigRepository;
 
     @Autowired
+    private CatalogCrawlerCheckpointRepository crawlerCheckpointRepository;
+
+    @Autowired
     private CatalogCrawlerSourceRepository crawlerSourceRepository;
 
     @Autowired
@@ -223,6 +233,9 @@ public class SuperAdminService {
 
     @Autowired
     private CatalogCrawlerCategoryService catalogCrawlerCategoryService;
+
+    @Autowired
+    private CatalogCrawlerCatalogStatusService catalogCrawlerCatalogStatusService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -388,6 +401,88 @@ public class SuperAdminService {
     public List<SuperAdminCrawlerCategoryOptionDTO> listCrawlerCategories(String provider) {
         findFixedCrawlerJob(provider);
         return catalogCrawlerCategoryService.listCategories(provider);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SuperAdminCrawlerCheckpointDTO> listCrawlerCheckpoints(
+        String provider,
+        String scopeType,
+        String status,
+        int limit
+    ) {
+        String normalizedProvider = cleanLabel(provider, "").toUpperCase(Locale.ROOT);
+        if (normalizedProvider.isBlank()) {
+            throw new IllegalArgumentException("Provider do checkpoint e obrigatorio.");
+        }
+        int safeLimit = Math.max(1, Math.min(limit, 5000));
+        String normalizedStatus = normalizeCheckpointStatus(status);
+        String normalizedScopeType = cleanLabel(scopeType, "").toUpperCase(Locale.ROOT);
+        List<CatalogCrawlerCheckpoint> checkpoints = normalizedScopeType.isBlank()
+            ? crawlerCheckpointRepository.findTop5000ByProviderAndStatusOrderByUpdatedAtDesc(normalizedProvider, normalizedStatus)
+            : crawlerCheckpointRepository.findTop5000ByProviderAndScopeTypeAndStatusOrderByUpdatedAtDesc(
+                normalizedProvider,
+                normalizedScopeType,
+                normalizedStatus
+            );
+        return checkpoints.stream().limit(safeLimit).map(this::toCrawlerCheckpointDTO).toList();
+    }
+
+    public void upsertCrawlerCheckpoints(SuperAdminCrawlerCheckpointBatchRequestDTO request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Payload de checkpoint ausente.");
+        }
+        String normalizedProvider = cleanLabel(request.getProvider(), "").toUpperCase(Locale.ROOT);
+        if (normalizedProvider.isBlank()) {
+            throw new IllegalArgumentException("Provider do checkpoint e obrigatorio.");
+        }
+        List<SuperAdminCrawlerCheckpointBatchItemDTO> items = request.getItems() == null ? Collections.emptyList() : request.getItems();
+        if (items.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<CatalogCrawlerCheckpoint> checkpoints = new ArrayList<>();
+        for (SuperAdminCrawlerCheckpointBatchItemDTO item : items) {
+            String scopeType = cleanLabel(item.getScopeType(), "").toUpperCase(Locale.ROOT);
+            String scopeKey = cleanScopeKey(item.getScopeKey());
+            if (scopeType.isBlank() || scopeKey.isBlank()) {
+                continue;
+            }
+            CatalogCrawlerCheckpoint checkpoint = crawlerCheckpointRepository
+                .findByProviderAndScopeTypeAndScopeKey(normalizedProvider, scopeType, scopeKey)
+                .orElseGet(CatalogCrawlerCheckpoint::new);
+            checkpoint.setProvider(normalizedProvider);
+            checkpoint.setScopeType(scopeType);
+            checkpoint.setScopeKey(scopeKey);
+            checkpoint.setScopeHash(cleanLabel(item.getScopeHash(), ""));
+            checkpoint.setStatus(normalizeCheckpointStatus(item.getStatus()));
+            checkpoint.setRunId(request.getRunId());
+            checkpoint.setItemCount(safeInt(item.getItemCount()));
+            checkpoint.setMetadataJson(toJsonObject(item.getMetadata()));
+            checkpoint.setErrorMessage(cleanMessage(item.getErrorMessage()));
+            checkpoint.setLastSeenAt(now);
+            if ("COMPLETED".equals(checkpoint.getStatus())) {
+                checkpoint.setCompletedAt(now);
+            }
+            checkpoints.add(checkpoint);
+        }
+        if (!checkpoints.isEmpty()) {
+            crawlerCheckpointRepository.saveAll(checkpoints);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<SuperAdminCrawlerCatalogImageStatusDTO> auditCrawlerCatalogImageStatus(
+        SuperAdminCrawlerCatalogImageStatusRequestDTO request
+    ) {
+        if (request == null) {
+            throw new IllegalArgumentException("Payload de auditoria de imagem ausente.");
+        }
+        String provider = cleanLabel(request.getProvider(), "").toUpperCase(Locale.ROOT);
+        if (provider.isBlank()) {
+            throw new IllegalArgumentException("Provider da auditoria de imagem e obrigatorio.");
+        }
+        return catalogCrawlerCatalogStatusService.auditCatalogImageStatus(provider, request.getCodes());
     }
 
     public SuperAdminCrawlerRunDTO triggerCrawlerRun(String triggeredBy) {
@@ -620,6 +715,24 @@ public class SuperAdminService {
         return dto;
     }
 
+    private SuperAdminCrawlerCheckpointDTO toCrawlerCheckpointDTO(CatalogCrawlerCheckpoint checkpoint) {
+        SuperAdminCrawlerCheckpointDTO dto = new SuperAdminCrawlerCheckpointDTO();
+        dto.setId(checkpoint.getId());
+        dto.setProvider(checkpoint.getProvider());
+        dto.setScopeType(checkpoint.getScopeType());
+        dto.setScopeKey(checkpoint.getScopeKey());
+        dto.setScopeHash(checkpoint.getScopeHash());
+        dto.setStatus(checkpoint.getStatus());
+        dto.setRunId(checkpoint.getRunId());
+        dto.setItemCount(checkpoint.getItemCount());
+        dto.setMetadata(parseJsonObject(checkpoint.getMetadataJson()));
+        dto.setErrorMessage(checkpoint.getErrorMessage());
+        dto.setCompletedAt(checkpoint.getCompletedAt());
+        dto.setLastSeenAt(checkpoint.getLastSeenAt());
+        dto.setUpdatedAt(checkpoint.getUpdatedAt());
+        return dto;
+    }
+
     private SuperAdminCrawlerJobDTO toCrawlerJobDTO(FixedCrawlerJob job) {
         String quotedProvider = "\"" + job.provider() + "\"";
         SuperAdminCrawlerJobDTO dto = new SuperAdminCrawlerJobDTO();
@@ -749,6 +862,26 @@ public class SuperAdminService {
         }
     }
 
+    private String toJsonObject(Map<String, Object> value) {
+        Map<String, Object> safeValue = value == null ? Collections.emptyMap() : value;
+        try {
+            return objectMapper.writeValueAsString(safeValue);
+        } catch (Exception ex) {
+            return "{}";
+        }
+    }
+
+    private Map<String, Object> parseJsonObject(String value) {
+        if (value == null || value.isBlank()) {
+            return new HashMap<>();
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            return new HashMap<>();
+        }
+    }
+
     private String toFiltersJson(List<String> selectedCategories) {
         return toJsonArray(selectedCategories == null ? Collections.emptyList() : selectedCategories);
     }
@@ -822,6 +955,14 @@ public class SuperAdminService {
         return trimmed.length() > 2000 ? trimmed.substring(0, 2000) : trimmed;
     }
 
+    private String cleanScopeKey(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 512 ? trimmed.substring(0, 512) : trimmed;
+    }
+
     private String normalizeRunStatus(String status) {
         if (status == null || status.isBlank()) {
             return "SUCCESS";
@@ -836,6 +977,17 @@ public class SuperAdminService {
     private boolean isFinalRunStatus(String status) {
         String normalized = normalizeRunStatus(status);
         return "SUCCESS".equals(normalized) || "FAILED".equals(normalized) || "CANCELLED".equals(normalized);
+    }
+
+    private String normalizeCheckpointStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "COMPLETED";
+        }
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "DISCOVERED", "RUNNING", "COMPLETED", "FAILED" -> normalized;
+            default -> "COMPLETED";
+        };
     }
 
     private void ensureNoActiveCrawlerRun(UUID ignoredRunId) {

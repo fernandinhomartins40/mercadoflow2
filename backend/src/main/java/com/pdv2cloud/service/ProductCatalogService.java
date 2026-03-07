@@ -135,6 +135,7 @@ public class ProductCatalogService {
         }
 
         ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
+        catalogImageStorageService.ensureManagedImageAvailable(request.getImageUrl(), request.getImageStorageKey());
         enrichment.setProduct(product);
         enrichment.setProvider(provider);
         enrichment.setProviderProductId(ProductCatalogUtils.canonicalizeDisplayName(request.getProviderProductId()));
@@ -438,7 +439,7 @@ public class ProductCatalogService {
             enrichment.getImageUrl(),
             enrichment.getImageStorageKey()
         );
-        if (shouldPromoteProductImage(product.getImageUrl(), resolvedImageUrl)) {
+        if (shouldPromoteProductImage(product.getImageUrl(), resolvedImageUrl, enrichment.getImageStorageKey(), enrichment.getImageUrl())) {
             product.setImageUrl(resolvedImageUrl);
         }
 
@@ -496,15 +497,32 @@ public class ProductCatalogService {
         return scoreDisplayName(candidateName) > scoreDisplayName(product.getName());
     }
 
-    private boolean shouldPromoteProductImage(String currentImageUrl, String candidateImageUrl) {
+    private boolean shouldPromoteProductImage(
+        String currentImageUrl,
+        String candidateImageUrl,
+        String candidateImageStorageKey,
+        String candidateSourceImageUrl
+    ) {
         if (candidateImageUrl == null || candidateImageUrl.isBlank()) {
+            return false;
+        }
+        boolean candidateManaged = catalogImageUrlResolver.isManagedImage(candidateImageUrl);
+        boolean candidateUsesStorage = candidateImageStorageKey != null && !candidateImageStorageKey.isBlank();
+        boolean candidateAvailable = catalogImageStorageService.ensureManagedImageAvailable(
+            candidateSourceImageUrl != null && !candidateSourceImageUrl.isBlank() ? candidateSourceImageUrl : candidateImageUrl,
+            candidateImageStorageKey
+        );
+        if (candidateUsesStorage && !candidateAvailable) {
             return false;
         }
         if (currentImageUrl == null || currentImageUrl.isBlank()) {
             return true;
         }
+        boolean currentAvailable = catalogImageStorageService.ensureManagedImageAvailable(currentImageUrl, null);
+        if (!currentAvailable) {
+            return candidateUsesStorage || candidateManaged;
+        }
         boolean currentManaged = catalogImageUrlResolver.isManagedImage(currentImageUrl);
-        boolean candidateManaged = catalogImageUrlResolver.isManagedImage(candidateImageUrl);
         return candidateManaged && !currentManaged;
     }
 
@@ -731,7 +749,13 @@ public class ProductCatalogService {
     }
 
     private String selectCatalogImage(String enrichmentImageUrl, String productImageUrl) {
-        if (shouldPromoteProductImage(enrichmentImageUrl, productImageUrl)) {
+        String productImageStorageKey = catalogImageUrlResolver.extractManagedStorageKey(productImageUrl);
+        if (shouldPromoteProductImage(
+            enrichmentImageUrl,
+            productImageUrl,
+            productImageStorageKey,
+            productImageUrl
+        )) {
             return productImageUrl;
         }
         return enrichmentImageUrl != null ? enrichmentImageUrl : productImageUrl;

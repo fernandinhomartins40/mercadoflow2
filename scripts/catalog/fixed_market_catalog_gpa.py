@@ -10,7 +10,16 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, RunCancelled, norm_gtin, norm_text, normalize_key
+from fixed_market_catalog_common import (
+    ImportOptions,
+    MarketImportSession,
+    RemoteCheckpointStore,
+    RunCancelled,
+    norm_gtin,
+    norm_text,
+    normalize_key,
+    stable_hash,
+)
 
 _THREAD_LOCAL = threading.local()
 
@@ -77,7 +86,7 @@ def iter_shelf_nodes(node: Any, trail: Tuple[str, ...] = ()) -> Iterable[Tuple[i
         yield from iter_shelf_nodes(child, next_trail)
 
 
-def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, List[Dict[str, Any]]]:
+def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, List[Dict[str, Any]], str]:
     session = thread_session()
     rows: List[Dict[str, Any]] = []
     page = 1
@@ -112,7 +121,8 @@ def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, L
             break
         if pause_ms > 0:
             time.sleep(pause_ms / 1000.0)
-    return shelf_id, rows
+    shelf_hash = stable_hash([norm_text(item.get("id")) for item in rows if norm_text(item.get("id"))])
+    return shelf_id, rows, shelf_hash
 
 
 def fetch_best_prices(job: GpaJobConfig, product_id: str, pause_ms: int) -> Dict[str, Any]:
@@ -223,6 +233,8 @@ def run_gpa_catalog_job(
     session = build_session()
     categories = fetch_categories(session, job)
     session_import = MarketImportSession(options, cancel_check=cancel_check)
+    checkpoint_store = RemoteCheckpointStore(options)
+    completed_shelves = checkpoint_store.list_completed("GPA_SHELF")
 
     def cancelled_result(message: str) -> Dict[str, Any]:
         totals, manifest_path = session_import.finalize(
@@ -232,6 +244,7 @@ def run_gpa_catalog_job(
                 "selectedRootCategories": selected_roots,
                 "selectedCategories": list(job.selected_categories),
                 "shelvesDiscovered": len(shelf_ids),
+                "skippedCachedShelves": skipped_cached_shelves,
                 "rowsTotal": listing_rows_total,
                 "productsUnique": len(unique_rows),
             },
@@ -289,6 +302,8 @@ def run_gpa_catalog_job(
     unique_rows: Dict[str, Dict[str, Any]] = {}
     listing_errors = 0
     listing_rows_total = 0
+    skipped_cached_shelves = 0
+    processed_shelves: Dict[str, Dict[str, Any]] = {}
     executor = ThreadPoolExecutor(max_workers=max(1, max_workers_list))
     cancelled = False
     futures = [executor.submit(crawl_shelf, job, shelf_id, pause_ms) for shelf_id in shelf_ids]
@@ -298,13 +313,37 @@ def run_gpa_catalog_job(
                 cancelled = True
                 break
             try:
-                shelf_id, rows = future.result()
+                shelf_id, rows, shelf_hash = future.result()
             except Exception as exc:
                 listing_errors += 1
                 print(f"[{job.provider}] shelf error: {exc}")
                 continue
             listing_rows_total += len(rows)
             fallback_category = shelf_paths.get(shelf_id, "")
+            shelf_key = f"shelf:{shelf_id}"
+            cached_shelf = completed_shelves.get(shelf_key)
+            if cached_shelf and norm_text(cached_shelf.get("scopeHash")) == shelf_hash:
+                metadata = cached_shelf.get("metadata") or {}
+                shelf_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+                if isinstance(shelf_gtins, list) and shelf_gtins:
+                    missing_images = checkpoint_store.codes_needing_image_refresh(shelf_gtins)
+                    if not missing_images:
+                        skipped_cached_shelves += 1
+                        print(f"[{job.provider}] skip cached shelf_id={shelf_id} rows={len(rows)}")
+                        continue
+                    print(f"[{job.provider}] reprocess shelf_id={shelf_id} missing_images={len(missing_images)}")
+                else:
+                    print(f"[{job.provider}] reprocess shelf_id={shelf_id} reason=missing-gtin-metadata")
+            processed_shelves[shelf_key] = {
+                "scopeHash": shelf_hash,
+                "itemCount": len(rows),
+                "metadata": {
+                    "shelfId": shelf_id,
+                    "shelfPath": fallback_category,
+                    "rowCount": len(rows),
+                    "gtins": [],
+                },
+            }
             for row in rows:
                 product_id = norm_text(row.get("id"))
                 if not product_id:
@@ -313,6 +352,7 @@ def run_gpa_catalog_job(
                 if current is None:
                     copied = dict(row)
                     copied["_crawlerCategoryPath"] = fallback_category
+                    copied["_crawlerShelfId"] = shelf_id
                     unique_rows[product_id] = copied
                 elif not norm_text(current.get("_crawlerCategoryPath")) and fallback_category:
                     current["_crawlerCategoryPath"] = fallback_category
@@ -346,6 +386,12 @@ def run_gpa_catalog_job(
                 continue
             try:
                 record = merge_record(job, base, details, norm_text(base.get("_crawlerCategoryPath")))
+                gtin = norm_gtin(record.get("code"))
+                shelf_key = f"shelf:{base.get('_crawlerShelfId')}"
+                if gtin and shelf_key in processed_shelves:
+                    gtins = processed_shelves[shelf_key]["metadata"].setdefault("gtins", [])
+                    if isinstance(gtins, list) and gtin not in gtins:
+                        gtins.append(gtin)
                 session_import.push(record)
             except RunCancelled:
                 cancelled = True
@@ -365,11 +411,26 @@ def run_gpa_catalog_job(
             "selectedRootCategories": selected_roots,
             "selectedCategories": list(job.selected_categories),
             "shelvesDiscovered": len(shelf_ids),
+            "skippedCachedShelves": skipped_cached_shelves,
             "rowsTotal": listing_rows_total,
             "productsUnique": len(unique_rows),
         }
     )
     total_errors = listing_errors + detail_errors + int(totals.get("errors", 0))
+    if total_errors == 0 and processed_shelves:
+        checkpoint_store.save_many(
+            [
+                {
+                    "scopeType": "GPA_SHELF",
+                    "scopeKey": scope_key,
+                    "scopeHash": payload.get("scopeHash", ""),
+                    "status": "COMPLETED",
+                    "itemCount": int(payload.get("itemCount", 0)),
+                    "metadata": payload.get("metadata", {}),
+                }
+                for scope_key, payload in processed_shelves.items()
+            ]
+        )
     return {
         "status": "SUCCESS" if total_errors == 0 else "FAILED",
         "message": (

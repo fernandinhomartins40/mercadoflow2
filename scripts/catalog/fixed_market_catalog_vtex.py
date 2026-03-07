@@ -11,7 +11,17 @@ from urllib.parse import urlparse
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, RunCancelled, canonical_url, norm_gtin, norm_text, normalize_key
+from fixed_market_catalog_common import (
+    ImportOptions,
+    MarketImportSession,
+    RemoteCheckpointStore,
+    RunCancelled,
+    canonical_url,
+    norm_gtin,
+    norm_text,
+    normalize_key,
+    stable_hash,
+)
 
 
 @dataclass(frozen=True)
@@ -289,7 +299,10 @@ def run_vtex_paged_job(
     total_hint = 0
     page_errors = 0
     skipped_unmatched = 0
+    skipped_cached_pages = 0
     session_import = MarketImportSession(options, cancel_check=cancel_check)
+    checkpoint_store = RemoteCheckpointStore(options)
+    completed_pages = checkpoint_store.list_completed("VTEX_PAGE")
 
     while True:
         if cancel_check and cancel_check():
@@ -334,15 +347,47 @@ def run_vtex_paged_job(
         if not products:
             break
 
+        page_key = f"offset:{start}-{start + page_size - 1}"
+        page_hash = stable_hash([norm_text(product.get("productId") or product.get("linkText")) for product in products])
+        cached_page = completed_pages.get(page_key)
+        if cached_page and norm_text(cached_page.get("scopeHash")) == page_hash:
+            metadata = cached_page.get("metadata") or {}
+            page_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+            if isinstance(page_gtins, list) and page_gtins:
+                missing_images = checkpoint_store.codes_needing_image_refresh(page_gtins)
+                if not missing_images:
+                    skipped_cached_pages += 1
+                    pages += 1
+                    start += page_size
+                    print(f"[{job.provider}] skip cached page={page_key} total_hint={total_hint or 'n/a'}")
+                    if max_pages and pages >= max_pages:
+                        break
+                    if total_hint and start >= total_hint:
+                        break
+                    continue
+                print(f"[{job.provider}] reprocess cached page={page_key} missing_images={len(missing_images)}")
+            else:
+                print(f"[{job.provider}] reprocess cached page={page_key} reason=missing-gtin-metadata")
+
+        page_detail_errors = 0
+        page_gtins: List[str] = []
         for product in products:
             if not category_matches(job, product):
                 skipped_unmatched += 1
                 continue
             record = product_to_record(job, product)
             if slug_fallback and not norm_gtin(record.get("code")):
-                detail = fetch_product_by_url(job, build_source_url(job.site_base, norm_text(product.get("linkText"))))
+                try:
+                    detail = fetch_product_by_url(job, build_source_url(job.site_base, norm_text(product.get("linkText"))))
+                except Exception as exc:
+                    page_detail_errors += 1
+                    print(f"[{job.provider}] page detail fallback error offset={start} error={exc}")
+                    continue
                 if detail:
                     record = product_to_record(job, detail)
+            gtin = norm_gtin(record.get("code"))
+            if gtin and gtin not in page_gtins:
+                page_gtins.append(gtin)
             try:
                 session_import.push(record)
             except RunCancelled:
@@ -378,6 +423,27 @@ def run_vtex_paged_job(
                     "errors": page_errors + int(totals.get("errors", 0)),
                 }
 
+        errors_before_flush = int(session_import.totals.get("errors", 0))
+        session_import.flush()
+        import_errors = int(session_import.totals.get("errors", 0)) - errors_before_flush
+        checkpoint_status = "COMPLETED" if page_detail_errors == 0 and import_errors == 0 else "FAILED"
+        checkpoint_store.mark(
+            "VTEX_PAGE",
+            page_key,
+            page_hash,
+            checkpoint_status,
+            item_count=len(products),
+            metadata={
+                "page": pages + 1,
+                "offsetStart": start,
+                "offsetEnd": start + page_size - 1,
+                "totalHint": total_hint,
+                "provider": job.provider,
+                "gtins": page_gtins,
+            },
+            error_message="" if checkpoint_status == "COMPLETED" else "page detail/import error",
+        )
+
         pages += 1
         start += page_size
         print(f"[{job.provider}] page={pages} captured={session_import.captured} total_hint={total_hint or 'n/a'}")
@@ -392,6 +458,7 @@ def run_vtex_paged_job(
             "pagesFetched": pages,
             "totalHint": total_hint,
             "skippedCategoryMismatch": skipped_unmatched,
+            "skippedCachedPages": skipped_cached_pages,
             "selectedCategoryKeywords": list(job.allowed_category_keywords),
             "selectedCategories": list(job.selected_categories),
         }
@@ -433,8 +500,11 @@ def run_vtex_sitemap_job(
     detail_errors = 0
     skipped_missing_detail = 0
     skipped_unmatched = 0
+    skipped_cached_sitemaps = 0
     sitemap_urls = fetch_sitemap_index(job)
     session_import = MarketImportSession(options, cancel_check=cancel_check)
+    checkpoint_store = RemoteCheckpointStore(options)
+    completed_sitemaps = checkpoint_store.list_completed("VTEX_SITEMAP")
     discovered_products = 0
 
     for sitemap_index, sitemap_url in enumerate(sitemap_urls, start=1):
@@ -476,12 +546,31 @@ def run_vtex_sitemap_job(
             product_urls = fetch_sitemap_product_urls(sitemap_url)
         except Exception as exc:
             sitemap_errors += 1
+            checkpoint_store.mark("VTEX_SITEMAP", sitemap_url, "", "FAILED", error_message=str(exc))
             print(f"[{job.provider}] sitemap error index={sitemap_index} url={sitemap_url} error={exc}")
             continue
 
         discovered_products += len(product_urls)
+        sitemap_hash = stable_hash(product_urls)
+        cached_sitemap = completed_sitemaps.get(sitemap_url)
+        if cached_sitemap and norm_text(cached_sitemap.get("scopeHash")) == sitemap_hash:
+            metadata = cached_sitemap.get("metadata") or {}
+            sitemap_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+            if isinstance(sitemap_gtins, list) and sitemap_gtins:
+                missing_images = checkpoint_store.codes_needing_image_refresh(sitemap_gtins)
+                if not missing_images:
+                    skipped_cached_sitemaps += 1
+                    print(f"[{job.provider}] skip cached sitemap={sitemap_index}/{len(sitemap_urls)} url={sitemap_url}")
+                    continue
+                print(f"[{job.provider}] reprocess cached sitemap={sitemap_index}/{len(sitemap_urls)} missing_images={len(missing_images)}")
+            else:
+                print(f"[{job.provider}] reprocess cached sitemap={sitemap_index}/{len(sitemap_urls)} reason=missing-gtin-metadata")
+
         executor = ThreadPoolExecutor(max_workers=max(1, product_workers))
         cancelled = False
+        captured_before = session_import.captured
+        sitemap_detail_errors = 0
+        sitemap_gtins: List[str] = []
         future_to_url = {
             executor.submit(fetch_product_by_url, job, product_url): product_url
             for product_url in product_urls
@@ -496,6 +585,7 @@ def run_vtex_sitemap_job(
                     product = future.result()
                 except Exception as exc:
                     detail_errors += 1
+                    sitemap_detail_errors += 1
                     print(f"[{job.provider}] detail error url={product_url} error={exc}")
                     continue
                 if not product:
@@ -504,8 +594,12 @@ def run_vtex_sitemap_job(
                 if not category_matches(job, product):
                     skipped_unmatched += 1
                     continue
+                record = product_to_record(job, product)
+                gtin = norm_gtin(record.get("code"))
+                if gtin and gtin not in sitemap_gtins:
+                    sitemap_gtins.append(gtin)
                 try:
-                    session_import.push(product_to_record(job, product))
+                    session_import.push(record)
                 except RunCancelled:
                     cancelled = True
                     break
@@ -552,6 +646,25 @@ def run_vtex_sitemap_job(
                 "errors": sitemap_errors + detail_errors + int(totals.get("errors", 0)),
             }
 
+        errors_before_flush = int(session_import.totals.get("errors", 0))
+        session_import.flush()
+        checkpoint_store.mark(
+            "VTEX_SITEMAP",
+            sitemap_url,
+            sitemap_hash,
+            "COMPLETED" if sitemap_detail_errors == 0 and (int(session_import.totals.get("errors", 0)) - errors_before_flush) == 0 else "FAILED",
+            item_count=len(product_urls),
+            metadata={
+                "sitemapIndex": sitemap_index,
+                "productsDiscovered": len(product_urls),
+                "capturedProducts": session_import.captured - captured_before,
+                "skippedMissingDetail": skipped_missing_detail,
+                "skippedCategoryMismatch": skipped_unmatched,
+                "gtins": sitemap_gtins,
+            },
+            error_message="" if sitemap_detail_errors == 0 else "detail/import errors during sitemap processing",
+        )
+
     totals, manifest_path = session_import.finalize(
         {
             "source": "VTEX_SITEMAP_PRODUCT_API",
@@ -559,6 +672,7 @@ def run_vtex_sitemap_job(
             "productsDiscovered": discovered_products,
             "skippedMissingDetail": skipped_missing_detail,
             "skippedCategoryMismatch": skipped_unmatched,
+            "skippedCachedSitemaps": skipped_cached_sitemaps,
             "selectedCategoryKeywords": list(job.allowed_category_keywords),
             "selectedCategories": list(job.selected_categories),
         }

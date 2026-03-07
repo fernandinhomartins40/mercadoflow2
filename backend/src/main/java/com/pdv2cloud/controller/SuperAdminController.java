@@ -2,6 +2,10 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointBatchRequestDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCatalogImageStatusDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerCatalogImageStatusRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerConfigDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCategoryOptionDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
@@ -165,6 +169,31 @@ public class SuperAdminController {
     @GetMapping("/catalog/crawler/jobs")
     public ResponseEntity<List<SuperAdminCrawlerJobDTO>> listCrawlerJobs() {
         return ResponseEntity.ok(superAdminService.listCrawlerJobs());
+    }
+
+    @GetMapping("/catalog/crawler/checkpoints")
+    public ResponseEntity<List<SuperAdminCrawlerCheckpointDTO>> listCrawlerCheckpoints(
+        @RequestParam String provider,
+        @RequestParam(required = false) String scopeType,
+        @RequestParam(defaultValue = "COMPLETED") String status,
+        @RequestParam(defaultValue = "5000") int limit
+    ) {
+        return ResponseEntity.ok(superAdminService.listCrawlerCheckpoints(provider, scopeType, status, limit));
+    }
+
+    @PostMapping("/catalog/crawler/checkpoints/batch")
+    public ResponseEntity<Void> upsertCrawlerCheckpoints(
+        @RequestBody SuperAdminCrawlerCheckpointBatchRequestDTO request
+    ) {
+        superAdminService.upsertCrawlerCheckpoints(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/catalog/crawler/catalog-image-status")
+    public ResponseEntity<List<SuperAdminCrawlerCatalogImageStatusDTO>> auditCrawlerCatalogImageStatus(
+        @RequestBody SuperAdminCrawlerCatalogImageStatusRequestDTO request
+    ) {
+        return ResponseEntity.ok(superAdminService.auditCrawlerCatalogImageStatus(request));
     }
 
     @GetMapping("/catalog/crawler/jobs/{provider}/categories")

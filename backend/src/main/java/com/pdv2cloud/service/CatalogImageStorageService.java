@@ -69,6 +69,27 @@ public class CatalogImageStorageService {
         return normalizedUrl;
     }
 
+    public boolean hasStoredImage(String imageStorageKey) {
+        Path imagePath = resolveStoragePath(imageStorageKey);
+        return imagePath != null && Files.isRegularFile(imagePath);
+    }
+
+    public boolean ensureManagedImageAvailable(String imageUrl, String imageStorageKey) {
+        String normalizedStorageKey = catalogImageUrlResolver.normalizeStorageKey(imageStorageKey);
+        if (normalizedStorageKey != null) {
+            String resolved = resolveCatalogImageUrl(imageUrl, normalizedStorageKey);
+            return catalogImageUrlResolver.managedUrl(normalizedStorageKey).equals(resolved) && hasStoredImage(normalizedStorageKey);
+        }
+        String managedStorageKey = catalogImageUrlResolver.extractManagedStorageKey(imageUrl);
+        if (managedStorageKey != null) {
+            if (hasStoredImage(managedStorageKey)) {
+                return true;
+            }
+            return loadManagedResource(managedStorageKey).isPresent();
+        }
+        return false;
+    }
+
     public Optional<Resource> loadManagedResource(String imageStorageKey) {
         Path imagePath = resolveStoragePath(imageStorageKey);
         if (imagePath == null) {

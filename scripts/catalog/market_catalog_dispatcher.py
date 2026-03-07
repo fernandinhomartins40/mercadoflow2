@@ -30,6 +30,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runs-claim-endpoint", default="/v1/super-admin/catalog/crawler/runs/claim")
     parser.add_argument("--runs-finish-endpoint", default="/v1/super-admin/catalog/crawler/runs/{runId}/finish")
     parser.add_argument("--run-status-endpoint", default="/v1/super-admin/catalog/crawler/runs/{runId}")
+    parser.add_argument("--checkpoints-list-endpoint", default="/v1/super-admin/catalog/crawler/checkpoints")
+    parser.add_argument("--checkpoints-batch-endpoint", default="/v1/super-admin/catalog/crawler/checkpoints/batch")
+    parser.add_argument("--catalog-image-status-endpoint", default="/v1/super-admin/catalog/crawler/catalog-image-status")
     parser.add_argument("--email", required=True)
     parser.add_argument("--password", required=True)
     parser.add_argument("--confidence", type=float, default=0.96)
@@ -208,6 +211,10 @@ def build_options(args: argparse.Namespace, provider: str, source_license: str, 
         images_dir=args.images_dir,
         max_image_bytes=args.max_image_bytes,
         output=output,
+        run_id=norm_text(getattr(args, "_run_id", "")),
+        checkpoints_list_endpoint=args.checkpoints_list_endpoint,
+        checkpoints_batch_endpoint=args.checkpoints_batch_endpoint,
+        catalog_image_status_endpoint=args.catalog_image_status_endpoint,
     )
 
 
@@ -608,6 +615,7 @@ def main() -> int:
     explicit_providers = resolve_providers(args.providers.split(",")) if args.providers else enabled_providers()
 
     if not args.watch:
+        args._run_id = ""
         result = run_providers(args, explicit_providers)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result.get("status") != "FAILED" else 1
@@ -637,6 +645,7 @@ def main() -> int:
                 return status == "CANCELLED"
 
             run_id = norm_text(claimed.get("id"))
+            args._run_id = run_id
             run_log_path = Path(args.runs_dir).resolve() / run_id / "dispatcher.log"
 
             if len(providers) != 1:

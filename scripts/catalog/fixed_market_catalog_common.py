@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,6 +103,10 @@ class ImportOptions:
     images_dir: str = "data/catalog/images"
     max_image_bytes: int = 3_000_000
     output: str = ""
+    run_id: str = ""
+    checkpoints_list_endpoint: str = "/v1/super-admin/catalog/crawler/checkpoints"
+    checkpoints_batch_endpoint: str = "/v1/super-admin/catalog/crawler/checkpoints/batch"
+    catalog_image_status_endpoint: str = "/v1/super-admin/catalog/crawler/catalog-image-status"
 
 
 class RunCancelled(Exception):
@@ -210,6 +215,174 @@ def login_super_admin(api_base: str, endpoint: str, email: str, password: str) -
     if not token:
         raise RuntimeError("Super admin login succeeded without token")
     return str(token)
+
+
+def stable_hash(value: Any) -> str:
+    try:
+        payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    except Exception:
+        payload = norm_text(value)
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
+class RemoteCheckpointStore:
+    def __init__(self, options: ImportOptions):
+        self.options = options
+        self.token = ""
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)"})
+        self.completed_cache: Dict[Tuple[str, str], Dict[str, Dict[str, Any]]] = {}
+        self.image_status_cache: Dict[str, bool] = {}
+
+    def enabled(self) -> bool:
+        return bool(
+            self.options.api_base
+            and self.options.email
+            and self.options.password
+            and self.options.checkpoints_list_endpoint
+            and self.options.checkpoints_batch_endpoint
+        )
+
+    def ensure_token(self) -> str:
+        if self.token:
+            return self.token
+        self.token = login_super_admin(
+            self.options.api_base,
+            self.options.login_endpoint,
+            self.options.email,
+            self.options.password,
+        )
+        return self.token
+
+    def list_completed(self, scope_type: str) -> Dict[str, Dict[str, Any]]:
+        if not self.enabled():
+            return {}
+        cache_key = (self.options.provider, norm_text(scope_type).upper())
+        cached = self.completed_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        try:
+            endpoint = self.options.checkpoints_list_endpoint
+            path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+            response = self.session.get(
+                f"{self.options.api_base.rstrip('/')}{path}",
+                params={
+                    "provider": self.options.provider,
+                    "scopeType": cache_key[1],
+                    "status": "COMPLETED",
+                    "limit": 5000,
+                },
+                headers={"Authorization": f"Bearer {self.ensure_token()}"},
+                timeout=60,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            items = payload if isinstance(payload, list) else []
+            completed = {
+                norm_text(item.get("scopeKey")): item
+                for item in items
+                if isinstance(item, dict) and norm_text(item.get("scopeKey"))
+            }
+            self.completed_cache[cache_key] = completed
+            return completed
+        except Exception as exc:
+            print(f"checkpoint list failed provider={self.options.provider} scope_type={scope_type} error={exc}", file=sys.stderr)
+            self.completed_cache[cache_key] = {}
+            return {}
+
+    def save_many(self, items: List[Dict[str, Any]]) -> None:
+        if not self.enabled() or not items:
+            return
+        try:
+            endpoint = self.options.checkpoints_batch_endpoint
+            path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+            response = self.session.post(
+                f"{self.options.api_base.rstrip('/')}{path}",
+                headers={"Authorization": f"Bearer {self.ensure_token()}", "Content-Type": "application/json"},
+                json={
+                    "provider": self.options.provider,
+                    "runId": self.options.run_id or None,
+                    "items": items,
+                },
+                timeout=90,
+            )
+            response.raise_for_status()
+            for item in items:
+                scope_type = norm_text(item.get("scopeType")).upper()
+                scope_key = norm_text(item.get("scopeKey"))
+                if not scope_type or not scope_key:
+                    continue
+                cache_key = (self.options.provider, scope_type)
+                if cache_key not in self.completed_cache:
+                    continue
+                if norm_text(item.get("status")).upper() == "COMPLETED":
+                    checkpoint_view = {
+                        "scopeKey": scope_key,
+                        "scopeHash": norm_text(item.get("scopeHash")),
+                        "status": "COMPLETED",
+                        "itemCount": int(item.get("itemCount") or 0),
+                        "metadata": item.get("metadata") or {},
+                    }
+                    self.completed_cache[cache_key][scope_key] = checkpoint_view
+                else:
+                    self.completed_cache[cache_key].pop(scope_key, None)
+        except Exception as exc:
+            print(f"checkpoint save failed provider={self.options.provider} error={exc}", file=sys.stderr)
+
+    def mark(
+        self,
+        scope_type: str,
+        scope_key: str,
+        scope_hash: str,
+        status: str,
+        item_count: int = 0,
+        metadata: Optional[Dict[str, Any]] = None,
+        error_message: str = "",
+    ) -> None:
+        self.save_many(
+            [
+                {
+                    "scopeType": norm_text(scope_type).upper(),
+                    "scopeKey": norm_text(scope_key),
+                    "scopeHash": norm_text(scope_hash),
+                    "status": norm_text(status).upper(),
+                    "itemCount": int(item_count or 0),
+                    "metadata": metadata or {},
+                    "errorMessage": norm_text(error_message),
+                }
+            ]
+        )
+
+    def codes_needing_image_refresh(self, codes: List[str]) -> Set[str]:
+        normalized_codes = [norm_gtin(code) for code in codes if norm_gtin(code)]
+        unresolved = [code for code in normalized_codes if code not in self.image_status_cache]
+        if self.enabled() and unresolved:
+            try:
+                endpoint = self.options.catalog_image_status_endpoint
+                path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+                response = self.session.post(
+                    f"{self.options.api_base.rstrip('/')}{path}",
+                    headers={"Authorization": f"Bearer {self.ensure_token()}", "Content-Type": "application/json"},
+                    json={
+                        "provider": self.options.provider,
+                        "codes": unresolved,
+                    },
+                    timeout=90,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                for item in payload if isinstance(payload, list) else []:
+                    if not isinstance(item, dict):
+                        continue
+                    code = norm_gtin(item.get("code"))
+                    if not code:
+                        continue
+                    self.image_status_cache[code] = bool(item.get("needsImageRefresh"))
+            except Exception as exc:
+                print(f"catalog image audit failed provider={self.options.provider} error={exc}", file=sys.stderr)
+                for code in unresolved:
+                    self.image_status_cache[code] = True
+        return {code for code in normalized_codes if self.image_status_cache.get(code, True)}
 
 
 def import_records(options: ImportOptions, token: str, records: List[Dict[str, Any]]) -> Dict[str, int]:

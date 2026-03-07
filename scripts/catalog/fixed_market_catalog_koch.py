@@ -10,7 +10,17 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, RunCancelled, canonical_url, norm_gtin, norm_text, normalize_key
+from fixed_market_catalog_common import (
+    ImportOptions,
+    MarketImportSession,
+    RemoteCheckpointStore,
+    RunCancelled,
+    canonical_url,
+    norm_gtin,
+    norm_text,
+    normalize_key,
+    stable_hash,
+)
 
 
 PRODUCT_PATH_RE = re.compile(r"/produtos/(\d+)/([^/?#]+)")
@@ -270,45 +280,98 @@ def run_koch_catalog_job(
 
     detail_errors = 0
     skipped_unmatched = 0
+    skipped_cached_batches = 0
     session_import = MarketImportSession(options, cancel_check=cancel_check)
+    checkpoint_store = RemoteCheckpointStore(options)
+    completed_batches = checkpoint_store.list_completed("KOCH_BATCH")
     cancelled = False
+    batch_size = 200
 
-    executor = ThreadPoolExecutor(max_workers=max(1, product_workers))
-    future_to_item = {
-        executor.submit(fetch_product_detail, job, store_id, product_id, source_url): (product_id, source_url)
-        for product_id, source_url in discovered
-    }
+    for batch_index, batch_start in enumerate(range(0, len(discovered), batch_size), start=1):
+        if cancel_check and cancel_check():
+            cancelled = True
+            break
+        batch = discovered[batch_start:batch_start + batch_size]
+        batch_key = f"batch:{batch_index}"
+        batch_hash = stable_hash(batch)
+        cached_batch = completed_batches.get(batch_key)
+        if cached_batch and norm_text(cached_batch.get("scopeHash")) == batch_hash:
+            metadata = cached_batch.get("metadata") or {}
+            batch_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+            if isinstance(batch_gtins, list) and batch_gtins:
+                missing_images = checkpoint_store.codes_needing_image_refresh(batch_gtins)
+                if not missing_images:
+                    skipped_cached_batches += 1
+                    print(f"[{job.provider}] skip cached batch={batch_index} size={len(batch)}")
+                    continue
+                print(f"[{job.provider}] reprocess batch={batch_index} missing_images={len(missing_images)}")
+            else:
+                print(f"[{job.provider}] reprocess batch={batch_index} reason=missing-gtin-metadata")
 
-    try:
-        for index, future in enumerate(as_completed(future_to_item), start=1):
-            if cancel_check and cancel_check():
-                cancelled = True
-                break
-            product_id, source_url = future_to_item[future]
-            try:
-                detail = future.result()
-            except Exception as exc:
-                detail_errors += 1
-                print(f"[{job.provider}] detail error product_id={product_id} error={exc}")
-                continue
-            if not isinstance(detail, dict):
-                detail_errors += 1
-                continue
-            if not category_matches(job, detail):
-                skipped_unmatched += 1
-                continue
-            try:
-                session_import.push(detail_to_record(job, detail, source_url))
-            except RunCancelled:
-                cancelled = True
-                break
-            if index % 200 == 0 or index == len(future_to_item):
-                print(
-                    f"[{job.provider}] products={index}/{len(future_to_item)} "
-                    f"captured={session_import.captured} store_id={store_id}"
-                )
-    finally:
-        executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
+        batch_errors = 0
+        batch_captured_before = session_import.captured
+        batch_gtins: List[str] = []
+        executor = ThreadPoolExecutor(max_workers=max(1, product_workers))
+        future_to_item = {
+            executor.submit(fetch_product_detail, job, store_id, product_id, source_url): (product_id, source_url)
+            for product_id, source_url in batch
+        }
+
+        try:
+            for index, future in enumerate(as_completed(future_to_item), start=1):
+                if cancel_check and cancel_check():
+                    cancelled = True
+                    break
+                product_id, source_url = future_to_item[future]
+                try:
+                    detail = future.result()
+                except Exception as exc:
+                    detail_errors += 1
+                    batch_errors += 1
+                    print(f"[{job.provider}] detail error product_id={product_id} error={exc}")
+                    continue
+                if not isinstance(detail, dict):
+                    detail_errors += 1
+                    batch_errors += 1
+                    continue
+                if not category_matches(job, detail):
+                    skipped_unmatched += 1
+                    continue
+                gtin = norm_gtin(detail.get("gtin"))
+                if gtin and gtin not in batch_gtins:
+                    batch_gtins.append(gtin)
+                try:
+                    session_import.push(detail_to_record(job, detail, source_url))
+                except RunCancelled:
+                    cancelled = True
+                    break
+                if index % 100 == 0 or index == len(future_to_item):
+                    print(
+                        f"[{job.provider}] batch={batch_index} products={index}/{len(future_to_item)} "
+                        f"captured={session_import.captured} store_id={store_id}"
+                    )
+        finally:
+            executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
+
+        if cancelled:
+            break
+
+        errors_before_flush = int(session_import.totals.get("errors", 0))
+        session_import.flush()
+        checkpoint_store.mark(
+            "KOCH_BATCH",
+            batch_key,
+            batch_hash,
+            "COMPLETED" if batch_errors == 0 and (int(session_import.totals.get("errors", 0)) - errors_before_flush) == 0 else "FAILED",
+            item_count=len(batch),
+            metadata={
+                "batchIndex": batch_index,
+                "productsDiscovered": len(batch),
+                "capturedProducts": session_import.captured - batch_captured_before,
+                "gtins": batch_gtins,
+            },
+            error_message="" if batch_errors == 0 else "detail errors during batch processing",
+        )
 
     totals, manifest_path = session_import.finalize(
         {
@@ -318,6 +381,7 @@ def run_koch_catalog_job(
             "sitemapUrl": job.sitemap_url,
             "selectedCategories": list(job.selected_categories),
             "skippedCategoryMismatch": skipped_unmatched,
+            "skippedCachedBatches": skipped_cached_batches,
         },
         flush_pending=not cancelled,
     )

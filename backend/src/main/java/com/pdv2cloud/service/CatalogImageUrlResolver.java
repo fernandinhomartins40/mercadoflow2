@@ -28,6 +28,14 @@ public class CatalogImageUrlResolver {
         return normalized != null && normalized.startsWith(IMAGE_API_PREFIX);
     }
 
+    public String extractManagedStorageKey(String imageUrl) {
+        String normalized = normalizeUrl(imageUrl);
+        if (normalized == null || !normalized.startsWith(IMAGE_API_PREFIX)) {
+            return null;
+        }
+        return normalizeStorageKey(normalized.substring(IMAGE_API_PREFIX.length()));
+    }
+
     public String normalizeStorageKey(String value) {
         if (value == null || value.isBlank()) {
             return null;

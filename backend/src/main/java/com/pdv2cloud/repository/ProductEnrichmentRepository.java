@@ -1,6 +1,7 @@
 package com.pdv2cloud.repository;
 
 import com.pdv2cloud.model.entity.ProductEnrichment;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 public interface ProductEnrichmentRepository extends JpaRepository<ProductEnrichment, UUID> {
     Optional<ProductEnrichment> findTopByProduct_IdAndProviderOrderByFetchedAtDesc(UUID productId, String provider);
     List<ProductEnrichment> findAllByProduct_IdAndProviderOrderByFetchedAtDesc(UUID productId, String provider);
+    List<ProductEnrichment> findAllByProduct_EanInAndProviderOrderByFetchedAtDesc(Collection<String> eans, String provider);
     Optional<ProductEnrichment> findTopByImageStorageKeyOrderByFetchedAtDesc(String imageStorageKey);
 
     @Query("""
