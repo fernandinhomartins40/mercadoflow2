@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import authService from '../services/auth.service';
 
 interface AuthState {
@@ -18,6 +19,7 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
   const [state, setState] = useState<AuthState>({
     role: null,
     marketId: null,
@@ -29,6 +31,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const load = async () => {
+      if (location.pathname.startsWith('/super-admin')) {
+        setState({
+          role: null,
+          marketId: null,
+          userId: null,
+          email: null,
+          name: null,
+        });
+        setLoading(false);
+        return;
+      }
       try {
         const me = await authService.me();
         setState({
@@ -51,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     load();
-  }, []);
+  }, [location.pathname]);
 
   const login = async (email: string, password: string, keepConnected = false) => {
     await authService.login(email, password, keepConnected);

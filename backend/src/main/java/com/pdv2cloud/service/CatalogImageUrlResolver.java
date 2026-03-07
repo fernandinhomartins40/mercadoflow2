@@ -1,5 +1,6 @@
 package com.pdv2cloud.service;
 
+import java.net.URI;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -52,6 +53,23 @@ public class CatalogImageUrlResolver {
             return null;
         }
         String normalized = value.trim();
+        if (normalized.startsWith("//")) {
+            normalized = "https:" + normalized;
+        }
         return normalized.isBlank() ? null : normalized;
+    }
+
+    public boolean isAbsoluteHttpUrl(String value) {
+        String normalized = normalizeUrl(value);
+        if (normalized == null || normalized.startsWith(IMAGE_API_PREFIX)) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(normalized);
+            String scheme = uri.getScheme();
+            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }

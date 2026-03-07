@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import superAdminAuthService from '../services/superAdminAuth.service';
 
 interface SuperAdminAuthState {
@@ -17,6 +18,7 @@ interface SuperAdminAuthContextValue extends SuperAdminAuthState {
 const SuperAdminAuthContext = createContext<SuperAdminAuthContextValue | undefined>(undefined);
 
 export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
   const [state, setState] = useState<SuperAdminAuthState>({
     role: null,
     userId: null,
@@ -27,6 +29,11 @@ export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = (
 
   useEffect(() => {
     const load = async () => {
+      if (!location.pathname.startsWith('/super-admin')) {
+        setState({ role: null, userId: null, email: null, name: null });
+        setLoading(false);
+        return;
+      }
       try {
         const me = await superAdminAuthService.me();
         if (me.role === 'SUPER_ADMIN') {
@@ -46,7 +53,7 @@ export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = (
       }
     };
     load();
-  }, []);
+  }, [location.pathname]);
 
   const login = async (email: string, password: string, keepConnected = false) => {
     await superAdminAuthService.login(email, password, keepConnected);

@@ -62,7 +62,12 @@ public class CatalogImageStorageService {
             return catalogImageUrlResolver.managedUrl(normalizedStorageKey);
         }
 
-        if (normalizedUrl != null && restoreImage(normalizedStorageKey, normalizedUrl)) {
+        String recoverySourceUrl = resolveRecoverySourceUrl(normalizedStorageKey, normalizedUrl);
+        if (recoverySourceUrl != null && restoreImage(normalizedStorageKey, recoverySourceUrl)) {
+            return catalogImageUrlResolver.managedUrl(normalizedStorageKey);
+        }
+
+        if (catalogImageUrlResolver.isManagedImage(normalizedUrl)) {
             return catalogImageUrlResolver.managedUrl(normalizedStorageKey);
         }
 
@@ -77,8 +82,10 @@ public class CatalogImageStorageService {
     public boolean ensureManagedImageAvailable(String imageUrl, String imageStorageKey) {
         String normalizedStorageKey = catalogImageUrlResolver.normalizeStorageKey(imageStorageKey);
         if (normalizedStorageKey != null) {
-            String resolved = resolveCatalogImageUrl(imageUrl, normalizedStorageKey);
-            return catalogImageUrlResolver.managedUrl(normalizedStorageKey).equals(resolved) && hasStoredImage(normalizedStorageKey);
+            if (hasStoredImage(normalizedStorageKey)) {
+                return true;
+            }
+            return loadManagedResource(normalizedStorageKey).isPresent();
         }
         String managedStorageKey = catalogImageUrlResolver.extractManagedStorageKey(imageUrl);
         if (managedStorageKey != null) {
@@ -111,6 +118,7 @@ public class CatalogImageStorageService {
         return findEnrichmentByStorageKey(imageStorageKey)
             .map(ProductEnrichment::getImageUrl)
             .map(catalogImageUrlResolver::normalizeUrl)
+            .filter(catalogImageUrlResolver::isAbsoluteHttpUrl)
             .orElse(null);
     }
 
@@ -154,7 +162,10 @@ public class CatalogImageStorageService {
         String normalizedStorageKey = catalogImageUrlResolver.normalizeStorageKey(imageStorageKey);
         String normalizedUrl = catalogImageUrlResolver.normalizeUrl(imageUrl);
         Path imagePath = resolveStoragePath(normalizedStorageKey);
-        if (normalizedStorageKey == null || normalizedUrl == null || imagePath == null) {
+        if (normalizedStorageKey == null
+            || normalizedUrl == null
+            || imagePath == null
+            || !catalogImageUrlResolver.isAbsoluteHttpUrl(normalizedUrl)) {
             return false;
         }
         if (Files.isRegularFile(imagePath)) {
@@ -196,7 +207,7 @@ public class CatalogImageStorageService {
             } finally {
                 Files.deleteIfExists(tempFile);
             }
-        } catch (IOException | InterruptedException ex) {
+        } catch (IOException | InterruptedException | IllegalArgumentException ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
@@ -222,5 +233,13 @@ public class CatalogImageStorageService {
             return null;
         }
         return resolved;
+    }
+
+    private String resolveRecoverySourceUrl(String imageStorageKey, String imageUrl) {
+        String normalizedUrl = catalogImageUrlResolver.normalizeUrl(imageUrl);
+        if (catalogImageUrlResolver.isAbsoluteHttpUrl(normalizedUrl)) {
+            return normalizedUrl;
+        }
+        return resolveFallbackSourceUrl(imageStorageKey);
     }
 }
