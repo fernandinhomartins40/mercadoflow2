@@ -61,6 +61,8 @@ jobs:
             --exclude='.env.local' \
             --exclude='.db_secret' \
             --exclude='.jwt_secret' \
+            --exclude='data/catalog' \
+            --exclude='data/catalog/**' \
             --exclude='backups' \
             --exclude='pdv2cloud-agent/installer/Output' \
             --exclude='pdv2cloud-agent/installer/Output/**' \

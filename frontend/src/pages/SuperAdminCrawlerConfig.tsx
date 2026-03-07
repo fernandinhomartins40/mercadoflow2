@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import api from '../services/api';
@@ -78,8 +79,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     recentRuns: [],
   });
   const [loading, setLoading] = useState(true);
-  const [triggeringAll, setTriggeringAll] = useState(false);
   const [triggeringProvider, setTriggeringProvider] = useState<string | null>(null);
+  const [stoppingRunId, setStoppingRunId] = useState<string | null>(null);
+  const [restartingRunId, setRestartingRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -87,6 +89,10 @@ const SuperAdminCrawlerConfig: React.FC = () => {
   const totalImportedRecent = useMemo(
     () => (monitor.recentRuns || []).reduce((sum, run) => sum + Number(run.importedProducts || 0), 0),
     [monitor.recentRuns]
+  );
+  const hasActiveRun = useMemo(
+    () => Number(monitor.queuedRuns || 0) > 0 || Number(monitor.runningRuns || 0) > 0,
+    [monitor.queuedRuns, monitor.runningRuns]
   );
   const activeJobs = useMemo(
     () => jobs.filter((job) => Number(job.runningRuns || 0) > 0 || (job.lastRun?.status || '').toUpperCase() === 'RUNNING').length,
@@ -126,28 +132,13 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     return () => window.clearInterval(handle);
   }, []);
 
-  const triggerAll = async () => {
-    setTriggeringAll(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      await api.post('/v1/super-admin/catalog/crawler/runs/trigger?triggeredBy=MANUAL_SUPER_ADMIN_ALL');
-      setSuccess('Execucao completa enfileirada. O worker vai disparar os scripts fixos de todos os mercados.');
-      await Promise.all([loadJobs(), loadMonitor()]);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao enfileirar execucao completa');
-    } finally {
-      setTriggeringAll(false);
-    }
-  };
-
   const triggerProvider = async (provider: string) => {
     setTriggeringProvider(provider);
     setError(null);
     setSuccess(null);
     try {
       await api.post(`/v1/super-admin/catalog/crawler/jobs/${provider}/trigger?triggeredBy=MANUAL_SUPER_ADMIN`);
-      setSuccess(`Execucao enfileirada para ${provider}.`);
+      setSuccess(`Execucao manual enfileirada para ${provider}. O dispatcher agora roda um supermercado por vez.`);
       await Promise.all([loadJobs(), loadMonitor()]);
     } catch (err: any) {
       setError(err?.message || `Falha ao enfileirar execucao de ${provider}`);
@@ -156,15 +147,52 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     }
   };
 
+  const stopRun = async (runId: string) => {
+    setStoppingRunId(runId);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.post(`/v1/super-admin/catalog/crawler/runs/${runId}/cancel?triggeredBy=MANUAL_SUPER_ADMIN_CANCEL`);
+      setSuccess('Execucao marcada para cancelamento. O dispatcher vai encerrar a rodada atual assim que atingir um ponto seguro.');
+      await Promise.all([loadJobs(), loadMonitor()]);
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao cancelar execucao');
+    } finally {
+      setStoppingRunId(null);
+    }
+  };
+
+  const restartRun = async (runId: string) => {
+    setRestartingRunId(runId);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.post(`/v1/super-admin/catalog/crawler/runs/${runId}/restart?triggeredBy=MANUAL_SUPER_ADMIN_RESTART`);
+      setSuccess('Reexecucao enfileirada com os mesmos providers do run selecionado.');
+      await Promise.all([loadJobs(), loadMonitor()]);
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao reiniciar execucao');
+    } finally {
+      setRestartingRunId(null);
+    }
+  };
+
+  const canStopRun = (run: CrawlerRun) => {
+    const status = (run.status || '').toUpperCase();
+    return status === 'QUEUED' || status === 'RUNNING';
+  };
+
+  const canRestartRun = (run: CrawlerRun) => Array.isArray(run.sources) && run.sources.length === 1;
+
   return (
     <SuperAdminLayout>
       <div className="super-admin-page">
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
             <span className="pill">Crawler Python</span>
-            <h1 className="analytics-hero-title">Jobs fixos por mercado</h1>
+            <h1 className="analytics-hero-title">Execucao manual por mercado</h1>
             <p className="analytics-hero-text">
-              O painel agora aciona pipelines dedicados por rede. Cada mercado roda com um script proprio, sem configuracao manual de seed, dominio ou hint.
+              O painel agora roda somente execucoes manuais, uma por vez. Cada supermercado dispara um pipeline fixo, sem seeds editaveis e sem agendamento automatico.
             </p>
           </div>
           <div className="analytics-hero-board single-board">
@@ -182,7 +210,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
         <section className="metrics-grid analytics-metrics-grid">
           <div className="card">
-            <span className="section-kicker">Mercados ativos</span>
+            <span className="section-kicker">Mercados suportados</span>
             <h3>{jobs.length}</h3>
             <p>scripts fixos disponiveis no worker.</p>
           </div>
@@ -194,7 +222,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           <div className="card">
             <span className="section-kicker">Executando</span>
             <h3>{activeJobs || monitor.runningRuns || 0}</h3>
-            <p>mercados com ciclo em andamento.</p>
+            <p>execucao manual em andamento no dispatcher.</p>
           </div>
           <div className="card">
             <span className="section-kicker">Importados (12 ultimas)</span>
@@ -204,17 +232,8 @@ const SuperAdminCrawlerConfig: React.FC = () => {
         </section>
 
         <section className="analytics-panel reveal">
-          <div className="analytics-panel-head">
-            <div>
-              <span className="section-kicker">Execucao global</span>
-              <h3>Rodar todos os mercados</h3>
-            </div>
-            <Button onClick={triggerAll} disabled={triggeringAll}>
-              {triggeringAll ? 'Enfileirando...' : 'Executar todos'}
-            </Button>
-          </div>
           <div className="panel-empty" style={{ textAlign: 'left' }}>
-            O worker processa os providers enfileirados e executa o script fixo correspondente: GPA API para Pao de Acucar e Extra, VTEX API para Drogaria Sao Paulo e VTEX sitemap + detalhe por slug para Carrefour.
+            Nao ha mais execucao automatica nem rodada global. O dispatcher apenas consome runs manuais da fila e rejeita execucoes com mais de um supermercado.
           </div>
         </section>
 
@@ -267,9 +286,16 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
                   <div className="super-admin-crawler-job-footer">
                     <div className="super-admin-crawler-job-license">{job.sourceLicense || '--'}</div>
-                    <Button onClick={() => triggerProvider(job.provider)} disabled={job.enabled === false || triggeringProvider === job.provider}>
-                      {triggeringProvider === job.provider ? 'Enfileirando...' : `Executar ${job.name}`}
-                    </Button>
+                    <div className="crawler-run-actions">
+                      {job.lastRun?.id ? (
+                        <Link className="button secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
+                          Ver detalhes
+                        </Link>
+                      ) : null}
+                      <Button onClick={() => triggerProvider(job.provider)} disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}>
+                        {triggeringProvider === job.provider ? 'Enfileirando...' : hasActiveRun ? 'Aguarde o run atual' : `Executar ${job.name}`}
+                      </Button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -296,6 +322,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                         <th>Importados</th>
                         <th>Erros</th>
                         <th>Mensagem</th>
+                        <th>Acoes</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -308,6 +335,27 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           <td data-label="Importados">{Number(run.importedProducts || 0)} / {Number(run.scannedProducts || 0)}</td>
                           <td data-label="Erros">{Number(run.errors || 0)}</td>
                           <td data-label="Mensagem">{run.message || '--'}</td>
+                          <td data-label="Acoes" className="table-action-cell">
+                            <div className="crawler-run-actions">
+                              <Link className="button secondary" to={`/super-admin/crawler/runs/${run.id}`}>
+                                Detalhes
+                              </Link>
+                              <Button
+                                variant="secondary"
+                                onClick={() => stopRun(run.id)}
+                                disabled={!canStopRun(run) || stoppingRunId === run.id || restartingRunId === run.id}
+                              >
+                                {stoppingRunId === run.id ? 'Parando...' : 'Parar'}
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                onClick={() => restartRun(run.id)}
+                                disabled={!canRestartRun(run) || restartingRunId === run.id || stoppingRunId === run.id || hasActiveRun}
+                              >
+                                {restartingRunId === run.id ? 'Reiniciando...' : canRestartRun(run) ? 'Reiniciar' : 'Somente 1 provider'}
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

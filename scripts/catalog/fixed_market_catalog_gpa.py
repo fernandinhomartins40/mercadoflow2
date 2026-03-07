@@ -6,11 +6,11 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, norm_gtin, norm_text, normalize_key
+from fixed_market_catalog_common import ImportOptions, MarketImportSession, RunCancelled, norm_gtin, norm_text, normalize_key
 
 _THREAD_LOCAL = threading.local()
 
@@ -217,9 +217,45 @@ def run_gpa_catalog_job(
     max_workers_list: int = 8,
     max_workers_detail: int = 16,
     pause_ms: int = 0,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     session = build_session()
     categories = fetch_categories(session, job)
+    session_import = MarketImportSession(options, cancel_check=cancel_check)
+
+    def cancelled_result(message: str) -> Dict[str, Any]:
+        totals, manifest_path = session_import.finalize(
+            {
+                "source": "GPA_PUBLIC_API",
+                "storeId": job.store_id,
+                "selectedRootCategories": selected_roots,
+                "shelvesDiscovered": len(shelf_ids),
+                "rowsTotal": listing_rows_total,
+                "productsUnique": len(unique_rows),
+            },
+            flush_pending=False,
+        )
+        return {
+            "status": "CANCELLED",
+            "message": message,
+            "summary": [
+                {
+                    "source": job.name,
+                    "provider": job.provider,
+                    "capturedProducts": session_import.captured,
+                    "rowsTotal": listing_rows_total,
+                    "productsUnique": len(unique_rows),
+                    "outputManifest": str(manifest_path),
+                }
+            ],
+            "scannedProducts": int(totals.get("scannedProducts", 0)),
+            "importedProducts": int(totals.get("importedProducts", 0)),
+            "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+            "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+            "skippedMedication": int(totals.get("skippedMedication", 0)),
+            "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+            "errors": int(totals.get("errors", 0)),
+        }
 
     shelf_paths: Dict[int, str] = {}
     allowed_roots = {normalize_key(value) for value in job.allowed_root_categories if normalize_key(value)}
@@ -238,9 +274,14 @@ def run_gpa_catalog_job(
     unique_rows: Dict[str, Dict[str, Any]] = {}
     listing_errors = 0
     listing_rows_total = 0
-    with ThreadPoolExecutor(max_workers=max(1, max_workers_list)) as executor:
-        futures = [executor.submit(crawl_shelf, job, shelf_id, pause_ms) for shelf_id in shelf_ids]
+    executor = ThreadPoolExecutor(max_workers=max(1, max_workers_list))
+    cancelled = False
+    futures = [executor.submit(crawl_shelf, job, shelf_id, pause_ms) for shelf_id in shelf_ids]
+    try:
         for index, future in enumerate(as_completed(futures), start=1):
+            if cancel_check and cancel_check():
+                cancelled = True
+                break
             try:
                 shelf_id, rows = future.result()
             except Exception as exc:
@@ -262,15 +303,24 @@ def run_gpa_catalog_job(
                     current["_crawlerCategoryPath"] = fallback_category
             if index % 25 == 0 or index == len(futures):
                 print(f"[{job.provider}] listing progress={index}/{len(futures)} rows={listing_rows_total} unique={len(unique_rows)}")
+    finally:
+        executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
 
-    session_import = MarketImportSession(options)
+    if cancelled:
+        return cancelled_result(f"{job.name}: execucao cancelada durante a varredura de categorias.")
+
     detail_errors = 0
-    with ThreadPoolExecutor(max_workers=max(1, max_workers_detail)) as executor:
-        future_to_product = {
-            executor.submit(fetch_best_prices, job, product_id, pause_ms): product_id
-            for product_id in unique_rows.keys()
-        }
+    executor = ThreadPoolExecutor(max_workers=max(1, max_workers_detail))
+    cancelled = False
+    future_to_product = {
+        executor.submit(fetch_best_prices, job, product_id, pause_ms): product_id
+        for product_id in unique_rows.keys()
+    }
+    try:
         for index, future in enumerate(as_completed(future_to_product), start=1):
+            if cancel_check and cancel_check():
+                cancelled = True
+                break
             product_id = future_to_product[future]
             base = unique_rows[product_id]
             try:
@@ -279,10 +329,19 @@ def run_gpa_catalog_job(
                 detail_errors += 1
                 print(f"[{job.provider}] detail error product_id={product_id} error={exc}")
                 continue
-            record = merge_record(job, base, details, norm_text(base.get("_crawlerCategoryPath")))
-            session_import.push(record)
+            try:
+                record = merge_record(job, base, details, norm_text(base.get("_crawlerCategoryPath")))
+                session_import.push(record)
+            except RunCancelled:
+                cancelled = True
+                break
             if index % 250 == 0 or index == len(future_to_product):
                 print(f"[{job.provider}] detail progress={index}/{len(future_to_product)} captured={session_import.captured}")
+    finally:
+        executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
+
+    if cancelled:
+        return cancelled_result(f"{job.name}: execucao cancelada durante a coleta detalhada.")
 
     totals, manifest_path = session_import.finalize(
         {

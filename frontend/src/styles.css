@@ -3367,6 +3367,79 @@ button {
   font-size: 0.92rem;
 }
 
+.crawler-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crawler-run-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.crawler-run-manifest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.crawler-run-detail-card {
+  display: grid;
+  gap: 10px;
+}
+
+.crawler-run-detail-card h3 {
+  margin: 0;
+}
+
+.crawler-run-detail-meta {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.crawler-run-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.crawler-run-log-meta {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+
+.crawler-run-log-viewer {
+  margin: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(26, 43, 64, 0.12);
+  background: #f4f8fb;
+  color: #17304a;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 480px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.table-subtext {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
 /* ==================== ADMIN / SUPER ADMIN RESPONSIVE ==================== */
 
 .admin-main,
@@ -3670,6 +3743,18 @@ button {
   .super-admin-crawler-job-grid,
   .super-admin-crawler-job-stats {
     grid-template-columns: 1fr;
+  }
+
+  .crawler-run-detail-head,
+  .crawler-run-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crawler-run-pagination .button,
+  .crawler-run-detail-head .button {
+    width: 100%;
+    justify-content: center;
   }
 
   .catalog-admin-table td {

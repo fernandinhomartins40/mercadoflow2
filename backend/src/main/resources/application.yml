@@ -48,6 +48,8 @@ app:
   public-base-url: ${APP_PUBLIC_BASE_URL:https://mercadoflow.com}
   catalog:
     images-dir: ${APP_CATALOG_IMAGES_DIR:../data/catalog/images}
+    max-image-bytes: ${APP_CATALOG_MAX_IMAGE_BYTES:5000000}
+    runs-dir: ${APP_CATALOG_RUNS_DIR:../data/catalog/runs}
     web-import:
       enabled: ${CATALOG_WEB_IMPORT_ENABLED:false}
       initial-delay-ms: ${CATALOG_WEB_IMPORT_INITIAL_DELAY_MS:180000}

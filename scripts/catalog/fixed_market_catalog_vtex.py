@@ -5,12 +5,12 @@ import json
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, MarketImportSession, canonical_url, norm_gtin, norm_text, normalize_key
+from fixed_market_catalog_common import ImportOptions, MarketImportSession, RunCancelled, canonical_url, norm_gtin, norm_text, normalize_key
 
 
 @dataclass(frozen=True)
@@ -216,15 +216,47 @@ def run_vtex_paged_job(
     page_size: int = 50,
     max_pages: int = 0,
     slug_fallback: bool = True,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     start = 0
     pages = 0
     total_hint = 0
     page_errors = 0
     skipped_unmatched = 0
-    session_import = MarketImportSession(options)
+    session_import = MarketImportSession(options, cancel_check=cancel_check)
 
     while True:
+        if cancel_check and cancel_check():
+            totals, manifest_path = session_import.finalize(
+                {
+                    "source": "VTEX_SEARCH_API",
+                    "pagesFetched": pages,
+                    "totalHint": total_hint,
+                    "skippedCategoryMismatch": skipped_unmatched,
+                    "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                },
+                flush_pending=False,
+            )
+            return {
+                "status": "CANCELLED",
+                "message": f"{job.name}: execucao cancelada durante a paginacao.",
+                "summary": [
+                    {
+                        "source": job.name,
+                        "provider": job.provider,
+                        "capturedProducts": session_import.captured,
+                        "pagesFetched": pages,
+                        "outputManifest": str(manifest_path),
+                    }
+                ],
+                "scannedProducts": int(totals.get("scannedProducts", 0)),
+                "importedProducts": int(totals.get("importedProducts", 0)),
+                "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                "skippedMedication": int(totals.get("skippedMedication", 0)),
+                "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                "errors": page_errors + int(totals.get("errors", 0)),
+            }
         try:
             products, total_hint = fetch_search_page(job, start, start + page_size - 1)
         except Exception as exc:
@@ -244,7 +276,39 @@ def run_vtex_paged_job(
                 detail = fetch_product_by_url(job, build_source_url(job.site_base, norm_text(product.get("linkText"))))
                 if detail:
                     record = product_to_record(job, detail)
-            session_import.push(record)
+            try:
+                session_import.push(record)
+            except RunCancelled:
+                totals, manifest_path = session_import.finalize(
+                    {
+                        "source": "VTEX_SEARCH_API",
+                        "pagesFetched": pages,
+                        "totalHint": total_hint,
+                        "skippedCategoryMismatch": skipped_unmatched,
+                        "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                    },
+                    flush_pending=False,
+                )
+                return {
+                    "status": "CANCELLED",
+                    "message": f"{job.name}: execucao cancelada durante a coleta de itens.",
+                    "summary": [
+                        {
+                            "source": job.name,
+                            "provider": job.provider,
+                            "capturedProducts": session_import.captured,
+                            "pagesFetched": pages,
+                            "outputManifest": str(manifest_path),
+                        }
+                    ],
+                    "scannedProducts": int(totals.get("scannedProducts", 0)),
+                    "importedProducts": int(totals.get("importedProducts", 0)),
+                    "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                    "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                    "skippedMedication": int(totals.get("skippedMedication", 0)),
+                    "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                    "errors": page_errors + int(totals.get("errors", 0)),
+                }
 
         pages += 1
         start += page_size
@@ -294,15 +358,48 @@ def run_vtex_sitemap_job(
     job: VtexJobConfig,
     options: ImportOptions,
     product_workers: int = 16,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     sitemap_errors = 0
     detail_errors = 0
     skipped_unmatched = 0
     sitemap_urls = fetch_sitemap_index(job)
-    session_import = MarketImportSession(options)
+    session_import = MarketImportSession(options, cancel_check=cancel_check)
     discovered_products = 0
 
     for sitemap_index, sitemap_url in enumerate(sitemap_urls, start=1):
+        if cancel_check and cancel_check():
+            totals, manifest_path = session_import.finalize(
+                {
+                    "source": "VTEX_SITEMAP_PRODUCT_API",
+                    "sitemapsFetched": len(sitemap_urls),
+                    "productsDiscovered": discovered_products,
+                    "skippedCategoryMismatch": skipped_unmatched,
+                    "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                },
+                flush_pending=False,
+            )
+            return {
+                "status": "CANCELLED",
+                "message": f"{job.name}: execucao cancelada durante a leitura dos sitemaps.",
+                "summary": [
+                    {
+                        "source": job.name,
+                        "provider": job.provider,
+                        "capturedProducts": session_import.captured,
+                        "sitemapsFetched": sitemap_index - 1,
+                        "productsDiscovered": discovered_products,
+                        "outputManifest": str(manifest_path),
+                    }
+                ],
+                "scannedProducts": int(totals.get("scannedProducts", 0)),
+                "importedProducts": int(totals.get("importedProducts", 0)),
+                "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                "skippedMedication": int(totals.get("skippedMedication", 0)),
+                "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                "errors": sitemap_errors + detail_errors + int(totals.get("errors", 0)),
+            }
         try:
             product_urls = fetch_sitemap_product_urls(sitemap_url)
         except Exception as exc:
@@ -311,12 +408,17 @@ def run_vtex_sitemap_job(
             continue
 
         discovered_products += len(product_urls)
-        with ThreadPoolExecutor(max_workers=max(1, product_workers)) as executor:
-            future_to_url = {
-                executor.submit(fetch_product_by_url, job, product_url): product_url
-                for product_url in product_urls
-            }
+        executor = ThreadPoolExecutor(max_workers=max(1, product_workers))
+        cancelled = False
+        future_to_url = {
+            executor.submit(fetch_product_by_url, job, product_url): product_url
+            for product_url in product_urls
+        }
+        try:
             for index, future in enumerate(as_completed(future_to_url), start=1):
+                if cancel_check and cancel_check():
+                    cancelled = True
+                    break
                 product_url = future_to_url[future]
                 try:
                     product = future.result()
@@ -330,12 +432,51 @@ def run_vtex_sitemap_job(
                 if not category_matches(job, product):
                     skipped_unmatched += 1
                     continue
-                session_import.push(product_to_record(job, product))
+                try:
+                    session_import.push(product_to_record(job, product))
+                except RunCancelled:
+                    cancelled = True
+                    break
                 if index % 200 == 0 or index == len(future_to_url):
                     print(
                         f"[{job.provider}] sitemap={sitemap_index}/{len(sitemap_urls)} "
                         f"products={index}/{len(future_to_url)} captured={session_import.captured}"
                     )
+        finally:
+            executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
+
+        if cancelled:
+            totals, manifest_path = session_import.finalize(
+                {
+                    "source": "VTEX_SITEMAP_PRODUCT_API",
+                    "sitemapsFetched": len(sitemap_urls),
+                    "productsDiscovered": discovered_products,
+                    "skippedCategoryMismatch": skipped_unmatched,
+                    "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                },
+                flush_pending=False,
+            )
+            return {
+                "status": "CANCELLED",
+                "message": f"{job.name}: execucao cancelada durante a coleta detalhada.",
+                "summary": [
+                    {
+                        "source": job.name,
+                        "provider": job.provider,
+                        "capturedProducts": session_import.captured,
+                        "sitemapsFetched": sitemap_index,
+                        "productsDiscovered": discovered_products,
+                        "outputManifest": str(manifest_path),
+                    }
+                ],
+                "scannedProducts": int(totals.get("scannedProducts", 0)),
+                "importedProducts": int(totals.get("importedProducts", 0)),
+                "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                "skippedMedication": int(totals.get("skippedMedication", 0)),
+                "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                "errors": sitemap_errors + detail_errors + int(totals.get("errors", 0)),
+            }
 
     totals, manifest_path = session_import.finalize(
         {

@@ -10,9 +10,17 @@ public class CatalogImageUrlResolver {
     public String resolve(String imageUrl, String imageStorageKey) {
         String normalizedStorageKey = normalizeStorageKey(imageStorageKey);
         if (normalizedStorageKey != null) {
-            return IMAGE_API_PREFIX + normalizedStorageKey;
+            return managedUrl(normalizedStorageKey);
         }
         return normalizeUrl(imageUrl);
+    }
+
+    public String managedUrl(String imageStorageKey) {
+        String normalizedStorageKey = normalizeStorageKey(imageStorageKey);
+        if (normalizedStorageKey == null) {
+            return null;
+        }
+        return IMAGE_API_PREFIX + normalizedStorageKey;
     }
 
     public boolean isManagedImage(String imageUrl) {
@@ -20,7 +28,7 @@ public class CatalogImageUrlResolver {
         return normalized != null && normalized.startsWith(IMAGE_API_PREFIX);
     }
 
-    private String normalizeStorageKey(String value) {
+    public String normalizeStorageKey(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -31,7 +39,7 @@ public class CatalogImageUrlResolver {
         return normalized.isBlank() ? null : normalized;
     }
 
-    private String normalizeUrl(String value) {
+    public String normalizeUrl(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }

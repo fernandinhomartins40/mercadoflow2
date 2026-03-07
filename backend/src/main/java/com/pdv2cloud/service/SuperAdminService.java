@@ -9,6 +9,7 @@ import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDetailsDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunFinishRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunStartRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerSourceDTO;
@@ -153,6 +154,9 @@ public class SuperAdminService {
 
     @Autowired
     private CatalogCrawlerRunRepository crawlerRunRepository;
+
+    @Autowired
+    private CatalogCrawlerRunArtifactsService catalogCrawlerRunArtifactsService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -315,13 +319,7 @@ public class SuperAdminService {
     }
 
     public SuperAdminCrawlerRunDTO triggerCrawlerRun(String triggeredBy) {
-        CatalogCrawlerRun run = new CatalogCrawlerRun();
-        run.setRequestedAt(LocalDateTime.now());
-        run.setStatus("QUEUED");
-        run.setMessage("Execucao enfileirada aguardando servico Python.");
-        run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
-        run.setSourcesJson(exportEnabledProvidersAsJson());
-        return toCrawlerRunDTO(crawlerRunRepository.save(run));
+        throw new IllegalArgumentException("Execucao global desativada. O crawler agora roda manualmente um supermercado por vez.");
     }
 
     public SuperAdminCrawlerRunDTO triggerCrawlerRunForProvider(String provider, String triggeredBy) {
@@ -329,28 +327,96 @@ public class SuperAdminService {
         if (!job.enabled()) {
             throw new IllegalArgumentException("Provider temporariamente desabilitado no crawler: " + job.provider());
         }
+        ensureNoActiveCrawlerRun(null);
         CatalogCrawlerRun run = new CatalogCrawlerRun();
         run.setRequestedAt(LocalDateTime.now());
         run.setStatus("QUEUED");
-        run.setMessage("Execucao enfileirada aguardando servico Python.");
+        run.setMessage("Execucao manual enfileirada. O dispatcher vai rodar somente este supermercado.");
         run.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN"));
         run.setSourcesJson(toJsonArray(List.of(job.provider())));
         return toCrawlerRunDTO(crawlerRunRepository.save(run));
     }
 
+    @Transactional(readOnly = true)
+    public SuperAdminCrawlerRunDTO getCrawlerRun(UUID runId) {
+        CatalogCrawlerRun run = crawlerRunRepository.findById(runId)
+            .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+        return toCrawlerRunDTO(run);
+    }
+
+    @Transactional(readOnly = true)
+    public SuperAdminCrawlerRunDetailsDTO getCrawlerRunDetails(UUID runId, int offset, int limit) {
+        return catalogCrawlerRunArtifactsService.buildDetails(getCrawlerRun(runId), offset, limit);
+    }
+
+    public SuperAdminCrawlerRunDTO cancelCrawlerRun(UUID runId, String triggeredBy) {
+        CatalogCrawlerRun run = crawlerRunRepository.findById(runId)
+            .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+
+        String status = normalizeRunStatus(run.getStatus());
+        if (isFinalRunStatus(status)) {
+            throw new IllegalArgumentException("A execucao ja foi finalizada e nao pode ser cancelada.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        run.setStatus("CANCELLED");
+        run.setFinishedAt(now);
+        run.setMessage(cleanMessage(
+            "Cancelado por " + cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN_CANCEL")
+                + (run.getMessage() == null || run.getMessage().isBlank() ? "" : " | " + run.getMessage())
+        ));
+        return toCrawlerRunDTO(crawlerRunRepository.save(run));
+    }
+
+    public SuperAdminCrawlerRunDTO restartCrawlerRun(UUID runId, String triggeredBy) {
+        CatalogCrawlerRun sourceRun = crawlerRunRepository.findById(runId)
+            .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+        List<String> sourceProviders = parseJsonArray(sourceRun.getSourcesJson());
+        if (sourceProviders.size() != 1) {
+            throw new IllegalArgumentException("Reexecucao indisponivel para runs antigos com mais de um supermercado.");
+        }
+        ensureNoActiveCrawlerRun(runId);
+
+        if (!isFinalRunStatus(sourceRun.getStatus())) {
+            cancelCrawlerRun(runId, triggeredBy);
+            sourceRun = crawlerRunRepository.findById(runId)
+                .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+        }
+
+        CatalogCrawlerRun newRun = new CatalogCrawlerRun();
+        newRun.setRequestedAt(LocalDateTime.now());
+        newRun.setStatus("QUEUED");
+        newRun.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN_RESTART"));
+        newRun.setSourcesJson(toJsonArray(sourceProviders));
+        newRun.setMessage(cleanMessage("Reexecucao solicitada a partir do run " + sourceRun.getId()));
+        return toCrawlerRunDTO(crawlerRunRepository.save(newRun));
+    }
+
     public SuperAdminCrawlerRunDTO claimPendingCrawlerRun(SuperAdminCrawlerRunClaimRequestDTO request) {
         String workerName = request != null ? request.getWorkerName() : null;
-        return crawlerRunRepository.findFirstByStatusOrderByRequestedAtAsc("QUEUED")
-            .map(run -> {
-                run.setStatus("RUNNING");
-                run.setStartedAt(LocalDateTime.now());
-                run.setMessage("Execucao iniciada pelo crawler.");
-                if (run.getTriggeredBy() == null || run.getTriggeredBy().isBlank()) {
-                    run.setTriggeredBy(cleanLabel(workerName, "PYTHON_CRAWLER"));
-                }
-                return toCrawlerRunDTO(crawlerRunRepository.save(run));
-            })
-            .orElse(null);
+        while (true) {
+            CatalogCrawlerRun run = crawlerRunRepository.findFirstByStatusOrderByRequestedAtAsc("QUEUED").orElse(null);
+            if (run == null) {
+                return null;
+            }
+            List<String> providers = parseJsonArray(run.getSourcesJson());
+            if (providers.size() != 1) {
+                run.setStatus("FAILED");
+                run.setStartedAt(run.getStartedAt() != null ? run.getStartedAt() : LocalDateTime.now());
+                run.setFinishedAt(LocalDateTime.now());
+                run.setMessage("Execucao rejeitada: o modo manual aceita somente um supermercado por vez.");
+                crawlerRunRepository.save(run);
+                continue;
+            }
+
+            run.setStatus("RUNNING");
+            run.setStartedAt(LocalDateTime.now());
+            run.setMessage("Execucao manual iniciada pelo dispatcher.");
+            if (run.getTriggeredBy() == null || run.getTriggeredBy().isBlank()) {
+                run.setTriggeredBy(cleanLabel(workerName, "PYTHON_CRAWLER"));
+            }
+            return toCrawlerRunDTO(crawlerRunRepository.save(run));
+        }
     }
 
     public SuperAdminCrawlerRunDTO startCrawlerRun(SuperAdminCrawlerRunStartRequestDTO request) {
@@ -624,6 +690,21 @@ public class SuperAdminService {
             case "SUCCESS", "FAILED", "RUNNING", "QUEUED", "CANCELLED" -> normalized;
             default -> "SUCCESS";
         };
+    }
+
+    private boolean isFinalRunStatus(String status) {
+        String normalized = normalizeRunStatus(status);
+        return "SUCCESS".equals(normalized) || "FAILED".equals(normalized) || "CANCELLED".equals(normalized);
+    }
+
+    private void ensureNoActiveCrawlerRun(UUID ignoredRunId) {
+        List<String> activeStatuses = List.of("QUEUED", "RUNNING");
+        long activeCount = ignoredRunId == null
+            ? crawlerRunRepository.countByStatusIn(activeStatuses)
+            : crawlerRunRepository.countByStatusInAndIdNot(activeStatuses, ignoredRunId);
+        if (activeCount > 0) {
+            throw new IllegalArgumentException("Ja existe uma execucao em andamento ou na fila. O painel agora executa um supermercado por vez.");
+        }
     }
 
     private Integer safeInt(Integer value) {

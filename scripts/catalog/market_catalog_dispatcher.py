@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+from pathlib import Path
 import sys
 import time
+import traceback
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import requests
@@ -25,12 +28,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runs-start-endpoint", default="/v1/super-admin/catalog/crawler/runs/start")
     parser.add_argument("--runs-claim-endpoint", default="/v1/super-admin/catalog/crawler/runs/claim")
     parser.add_argument("--runs-finish-endpoint", default="/v1/super-admin/catalog/crawler/runs/{runId}/finish")
+    parser.add_argument("--run-status-endpoint", default="/v1/super-admin/catalog/crawler/runs/{runId}")
     parser.add_argument("--email", required=True)
     parser.add_argument("--password", required=True)
     parser.add_argument("--confidence", type=float, default=0.96)
     parser.add_argument("--batch-size", type=int, default=300)
     parser.add_argument("--download-images", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--images-dir", default="data/catalog/images")
+    parser.add_argument("--runs-dir", default="data/catalog/runs")
     parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
     parser.add_argument("--worker-name", default="MERCADOFLOW_MARKET_DISPATCHER")
     parser.add_argument("--providers", default="")
@@ -69,6 +74,17 @@ def api_get(api_base: str, endpoint: str, token: str) -> Dict[str, Any]:
     response.raise_for_status()
     payload = response.json()
     return payload if isinstance(payload, dict) else {}
+
+
+def get_run_status(api_base: str, endpoint_template: str, token: str, run_id: str) -> str:
+    if not run_id:
+        return ""
+    try:
+        payload = api_get(api_base, endpoint_template.replace("{runId}", run_id), token)
+    except Exception as exc:
+        print(f"get run status failed: {exc}", file=sys.stderr)
+        return ""
+    return norm_text(payload.get("status")).upper()
 
 
 def api_post(
@@ -209,6 +225,7 @@ def run_paodeacucar(args: argparse.Namespace) -> Dict[str, Any]:
         build_options(args, job.provider, job.source_license, job.output),
         max_workers_list=args.gpa_list_workers,
         max_workers_detail=args.gpa_detail_workers,
+        cancel_check=getattr(args, "_cancel_check", None),
     )
 
 
@@ -238,6 +255,7 @@ def run_extra(args: argparse.Namespace) -> Dict[str, Any]:
         build_options(args, job.provider, job.source_license, job.output),
         max_workers_list=args.gpa_list_workers,
         max_workers_detail=args.gpa_detail_workers,
+        cancel_check=getattr(args, "_cancel_check", None),
     )
 
 
@@ -295,6 +313,7 @@ def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
         page_size=args.carrefour_page_size,
         max_pages=args.carrefour_max_pages,
         slug_fallback=True,
+        cancel_check=getattr(args, "_cancel_check", None),
     )
 
 
@@ -314,6 +333,7 @@ def run_drogariasp(args: argparse.Namespace) -> Dict[str, Any]:
         page_size=args.dsp_page_size,
         max_pages=args.dsp_max_pages,
         slug_fallback=True,
+        cancel_check=getattr(args, "_cancel_check", None),
     )
 
 
@@ -361,6 +381,7 @@ def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
         page_size=args.atacadao_page_size,
         max_pages=args.atacadao_max_pages,
         slug_fallback=True,
+        cancel_check=getattr(args, "_cancel_check", None),
     )
 
 
@@ -385,11 +406,12 @@ def resolve_providers(raw: Sequence[str]) -> List[str]:
     return [provider for provider in providers if provider in RUNNERS and provider not in DISABLED_PROVIDERS]
 
 
-def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[str, Any]:
+def run_providers(args: argparse.Namespace, providers: Sequence[str], cancel_check: Optional[Callable[[], bool]] = None) -> Dict[str, Any]:
     totals = empty_totals()
     summary: List[Dict[str, Any]] = []
     messages: List[str] = []
     failed = False
+    args._cancel_check = cancel_check
 
     if not providers:
         return {
@@ -400,6 +422,13 @@ def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[st
         }
 
     for provider in providers:
+        if cancel_check and cancel_check():
+            return {
+                "status": "CANCELLED",
+                "message": "Execucao cancelada pelo super admin.",
+                "summary": summary,
+                **totals,
+            }
         if provider in DISABLED_PROVIDERS:
             messages.append(f"{provider}: temporariamente desabilitado")
             summary.append({"provider": provider, "source": provider, "disabled": True})
@@ -423,6 +452,19 @@ def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[st
 
         if result.get("status") == "FAILED":
             failed = True
+        if result.get("status") == "CANCELLED":
+            return {
+                "status": "CANCELLED",
+                "message": result.get("message") or "Execucao cancelada pelo super admin.",
+                "summary": summary + list(result.get("summary", [])),
+                "scannedProducts": totals["scannedProducts"] + int(result.get("scannedProducts", 0)),
+                "importedProducts": totals["importedProducts"] + int(result.get("importedProducts", 0)),
+                "skippedInvalidGtin": totals["skippedInvalidGtin"] + int(result.get("skippedInvalidGtin", 0)),
+                "skippedMissingName": totals["skippedMissingName"] + int(result.get("skippedMissingName", 0)),
+                "skippedMedication": totals["skippedMedication"] + int(result.get("skippedMedication", 0)),
+                "skippedDuplicateGtin": totals["skippedDuplicateGtin"] + int(result.get("skippedDuplicateGtin", 0)),
+                "errors": totals["errors"] + int(result.get("errors", 0)),
+            }
         for key in totals:
             totals[key] += int(result.get(key, 0))
         summary.extend(result.get("summary", []))
@@ -437,6 +479,38 @@ def run_providers(args: argparse.Namespace, providers: Sequence[str]) -> Dict[st
     }
 
 
+class TeeStream:
+    def __init__(self, *streams: Any):
+        self.streams = streams
+
+    def write(self, data: str) -> int:
+        for stream in self.streams:
+            stream.write(data)
+        return len(data)
+
+    def flush(self) -> None:
+        for stream in self.streams:
+            stream.flush()
+
+
+@contextlib.contextmanager
+def capture_run_output(log_path: Path):
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as handle:
+        stdout_tee = TeeStream(sys.stdout, handle)
+        stderr_tee = TeeStream(sys.stderr, handle)
+        with contextlib.redirect_stdout(stdout_tee), contextlib.redirect_stderr(stderr_tee):
+            yield
+
+
+def write_run_result(runs_dir: str, run_id: str, result: Dict[str, Any]) -> None:
+    if not run_id:
+        return
+    run_dir = Path(runs_dir).resolve() / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def main() -> int:
     args = parse_args()
     explicit_providers = resolve_providers(args.providers.split(",")) if args.providers else enabled_providers()
@@ -448,42 +522,68 @@ def main() -> int:
 
     token = login(args.api_base, args.login_endpoint, args.email, args.password)
     poll_seconds = max(5, int(args.manual_poll_seconds))
-    next_scheduled_at = time.time()
-    print(f"watch mode enabled providers={','.join(enabled_providers())} poll={poll_seconds}s")
+    print(f"watch mode enabled manual_only=true providers={','.join(enabled_providers())} poll={poll_seconds}s")
 
     while True:
         try:
-            enabled, interval_minutes = load_schedule(args.api_base, args.config_endpoint, token, args.interval_minutes)
             claimed = claim_remote_run(args.api_base, args.runs_claim_endpoint, token, args.worker_name)
-            now = time.time()
-            should_run_scheduled = enabled and now >= next_scheduled_at
-
-            if claimed is None and not should_run_scheduled:
+            if claimed is None:
                 time.sleep(poll_seconds)
                 continue
 
-            providers = enabled_providers()
+            claimed_sources = claimed.get("sources") or []
+            providers = resolve_providers(claimed_sources)
             run_id = ""
-            if claimed is not None:
-                claimed_sources = claimed.get("sources") or []
-                providers = resolve_providers(claimed_sources)
-                run_id = norm_text(claimed.get("id"))
-                print(f"manual run claimed id={run_id} providers={providers}")
-            else:
-                providers = explicit_providers
-                run_id = start_remote_run(
-                    args.api_base,
-                    args.runs_start_endpoint,
-                    token,
-                    args.worker_name,
-                    providers,
-                    "Execucao automatica dos jobs fixos por mercado.",
-                )
-                next_scheduled_at = time.time() + max(60, interval_minutes * 60)
 
-            result = run_providers(args, providers)
-            if run_id:
+            def cancel_check() -> bool:
+                status = get_run_status(args.api_base, args.run_status_endpoint, token, run_id)
+                return status == "CANCELLED"
+
+            run_id = norm_text(claimed.get("id"))
+            run_log_path = Path(args.runs_dir).resolve() / run_id / "dispatcher.log"
+
+            if len(providers) != 1:
+                invalid_sources = [norm_text(value) for value in claimed_sources if norm_text(value)]
+                result = {
+                    "status": "FAILED",
+                    "message": "O dispatcher manual aceita exatamente um supermercado por execucao.",
+                    "summary": [
+                        {
+                            "provider": provider,
+                            "source": provider,
+                            "error": "manual-single-provider-required",
+                        }
+                        for provider in (invalid_sources or providers)
+                    ],
+                    **empty_totals(),
+                }
+                write_run_result(args.runs_dir, run_id, result)
                 finish_remote_run(args.api_base, args.runs_finish_endpoint, token, run_id, result)
+                continue
+
+            try:
+                with capture_run_output(run_log_path):
+                    print(f"manual run claimed id={run_id} providers={providers}")
+                    result = run_providers(args, providers, cancel_check=cancel_check)
+            except Exception as exc:
+                with capture_run_output(run_log_path):
+                    print(f"dispatcher cycle failed for run {run_id}: {exc}", file=sys.stderr)
+                    traceback.print_exc()
+                result = {
+                    "status": "FAILED",
+                    "message": f"Falha interna do dispatcher: {exc}",
+                    "summary": [{"provider": providers[0], "source": providers[0], "error": str(exc)}],
+                    "scannedProducts": 0,
+                    "importedProducts": 0,
+                    "skippedInvalidGtin": 0,
+                    "skippedMissingName": 0,
+                    "skippedMedication": 0,
+                    "skippedDuplicateGtin": 0,
+                    "errors": 1,
+                }
+
+            write_run_result(args.runs_dir, run_id, result)
+            finish_remote_run(args.api_base, args.runs_finish_endpoint, token, run_id, result)
         except KeyboardInterrupt:
             print("stopped by user")
             return 0

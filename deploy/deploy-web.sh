@@ -256,6 +256,9 @@ main() {
   require_file "$COMPOSE_FILE"
   require_file "deploy/nginx.vps.conf"
 
+  mkdir -p data/catalog/images
+  mkdir -p data/catalog/runs
+
   ensure_secret_file ".jwt_secret" 64 "JWT secret"
   ensure_secret_file ".db_secret" 16 "senha do PostgreSQL"
   write_env_file

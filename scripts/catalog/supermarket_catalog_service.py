@@ -1211,6 +1211,21 @@ def chunks(items: Sequence[Record], size: int) -> Iterable[List[Record]]:
         yield list(items[i:i + size])
 
 
+def unique_records_by_gtin(records: Sequence[Record]) -> Tuple[List[Record], int]:
+    unique: List[Record] = []
+    seen_gtins: set[str] = set()
+    duplicates = 0
+    for record in records:
+        gtin = norm_gtin(record.code)
+        if gtin:
+            if gtin in seen_gtins:
+                duplicates += 1
+                continue
+            seen_gtins.add(gtin)
+        unique.append(record)
+    return unique, duplicates
+
+
 def import_api(
     api_base: str,
     token: str,
@@ -1237,7 +1252,9 @@ def import_api(
     path = import_endpoint if import_endpoint.startswith("/") else f"/{import_endpoint}"
 
     for (provider, source_license), items in grouped.items():
-        for batch in chunks(items, max(1, min(batch_size, 2000))):
+        unique_items, local_duplicates = unique_records_by_gtin(items)
+        totals["skippedDuplicateGtin"] += local_duplicates
+        for batch in chunks(unique_items, max(1, min(batch_size, 2000))):
             body = {
                 "provider": provider,
                 "sourceLicense": source_license,

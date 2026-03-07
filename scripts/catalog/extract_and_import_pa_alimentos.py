@@ -42,6 +42,21 @@ def norm_gtin(value: Any) -> str:
     return digits
 
 
+def unique_records_by_gtin(records: Iterable[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
+    unique: List[Dict[str, Any]] = []
+    seen_gtins: set[str] = set()
+    duplicates = 0
+    for record in records:
+        gtin = norm_gtin(record.get("code"))
+        if gtin:
+            if gtin in seen_gtins:
+                duplicates += 1
+                continue
+            seen_gtins.add(gtin)
+        unique.append(record)
+    return unique, duplicates
+
+
 def canonical_url(value: Any) -> str:
     text = norm_text(value)
     if text.startswith("http://") or text.startswith("https://"):
@@ -373,6 +388,8 @@ def import_records(
     }
 
     valid_items = [item for item in records if norm_gtin(item.get("code")) and norm_text(item.get("name"))]
+    valid_items, local_duplicates = unique_records_by_gtin(valid_items)
+    totals["skippedDuplicateGtin"] += local_duplicates
     print(f"records ready for import: {len(valid_items)}")
 
     for index, batch in enumerate(chunked(valid_items, max(1, min(batch_size, 1500))), start=1):

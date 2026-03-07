@@ -7,6 +7,7 @@ import com.pdv2cloud.model.dto.SuperAdminCrawlerJobDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerMonitorDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunClaimRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDTO;
+import com.pdv2cloud.model.dto.SuperAdminCrawlerRunDetailsDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunFinishRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerRunStartRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminMarketCreateRequest;
@@ -177,6 +178,38 @@ public class SuperAdminController {
         @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN") String triggeredBy
     ) {
         return ResponseEntity.ok(superAdminService.triggerCrawlerRunForProvider(provider, triggeredBy));
+    }
+
+    @GetMapping("/catalog/crawler/runs/{runId}")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> getCrawlerRun(
+        @PathVariable UUID runId
+    ) {
+        return ResponseEntity.ok(superAdminService.getCrawlerRun(runId));
+    }
+
+    @GetMapping("/catalog/crawler/runs/{runId}/details")
+    public ResponseEntity<SuperAdminCrawlerRunDetailsDTO> getCrawlerRunDetails(
+        @PathVariable UUID runId,
+        @RequestParam(defaultValue = "0") int offset,
+        @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(superAdminService.getCrawlerRunDetails(runId, offset, limit));
+    }
+
+    @PostMapping("/catalog/crawler/runs/{runId}/cancel")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> cancelCrawlerRun(
+        @PathVariable UUID runId,
+        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN_CANCEL") String triggeredBy
+    ) {
+        return ResponseEntity.ok(superAdminService.cancelCrawlerRun(runId, triggeredBy));
+    }
+
+    @PostMapping("/catalog/crawler/runs/{runId}/restart")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> restartCrawlerRun(
+        @PathVariable UUID runId,
+        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN_RESTART") String triggeredBy
+    ) {
+        return ResponseEntity.ok(superAdminService.restartCrawlerRun(runId, triggeredBy));
     }
 
     @PostMapping("/catalog/crawler/runs/claim")

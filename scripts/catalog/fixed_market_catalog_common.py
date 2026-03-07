@@ -7,7 +7,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -102,6 +102,10 @@ class ImportOptions:
     images_dir: str = "data/catalog/images"
     max_image_bytes: int = 3_000_000
     output: str = ""
+
+
+class RunCancelled(Exception):
+    pass
 
 
 class LocalImageStorage:
@@ -246,8 +250,9 @@ def import_records(options: ImportOptions, token: str, records: List[Dict[str, A
 
 
 class MarketImportSession:
-    def __init__(self, options: ImportOptions):
+    def __init__(self, options: ImportOptions, cancel_check: Optional[Callable[[], bool]] = None):
         self.options = options
+        self.cancel_check = cancel_check
         self.output_base = provider_output_base(options.provider, options.output)
         self.audit = AuditWriter(self.output_base)
         self.image_store = LocalImageStorage(Path(options.images_dir).resolve(), options.max_image_bytes) if options.download_images else None
@@ -256,9 +261,24 @@ class MarketImportSession:
         self.captured = 0
         self.images_saved = 0
         self.token = ""
+        self.seen_gtins: Set[str] = set()
+
+    def is_cancelled(self) -> bool:
+        return bool(self.cancel_check and self.cancel_check())
+
+    def ensure_not_cancelled(self) -> None:
+        if self.is_cancelled():
+            raise RunCancelled("run cancelled by super admin")
 
     def push(self, record: Dict[str, Any]) -> None:
+        self.ensure_not_cancelled()
         normalized = normalize_record(record)
+        gtin = norm_gtin(normalized.get("code"))
+        if gtin:
+            if gtin in self.seen_gtins:
+                self.totals["skippedDuplicateGtin"] += 1
+                return
+            self.seen_gtins.add(gtin)
         code = norm_text(normalized.get("code") or normalized.get("providerProductId"))
         if self.image_store is not None and normalized.get("imageUrl") and not normalized.get("imageStorageKey") and code:
             try:
@@ -292,6 +312,7 @@ class MarketImportSession:
         return self.token
 
     def flush(self) -> None:
+        self.ensure_not_cancelled()
         if not self.pending:
             return
         batch = list(self.pending)
@@ -304,8 +325,9 @@ class MarketImportSession:
         for key, value in result.items():
             self.totals[key] += int(value)
 
-    def finalize(self, manifest_extra: Dict[str, Any]) -> Tuple[Dict[str, int], Path]:
-        self.flush()
+    def finalize(self, manifest_extra: Dict[str, Any], flush_pending: bool = True) -> Tuple[Dict[str, int], Path]:
+        if flush_pending:
+            self.flush()
         if not self.options.do_import:
             self.totals["scannedProducts"] = self.captured
         manifest = self.audit.finalize(

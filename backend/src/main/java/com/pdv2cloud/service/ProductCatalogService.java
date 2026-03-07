@@ -58,6 +58,9 @@ public class ProductCatalogService {
     @Autowired
     private CatalogImageUrlResolver catalogImageUrlResolver;
 
+    @Autowired
+    private CatalogImageStorageService catalogImageStorageService;
+
     public List<Product> resolveProducts(List<InvoiceItemDTO> items, UUID marketId) {
         List<Product> products = new ArrayList<>();
 
@@ -131,9 +134,7 @@ public class ProductCatalogService {
             product = productRepository.save(product);
         }
 
-        ProductEnrichment enrichment = productEnrichmentRepository
-            .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
-            .orElseGet(ProductEnrichment::new);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
         enrichment.setProduct(product);
         enrichment.setProvider(provider);
         enrichment.setProviderProductId(ProductCatalogUtils.canonicalizeDisplayName(request.getProviderProductId()));
@@ -227,9 +228,7 @@ public class ProductCatalogService {
         applyManualProductFields(product, request);
         product = productRepository.save(product);
 
-        ProductEnrichment enrichment = productEnrichmentRepository
-            .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
-            .orElseGet(ProductEnrichment::new);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
 
         applyManualEnrichmentFields(enrichment, product, request, provider, gtin);
         enrichment = productEnrichmentRepository.save(enrichment);
@@ -257,9 +256,7 @@ public class ProductCatalogService {
         if (provider == null) {
             provider = "MANUAL_SUPER_ADMIN";
         }
-        ProductEnrichment enrichment = productEnrichmentRepository
-            .findTopByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider)
-            .orElseGet(ProductEnrichment::new);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
 
         applyManualEnrichmentFields(enrichment, product, request, provider, requestedGtin);
         enrichment = productEnrichmentRepository.save(enrichment);
@@ -437,7 +434,10 @@ public class ProductCatalogService {
             && enrichment.getPackageDescription() != null) {
             product.setPackageDescription(enrichment.getPackageDescription());
         }
-        String resolvedImageUrl = catalogImageUrlResolver.resolve(enrichment.getImageUrl(), enrichment.getImageStorageKey());
+        String resolvedImageUrl = catalogImageStorageService.resolveCatalogImageUrl(
+            enrichment.getImageUrl(),
+            enrichment.getImageStorageKey()
+        );
         if (shouldPromoteProductImage(product.getImageUrl(), resolvedImageUrl)) {
             product.setImageUrl(resolvedImageUrl);
         }
@@ -449,6 +449,31 @@ public class ProductCatalogService {
         if (candidate.compareTo(current) > 0) {
             product.setConfidenceScore(scaleConfidence(candidate));
         }
+    }
+
+    private ProductEnrichment resolvePrimaryEnrichment(Product product, String provider) {
+        if (product.getId() == null) {
+            return new ProductEnrichment();
+        }
+
+        List<ProductEnrichment> enrichments = productEnrichmentRepository
+            .findAllByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider);
+        if (enrichments.isEmpty()) {
+            return new ProductEnrichment();
+        }
+
+        ProductEnrichment primary = enrichments.get(0);
+        if (enrichments.size() > 1) {
+            List<ProductEnrichment> duplicates = enrichments.subList(1, enrichments.size());
+            productEnrichmentRepository.deleteAllInBatch(duplicates);
+            log.warn(
+                "Collapsed duplicate product enrichments | productId={} provider={} removed={}",
+                product.getId(),
+                provider,
+                duplicates.size()
+            );
+        }
+        return primary;
     }
 
     private boolean shouldPromoteInvoiceName(Product product, String candidateName) {
@@ -673,7 +698,7 @@ public class ProductCatalogService {
             enrichment.getCanonicalName() != null ? enrichment.getCanonicalName() : product.getName()
         );
         String resolvedImageUrl = selectCatalogImage(
-            catalogImageUrlResolver.resolve(enrichment.getImageUrl(), enrichment.getImageStorageKey()),
+            catalogImageStorageService.resolveCatalogImageUrl(enrichment.getImageUrl(), enrichment.getImageStorageKey()),
             catalogImageUrlResolver.resolve(product.getImageUrl(), null)
         );
         return new CatalogAdminProductDTO(

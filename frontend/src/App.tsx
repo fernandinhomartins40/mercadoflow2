@@ -19,6 +19,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SuperAdminUsers from './pages/SuperAdminUsers';
 import SuperAdminCatalogManager from './pages/SuperAdminCatalogManager';
 import SuperAdminCrawlerConfig from './pages/SuperAdminCrawlerConfig';
+import SuperAdminCrawlerRunDetails from './pages/SuperAdminCrawlerRunDetails';
 import { useAuth } from './context/AuthContext';
 import { useSuperAdminAuth } from './context/SuperAdminAuthContext';
 
@@ -73,6 +74,7 @@ const App: React.FC = () => {
       <Route path="/super-admin/usuarios" element={secureSuperAdmin(<SuperAdminUsers />)} />
       <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
       <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
+      <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
 
       <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
       <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />

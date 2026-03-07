@@ -70,6 +70,13 @@ def norm_text(value: Any) -> str:
     return " ".join(str(value).split()).strip()
 
 
+def norm_gtin(value: Any) -> str:
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if GTIN_REGEX.match(digits) and set(digits) != {"0"}:
+        return digits
+    return ""
+
+
 def canonical_url(value: Any) -> str:
     text = norm_text(value)
     if text.startswith("http://") or text.startswith("https://"):
@@ -157,6 +164,23 @@ def persist_item_images(items: Sequence[Dict[str, Any]], provider: str, base_dir
             key = ""
         if key:
             item["imageStorageKey"] = key
+
+
+def unique_items_by_gtin(items: Sequence[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+    unique: List[Dict[str, Any]] = []
+    seen_gtins: set[str] = set()
+    duplicates = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        gtin = norm_gtin(item.get("code") or item.get("gtin") or item.get("ean"))
+        if gtin:
+            if gtin in seen_gtins:
+                duplicates += 1
+                continue
+            seen_gtins.add(gtin)
+        unique.append(item)
+    return unique, duplicates
 
 
 def login_and_get_token(api_base: str, login_endpoint: str, email: str, password: str) -> str:
@@ -337,6 +361,8 @@ def main() -> int:
         print("no items to import")
         return 0
 
+    items, local_duplicates = unique_items_by_gtin(items)
+
     if args.download_images:
         persist_item_images(
             items,
@@ -362,7 +388,7 @@ def main() -> int:
     total_invalid = 0
     total_missing_name = 0
     total_medication = 0
-    total_duplicate = 0
+    total_duplicate = local_duplicates
     total_errors = 0
 
     try:
