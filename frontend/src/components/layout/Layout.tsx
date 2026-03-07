@@ -6,7 +6,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="app-shell">
       <Sidebar />
-      <main className="main">
+      <main className="main admin-main">
         <Navbar />
         {children}
       </main>

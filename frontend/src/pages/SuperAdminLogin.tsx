@@ -28,7 +28,7 @@ const SuperAdminLogin: React.FC = () => {
         <span className="pill">Super Admin</span>
         <h2>Painel da Plataforma</h2>
         <p>Login separado da aplicacao principal para controle de usuarios, planos e catalogo global.</p>
-        <form onSubmit={handleSubmit}>
+        <form className="super-admin-login-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>E-mail</label>
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

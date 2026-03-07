@@ -54,7 +54,7 @@ const PDVs: React.FC = () => {
     <Layout>
       <div className="page analytics-page">
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="card-section-head">
             <h3 style={{ marginTop: 0, marginBottom: 0 }}>PDVs</h3>
             <Button variant="secondary" onClick={load} disabled={loading}>
               Atualizar
@@ -65,7 +65,7 @@ const PDVs: React.FC = () => {
 
           <div className="card soft" style={{ marginTop: 14, marginBottom: 14 }}>
             <strong>Novo PDV</strong>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+            <div className="card-inline-form">
               <input className="input" placeholder="Nome do PDV" value={name} onChange={(e) => setName(e.target.value)} />
               <input
                 className="input"
@@ -80,8 +80,8 @@ const PDVs: React.FC = () => {
           {loading ? (
             <p>Carregando...</p>
           ) : (
-            <div className="table-shell">
-              <table className="table">
+            <div className="table-shell responsive-data-table-wrap">
+              <table className="table responsive-data-table">
                 <thead>
                   <tr>
                     <th>Nome</th>
@@ -99,9 +99,9 @@ const PDVs: React.FC = () => {
                   ) : (
                     items.map((pdv) => (
                       <tr key={pdv.id}>
-                        <td>{pdv.name}</td>
-                        <td>{pdv.serialNumber || '-'}</td>
-                        <td>{pdv.createdAt ? new Date(pdv.createdAt).toLocaleString('pt-BR') : '-'}</td>
+                        <td data-label="Nome">{pdv.name}</td>
+                        <td data-label="Serial">{pdv.serialNumber || '-'}</td>
+                        <td data-label="Criado em">{pdv.createdAt ? new Date(pdv.createdAt).toLocaleString('pt-BR') : '-'}</td>
                       </tr>
                     ))
                   )}

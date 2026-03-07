@@ -27,7 +27,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           <Button variant="secondary" onClick={() => logout()}>Sair</Button>
         </div>
       </aside>
-      <main className="super-admin-main">{children}</main>
+      <main className="super-admin-main shell-content">{children}</main>
     </div>
   );
 };

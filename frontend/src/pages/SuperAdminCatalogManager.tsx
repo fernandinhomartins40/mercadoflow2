@@ -11,6 +11,7 @@ interface CatalogRow {
   brand?: string | null;
   category?: string | null;
   packageDescription?: string | null;
+  unit?: string | null;
   imageUrl?: string | null;
   provider: string;
   sourceLicense?: string | null;
@@ -136,7 +137,7 @@ const SuperAdminCatalogManager: React.FC = () => {
       brand: row.brand || '',
       category: row.category || '',
       packageDescription: row.packageDescription || '',
-      unit: '',
+      unit: row.unit || '',
       imageUrl: row.imageUrl || '',
       provider: row.provider || 'MANUAL_SUPER_ADMIN',
       sourceLicense: row.sourceLicense || 'Cadastro manual Super Admin',
@@ -210,7 +211,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.enrichmentId}>
-                      <td>
+                      <td data-label="Produto">
                         <div className="catalog-admin-product-cell">
                           {row.imageUrl ? (
                             <img className="catalog-admin-thumb" src={row.imageUrl} alt={row.canonicalName} loading="lazy" />
@@ -224,18 +225,18 @@ const SuperAdminCatalogManager: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td>{row.gtin || '--'}</td>
-                      <td>{row.brand || '--'}</td>
-                      <td>{row.category || '--'}</td>
-                      <td>{row.provider}</td>
-                      <td><Button variant="secondary" onClick={() => startEdit(row)}>Editar</Button></td>
+                      <td data-label="GTIN">{row.gtin || '--'}</td>
+                      <td data-label="Marca">{row.brand || '--'}</td>
+                      <td data-label="Categoria">{row.category || '--'}</td>
+                      <td data-label="Fonte">{row.provider}</td>
+                      <td data-label="Acoes" className="table-action-cell"><Button variant="secondary" onClick={() => startEdit(row)}>Editar</Button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-          <div className="pager-actions" style={{ marginTop: 12 }}>
+          <div className="pager-actions admin-pager-actions" style={{ marginTop: 12 }}>
             <Button variant="secondary" onClick={() => setPage((value) => Math.max(0, value - 1))} disabled={page <= 0}>Anterior</Button>
             <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={!rowsPage || page >= (rowsPage.totalPages - 1)}>Proxima</Button>
           </div>

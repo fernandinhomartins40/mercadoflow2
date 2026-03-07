@@ -692,6 +692,9 @@ public class ProductCatalogService {
                     ? enrichment.getPackageDescription()
                     : product.getPackageDescription()
             ),
+            ProductCatalogUtils.canonicalizeDisplayName(
+                enrichment.getUnit() != null ? enrichment.getUnit() : product.getUnit()
+            ),
             resolvedImageUrl,
             enrichment.getProvider(),
             enrichment.getSourceLicense(),

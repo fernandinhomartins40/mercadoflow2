@@ -10,12 +10,12 @@ const Alerts: React.FC = () => {
     <Layout>
       <div className="page analytics-page">
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div className="card-section-head">
             <h3 style={{ marginTop: 0, marginBottom: 0 }}>Alertas</h3>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--muted)' }}>
+            <div className="card-section-actions">
+              <label className="toggle-inline">
                 <input type="checkbox" checked={onlyUnread} onChange={(e) => setOnlyUnread(e.target.checked)} />
-                Somente não lidos
+                Somente nao lidos
               </label>
               <Button variant="secondary" onClick={refresh} disabled={loading}>
                 Atualizar
@@ -30,17 +30,17 @@ const Alerts: React.FC = () => {
           {loading ? (
             <p>Carregando...</p>
           ) : (
-            <div className="table-shell">
-              <table className="table">
+            <div className="table-shell responsive-data-table-wrap">
+              <table className="table responsive-data-table">
                 <thead>
                   <tr>
                     <th>Status</th>
                     <th>Tipo</th>
-                    <th>Título</th>
+                    <th>Titulo</th>
                     <th>Mensagem</th>
                     <th>Prioridade</th>
                     <th>Criado em</th>
-                    <th style={{ width: 160 }}>Ações</th>
+                    <th style={{ width: 160 }}>Acoes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -53,13 +53,13 @@ const Alerts: React.FC = () => {
                   ) : (
                     alerts.map((alert) => (
                       <tr key={alert.id} style={{ opacity: alert.isRead ? 0.65 : 1 }}>
-                        <td>{alert.isRead ? 'Lido' : 'Novo'}</td>
-                        <td>{alert.type}</td>
-                        <td>{alert.title}</td>
-                        <td>{alert.message}</td>
-                        <td>{alert.priority}</td>
-                        <td>{alert.createdAt ? new Date(alert.createdAt).toLocaleString('pt-BR') : '-'}</td>
-                        <td>
+                        <td data-label="Status">{alert.isRead ? 'Lido' : 'Novo'}</td>
+                        <td data-label="Tipo">{alert.type}</td>
+                        <td data-label="Titulo">{alert.title}</td>
+                        <td data-label="Mensagem">{alert.message}</td>
+                        <td data-label="Prioridade">{alert.priority}</td>
+                        <td data-label="Criado em">{alert.createdAt ? new Date(alert.createdAt).toLocaleString('pt-BR') : '-'}</td>
+                        <td data-label="Acoes" className="table-action-cell">
                           {alert.isRead ? (
                             <span style={{ color: 'var(--muted)' }}>-</span>
                           ) : (

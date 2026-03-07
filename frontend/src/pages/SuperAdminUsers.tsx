@@ -205,11 +205,11 @@ const SuperAdminUsers: React.FC = () => {
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id}>
-                      <td>
+                      <td data-label="Usuario">
                         <strong>{user.name}</strong>
                         <div style={{ color: 'var(--muted)', fontSize: 12 }}>{user.email}</div>
                       </td>
-                      <td>
+                      <td data-label="Papel">
                         <select className="input" value={user.role} onChange={(e) => updateUserRole(user, e.target.value)}>
                           <option value="MARKET_OWNER">MARKET_OWNER</option>
                           <option value="MARKET_MANAGER">MARKET_MANAGER</option>
@@ -218,9 +218,9 @@ const SuperAdminUsers: React.FC = () => {
                           <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                         </select>
                       </td>
-                      <td>{user.marketName || '--'}</td>
-                      <td>{user.isActive ? 'Ativo' : 'Bloqueado'}</td>
-                      <td>
+                      <td data-label="Mercado">{user.marketName || '--'}</td>
+                      <td data-label="Status">{user.isActive ? 'Ativo' : 'Bloqueado'}</td>
+                      <td data-label="Acoes" className="table-action-cell">
                         <Button variant="secondary" onClick={() => toggleUserStatus(user)}>
                           {user.isActive ? 'Bloquear' : 'Liberar'}
                         </Button>
@@ -231,7 +231,7 @@ const SuperAdminUsers: React.FC = () => {
               </table>
             </div>
           )}
-          <div className="pager-actions" style={{ marginTop: 12 }}>
+          <div className="pager-actions admin-pager-actions" style={{ marginTop: 12 }}>
             <Button variant="secondary" onClick={() => setPage((value) => Math.max(0, value - 1))} disabled={page <= 0}>Anterior</Button>
             <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={!usersPage || page >= (usersPage.totalPages - 1)}>Proxima</Button>
           </div>
@@ -259,18 +259,18 @@ const SuperAdminUsers: React.FC = () => {
               <tbody>
                 {markets.map((market) => (
                   <tr key={market.id}>
-                    <td>{market.name}</td>
-                    <td>{market.cnpj || '--'}</td>
-                    <td>
+                    <td data-label="Mercado">{market.name}</td>
+                    <td data-label="CNPJ">{market.cnpj || '--'}</td>
+                    <td data-label="Plano">
                       <select className="input" value={market.planType} onChange={(e) => changeMarketPlan(market.id, e.target.value)}>
                         <option value="BASIC">BASIC</option>
                         <option value="INTERMEDIATE">INTERMEDIATE</option>
                         <option value="ADVANCED">ADVANCED</option>
                       </select>
                     </td>
-                    <td>{market.usersCount}</td>
-                    <td>{market.isActive ? 'Ativo' : 'Bloqueado'}</td>
-                    <td>
+                    <td data-label="Usuarios">{market.usersCount}</td>
+                    <td data-label="Status">{market.isActive ? 'Ativo' : 'Bloqueado'}</td>
+                    <td data-label="Acoes" className="table-action-cell">
                       <Button variant="secondary" onClick={() => toggleMarketStatus(market)}>
                         {market.isActive ? 'Bloquear' : 'Liberar'}
                       </Button>
