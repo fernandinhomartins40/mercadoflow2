@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import sys
@@ -14,12 +15,26 @@ from urllib.parse import urlparse
 import requests
 
 GTIN_RE = re.compile(r"^\d{8,14}$")
+HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def norm_text(value: Any) -> str:
     if value is None:
         return ""
     return " ".join(str(value).split()).strip()
+
+
+def plain_text(value: Any) -> str:
+    if value is None:
+        return ""
+    text = str(value)
+    if "<" in text and ">" in text:
+        text = re.sub(r"(?i)<br\\s*/?>", "\n", text)
+        text = re.sub(r"(?i)</li\\s*>", "\n", text)
+        text = re.sub(r"(?i)</p\\s*>", "\n", text)
+        text = HTML_TAG_RE.sub(" ", text)
+    text = html.unescape(text)
+    return norm_text(text)
 
 
 def norm_gtin(value: Any) -> str:

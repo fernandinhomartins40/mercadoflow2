@@ -200,6 +200,140 @@ public class SuperAdminService {
                 "https://api.superkoch.com.br:443/graphql"
             ),
             List.of("www.superkoch.com.br", "superkoch.com.br", "api.superkoch.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Angeloni",
+            "ANGELONI_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_angeloni.py",
+            "Importa o catalogo do Angeloni Eletro pela arvore oficial do tenant VTEX e detalha os itens pelo tenant publico quando o site principal nao expor diretamente a Search API.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.angeloni.com.br/sitemap.xml",
+                "https://eletroangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
+                "https://www.angeloni.com.br/eletro/vela-decorativa-marfim-7x10cm-acasa-3970465/p"
+            ),
+            List.of("www.angeloni.com.br", "angeloni.com.br", "eletroangeloni.vtexcommercestable.com.br", "eletroangeloni.myvtex.com")
+        ),
+        new FixedCrawlerJob(
+            "Bistek",
+            "BISTEK_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_bistek.py",
+            "Importa o catalogo completo do Bistek pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.bistek.com.br/api/catalog_system/pub/category/tree/20",
+                "https://www.bistek.com.br/sitemap.xml"
+            ),
+            List.of("www.bistek.com.br", "bistek.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Delivery Fort",
+            "DELIVERYFORT_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_deliveryfort.py",
+            "Importa o catalogo completo do Delivery Fort pela arvore oficial da VTEX legacy, com complemento por sitemap para recuperar itens residuais e detalhamento por slug.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.deliveryfort.com.br/api/catalog_system/pub/category/tree/20",
+                "https://www.deliveryfort.com.br/sitemap.xml"
+            ),
+            List.of("www.deliveryfort.com.br", "deliveryfort.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Condor",
+            "CONDOR_WEB_BR",
+            true,
+            "Catalogo completo",
+            "Sitemap + GraphQL",
+            "extract_and_import_condor.py",
+            "Importa o catalogo completo do Condor por sitemap de produtos e detalhamento GraphQL oficial por item para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.condor.com.br/sitemap.xml",
+                "https://api.condor.com.br/graphql"
+            ),
+            List.of("www.condor.com.br", "condor.com.br", "api.condor.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Farmacias Nissei",
+            "FARMACIASNISSEI_WEB_BR",
+            true,
+            "Catalogo completo",
+            "Sitemap + HTML detail",
+            "extract_and_import_farmaciasnissei.py",
+            "Importa o catalogo completo da Farmacias Nissei por sitemaps de produto e parse de JSON-LD/HTML das paginas para recuperar GTIN, categoria, descricao, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            true,
+            true,
+            List.of(
+                "https://www.farmaciasnissei.com.br/sitemap.xml",
+                "https://www.farmaciasnissei.com.br/sitemaps/categorias.xml"
+            ),
+            List.of("www.farmaciasnissei.com.br", "farmaciasnissei.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Extrafarma",
+            "EXTRAFARMA_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_extrafarma.py",
+            "Importa o catalogo completo da Extrafarma pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            true,
+            true,
+            List.of(
+                "https://www.extrafarma.com.br/api/catalog_system/pub/category/tree/20",
+                "https://www.extrafarma.com.br/sitemap.xml"
+            ),
+            List.of("www.extrafarma.com.br", "extrafarma.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Pague Menos",
+            "PAGUEMENOS_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_paguemenos.py",
+            "Importa o catalogo completo da Pague Menos pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            true,
+            true,
+            List.of(
+                "https://www.paguemenos.com.br/api/catalog_system/pub/category/tree/20",
+                "https://www.paguemenos.com.br/sitemap.xml"
+            ),
+            List.of("www.paguemenos.com.br", "paguemenos.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Drogaria Raia",
+            "DROGARAIA_WEB_BR",
+            false,
+            "Catalogo completo",
+            "Blocked by edge",
+            "extract_and_import_drogaraia.py",
+            "Documenta a fonte Drogaria Raia, mas mantem o job desabilitado porque o site responde HTTP 403 na home, sitemap, robots e paginas de produto neste ambiente.",
+            "Public website/API data (respect provider terms and robots)",
+            true,
+            false,
+            List.of("https://www.drogaraia.com.br/"),
+            List.of("www.drogaraia.com.br", "drogaraia.com.br")
         )
     );
 

@@ -13,9 +13,11 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 import requests
 
 from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text
+from fixed_market_catalog_condor import CondorJobConfig, run_condor_catalog_job
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
 from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job, run_vtex_sitemap_job
 from fixed_market_catalog_koch import KochJobConfig, run_koch_catalog_job
+from fixed_market_catalog_nissei import NisseiJobConfig, run_nissei_catalog_job
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,6 +64,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--carrefour-product-workers", type=int, default=12)
     parser.add_argument("--koch-product-workers", type=int, default=12)
     parser.add_argument("--koch-max-products", type=int, default=0)
+    parser.add_argument("--condor-product-workers", type=int, default=12)
+    parser.add_argument("--condor-max-products", type=int, default=0)
+    parser.add_argument("--nissei-product-workers", type=int, default=12)
+    parser.add_argument("--nissei-max-products", type=int, default=0)
     return parser.parse_args()
 
 
@@ -339,6 +345,7 @@ def run_supermuffato(args: argparse.Namespace) -> Dict[str, Any]:
         catalog_api_base="https://www.supermuffato.com.br",
         mode="category-tree",
         category_tree_url="https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "SUPERMUFFATO_WEB_BR"),
     )
     return run_vtex_category_tree_job(
@@ -392,6 +399,155 @@ def run_superkoch(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
 
+def run_angeloni(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Angeloni",
+        provider="ANGELONI_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/angeloni_web_br_catalog",
+        site_base="https://www.angeloni.com.br/eletro",
+        catalog_api_base="https://eletroangeloni.vtexcommercestable.com.br",
+        mode="category-tree",
+        category_tree_url="https://eletroangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
+        selected_categories=selected_categories_for_provider(args, "ANGELONI_WEB_BR"),
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_bistek(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Bistek",
+        provider="BISTEK_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/bistek_web_br_catalog",
+        site_base="https://www.bistek.com.br",
+        catalog_api_base="https://www.bistek.com.br",
+        mode="category-tree",
+        category_tree_url="https://www.bistek.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.bistek.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "BISTEK_WEB_BR"),
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_deliveryfort(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Delivery Fort",
+        provider="DELIVERYFORT_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/deliveryfort_web_br_catalog",
+        site_base="https://www.deliveryfort.com.br",
+        catalog_api_base="https://www.deliveryfort.com.br",
+        mode="category-tree",
+        category_tree_url="https://www.deliveryfort.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.deliveryfort.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "DELIVERYFORT_WEB_BR"),
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_extrafarma(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Extrafarma",
+        provider="EXTRAFARMA_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/extrafarma_web_br_catalog",
+        site_base="https://www.extrafarma.com.br",
+        catalog_api_base="https://www.extrafarma.com.br",
+        mode="category-tree",
+        category_tree_url="https://www.extrafarma.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.extrafarma.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "EXTRAFARMA_WEB_BR"),
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_paguemenos(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Pague Menos",
+        provider="PAGUEMENOS_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/paguemenos_web_br_catalog",
+        site_base="https://www.paguemenos.com.br",
+        catalog_api_base="https://www.paguemenos.com.br",
+        mode="category-tree",
+        category_tree_url="https://www.paguemenos.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.paguemenos.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "PAGUEMENOS_WEB_BR"),
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_condor(args: argparse.Namespace) -> Dict[str, Any]:
+    job = CondorJobConfig(
+        name="Condor",
+        provider="CONDOR_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/condor_web_br_catalog",
+        site_base="https://www.condor.com.br",
+        sitemap_url="https://www.condor.com.br/sitemap.xml",
+        graphql_url="https://api.condor.com.br/graphql",
+        selected_categories=selected_categories_for_provider(args, "CONDOR_WEB_BR"),
+    )
+    return run_condor_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        product_workers=args.condor_product_workers,
+        max_products=args.condor_max_products,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_farmacias_nissei(args: argparse.Namespace) -> Dict[str, Any]:
+    job = NisseiJobConfig(
+        name="Farmacias Nissei",
+        provider="FARMACIASNISSEI_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/farmaciasnissei_web_br_catalog",
+        site_base="https://www.farmaciasnissei.com.br",
+        sitemap_index_url="https://www.farmaciasnissei.com.br/sitemap.xml",
+        categories_sitemap_url="https://www.farmaciasnissei.com.br/sitemaps/categorias.xml",
+        selected_categories=selected_categories_for_provider(args, "FARMACIASNISSEI_WEB_BR"),
+    )
+    return run_nissei_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        product_workers=args.nissei_product_workers,
+        max_products=args.nissei_max_products,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
 RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "PAODEACUCAR_WEB_BR": run_paodeacucar,
     "EXTRA_WEB_BR": run_extra,
@@ -401,8 +557,22 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "SUPERMUFFATO_WEB_BR": run_supermuffato,
     "AMIGAO_WEB_BR": run_amigao,
     "SUPERKOCH_WEB_BR": run_superkoch,
+    "ANGELONI_WEB_BR": run_angeloni,
+    "BISTEK_WEB_BR": run_bistek,
+    "DELIVERYFORT_WEB_BR": run_deliveryfort,
+    "CONDOR_WEB_BR": run_condor,
+    "EXTRAFARMA_WEB_BR": run_extrafarma,
+    "PAGUEMENOS_WEB_BR": run_paguemenos,
+    "FARMACIASNISSEI_WEB_BR": run_farmacias_nissei,
+    "DROGARAIA_WEB_BR": lambda args: {
+        "status": "FAILED",
+        "message": "Drogaria Raia bloqueia acesso automatizado deste ambiente com HTTP 403.",
+        "summary": [{"provider": "DROGARAIA_WEB_BR", "source": "Drogaria Raia", "error": "http-403-edge-block"}],
+        **empty_totals(),
+        "errors": 1,
+    },
 }
-DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR"}
+DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR", "DROGARAIA_WEB_BR"}
 
 
 def enabled_providers() -> List[str]:

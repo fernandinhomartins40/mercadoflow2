@@ -9,11 +9,10 @@ from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Extract + import Super Muffato catalog")
+    parser = argparse.ArgumentParser(description="Extract + import Extrafarma catalog")
     parser.add_argument("--page-size", type=int, default=50)
     parser.add_argument("--max-pages", type=int, default=0)
-    parser.add_argument("--product-workers", type=int, default=12)
-    parser.add_argument("--output", default="data/catalog/supermuffato_web_br_catalog")
+    parser.add_argument("--output", default="data/catalog/extrafarma_web_br_catalog")
     parser.add_argument("--do-import", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--api-base", default="https://mercadoflow.com/api")
     parser.add_argument("--login-endpoint", default="/v1/super-admin/auth/login")
@@ -31,15 +30,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     job = VtexJobConfig(
-        name="Super Muffato",
-        provider="SUPERMUFFATO_WEB_BR",
+        name="Extrafarma",
+        provider="EXTRAFARMA_WEB_BR",
         source_license="Public website/API data (respect provider terms and robots)",
         output=args.output,
-        site_base="https://www.supermuffato.com.br",
-        catalog_api_base="https://www.supermuffato.com.br",
+        site_base="https://www.extrafarma.com.br",
+        catalog_api_base="https://www.extrafarma.com.br",
         mode="category-tree",
-        category_tree_url="https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
+        category_tree_url="https://www.extrafarma.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.extrafarma.com.br/sitemap.xml",
     )
     options = ImportOptions(
         provider=job.provider,

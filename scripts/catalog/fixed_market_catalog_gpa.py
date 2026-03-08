@@ -18,10 +18,12 @@ from fixed_market_catalog_common import (
     norm_gtin,
     norm_text,
     normalize_key,
+    plain_text,
     stable_hash,
 )
 
 _THREAD_LOCAL = threading.local()
+EXTRACTION_SCHEMA_VERSION = "2026-03-08-rich-metadata-v1"
 
 
 @dataclass(frozen=True)
@@ -121,7 +123,12 @@ def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, L
             break
         if pause_ms > 0:
             time.sleep(pause_ms / 1000.0)
-    shelf_hash = stable_hash([norm_text(item.get("id")) for item in rows if norm_text(item.get("id"))])
+    shelf_hash = stable_hash(
+        {
+            "schemaVersion": EXTRACTION_SCHEMA_VERSION,
+            "productIds": [norm_text(item.get("id")) for item in rows if norm_text(item.get("id"))],
+        }
+    )
     return shelf_id, rows, shelf_hash
 
 
@@ -175,10 +182,116 @@ def pick_image_url(content: Dict[str, Any], brand: str) -> str:
     return ""
 
 
+def flatten_attribute_groups(content: Dict[str, Any]) -> Dict[str, str]:
+    flat: Dict[str, str] = {}
+    groups = content.get("attributeGroups")
+    if not isinstance(groups, list):
+        return flat
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        for attribute in group.get("attributes") or []:
+            if not isinstance(attribute, dict):
+                continue
+            key = norm_text(attribute.get("label") or attribute.get("code"))
+            value = plain_text(attribute.get("value"))
+            if key and value and key not in flat:
+                flat[key] = value
+    return flat
+
+
+def build_package_description(
+    base: Dict[str, Any],
+    content: Dict[str, Any],
+    flat_attributes: Dict[str, str],
+) -> str:
+    pieces: List[str] = []
+    for key_pair in (
+        ("Peso Líquido", "Unid. Peso Líquido"),
+        ("Peso Bruto", "Unid. Peso Bruto"),
+        ("Quantidade de Unidades", "Unid. Quantidade"),
+    ):
+        value = norm_text(flat_attributes.get(key_pair[0]))
+        unit = norm_text(flat_attributes.get(key_pair[1]))
+        combined = " ".join(part for part in (value, unit) if part)
+        if combined and combined not in pieces:
+            pieces.append(combined)
+    for candidate in (
+        norm_text(base.get("quantityStock")),
+        norm_text(base.get("dimensions")),
+        norm_text(content.get("content")),
+        norm_text(content.get("contentUnit")),
+    ):
+        if candidate and candidate not in pieces:
+            pieces.append(candidate)
+    return " | ".join(pieces[:2])[:255]
+
+
+def build_description(
+    base: Dict[str, Any],
+    content: Dict[str, Any],
+    flat_attributes: Dict[str, str],
+) -> str:
+    primary = plain_text(content.get("description") or base.get("shortDescription"))
+    if primary:
+        return primary[:2048]
+
+    fallback_bits: List[str] = []
+    for key in (
+        "Ingredientes",
+        "Informações de Conservação",
+        "Advertência de Consumo",
+        "Nome Principal do Item",
+    ):
+        value = plain_text(flat_attributes.get(key))
+        if value and value not in fallback_bits:
+            fallback_bits.append(value)
+    return " ".join(fallback_bits)[:2048]
+
+
+def build_gpa_attributes(
+    job: GpaJobConfig,
+    base: Dict[str, Any],
+    content: Dict[str, Any],
+    product_id: str,
+    sku: str,
+    flat_attributes: Dict[str, str],
+) -> Dict[str, Any]:
+    sell_infos = content.get("sellInfos") if isinstance(content.get("sellInfos"), list) else []
+    sell_info = sell_infos[0] if sell_infos and isinstance(sell_infos[0], dict) else {}
+    return {
+        "schemaVersion": EXTRACTION_SCHEMA_VERSION,
+        "storeId": job.store_id,
+        "sku": sku,
+        "productId": product_id,
+        "brand": job.brand,
+        "urlDetails": content.get("urlDetails") or base.get("urlDetails"),
+        "thumbPath": content.get("thumbPath") or base.get("thumbPath"),
+        "commercialStructure": content.get("commercialStructure") or base.get("commercialStructure"),
+        "shelfList": content.get("shelfList") or base.get("shelfList") or [],
+        "attributeGroups": content.get("attributeGroups") or [],
+        "attributesFlat": flat_attributes,
+        "productImages": content.get("productImages") or base.get("productImages") or [],
+        "mapOfImages": content.get("mapOfImages") or base.get("mapOfImages") or {},
+        "sellInfo": sell_info,
+        "listAttributes": base.get("attributes") or {},
+        "nutritionalMap": base.get("nutritionalMap") or {},
+        "departments": base.get("departments") or [],
+        "dimensions": base.get("dimensions"),
+        "quantityStock": base.get("quantityStock"),
+        "stock": base.get("stock"),
+        "itemMap": base.get("itemMap") or {},
+        "priceProgressiveMap": base.get("priceProgressiveMap") or {},
+        "type": content.get("type") or base.get("type"),
+        "variableWeight": content.get("variableWeight") if "variableWeight" in content else base.get("variableWeight"),
+    }
+
+
 def merge_record(job: GpaJobConfig, base: Dict[str, Any], details: Dict[str, Any], fallback_category: str) -> Dict[str, Any]:
     content = details.get("content") if isinstance(details, dict) else {}
     if not isinstance(content, dict):
         content = {}
+    flat_attributes = flatten_attribute_groups(content)
     product_id = norm_text(base.get("id") or content.get("id"))
     sku = norm_text(base.get("sku") or content.get("sku"))
     ean = norm_gtin(content.get("ean"))
@@ -186,7 +299,7 @@ def merge_record(job: GpaJobConfig, base: Dict[str, Any], details: Dict[str, Any
     brand = norm_text(content.get("brand") or base.get("brand"))[:120]
     category = pick_category(details, fallback_category)
     image_url = pick_image_url(content if content else base, job.brand)
-    short_desc = norm_text(content.get("shortDescription") or base.get("shortDescription"))[:2048]
+    description = build_description(base, content, flat_attributes)
     source_url = norm_text(content.get("urlDetails") or base.get("urlDetails"))
     if source_url and not source_url.startswith("http"):
         source_url = f"{job.site_base}{source_url}"
@@ -195,29 +308,30 @@ def merge_record(job: GpaJobConfig, base: Dict[str, Any], details: Dict[str, Any
         price = float(price_value) if price_value is not None else None
     except Exception:
         price = None
+    package_description = build_package_description(base, content, flat_attributes)
+    unit = norm_text(
+        flat_attributes.get("Unid. Quantidade")
+        or flat_attributes.get("Unid. Peso Líquido")
+        or flat_attributes.get("Unid. Peso Bruto")
+    )[:32]
 
     return {
         "code": ean or sku or product_id,
         "name": name,
         "brand": brand,
         "category": category,
-        "description": short_desc,
+        "unit": unit,
+        "description": description,
+        "manufacturer": norm_text(content.get("manufacturer") or brand)[:255],
+        "ncm": norm_text(content.get("ncm"))[:32],
+        "packageDescription": package_description,
         "imageUrl": image_url,
         "imageStorageKey": "",
         "sourceUrl": source_url,
         "currency": "BRL",
         "price": price,
         "providerProductId": product_id or sku,
-        "attributesJson": json.dumps(
-            {
-                "storeId": job.store_id,
-                "sku": sku,
-                "productId": product_id,
-                "brand": job.brand,
-                "urlDetails": content.get("urlDetails") or base.get("urlDetails"),
-            },
-            ensure_ascii=False,
-        ),
+        "attributesJson": json.dumps(build_gpa_attributes(job, base, content, product_id, sku, flat_attributes), ensure_ascii=False),
         "rawPayload": {"base": base, "details": details},
     }
 

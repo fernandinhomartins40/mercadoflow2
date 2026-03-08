@@ -18,28 +18,95 @@ public interface ProductEnrichmentRepository extends JpaRepository<ProductEnrich
     List<ProductEnrichment> findAllByProduct_EanInAndProviderOrderByFetchedAtDesc(Collection<String> eans, String provider);
     Optional<ProductEnrichment> findTopByImageStorageKeyOrderByFetchedAtDesc(String imageStorageKey);
 
-    @Query("""
-        select pe
-        from ProductEnrichment pe
-        join pe.product p
-        where (:provider = '' or lower(pe.provider) = :provider)
-          and pe.fetchedAt = (
-            select max(pe2.fetchedAt)
-            from ProductEnrichment pe2
-            where pe2.product.id = pe.product.id
-              and pe2.provider = pe.provider
-          )
-          and (
-            :searchPattern = ''
-            or lower(coalesce(pe.canonicalName, '')) like :searchPattern
-            or lower(coalesce(pe.brand, '')) like :searchPattern
-            or lower(coalesce(p.name, '')) like :searchPattern
-            or lower(coalesce(p.ean, '')) like :searchPattern
-          )
-        order by pe.fetchedAt desc
-        """)
-    Page<ProductEnrichment> searchCatalogForAdmin(
+    @Query(
+        value = """
+            select latest.*
+            from (
+                select distinct on (pe.product_id) pe.*
+                from product_enrichments pe
+                join products p on p.id = pe.product_id
+                where (:provider = '' or lower(pe.provider) = :provider)
+                  and (
+                    :brandPattern = ''
+                    or lower(coalesce(pe.brand, '')) like :brandPattern
+                    or lower(coalesce(p.brand, '')) like :brandPattern
+                  )
+                  and (
+                    :categoryPattern = ''
+                    or lower(coalesce(pe.category, '')) like :categoryPattern
+                    or lower(coalesce(p.category, '')) like :categoryPattern
+                  )
+                  and (
+                    :imageStatus = ''
+                    or (
+                      :imageStatus = 'WITH_IMAGE'
+                      and (
+                        coalesce(pe.image_storage_key, '') <> ''
+                        or coalesce(pe.image_url, '') <> ''
+                      )
+                    )
+                    or (
+                      :imageStatus = 'WITHOUT_IMAGE'
+                      and coalesce(pe.image_storage_key, '') = ''
+                      and coalesce(pe.image_url, '') = ''
+                    )
+                  )
+                  and (
+                    :searchPattern = ''
+                    or lower(coalesce(pe.canonical_name, '')) like :searchPattern
+                    or lower(coalesce(pe.brand, '')) like :searchPattern
+                    or lower(coalesce(p.name, '')) like :searchPattern
+                    or lower(coalesce(p.ean, '')) like :searchPattern
+                  )
+                order by pe.product_id, pe.fetched_at desc, pe.id desc
+            ) latest
+            order by latest.fetched_at desc, latest.id desc
+            """,
+        countQuery = """
+            select count(distinct pe.product_id)
+            from product_enrichments pe
+            join products p on p.id = pe.product_id
+            where (:provider = '' or lower(pe.provider) = :provider)
+              and (
+                :brandPattern = ''
+                or lower(coalesce(pe.brand, '')) like :brandPattern
+                or lower(coalesce(p.brand, '')) like :brandPattern
+              )
+              and (
+                :categoryPattern = ''
+                or lower(coalesce(pe.category, '')) like :categoryPattern
+                or lower(coalesce(p.category, '')) like :categoryPattern
+              )
+              and (
+                :imageStatus = ''
+                or (
+                  :imageStatus = 'WITH_IMAGE'
+                  and (
+                    coalesce(pe.image_storage_key, '') <> ''
+                    or coalesce(pe.image_url, '') <> ''
+                  )
+                )
+                or (
+                  :imageStatus = 'WITHOUT_IMAGE'
+                  and coalesce(pe.image_storage_key, '') = ''
+                  and coalesce(pe.image_url, '') = ''
+                )
+              )
+              and (
+                :searchPattern = ''
+                or lower(coalesce(pe.canonical_name, '')) like :searchPattern
+                or lower(coalesce(pe.brand, '')) like :searchPattern
+                or lower(coalesce(p.name, '')) like :searchPattern
+                or lower(coalesce(p.ean, '')) like :searchPattern
+              )
+            """,
+        nativeQuery = true
+    )
+    Page<ProductEnrichment> searchLatestCatalogForAdmin(
         @Param("provider") String provider,
+        @Param("brandPattern") String brandPattern,
+        @Param("categoryPattern") String categoryPattern,
+        @Param("imageStatus") String imageStatus,
         @Param("searchPattern") String searchPattern,
         Pageable pageable
     );

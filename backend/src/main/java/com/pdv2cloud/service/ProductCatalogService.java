@@ -199,11 +199,28 @@ public class ProductCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CatalogAdminProductDTO> listCatalogProducts(String provider, String search, Pageable pageable) {
+    public Page<CatalogAdminProductDTO> listCatalogProducts(
+        String provider,
+        String search,
+        String brand,
+        String category,
+        String imageStatus,
+        Pageable pageable
+    ) {
         String normalizedProvider = normalizeProviderFilter(provider);
         String normalizedSearchPattern = buildSearchPattern(search);
+        String normalizedBrandPattern = buildSearchPattern(brand);
+        String normalizedCategoryPattern = buildSearchPattern(category);
+        String normalizedImageStatus = normalizeImageStatus(imageStatus);
 
-        return productEnrichmentRepository.searchCatalogForAdmin(normalizedProvider, normalizedSearchPattern, pageable)
+        return productEnrichmentRepository.searchLatestCatalogForAdmin(
+                normalizedProvider,
+                normalizedBrandPattern,
+                normalizedCategoryPattern,
+                normalizedImageStatus,
+                normalizedSearchPattern,
+                pageable
+            )
             .map(this::toCatalogAdminProductDTO);
     }
 
@@ -425,14 +442,13 @@ public class ProductCatalogService {
         if ((product.getBrand() == null || product.getBrand().isBlank()) && enrichment.getBrand() != null) {
             product.setBrand(enrichment.getBrand());
         }
-        if ((product.getCategory() == null || product.getCategory().isBlank()) && enrichment.getCategory() != null) {
+        if (shouldPromoteCatalogText(product.getCategory(), enrichment.getCategory())) {
             product.setCategory(enrichment.getCategory());
         }
         if ((product.getUnit() == null || product.getUnit().isBlank()) && enrichment.getUnit() != null) {
             product.setUnit(enrichment.getUnit());
         }
-        if ((product.getPackageDescription() == null || product.getPackageDescription().isBlank())
-            && enrichment.getPackageDescription() != null) {
+        if (shouldPromoteCatalogText(product.getPackageDescription(), enrichment.getPackageDescription())) {
             product.setPackageDescription(enrichment.getPackageDescription());
         }
         String resolvedImageUrl = catalogImageStorageService.resolveCatalogImageUrl(
@@ -538,6 +554,40 @@ public class ProductCatalogService {
         return normalized.length() + (words * 5);
     }
 
+    private boolean shouldPromoteCatalogText(String currentValue, String candidateValue) {
+        String candidate = ProductCatalogUtils.canonicalizeDisplayName(candidateValue);
+        if (candidate == null) {
+            return false;
+        }
+        String current = ProductCatalogUtils.canonicalizeDisplayName(currentValue);
+        if (current == null) {
+            return true;
+        }
+        if (ProductCatalogUtils.normalizeName(current).equals(ProductCatalogUtils.normalizeName(candidate))) {
+            return false;
+        }
+        return scoreCatalogText(candidate) > scoreCatalogText(current);
+    }
+
+    private int scoreCatalogText(String value) {
+        String normalized = ProductCatalogUtils.canonicalizeDisplayName(value);
+        if (normalized == null) {
+            return 0;
+        }
+        int score = normalized.length();
+        score += ProductCatalogUtils.normalizeName(normalized).split(" ").length * 2;
+        if (normalized.contains(">")) {
+            score += 20;
+        }
+        if (normalized.matches(".*\\d.*")) {
+            score += 8;
+        }
+        if (normalized.contains("|")) {
+            score += 4;
+        }
+        return score;
+    }
+
     private ProductIdentity resolveIdentity(InvoiceItemDTO item, UUID marketId) {
         String gtin = ProductCatalogUtils.normalizeGtin(item.getCodigoEAN());
         if (gtin != null) {
@@ -639,6 +689,17 @@ public class ProductCatalogService {
             return "";
         }
         return "%" + trimmed.toLowerCase(Locale.ROOT) + "%";
+    }
+
+    private String normalizeImageStatus(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim().toUpperCase(Locale.ROOT);
+        return switch (trimmed) {
+            case "WITH_IMAGE", "WITHOUT_IMAGE" -> trimmed;
+            default -> "";
+        };
     }
 
     private String normalizeAndValidateManualGtin(String rawGtin) {

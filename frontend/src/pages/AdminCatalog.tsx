@@ -31,6 +31,28 @@ interface PageResponse<T> {
   size: number;
 }
 
+type ImageStatus = 'ALL' | 'WITH_IMAGE' | 'WITHOUT_IMAGE';
+
+interface CatalogFilters {
+  search: string;
+  brand: string;
+  category: string;
+  imageStatus: ImageStatus;
+}
+
+const EMPTY_FILTERS: CatalogFilters = {
+  search: '',
+  brand: '',
+  category: '',
+  imageStatus: 'ALL',
+};
+
+const IMAGE_STATUS_LABELS: Record<ImageStatus, string> = {
+  ALL: 'Todos os produtos',
+  WITH_IMAGE: 'Somente com imagem',
+  WITHOUT_IMAGE: 'Somente sem imagem',
+};
+
 const EyeIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path
@@ -54,17 +76,6 @@ const EyeIcon: React.FC = () => (
   </svg>
 );
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '--';
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '--' : parsed.toLocaleString('pt-BR');
-};
-
-const formatConfidence = (value?: number | null) => {
-  if (value == null || Number.isNaN(Number(value))) return '--';
-  return `${(Number(value) * 100).toFixed(0)}%`;
-};
-
 const textValue = (value?: string | null) => {
   if (!value) return '--';
   const normalized = value.trim();
@@ -78,31 +89,59 @@ const CatalogAdmin: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [size] = useState(50);
-  const [provider, setProvider] = useState('');
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  const [draftFilters, setDraftFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [selectedProduct, setSelectedProduct] = useState<CatalogRow | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
 
   const rows = pageData?.content || [];
   const totalPages = pageData?.totalPages ?? 0;
   const totalElements = pageData?.totalElements ?? 0;
 
-  const providerCount = useMemo(() => {
-    const values = new Set(rows.map((row) => row.provider).filter(Boolean));
+  const brandCount = useMemo(() => {
+    const values = new Set(rows.map((row) => textValue(row.brand)).filter((value) => value !== '--'));
     return values.size;
   }, [rows]);
 
-  const highConfidence = useMemo(
-    () => rows.filter((row) => Number(row.confidenceScore || 0) >= 0.9).length,
-    [rows]
-  );
+  const categoryCount = useMemo(() => {
+    const values = new Set(rows.map((row) => textValue(row.category)).filter((value) => value !== '--'));
+    return values.size;
+  }, [rows]);
+
+  const withImageCount = useMemo(() => rows.filter((row) => Boolean(row.imageUrl)).length, [rows]);
+
+  const activeFilterChips = useMemo(() => {
+    const chips: string[] = [];
+    if (filters.search) {
+      chips.push(`Busca: ${filters.search}`);
+    }
+    if (filters.brand) {
+      chips.push(`Marca: ${filters.brand}`);
+    }
+    if (filters.category) {
+      chips.push(`Categoria: ${filters.category}`);
+    }
+    if (filters.imageStatus !== 'ALL') {
+      chips.push(IMAGE_STATUS_LABELS[filters.imageStatus]);
+    }
+    return chips;
+  }, [filters]);
+
+  const closeProductModal = () => {
+    setSelectedProduct(null);
+    setLightboxImage(null);
+  };
 
   useEffect(() => {
-    if (!selectedProduct) return undefined;
+    if (!selectedProduct && !lightboxImage) return undefined;
     const originalOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setSelectedProduct(null);
+        if (lightboxImage) {
+          setLightboxImage(null);
+          return;
+        }
+        closeProductModal();
       }
     };
 
@@ -113,7 +152,7 @@ const CatalogAdmin: React.FC = () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedProduct]);
+  }, [lightboxImage, selectedProduct]);
 
   const loadData = async () => {
     setLoading(true);
@@ -122,8 +161,10 @@ const CatalogAdmin: React.FC = () => {
         params: {
           page,
           size,
-          provider: provider || undefined,
-          search: search || undefined,
+          search: filters.search || undefined,
+          brand: filters.brand || undefined,
+          category: filters.category || undefined,
+          imageStatus: filters.imageStatus !== 'ALL' ? filters.imageStatus : undefined,
         },
       });
       setPageData(response.data);
@@ -142,7 +183,29 @@ const CatalogAdmin: React.FC = () => {
       return;
     }
     loadData();
-  }, [role, page, size, provider, search]);
+  }, [role, page, size, filters.search, filters.brand, filters.category, filters.imageStatus]);
+
+  const applyFilters = () => {
+    setPage(0);
+    setFilters({
+      search: draftFilters.search.trim(),
+      brand: draftFilters.brand.trim(),
+      category: draftFilters.category.trim(),
+      imageStatus: draftFilters.imageStatus,
+    });
+  };
+
+  const clearFilters = () => {
+    setPage(0);
+    setDraftFilters(EMPTY_FILTERS);
+    setFilters(EMPTY_FILTERS);
+  };
+
+  const handleFilterKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      applyFilters();
+    }
+  };
 
   if (role !== 'ADMIN') {
     return (
@@ -164,20 +227,20 @@ const CatalogAdmin: React.FC = () => {
             <span className="pill">Admin</span>
             <h1 className="analytics-hero-title">Catalogo global de produtos</h1>
             <p className="analytics-hero-text">
-              Esta tela mostra todos os produtos enriquecidos por fontes web e capturas externas, incluindo o lote extraido do InfoPrice.
+              Consulte o catalogo global por nome, GTIN, marca, categoria e disponibilidade de imagem, sem expor filtros tecnicos de origem para o cliente.
             </p>
             <div className="hero-chip-row">
               <span className="hero-chip">{totalElements} registros</span>
-              <span className="hero-chip">{providerCount} provedores na pagina</span>
-              <span className="hero-chip">{highConfidence} com confianca alta</span>
+              <span className="hero-chip">{withImageCount} com imagem nesta pagina</span>
+              <span className="hero-chip">{categoryCount} categorias no recorte</span>
             </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
-              <span className="section-kicker">Fonte selecionada</span>
-              <h3>{provider || 'TODAS'}</h3>
+              <span className="section-kicker">Recorte atual</span>
+              <h3>{IMAGE_STATUS_LABELS[filters.imageStatus]}</h3>
               <strong>{rows.length}</strong>
-              <p>itens retornados nesta pagina de consulta.</p>
+              <p>{activeFilterChips.length > 0 ? `${activeFilterChips.length} filtros ativos nesta consulta.` : 'Sem filtros adicionais aplicados.'}</p>
             </div>
           </div>
         </section>
@@ -185,60 +248,73 @@ const CatalogAdmin: React.FC = () => {
         <div className="metrics-grid analytics-metrics-grid">
           <MetricsCard title="Total no banco" value={totalElements} icon="DB" caption="catalogo enriquecido" />
           <MetricsCard title="Itens na pagina" value={rows.length} icon="PG" caption="retorno atual" />
-          <MetricsCard title="Confianca alta" value={highConfidence} icon="CF" caption="score >= 90%" />
-          <MetricsCard title="Fontes" value={providerCount} icon="SRC" caption="provedores exibidos" />
+          <MetricsCard title="Com imagem" value={withImageCount} icon="IM" caption="prontos para exibicao" />
+          <MetricsCard title="Marcas na pagina" value={brandCount} icon="BR" caption="variedade no recorte" />
         </div>
 
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
             <div>
               <span className="section-kicker">Filtros</span>
-              <h3>Refinar catalogo</h3>
+              <h3>Refinar por informacoes do produto</h3>
             </div>
           </div>
           <div className="filter-bar-controls catalog-admin-filters-grid">
-            <select
+            <input
               className="input"
-              value={provider}
-              onChange={(e) => {
-                setPage(0);
-                setProvider(e.target.value);
-              }}
-            >
-              <option value="">Todas as fontes</option>
-              <option value="INFOPRICE_ISA">INFOPRICE_ISA</option>
-              <option value="OPEN_FOOD_FACTS_BR">OPEN_FOOD_FACTS_BR</option>
-              <option value="OPEN_BEAUTY_FACTS_BR">OPEN_BEAUTY_FACTS_BR</option>
-              <option value="OPEN_PRODUCTS_FACTS_BR">OPEN_PRODUCTS_FACTS_BR</option>
-            </select>
+              placeholder="Buscar por nome ou GTIN"
+              value={draftFilters.search}
+              onChange={(e) => setDraftFilters((current) => ({ ...current, search: e.target.value }))}
+              onKeyDown={handleFilterKeyDown}
+            />
 
             <input
               className="input"
-              placeholder="Buscar por nome, GTIN ou marca"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Filtrar por marca"
+              value={draftFilters.brand}
+              onChange={(e) => setDraftFilters((current) => ({ ...current, brand: e.target.value }))}
+              onKeyDown={handleFilterKeyDown}
             />
 
-            <Button
-              onClick={() => {
-                setPage(0);
-                setSearch(searchInput.trim());
-              }}
-            >
-              Buscar
-            </Button>
+            <input
+              className="input"
+              placeholder="Filtrar por categoria"
+              value={draftFilters.category}
+              onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
+              onKeyDown={handleFilterKeyDown}
+            />
 
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setPage(0);
-                setSearchInput('');
-                setSearch('');
-              }}
+            <select
+              className="input"
+              value={draftFilters.imageStatus}
+              onChange={(e) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  imageStatus: e.target.value as ImageStatus,
+                }))
+              }
             >
-              Limpar
-            </Button>
+              <option value="ALL">Todos os produtos</option>
+              <option value="WITH_IMAGE">Somente com imagem</option>
+              <option value="WITHOUT_IMAGE">Somente sem imagem</option>
+            </select>
+
+            <div className="catalog-admin-filter-actions">
+              <Button onClick={applyFilters}>Aplicar filtros</Button>
+              <Button variant="secondary" onClick={clearFilters}>
+                Limpar
+              </Button>
+            </div>
           </div>
+          {activeFilterChips.length > 0 ? (
+            <div className="catalog-admin-active-filters" aria-label="Filtros ativos">
+              {activeFilterChips.map((chip) => (
+                <span key={chip} className="catalog-admin-active-filter-chip">
+                  {chip}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </section>
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
@@ -265,9 +341,6 @@ const CatalogAdmin: React.FC = () => {
                       <th>GTIN</th>
                       <th>Marca</th>
                       <th>Categoria</th>
-                      <th>Fonte</th>
-                      <th>Confianca</th>
-                      <th>Atualizado</th>
                       <th>Acoes</th>
                     </tr>
                   </thead>
@@ -291,19 +364,19 @@ const CatalogAdmin: React.FC = () => {
                         <td data-label="GTIN">{textValue(row.gtin)}</td>
                         <td data-label="Marca">{textValue(row.brand)}</td>
                         <td data-label="Categoria">{textValue(row.category)}</td>
-                        <td data-label="Fonte">{textValue(row.provider)}</td>
-                        <td data-label="Confianca">{formatConfidence(row.confidenceScore)}</td>
-                        <td data-label="Atualizado">{formatDateTime(row.lastVerifiedAt || row.fetchedAt)}</td>
-                        <td data-label="Acoes" className="table-action-cell">
-                          <Button
+                        <td data-label="Acoes" className="table-action-cell catalog-admin-action-cell">
+                          <button
                             type="button"
-                            variant="secondary"
                             className="catalog-admin-view-button"
-                            onClick={() => setSelectedProduct(row)}
+                            onClick={() => {
+                              setSelectedProduct(row);
+                              setLightboxImage(null);
+                            }}
+                            aria-label={`Visualizar detalhes de ${row.canonicalName || 'produto'}`}
+                            title="Visualizar detalhes"
                           >
                             <EyeIcon />
-                            <span>Ver</span>
-                          </Button>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -332,7 +405,7 @@ const CatalogAdmin: React.FC = () => {
         ) : null}
 
         {selectedProduct ? (
-          <div className="catalog-admin-modal-backdrop" role="presentation" onClick={() => setSelectedProduct(null)}>
+          <div className="catalog-admin-modal-backdrop" role="presentation" onClick={closeProductModal}>
             <div
               className="catalog-admin-modal card"
               role="dialog"
@@ -345,7 +418,7 @@ const CatalogAdmin: React.FC = () => {
                   <span className="section-kicker">Produto global</span>
                   <h3 id="catalog-admin-modal-title">{selectedProduct.canonicalName || '--'}</h3>
                 </div>
-                <Button type="button" variant="secondary" onClick={() => setSelectedProduct(null)}>
+                <Button type="button" variant="secondary" onClick={closeProductModal}>
                   Fechar
                 </Button>
               </div>
@@ -353,11 +426,26 @@ const CatalogAdmin: React.FC = () => {
               <div className="catalog-admin-modal-body">
                 <div className="catalog-admin-modal-media">
                   {selectedProduct.imageUrl ? (
-                    <img
-                      className="catalog-admin-modal-image"
-                      src={selectedProduct.imageUrl}
-                      alt={selectedProduct.canonicalName}
-                    />
+                    <>
+                      <button
+                        type="button"
+                        className="catalog-admin-modal-image-button"
+                        onClick={() =>
+                          setLightboxImage({
+                            src: selectedProduct.imageUrl as string,
+                            alt: selectedProduct.canonicalName || 'Imagem do produto',
+                          })
+                        }
+                        aria-label="Ampliar imagem do produto"
+                      >
+                        <img
+                          className="catalog-admin-modal-image"
+                          src={selectedProduct.imageUrl}
+                          alt={selectedProduct.canonicalName}
+                        />
+                      </button>
+                      <span className="catalog-admin-image-hint">Clique na imagem para ampliar</span>
+                    </>
                   ) : (
                     <div className="catalog-admin-modal-image placeholder">Sem imagem cadastrada</div>
                   )}
@@ -389,49 +477,26 @@ const CatalogAdmin: React.FC = () => {
                     <strong>{textValue(selectedProduct.unit)}</strong>
                   </div>
                   <div className="catalog-admin-detail-item">
-                    <span>Fonte</span>
-                    <strong>{textValue(selectedProduct.provider)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item">
-                    <span>Confianca</span>
-                    <strong>{formatConfidence(selectedProduct.confidenceScore)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item">
                     <span>Observacoes</span>
                     <strong>{selectedProduct.observationCount ?? '--'}</strong>
                   </div>
-                  <div className="catalog-admin-detail-item">
-                    <span>Coletado em</span>
-                    <strong>{formatDateTime(selectedProduct.fetchedAt)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item">
-                    <span>Verificado em</span>
-                    <strong>{formatDateTime(selectedProduct.lastVerifiedAt)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item">
-                    <span>Product ID</span>
-                    <strong>{textValue(selectedProduct.productId)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item catalog-admin-detail-item-wide">
-                    <span>Enrichment ID</span>
-                    <strong>{textValue(selectedProduct.enrichmentId)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item catalog-admin-detail-item-wide">
-                    <span>Licenca da fonte</span>
-                    <strong>{textValue(selectedProduct.sourceLicense)}</strong>
-                  </div>
-                  <div className="catalog-admin-detail-item catalog-admin-detail-item-wide">
-                    <span>URL da imagem</span>
-                    {selectedProduct.imageUrl ? (
-                      <a href={selectedProduct.imageUrl} target="_blank" rel="noreferrer">
-                        {selectedProduct.imageUrl}
-                      </a>
-                    ) : (
-                      <strong>--</strong>
-                    )}
-                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+        ) : null}
+        {lightboxImage ? (
+          <div className="catalog-admin-lightbox-backdrop" role="presentation" onClick={() => setLightboxImage(null)}>
+            <div className="catalog-admin-lightbox-frame" onClick={(event) => event.stopPropagation()}>
+              <button
+                type="button"
+                className="catalog-admin-lightbox-close"
+                onClick={() => setLightboxImage(null)}
+                aria-label="Fechar visualizacao ampliada"
+              >
+                ×
+              </button>
+              <img className="catalog-admin-lightbox-image" src={lightboxImage.src} alt={lightboxImage.alt} />
             </div>
           </div>
         ) : null}

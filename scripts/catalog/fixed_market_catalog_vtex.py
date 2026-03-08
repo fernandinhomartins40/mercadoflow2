@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,8 +21,39 @@ from fixed_market_catalog_common import (
     norm_gtin,
     norm_text,
     normalize_key,
+    plain_text,
     stable_hash,
 )
+
+
+EXTRACTION_SCHEMA_VERSION = "2026-03-08-rich-metadata-v1"
+VTEX_CORE_FIELDS = {
+    "brand",
+    "brandId",
+    "brandImageUrl",
+    "categories",
+    "categoriesIds",
+    "categoryId",
+    "clusterHighlights",
+    "description",
+    "itemMetadata",
+    "items",
+    "link",
+    "linkText",
+    "metaTagDescription",
+    "productClusters",
+    "productId",
+    "productName",
+    "productReference",
+    "productReferenceCode",
+    "productTitle",
+    "releaseDate",
+    "searchableClusters",
+    "allSpecifications",
+    "allSpecificationsGroups",
+    "specificationGroups",
+    "skuSpecifications",
+}
 
 
 @dataclass(frozen=True)
@@ -122,6 +154,13 @@ def extract_reference_id(item: Dict[str, Any]) -> str:
     return norm_text(value)
 
 
+def product_run_key(product: Dict[str, Any]) -> str:
+    if not isinstance(product, dict):
+        return ""
+    item = pick_primary_item(product)
+    return norm_text(product.get("productId") or item.get("itemId") or extract_reference_id(item) or product.get("linkText"))
+
+
 def pick_primary_item(product: Dict[str, Any]) -> Dict[str, Any]:
     items = product.get("items") or []
     if not isinstance(items, list) or not items:
@@ -132,46 +171,143 @@ def pick_primary_item(product: Dict[str, Any]) -> Dict[str, Any]:
     return items[0] if isinstance(items[0], dict) else {}
 
 
+def pick_primary_offer(item: Dict[str, Any]) -> Dict[str, Any]:
+    sellers = item.get("sellers") or []
+    if not sellers or not isinstance(sellers[0], dict):
+        return {}
+    offer = sellers[0].get("commertialOffer")
+    return offer if isinstance(offer, dict) else {}
+
+
+def collect_item_image_urls(item: Dict[str, Any]) -> List[str]:
+    urls: List[str] = []
+    for image in item.get("images") or []:
+        if not isinstance(image, dict):
+            continue
+        for key in ("imageUrl", "imageTagUrl"):
+            candidate = canonical_url(image.get(key))
+            if candidate and candidate not in urls:
+                urls.append(candidate)
+    return urls
+
+
+def pick_primary_image_url(item: Dict[str, Any]) -> str:
+    urls = collect_item_image_urls(item)
+    return urls[0] if urls else ""
+
+
+def build_vtex_description(product: Dict[str, Any]) -> str:
+    return plain_text(
+        product.get("description")
+        or product.get("metaTagDescription")
+        or product.get("productTitle")
+        or product.get("productName")
+    )[:2048]
+
+
+def build_package_description(product: Dict[str, Any], item: Dict[str, Any]) -> str:
+    product_name = norm_text(product.get("productName"))
+    item_name = norm_text(item.get("nameComplete"))
+    measurement_unit = norm_text(item.get("measurementUnit"))
+    unit_multiplier = item.get("unitMultiplier")
+
+    pieces: List[str] = []
+    if item_name and normalize_key(item_name) != normalize_key(product_name):
+        pieces.append(item_name)
+    if measurement_unit:
+        multiplier_text = ""
+        try:
+            multiplier_value = float(unit_multiplier) if unit_multiplier is not None else 0.0
+            if multiplier_value and abs(multiplier_value - 1.0) > 0.0001:
+                multiplier_text = f"{multiplier_value:g} "
+        except Exception:
+            multiplier_text = ""
+        pieces.append(f"{multiplier_text}{measurement_unit}".strip())
+
+    seen: List[str] = []
+    for piece in pieces:
+        normalized = norm_text(piece)
+        if normalized and normalized not in seen:
+            seen.append(normalized)
+    return " ".join(seen)[:255]
+
+
+def extract_custom_product_fields(product: Dict[str, Any]) -> Dict[str, Any]:
+    custom: Dict[str, Any] = {}
+    for key, value in product.items():
+        if key in VTEX_CORE_FIELDS:
+            continue
+        if value in (None, "", [], {}):
+            continue
+        custom[key] = value
+    return custom
+
+
 def product_to_record(job: VtexJobConfig, product: Dict[str, Any]) -> Dict[str, Any]:
     item = pick_primary_item(product)
-    sellers = item.get("sellers") or []
-    commercial_offer = sellers[0].get("commertialOffer") if sellers and isinstance(sellers[0], dict) else {}
-    if not isinstance(commercial_offer, dict):
-        commercial_offer = {}
-    images = item.get("images") or []
-    image_url = ""
-    if images and isinstance(images[0], dict):
-        image_url = canonical_url(images[0].get("imageUrl"))
-
-    package_bits = [
-        norm_text(item.get("nameComplete")),
-        norm_text(item.get("measurementUnit")),
-    ]
+    commercial_offer = pick_primary_offer(item)
+    image_url = pick_primary_image_url(item)
     category = normalize_category(product.get("categories"))
     provider_product_id = norm_text(product.get("productId") or item.get("itemId") or extract_reference_id(item))
     code = norm_gtin(item.get("ean")) or provider_product_id
+    image_urls = collect_item_image_urls(item)
+    sellers = item.get("sellers") or []
+    price = commercial_offer.get("Price")
+    if price is None:
+        price = commercial_offer.get("ListPrice")
 
     return {
         "code": code,
         "name": norm_text(product.get("productName"))[:255],
         "brand": norm_text(product.get("brand"))[:120],
         "category": category,
-        "description": norm_text(product.get("description") or product.get("metaTagDescription"))[:2048],
+        "unit": norm_text(item.get("measurementUnit"))[:32],
+        "description": build_vtex_description(product),
         "manufacturer": norm_text(product.get("brand"))[:255],
-        "packageDescription": " ".join([piece for piece in package_bits if piece])[:255],
+        "packageDescription": build_package_description(product, item),
         "imageUrl": image_url,
         "imageStorageKey": "",
         "sourceUrl": build_source_url(job.site_base, norm_text(product.get("linkText"))),
         "currency": "BRL",
-        "price": commercial_offer.get("Price"),
+        "price": price,
         "providerProductId": provider_product_id,
         "attributesJson": json.dumps(
             {
+                "schemaVersion": EXTRACTION_SCHEMA_VERSION,
                 "categoryId": product.get("categoryId"),
+                "categories": product.get("categories") or [],
+                "categoriesIds": product.get("categoriesIds") or [],
                 "brandId": product.get("brandId"),
+                "brandImageUrl": canonical_url(product.get("brandImageUrl")),
+                "productReference": product.get("productReference"),
+                "productReferenceCode": product.get("productReferenceCode"),
+                "releaseDate": product.get("releaseDate"),
+                "productClusters": product.get("productClusters") or {},
+                "clusterHighlights": product.get("clusterHighlights") or {},
+                "searchableClusters": product.get("searchableClusters") or {},
+                "allSpecifications": product.get("allSpecifications") or [],
+                "allSpecificationsGroups": product.get("allSpecificationsGroups") or [],
+                "specificationGroups": product.get("specificationGroups") or [],
+                "skuSpecifications": product.get("skuSpecifications") or [],
+                "itemMetadata": product.get("itemMetadata") or {},
                 "referenceId": extract_reference_id(item),
+                "itemId": item.get("itemId"),
                 "measurementUnit": item.get("measurementUnit"),
                 "unitMultiplier": item.get("unitMultiplier"),
+                "imageUrls": image_urls,
+                "sellerCount": len(sellers) if isinstance(sellers, list) else 0,
+                "offer": {
+                    "price": commercial_offer.get("Price"),
+                    "listPrice": commercial_offer.get("ListPrice"),
+                    "fullSellingPrice": commercial_offer.get("FullSellingPrice"),
+                    "availableQuantity": commercial_offer.get("AvailableQuantity"),
+                    "isAvailable": commercial_offer.get("IsAvailable"),
+                    "priceValidUntil": commercial_offer.get("PriceValidUntil"),
+                    "promotionTeasers": commercial_offer.get("PromotionTeasers") or [],
+                    "teasers": commercial_offer.get("Teasers") or [],
+                    "tax": commercial_offer.get("Tax"),
+                },
+                "customFields": extract_custom_product_fields(product),
             },
             ensure_ascii=False,
         ),
@@ -240,6 +376,18 @@ def fetch_search_page(
     if last_error is not None:
         raise last_error
     raise RuntimeError("search page request failed without explicit error")
+
+
+def fetch_search_first(
+    job: VtexJobConfig,
+    *,
+    fqs: Sequence[str] | str | None = None,
+    ft: str = "",
+) -> Optional[Dict[str, Any]]:
+    products, _ = fetch_search_page(job, 0, 0, fqs=fqs, ft=ft)
+    if not products:
+        return None
+    return products[0] if isinstance(products[0], dict) else None
 
 
 def fetch_facets(job: VtexJobConfig, fqs: Sequence[str] | str | None = None) -> Dict[str, Any]:
@@ -419,6 +567,7 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
     if not path:
         return None
     last_error: Optional[Exception] = None
+    empty_payload = False
     for attempt in range(1, 4):
         try:
             response = build_session().get(
@@ -430,7 +579,8 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, list) or not payload:
-                return None
+                empty_payload = True
+                break
             return payload[0] if isinstance(payload[0], dict) else None
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else 0
@@ -442,9 +592,50 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
         except requests.RequestException as exc:
             last_error = exc
         time.sleep(min(2.5, 0.4 * attempt))
+
+    product_id = extract_product_id_from_url(product_url)
+    if not product_id:
+        try:
+            product_id = fetch_product_id_from_page(product_url)
+        except Exception as exc:
+            last_error = exc
+
+    if product_id:
+        for field in ("productId", "skuId"):
+            try:
+                product = fetch_search_first(job, fqs=(f"{field}:{product_id}",))
+            except Exception as exc:
+                last_error = exc
+                continue
+            if product:
+                return product
+
     if last_error is not None:
+        if empty_payload:
+            return None
         raise last_error
     return None
+
+
+def extract_product_id_from_url(product_url: str) -> str:
+    path = urlparse(product_url).path or ""
+    segments = [norm_text(segment) for segment in path.split("/") if norm_text(segment) and norm_text(segment) != "p"]
+    if not segments:
+        return ""
+    slug = segments[-1]
+    if slug.isdigit():
+        return slug
+    match = re.search(r"-(\d+)$", slug)
+    return match.group(1) if match else ""
+
+
+def fetch_product_id_from_page(product_url: str) -> str:
+    response = build_session().get(product_url, timeout=45)
+    if response.status_code in {404, 410}:
+        return ""
+    response.raise_for_status()
+    match = re.search(r'"productId":"(\d+)"', response.text)
+    return match.group(1) if match else ""
 
 
 def fetch_sitemap_product_urls(sitemap_url: str) -> List[str]:
@@ -638,7 +829,12 @@ def run_vtex_paged_job(
             break
 
         page_key = f"offset:{start}-{start + page_size - 1}"
-        page_hash = stable_hash([norm_text(product.get("productId") or product.get("linkText")) for product in products])
+        page_hash = stable_hash(
+            {
+                "schemaVersion": EXTRACTION_SCHEMA_VERSION,
+                "items": [product_run_key(product) for product in products],
+            }
+        )
         cached_page = completed_pages.get(page_key)
         if cached_page and norm_text(cached_page.get("scopeHash")) == page_hash:
             metadata = cached_page.get("metadata") or {}
@@ -786,6 +982,7 @@ def run_vtex_category_tree_job(
     page_size: int = 50,
     max_pages_per_leaf: int = 0,
     slug_fallback: bool = True,
+    residual_product_workers: int = 12,
     cancel_check: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     page_errors = 0
@@ -802,6 +999,14 @@ def run_vtex_category_tree_job(
     checkpoint_store = RemoteCheckpointStore(options)
     completed_pages = checkpoint_store.list_completed("VTEX_CATEGORY_PAGE")
     brand_id_cache: Dict[Tuple[str, str], Optional[int]] = {}
+    seen_product_keys: set[str] = set()
+    residual_sitemap_errors = 0
+    residual_detail_errors = 0
+    residual_skipped_missing_detail = 0
+    residual_skipped_unmatched = 0
+    residual_skipped_cached_sitemaps = 0
+    residual_sitemaps_fetched = 0
+    residual_products_discovered = 0
 
     category_tree = fetch_category_tree(job)
     category_leaves = iter_category_leaves(category_tree)
@@ -958,7 +1163,12 @@ def run_vtex_category_tree_job(
                         break
 
                     page_key = f"{partition.key}|{start}-{end}"
-                    page_hash = stable_hash([norm_text(product.get('productId') or product.get('linkText')) for product in products])
+                    page_hash = stable_hash(
+                        {
+                            "schemaVersion": EXTRACTION_SCHEMA_VERSION,
+                            "items": [product_run_key(product) for product in products],
+                        }
+                    )
                     cached_page = completed_pages.get(page_key)
                     if cached_page and norm_text(cached_page.get("scopeHash")) == page_hash:
                         metadata = cached_page.get("metadata") or {}
@@ -993,6 +1203,12 @@ def run_vtex_category_tree_job(
                                 continue
                             if detail:
                                 record = product_to_record(job, detail)
+                                product = detail
+                        product_key = product_run_key(product)
+                        if product_key and product_key in seen_product_keys:
+                            continue
+                        if product_key:
+                            seen_product_keys.add(product_key)
                         gtin = norm_gtin(record.get("code"))
                         if gtin and gtin not in page_gtins:
                             page_gtins.append(gtin)
@@ -1083,9 +1299,194 @@ def run_vtex_category_tree_job(
                         break
             break
 
+    if job.sitemap_index_url and not job.selected_categories:
+        sitemap_urls = fetch_sitemap_index(job)
+        completed_sitemaps = checkpoint_store.list_completed("VTEX_SITEMAP")
+        residual_sitemaps_fetched = len(sitemap_urls)
+
+        for sitemap_index, sitemap_url in enumerate(sitemap_urls, start=1):
+            if cancel_check and cancel_check():
+                totals, manifest_path = session_import.finalize(
+                    {
+                        "source": "VTEX_CATEGORY_TREE_PLUS_SITEMAP_API",
+                        "categoryLeavesDiscovered": leaves_discovered,
+                        "categoryLeavesSelected": len(selected_leaves),
+                        "partitionsBuilt": partitions_built,
+                        "brandPartitionsBuilt": brand_partitions,
+                        "pagesFetched": pages_fetched,
+                        "productsDiscovered": products_discovered,
+                        "skippedCategoryLeaves": skipped_unmatched,
+                        "skippedOverflowPages": skipped_overflow_pages,
+                        "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                        "selectedCategories": list(job.selected_categories),
+                        "residualSitemapsFetched": residual_sitemaps_fetched,
+                        "residualProductsDiscovered": residual_products_discovered,
+                    },
+                    flush_pending=False,
+                )
+                return {
+                    "status": "CANCELLED",
+                    "message": f"{job.name}: execucao cancelada durante o complemento por sitemap.",
+                    "summary": [
+                        {
+                            "source": job.name,
+                            "provider": job.provider,
+                            "capturedProducts": session_import.captured,
+                            "categoryLeavesSelected": len(selected_leaves),
+                            "partitionsBuilt": partitions_built,
+                            "pagesFetched": pages_fetched,
+                            "productsDiscovered": products_discovered + residual_products_discovered,
+                            "outputManifest": str(manifest_path),
+                        }
+                    ],
+                    "scannedProducts": int(totals.get("scannedProducts", 0)),
+                    "importedProducts": int(totals.get("importedProducts", 0)),
+                    "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                    "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                    "skippedMedication": int(totals.get("skippedMedication", 0)),
+                    "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                    "errors": page_errors + detail_errors + residual_sitemap_errors + residual_detail_errors + int(totals.get("errors", 0)),
+                }
+
+            try:
+                product_urls = fetch_sitemap_product_urls(sitemap_url)
+            except Exception as exc:
+                residual_sitemap_errors += 1
+                checkpoint_store.mark("VTEX_SITEMAP", sitemap_url, "", "FAILED", error_message=str(exc))
+                print(f"[{job.provider}] residual sitemap error index={sitemap_index} url={sitemap_url} error={exc}")
+                continue
+
+            residual_products_discovered += len(product_urls)
+            sitemap_hash = stable_hash({"schemaVersion": EXTRACTION_SCHEMA_VERSION, "productUrls": product_urls})
+            cached_sitemap = completed_sitemaps.get(sitemap_url)
+            if cached_sitemap and norm_text(cached_sitemap.get("scopeHash")) == sitemap_hash:
+                metadata = cached_sitemap.get("metadata") or {}
+                sitemap_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+                if isinstance(sitemap_gtins, list) and sitemap_gtins:
+                    missing_images = checkpoint_store.codes_needing_image_refresh(sitemap_gtins)
+                    if not missing_images:
+                        residual_skipped_cached_sitemaps += 1
+                        print(f"[{job.provider}] skip cached residual sitemap={sitemap_index}/{len(sitemap_urls)} url={sitemap_url}")
+                        continue
+                    print(
+                        f"[{job.provider}] reprocess residual sitemap={sitemap_index}/{len(sitemap_urls)} "
+                        f"missing_images={len(missing_images)}"
+                    )
+
+            executor = ThreadPoolExecutor(max_workers=max(1, residual_product_workers))
+            cancelled = False
+            captured_before = session_import.captured
+            sitemap_detail_errors = 0
+            sitemap_gtins: List[str] = []
+            future_to_url = {
+                executor.submit(fetch_product_by_url, job, product_url): product_url
+                for product_url in product_urls
+            }
+            try:
+                for index, future in enumerate(as_completed(future_to_url), start=1):
+                    if cancel_check and cancel_check():
+                        cancelled = True
+                        break
+                    product_url = future_to_url[future]
+                    try:
+                        product = future.result()
+                    except Exception as exc:
+                        residual_detail_errors += 1
+                        sitemap_detail_errors += 1
+                        print(f"[{job.provider}] residual detail error url={product_url} error={exc}")
+                        continue
+                    if not product:
+                        residual_skipped_missing_detail += 1
+                        continue
+                    if not category_matches(job, product):
+                        residual_skipped_unmatched += 1
+                        continue
+                    product_key = product_run_key(product)
+                    if product_key and product_key in seen_product_keys:
+                        continue
+                    if product_key:
+                        seen_product_keys.add(product_key)
+                    record = product_to_record(job, product)
+                    gtin = norm_gtin(record.get("code"))
+                    if gtin and gtin not in sitemap_gtins:
+                        sitemap_gtins.append(gtin)
+                    try:
+                        session_import.push(record)
+                    except RunCancelled:
+                        cancelled = True
+                        break
+                    if index % 200 == 0 or index == len(future_to_url):
+                        print(
+                            f"[{job.provider}] residual sitemap={sitemap_index}/{len(sitemap_urls)} "
+                            f"products={index}/{len(future_to_url)} captured={session_import.captured}"
+                        )
+            finally:
+                executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
+
+            if cancelled:
+                totals, manifest_path = session_import.finalize(
+                    {
+                        "source": "VTEX_CATEGORY_TREE_PLUS_SITEMAP_API",
+                        "categoryLeavesDiscovered": leaves_discovered,
+                        "categoryLeavesSelected": len(selected_leaves),
+                        "partitionsBuilt": partitions_built,
+                        "brandPartitionsBuilt": brand_partitions,
+                        "pagesFetched": pages_fetched,
+                        "productsDiscovered": products_discovered + residual_products_discovered,
+                        "skippedCategoryLeaves": skipped_unmatched,
+                        "skippedOverflowPages": skipped_overflow_pages,
+                        "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                        "selectedCategories": list(job.selected_categories),
+                        "residualSitemapsFetched": residual_sitemaps_fetched,
+                    },
+                    flush_pending=False,
+                )
+                return {
+                    "status": "CANCELLED",
+                    "message": f"{job.name}: execucao cancelada durante o complemento por sitemap.",
+                    "summary": [
+                        {
+                            "source": job.name,
+                            "provider": job.provider,
+                            "capturedProducts": session_import.captured,
+                            "categoryLeavesSelected": len(selected_leaves),
+                            "partitionsBuilt": partitions_built,
+                            "pagesFetched": pages_fetched,
+                            "productsDiscovered": products_discovered + residual_products_discovered,
+                            "outputManifest": str(manifest_path),
+                        }
+                    ],
+                    "scannedProducts": int(totals.get("scannedProducts", 0)),
+                    "importedProducts": int(totals.get("importedProducts", 0)),
+                    "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                    "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                    "skippedMedication": int(totals.get("skippedMedication", 0)),
+                    "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                    "errors": page_errors + detail_errors + residual_sitemap_errors + residual_detail_errors + int(totals.get("errors", 0)),
+                }
+
+            errors_before_flush = int(session_import.totals.get("errors", 0))
+            session_import.flush()
+            checkpoint_store.mark(
+                "VTEX_SITEMAP",
+                sitemap_url,
+                sitemap_hash,
+                "COMPLETED" if sitemap_detail_errors == 0 and (int(session_import.totals.get("errors", 0)) - errors_before_flush) == 0 else "FAILED",
+                item_count=len(product_urls),
+                metadata={
+                    "sitemapIndex": sitemap_index,
+                    "productsDiscovered": len(product_urls),
+                    "capturedProducts": session_import.captured - captured_before,
+                    "skippedMissingDetail": residual_skipped_missing_detail,
+                    "skippedCategoryMismatch": residual_skipped_unmatched,
+                    "gtins": sitemap_gtins,
+                },
+                error_message="" if sitemap_detail_errors == 0 else "detail/import errors during sitemap processing",
+            )
+
     totals, manifest_path = session_import.finalize(
         {
-            "source": "VTEX_CATEGORY_TREE_SEARCH_API",
+            "source": "VTEX_CATEGORY_TREE_PLUS_SITEMAP_API" if job.sitemap_index_url and not job.selected_categories else "VTEX_CATEGORY_TREE_SEARCH_API",
             "categoryLeavesDiscovered": leaves_discovered,
             "categoryLeavesSelected": len(selected_leaves),
             "partitionsBuilt": partitions_built,
@@ -1095,11 +1496,16 @@ def run_vtex_category_tree_job(
             "skippedCategoryLeaves": skipped_unmatched,
             "skippedOverflowPages": skipped_overflow_pages,
             "skippedCachedPages": skipped_cached_pages,
+            "residualSitemapsFetched": residual_sitemaps_fetched,
+            "residualProductsDiscovered": residual_products_discovered,
+            "residualSkippedMissingDetail": residual_skipped_missing_detail,
+            "residualSkippedCategoryMismatch": residual_skipped_unmatched,
+            "residualSkippedCachedSitemaps": residual_skipped_cached_sitemaps,
             "selectedCategoryKeywords": list(job.allowed_category_keywords),
             "selectedCategories": list(job.selected_categories),
         }
     )
-    total_errors = page_errors + detail_errors + int(totals.get("errors", 0))
+    total_errors = page_errors + detail_errors + residual_sitemap_errors + residual_detail_errors + int(totals.get("errors", 0))
     return {
         "status": "SUCCESS" if total_errors == 0 else "FAILED",
         "message": (
@@ -1115,7 +1521,7 @@ def run_vtex_category_tree_job(
                 "categoryLeavesSelected": len(selected_leaves),
                 "partitionsBuilt": partitions_built,
                 "pagesFetched": pages_fetched,
-                "productsDiscovered": products_discovered,
+                "productsDiscovered": products_discovered + residual_products_discovered,
                 "outputManifest": str(manifest_path),
             }
         ],
@@ -1190,7 +1596,7 @@ def run_vtex_sitemap_job(
             continue
 
         discovered_products += len(product_urls)
-        sitemap_hash = stable_hash(product_urls)
+        sitemap_hash = stable_hash({"schemaVersion": EXTRACTION_SCHEMA_VERSION, "productUrls": product_urls})
         cached_sitemap = completed_sitemaps.get(sitemap_url)
         if cached_sitemap and norm_text(cached_sitemap.get("scopeHash")) == sitemap_hash:
             metadata = cached_sitemap.get("metadata") or {}

@@ -91,7 +91,7 @@ public class CatalogImageRepairService {
         String normalizedProvider = normalizeProvider(provider);
         String responseProvider = normalizedProvider.isBlank() ? ALL_PROVIDERS : normalizedProvider;
         int safeBatchSize = Math.max(10, Math.min(batchSize != null ? batchSize : defaultBatchSize, 1000));
-        int safeMaxItems = Math.max(safeBatchSize, Math.min(maxItems != null ? maxItems : defaultMaxItems, 20000));
+        int safeMaxItems = Math.max(safeBatchSize, Math.min(maxItems != null ? maxItems : defaultMaxItems, 250000));
 
         LocalDateTime startedAt = LocalDateTime.now();
         int scannedEnrichments = 0;

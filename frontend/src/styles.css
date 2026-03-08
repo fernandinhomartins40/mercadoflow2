@@ -3064,12 +3064,30 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #35539a;
+  border-radius: 999px;
+  transition: color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.catalog-admin-view-button:hover {
+  color: #17397f;
+  transform: translateY(-1px);
+}
+
+.catalog-admin-view-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(41, 85, 172, 0.18);
 }
 
 .catalog-admin-view-button svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
@@ -3089,6 +3107,23 @@ button {
   width: min(980px, 100%);
   max-height: min(92vh, 920px);
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 92, 163, 0.55) rgba(226, 232, 240, 0.72);
+}
+
+.catalog-admin-modal::-webkit-scrollbar {
+  width: 12px;
+}
+
+.catalog-admin-modal::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.9);
+  border-radius: 999px;
+}
+
+.catalog-admin-modal::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(59, 92, 163, 0.74), rgba(37, 64, 122, 0.92));
+  border-radius: 999px;
+  border: 3px solid rgba(226, 232, 240, 0.9);
 }
 
 .catalog-admin-modal-head {
@@ -3112,6 +3147,17 @@ button {
 
 .catalog-admin-modal-media {
   min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.catalog-admin-modal-image-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
 }
 
 .catalog-admin-modal-image {
@@ -3122,6 +3168,21 @@ button {
   background: #ffffff;
   object-fit: contain;
   padding: 16px;
+  box-shadow: 0 18px 36px rgba(19, 31, 68, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.catalog-admin-modal-image-button:hover .catalog-admin-modal-image {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 44px rgba(19, 31, 68, 0.12);
+}
+
+.catalog-admin-modal-image-button:focus-visible {
+  outline: none;
+}
+
+.catalog-admin-modal-image-button:focus-visible .catalog-admin-modal-image {
+  box-shadow: 0 0 0 3px rgba(41, 85, 172, 0.16), 0 18px 36px rgba(19, 31, 68, 0.08);
 }
 
 .catalog-admin-modal-image.placeholder {
@@ -3129,6 +3190,12 @@ button {
   place-items: center;
   color: var(--text-secondary);
   text-align: center;
+}
+
+.catalog-admin-image-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .catalog-admin-detail-grid {
@@ -3172,6 +3239,62 @@ button {
 
 .catalog-admin-detail-item-wide {
   grid-column: 1 / -1;
+}
+
+.catalog-admin-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 18, 36, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.catalog-admin-lightbox-frame {
+  position: relative;
+  width: min(1080px, 100%);
+  max-height: 92vh;
+  display: grid;
+  place-items: center;
+}
+
+.catalog-admin-lightbox-image {
+  max-width: 100%;
+  max-height: 92vh;
+  border-radius: 24px;
+  background: #ffffff;
+  object-fit: contain;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+}
+
+.catalog-admin-lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.catalog-admin-action-cell {
+  text-align: center;
+}
+
+.catalog-admin-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 980px) {
@@ -3569,8 +3692,38 @@ button {
 
 .catalog-admin-filters-grid {
   display: grid;
-  grid-template-columns: 220px minmax(280px, 1fr) auto auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  align-items: end;
+}
+
+.catalog-admin-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  grid-column: span 4;
+}
+
+.catalog-admin-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.catalog-admin-active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(22, 48, 82, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .table-action-cell .button {
@@ -3636,6 +3789,10 @@ button {
   .catalog-admin-filters-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .catalog-admin-filter-actions {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 980px) {
@@ -3673,6 +3830,15 @@ button {
 
   .catalog-admin-filters-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .catalog-admin-filter-actions {
+    grid-column: span 1;
+    justify-content: stretch;
+  }
+
+  .catalog-admin-filter-actions .button {
+    flex: 1 1 180px;
   }
 
   .super-admin-crawler-job-footer {
@@ -3790,6 +3956,14 @@ button {
     width: 100%;
     justify-content: center;
   }
+
+  .catalog-admin-action-cell {
+    text-align: left;
+  }
+
+  .catalog-admin-row-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 720px) {
@@ -3906,5 +4080,14 @@ button {
 
   .catalog-admin-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .catalog-admin-lightbox-backdrop {
+    padding: 12px;
+  }
+
+  .catalog-admin-lightbox-close {
+    top: 8px;
+    right: 8px;
   }
 }

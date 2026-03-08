@@ -113,12 +113,15 @@ public class AdminController {
     public ResponseEntity<Page<CatalogAdminProductDTO>> listCatalogProducts(
         @RequestParam(required = false) String provider,
         @RequestParam(required = false) String search,
+        @RequestParam(required = false) String brand,
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String imageStatus,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "50") int size
     ) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(1, Math.min(size, 200));
         Pageable pageable = PageRequest.of(safePage, safeSize);
-        return ResponseEntity.ok(productCatalogService.listCatalogProducts(provider, search, pageable));
+        return ResponseEntity.ok(productCatalogService.listCatalogProducts(provider, search, brand, category, imageStatus, pageable));
     }
 }

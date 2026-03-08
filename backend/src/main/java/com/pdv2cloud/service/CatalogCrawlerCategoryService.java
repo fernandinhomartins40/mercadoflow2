@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCategoryOptionDTO;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
@@ -79,6 +81,18 @@ public class CatalogCrawlerCategoryService {
                 "https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
                 Set.of()
             );
+            case "ANGELONI_WEB_BR" -> fetchVtexCategories(
+                "https://eletroangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
+                Set.of()
+            );
+            case "BISTEK_WEB_BR" -> fetchVtexCategories(
+                "https://www.bistek.com.br/api/catalog_system/pub/category/tree/20",
+                Set.of()
+            );
+            case "DELIVERYFORT_WEB_BR" -> fetchVtexCategories(
+                "https://www.deliveryfort.com.br/api/catalog_system/pub/category/tree/20",
+                Set.of()
+            );
             case "AMIGAO_WEB_BR" -> fetchVtexCategories(
                 "https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
                 Set.of()
@@ -86,6 +100,18 @@ public class CatalogCrawlerCategoryService {
             case "DROGARIASP_WEB_BR" -> fetchVtexCategories(
                 "https://www.drogariasaopaulo.com.br/api/catalog_system/pub/category/tree/20",
                 Set.of()
+            );
+            case "EXTRAFARMA_WEB_BR" -> fetchVtexCategories(
+                "https://www.extrafarma.com.br/api/catalog_system/pub/category/tree/20",
+                Set.of()
+            );
+            case "PAGUEMENOS_WEB_BR" -> fetchVtexCategories(
+                "https://www.paguemenos.com.br/api/catalog_system/pub/category/tree/20",
+                Set.of()
+            );
+            case "FARMACIASNISSEI_WEB_BR" -> fetchPathCategoriesFromSitemap(
+                "https://www.farmaciasnissei.com.br/sitemaps/categorias.xml",
+                "/categorias/"
             );
             case "SUPERKOCH_WEB_BR" -> fetchKochCategories("https://www.superkoch.com.br/categorias/");
             default -> List.of();
@@ -191,6 +217,51 @@ public class CatalogCrawlerCategoryService {
         return result;
     }
 
+    private List<SuperAdminCrawlerCategoryOptionDTO> fetchPathCategoriesFromSitemap(String sitemapUrl, String pathPrefix) {
+        String xml = fetchText(sitemapUrl, "application/xml,text/xml,application/xhtml+xml;q=0.9,*/*;q=0.8");
+        Pattern locPattern = Pattern.compile("<loc>(.*?)</loc>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher matcher = locPattern.matcher(xml);
+        List<SuperAdminCrawlerCategoryOptionDTO> result = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        while (matcher.find()) {
+            String url = decodeHtml(clean(matcher.group(1)));
+            if (url.isBlank()) {
+                continue;
+            }
+            String path;
+            try {
+                path = URI.create(url).getPath();
+            } catch (IllegalArgumentException ex) {
+                continue;
+            }
+            if (path == null || !path.startsWith(pathPrefix)) {
+                continue;
+            }
+            String suffix = path.substring(pathPrefix.length());
+            if (suffix.isBlank()) {
+                continue;
+            }
+            String[] rawSegments = suffix.split("/");
+            List<String> labels = new ArrayList<>();
+            for (String rawSegment : rawSegments) {
+                String decoded = URLDecoder.decode(rawSegment, StandardCharsets.UTF_8);
+                String label = clean(decoded.replace("-", " "));
+                if (!label.isBlank()) {
+                    labels.add(titleCase(label));
+                }
+            }
+            if (labels.isEmpty()) {
+                continue;
+            }
+            String value = String.join(" > ", labels);
+            String normalized = normalizeKey(value);
+            if (!normalized.isBlank() && seen.add(normalized)) {
+                result.add(new SuperAdminCrawlerCategoryOptionDTO(value, value, 0));
+            }
+        }
+        return result;
+    }
+
     private JsonNode fetchJson(String url) {
         try {
             HttpResponse<String> response = httpClient.send(
@@ -269,6 +340,21 @@ public class CatalogCrawlerCategoryService {
             .replace("&#39;", "'")
             .replace("&apos;", "'")
             .replace("&nbsp;", " ");
+    }
+
+    private String titleCase(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String[] parts = value.toLowerCase(Locale.ROOT).split("\\s+");
+        List<String> result = new ArrayList<>();
+        for (String part : parts) {
+            if (part.isBlank()) {
+                continue;
+            }
+            result.add(Character.toUpperCase(part.charAt(0)) + part.substring(1));
+        }
+        return String.join(" ", result);
     }
 
     private String normalizeKey(String value) {

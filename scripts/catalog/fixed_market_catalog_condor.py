@@ -23,14 +23,13 @@ from fixed_market_catalog_common import (
     stable_hash,
 )
 
-
 PRODUCT_PATH_RE = re.compile(r"/produtos/(\d+)/([^/?#]+)")
-STORE_ID_RE = re.compile(r'"selectedStore"\s*:\s*\{.*?"id":"?(\d+)"?', re.S)
-EXTRACTION_SCHEMA_VERSION = "2026-03-08-rich-metadata-v1"
+STORE_ID_RE = re.compile(r'"selectedStore":\{.*?"id":"?(\d+)"?', re.S)
+EXTRACTION_SCHEMA_VERSION = "2026-03-08-condor-graphql-v1"
 
 
 @dataclass(frozen=True)
-class KochJobConfig:
+class CondorJobConfig:
     name: str
     provider: str
     source_license: str
@@ -38,32 +37,29 @@ class KochJobConfig:
     site_base: str
     sitemap_url: str
     graphql_url: str
-    categories_url: str
-    graphql_versioning: str = "Apollo Client Frontend Production SP72"
     selected_categories: Tuple[str, ...] = ()
 
 
-def build_headers(referer: str) -> Dict[str, str]:
+def build_headers(referer: str, site_base: str) -> Dict[str, str]:
     return {
         "User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)",
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "Origin": "https://www.superkoch.com.br",
+        "Origin": site_base.rstrip("/"),
         "Referer": referer,
-        "Versioning": "Apollo Client Frontend Production SP72",
     }
 
 
-def fetch_default_store_id(job: KochJobConfig) -> str:
-    response = requests.get(job.categories_url, timeout=45, headers={"User-Agent": "Mozilla/5.0"})
+def fetch_default_store_id(job: CondorJobConfig) -> str:
+    response = requests.get(job.site_base, timeout=45, headers={"User-Agent": "Mozilla/5.0"})
     response.raise_for_status()
     match = STORE_ID_RE.search(response.text)
     if not match:
-        raise RuntimeError("Super Koch: storeId padrao nao encontrado no HTML")
+        raise RuntimeError("Condor: storeId padrao nao encontrado no HTML")
     return match.group(1)
 
 
-def fetch_product_urls(job: KochJobConfig) -> List[Tuple[str, str]]:
+def fetch_product_urls(job: CondorJobConfig) -> List[Tuple[str, str]]:
     response = requests.get(job.sitemap_url, timeout=60, headers={"User-Agent": "Mozilla/5.0"})
     response.raise_for_status()
     root = ET.fromstring(response.text)
@@ -85,7 +81,7 @@ def fetch_product_urls(job: KochJobConfig) -> List[Tuple[str, str]]:
     return items
 
 
-def fetch_product_detail(job: KochJobConfig, store_id: str, product_id: str, source_url: str) -> Optional[Dict[str, Any]]:
+def fetch_product_detail(job: CondorJobConfig, store_id: str, product_id: str, source_url: str) -> Optional[Dict[str, Any]]:
     query = """
     query ProductDetailQuery($storeId: ID!, $productId: ID!) {
       publicViewer(storeId: $storeId) {
@@ -95,6 +91,7 @@ def fetch_product_detail(job: KochJobConfig, store_id: str, product_id: str, sou
           iid
           name
           description
+          shortDescription
           content
           saleUnit
           contentUnit
@@ -102,6 +99,7 @@ def fetch_product_detail(job: KochJobConfig, store_id: str, product_id: str, sou
           slug
           gtin
           tags
+          supportsExpressDelivery
           brand {
             id
             name
@@ -147,15 +145,15 @@ def fetch_product_detail(job: KochJobConfig, store_id: str, product_id: str, sou
             id
             name
             slug
-            level2Category: parent {
-              level1Category: parent {
+            parent {
+              id
+              name
+              slug
+              parent {
                 id
                 name
                 slug
               }
-              id
-              name
-              slug
             }
           }
         }
@@ -169,7 +167,7 @@ def fetch_product_detail(job: KochJobConfig, store_id: str, product_id: str, sou
             "variables": {"storeId": store_id, "productId": product_id},
             "operationName": "ProductDetailQuery",
         },
-        headers=build_headers(source_url),
+        headers=build_headers(source_url, job.site_base),
         timeout=60,
     )
     response.raise_for_status()
@@ -198,47 +196,41 @@ def pick_image_url(product: Dict[str, Any]) -> str:
 
 def build_category(product: Dict[str, Any]) -> str:
     parts: List[str] = []
-    level1 = product.get("level1Category")
-    level2 = product.get("level2Category")
-    level3 = product.get("level3Category")
-    for entry in (level1, level2, level3):
+    for key in ("level1Category", "level2Category", "level3Category"):
+        entry = product.get(key)
         if isinstance(entry, dict):
             name = norm_text(entry.get("name"))
             if name and name not in parts:
                 parts.append(name)
-    if not parts and isinstance(level3, dict):
-        level2_parent = level3.get("level2Category")
-        if isinstance(level2_parent, dict):
-            level1_parent = level2_parent.get("level1Category")
-            for entry in (level1_parent, level2_parent, level3):
-                if isinstance(entry, dict):
-                    name = norm_text(entry.get("name"))
-                    if name and name not in parts:
-                        parts.append(name)
     return " > ".join(parts)[:255]
 
 
-def detail_to_record(job: KochJobConfig, detail: Dict[str, Any], source_url: str) -> Dict[str, Any]:
+def detail_to_record(job: CondorJobConfig, detail: Dict[str, Any], source_url: str) -> Dict[str, Any]:
     brand = detail.get("brand") if isinstance(detail.get("brand"), dict) else {}
     pricing = detail.get("pricing") if isinstance(detail.get("pricing"), dict) else {}
-    content = norm_text(detail.get("content"))
-    content_unit = norm_text(detail.get("contentUnit"))
-    sale_unit = norm_text(detail.get("saleUnit"))
-    package_bits = [piece for piece in (content, content_unit, sale_unit) if piece]
-    gtin = norm_gtin(detail.get("gtin"))
-    provider_product_id = norm_text(detail.get("id") or detail.get("iid"))
-    code = gtin or provider_product_id
     gallery = detail.get("imagesGallery") if isinstance(detail.get("imagesGallery"), list) else []
+    provider_product_id = norm_text(detail.get("id") or detail.get("iid"))
+    gtin = norm_gtin(detail.get("gtin"))
+    code = gtin or provider_product_id
+    package_bits = [
+        piece
+        for piece in (
+            norm_text(detail.get("content")),
+            norm_text(detail.get("contentUnit")),
+            norm_text(detail.get("saleUnit")),
+        )
+        if piece
+    ]
 
     return {
         "code": code,
         "name": norm_text(detail.get("name"))[:255],
         "brand": norm_text(brand.get("name"))[:120],
         "category": build_category(detail),
-        "description": plain_text(detail.get("description"))[:2048],
+        "description": plain_text(detail.get("description") or detail.get("shortDescription"))[:2048],
         "manufacturer": norm_text(brand.get("name"))[:255],
         "packageDescription": " ".join(package_bits)[:255],
-        "unit": sale_unit[:32],
+        "unit": norm_text(detail.get("saleUnit"))[:32],
         "imageUrl": pick_image_url(detail),
         "imageStorageKey": "",
         "sourceUrl": canonical_url(source_url),
@@ -249,22 +241,16 @@ def detail_to_record(job: KochJobConfig, detail: Dict[str, Any], source_url: str
             {
                 "schemaVersion": EXTRACTION_SCHEMA_VERSION,
                 "iid": detail.get("iid"),
-                "saleUnit": detail.get("saleUnit"),
-                "content": detail.get("content"),
-                "contentUnit": detail.get("contentUnit"),
+                "slug": detail.get("slug"),
                 "type": detail.get("type"),
                 "tags": detail.get("tags") or [],
+                "supportsExpressDelivery": detail.get("supportsExpressDelivery"),
                 "pricing": pricing,
                 "imageGalleryUrls": [
                     canonical_url(entry.get("thumbLarge") or entry.get("thumborized") or entry.get("url"))
                     for entry in gallery
                     if isinstance(entry, dict) and canonical_url(entry.get("thumbLarge") or entry.get("thumborized") or entry.get("url"))
                 ],
-                "categorySlugs": {
-                    "level1": (detail.get("level1Category") or {}).get("slug") if isinstance(detail.get("level1Category"), dict) else "",
-                    "level2": (detail.get("level2Category") or {}).get("slug") if isinstance(detail.get("level2Category"), dict) else "",
-                    "level3": (detail.get("level3Category") or {}).get("slug") if isinstance(detail.get("level3Category"), dict) else "",
-                },
             },
             ensure_ascii=False,
         ),
@@ -272,7 +258,7 @@ def detail_to_record(job: KochJobConfig, detail: Dict[str, Any], source_url: str
     }
 
 
-def category_matches(job: KochJobConfig, detail: Dict[str, Any]) -> bool:
+def category_matches(job: CondorJobConfig, detail: Dict[str, Any]) -> bool:
     selected = [normalize_key(value) for value in job.selected_categories if normalize_key(value)]
     if not selected:
         return True
@@ -282,8 +268,8 @@ def category_matches(job: KochJobConfig, detail: Dict[str, Any]) -> bool:
     return any(category in normalized_category for category in selected)
 
 
-def run_koch_catalog_job(
-    job: KochJobConfig,
+def run_condor_catalog_job(
+    job: CondorJobConfig,
     options: ImportOptions,
     product_workers: int = 12,
     max_products: int = 0,
@@ -299,7 +285,7 @@ def run_koch_catalog_job(
     skipped_cached_batches = 0
     session_import = MarketImportSession(options, cancel_check=cancel_check)
     checkpoint_store = RemoteCheckpointStore(options)
-    completed_batches = checkpoint_store.list_completed("KOCH_BATCH")
+    completed_batches = checkpoint_store.list_completed("CONDOR_BATCH")
     cancelled = False
     batch_size = 200
 
@@ -321,8 +307,6 @@ def run_koch_catalog_job(
                     print(f"[{job.provider}] skip cached batch={batch_index} size={len(batch)}")
                     continue
                 print(f"[{job.provider}] reprocess batch={batch_index} missing_images={len(missing_images)}")
-            else:
-                print(f"[{job.provider}] reprocess batch={batch_index} reason=missing-gtin-metadata")
 
         batch_errors = 0
         batch_captured_before = session_import.captured
@@ -375,7 +359,7 @@ def run_koch_catalog_job(
         errors_before_flush = int(session_import.totals.get("errors", 0))
         session_import.flush()
         checkpoint_store.mark(
-            "KOCH_BATCH",
+            "CONDOR_BATCH",
             batch_key,
             batch_hash,
             "COMPLETED" if batch_errors == 0 and (int(session_import.totals.get("errors", 0)) - errors_before_flush) == 0 else "FAILED",
@@ -391,7 +375,7 @@ def run_koch_catalog_job(
 
     totals, manifest_path = session_import.finalize(
         {
-            "source": "SUPERKOCH_SITEMAP_GRAPHQL",
+            "source": "CONDOR_SITEMAP_GRAPHQL",
             "productsDiscovered": len(discovered),
             "storeId": store_id,
             "sitemapUrl": job.sitemap_url,
@@ -429,8 +413,7 @@ def run_koch_catalog_job(
         "status": "SUCCESS" if total_errors == 0 else "FAILED",
         "message": (
             f"{job.name}: capturados={session_import.captured} "
-            f"importados={totals.get('importedProducts', 0)} "
-            f"erros={total_errors}"
+            f"importados={totals.get('importedProducts', 0)} erros={total_errors}"
         ),
         "summary": [
             {
@@ -441,7 +424,7 @@ def run_koch_catalog_job(
                 "outputManifest": str(manifest_path),
             }
         ],
-        "scannedProducts": int(totals.get("scannedProducts", session_import.captured)),
+        "scannedProducts": int(totals.get("scannedProducts", 0)),
         "importedProducts": int(totals.get("importedProducts", 0)),
         "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
         "skippedMissingName": int(totals.get("skippedMissingName", 0)),

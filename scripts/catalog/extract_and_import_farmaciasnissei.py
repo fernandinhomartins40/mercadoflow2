@@ -5,15 +5,14 @@ import argparse
 import json
 
 from fixed_market_catalog_common import ImportOptions
-from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job
+from fixed_market_catalog_nissei import NisseiJobConfig, run_nissei_catalog_job
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Extract + import Super Muffato catalog")
-    parser.add_argument("--page-size", type=int, default=50)
-    parser.add_argument("--max-pages", type=int, default=0)
+    parser = argparse.ArgumentParser(description="Extract + import Farmacias Nissei catalog")
     parser.add_argument("--product-workers", type=int, default=12)
-    parser.add_argument("--output", default="data/catalog/supermuffato_web_br_catalog")
+    parser.add_argument("--max-products", type=int, default=0)
+    parser.add_argument("--output", default="data/catalog/farmaciasnissei_web_br_catalog")
     parser.add_argument("--do-import", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--api-base", default="https://mercadoflow.com/api")
     parser.add_argument("--login-endpoint", default="/v1/super-admin/auth/login")
@@ -30,16 +29,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    job = VtexJobConfig(
-        name="Super Muffato",
-        provider="SUPERMUFFATO_WEB_BR",
+    job = NisseiJobConfig(
+        name="Farmacias Nissei",
+        provider="FARMACIASNISSEI_WEB_BR",
         source_license="Public website/API data (respect provider terms and robots)",
         output=args.output,
-        site_base="https://www.supermuffato.com.br",
-        catalog_api_base="https://www.supermuffato.com.br",
-        mode="category-tree",
-        category_tree_url="https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
+        site_base="https://www.farmaciasnissei.com.br",
+        sitemap_index_url="https://www.farmaciasnissei.com.br/sitemap.xml",
+        categories_sitemap_url="https://www.farmaciasnissei.com.br/sitemaps/categorias.xml",
     )
     options = ImportOptions(
         provider=job.provider,
@@ -58,12 +55,7 @@ def main() -> int:
         max_image_bytes=args.max_image_bytes,
         output=job.output,
     )
-    result = run_vtex_category_tree_job(
-        job,
-        options,
-        page_size=max(10, min(50, args.page_size)),
-        max_pages_per_leaf=max(0, args.max_pages),
-    )
+    result = run_nissei_catalog_job(job, options, product_workers=args.product_workers, max_products=args.max_products)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") != "FAILED" else 1
 
