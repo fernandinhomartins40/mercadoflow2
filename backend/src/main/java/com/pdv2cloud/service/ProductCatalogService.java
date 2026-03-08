@@ -751,19 +751,25 @@ public class ProductCatalogService {
         Product product,
         SuperAdminCatalogProductUpsertRequest request,
         String provider,
-        String providerProductId
+        String fallbackProviderProductId
     ) {
         enrichment.setProduct(product);
         enrichment.setProvider(provider);
-        enrichment.setProviderProductId(ProductCatalogUtils.canonicalizeDisplayName(providerProductId));
+        enrichment.setProviderProductId(ProductCatalogUtils.canonicalizeDisplayName(
+            request.getProviderProductId() != null ? request.getProviderProductId() : fallbackProviderProductId
+        ));
         enrichment.setCanonicalName(ProductCatalogUtils.canonicalizeDisplayName(request.getName()));
         enrichment.setBrand(ProductCatalogUtils.canonicalizeDisplayName(request.getBrand()));
         enrichment.setCategory(ProductCatalogUtils.canonicalizeDisplayName(request.getCategory()));
+        enrichment.setDescription(ProductCatalogUtils.canonicalizeDisplayName(request.getDescription()));
+        enrichment.setManufacturer(ProductCatalogUtils.canonicalizeDisplayName(request.getManufacturer()));
+        enrichment.setNcm(ProductCatalogUtils.canonicalizeDisplayName(request.getNcm()));
         enrichment.setUnit(ProductCatalogUtils.canonicalizeDisplayName(request.getUnit()));
         enrichment.setPackageDescription(ProductCatalogUtils.canonicalizeDisplayName(request.getPackageDescription()));
         enrichment.setImageUrl(catalogImageUrlResolver.resolve(request.getImageUrl(), null));
         enrichment.setSourceLicense(ProductCatalogUtils.canonicalizeDisplayName(request.getSourceLicense()));
-        enrichment.setRawPayload("{\"origin\":\"SUPER_ADMIN_MANUAL\"}");
+        enrichment.setAttributesJson(trimToNull(request.getAttributesJson()));
+        enrichment.setRawPayload(trimToNull(request.getRawPayload(), "{\"origin\":\"SUPER_ADMIN_MANUAL\"}"));
         enrichment.setConfidenceScore(
             scaleConfidence(request.getConfidenceScore() != null ? request.getConfidenceScore() : BigDecimal.valueOf(0.99))
         );
@@ -791,6 +797,9 @@ public class ProductCatalogService {
             ProductCatalogUtils.canonicalizeDisplayName(
                 enrichment.getCategory() != null ? enrichment.getCategory() : product.getCategory()
             ),
+            ProductCatalogUtils.canonicalizeDisplayName(enrichment.getDescription()),
+            ProductCatalogUtils.canonicalizeDisplayName(enrichment.getManufacturer()),
+            ProductCatalogUtils.canonicalizeDisplayName(enrichment.getNcm()),
             ProductCatalogUtils.canonicalizeDisplayName(
                 enrichment.getPackageDescription() != null
                     ? enrichment.getPackageDescription()
@@ -801,12 +810,27 @@ public class ProductCatalogService {
             ),
             resolvedImageUrl,
             enrichment.getProvider(),
+            ProductCatalogUtils.canonicalizeDisplayName(enrichment.getProviderProductId()),
             enrichment.getSourceLicense(),
+            enrichment.getAttributesJson(),
+            enrichment.getRawPayload(),
             enrichment.getConfidenceScore(),
             enrichment.getFetchedAt(),
             enrichment.getLastVerifiedAt(),
             product.getObservationCount()
         );
+    }
+
+    private String trimToNull(String value) {
+        return trimToNull(value, null);
+    }
+
+    private String trimToNull(String value, String fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? fallback : trimmed;
     }
 
     private String selectCatalogImage(String enrichmentImageUrl, String productImageUrl) {

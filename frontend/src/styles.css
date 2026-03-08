@@ -3138,6 +3138,14 @@ button {
   margin: 4px 0 0;
 }
 
+.catalog-admin-modal-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .catalog-admin-modal-body {
   display: grid;
   grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
@@ -3149,6 +3157,94 @@ button {
   min-width: 0;
   display: grid;
   gap: 10px;
+}
+
+.catalog-admin-editor-modal {
+  width: min(1180px, 100%);
+}
+
+.catalog-admin-editor-layout {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+
+.catalog-admin-editor-form {
+  display: grid;
+  gap: 18px;
+}
+
+.catalog-admin-editor-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid #dde5f3;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 18px 38px rgba(19, 31, 68, 0.06);
+}
+
+.catalog-admin-editor-panel h4 {
+  margin: 0;
+}
+
+.catalog-admin-editor-panel p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.catalog-admin-editor-section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.catalog-admin-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.catalog-admin-editor-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.catalog-admin-editor-field label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.catalog-admin-editor-field-wide {
+  grid-column: 1 / -1;
+}
+
+.catalog-admin-editor-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.catalog-admin-editor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-admin-editor-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(23, 70, 175, 0.08);
+  color: #1746af;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .catalog-admin-modal-image-button {
@@ -3308,6 +3404,14 @@ button {
 
   .catalog-admin-modal-media {
     max-width: 360px;
+  }
+
+  .catalog-admin-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-admin-editor-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -17,11 +17,17 @@ public class CatalogAdminProductDTO {
     private String canonicalName;
     private String brand;
     private String category;
+    private String description;
+    private String manufacturer;
+    private String ncm;
     private String packageDescription;
     private String unit;
     private String imageUrl;
     private String provider;
+    private String providerProductId;
     private String sourceLicense;
+    private String attributesJson;
+    private String rawPayload;
     private BigDecimal confidenceScore;
     private LocalDateTime fetchedAt;
     private LocalDateTime lastVerifiedAt;
