@@ -50,6 +50,13 @@ app:
     images-dir: ${APP_CATALOG_IMAGES_DIR:../data/catalog/images}
     max-image-bytes: ${APP_CATALOG_MAX_IMAGE_BYTES:5000000}
     runs-dir: ${APP_CATALOG_RUNS_DIR:../data/catalog/runs}
+    image-repair:
+      enabled: ${CATALOG_IMAGE_REPAIR_ENABLED:false}
+      initial-delay-ms: ${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS:900000}
+      fixed-delay-ms: ${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:21600000}
+      batch-size: ${CATALOG_IMAGE_REPAIR_BATCH_SIZE:200}
+      max-items-per-run: ${CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN:1000}
+      provider: ${CATALOG_IMAGE_REPAIR_PROVIDER:}
     web-import:
       enabled: ${CATALOG_WEB_IMPORT_ENABLED:false}
       initial-delay-ms: ${CATALOG_WEB_IMPORT_INITIAL_DELAY_MS:180000}

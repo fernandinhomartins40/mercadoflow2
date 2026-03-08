@@ -14,7 +14,7 @@ import requests
 
 from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
-from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_sitemap_job
+from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job, run_vtex_sitemap_job
 from fixed_market_catalog_koch import KochJobConfig, run_koch_catalog_job
 
 
@@ -235,17 +235,6 @@ def run_paodeacucar(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/paodeacucar_web_br_catalog",
         site_base="https://www.paodeacucar.com",
-        allowed_root_categories=(
-            "Alimentos",
-            "Bebidas",
-            "Limpeza",
-            "Descartaveis",
-            "Bebe e Crianca",
-            "Perfumaria",
-            "Bazar",
-            "PetShop",
-            "Textil",
-        ),
         selected_categories=selected_categories_for_provider(args, "PAODEACUCAR_WEB_BR"),
     )
     return run_gpa_catalog_job(
@@ -266,17 +255,6 @@ def run_extra(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/extra_web_br_catalog",
         site_base="https://www.extramercado.com.br",
-        allowed_root_categories=(
-            "Alimentos",
-            "Bebidas",
-            "Limpeza",
-            "Descartaveis",
-            "Bebe e Crianca",
-            "Perfumaria",
-            "Bazar",
-            "PetShop",
-            "Textil",
-        ),
         selected_categories=selected_categories_for_provider(args, "EXTRA_WEB_BR"),
     )
     return run_gpa_catalog_job(
@@ -296,52 +274,15 @@ def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/carrefour_web_br_catalog",
         site_base="https://mercado.carrefour.com.br",
         catalog_api_base="https://carrefourbrfood.vtexcommercestable.com.br",
-        mode="sitemap",
-        sitemap_index_url="https://mercado.carrefour.com.br/sitemap.xml",
-        allowed_category_keywords=(
-            "mercearia",
-            "alimentos basicos",
-            "arroz",
-            "feijao",
-            "massas",
-            "matinais",
-            "cafe",
-            "achocolatado",
-            "cereais",
-            "snacks",
-            "biscoitos",
-            "bebidas nao alcoolicas",
-            "acougue",
-            "peixaria",
-            "bebidas",
-            "whisky",
-            "vodka",
-            "drogaria",
-            "comemoracoes",
-            "diet",
-            "saudaveis",
-            "veganos",
-            "frios",
-            "laticinios",
-            "padaria",
-            "congelados",
-            "sobremesas",
-            "hortifruti",
-            "bebe",
-            "infantil",
-            "limpeza",
-            "higiene",
-            "perfumaria",
-            "casa",
-            "eletro",
-            "pet care",
-        ),
+        mode="category-tree",
+        category_tree_url="https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "CARREFOUR_WEB_BR"),
     )
-    return run_vtex_sitemap_job(
+    return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        product_workers=max(4, min(32, args.carrefour_product_workers)),
+        page_size=max(10, min(50, args.carrefour_page_size)),
+        max_pages_per_leaf=max(0, args.carrefour_max_pages),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -354,14 +295,15 @@ def run_drogariasp(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/drogariasp_web_br_catalog",
         site_base="https://www.drogariasaopaulo.com.br",
         catalog_api_base="https://www.drogariasaopaulo.com.br",
-        mode="sitemap",
-        sitemap_index_url="https://www.drogariasaopaulo.com.br/sitemap.xml",
+        mode="category-tree",
+        category_tree_url="https://www.drogariasaopaulo.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "DROGARIASP_WEB_BR"),
     )
-    return run_vtex_sitemap_job(
+    return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        product_workers=max(4, min(32, args.dsp_product_workers)),
+        page_size=max(10, min(50, args.dsp_page_size)),
+        max_pages_per_leaf=max(0, args.dsp_max_pages),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -374,42 +316,15 @@ def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/atacadao_web_br_catalog",
         site_base="https://www.atacadao.com.br",
         catalog_api_base="https://www.atacadao.com.br",
-        mode="sitemap",
-        sitemap_index_url="https://www.atacadao.com.br/sitemap.xml",
-        allowed_category_keywords=(
-            "bebidas",
-            "mercearia",
-            "limpeza",
-            "higiene",
-            "perfumaria",
-            "padaria",
-            "matinais",
-            "papelaria",
-            "pet shop",
-            "petshop",
-            "automotivo",
-            "frios",
-            "congelados",
-            "eletronicos",
-            "eletroportateis",
-            "hortifruti",
-            "carnes",
-            "aves",
-            "peixes",
-            "vestuario",
-            "utilidades domesticas",
-            "jardinagem",
-            "descartaveis",
-            "embalagens",
-            "esporte",
-            "lazer",
-        ),
+        mode="category-tree",
+        category_tree_url="https://www.atacadao.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "ATACADAO_WEB_BR"),
     )
-    return run_vtex_sitemap_job(
+    return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        product_workers=max(4, min(32, args.atacadao_product_workers)),
+        page_size=max(10, min(50, args.atacadao_page_size)),
+        max_pages_per_leaf=max(0, args.atacadao_max_pages),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -422,14 +337,15 @@ def run_supermuffato(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/supermuffato_web_br_catalog",
         site_base="https://www.supermuffato.com.br",
         catalog_api_base="https://www.supermuffato.com.br",
-        mode="sitemap",
-        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
+        mode="category-tree",
+        category_tree_url="https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "SUPERMUFFATO_WEB_BR"),
     )
-    return run_vtex_sitemap_job(
+    return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        product_workers=max(4, min(32, args.muffato_product_workers)),
+        page_size=max(10, min(50, args.muffato_page_size)),
+        max_pages_per_leaf=max(0, args.muffato_max_pages),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -442,14 +358,15 @@ def run_amigao(args: argparse.Namespace) -> Dict[str, Any]:
         output="data/catalog/amigao_web_br_catalog",
         site_base="https://novo.amigao.com",
         catalog_api_base="https://amigao.vtexcommercestable.com.br",
-        mode="sitemap",
-        sitemap_index_url="https://www.amigao.com/sitemap.xml",
+        mode="category-tree",
+        category_tree_url="https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "AMIGAO_WEB_BR"),
     )
-    return run_vtex_sitemap_job(
+    return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
-        product_workers=max(4, min(32, args.amigao_product_workers)),
+        page_size=max(10, min(50, args.amigao_page_size)),
+        max_pages_per_leaf=max(0, args.amigao_max_pages),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 

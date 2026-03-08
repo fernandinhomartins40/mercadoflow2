@@ -5,7 +5,7 @@ import argparse
 import json
 
 from fixed_market_catalog_common import ImportOptions
-from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_sitemap_job
+from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,8 +37,8 @@ def main() -> int:
         output=args.output,
         site_base="https://novo.amigao.com",
         catalog_api_base="https://amigao.vtexcommercestable.com.br",
-        mode="sitemap",
-        sitemap_index_url="https://www.amigao.com/sitemap.xml",
+        mode="category-tree",
+        category_tree_url="https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
     )
     options = ImportOptions(
         provider=job.provider,
@@ -57,7 +57,12 @@ def main() -> int:
         max_image_bytes=args.max_image_bytes,
         output=job.output,
     )
-    result = run_vtex_sitemap_job(job, options, product_workers=args.product_workers)
+    result = run_vtex_category_tree_job(
+        job,
+        options,
+        page_size=max(10, min(50, args.page_size)),
+        max_pages_per_leaf=max(0, args.max_pages),
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") != "FAILED" else 1
 

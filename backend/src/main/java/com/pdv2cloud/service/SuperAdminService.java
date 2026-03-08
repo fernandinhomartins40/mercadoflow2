@@ -3,7 +3,9 @@ package com.pdv2cloud.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
+import com.pdv2cloud.model.dto.CatalogImageRepairResponseDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
+import com.pdv2cloud.model.dto.SuperAdminCatalogImageRepairRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointBatchItemDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointBatchRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointDTO;
@@ -100,15 +102,15 @@ public class SuperAdminService {
             "Carrefour Brasil",
             "CARREFOUR_WEB_BR",
             false,
-            "Categorias de supermercado",
-            "VTEX sitemap + detail",
+            "Catalogo completo",
+            "VTEX category tree + detail",
             "extract_and_import_carrefour.py",
-            "Importa o tenant oficial Mercado Carrefour por sitemap de produtos e detalhe por slug, filtrando as categorias de supermercado definidas para mercearia, bebidas, acougue, hortifruti, limpeza, higiene, casa e pet.",
+            "Importa o catalogo completo do Mercado Carrefour pela arvore oficial de categorias VTEX, com detalhamento por slug para recuperar GTIN, preco e imagem principal.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
             List.of(
-                "https://mercado.carrefour.com.br/sitemap.xml",
+                "https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
                 "https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/products/search/arroz/p"
             ),
             List.of("mercado.carrefour.com.br", "carrefourbrfood.vtexcommercestable.com.br", "carrefourbrfood.myvtex.com")
@@ -118,14 +120,14 @@ public class SuperAdminService {
             "DROGARIASP_WEB_BR",
             true,
             "Todas as categorias",
-            "VTEX sitemap + detail",
+            "VTEX category tree + detail",
             "extract_and_import_drogariasp.py",
-            "Importa todas as categorias por sitemap de produtos e detalhe por slug na VTEX, incluindo medicamentos quando o provider expuser GTIN.",
+            "Importa todas as categorias pela arvore oficial da VTEX e detalha os itens por slug, incluindo medicamentos quando o provider expuser GTIN.",
             "Public website/API data (respect provider terms and robots)",
             true,
             true,
             List.of(
-                "https://www.drogariasaopaulo.com.br/sitemap.xml",
+                "https://www.drogariasaopaulo.com.br/api/catalog_system/pub/category/tree/20",
                 "https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search/dorflex/p"
             ),
             List.of("www.drogariasaopaulo.com.br", "drogariasaopaulo.com.br")
@@ -134,15 +136,15 @@ public class SuperAdminService {
             "Atacadao Online",
             "ATACADAO_WEB_BR",
             true,
-            "Categorias de supermercado",
-            "VTEX sitemap + detail",
+            "Catalogo completo",
+            "VTEX category tree + detail",
             "extract_and_import_atacadao.py",
-            "Importa o catalogo oficial do Atacadao Online por sitemap de produtos e detalhe por slug, filtrando bebidas, mercearia, limpeza, higiene, padaria, pet shop, automotivo, frios, hortifruti, carnes, vestuario e utilidades domesticas.",
+            "Importa o catalogo completo do Atacadao pela arvore oficial de categorias VTEX e detalha os itens por slug para recuperar GTIN, preco e imagem principal.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
             List.of(
-                "https://www.atacadao.com.br/sitemap.xml",
+                "https://www.atacadao.com.br/api/catalog_system/pub/category/tree/20",
                 "https://www.atacadao.com.br/api/catalog_system/pub/products/search/arroz/p"
             ),
             List.of("www.atacadao.com.br", "atacadao.com.br")
@@ -152,14 +154,14 @@ public class SuperAdminService {
             "SUPERMUFFATO_WEB_BR",
             true,
             "Catalogo completo",
-            "VTEX sitemap + detail",
+            "VTEX category tree + detail",
             "extract_and_import_supermuffato.py",
-            "Importa o catalogo completo do Super Muffato por sitemap de produtos e detalhe por slug para recuperar GTIN, preco e imagem principal.",
+            "Importa o catalogo completo do Super Muffato pela arvore oficial de categorias VTEX e detalhe por slug para recuperar GTIN, preco e imagem principal.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
             List.of(
-                "https://www.supermuffato.com.br/sitemap.xml",
+                "https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
                 "https://www.supermuffato.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"
             ),
             List.of("www.supermuffato.com.br", "supermuffato.com.br")
@@ -169,14 +171,14 @@ public class SuperAdminService {
             "AMIGAO_WEB_BR",
             true,
             "Catalogo completo",
-            "VTEX sitemap + detail",
+            "VTEX category tree + detail",
             "extract_and_import_amigao.py",
-            "Importa o catalogo completo do Amigao por sitemap de produtos e detalhe na VTEX do tenant oficial, sem depender das paginas de produto que hoje estao instaveis.",
+            "Importa o catalogo completo do Amigao pela arvore oficial de categorias e detalhe na VTEX do tenant oficial, sem depender das paginas de produto que hoje estao instaveis.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
             List.of(
-                "https://www.amigao.com/sitemap.xml",
+                "https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
                 "https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/products/search?_from=0&_to=49"
             ),
             List.of("www.amigao.com", "amigao.com", "novo.amigao.com", "amigao.vtexcommercestable.com.br")
@@ -236,6 +238,9 @@ public class SuperAdminService {
 
     @Autowired
     private CatalogCrawlerCatalogStatusService catalogCrawlerCatalogStatusService;
+
+    @Autowired
+    private CatalogImageRepairService catalogImageRepairService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -483,6 +488,18 @@ public class SuperAdminService {
             throw new IllegalArgumentException("Provider da auditoria de imagem e obrigatorio.");
         }
         return catalogCrawlerCatalogStatusService.auditCatalogImageStatus(provider, request.getCodes());
+    }
+
+    public CatalogImageRepairResponseDTO repairCatalogImages(SuperAdminCatalogImageRepairRequestDTO request) {
+        if (request == null) {
+            return catalogImageRepairService.runManualRepair("", null, null, "MANUAL_SUPER_ADMIN_IMAGE_REPAIR");
+        }
+        return catalogImageRepairService.runManualRepair(
+            cleanLabel(request.getProvider(), ""),
+            request.getMaxItems(),
+            request.getBatchSize(),
+            cleanLabel(request.getTriggeredBy(), "MANUAL_SUPER_ADMIN_IMAGE_REPAIR")
+        );
     }
 
     public SuperAdminCrawlerRunDTO triggerCrawlerRun(String triggeredBy) {

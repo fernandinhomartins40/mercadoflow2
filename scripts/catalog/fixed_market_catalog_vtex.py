@@ -6,7 +6,7 @@ import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -34,8 +34,36 @@ class VtexJobConfig:
     catalog_api_base: str
     mode: str
     sitemap_index_url: str = ""
+    category_tree_url: str = ""
     allowed_category_keywords: Tuple[str, ...] = ()
     selected_categories: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class VtexCategoryLeaf:
+    ids: Tuple[str, ...]
+    names: Tuple[str, ...]
+    fq: str
+    label: str
+    url: str
+
+
+@dataclass(frozen=True)
+class VtexBrandFacet:
+    name: str
+    quantity: int
+
+
+@dataclass(frozen=True)
+class VtexSearchPartition:
+    key: str
+    label: str
+    fqs: Tuple[str, ...]
+    total_hint: int
+    leaf_label: str
+    leaf_fq: str
+    leaf_ids: Tuple[str, ...]
+    kind: str
 
 
 def build_session() -> requests.Session:
@@ -167,13 +195,35 @@ def category_matches(job: VtexJobConfig, product: Dict[str, Any]) -> bool:
     return any(category in normalized_categories for category in selected)
 
 
-def fetch_search_page(job: VtexJobConfig, start: int, end: int) -> Tuple[List[Dict[str, Any]], int]:
+def normalize_fqs(value: Sequence[str] | str | None) -> Tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        normalized = norm_text(value)
+        return (normalized,) if normalized else ()
+    items = [norm_text(item) for item in value if norm_text(item)]
+    return tuple(items)
+
+
+def fetch_search_page(
+    job: VtexJobConfig,
+    start: int,
+    end: int,
+    fqs: Sequence[str] | str | None = None,
+    ft: str = "",
+) -> Tuple[List[Dict[str, Any]], int]:
+    normalized_fqs = normalize_fqs(fqs)
     last_error: Optional[Exception] = None
     for attempt in range(1, 4):
         try:
+            params: List[Tuple[str, Any]] = [("_from", start), ("_to", end)]
+            if norm_text(ft):
+                params.append(("ft", norm_text(ft)))
+            for fq in normalized_fqs:
+                params.append(("fq", fq))
             response = build_session().get(
                 f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search",
-                params={"_from": start, "_to": end},
+                params=params,
                 timeout=45,
             )
             response.raise_for_status()
@@ -190,6 +240,178 @@ def fetch_search_page(job: VtexJobConfig, start: int, end: int) -> Tuple[List[Di
     if last_error is not None:
         raise last_error
     raise RuntimeError("search page request failed without explicit error")
+
+
+def fetch_facets(job: VtexJobConfig, fqs: Sequence[str] | str | None = None) -> Dict[str, Any]:
+    normalized_fqs = normalize_fqs(fqs)
+    last_error: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            params: List[Tuple[str, Any]] = []
+            for fq in normalized_fqs:
+                params.append(("fq", fq))
+            response = build_session().get(
+                f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/facets/search",
+                params=params,
+                timeout=45,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return payload if isinstance(payload, dict) else {}
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 0
+            if status_code < 500 or attempt >= 3:
+                raise
+            last_error = exc
+        except requests.RequestException as exc:
+            last_error = exc
+        time.sleep(min(2.0, 0.35 * attempt))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("facets request failed without explicit error")
+
+
+def extract_brand_facets(payload: Dict[str, Any]) -> List[VtexBrandFacet]:
+    raw_items = payload.get("Brands") if isinstance(payload, dict) else None
+    if not isinstance(raw_items, list):
+        return []
+    brands: List[VtexBrandFacet] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        name = norm_text(item.get("Name") or item.get("Value"))
+        quantity = item.get("Quantity")
+        try:
+            safe_quantity = int(quantity)
+        except Exception:
+            safe_quantity = 0
+        if not name or safe_quantity <= 0:
+            continue
+        brands.append(VtexBrandFacet(name=name, quantity=safe_quantity))
+    return sorted(brands, key=lambda item: item.quantity, reverse=True)
+
+
+def resolve_brand_id(
+    job: VtexJobConfig,
+    category_fq: str,
+    brand_name: str,
+    brand_id_cache: Dict[Tuple[str, str], Optional[int]],
+) -> Optional[int]:
+    normalized_brand = normalize_key(brand_name)
+    cache_key = (category_fq, normalized_brand)
+    if cache_key in brand_id_cache:
+        return brand_id_cache[cache_key]
+
+    products, _ = fetch_search_page(job, 0, 49, fqs=(category_fq,), ft=brand_name)
+    matches: Dict[int, int] = {}
+    for product in products:
+        product_brand = normalize_key(product.get("brand"))
+        brand_id = product.get("brandId")
+        try:
+            safe_brand_id = int(brand_id)
+        except Exception:
+            safe_brand_id = 0
+        if safe_brand_id <= 0 or product_brand != normalized_brand:
+            continue
+        matches[safe_brand_id] = matches.get(safe_brand_id, 0) + 1
+
+    resolved: Optional[int] = None
+    if len(matches) == 1:
+        resolved = next(iter(matches.keys()))
+    elif matches:
+        ordered = sorted(matches.items(), key=lambda item: item[1], reverse=True)
+        if len(ordered) == 1 or ordered[0][1] > ordered[1][1]:
+            resolved = ordered[0][0]
+
+    brand_id_cache[cache_key] = resolved
+    return resolved
+
+
+def build_leaf_partitions(
+    job: VtexJobConfig,
+    leaf: VtexCategoryLeaf,
+    brand_id_cache: Dict[Tuple[str, str], Optional[int]],
+) -> List[VtexSearchPartition]:
+    _, total_hint = fetch_search_page(job, 0, 0, fqs=(leaf.fq,))
+    if total_hint <= 2500:
+        return [
+            VtexSearchPartition(
+                key=leaf.fq,
+                label=leaf.label,
+                fqs=(leaf.fq,),
+                total_hint=total_hint,
+                leaf_label=leaf.label,
+                leaf_fq=leaf.fq,
+                leaf_ids=leaf.ids,
+                kind="LEAF",
+            )
+        ]
+
+    facets = fetch_facets(job, (leaf.fq,))
+    brand_facets = extract_brand_facets(facets)
+    partitions: List[VtexSearchPartition] = []
+    covered_total = 0
+    resolved_brand_ids: Dict[str, Optional[int]] = {}
+    with ThreadPoolExecutor(max_workers=max(1, min(12, len(brand_facets) or 1))) as executor:
+        future_to_facet = {
+            executor.submit(resolve_brand_id, job, leaf.fq, facet.name, brand_id_cache): facet
+            for facet in brand_facets
+        }
+        for future in as_completed(future_to_facet):
+            facet = future_to_facet[future]
+            try:
+                resolved_brand_ids[facet.name] = future.result()
+            except Exception:
+                resolved_brand_ids[facet.name] = None
+
+    for facet in brand_facets:
+        brand_id = resolved_brand_ids.get(facet.name)
+        if brand_id is None:
+            continue
+        partition_fqs = (leaf.fq, f"B:{brand_id}")
+        partitions.append(
+            VtexSearchPartition(
+                key="|".join(partition_fqs),
+                label=f"{leaf.label} | Marca {facet.name}",
+                fqs=partition_fqs,
+                total_hint=facet.quantity,
+                leaf_label=leaf.label,
+                leaf_fq=leaf.fq,
+                leaf_ids=leaf.ids,
+                kind="BRAND",
+            )
+        )
+        covered_total += max(facet.quantity, 0)
+
+    if not partitions:
+        return [
+            VtexSearchPartition(
+                key=leaf.fq,
+                label=leaf.label,
+                fqs=(leaf.fq,),
+                total_hint=total_hint,
+                leaf_label=leaf.label,
+                leaf_fq=leaf.fq,
+                leaf_ids=leaf.ids,
+                kind="UNSPLITTABLE_LEAF",
+            )
+        ]
+
+    if covered_total < total_hint:
+        partitions.append(
+            VtexSearchPartition(
+                key=leaf.fq,
+                label=f"{leaf.label} | Folha completa",
+                fqs=(leaf.fq,),
+                total_hint=total_hint,
+                leaf_label=leaf.label,
+                leaf_fq=leaf.fq,
+                leaf_ids=leaf.ids,
+                kind="UNRESOLVED_LEAF",
+            )
+        )
+
+    return partitions
 
 
 def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[str, Any]]:
@@ -284,6 +506,74 @@ def fetch_sitemap_index(job: VtexJobConfig) -> List[str]:
             return 0
 
     return sorted(urls, key=sort_key)
+
+
+def fetch_category_tree(job: VtexJobConfig) -> List[Dict[str, Any]]:
+    if not norm_text(job.category_tree_url):
+        return []
+    last_error: Optional[Exception] = None
+    response: Optional[requests.Response] = None
+    for attempt in range(1, 4):
+        try:
+            response = build_session().get(job.category_tree_url, timeout=45)
+            response.raise_for_status()
+            break
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt >= 3:
+                raise
+            time.sleep(min(2.0, 0.35 * attempt))
+    if response is None:
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("category tree request failed without response")
+    payload = response.json()
+    return payload if isinstance(payload, list) else []
+
+
+def iter_category_leaves(tree: List[Dict[str, Any]]) -> List[VtexCategoryLeaf]:
+    leaves: List[VtexCategoryLeaf] = []
+
+    def walk(node: Dict[str, Any], ids: List[str], names: List[str]) -> None:
+        node_id = norm_text(node.get("id"))
+        node_name = norm_text(node.get("name"))
+        if not node_id or not node_name:
+            return
+        next_ids = ids + [node_id]
+        next_names = names + [node_name]
+        children = node.get("children") or []
+        valid_children = [child for child in children if isinstance(child, dict)]
+        if valid_children:
+            for child in valid_children:
+                walk(child, next_ids, next_names)
+            return
+        leaves.append(
+            VtexCategoryLeaf(
+                ids=tuple(next_ids),
+                names=tuple(next_names),
+                fq="C:/" + "/".join(next_ids) + "/",
+                label=" > ".join(next_names),
+                url=norm_text(node.get("url")),
+            )
+        )
+
+    for node in tree:
+        if isinstance(node, dict):
+            walk(node, [], [])
+    return leaves
+
+
+def leaf_matches(job: VtexJobConfig, leaf: VtexCategoryLeaf) -> bool:
+    normalized_leaf = normalize_key(leaf.label)
+    if not normalized_leaf:
+        return False
+    keywords = [normalize_key(value) for value in job.allowed_category_keywords if normalize_key(value)]
+    if keywords and not any(keyword in normalized_leaf for keyword in keywords):
+        return False
+    selected = [normalize_key(value) for value in job.selected_categories if normalize_key(value)]
+    if not selected:
+        return True
+    return any(category in normalized_leaf for category in selected)
 
 
 def run_vtex_paged_job(
@@ -477,6 +767,355 @@ def run_vtex_paged_job(
                 "provider": job.provider,
                 "capturedProducts": session_import.captured,
                 "pagesFetched": pages,
+                "outputManifest": str(manifest_path),
+            }
+        ],
+        "scannedProducts": int(totals.get("scannedProducts", session_import.captured)),
+        "importedProducts": int(totals.get("importedProducts", 0)),
+        "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+        "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+        "skippedMedication": int(totals.get("skippedMedication", 0)),
+        "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+        "errors": total_errors,
+    }
+
+
+def run_vtex_category_tree_job(
+    job: VtexJobConfig,
+    options: ImportOptions,
+    page_size: int = 50,
+    max_pages_per_leaf: int = 0,
+    slug_fallback: bool = True,
+    cancel_check: Optional[Callable[[], bool]] = None,
+) -> Dict[str, Any]:
+    page_errors = 0
+    detail_errors = 0
+    skipped_unmatched = 0
+    skipped_overflow_pages = 0
+    skipped_cached_pages = 0
+    leaves_discovered = 0
+    partitions_built = 0
+    brand_partitions = 0
+    pages_fetched = 0
+    products_discovered = 0
+    session_import = MarketImportSession(options, cancel_check=cancel_check)
+    checkpoint_store = RemoteCheckpointStore(options)
+    completed_pages = checkpoint_store.list_completed("VTEX_CATEGORY_PAGE")
+    brand_id_cache: Dict[Tuple[str, str], Optional[int]] = {}
+
+    category_tree = fetch_category_tree(job)
+    category_leaves = iter_category_leaves(category_tree)
+    leaves_discovered = len(category_leaves)
+    selected_leaves = [leaf for leaf in category_leaves if leaf_matches(job, leaf)]
+    skipped_unmatched = max(0, leaves_discovered - len(selected_leaves))
+
+    for leaf_index, leaf in enumerate(selected_leaves, start=1):
+        start = 0
+        leaf_pages = 0
+        total_hint = 0
+        while True:
+            if cancel_check and cancel_check():
+                totals, manifest_path = session_import.finalize(
+                    {
+                        "source": "VTEX_CATEGORY_TREE_SEARCH_API",
+                        "categoryLeavesDiscovered": leaves_discovered,
+                        "categoryLeavesSelected": len(selected_leaves),
+                        "partitionsBuilt": partitions_built,
+                        "brandPartitionsBuilt": brand_partitions,
+                        "pagesFetched": pages_fetched,
+                        "productsDiscovered": products_discovered,
+                        "skippedCategoryLeaves": skipped_unmatched,
+                        "skippedOverflowPages": skipped_overflow_pages,
+                        "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                        "selectedCategories": list(job.selected_categories),
+                    },
+                    flush_pending=False,
+                )
+                return {
+                    "status": "CANCELLED",
+                    "message": f"{job.name}: execucao cancelada durante a leitura por categoria.",
+                    "summary": [
+                        {
+                            "source": job.name,
+                            "provider": job.provider,
+                            "capturedProducts": session_import.captured,
+                            "categoryLeavesSelected": len(selected_leaves),
+                            "partitionsBuilt": partitions_built,
+                            "pagesFetched": pages_fetched,
+                            "productsDiscovered": products_discovered,
+                            "outputManifest": str(manifest_path),
+                        }
+                    ],
+                    "scannedProducts": int(totals.get("scannedProducts", 0)),
+                    "importedProducts": int(totals.get("importedProducts", 0)),
+                    "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                    "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                    "skippedMedication": int(totals.get("skippedMedication", 0)),
+                    "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                    "errors": page_errors + detail_errors + int(totals.get("errors", 0)),
+                }
+
+            try:
+                partitions = build_leaf_partitions(job, leaf, brand_id_cache)
+            except Exception as exc:
+                page_errors += 1
+                print(f"[{job.provider}] partition build error leaf={leaf.label} error={exc}")
+                break
+
+            partitions_built += len(partitions)
+            brand_partitions += sum(1 for partition in partitions if partition.kind == "BRAND")
+
+            for partition_index, partition in enumerate(partitions, start=1):
+                if partition.total_hint > 2500:
+                    skipped_overflow_pages += 1
+                    print(
+                        f"[{job.provider}] skip unsplittable partition leaf={leaf.label} "
+                        f"partition={partition.label[:80]} total_hint={partition.total_hint}"
+                    )
+                    continue
+
+                start = 0
+                leaf_pages = 0
+                total_hint = partition.total_hint
+                while True:
+                    if cancel_check and cancel_check():
+                        totals, manifest_path = session_import.finalize(
+                            {
+                                "source": "VTEX_CATEGORY_TREE_SEARCH_API",
+                                "categoryLeavesDiscovered": leaves_discovered,
+                                "categoryLeavesSelected": len(selected_leaves),
+                                "partitionsBuilt": partitions_built,
+                                "brandPartitionsBuilt": brand_partitions,
+                                "pagesFetched": pages_fetched,
+                                "productsDiscovered": products_discovered,
+                                "skippedCategoryLeaves": skipped_unmatched,
+                                "skippedOverflowPages": skipped_overflow_pages,
+                                "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                                "selectedCategories": list(job.selected_categories),
+                            },
+                            flush_pending=False,
+                        )
+                        return {
+                            "status": "CANCELLED",
+                            "message": f"{job.name}: execucao cancelada durante a coleta por categoria.",
+                            "summary": [
+                                {
+                                    "source": job.name,
+                                    "provider": job.provider,
+                                    "capturedProducts": session_import.captured,
+                                    "categoryLeavesSelected": len(selected_leaves),
+                                    "partitionsBuilt": partitions_built,
+                                    "pagesFetched": pages_fetched,
+                                    "productsDiscovered": products_discovered,
+                                    "outputManifest": str(manifest_path),
+                                }
+                            ],
+                            "scannedProducts": int(totals.get("scannedProducts", 0)),
+                            "importedProducts": int(totals.get("importedProducts", 0)),
+                            "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                            "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                            "skippedMedication": int(totals.get("skippedMedication", 0)),
+                            "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                            "errors": page_errors + detail_errors + int(totals.get("errors", 0)),
+                        }
+
+                    end = start + page_size - 1
+                    if end >= 2500:
+                        skipped_overflow_pages += 1
+                        print(
+                            f"[{job.provider}] skip overflow partition leaf={leaf.label} "
+                            f"partition={partition.label[:80]} offset={start}-{end} total_hint={total_hint or 'n/a'}"
+                        )
+                        break
+                    try:
+                        products, total_hint = fetch_search_page(job, start, end, fqs=partition.fqs)
+                    except Exception as exc:
+                        page_errors += 1
+                        checkpoint_store.mark(
+                            "VTEX_CATEGORY_PAGE",
+                            f"{partition.key}|{start}-{end}",
+                            "",
+                            "FAILED",
+                            error_message=str(exc),
+                            metadata={
+                                "leafLabel": partition.leaf_label,
+                                "leafFq": partition.leaf_fq,
+                                "leafIds": list(partition.leaf_ids),
+                                "partitionLabel": partition.label,
+                                "partitionFqs": list(partition.fqs),
+                                "partitionKind": partition.kind,
+                            },
+                        )
+                        print(
+                            f"[{job.provider}] category page error leaf={leaf.label} "
+                            f"partition={partition.label[:80]} offset={start} error={exc}"
+                        )
+                        break
+
+                    if total_hint:
+                        products_discovered += max(0, min(len(products), max(total_hint - start, 0)))
+                    if not products:
+                        break
+
+                    page_key = f"{partition.key}|{start}-{end}"
+                    page_hash = stable_hash([norm_text(product.get('productId') or product.get('linkText')) for product in products])
+                    cached_page = completed_pages.get(page_key)
+                    if cached_page and norm_text(cached_page.get("scopeHash")) == page_hash:
+                        metadata = cached_page.get("metadata") or {}
+                        page_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+                        if isinstance(page_gtins, list) and page_gtins:
+                            missing_images = checkpoint_store.codes_needing_image_refresh(page_gtins)
+                            if not missing_images:
+                                skipped_cached_pages += 1
+                                leaf_pages += 1
+                                pages_fetched += 1
+                                start += page_size
+                                if max_pages_per_leaf and leaf_pages >= max_pages_per_leaf:
+                                    break
+                                if total_hint and start >= total_hint:
+                                    break
+                                continue
+
+                    page_detail_errors = 0
+                    page_gtins: List[str] = []
+                    for product in products:
+                        record = product_to_record(job, product)
+                        if slug_fallback and not norm_gtin(record.get("code")):
+                            try:
+                                detail = fetch_product_by_url(job, build_source_url(job.site_base, norm_text(product.get("linkText"))))
+                            except Exception as exc:
+                                page_detail_errors += 1
+                                detail_errors += 1
+                                print(
+                                    f"[{job.provider}] detail fallback error leaf={leaf.label} "
+                                    f"partition={partition.label[:80]} offset={start} error={exc}"
+                                )
+                                continue
+                            if detail:
+                                record = product_to_record(job, detail)
+                        gtin = norm_gtin(record.get("code"))
+                        if gtin and gtin not in page_gtins:
+                            page_gtins.append(gtin)
+                        try:
+                            session_import.push(record)
+                        except RunCancelled:
+                            totals, manifest_path = session_import.finalize(
+                                {
+                                    "source": "VTEX_CATEGORY_TREE_SEARCH_API",
+                                    "categoryLeavesDiscovered": leaves_discovered,
+                                    "categoryLeavesSelected": len(selected_leaves),
+                                    "partitionsBuilt": partitions_built,
+                                    "brandPartitionsBuilt": brand_partitions,
+                                    "pagesFetched": pages_fetched,
+                                    "productsDiscovered": products_discovered,
+                                    "skippedCategoryLeaves": skipped_unmatched,
+                                    "skippedOverflowPages": skipped_overflow_pages,
+                                    "selectedCategoryKeywords": list(job.allowed_category_keywords),
+                                    "selectedCategories": list(job.selected_categories),
+                                },
+                                flush_pending=False,
+                            )
+                            return {
+                                "status": "CANCELLED",
+                                "message": f"{job.name}: execucao cancelada durante a coleta por categoria.",
+                                "summary": [
+                                    {
+                                        "source": job.name,
+                                        "provider": job.provider,
+                                        "capturedProducts": session_import.captured,
+                                        "categoryLeavesSelected": len(selected_leaves),
+                                        "partitionsBuilt": partitions_built,
+                                        "pagesFetched": pages_fetched,
+                                        "productsDiscovered": products_discovered,
+                                        "outputManifest": str(manifest_path),
+                                    }
+                                ],
+                                "scannedProducts": int(totals.get("scannedProducts", 0)),
+                                "importedProducts": int(totals.get("importedProducts", 0)),
+                                "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+                                "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+                                "skippedMedication": int(totals.get("skippedMedication", 0)),
+                                "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+                                "errors": page_errors + detail_errors + int(totals.get("errors", 0)),
+                            }
+
+                    errors_before_flush = int(session_import.totals.get("errors", 0))
+                    session_import.flush()
+                    import_errors = int(session_import.totals.get("errors", 0)) - errors_before_flush
+                    checkpoint_status = "COMPLETED" if page_detail_errors == 0 and import_errors == 0 else "FAILED"
+                    checkpoint_store.mark(
+                        "VTEX_CATEGORY_PAGE",
+                        page_key,
+                        page_hash,
+                        checkpoint_status,
+                        item_count=len(products),
+                        metadata={
+                            "leafLabel": partition.leaf_label,
+                            "leafFq": partition.leaf_fq,
+                            "leafIds": list(partition.leaf_ids),
+                            "partitionLabel": partition.label,
+                            "partitionFqs": list(partition.fqs),
+                            "partitionKind": partition.kind,
+                            "page": leaf_pages + 1,
+                            "offsetStart": start,
+                            "offsetEnd": end,
+                            "totalHint": total_hint,
+                            "provider": job.provider,
+                            "gtins": page_gtins,
+                        },
+                        error_message="" if checkpoint_status == "COMPLETED" else "page detail/import error",
+                    )
+
+                    leaf_pages += 1
+                    pages_fetched += 1
+                    if leaf_pages % 10 == 0 or (total_hint and start + page_size >= total_hint):
+                        print(
+                            f"[{job.provider}] leaf={leaf_index}/{len(selected_leaves)} "
+                            f"partition={partition_index}/{len(partitions)} "
+                            f"page={leaf_pages} captured={session_import.captured} "
+                            f"label={partition.label[:80]}"
+                        )
+
+                    start += page_size
+                    if max_pages_per_leaf and leaf_pages >= max_pages_per_leaf:
+                        break
+                    if total_hint and start >= total_hint:
+                        break
+            break
+
+    totals, manifest_path = session_import.finalize(
+        {
+            "source": "VTEX_CATEGORY_TREE_SEARCH_API",
+            "categoryLeavesDiscovered": leaves_discovered,
+            "categoryLeavesSelected": len(selected_leaves),
+            "partitionsBuilt": partitions_built,
+            "brandPartitionsBuilt": brand_partitions,
+            "pagesFetched": pages_fetched,
+            "productsDiscovered": products_discovered,
+            "skippedCategoryLeaves": skipped_unmatched,
+            "skippedOverflowPages": skipped_overflow_pages,
+            "skippedCachedPages": skipped_cached_pages,
+            "selectedCategoryKeywords": list(job.allowed_category_keywords),
+            "selectedCategories": list(job.selected_categories),
+        }
+    )
+    total_errors = page_errors + detail_errors + int(totals.get("errors", 0))
+    return {
+        "status": "SUCCESS" if total_errors == 0 else "FAILED",
+        "message": (
+            f"{job.name}: capturados={session_import.captured} "
+            f"importados={totals.get('importedProducts', 0)} "
+            f"erros={total_errors}"
+        ),
+        "summary": [
+            {
+                "source": job.name,
+                "provider": job.provider,
+                "capturedProducts": session_import.captured,
+                "categoryLeavesSelected": len(selected_leaves),
+                "partitionsBuilt": partitions_built,
+                "pagesFetched": pages_fetched,
+                "productsDiscovered": products_discovered,
                 "outputManifest": str(manifest_path),
             }
         ],

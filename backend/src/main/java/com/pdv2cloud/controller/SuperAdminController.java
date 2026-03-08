@@ -1,7 +1,9 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
+import com.pdv2cloud.model.dto.CatalogImageRepairResponseDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
+import com.pdv2cloud.model.dto.SuperAdminCatalogImageRepairRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointBatchRequestDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCheckpointDTO;
 import com.pdv2cloud.model.dto.SuperAdminCrawlerCatalogImageStatusDTO;
@@ -194,6 +196,13 @@ public class SuperAdminController {
         @RequestBody SuperAdminCrawlerCatalogImageStatusRequestDTO request
     ) {
         return ResponseEntity.ok(superAdminService.auditCrawlerCatalogImageStatus(request));
+    }
+
+    @PostMapping("/catalog/images/repair")
+    public ResponseEntity<CatalogImageRepairResponseDTO> repairCatalogImages(
+        @RequestBody(required = false) SuperAdminCatalogImageRepairRequestDTO request
+    ) {
+        return ResponseEntity.ok(superAdminService.repairCatalogImages(request));
     }
 
     @GetMapping("/catalog/crawler/jobs/{provider}/categories")

@@ -61,60 +61,19 @@ public class CatalogCrawlerCategoryService {
         return switch (provider) {
             case "PAODEACUCAR_WEB_BR" -> fetchGpaCategories(
                 "https://api.vendas.gpa.digital/pa/v4/products/categories/ecom?storeId=461",
-                Set.of("Alimentos", "Bebidas", "Limpeza", "Descartaveis", "Bebe e Crianca", "Perfumaria", "Bazar", "PetShop", "Textil")
+                Set.of()
             );
             case "EXTRA_WEB_BR" -> fetchGpaCategories(
                 "https://api.vendas.gpa.digital/ex/v4/products/categories/ecom?storeId=483",
-                Set.of("Alimentos", "Bebidas", "Limpeza", "Descartaveis", "Bebe e Crianca", "Perfumaria", "Bazar", "PetShop", "Textil")
+                Set.of()
             );
             case "CARREFOUR_WEB_BR" -> fetchVtexCategories(
                 "https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-                Set.of(
-                    "Mercearia",
-                    "Alimentos Basicos",
-                    "Matinais",
-                    "Snacks Biscoitos",
-                    "Bebidas nao alcoolicas",
-                    "Acougue",
-                    "Bebidas",
-                    "Whisky",
-                    "Vodka",
-                    "Drogarias",
-                    "Comemoracoes",
-                    "Diet Saudaveis Veganos",
-                    "Acougue Peixaria",
-                    "Frios Laticinios",
-                    "Padarias Matinais",
-                    "Congelados Sobremesas",
-                    "Hortifruti",
-                    "Bebe Infantil",
-                    "Limpeza",
-                    "Higiene Perfumaria",
-                    "Casa Eletro",
-                    "Pet Care"
-                )
+                Set.of()
             );
             case "ATACADAO_WEB_BR" -> fetchVtexCategories(
                 "https://www.atacadao.com.br/api/catalog_system/pub/category/tree/20",
-                Set.of(
-                    "Bebidas",
-                    "Mercearia",
-                    "Limpeza",
-                    "Higiene e perfumaria",
-                    "Padaria e matinais",
-                    "Papelaria",
-                    "Pet Shop",
-                    "Automotivo",
-                    "Frios e congelados",
-                    "Eletronicos e eletroportateis",
-                    "Hortifruti",
-                    "Carnes aves e peixes",
-                    "Vestuario",
-                    "Utilidades domesticas",
-                    "Jardinagem",
-                    "Descartaveis e embalagens",
-                    "Esporte e lazer"
-                )
+                Set.of()
             );
             case "SUPERMUFFATO_WEB_BR" -> fetchVtexCategories(
                 "https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
