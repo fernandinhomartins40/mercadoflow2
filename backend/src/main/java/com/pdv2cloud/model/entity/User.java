@@ -41,6 +41,8 @@ public class User {
 
     private Boolean isActive = true;
 
+    private LocalDateTime lastLoginAt;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

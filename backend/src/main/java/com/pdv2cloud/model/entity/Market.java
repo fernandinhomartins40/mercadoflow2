@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
@@ -39,10 +40,31 @@ public class Market {
     @Enumerated(EnumType.STRING)
     private PlanType planType;
 
+    @Enumerated(EnumType.STRING)
+    private MarketBillingStatus billingStatus = MarketBillingStatus.ACTIVE;
+
     private Boolean isActive = true;
+
+    private Integer userSeatLimit;
+
+    private LocalDateTime accessExpiresAt;
+
+    private LocalDateTime trialEndsAt;
+
+    private String contactName;
+
+    private String contactEmail;
+
+    private String contactPhone;
+
+    @Column(length = 4000)
+    private String notes;
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "market", cascade = CascadeType.ALL)
     private List<PDV> pdvs;

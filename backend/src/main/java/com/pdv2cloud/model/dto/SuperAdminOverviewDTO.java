@@ -9,8 +9,15 @@ public class SuperAdminOverviewDTO {
     private long totalUsers;
     private long activeUsers;
     private long blockedUsers;
+    private long orphanUsers;
     private long totalMarkets;
     private long activeMarkets;
+    private long trialMarkets;
+    private long pastDueMarkets;
+    private long suspendedMarkets;
+    private long expiringMarkets;
+    private long seatLimitTotal;
+    private long seatUsedTotal;
     private long totalCatalogProducts;
     private long totalCatalogEnrichments;
 }

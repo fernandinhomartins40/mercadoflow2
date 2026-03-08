@@ -21,11 +21,23 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             or lower(u.email) like :search
             or lower(u.name) like :search
             or lower(coalesce(m.name, '')) like :search)
+          and (:role is null or u.role = :role)
+          and (:active is null or u.isActive = :active)
+          and (:marketId is null or m.id = :marketId)
         order by u.createdAt desc
         """)
-    Page<User> searchForSuperAdmin(@Param("search") String search, Pageable pageable);
+    Page<User> searchForSuperAdmin(
+        @Param("search") String search,
+        @Param("role") UserRole role,
+        @Param("active") Boolean active,
+        @Param("marketId") UUID marketId,
+        Pageable pageable
+    );
 
     long countByIsActive(Boolean isActive);
     long countByRole(UserRole role);
+    long countByRoleAndIsActive(UserRole role, Boolean isActive);
     long countByMarket_Id(UUID marketId);
+    long countByMarket_IdAndIsActive(UUID marketId, Boolean isActive);
+    long countByMarketIsNullAndRoleNot(UserRole role);
 }

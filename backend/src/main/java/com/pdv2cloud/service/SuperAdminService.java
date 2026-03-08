@@ -29,11 +29,14 @@ import com.pdv2cloud.model.dto.SuperAdminUserCreateRequest;
 import com.pdv2cloud.model.dto.SuperAdminUserDTO;
 import com.pdv2cloud.model.dto.SuperAdminUserRoleUpdateRequest;
 import com.pdv2cloud.model.dto.SuperAdminUserStatusRequest;
+import com.pdv2cloud.model.dto.SuperAdminUserUpdateRequest;
 import com.pdv2cloud.model.entity.CatalogCrawlerConfig;
 import com.pdv2cloud.model.entity.CatalogCrawlerCheckpoint;
 import com.pdv2cloud.model.entity.CatalogCrawlerRun;
 import com.pdv2cloud.model.entity.CatalogCrawlerSource;
 import com.pdv2cloud.model.entity.Market;
+import com.pdv2cloud.model.entity.MarketBillingStatus;
+import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.model.entity.User;
 import com.pdv2cloud.model.entity.UserRole;
 import com.pdv2cloud.repository.CatalogCrawlerConfigRepository;
@@ -387,53 +390,99 @@ public class SuperAdminService {
         long totalUsers = userRepository.count();
         long activeUsers = userRepository.countByIsActive(true);
         long blockedUsers = totalUsers - activeUsers;
+        long orphanUsers = userRepository.countByMarketIsNullAndRoleNot(UserRole.SUPER_ADMIN);
         long totalMarkets = marketRepository.count();
         long activeMarkets = marketRepository.countByIsActive(true);
+        List<Market> markets = marketRepository.findAll();
+        long trialMarkets = markets.stream().filter(market -> market.getBillingStatus() == MarketBillingStatus.TRIAL).count();
+        long pastDueMarkets = markets.stream().filter(market -> market.getBillingStatus() == MarketBillingStatus.PAST_DUE).count();
+        long suspendedMarkets = markets.stream().filter(this::isMarketAccessBlocked).count();
+        long expiringMarkets = markets.stream().filter(this::isMarketExpiringSoon).count();
+        long seatLimitTotal = markets.stream()
+            .map(Market::getUserSeatLimit)
+            .filter(limit -> limit != null && limit > 0)
+            .mapToLong(Integer::longValue)
+            .sum();
+        long seatUsedTotal = markets.stream()
+            .mapToLong(market -> userRepository.countByMarket_IdAndIsActive(market.getId(), true))
+            .sum();
         long totalCatalogProducts = productRepository.count();
         long totalCatalogEnrichments = productEnrichmentRepository.count();
         return new SuperAdminOverviewDTO(
             totalUsers,
             activeUsers,
             blockedUsers,
+            orphanUsers,
             totalMarkets,
             activeMarkets,
+            trialMarkets,
+            pastDueMarkets,
+            suspendedMarkets,
+            expiringMarkets,
+            seatLimitTotal,
+            seatUsedTotal,
             totalCatalogProducts,
             totalCatalogEnrichments
         );
     }
 
     @Transactional(readOnly = true)
-    public Page<SuperAdminUserDTO> listUsers(String search, Pageable pageable) {
+    public Page<SuperAdminUserDTO> listUsers(String search, String role, Boolean active, UUID marketId, Pageable pageable) {
         String pattern = normalizeSearch(search);
-        return userRepository.searchForSuperAdmin(pattern, pageable).map(this::toUserDTO);
+        return userRepository.searchForSuperAdmin(pattern, normalizeUserRole(role), active, marketId, pageable).map(this::toUserDTO);
     }
 
     public SuperAdminUserDTO createUser(SuperAdminUserCreateRequest request) {
-        if (userRepository.findByEmail(request.getEmail().trim().toLowerCase(Locale.ROOT)).isPresent()) {
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email ja cadastrado");
         }
 
         User user = new User();
-        user.setName(request.getName().trim());
-        user.setEmail(request.getEmail().trim().toLowerCase(Locale.ROOT));
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole());
-        user.setIsActive(Boolean.TRUE.equals(request.getIsActive()));
+        user.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+        applyUserFields(
+            user,
+            request.getName(),
+            normalizedEmail,
+            request.getRole(),
+            request.getMarketId(),
+            request.getIsActive(),
+            true
+        );
 
-        if (request.getMarketId() != null) {
-            Market market = marketRepository.findById(request.getMarketId())
-                .orElseThrow(() -> new IllegalArgumentException("Mercado nao encontrado"));
-            user.setMarket(market);
-        } else {
-            user.setMarket(null);
+        return toUserDTO(userRepository.save(user));
+    }
+
+    public SuperAdminUserDTO updateUser(UUID userId, SuperAdminUserUpdateRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("Usuario nao encontrado"));
+
+        String normalizedEmail = request.getEmail() != null ? normalizeEmail(request.getEmail()) : user.getEmail();
+        userRepository.findByEmail(normalizedEmail)
+            .filter(found -> !found.getId().equals(userId))
+            .ifPresent(found -> {
+                throw new IllegalArgumentException("Email ja cadastrado");
+            });
+
+        applyUserFields(
+            user,
+            request.getName(),
+            normalizedEmail,
+            request.getRole(),
+            request.getMarketId(),
+            request.getIsActive(),
+            false
+        );
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.getPassword().trim()));
         }
-
         return toUserDTO(userRepository.save(user));
     }
 
     public SuperAdminUserDTO updateUserStatus(UUID userId, SuperAdminUserStatusRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("Usuario nao encontrado"));
+        ensureSuperAdminCanStillOperate(user, user.getRole(), request.getActive());
         user.setIsActive(Boolean.TRUE.equals(request.getActive()));
         return toUserDTO(userRepository.save(user));
     }
@@ -441,37 +490,36 @@ public class SuperAdminService {
     public SuperAdminUserDTO updateUserRole(UUID userId, SuperAdminUserRoleUpdateRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("Usuario nao encontrado"));
+        ensureSuperAdminCanStillOperate(user, request.getRole(), user.getIsActive());
         user.setRole(request.getRole());
+        if (request.getRole() == UserRole.SUPER_ADMIN) {
+            user.setMarket(null);
+        }
         return toUserDTO(userRepository.save(user));
     }
 
     @Transactional(readOnly = true)
-    public Page<SuperAdminMarketDTO> listMarkets(String search, Pageable pageable) {
+    public Page<SuperAdminMarketDTO> listMarkets(String search, String planType, String billingStatus, Boolean active, Pageable pageable) {
         String pattern = normalizeSearch(search);
-        return marketRepository.searchForSuperAdmin(pattern, pageable).map(this::toMarketDTO);
+        return marketRepository.searchForSuperAdmin(
+            pattern,
+            normalizePlanType(planType),
+            normalizeBillingStatus(billingStatus),
+            active,
+            pageable
+        ).map(this::toMarketDTO);
     }
 
     public SuperAdminMarketDTO createMarket(SuperAdminMarketCreateRequest request) {
         Market market = new Market();
-        market.setName(request.getName().trim());
-        market.setCnpj(request.getCnpj());
-        market.setPlanType(request.getPlanType());
-        market.setIsActive(Boolean.TRUE.equals(request.getActive()));
+        applyMarketFields(market, request);
         return toMarketDTO(marketRepository.save(market));
     }
 
     public SuperAdminMarketDTO updateMarket(UUID marketId, SuperAdminMarketUpdateRequest request) {
         Market market = marketRepository.findById(marketId)
             .orElseThrow(() -> new IllegalArgumentException("Mercado nao encontrado"));
-        if (request.getName() != null && !request.getName().isBlank()) {
-            market.setName(request.getName().trim());
-        }
-        if (request.getPlanType() != null) {
-            market.setPlanType(request.getPlanType());
-        }
-        if (request.getActive() != null) {
-            market.setIsActive(request.getActive());
-        }
+        applyMarketFields(market, request);
         return toMarketDTO(marketRepository.save(market));
     }
 
@@ -783,8 +831,244 @@ public class SuperAdminService {
         return toCrawlerRunDTO(crawlerRunRepository.save(run));
     }
 
+    private void applyUserFields(
+        User user,
+        String name,
+        String email,
+        UserRole role,
+        UUID marketId,
+        Boolean isActive,
+        boolean creating
+    ) {
+        if (creating || (name != null && !name.isBlank())) {
+            user.setName(name.trim());
+        }
+        if (creating || email != null) {
+            user.setEmail(email);
+        }
+        if (creating || role != null) {
+            UserRole resolvedRole = role != null ? role : UserRole.MARKET_OWNER;
+            ensureSuperAdminCanStillOperate(user, resolvedRole, isActive != null ? isActive : user.getIsActive());
+            user.setRole(resolvedRole);
+        }
+        if (creating || isActive != null) {
+            boolean nextActive = isActive == null ? Boolean.TRUE.equals(user.getIsActive()) : Boolean.TRUE.equals(isActive);
+            ensureSuperAdminCanStillOperate(user, user.getRole(), nextActive);
+            user.setIsActive(nextActive);
+        }
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            user.setMarket(null);
+            return;
+        }
+        user.setMarket(resolveMarket(marketId));
+    }
+
+    private void applyMarketFields(Market market, SuperAdminMarketCreateRequest request) {
+        market.setName(request.getName().trim());
+        market.setCnpj(normalizeOptionalText(request.getCnpj()));
+        market.setPlanType(request.getPlanType() != null ? request.getPlanType() : PlanType.BASIC);
+        market.setBillingStatus(request.getBillingStatus() != null ? request.getBillingStatus() : MarketBillingStatus.ACTIVE);
+        market.setIsActive(request.getActive() == null || request.getActive());
+        market.setUserSeatLimit(resolveSeatLimit(request.getUserSeatLimit(), market.getPlanType()));
+        market.setAccessExpiresAt(request.getAccessExpiresAt());
+        market.setTrialEndsAt(request.getTrialEndsAt());
+        market.setContactName(normalizeOptionalText(request.getContactName()));
+        market.setContactEmail(normalizeOptionalEmail(request.getContactEmail()));
+        market.setContactPhone(normalizeOptionalText(request.getContactPhone()));
+        market.setNotes(normalizeOptionalLongText(request.getNotes()));
+        ensureTrialDefaults(market);
+    }
+
+    private void applyMarketFields(Market market, SuperAdminMarketUpdateRequest request) {
+        if (request.getName() != null && !request.getName().isBlank()) {
+            market.setName(request.getName().trim());
+        }
+        if (request.getCnpj() != null) {
+            market.setCnpj(normalizeOptionalText(request.getCnpj()));
+        }
+        if (request.getPlanType() != null) {
+            market.setPlanType(request.getPlanType());
+            if (market.getUserSeatLimit() == null || market.getUserSeatLimit() <= 0) {
+                market.setUserSeatLimit(resolveSeatLimit(null, request.getPlanType()));
+            }
+        }
+        if (request.getBillingStatus() != null) {
+            market.setBillingStatus(request.getBillingStatus());
+        }
+        if (request.getActive() != null) {
+            market.setIsActive(request.getActive());
+        }
+        if (request.getUserSeatLimit() != null) {
+            market.setUserSeatLimit(resolveSeatLimit(request.getUserSeatLimit(), market.getPlanType()));
+        }
+        market.setAccessExpiresAt(request.getAccessExpiresAt());
+        market.setTrialEndsAt(request.getTrialEndsAt());
+        market.setContactName(normalizeOptionalText(request.getContactName()));
+        market.setContactEmail(normalizeOptionalEmail(request.getContactEmail()));
+        market.setContactPhone(normalizeOptionalText(request.getContactPhone()));
+        market.setNotes(normalizeOptionalLongText(request.getNotes()));
+        ensureTrialDefaults(market);
+    }
+
+    private Market resolveMarket(UUID marketId) {
+        if (marketId == null) {
+            return null;
+        }
+        return marketRepository.findById(marketId)
+            .orElseThrow(() -> new IllegalArgumentException("Mercado nao encontrado"));
+    }
+
+    private Integer resolveSeatLimit(Integer requestedSeatLimit, PlanType planType) {
+        if (requestedSeatLimit != null) {
+            return Math.max(1, requestedSeatLimit);
+        }
+        PlanType resolvedPlan = planType != null ? planType : PlanType.BASIC;
+        return switch (resolvedPlan) {
+            case ADVANCED -> 30;
+            case INTERMEDIATE -> 10;
+            case BASIC -> 3;
+        };
+    }
+
+    private void ensureTrialDefaults(Market market) {
+        if (market.getBillingStatus() != MarketBillingStatus.TRIAL) {
+            return;
+        }
+        if (market.getTrialEndsAt() == null) {
+            market.setTrialEndsAt(LocalDateTime.now().plusDays(14));
+        }
+        if (market.getAccessExpiresAt() == null) {
+            market.setAccessExpiresAt(market.getTrialEndsAt());
+        }
+    }
+
+    private void ensureSuperAdminCanStillOperate(User user, UserRole nextRole, Boolean nextActive) {
+        UserRole resolvedRole = nextRole != null ? nextRole : user.getRole();
+        boolean resolvedActive = nextActive == null ? Boolean.TRUE.equals(user.getIsActive()) : Boolean.TRUE.equals(nextActive);
+        if (user.getRole() != UserRole.SUPER_ADMIN) {
+            return;
+        }
+        if (resolvedRole == UserRole.SUPER_ADMIN && resolvedActive) {
+            return;
+        }
+        long activeSuperAdmins = userRepository.countByRoleAndIsActive(UserRole.SUPER_ADMIN, true);
+        if (activeSuperAdmins <= 1) {
+            throw new IllegalArgumentException("Nao e permitido remover ou bloquear o ultimo SUPER_ADMIN ativo da plataforma.");
+        }
+    }
+
+    private UserRole normalizeUserRole(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UserRole.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private PlanType normalizePlanType(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return PlanType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private MarketBillingStatus normalizeBillingStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return MarketBillingStatus.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private String normalizeEmail(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Email obrigatorio");
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeOptionalEmail(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 255 ? trimmed.substring(0, 255) : trimmed;
+    }
+
+    private String normalizeOptionalLongText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > 4000 ? trimmed.substring(0, 4000) : trimmed;
+    }
+
+    private boolean isMarketAccessBlocked(Market market) {
+        AccessDescriptor access = describeMarketAccess(market);
+        return access.blocked();
+    }
+
+    private boolean isMarketExpiringSoon(Market market) {
+        AccessDescriptor access = describeMarketAccess(market);
+        return "EXPIRING_SOON".equals(access.status());
+    }
+
+    private AccessDescriptor describeUserAccess(User user) {
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            return new AccessDescriptor("BLOCKED", "Usuario bloqueado manualmente", true);
+        }
+        if (user.getMarket() == null || user.getRole() == UserRole.SUPER_ADMIN) {
+            return new AccessDescriptor("ACTIVE", "Acesso liberado", false);
+        }
+        return describeMarketAccess(user.getMarket());
+    }
+
+    private AccessDescriptor describeMarketAccess(Market market) {
+        if (!Boolean.TRUE.equals(market.getIsActive())) {
+            return new AccessDescriptor("BLOCKED", "Conta bloqueada manualmente", true);
+        }
+        if (market.getBillingStatus() == MarketBillingStatus.SUSPENDED) {
+            return new AccessDescriptor("SUSPENDED", "Conta suspensa manualmente", true);
+        }
+        if (market.getBillingStatus() == MarketBillingStatus.CANCELLED) {
+            return new AccessDescriptor("CANCELLED", "Conta cancelada", true);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (market.getAccessExpiresAt() != null && !market.getAccessExpiresAt().isAfter(now)) {
+            return new AccessDescriptor("EXPIRED", "Acesso expirado", true);
+        }
+        if (market.getAccessExpiresAt() != null && market.getAccessExpiresAt().isBefore(now.plusDays(7))) {
+            return new AccessDescriptor("EXPIRING_SOON", "Acesso vencendo em ate 7 dias", false);
+        }
+        if (market.getBillingStatus() == MarketBillingStatus.TRIAL) {
+            return new AccessDescriptor("TRIAL", "Conta em periodo de teste", false);
+        }
+        if (market.getBillingStatus() == MarketBillingStatus.PAST_DUE) {
+            return new AccessDescriptor("PAST_DUE", "Pagamento manual em atraso", false);
+        }
+        return new AccessDescriptor("ACTIVE", "Acesso liberado", false);
+    }
+
     private SuperAdminUserDTO toUserDTO(User user) {
         Market market = user.getMarket();
+        AccessDescriptor access = describeUserAccess(user);
         return new SuperAdminUserDTO(
             user.getId(),
             user.getName(),
@@ -792,23 +1076,43 @@ public class SuperAdminService {
             user.getRole(),
             user.getIsActive(),
             user.getCreatedAt(),
+            user.getUpdatedAt(),
+            user.getLastLoginAt(),
             market != null ? market.getId() : null,
             market != null ? market.getName() : null,
             market != null ? market.getPlanType() : null,
-            market != null ? market.getIsActive() : null
+            market != null ? market.getBillingStatus() : null,
+            market != null ? market.getIsActive() : null,
+            market != null ? market.getAccessExpiresAt() : null,
+            access.status(),
+            access.reason()
         );
     }
 
     private SuperAdminMarketDTO toMarketDTO(Market market) {
         long usersCount = userRepository.countByMarket_Id(market.getId());
+        long activeUsersCount = userRepository.countByMarket_IdAndIsActive(market.getId(), true);
+        AccessDescriptor access = describeMarketAccess(market);
         return new SuperAdminMarketDTO(
             market.getId(),
             market.getName(),
             market.getCnpj(),
             market.getPlanType(),
+            market.getBillingStatus(),
             market.getIsActive(),
             market.getCreatedAt(),
-            usersCount
+            market.getUpdatedAt(),
+            market.getAccessExpiresAt(),
+            market.getTrialEndsAt(),
+            market.getUserSeatLimit(),
+            market.getContactName(),
+            market.getContactEmail(),
+            market.getContactPhone(),
+            market.getNotes(),
+            usersCount,
+            activeUsersCount,
+            access.status(),
+            access.reason()
         );
     }
 
@@ -1168,6 +1472,13 @@ public class SuperAdminService {
         boolean downloadsImages,
         List<String> seeds,
         List<String> allowedDomains
+    ) {
+    }
+
+    private record AccessDescriptor(
+        String status,
+        String reason,
+        boolean blocked
     ) {
     }
 }

@@ -4,6 +4,7 @@ import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.RegisterRequest;
 import com.pdv2cloud.model.entity.Market;
+import com.pdv2cloud.model.entity.MarketBillingStatus;
 import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.model.entity.User;
 import com.pdv2cloud.model.entity.UserRole;
@@ -11,6 +12,7 @@ import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.UserRepository;
 import com.pdv2cloud.security.JwtTokenProvider;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -49,6 +51,8 @@ public class AuthService {
             market.setName(request.getMarketName());
             market.setCnpj(request.getMarketCnpj());
             market.setPlanType(PlanType.BASIC);
+            market.setBillingStatus(MarketBillingStatus.ACTIVE);
+            market.setUserSeatLimit(3);
             market = marketRepository.save(market);
         }
 
@@ -58,6 +62,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.MARKET_OWNER);
         user.setMarket(market);
+        user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
         Authentication auth = authenticationManager.authenticate(
@@ -80,6 +85,7 @@ public class AuthService {
         if (user.getRole() == UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Use o login do painel Super Admin");
         }
+        touchLastLogin(user);
         UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;
         return new LoginResponse(token, user.getId(), user.getRole().name(), marketId);
     }
@@ -96,6 +102,12 @@ public class AuthService {
         if (user.getRole() != UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Credenciais sem permissao de Super Admin");
         }
+        touchLastLogin(user);
         return new LoginResponse(token, user.getId(), user.getRole().name(), null);
+    }
+
+    private void touchLastLogin(User user) {
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 }

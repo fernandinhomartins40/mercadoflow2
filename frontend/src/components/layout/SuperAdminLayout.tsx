@@ -18,7 +18,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </div>
         <nav className="super-admin-nav">
           <NavLink to="/super-admin" end className="super-admin-link">Visao geral</NavLink>
-          <NavLink to="/super-admin/usuarios" className="super-admin-link">Usuarios e planos</NavLink>
+          <NavLink to="/super-admin/saas" className="super-admin-link">Gestao SaaS</NavLink>
           <NavLink to="/super-admin/catalogo" className="super-admin-link">Catalogo global</NavLink>
           <NavLink to="/super-admin/crawler" className="super-admin-link">Crawler web</NavLink>
         </nav>

@@ -26,6 +26,7 @@ import com.pdv2cloud.model.dto.SuperAdminUserCreateRequest;
 import com.pdv2cloud.model.dto.SuperAdminUserDTO;
 import com.pdv2cloud.model.dto.SuperAdminUserRoleUpdateRequest;
 import com.pdv2cloud.model.dto.SuperAdminUserStatusRequest;
+import com.pdv2cloud.model.dto.SuperAdminUserUpdateRequest;
 import com.pdv2cloud.service.ProductCatalogService;
 import com.pdv2cloud.service.SuperAdminService;
 import jakarta.validation.Valid;
@@ -67,16 +68,27 @@ public class SuperAdminController {
     @GetMapping("/users")
     public ResponseEntity<Page<SuperAdminUserDTO>> listUsers(
         @RequestParam(required = false) String search,
+        @RequestParam(required = false) String role,
+        @RequestParam(required = false) Boolean active,
+        @RequestParam(required = false) UUID marketId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "30") int size
     ) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 200)));
-        return ResponseEntity.ok(superAdminService.listUsers(search, pageable));
+        return ResponseEntity.ok(superAdminService.listUsers(search, role, active, marketId, pageable));
     }
 
     @PostMapping("/users")
     public ResponseEntity<SuperAdminUserDTO> createUser(@Valid @RequestBody SuperAdminUserCreateRequest request) {
         return ResponseEntity.ok(superAdminService.createUser(request));
+    }
+
+    @PutMapping("/users/{userId}")
+    public ResponseEntity<SuperAdminUserDTO> updateUser(
+        @PathVariable UUID userId,
+        @Valid @RequestBody SuperAdminUserUpdateRequest request
+    ) {
+        return ResponseEntity.ok(superAdminService.updateUser(userId, request));
     }
 
     @PatchMapping("/users/{userId}/status")
@@ -98,11 +110,14 @@ public class SuperAdminController {
     @GetMapping("/markets")
     public ResponseEntity<Page<SuperAdminMarketDTO>> listMarkets(
         @RequestParam(required = false) String search,
+        @RequestParam(required = false) String planType,
+        @RequestParam(required = false) String billingStatus,
+        @RequestParam(required = false) Boolean active,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "30") int size
     ) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 200)));
-        return ResponseEntity.ok(superAdminService.listMarkets(search, pageable));
+        return ResponseEntity.ok(superAdminService.listMarkets(search, planType, billingStatus, active, pageable));
     }
 
     @PostMapping("/markets")

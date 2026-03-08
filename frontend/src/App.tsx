@@ -71,7 +71,8 @@ const App: React.FC = () => {
       <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
 
       <Route path="/super-admin" element={secureSuperAdmin(<SuperAdminDashboard />)} />
-      <Route path="/super-admin/usuarios" element={secureSuperAdmin(<SuperAdminUsers />)} />
+      <Route path="/super-admin/saas" element={secureSuperAdmin(<SuperAdminUsers />)} />
+      <Route path="/super-admin/usuarios" element={<Navigate to="/super-admin/saas" replace />} />
       <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
       <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
       <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
