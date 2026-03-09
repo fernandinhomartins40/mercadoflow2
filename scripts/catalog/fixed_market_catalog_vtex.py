@@ -109,6 +109,27 @@ def build_session() -> requests.Session:
     return session
 
 
+def is_retryable_http_status(status_code: int) -> bool:
+    return status_code == 429 or status_code >= 500
+
+
+def compute_retry_delay(
+    response: Optional[requests.Response],
+    attempt: int,
+    *,
+    base_delay: float,
+    max_delay: float,
+) -> float:
+    if response is not None:
+        retry_after = norm_text(response.headers.get("Retry-After"))
+        if retry_after:
+            try:
+                return max(0.0, min(max_delay, float(retry_after)))
+            except Exception:
+                pass
+    return min(max_delay, base_delay * attempt)
+
+
 def parse_resources_total(response: requests.Response) -> int:
     header = norm_text(response.headers.get("Resources"))
     if "/" not in header:
@@ -367,12 +388,19 @@ def fetch_search_page(
             return (payload if isinstance(payload, list) else []), parse_resources_total(response)
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else 0
-            if status_code < 500 or attempt >= 3:
+            if not is_retryable_http_status(status_code) or attempt >= 3:
                 raise
             last_error = exc
         except requests.RequestException as exc:
             last_error = exc
-        time.sleep(min(2.0, 0.35 * attempt))
+        time.sleep(
+            compute_retry_delay(
+                last_error.response if isinstance(last_error, requests.HTTPError) else None,
+                attempt,
+                base_delay=0.35,
+                max_delay=4.0,
+            )
+        )
     if last_error is not None:
         raise last_error
     raise RuntimeError("search page request failed without explicit error")
@@ -408,12 +436,19 @@ def fetch_facets(job: VtexJobConfig, fqs: Sequence[str] | str | None = None) -> 
             return payload if isinstance(payload, dict) else {}
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else 0
-            if status_code < 500 or attempt >= 3:
+            if not is_retryable_http_status(status_code) or attempt >= 3:
                 raise
             last_error = exc
         except requests.RequestException as exc:
             last_error = exc
-        time.sleep(min(2.0, 0.35 * attempt))
+        time.sleep(
+            compute_retry_delay(
+                last_error.response if isinstance(last_error, requests.HTTPError) else None,
+                attempt,
+                base_delay=0.35,
+                max_delay=4.0,
+            )
+        )
     if last_error is not None:
         raise last_error
     raise RuntimeError("facets request failed without explicit error")
@@ -568,7 +603,7 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
         return None
     last_error: Optional[Exception] = None
     empty_payload = False
-    for attempt in range(1, 4):
+    for attempt in range(1, 6):
         try:
             response = build_session().get(
                 f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search{path}",
@@ -586,12 +621,19 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
             status_code = exc.response.status_code if exc.response is not None else 0
             if status_code in {404, 410}:
                 return None
-            if status_code < 500 or attempt >= 3:
+            if not is_retryable_http_status(status_code) or attempt >= 5:
                 raise
             last_error = exc
         except requests.RequestException as exc:
             last_error = exc
-        time.sleep(min(2.5, 0.4 * attempt))
+        time.sleep(
+            compute_retry_delay(
+                last_error.response if isinstance(last_error, requests.HTTPError) else None,
+                attempt,
+                base_delay=1.0,
+                max_delay=8.0,
+            )
+        )
 
     product_id = extract_product_id_from_url(product_url)
     if not product_id:
@@ -646,11 +688,17 @@ def fetch_sitemap_product_urls(sitemap_url: str) -> List[str]:
             response = build_session().get(sitemap_url, timeout=45)
             response.raise_for_status()
             break
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 0
+            last_error = exc
+            if not is_retryable_http_status(status_code) or attempt >= 4:
+                raise
+            time.sleep(compute_retry_delay(exc.response, attempt, base_delay=0.5, max_delay=6.0))
         except requests.RequestException as exc:
             last_error = exc
-            if attempt >= 3:
+            if attempt >= 4:
                 raise
-            time.sleep(min(2.0, 0.35 * attempt))
+            time.sleep(compute_retry_delay(None, attempt, base_delay=0.5, max_delay=6.0))
     if response is None:
         if last_error is not None:
             raise last_error
@@ -672,11 +720,17 @@ def fetch_sitemap_index(job: VtexJobConfig) -> List[str]:
             response = build_session().get(job.sitemap_index_url, timeout=45)
             response.raise_for_status()
             break
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 0
+            last_error = exc
+            if not is_retryable_http_status(status_code) or attempt >= 4:
+                raise
+            time.sleep(compute_retry_delay(exc.response, attempt, base_delay=0.5, max_delay=6.0))
         except requests.RequestException as exc:
             last_error = exc
-            if attempt >= 3:
+            if attempt >= 4:
                 raise
-            time.sleep(min(2.0, 0.35 * attempt))
+            time.sleep(compute_retry_delay(None, attempt, base_delay=0.5, max_delay=6.0))
     if response is None:
         if last_error is not None:
             raise last_error
@@ -709,11 +763,17 @@ def fetch_category_tree(job: VtexJobConfig) -> List[Dict[str, Any]]:
             response = build_session().get(job.category_tree_url, timeout=45)
             response.raise_for_status()
             break
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 0
+            last_error = exc
+            if not is_retryable_http_status(status_code) or attempt >= 4:
+                raise
+            time.sleep(compute_retry_delay(exc.response, attempt, base_delay=0.5, max_delay=6.0))
         except requests.RequestException as exc:
             last_error = exc
-            if attempt >= 3:
+            if attempt >= 4:
                 raise
-            time.sleep(min(2.0, 0.35 * attempt))
+            time.sleep(compute_retry_delay(None, attempt, base_delay=0.5, max_delay=6.0))
     if response is None:
         if last_error is not None:
             raise last_error

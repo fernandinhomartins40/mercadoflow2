@@ -416,6 +416,7 @@ def run_angeloni(args: argparse.Namespace) -> Dict[str, Any]:
         build_options(args, job.provider, job.source_license, job.output),
         page_size=50,
         max_pages_per_leaf=0,
+        residual_product_workers=4,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 

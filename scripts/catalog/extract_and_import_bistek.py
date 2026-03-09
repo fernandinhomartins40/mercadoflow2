@@ -62,6 +62,7 @@ def main() -> int:
         options,
         page_size=max(10, min(50, args.page_size)),
         max_pages_per_leaf=max(0, args.max_pages),
+        residual_product_workers=4,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") != "FAILED" else 1
