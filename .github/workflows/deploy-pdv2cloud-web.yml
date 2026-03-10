@@ -7,6 +7,7 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'scripts/**'
       - 'docker-compose.vps.yml'
       - 'deploy/**'
       - '.github/workflows/deploy-pdv2cloud-web.yml'
