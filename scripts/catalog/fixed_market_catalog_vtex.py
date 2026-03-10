@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -69,6 +70,9 @@ class VtexJobConfig:
     category_tree_url: str = ""
     allowed_category_keywords: Tuple[str, ...] = ()
     selected_categories: Tuple[str, ...] = ()
+    catalog_retry_attempts: int = 5
+    catalog_min_interval_seconds: float = 0.0
+    brand_resolve_workers: int = 12
 
 
 @dataclass(frozen=True)
@@ -96,6 +100,24 @@ class VtexSearchPartition:
     leaf_fq: str
     leaf_ids: Tuple[str, ...]
     kind: str
+
+
+_catalog_request_locks: Dict[str, threading.Lock] = {}
+_catalog_request_last_ts: Dict[str, float] = {}
+
+
+def throttle_catalog_request(job: VtexJobConfig) -> None:
+    min_interval = max(0.0, float(job.catalog_min_interval_seconds or 0.0))
+    if min_interval <= 0.0:
+        return
+    lock = _catalog_request_locks.setdefault(job.provider, threading.Lock())
+    with lock:
+        now = time.monotonic()
+        last_ts = _catalog_request_last_ts.get(job.provider, 0.0)
+        wait_seconds = (last_ts + min_interval) - now
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+        _catalog_request_last_ts[job.provider] = time.monotonic()
 
 
 def build_session() -> requests.Session:
@@ -371,13 +393,14 @@ def fetch_search_page(
 ) -> Tuple[List[Dict[str, Any]], int]:
     normalized_fqs = normalize_fqs(fqs)
     last_error: Optional[Exception] = None
-    for attempt in range(1, 4):
+    for attempt in range(1, job.catalog_retry_attempts + 1):
         try:
             params: List[Tuple[str, Any]] = [("_from", start), ("_to", end)]
             if norm_text(ft):
                 params.append(("ft", norm_text(ft)))
             for fq in normalized_fqs:
                 params.append(("fq", fq))
+            throttle_catalog_request(job)
             response = build_session().get(
                 f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search",
                 params=params,
@@ -388,7 +411,7 @@ def fetch_search_page(
             return (payload if isinstance(payload, list) else []), parse_resources_total(response)
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else 0
-            if not is_retryable_http_status(status_code) or attempt >= 3:
+            if not is_retryable_http_status(status_code) or attempt >= job.catalog_retry_attempts:
                 raise
             last_error = exc
         except requests.RequestException as exc:
@@ -397,8 +420,8 @@ def fetch_search_page(
             compute_retry_delay(
                 last_error.response if isinstance(last_error, requests.HTTPError) else None,
                 attempt,
-                base_delay=0.35,
-                max_delay=4.0,
+                base_delay=0.75,
+                max_delay=8.0,
             )
         )
     if last_error is not None:
@@ -421,11 +444,12 @@ def fetch_search_first(
 def fetch_facets(job: VtexJobConfig, fqs: Sequence[str] | str | None = None) -> Dict[str, Any]:
     normalized_fqs = normalize_fqs(fqs)
     last_error: Optional[Exception] = None
-    for attempt in range(1, 4):
+    for attempt in range(1, job.catalog_retry_attempts + 1):
         try:
             params: List[Tuple[str, Any]] = []
             for fq in normalized_fqs:
                 params.append(("fq", fq))
+            throttle_catalog_request(job)
             response = build_session().get(
                 f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/facets/search",
                 params=params,
@@ -436,7 +460,7 @@ def fetch_facets(job: VtexJobConfig, fqs: Sequence[str] | str | None = None) -> 
             return payload if isinstance(payload, dict) else {}
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else 0
-            if not is_retryable_http_status(status_code) or attempt >= 3:
+            if not is_retryable_http_status(status_code) or attempt >= job.catalog_retry_attempts:
                 raise
             last_error = exc
         except requests.RequestException as exc:
@@ -445,8 +469,8 @@ def fetch_facets(job: VtexJobConfig, fqs: Sequence[str] | str | None = None) -> 
             compute_retry_delay(
                 last_error.response if isinstance(last_error, requests.HTTPError) else None,
                 attempt,
-                base_delay=0.35,
-                max_delay=4.0,
+                base_delay=0.75,
+                max_delay=8.0,
             )
         )
     if last_error is not None:
@@ -535,7 +559,7 @@ def build_leaf_partitions(
     partitions: List[VtexSearchPartition] = []
     covered_total = 0
     resolved_brand_ids: Dict[str, Optional[int]] = {}
-    with ThreadPoolExecutor(max_workers=max(1, min(12, len(brand_facets) or 1))) as executor:
+    with ThreadPoolExecutor(max_workers=max(1, min(job.brand_resolve_workers, len(brand_facets) or 1))) as executor:
         future_to_facet = {
             executor.submit(resolve_brand_id, job, leaf.fq, facet.name, brand_id_cache): facet
             for facet in brand_facets
@@ -603,8 +627,9 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
         return None
     last_error: Optional[Exception] = None
     empty_payload = False
-    for attempt in range(1, 6):
+    for attempt in range(1, job.catalog_retry_attempts + 1):
         try:
+            throttle_catalog_request(job)
             response = build_session().get(
                 f"{job.catalog_api_base.rstrip('/')}/api/catalog_system/pub/products/search{path}",
                 timeout=45,
@@ -621,7 +646,7 @@ def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[
             status_code = exc.response.status_code if exc.response is not None else 0
             if status_code in {404, 410}:
                 return None
-            if not is_retryable_http_status(status_code) or attempt >= 5:
+            if not is_retryable_http_status(status_code) or attempt >= job.catalog_retry_attempts:
                 raise
             last_error = exc
         except requests.RequestException as exc:
@@ -758,22 +783,23 @@ def fetch_category_tree(job: VtexJobConfig) -> List[Dict[str, Any]]:
         return []
     last_error: Optional[Exception] = None
     response: Optional[requests.Response] = None
-    for attempt in range(1, 4):
+    for attempt in range(1, job.catalog_retry_attempts + 1):
         try:
+            throttle_catalog_request(job)
             response = build_session().get(job.category_tree_url, timeout=45)
             response.raise_for_status()
             break
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else 0
             last_error = exc
-            if not is_retryable_http_status(status_code) or attempt >= 4:
+            if not is_retryable_http_status(status_code) or attempt >= job.catalog_retry_attempts:
                 raise
-            time.sleep(compute_retry_delay(exc.response, attempt, base_delay=0.5, max_delay=6.0))
+            time.sleep(compute_retry_delay(exc.response, attempt, base_delay=0.75, max_delay=8.0))
         except requests.RequestException as exc:
             last_error = exc
-            if attempt >= 4:
+            if attempt >= job.catalog_retry_attempts:
                 raise
-            time.sleep(compute_retry_delay(None, attempt, base_delay=0.5, max_delay=6.0))
+            time.sleep(compute_retry_delay(None, attempt, base_delay=0.75, max_delay=8.0))
     if response is None:
         if last_error is not None:
             raise last_error

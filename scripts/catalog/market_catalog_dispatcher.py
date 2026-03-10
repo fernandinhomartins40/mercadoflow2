@@ -455,12 +455,16 @@ def run_deliveryfort(args: argparse.Namespace) -> Dict[str, Any]:
         category_tree_url="https://www.deliveryfort.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.deliveryfort.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "DELIVERYFORT_WEB_BR"),
+        catalog_retry_attempts=6,
+        catalog_min_interval_seconds=0.2,
+        brand_resolve_workers=3,
     )
     return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
         page_size=50,
         max_pages_per_leaf=0,
+        residual_product_workers=4,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 

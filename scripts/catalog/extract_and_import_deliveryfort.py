@@ -39,6 +39,9 @@ def main() -> int:
         mode="category-tree",
         category_tree_url="https://www.deliveryfort.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.deliveryfort.com.br/sitemap.xml",
+        catalog_retry_attempts=6,
+        catalog_min_interval_seconds=0.2,
+        brand_resolve_workers=3,
     )
     options = ImportOptions(
         provider=job.provider,
@@ -62,6 +65,7 @@ def main() -> int:
         options,
         page_size=max(10, min(50, args.page_size)),
         max_pages_per_leaf=max(0, args.max_pages),
+        residual_product_workers=4,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") != "FAILED" else 1
