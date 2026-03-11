@@ -21,6 +21,10 @@ CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS="${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-2160
 CATALOG_IMAGE_REPAIR_BATCH_SIZE="${CATALOG_IMAGE_REPAIR_BATCH_SIZE:-300}"
 CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN="${CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN:-250000}"
 CATALOG_IMAGE_REPAIR_PROVIDER="${CATALOG_IMAGE_REPAIR_PROVIDER:-}"
+DOCKER_CLEANUP_ENABLED="${DOCKER_CLEANUP_ENABLED:-true}"
+DOCKER_CLEANUP_PROJECT_CONTAINERS="${DOCKER_CLEANUP_PROJECT_CONTAINERS:-true}"
+DOCKER_CLEANUP_DANGLING_IMAGES="${DOCKER_CLEANUP_DANGLING_IMAGES:-true}"
+DOCKER_CLEANUP_BUILD_CACHE="${DOCKER_CLEANUP_BUILD_CACHE:-true}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -144,6 +148,44 @@ wait_for_health() {
   compose ps || true
   compose logs --tail=120 || true
   exit 1
+}
+
+cleanup_project_containers() {
+  local statuses=(created exited dead)
+  local status
+
+  for status in "${statuses[@]}"; do
+    docker ps -aq \
+      --filter "label=com.docker.compose.project=${PROJECT_NAME}" \
+      --filter "status=${status}" | xargs -r docker rm -f >/dev/null
+  done
+}
+
+cleanup_docker_artifacts() {
+  if [[ "${DOCKER_CLEANUP_ENABLED}" != "true" ]]; then
+    log "Limpeza Docker desabilitada por configuração"
+    return
+  fi
+
+  log "Limpando artefatos Docker descartáveis sem tocar em volumes"
+
+  if [[ "${DOCKER_CLEANUP_PROJECT_CONTAINERS}" == "true" ]]; then
+    cleanup_project_containers || log "WARN: não foi possível remover containers descartáveis do projeto"
+  fi
+
+  if [[ "${DOCKER_CLEANUP_DANGLING_IMAGES}" == "true" ]]; then
+    docker image prune -f >/dev/null || log "WARN: não foi possível limpar imagens dangling"
+  fi
+
+  if [[ "${DOCKER_CLEANUP_BUILD_CACHE}" == "true" ]]; then
+    docker builder prune -af >/dev/null || log "WARN: não foi possível limpar cache de build Docker"
+  fi
+}
+
+report_disk_usage() {
+  log "Uso atual de disco"
+  df -h / || true
+  docker system df || true
 }
 
 build_agent_installer() {
@@ -313,6 +355,9 @@ main() {
   ensure_host_nginx_proxy
 
   wait_for_health
+
+  cleanup_docker_artifacts
+  report_disk_usage
 
   log "Deploy concluído com volumes preservados"
 }

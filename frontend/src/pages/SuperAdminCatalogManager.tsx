@@ -336,43 +336,130 @@ const SuperAdminCatalogManager: React.FC = () => {
 
   return (
     <SuperAdminLayout>
-      <div className="super-admin-page catalog-admin-page">
-        <section className="analytics-hero compact reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Catalogo Global</span>
-            <h1 className="analytics-hero-title">Gestao manual de produtos</h1>
-            <p className="analytics-hero-text">
-              Edite produtos do catalogo global em um modal unico, com preview da imagem e campos ricos do enrichment manual.
-            </p>
-          </div>
+      <div className="super-admin-page catalog-admin-page super-admin-catalog-page">
+        <section className="dashboard-command-grid reveal super-admin-command-grid">
+          <article className="dashboard-command-card super-admin-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Catalogo Global</span>
+              <h1 className="dashboard-command-title">Manutencao manual de produtos sem espalhar o fluxo em blocos confusos.</h1>
+              <p className="dashboard-command-text">
+                A entrada desta pagina agora resume busca, criacao e estado da base antes de voce abrir o modal de cadastro ou edicao.
+              </p>
+              <div className="hero-inline-actions">
+                <Button onClick={openCreateModal}>Novo produto</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setPage(0);
+                    load();
+                  }}
+                >
+                  Atualizar lista
+                </Button>
+              </div>
+            </div>
+
+            <div className="dashboard-command-showcase">
+              <div className="dashboard-glow-card">
+                <span className="section-kicker">Itens nesta pagina</span>
+                <h3>{rows.length} produtos visiveis</h3>
+                <strong>{rowsPage?.number != null ? rowsPage.number + 1 : page + 1}</strong>
+                <p>{rowsPage ? `${rowsPage.totalPages} paginas disponiveis para navegacao.` : 'Carregue a base para ver o recorte atual.'}</p>
+              </div>
+
+              <div className="dashboard-command-mosaic">
+                <div className="dashboard-mini-tile">
+                  <span>Busca atual</span>
+                  <strong>{search.trim() || 'Sem filtro'}</strong>
+                  <small>consulta por GTIN, nome ou marca</small>
+                </div>
+                <div className="dashboard-mini-tile">
+                  <span>Provider padrao</span>
+                  <strong>{editorProviderLabel}</strong>
+                  <small>origem aplicada no cadastro manual</small>
+                </div>
+                <div className="dashboard-mini-tile accent">
+                  <span>Preview do editor</span>
+                  <strong>{editorImageUrl ? 'Com imagem' : 'Sem imagem'}</strong>
+                  <small>o modal de edicao mostra o preview ao vivo</small>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <div className="dashboard-priority-card dark">
+              <span className="section-kicker">Fluxo principal</span>
+              <strong>Consultar, abrir o olho e editar no modal</strong>
+              <p>A tabela vira trilha de selecao. Os campos ricos ficam concentrados no editor, nao no corpo da pagina.</p>
+            </div>
+            <div className="dashboard-priority-card">
+              <span className="section-kicker">Pagina atual</span>
+              <strong>{page + 1}</strong>
+              <p>{rowsPage ? `${rowsPage.totalPages} paginas totais no resultado atual.` : 'Sem paginacao carregada ainda.'}</p>
+            </div>
+          </aside>
         </section>
+
+        <div className="dashboard-page-grid">
+          <section className="analytics-panel reveal dashboard-form-panel">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Consulta</span>
+                <h3>Itens cadastrados</h3>
+              </div>
+            </div>
+            <div className="filter-bar-controls">
+              <input
+                className="input"
+                placeholder="Buscar por GTIN, nome, marca..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <Button
+                onClick={() => {
+                  setPage(0);
+                  load();
+                }}
+              >
+                Buscar
+              </Button>
+            </div>
+            {loadError ? <div className="card" style={{ color: 'var(--danger)' }}>{loadError}</div> : null}
+            {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
+          </section>
+
+          <section className="analytics-panel reveal dashboard-note-card">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Como operar</span>
+                <h3>Leitura recomendada</h3>
+              </div>
+            </div>
+            <div className="dashboard-quick-list">
+              <div className="dashboard-quick-item">
+                <strong>Use a tabela como trilha de selecao</strong>
+                <span>O objetivo nao e preencher campos na pagina, mas escolher o item certo para visualizar ou editar.</span>
+              </div>
+              <div className="dashboard-quick-item">
+                <strong>O modal concentra os campos ricos</strong>
+                <span>Descricao, payload, atributos e preview de imagem ficaram todos dentro do editor.</span>
+              </div>
+              <div className="dashboard-quick-item">
+                <strong>Mantenha a base manual sob controle</strong>
+                <span>Use provider e provider product id apenas quando fizer sentido para rastreio da manutencao.</span>
+              </div>
+            </div>
+          </section>
+        </div>
 
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
             <div>
-              <span className="section-kicker">Consulta</span>
-              <h3>Itens cadastrados</h3>
+              <span className="section-kicker">Listagem</span>
+              <h3>Produtos do catalogo global</h3>
             </div>
-            <Button onClick={openCreateModal}>Novo produto</Button>
           </div>
-          <div className="filter-bar-controls">
-            <input
-              className="input"
-              placeholder="Buscar por GTIN, nome, marca..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <Button
-              onClick={() => {
-                setPage(0);
-                load();
-              }}
-            >
-              Buscar
-            </Button>
-          </div>
-          {loadError ? <div className="card" style={{ color: 'var(--danger)' }}>{loadError}</div> : null}
-          {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
           {loading ? (
             <div className="card">Carregando catalogo...</div>
           ) : (

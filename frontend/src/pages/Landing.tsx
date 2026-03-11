@@ -121,45 +121,59 @@ const Landing: React.FC = () => {
       </section>
 
       <main className="landing-app page analytics-page">
-        <section className="analytics-hero reveal stagger-1">
-          <div className="analytics-hero-copy">
-            <span className="pill">Plataforma de decisao comercial com dados reais</span>
-            <h1 className="analytics-hero-title">Pare de decidir no feeling. Compre, promova e exponha com inteligencia.</h1>
-            <p className="analytics-hero-text">
-              O MercadoFlow une coleta automatica de notas no desktop com analise web de performance por produto, variacao de preco,
-              compra casada, sazonalidade e impacto de campanha.
-            </p>
-            <div className="hero-chip-row">
-              <span className="hero-chip">Sem mock: dados vindos de NFCe/XML</span>
-              <span className="hero-chip">Dashboard por produto com visao por PDV</span>
-              <span className="hero-chip">Sincronizacao desktop + API web</span>
+        <section className="dashboard-command-grid reveal stagger-1">
+          <article className="dashboard-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Plataforma de decisao comercial com dados reais</span>
+              <h1 className="dashboard-command-title">Pare de decidir no feeling. Compre, promova e exponha com inteligencia.</h1>
+              <p className="dashboard-command-text">
+                O MercadoFlow une coleta automatica de notas no desktop com analise web de performance por produto, variacao de preco,
+                compra casada, sazonalidade e impacto de campanha.
+              </p>
+              <div className="hero-chip-row">
+                <span className="hero-chip">Sem mock: dados vindos de NFCe/XML</span>
+                <span className="hero-chip">Dashboard por produto com visao por PDV</span>
+                <span className="hero-chip">Sincronizacao desktop + API web</span>
+              </div>
+              <div className="hero-inline-actions">
+                <Link className="button" to="/login">Acessar plataforma</Link>
+                <Link className="button secondary" to="/download-agente">Baixar agente</Link>
+              </div>
             </div>
-            <div className="hero-inline-actions">
-              <Link className="button" to="/login">Acessar plataforma</Link>
-              <Link className="button secondary" to="/download-agente">Baixar agente</Link>
-            </div>
-          </div>
 
-          <div className="analytics-hero-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Leitura central da operacao</span>
-              <h3>Painel unico para dono, gestor e comprador</h3>
-              <strong>8 modulos</strong>
-              <p>Produtos, preco, cesta, campanha, previsao, alerta, PDV e configuracoes.</p>
+            <div className="dashboard-command-showcase">
+              <article className="dashboard-glow-card">
+                <span className="section-kicker">Leitura central da operacao</span>
+                <strong>Painel unico para dono, gestor e comprador</strong>
+                <p>Produtos, preco, cesta, campanha, previsao, alerta, PDV e configuracoes trabalhando no mesmo fluxo.</p>
+              </article>
+
+              <div className="dashboard-command-mosaic">
+                {operationalHighlights.map((item) => (
+                  <article key={item.title} className="dashboard-mini-tile">
+                    <span>{item.title}</span>
+                    <strong>{item.text}</strong>
+                  </article>
+                ))}
+              </div>
             </div>
-            <div className="hero-focus-stack">
-              {operationalHighlights.map((item, index) => (
-                <div key={item.title} className={`hero-mini-card ${index === 0 ? 'orange' : index === 1 ? 'amber' : 'mint'}`}>
-                  <span>{item.title}</span>
-                  <strong>{index === 0 ? 'Visao executiva' : index === 1 ? 'Radar de preco' : 'Acao orientada'}</strong>
-                  <small>{item.text}</small>
-                </div>
-              ))}
-            </div>
-          </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Posicionamento</span>
+              <h3>MercadoFlow entra no centro da operacao comercial.</h3>
+              <p>Nao e relatorio estatico. E uma rotina de leitura para compra, promocao, reposicao e decisao por produto.</p>
+            </article>
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Diferencial</span>
+              <h3>Coleta real no desktop, analise forte no web.</h3>
+              <p>O valor da plataforma esta em unir o que acontece na loja com uma leitura clara para usuario leigo e gestor.</p>
+            </article>
+          </aside>
         </section>
 
-        <div className="metrics-grid analytics-metrics-grid landing-metrics reveal">
+        <div className="metrics-grid analytics-metrics-grid landing-metrics dashboard-kpi-ribbon reveal">
           <div className="metric-card metric-card-default">
             <div className="metric-card-top"><span className="metric-card-title">Coleta</span><span className="metric-card-icon">NF</span></div>
             <strong className="metric-card-value">Automatica</strong>
@@ -204,14 +218,10 @@ const Landing: React.FC = () => {
           </div>
         </section>
 
-        <section className="analytics-grid analytics-grid-main reveal" id="preco">
-          <div className="analytics-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Inteligencia de preco</span>
-                <h3>O que muda no valor de cada produto ao longo do tempo</h3>
-              </div>
-            </div>
+        <div className="dashboard-page-grid reveal" id="preco">
+          <section className="analytics-panel dashboard-note-card">
+            <span className="section-kicker">Inteligencia de preco</span>
+            <h3>O que muda no valor de cada produto ao longo do tempo</h3>
             <p className="panel-copy">
               A plataforma preserva historico de preco por observacao e gera sinais para identificar
               variacoes relevantes, possiveis promocoes e mudancas estruturais no comportamento de venda.
@@ -224,15 +234,11 @@ const Landing: React.FC = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="analytics-panel" id="fluxo">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Desdobramento no dia a dia</span>
-                <h3>Como isso vira decisao de compra</h3>
-              </div>
-            </div>
+          <section className="analytics-panel dashboard-note-card" id="fluxo">
+            <span className="section-kicker">Desdobramento no dia a dia</span>
+            <h3>Como isso vira decisao de compra</h3>
             <div className="landing-step-stack">
               {steps.map((step, index) => (
                 <article key={step.title} className="landing-step-card">
@@ -244,8 +250,8 @@ const Landing: React.FC = () => {
                 </article>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         <section className="analytics-section reveal" id="seguranca">
           <div className="section-heading-row">

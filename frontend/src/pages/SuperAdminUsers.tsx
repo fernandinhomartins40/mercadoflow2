@@ -422,37 +422,66 @@ const SuperAdminUsers: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="super-admin-page">
-        <section className="analytics-hero compact reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Gestao SaaS</span>
-            <h1 className="analytics-hero-title">Contas, usuarios, acesso e licenciamento</h1>
-            <p className="analytics-hero-text">
-              Gerencie manualmente as contas dos supermercados, com plano, cobranca, validade de acesso, limite de usuarios e operacao dos acessos sem depender de gateway de pagamento.
-            </p>
-            <div className="hero-inline-actions">
-              <Link to="/super-admin" className="button secondary">Voltar para a visao geral</Link>
-              <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+        <section className="dashboard-command-grid reveal super-admin-command-grid">
+          <article className="dashboard-command-card super-admin-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Gestao SaaS</span>
+              <h1 className="dashboard-command-title">Contas, usuarios, licenciamento e acesso em um fluxo mais executivo.</h1>
+              <p className="dashboard-command-text">
+                A pagina de SaaS agora abre com o estado operacional da base, nao com um hero generico. O objetivo e deixar claro o que precisa de liberacao, bloqueio ou ajuste manual.
+              </p>
+              <div className="hero-inline-actions">
+                <Link to="/super-admin" className="button secondary">Voltar para a visao geral</Link>
+                <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+              </div>
             </div>
-            <div className="hero-chip-row">
-              <span className="hero-chip">{overview?.totalMarkets ?? 0} contas</span>
-              <span className="hero-chip">{overview?.activeUsers ?? 0} usuarios ativos</span>
-              <span className="hero-chip">{overview?.expiringMarkets ?? 0} vencendo em breve</span>
+
+            <div className="dashboard-command-showcase">
+              <div className="dashboard-glow-card">
+                <span className="section-kicker">Ocupacao de assentos</span>
+                <h3>{overview?.seatUsedTotal ?? 0} usuarios ativos</h3>
+                <strong>{overview?.seatLimitTotal ?? 0}</strong>
+                <p>assentos contratados somados nas contas SaaS cadastradas.</p>
+              </div>
+
+              <div className="dashboard-command-mosaic">
+                <div className="dashboard-mini-tile">
+                  <span>Contas</span>
+                  <strong>{overview?.totalMarkets ?? 0}</strong>
+                  <small>{overview?.activeMarkets ?? 0} ativas agora</small>
+                </div>
+                <div className="dashboard-mini-tile">
+                  <span>Usuarios ativos</span>
+                  <strong>{overview?.activeUsers ?? 0}</strong>
+                  <small>{overview?.blockedUsers ?? 0} bloqueados</small>
+                </div>
+                <div className="dashboard-mini-tile accent">
+                  <span>Vencimento proximo</span>
+                  <strong>{overview?.expiringMarkets ?? 0}</strong>
+                  <small>contas exigindo acao nos proximos 7 dias</small>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="analytics-hero-board single-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Ocupacao</span>
-              <h3>{overview?.seatUsedTotal ?? 0} usuarios ativos</h3>
-              <strong>{overview?.seatLimitTotal ?? 0}</strong>
-              <p>assentos contratados somados nas contas SaaS cadastradas.</p>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <div className="dashboard-priority-card dark">
+              <span className="section-kicker">Risco imediato</span>
+              <strong>{overview?.pastDueMarkets ?? 0} em atraso</strong>
+              <p>{overview?.suspendedMarkets ?? 0} contas suspensas exigem validacao manual de acesso e cobranca.</p>
             </div>
-          </div>
+            <div className="dashboard-priority-card">
+              <span className="section-kicker">Usuarios sem conta</span>
+              <strong>{overview?.orphanUsers ?? 0}</strong>
+              <p>usuarios sem mercado vinculado pedem correcao para evitar acesso inconsistente.</p>
+            </div>
+          </aside>
         </section>
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
         {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
 
-        <div className="metrics-grid analytics-metrics-grid">
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Contas SaaS" value={overview?.totalMarkets ?? 0} icon="MK" caption="tenants cadastrados" />
           <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" caption="operando agora" />
           <MetricsCard title="Trial" value={overview?.trialMarkets ?? 0} icon="TR" caption="periodo de teste" />

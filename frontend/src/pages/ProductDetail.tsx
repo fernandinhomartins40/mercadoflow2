@@ -292,58 +292,64 @@ const ProductDetail: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page product-dashboard-page">
-        <section className="analytics-hero reveal product-hero">
-          <div className="analytics-hero-copy">
-            <span className="pill">Dashboard do produto</span>
-            <h1 className="analytics-hero-title">{overview.name}</h1>
-            <p className="analytics-hero-text">
-              Um painel único para entender se este item vende por tração real, depende de preço,
-              muda por dia da semana e em qual PDV vale negociar melhor a compra com o fornecedor.
-            </p>
-            <div className="hero-chip-row">
-              <span className="hero-chip">Categoria {overview.category || 'Sem categoria'}</span>
-              <span className="hero-chip">GTIN {overview.ean || '--'}</span>
-              <span className="hero-chip">Última venda em {formatDate(overview.lastSoldAt)}</span>
-            </div>
-            <div className="hero-inline-actions product-detail-actions">
-              <Link className="button secondary" to="/app/produtos">Voltar ao mapa de produtos</Link>
-            </div>
-          </div>
-
-          <div className="analytics-hero-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Receita do período</span>
-              <h3>{formatMoney(overview.revenue)}</h3>
-              <p>{Number(overview.quantitySold || 0).toFixed(2)} unidades vendidas em {overview.transactionCount || 0} transações.</p>
+        <section className="dashboard-command-grid reveal">
+          <article className="dashboard-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Dashboard do produto</span>
+              <h1 className="dashboard-command-title">{overview.name}</h1>
+              <p className="dashboard-command-text">
+                Uma leitura unica para entender se este item vende por tracao real, depende de preco,
+                muda por dia da semana e em qual PDV vale negociar melhor a compra com o fornecedor.
+              </p>
+              <div className="hero-chip-row">
+                <span className="hero-chip">Categoria {overview.category || 'Sem categoria'}</span>
+                <span className="hero-chip">GTIN {overview.ean || '--'}</span>
+                <span className="hero-chip">Ultima venda em {formatDate(overview.lastSoldAt)}</span>
+              </div>
+              <div className="hero-inline-actions product-detail-actions">
+                <Link className="button secondary" to="/app/produtos">Voltar ao mapa de produtos</Link>
+              </div>
             </div>
 
-            <div className="hero-focus-stack">
-              <div className="hero-mini-card blue">
-                <span>Giro</span>
-                <strong>{Number(overview.salesVelocity || 0).toFixed(2)}/dia</strong>
-                <small>
-                  {overview.turnoverBand === 'HIGH'
-                    ? 'Alta velocidade'
-                    : overview.turnoverBand === 'MEDIUM'
-                      ? 'Velocidade média'
-                      : 'Baixa velocidade'}
-                </small>
-              </div>
-              <div className="hero-mini-card coral">
-                <span>Resposta a preço</span>
-                <strong>{formatPercent((overview.promoRevenueShare || 0) * 100)}</strong>
-                <small>Share de receita sob preço abaixo do baseline.</small>
-              </div>
-              <div className="hero-mini-card mint">
-                <span>PDV mais forte</span>
-                <strong>{bestBranch?.branchName || '--'}</strong>
-                <small>{bestBranch ? formatMoney(bestBranch.revenue) : 'Sem distribuição por PDV neste período.'}</small>
+            <div className="dashboard-command-showcase">
+              <article className="dashboard-glow-card">
+                <span className="section-kicker">Receita do periodo</span>
+                <strong>{formatMoney(overview.revenue)}</strong>
+                <p>{Number(overview.quantitySold || 0).toFixed(2)} unidades vendidas em {overview.transactionCount || 0} transacoes.</p>
+              </article>
+
+              <div className="dashboard-command-mosaic">
+                <article className="dashboard-mini-tile">
+                  <span>Giro</span>
+                  <strong>{Number(overview.salesVelocity || 0).toFixed(2)}/dia</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Resposta a preco</span>
+                  <strong>{formatPercent((overview.promoRevenueShare || 0) * 100)}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>PDV mais forte</span>
+                  <strong>{bestBranch?.branchName || '--'}</strong>
+                </article>
               </div>
             </div>
-          </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Leitura rapida</span>
+              <h3>Dia mais forte: {weekdayPeak?.label || '--'}</h3>
+              <p>{weekdayPeak ? `${formatMoney(weekdayPeak.revenue)} em receita no melhor dia.` : 'Sem sazonalidade suficiente neste periodo.'}</p>
+            </article>
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Compra casada</span>
+              <h3>{strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem relacao forte detectada'}</h3>
+              <p>{strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)} para apoiar exposicao e combo.` : 'O painel mostra aqui a melhor associacao quando o historico for suficiente.'}</p>
+            </article>
+          </aside>
         </section>
 
-        <div className="metrics-grid analytics-metrics-grid">
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <div className="metric-card metric-card-default reveal">
             <div className="metric-card-top"><span className="metric-card-title">Preço médio</span><span className="metric-card-icon">R$</span></div>
             <strong className="metric-card-value">{formatMoney(overview.averagePrice)}</strong>

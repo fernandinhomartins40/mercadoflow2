@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
@@ -153,42 +153,72 @@ const Settings: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page settings-page">
-        <section className="analytics-hero compact reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Central de configurações</span>
-            <h1 className="analytics-hero-title">Controle credenciais, contexto do mercado e integração do agente em um único lugar.</h1>
-            <p className="analytics-hero-text">
-              Esta página agora concentra a URL real da API, a distribuição do instalador, o contexto do mercado e o gerenciamento completo das chaves do coletor desktop.
-            </p>
-            <div className="hero-chip-row">
-              <span className="hero-chip">Perfil {role || '--'}</span>
-              <span className="hero-chip">Mercado {resolvedMarketId || '--'}</span>
-              <span className="hero-chip">{activeKeys.length} chaves ativas</span>
+        <section className="dashboard-command-grid reveal">
+          <article className="dashboard-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Central de configuracoes</span>
+              <h1 className="dashboard-command-title">Controle credenciais, instalador e contexto do mercado em uma unica area.</h1>
+              <p className="dashboard-command-text">
+                Esta central concentra URL real da API, distribuicao do instalador, identidade do mercado e ciclo completo das chaves do coletor desktop.
+              </p>
+              <div className="hero-chip-row">
+                <span className="hero-chip">Perfil {role || '--'}</span>
+                <span className="hero-chip">Mercado {resolvedMarketId || '--'}</span>
+                <span className="hero-chip">{activeKeys.length} chaves ativas</span>
+              </div>
             </div>
-          </div>
-          <div className="analytics-hero-board single-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Conexão principal do agente</span>
-              <h3>{apiBaseUrl}</h3>
-              <strong>{heartbeatFreshKeys.length}</strong>
-              <p>chaves com heartbeat recente nos últimos 10 minutos. Isso ajuda a separar credenciais vivas das que ficaram esquecidas.</p>
+
+            <div className="dashboard-command-showcase">
+              <article className="dashboard-glow-card">
+                <span className="section-kicker">Conexao principal do agente</span>
+                <strong>{apiBaseUrl}</strong>
+                <p>{heartbeatFreshKeys.length} chaves com heartbeat recente nos ultimos 10 minutos. Isso separa instalacoes vivas das esquecidas.</p>
+              </article>
+
+              <div className="dashboard-command-mosaic">
+                <article className="dashboard-mini-tile">
+                  <span>Versao do instalador</span>
+                  <strong>{installerInfo?.version || 'disponivel'}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Tamanho</span>
+                  <strong>{installerInfo?.sizeFormatted || '--'}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Ultima atualizacao</span>
+                  <strong>{installerInfo?.lastModified || '--'}</strong>
+                </article>
+              </div>
             </div>
-          </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Boa pratica</span>
+              <h3>Uma chave por instalacao ou PDV.</h3>
+              <p>Evite compartilhar credenciais. Isso preserva rastreabilidade real e facilita revogacao sem atingir outras maquinas.</p>
+            </article>
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Risco comum</span>
+              <h3>Heartbeat sem uso precisa revisao.</h3>
+              <p>Quando o agente some ou a maquina muda, revogue a chave antiga antes que ela vire credencial esquecida em producao.</p>
+            </article>
+          </aside>
         </section>
 
-        <div className="metrics-grid analytics-metrics-grid">
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" caption="credenciais prontas para uso" />
-          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="histórico desativado" />
+          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="historico desativado" />
           <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" caption="atividade do agente" />
-          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponível'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
+          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponivel'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
         </div>
 
-        <div className="analytics-grid analytics-grid-main">
-          <div className="analytics-panel reveal">
+        <div className="dashboard-page-grid">
+          <section className="analytics-panel reveal dashboard-form-panel">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Contexto da aplicação</span>
-                <h3>Identidade e endpoints</h3>
+                <span className="section-kicker">Contexto da aplicacao</span>
+                <h3>Identidade, endpoint e download</h3>
               </div>
             </div>
             <div className="settings-stack">
@@ -208,7 +238,7 @@ const Settings: React.FC = () => {
               </div>
               <div className="settings-line-card">
                 <div>
-                  <strong>Usuário logado</strong>
+                  <strong>Usuario logado</strong>
                   <span>{userName || '--'} | {email || '--'}</span>
                 </div>
                 <span className="status-pill positive">{role || '--'}</span>
@@ -216,45 +246,66 @@ const Settings: React.FC = () => {
               <div className="settings-line-card">
                 <div>
                   <strong>Instalador do agente</strong>
-                  <span>{installerInfo?.version || 'Versão não informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
+                  <span>{installerInfo?.version || 'Versao nao informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
                 </div>
                 <a className="button secondary" href="/app/download-agente">Abrir download</a>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="analytics-panel reveal">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Nova credencial</span>
-                <h3>Gerar chave da API do coletor</h3>
-              </div>
-            </div>
-            <div className="form-grid-analytics settings-form-grid">
-              {role === 'ADMIN' && !marketId && (
-                <select className="input full" value={manualMarketId} onChange={(e) => setManualMarketId(e.target.value)}>
-                  <option value="">Selecione o supermercado</option>
-                  {markets.map((market) => (
-                    <option key={market.id} value={market.id}>{market.name}</option>
-                  ))}
-                </select>
-              )}
-              <input className="input full" placeholder="Nome da chave. Ex: Caixa Loja Centro" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="panel-actions">
-              <Button onClick={createKey}>Gerar chave</Button>
-            </div>
-            {message && <div className="settings-message">{message}</div>}
-            {generatedKey && (
-              <div className="settings-secret-card">
-                <strong>Copie esta chave agora. Ela só aparece uma vez.</strong>
-                <div className="code-box" style={{ marginTop: 10 }}>{generatedKey}</div>
-                <div className="panel-actions" style={{ marginTop: 10 }}>
-                  <Button variant="secondary" onClick={() => copyText(generatedKey, 'chave gerada')}>{copied === 'chave gerada' ? 'Copiado' : 'Copiar chave'}</Button>
-                  <Button variant="secondary" onClick={() => setGeneratedKey(null)}>Ocultar</Button>
+          <div className="dashboard-side-stack">
+            <section className="analytics-panel reveal dashboard-form-panel">
+              <div className="analytics-panel-head">
+                <div>
+                  <span className="section-kicker">Nova credencial</span>
+                  <h3>Gerar chave da API do coletor</h3>
                 </div>
               </div>
-            )}
+              <div className="form-grid-analytics settings-form-grid">
+                {role === 'ADMIN' && !marketId && (
+                  <select className="input full" value={manualMarketId} onChange={(e) => setManualMarketId(e.target.value)}>
+                    <option value="">Selecione o supermercado</option>
+                    {markets.map((market) => (
+                      <option key={market.id} value={market.id}>{market.name}</option>
+                    ))}
+                  </select>
+                )}
+                <input className="input full" placeholder="Nome da chave. Ex: Caixa Loja Centro" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="panel-actions">
+                <Button onClick={createKey}>Gerar chave</Button>
+              </div>
+              {message && <div className="settings-message">{message}</div>}
+              {generatedKey && (
+                <div className="settings-secret-card">
+                  <strong>Copie esta chave agora. Ela so aparece uma vez.</strong>
+                  <div className="code-box" style={{ marginTop: 10 }}>{generatedKey}</div>
+                  <div className="panel-actions" style={{ marginTop: 10 }}>
+                    <Button variant="secondary" onClick={() => copyText(generatedKey, 'chave gerada')}>{copied === 'chave gerada' ? 'Copiado' : 'Copiar chave'}</Button>
+                    <Button variant="secondary" onClick={() => setGeneratedKey(null)}>Ocultar</Button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="analytics-panel reveal dashboard-note-card">
+              <span className="section-kicker">Checklist rapido</span>
+              <h3>Padrao minimo de configuracao</h3>
+              <div className="dashboard-quick-list">
+                <div className="dashboard-quick-item">
+                  <strong>1. Defina a URL correta</strong>
+                  <span>Use exatamente {apiBaseUrl} no desktop do coletor.</span>
+                </div>
+                <div className="dashboard-quick-item">
+                  <strong>2. Gere uma chave por maquina</strong>
+                  <span>Isso evita perda de rastreabilidade e simplifica revogacao.</span>
+                </div>
+                <div className="dashboard-quick-item">
+                  <strong>3. Revogue chaves antigas</strong>
+                  <span>Troca de maquina sem revogacao vira credencial esquecida em producao.</span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -262,7 +313,7 @@ const Settings: React.FC = () => {
           <div className="section-heading-row">
             <div>
               <span className="section-kicker">Gerenciamento de chaves</span>
-              <h2>Excluir, auditar e identificar quais credenciais ainda estão vivas</h2>
+              <h2>Excluir, auditar e identificar quais credenciais ainda estao vivas</h2>
             </div>
           </div>
           <div className="analytics-card-grid settings-key-grid">
@@ -288,44 +339,21 @@ const Settings: React.FC = () => {
                       <strong>{formatDateTime(key.createdAt)}</strong>
                     </div>
                     <div>
-                      <span>Último uso</span>
+                      <span>Ultimo uso</span>
                       <strong>{formatDateTime(key.lastUsedAt)}</strong>
                     </div>
                     <div>
-                      <span>Último heartbeat</span>
+                      <span>Ultimo heartbeat</span>
                       <strong>{formatDateTime(key.lastHeartbeatAt)}</strong>
                     </div>
                   </div>
                   <div className="settings-key-actions">
                     <Button variant="secondary" onClick={() => copyText(key.keyPrefix, `prefixo-${key.id}`)}>{copied === `prefixo-${key.id}` ? 'Copiado' : 'Copiar prefixo'}</Button>
-                    <Button variant="secondary" onClick={() => revokeKey(key)} disabled={busyKeyId === key.id || key.isActive === false}>{busyKeyId === key.id ? 'Excluindo...' : key.isActive === false ? 'Já revogada' : 'Excluir chave'}</Button>
+                    <Button variant="secondary" onClick={() => revokeKey(key)} disabled={busyKeyId === key.id || key.isActive === false}>{busyKeyId === key.id ? 'Excluindo...' : key.isActive === false ? 'Ja revogada' : 'Excluir chave'}</Button>
                   </div>
                 </article>
               ))
             )}
-          </div>
-        </section>
-
-        <section className="analytics-panel reveal">
-          <div className="analytics-panel-head">
-            <div>
-              <span className="section-kicker">Aplicação</span>
-              <h3>Checklist rápido de configuração</h3>
-            </div>
-          </div>
-          <div className="settings-checklist">
-            <div className="settings-check-item">
-              <strong>1. Defina a URL correta da API no desktop</strong>
-              <span>Use exatamente {apiBaseUrl} ao configurar o coletor.</span>
-            </div>
-            <div className="settings-check-item">
-              <strong>2. Gere uma chave por instalação ou PDV</strong>
-              <span>Evite compartilhar a mesma credencial entre máquinas para manter rastreabilidade real.</span>
-            </div>
-            <div className="settings-check-item">
-              <strong>3. Revogue chaves antigas assim que trocar a máquina</strong>
-              <span>A exclusão aqui corta o acesso do agente imediatamente sem mexer nas notas já recebidas.</span>
-            </div>
           </div>
         </section>
       </div>

@@ -263,38 +263,67 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
   return (
     <SuperAdminLayout>
-      <div className="super-admin-page">
-        <section className="analytics-hero compact reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Crawler Python</span>
-            <h1 className="analytics-hero-title">Execucao manual por mercado</h1>
-            <p className="analytics-hero-text">
-              O painel agora roda somente execucoes manuais, uma por vez. Cada supermercado dispara um pipeline fixo, sem seeds editaveis e sem agendamento automatico.
-            </p>
-            <div className="hero-inline-actions">
-              <Link className="button secondary" to="/super-admin">Voltar ao painel</Link>
-              {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver ultimo run</Link> : null}
+      <div className="super-admin-page super-admin-crawler-page">
+        <section className="dashboard-command-grid reveal super-admin-command-grid">
+          <article className="dashboard-command-card super-admin-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Crawler Python</span>
+              <h1 className="dashboard-command-title">Central de execucao manual por mercado, sem seeds soltos e sem rodada automatica.</h1>
+              <p className="dashboard-command-text">
+                A pagina agora parte do estado operacional real: fila, run atual, mercado suportado e acoes de disparo ou retomada em um fluxo unico.
+              </p>
+              <div className="hero-inline-actions">
+                <Link className="button secondary" to="/super-admin">Voltar ao painel</Link>
+                {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver ultimo run</Link> : null}
+              </div>
             </div>
-            <div className="hero-chip-row">
-              <span className="hero-chip">{jobs.length} mercados suportados</span>
-              <span className="hero-chip">{monitor.queuedRuns || 0} na fila</span>
-              <span className="hero-chip">{activeJobs || monitor.runningRuns || 0} executando</span>
+
+            <div className="dashboard-command-showcase">
+              <div className="dashboard-glow-card">
+                <span className="section-kicker">Run mais recente</span>
+                <h3>{latestRun ? formatStatus(latestRun.status) : 'Sem historico'}</h3>
+                <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
+                <p>{latestRun?.message || 'Nenhuma execucao registrada ate o momento.'}</p>
+              </div>
+
+              <div className="dashboard-command-mosaic">
+                <div className="dashboard-mini-tile">
+                  <span>Mercados suportados</span>
+                  <strong>{jobs.length}</strong>
+                  <small>providers fixos disponiveis no dispatcher</small>
+                </div>
+                <div className="dashboard-mini-tile">
+                  <span>Na fila</span>
+                  <strong>{monitor.queuedRuns || 0}</strong>
+                  <small>execucoes aguardando processamento</small>
+                </div>
+                <div className="dashboard-mini-tile accent">
+                  <span>Importados recentes</span>
+                  <strong>{totalImportedRecent}</strong>
+                  <small>produtos injetados nas 12 ultimas execucoes</small>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="analytics-hero-board single-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Ultima execucao global</span>
-              <h3>{latestRun ? formatStatus(latestRun.status) : 'Sem historico'}</h3>
-              <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
-              <p>{latestRun?.message || 'Nenhuma execucao registrada ate o momento.'}</p>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <div className="dashboard-priority-card dark">
+              <span className="section-kicker">Regra principal</span>
+              <strong>Um supermercado por vez</strong>
+              <p>O dispatcher aceita apenas um provider por execucao para deixar o log legivel e a retomada previsivel.</p>
             </div>
-          </div>
+            <div className="dashboard-priority-card">
+              <span className="section-kicker">Fila local</span>
+              <strong>{monitor.queuedRuns || 0} aguardando</strong>
+              <p>{activeJobs || monitor.runningRuns || 0} rodando agora no worker.</p>
+            </div>
+          </aside>
         </section>
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
         {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
 
-        <section className="metrics-grid analytics-metrics-grid">
+        <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <div className="card">
             <span className="section-kicker">Mercados suportados</span>
             <h3>{jobs.length}</h3>
@@ -317,7 +346,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           </div>
         </section>
 
-        <div className="dashboard-inline-grid">
+        <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-note-card">
             <span className="section-kicker">Modo de operacao</span>
             <h3>Somente um supermercado por vez</h3>

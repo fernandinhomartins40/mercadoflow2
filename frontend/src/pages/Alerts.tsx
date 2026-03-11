@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
@@ -14,34 +14,64 @@ const Alerts: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="analytics-hero compact reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Centro de alertas</span>
-            <h1 className="analytics-hero-title">Veja rapidamente o que exige acao, o que pode esperar e o que ja foi tratado.</h1>
-            <p className="analytics-hero-text">
-              A pagina agora separa leitura, prioridade e operacao. Fica mais facil para qualquer usuario entender o que chegou, o que precisa ser lido agora e qual acao tomar.
-            </p>
-            <div className="hero-inline-actions">
-              <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
-              <Button variant="secondary" onClick={markAllRead} disabled={loading || alerts.length === 0}>Marcar todos como lidos</Button>
+        <section className="dashboard-command-grid reveal">
+          <article className="dashboard-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Centro de alertas</span>
+              <h1 className="dashboard-command-title">Separe o que precisa de resposta agora do que pode esperar.</h1>
+              <p className="dashboard-command-text">
+                A fila fica mais legivel para usuario leigo: leitura imediata, prioridade, acao rapida e historico visivel no mesmo fluxo operacional.
+              </p>
+              <div className="hero-inline-actions">
+                <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
+                <Button variant="secondary" onClick={markAllRead} disabled={loading || alerts.length === 0}>Marcar todos como lidos</Button>
+              </div>
+              <div className="hero-chip-row">
+                <span className="hero-chip">{alerts.length} alertas no recorte</span>
+                <span className="hero-chip">{unreadCount} nao lidos</span>
+                <span className="hero-chip">{highPriorityCount} com prioridade alta</span>
+              </div>
             </div>
-            <div className="hero-chip-row">
-              <span className="hero-chip">{alerts.length} alertas no recorte</span>
-              <span className="hero-chip">{unreadCount} nao lidos</span>
-              <span className="hero-chip">{highPriorityCount} com prioridade alta</span>
+
+            <div className="dashboard-command-showcase">
+              <article className="dashboard-glow-card">
+                <span className="section-kicker">Ultimo alerta</span>
+                <strong>{latestAlert?.title || 'Nenhum alerta registrado'}</strong>
+                <p>{latestAlert ? latestAlert.message : 'Assim que novos sinais entrarem no sistema, eles aparecem aqui com mais contexto.'}</p>
+              </article>
+
+              <div className="dashboard-command-mosaic">
+                <article className="dashboard-mini-tile">
+                  <span>Prioridade</span>
+                  <strong>{latestAlert?.priority || '--'}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Status</span>
+                  <strong>{latestAlert ? (latestAlert.isRead ? 'Lido' : 'Novo') : '--'}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Criado em</span>
+                  <strong>{latestAlert?.createdAt ? new Date(latestAlert.createdAt).toLocaleDateString('pt-BR') : '--'}</strong>
+                </article>
+              </div>
             </div>
-          </div>
-          <div className="analytics-hero-board single-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Ultimo alerta</span>
-              <h3>{latestAlert?.title || 'Nenhum alerta registrado'}</h3>
-              <strong>{latestAlert?.priority || '--'}</strong>
-              <p>{latestAlert ? latestAlert.message : 'Assim que novos sinais entrarem no sistema, eles aparecem aqui com mais contexto.'}</p>
-            </div>
-          </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Fila recomendada</span>
+              <h3>Prioridade alta primeiro.</h3>
+              <p>Comece pelo que pode virar perda, ruptura ou erro operacional. O resto entra depois na rotina de leitura.</p>
+            </article>
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Disciplina de uso</span>
+              <h3>Marque como lido so quando tratar.</h3>
+              <p>Isso limpa a fila sem esconder sinal pendente para o restante do time.</p>
+            </article>
+          </aside>
         </section>
 
-        <div className="metrics-grid analytics-metrics-grid">
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Total de alertas" value={alerts.length} icon="AL" caption="itens retornados agora" />
           <MetricsCard title="Nao lidos" value={unreadCount} icon="NV" caption="pendentes de revisao" />
           <MetricsCard title="Alta prioridade" value={highPriorityCount} icon="HP" variant="danger" caption="pedem resposta mais rapida" />

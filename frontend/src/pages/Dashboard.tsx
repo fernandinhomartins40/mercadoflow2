@@ -170,142 +170,123 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="page analytics-page">
-        <section className="analytics-hero reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Resumo do dia</span>
-            <h1 className="analytics-hero-title">Acompanhe vendas, giro e sinais que pedem acao sem depender de leitura tecnica.</h1>
-            <p className="analytics-hero-text">
-              O painel organiza os principais dados do mercado em uma leitura direta: o que esta vendendo bem, o que perdeu ritmo, quais alertas exigem atencao e onde agir primeiro.
-            </p>
-            <div className="hero-inline-actions">
-              <Link className="button" to="/app/produtos">Abrir produtos</Link>
-              <Link className="button secondary" to="/app/alertas">Ver alertas</Link>
-            </div>
-            <div className="hero-chip-row">
-              <span className="hero-chip">{dashboard.totalTransactions} transações reais</span>
-              <span className="hero-chip">{dashboard.activeProducts} produtos ativos</span>
-              <span className="hero-chip">Share promo {formatPercent((dashboard.promoRevenueShare || 0) * 100)}</span>
-            </div>
-          </div>
-          <div className="analytics-hero-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Produto que mais puxa receita</span>
-              <h3>{leadProduct?.name || 'Sem destaque ainda'}</h3>
-              <strong>{leadProduct ? formatMoney(leadProduct.revenue) : 'R$ 0.00'}</strong>
-              <p>{leadProduct ? `Giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia e tendência ${formatPercent(leadProduct.revenueTrendPercentage)}` : 'Assim que houver massa crítica, o destaque aparece aqui.'}</p>
-            </div>
-            <div className="hero-focus-stack">
-              <div className="hero-mini-card orange">
-                <span>Compra casada mais forte</span>
-                <strong>{leadPair ? `${leadPair.antecedentName} + ${leadPair.consequentName}` : 'Sem par dominante'}</strong>
-                <small>{leadPair ? `Lift ${leadPair.lift.toFixed(2)} em ${leadPair.pairCount} compras` : 'Sem recorrência suficiente'}</small>
-              </div>
-              <div className="hero-mini-card amber">
-                <span>Promoção com maior resposta</span>
-                <strong>{leadPromotion?.name || 'Sem resposta promocional'}</strong>
-                <small>{leadPromotion ? `Lift de volume ${formatPercent(leadPromotion.quantityLiftPercent)}` : 'Ainda sem comparações confiáveis'}</small>
-              </div>
-              <div className="hero-mini-card mint">
-                <span>Campanha mais forte</span>
-                <strong>{hottestCampaign?.name || 'Sem campanha destacada'}</strong>
-                <small>{hottestCampaign ? `Lift de receita ${formatPercent(hottestCampaign.revenueLiftPercent)}` : 'Cadastre campanhas para medir antes, durante e depois'}</small>
+      <div className="page analytics-page dashboard-home-page">
+        <section className="dashboard-command-grid reveal">
+          <article className="dashboard-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Painel de hoje</span>
+              <h1 className="dashboard-command-title">Veja o que exige decisao agora sem navegar por telas demais.</h1>
+              <p className="dashboard-command-text">
+                A entrada do painel foi reorganizada para uma leitura direta: o item que lidera a receita, o risco mais urgente, a melhor janela de venda e os atalhos para agir primeiro.
+              </p>
+              <div className="hero-inline-actions">
+                <Link className="button" to="/app/produtos">Abrir produtos</Link>
+                <Link className="button secondary" to="/app/alertas">Ver alertas</Link>
               </div>
             </div>
-          </div>
+
+            <div className="dashboard-command-showcase">
+              <div className="dashboard-glow-card">
+                <span className="section-kicker">Produto que puxa a receita</span>
+                <h3>{leadProduct?.name || 'Sem destaque ainda'}</h3>
+                <strong>{leadProduct ? formatMoney(leadProduct.revenue) : 'R$ 0.00'}</strong>
+                <p>
+                  {leadProduct
+                    ? `Giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia e tendencia ${formatPercent(leadProduct.revenueTrendPercentage)}.`
+                    : 'Assim que houver massa critica, o principal item do periodo aparece aqui.'}
+                </p>
+              </div>
+
+              <div className="dashboard-command-mosaic">
+                <div className="dashboard-mini-tile">
+                  <span>Janela mais forte</span>
+                  <strong>{strongestWeekday?.label || '--'}</strong>
+                  <small>{hottestHour?.label || 'Sem hora dominante'}</small>
+                </div>
+                <div className="dashboard-mini-tile">
+                  <span>Compra casada</span>
+                  <strong>{leadPair ? `${leadPair.antecedentName} + ${leadPair.consequentName}` : 'Sem par dominante'}</strong>
+                  <small>{leadPair ? `Lift ${leadPair.lift.toFixed(2)}` : 'Sem recorrencia suficiente'}</small>
+                </div>
+                <div className="dashboard-mini-tile accent">
+                  <span>Resposta a promocao</span>
+                  <strong>{leadPromotion?.name || 'Sem resposta forte'}</strong>
+                  <small>{leadPromotion ? `Lift ${formatPercent(leadPromotion.quantityLiftPercent)}` : 'Ainda sem comparacao confiavel'}</small>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <div className="dashboard-priority-card dark">
+              <span className="section-kicker">Prioridade imediata</span>
+              <strong>{highPriorityAlerts} alertas altos</strong>
+              <p>{weakestProduct ? `${weakestProduct.name} aparece entre os menores giros e merece revisao agora.` : 'Sem item em desaceleracao critica neste momento.'}</p>
+              <Link className="button secondary" to="/app/alertas">Abrir fila de alertas</Link>
+            </div>
+
+            <div className="dashboard-priority-card">
+              <span className="section-kicker">Atalho de compra</span>
+              <strong>{leadProduct?.name || 'Sem item lider'}</strong>
+              <p>{leadProduct ? `Receita ${formatMoney(leadProduct.revenue)} e giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia.` : 'Assim que houver lideranca clara, ela aparece aqui.'}</p>
+            </div>
+
+            <div className="dashboard-priority-card">
+              <span className="section-kicker">Atalho operacional</span>
+              <strong>{hottestCampaign?.name || 'Campanhas sob controle'}</strong>
+              <p>{hottestCampaign ? `Lift de receita ${formatPercent(hottestCampaign.revenueLiftPercent)}.` : 'Use a area de campanhas para comparar antes, durante e depois da acao.'}</p>
+            </div>
+          </aside>
         </section>
 
-        <div className="metrics-grid analytics-metrics-grid">
-          <MetricsCard title="Receita do período" value={formatMoney(dashboard.totalRevenue)} change={dashboard.growthPercentage} icon="R$" caption="comparado ao período anterior" />
-          <MetricsCard title="Ticket médio" value={formatMoney(dashboard.averageTicket)} icon="TM" caption="valor por compra" />
-          <MetricsCard title="Transações" value={dashboard.totalTransactions} icon="NF" caption="notas processadas" />
-          <MetricsCard title="Produtos ativos" value={dashboard.activeProducts} icon="SKU" caption="com venda no período" />
-          <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressão de preço" />
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+          <MetricsCard title="Receita do periodo" value={formatMoney(dashboard.totalRevenue)} change={dashboard.growthPercentage} icon="R$" caption="comparado ao periodo anterior" />
+          <MetricsCard title="Ticket medio" value={formatMoney(dashboard.averageTicket)} icon="TM" caption="valor por compra" />
+          <MetricsCard title="Transacoes" value={dashboard.totalTransactions} icon="NF" caption="notas processadas" />
+          <MetricsCard title="Produtos ativos" value={dashboard.activeProducts} icon="SKU" caption="com venda no periodo" />
+          <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressao de preco" />
           <MetricsCard title="Campanhas em curso" value={dashboard.campaignsRunning} icon="CP" variant="danger" caption="janelas abertas para validar" />
         </div>
 
-        <section className="executive-canvas reveal">
-          <article className="executive-card blue">
-            <span className="section-kicker">Momento de venda</span>
-            <h3>{strongestWeekday?.label || '--'} e {hottestHour?.label || '--'}</h3>
-            <p>O mercado concentra mais receita nesse recorte. Use esse pulso para compra, escala e exposição.</p>
-          </article>
-          <article className="executive-card coral">
-            <span className="section-kicker">Produto para negociar</span>
-            <h3>{leadProduct?.name || '--'}</h3>
-            <p>{leadProduct ? `${formatMoney(leadProduct.revenue)} de receita e giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia.` : 'Sem produto dominante no período.'}</p>
-          </article>
-          <article className="executive-card amber">
-            <span className="section-kicker">Resposta a promo</span>
-            <h3>{leadPromotion?.name || '--'}</h3>
-            <p>{leadPromotion ? `Lift de volume ${formatPercent(leadPromotion.quantityLiftPercent)} com preço promo em ${formatMoney(leadPromotion.promoAveragePrice)}.` : 'Ainda não há item com resposta promocional forte.'}</p>
-          </article>
-          <article className="executive-card mint">
-            <span className="section-kicker">Atenção imediata</span>
-            <h3>{highPriorityAlerts} alertas altos</h3>
-            <p>{weakestProduct ? `${weakestProduct.name} segue entre os menores giros e merece revisão imediata.` : 'Sem alerta crítico recente.'}</p>
-          </article>
-        </section>
+        <section className="dashboard-workbench-grid">
+          <SalesChart
+            className="dashboard-chart-panel"
+            data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))}
+            title="Pulso de receita do periodo"
+            panelCopy="A curva principal fica no centro da leitura para orientar compra, exposicao e correcao de ritmo."
+          />
 
-        <section className="action-lab-grid reveal">
-          <Link className="action-lab-card" to="/app/produtos">
-            <span className="section-kicker">Fornecedor</span>
-            <h3>Consultar produto antes da compra</h3>
-            <p>Abra o dashboard do item, veja sazonalidade, preço, giro e distribuição por PDV.</p>
-          </Link>
-          <Link className="action-lab-card" to="/app/campanhas">
-            <span className="section-kicker">Promoções</span>
-            <h3>Validar o que realmente deu resultado</h3>
-            <p>Compare antes, durante e depois da ação para parar de decidir no feeling.</p>
-          </Link>
-          <Link className="action-lab-card" to="/app/cesta">
-            <span className="section-kicker">Exposição</span>
-            <h3>Montar combos e compra casada</h3>
-            <p>Use os pares com maior lift para reforçar venda conjunta no salão e no caixa.</p>
-          </Link>
-          <Link className="action-lab-card" to="/app/alertas">
-            <span className="section-kicker">Operação</span>
-            <h3>Atacar risco e desaceleração</h3>
-            <p>Veja os sinais que exigem ação e corrija antes que virem perda de margem.</p>
-          </Link>
-        </section>
-
-        <div className="analytics-grid analytics-grid-main">
-          <div className="analytics-panel reveal product-radar-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Radar de produto</span>
-                <h3>Consulte um item antes de negociar com o fornecedor</h3>
-              </div>
-              <Link className="button" to="/app/produtos">Abrir mapa de produtos</Link>
-            </div>
-            <p className="panel-copy">
-              Busque por nome ou GTIN e abra o dashboard do produto para ver performance, resposta a preço, sazonalidade e comparação por PDV.
-            </p>
-            <div className="mini-metric-grid triple">
-              <div>
-                <span>Produto mais quente</span>
-                <strong>{leadProduct?.name || '--'}</strong>
-              </div>
-              <div>
-                <span>Produto mais lento</span>
-                <strong>{weakestProduct?.name || '--'}</strong>
-              </div>
-              <div>
-                <span>Melhor compra casada</span>
-                <strong>{leadPair ? `${leadPair.antecedentName} + ${leadPair.consequentName}` : '--'}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="analytics-grid analytics-grid-main">
-          <SalesChart data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))} />
-          <div className="analytics-side-stack">
+          <div className="dashboard-stack-column">
             {renderProductStrip('Produtos que aceleram o caixa', 'Motor de crescimento', dashboard.topProducts || [], 'mint')}
-            {renderProductStrip('Produtos que perderam ritmo', 'Desaceleração', dashboard.slowMovers || [], 'orange')}
+            {renderProductStrip('Produtos que perderam ritmo', 'Desaceleracao', dashboard.slowMovers || [], 'orange')}
           </div>
-        </div>
+
+          <div className="dashboard-stack-column">
+            <AlertsList alerts={dashboard.recentAlerts || []} />
+            <section className="analytics-panel reveal dashboard-note-card dashboard-quick-actions-card">
+              <div className="analytics-panel-head">
+                <div>
+                  <span className="section-kicker">Acoes rapidas</span>
+                  <h3>Comece por aqui</h3>
+                </div>
+              </div>
+              <div className="dashboard-quick-list">
+                <Link className="dashboard-quick-item" to="/app/produtos">
+                  <strong>Consultar produto antes da compra</strong>
+                  <span>Abra o dashboard do item e valide giro, preco e sazonalidade.</span>
+                </Link>
+                <Link className="dashboard-quick-item" to="/app/campanhas">
+                  <strong>Validar o que realmente deu resultado</strong>
+                  <span>Compare antes, durante e depois da acao para parar de decidir no feeling.</span>
+                </Link>
+                <Link className="dashboard-quick-item" to="/app/cesta">
+                  <strong>Montar combos e compra casada</strong>
+                  <span>Use os pares com maior lift para reforcar venda conjunta no salao e no caixa.</span>
+                </Link>
+              </div>
+            </section>
+          </div>
+        </section>
 
         <div className="analytics-grid analytics-grid-main">
           <div className="analytics-side-stack">

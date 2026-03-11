@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import { marketService } from '../services/market.service';
@@ -31,6 +31,7 @@ const Campaigns: React.FC = () => {
   const [endDate, setEndDate] = useState('');
 
   const bestImpact = useMemo(() => [...impacts].sort((a, b) => Number(b.revenueLiftPercent || 0) - Number(a.revenueLiftPercent || 0))[0], [impacts]);
+  const activeWindows = useMemo(() => items.filter((item) => item.startDate && item.endDate).length, [items]);
 
   const load = async () => {
     if (!marketId) return;
@@ -78,74 +79,129 @@ const Campaigns: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="analytics-hero compact reveal">
-          <div className="analytics-hero-copy">
-            <span className="pill">Campanhas</span>
-            <h1 className="analytics-hero-title">Cadastre a ação, acompanhe a janela e veja se ela devolveu resultado.</h1>
-            <p className="analytics-hero-text">
-              A página agora destaca campanhas como experimentos de negócio: cadastro, status e impacto real antes, durante e depois da execução.
-            </p>
-            <div className="hero-chip-row">
-              <span className="hero-chip">{items.length} campanhas cadastradas</span>
-              <span className="hero-chip">{impacts.length} campanhas comparadas</span>
-              <span className="hero-chip">Melhor lift {bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</span>
+        <section className="dashboard-command-grid reveal">
+          <article className="dashboard-command-card">
+            <div className="dashboard-command-copy">
+              <span className="pill">Campanhas</span>
+              <h1 className="dashboard-command-title">Trate campanha como experimento, nao como anotacao solta.</h1>
+              <p className="dashboard-command-text">
+                Cadastre a janela, acompanhe o impacto e mantenha historico claro para comparar o que trouxe resultado real antes, durante e depois da acao.
+              </p>
+              <div className="hero-chip-row">
+                <span className="hero-chip">{items.length} campanhas cadastradas</span>
+                <span className="hero-chip">{impacts.length} campanhas comparadas</span>
+                <span className="hero-chip">Melhor lift {bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</span>
+              </div>
             </div>
+
+            <div className="dashboard-command-showcase">
+              <article className="dashboard-glow-card">
+                <span className="section-kicker">Campanha mais forte</span>
+                <strong>{bestImpact?.name || 'Sem campanha com impacto medido'}</strong>
+                <p>
+                  {bestImpact
+                    ? `Durante a campanha a receita foi para ${formatMoney(bestImpact.duringRevenue)} contra ${formatMoney(bestImpact.beforeRevenue)} antes da acao.`
+                    : 'Cadastre campanhas com datas fechadas para medir janelas equivalentes e sair do achismo.'}
+                </p>
+              </article>
+
+              <div className="dashboard-command-mosaic">
+                <article className="dashboard-mini-tile">
+                  <span>Lift de receita</span>
+                  <strong>{bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Lift de transacoes</span>
+                  <strong>{bestImpact ? formatPercent(bestImpact.transactionLiftPercent) : '0.0%'}</strong>
+                </article>
+                <article className="dashboard-mini-tile">
+                  <span>Receita durante</span>
+                  <strong>{bestImpact ? formatMoney(bestImpact.duringRevenue) : 'R$ 0.00'}</strong>
+                </article>
+              </div>
+            </div>
+          </article>
+
+          <aside className="dashboard-priority-rail">
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Uso correto</span>
+              <h3>Registre campanha antes dela terminar.</h3>
+              <p>Se a janela entrar tarde, a comparacao fica distorcida e o historico perde valor para o time comercial.</p>
+            </article>
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Leitura esperada</span>
+              <h3>Compare impacto, nao so presenca.</h3>
+              <p>O valor desta tela esta em mostrar se a acao mudou receita e transacoes, nao apenas se ela existiu.</p>
+            </article>
+          </aside>
+        </section>
+
+        <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+          <div className="metric-card metric-card-default reveal">
+            <div className="metric-card-top"><span className="metric-card-title">Campanhas</span><span className="metric-card-icon">CP</span></div>
+            <strong className="metric-card-value">{items.length}</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">cadastros ativos no historico</span></div>
           </div>
-          <div className="analytics-hero-board single-board">
-            <div className="hero-focus-card primary">
-              <span className="section-kicker">Campanha mais forte</span>
-              <h3>{bestImpact?.name || 'Sem campanha com impacto medido'}</h3>
-              <strong>{bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</strong>
-              <p>{bestImpact ? `Durante a campanha a receita foi para ${formatMoney(bestImpact.duringRevenue)} contra ${formatMoney(bestImpact.beforeRevenue)} antes da ação.` : 'Cadastre campanhas com datas fechadas para comparar com janelas equivalentes.'}</p>
-            </div>
+          <div className="metric-card metric-card-warning reveal">
+            <div className="metric-card-top"><span className="metric-card-title">Com comparacao</span><span className="metric-card-icon">CM</span></div>
+            <strong className="metric-card-value">{impacts.length}</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">janelas com leitura de impacto</span></div>
+          </div>
+          <div className="metric-card metric-card-danger reveal">
+            <div className="metric-card-top"><span className="metric-card-title">Melhor lift</span><span className="metric-card-icon">LF</span></div>
+            <strong className="metric-card-value">{bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">maior ganho medido de receita</span></div>
+          </div>
+          <div className="metric-card metric-card-default reveal">
+            <div className="metric-card-top"><span className="metric-card-title">Janelas definidas</span><span className="metric-card-icon">JN</span></div>
+            <strong className="metric-card-value">{activeWindows}</strong>
+            <div className="metric-card-bottom"><span className="metric-card-meta">campanhas com inicio e fim informados</span></div>
           </div>
         </section>
 
-        <div className="analytics-grid analytics-grid-main">
-          <div className="analytics-panel form-panel reveal">
+        <div className="dashboard-page-grid">
+          <section className="analytics-panel reveal dashboard-form-panel">
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Nova campanha</span>
-                <h3>Registrar janela de ação</h3>
+                <h3>Registrar uma nova janela de acao</h3>
               </div>
               <Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>
             </div>
             <div className="form-grid-analytics">
               <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="input" placeholder="Início (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <input className="input" placeholder="Inicio (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               <input className="input" placeholder="Fim (ISO)" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              <input className="input full" placeholder="Descrição" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <input className="input full" placeholder="Descricao" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div className="panel-actions">
               <Button onClick={create}>Criar campanha</Button>
             </div>
-          </div>
+          </section>
 
-          <div className="analytics-panel reveal">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Mapa de cadastro</span>
-                <h3>Campanhas existentes</h3>
-              </div>
-            </div>
-            {items.length === 0 ? (
-              <div className="panel-empty">Nenhuma campanha cadastrada.</div>
-            ) : (
-              <div className="campaign-stack">
-                {items.map((campaign) => (
-                  <div key={campaign.id} className="campaign-stack-card">
-                    <div>
-                      <strong>{campaign.name}</strong>
-                      <span>{campaign.description || 'Sem descrição'}</span>
+          <div className="dashboard-side-stack">
+            <section className="analytics-panel reveal dashboard-note-card">
+              <span className="section-kicker">Mapa de cadastro</span>
+              <h3>Campanhas existentes</h3>
+              {items.length === 0 ? (
+                <div className="panel-empty">Nenhuma campanha cadastrada.</div>
+              ) : (
+                <div className="campaign-stack">
+                  {items.map((campaign) => (
+                    <div key={campaign.id} className="campaign-stack-card">
+                      <div>
+                        <strong>{campaign.name}</strong>
+                        <span>{campaign.description || 'Sem descricao'}</span>
+                      </div>
+                      <div className="campaign-stack-side">
+                        <strong>{formatDateTime(campaign.startDate)} ate {formatDateTime(campaign.endDate)}</strong>
+                        <span>Criada em {formatDateTime(campaign.createdAt)}</span>
+                      </div>
                     </div>
-                    <div className="campaign-stack-side">
-                      <strong>{formatDateTime(campaign.startDate)} até {formatDateTime(campaign.endDate)}</strong>
-                      <span>Criada em {formatDateTime(campaign.createdAt)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </div>
 
@@ -155,7 +211,7 @@ const Campaigns: React.FC = () => {
           {loading ? (
             <div className="analytics-panel"><div className="panel-empty">Carregando...</div></div>
           ) : impacts.length === 0 ? (
-            <div className="analytics-panel"><div className="panel-empty">Nenhuma campanha com dados suficientes para comparação.</div></div>
+            <div className="analytics-panel"><div className="panel-empty">Nenhuma campanha com dados suficientes para comparacao.</div></div>
           ) : (
             impacts.map((impact) => (
               <div key={impact.campaignId} className="analytics-panel campaign-card reveal">
@@ -176,7 +232,7 @@ const Campaigns: React.FC = () => {
                   <strong>{formatPercent(impact.revenueLiftPercent)}</strong>
                 </div>
                 <div className="campaign-lift-row subtle">
-                  <span>Lift transações</span>
+                  <span>Lift transacoes</span>
                   <strong>{formatPercent(impact.transactionLiftPercent)}</strong>
                 </div>
               </div>

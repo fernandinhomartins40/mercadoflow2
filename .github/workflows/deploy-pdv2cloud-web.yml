@@ -79,6 +79,10 @@ jobs:
           chmod +x deploy/deploy-web.sh
           APP_DIR=/root/mercadoflow-web \
           COMPOSE_PROJECT_NAME=mercadoflow-web \
+          DOCKER_CLEANUP_ENABLED=true \
+          DOCKER_CLEANUP_PROJECT_CONTAINERS=true \
+          DOCKER_CLEANUP_DANGLING_IMAGES=true \
+          DOCKER_CLEANUP_BUILD_CACHE=true \
           ./deploy/deploy-web.sh
           EOF
 
