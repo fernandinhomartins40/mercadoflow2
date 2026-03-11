@@ -30,8 +30,6 @@ const Dashboard: React.FC = () => {
   const leadProduct = dashboard.topProducts?.[0];
   const weakestProduct = dashboard.lowTurnoverProducts?.[0];
   const leadPair = dashboard.topPairs?.[0];
-  const leadPromotion = dashboard.promotionHighlights?.[0];
-  const hottestCampaign = [...(dashboard.campaignImpacts || [])].sort((a, b) => Number(b.revenueLiftPercent || 0) - Number(a.revenueLiftPercent || 0))[0];
   const highPriorityAlerts = (dashboard.recentAlerts || []).filter((alert) => alert.priority === 'HIGH').length;
   const hottestHour = [...(dashboard.hourlySeasonality || [])].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0];
   const strongestWeekday = [...(dashboard.weekdaySeasonality || [])].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0];
@@ -53,7 +51,7 @@ const Dashboard: React.FC = () => {
                   <div className="rank-pill">{index + 1}</div>
                   <div className="product-strip-copy">
                     <strong>{row.name}</strong>
-                    <span>{row.category || 'Sem categoria'} | Giro {Number(row.salesVelocity || 0).toFixed(2)}/dia</span>
+                    <span>{row.category || 'Sem categoria'}</span>
                   </div>
                   <div className="product-strip-metric">
                     <strong>{formatMoney(row.revenue)}</strong>
@@ -201,17 +199,12 @@ const Dashboard: React.FC = () => {
                 <div className="dashboard-mini-tile">
                   <span>Janela mais forte</span>
                   <strong>{strongestWeekday?.label || '--'}</strong>
-                  <small>{hottestHour?.label || 'Sem hora dominante'}</small>
+                  <small>{hottestHour?.label || '--'}</small>
                 </div>
                 <div className="dashboard-mini-tile">
                   <span>Compra casada</span>
                   <strong>{leadPair ? `${leadPair.antecedentName} + ${leadPair.consequentName}` : 'Sem par dominante'}</strong>
                   <small>{leadPair ? `Lift ${leadPair.lift.toFixed(2)}` : 'Sem recorrencia suficiente'}</small>
-                </div>
-                <div className="dashboard-mini-tile accent">
-                  <span>Resposta a promocao</span>
-                  <strong>{leadPromotion?.name || 'Sem resposta forte'}</strong>
-                  <small>{leadPromotion ? `Lift ${formatPercent(leadPromotion.quantityLiftPercent)}` : 'Ainda sem comparacao confiavel'}</small>
                 </div>
               </div>
             </div>
@@ -231,11 +224,6 @@ const Dashboard: React.FC = () => {
               <p>{leadProduct ? `Receita ${formatMoney(leadProduct.revenue)} e giro ${Number(leadProduct.salesVelocity || 0).toFixed(2)}/dia.` : 'Assim que houver lideranca clara, ela aparece aqui.'}</p>
             </div>
 
-            <div className="dashboard-priority-card">
-              <span className="section-kicker">Atalho operacional</span>
-              <strong>{hottestCampaign?.name || 'Campanhas sob controle'}</strong>
-              <p>{hottestCampaign ? `Lift de receita ${formatPercent(hottestCampaign.revenueLiftPercent)}.` : 'Use a area de campanhas para comparar antes, durante e depois da acao.'}</p>
-            </div>
           </aside>
         </section>
 
@@ -244,8 +232,6 @@ const Dashboard: React.FC = () => {
           <MetricsCard title="Ticket medio" value={formatMoney(dashboard.averageTicket)} icon="TM" caption="valor por compra" />
           <MetricsCard title="Transacoes" value={dashboard.totalTransactions} icon="NF" caption="notas processadas" />
           <MetricsCard title="Produtos ativos" value={dashboard.activeProducts} icon="SKU" caption="com venda no periodo" />
-          <MetricsCard title="Share promocional" value={formatPercent((dashboard.promoRevenueShare || 0) * 100)} icon="%" variant="warning" caption="receita sob pressao de preco" />
-          <MetricsCard title="Campanhas em curso" value={dashboard.campaignsRunning} icon="CP" variant="danger" caption="janelas abertas para validar" />
         </div>
 
         <section className="dashboard-workbench-grid">

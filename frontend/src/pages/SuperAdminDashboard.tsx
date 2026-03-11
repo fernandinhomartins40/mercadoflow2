@@ -84,11 +84,6 @@ const SuperAdminDashboard: React.FC = () => {
                       <strong>{overview?.totalCatalogProducts ?? 0}</strong>
                       <small>{overview?.totalCatalogEnrichments ?? 0} enriquecimentos</small>
                     </div>
-                    <div className="dashboard-mini-tile accent">
-                      <span>Cobranca manual</span>
-                      <strong>{overview?.pastDueMarkets ?? 0}</strong>
-                      <small>{overview?.suspendedMarkets ?? 0} suspensas no momento</small>
-                    </div>
                   </div>
                 </div>
               </article>
@@ -107,20 +102,13 @@ const SuperAdminDashboard: React.FC = () => {
                   <p>{overview?.orphanUsers ?? 0} usuarios seguem sem conta vinculada e pedem ajuste de cadastro.</p>
                 </div>
 
-                <div className="dashboard-priority-card">
-                  <span className="section-kicker">Base de dados</span>
-                  <strong>{overview?.totalCatalogEnrichments ?? 0}</strong>
-                  <p>fontes enriquecidas sustentando o catalogo global para os paineis administrativos.</p>
-                </div>
               </aside>
             </section>
 
             <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
               <MetricsCard title="Contas SaaS" value={overview?.totalMarkets ?? 0} icon="MK" caption="tenants cadastrados" />
               <MetricsCard title="Contas ativas" value={overview?.activeMarkets ?? 0} icon="ON" caption="operando" />
-              <MetricsCard title="Trial" value={overview?.trialMarkets ?? 0} icon="TR" caption="periodo de teste" />
               <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="PD" caption="cobranca manual" />
-              <MetricsCard title="Suspensas" value={overview?.suspendedMarkets ?? 0} icon="BL" caption="acesso bloqueado" />
               <MetricsCard title="Usuarios ativos" value={overview?.activeUsers ?? 0} icon="US" caption="liberados" />
             </div>
 
@@ -146,10 +134,6 @@ const SuperAdminDashboard: React.FC = () => {
                     <span>Contas em trial</span>
                     <strong>{overview?.trialMarkets ?? 0}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Contas com risco de bloqueio</span>
-                    <strong>{(overview?.pastDueMarkets ?? 0) + (overview?.suspendedMarkets ?? 0)}</strong>
-                  </div>
                 </div>
               </article>
 
@@ -164,15 +148,11 @@ const SuperAdminDashboard: React.FC = () => {
                 <div className="dashboard-quick-list">
                   <Link to="/super-admin/catalogo" className="dashboard-quick-item">
                     <strong>Revisar catalogo global</strong>
-                    <span>{overview?.totalCatalogProducts ?? 0} produtos consolidados prontos para manutencao manual.</span>
+                    <span>{overview?.totalCatalogProducts ?? 0} produtos consolidados.</span>
                   </Link>
                   <Link to="/super-admin/crawler" className="dashboard-quick-item">
                     <strong>Monitorar coletas e reparos</strong>
-                    <span>Acompanhe runs, restauracao de imagens e atualizacao das fontes web.</span>
-                  </Link>
-                  <Link to="/super-admin/saas" className="dashboard-quick-item">
-                    <strong>Conferir acessos e vencimentos</strong>
-                    <span>Valide contas em atraso, expiracao proxima e usuarios bloqueados.</span>
+                    <span>Acompanhe runs e atualizacao das fontes web.</span>
                   </Link>
                 </div>
               </article>

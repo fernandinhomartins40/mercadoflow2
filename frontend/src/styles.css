@@ -1422,10 +1422,9 @@ button {
 
 .metric-card-bottom {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .metric-card-delta,
@@ -1438,6 +1437,13 @@ button {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+}
+
+.metric-card-bottom > span {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .metric-card-delta.positive,
@@ -1505,6 +1511,13 @@ button {
 .forecast-caption,
 .pair-arrow {
   color: var(--text-secondary);
+}
+
+.product-strip-copy span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
 .chart-panel {
@@ -4963,6 +4976,17 @@ button {
 .dashboard-quick-item span {
   color: var(--text-secondary);
   line-height: 1.5;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.dashboard-stat-row span {
+  -webkit-line-clamp: 1;
+}
+
+.dashboard-quick-item span {
+  -webkit-line-clamp: 2;
 }
 
 .dashboard-stat-row strong,
@@ -6021,6 +6045,10 @@ select:focus,
   color: #76675f;
   font-size: 15px;
   line-height: 1.7;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .dashboard-command-showcase {
@@ -6076,6 +6104,10 @@ select:focus,
   margin: 0;
   max-width: 460px;
   line-height: 1.6;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .dashboard-command-mosaic {
@@ -6087,7 +6119,7 @@ select:focus,
 .dashboard-mini-tile,
 .dashboard-priority-card {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   padding: 20px;
   background: rgba(255, 250, 245, 0.96);
 }
@@ -6118,6 +6150,17 @@ select:focus,
 .dashboard-priority-card p {
   color: #73645c;
   line-height: 1.55;
+}
+
+.dashboard-mini-tile small {
+  display: none;
+}
+
+.dashboard-priority-card p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .dashboard-mini-tile.accent {

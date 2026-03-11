@@ -371,17 +371,12 @@ const SuperAdminCatalogManager: React.FC = () => {
                 <div className="dashboard-mini-tile">
                   <span>Busca atual</span>
                   <strong>{search.trim() || 'Sem filtro'}</strong>
-                  <small>consulta por GTIN, nome ou marca</small>
-                </div>
-                <div className="dashboard-mini-tile">
-                  <span>Provider padrao</span>
-                  <strong>{editorProviderLabel}</strong>
-                  <small>origem aplicada no cadastro manual</small>
+                  <small>GTIN, nome ou marca</small>
                 </div>
                 <div className="dashboard-mini-tile accent">
                   <span>Preview do editor</span>
                   <strong>{editorImageUrl ? 'Com imagem' : 'Sem imagem'}</strong>
-                  <small>o modal de edicao mostra o preview ao vivo</small>
+                  <small>preview ao vivo</small>
                 </div>
               </div>
             </div>

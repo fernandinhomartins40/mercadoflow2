@@ -14,6 +14,7 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ title, value, change, icon, v
   const tone = variant === 'warning' ? 'warning' : variant === 'danger' ? 'danger' : 'default';
   const deltaClass = change === undefined ? '' : change >= 0 ? 'positive' : 'negative';
   const deltaLabel = change === undefined ? null : `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+  const supportLabel = deltaLabel || caption || 'Dados reais';
 
   return (
     <Card className={`metric-card metric-card-${tone} reveal`}>
@@ -23,8 +24,7 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ title, value, change, icon, v
       </div>
       <strong className="metric-card-value">{value}</strong>
       <div className="metric-card-bottom">
-        {deltaLabel ? <span className={`metric-card-delta ${deltaClass}`}>{deltaLabel}</span> : <span className="metric-card-meta">Dados reais</span>}
-        {caption ? <span className="metric-card-meta">{caption}</span> : null}
+        <span className={deltaLabel ? `metric-card-delta ${deltaClass}` : 'metric-card-meta'}>{supportLabel}</span>
       </div>
     </Card>
   );

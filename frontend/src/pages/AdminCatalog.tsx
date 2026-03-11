@@ -244,17 +244,12 @@ const CatalogAdmin: React.FC = () => {
                 <div className="dashboard-mini-tile">
                   <span>Base total</span>
                   <strong>{totalElements}</strong>
-                  <small>produtos enriquecidos no catalogo global</small>
+                  <small>catalogo global</small>
                 </div>
                 <div className="dashboard-mini-tile">
                   <span>Imagens nesta pagina</span>
                   <strong>{withImageCount}</strong>
-                  <small>itens prontos para exibicao</small>
-                </div>
-                <div className="dashboard-mini-tile accent">
-                  <span>Categorias no recorte</span>
-                  <strong>{categoryCount}</strong>
-                  <small>{brandCount} marcas distintas visiveis</small>
+                  <small>itens prontos</small>
                 </div>
               </div>
             </div>
@@ -269,7 +264,7 @@ const CatalogAdmin: React.FC = () => {
             <div className="dashboard-priority-card">
               <span className="section-kicker">Pagina atual</span>
               <strong>{page + 1} de {Math.max(totalPages, 1)}</strong>
-              <p>{rows.length} itens retornados nesta pagina, com paginação pronta para navegar o restante.</p>
+              <p>{rows.length} itens retornados nesta pagina.</p>
             </div>
           </aside>
         </section>

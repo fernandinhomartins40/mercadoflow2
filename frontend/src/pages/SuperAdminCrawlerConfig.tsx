@@ -290,17 +290,12 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                 <div className="dashboard-mini-tile">
                   <span>Mercados suportados</span>
                   <strong>{jobs.length}</strong>
-                  <small>providers fixos disponiveis no dispatcher</small>
-                </div>
-                <div className="dashboard-mini-tile">
-                  <span>Na fila</span>
-                  <strong>{monitor.queuedRuns || 0}</strong>
-                  <small>execucoes aguardando processamento</small>
+                  <small>providers disponiveis</small>
                 </div>
                 <div className="dashboard-mini-tile accent">
                   <span>Importados recentes</span>
                   <strong>{totalImportedRecent}</strong>
-                  <small>produtos injetados nas 12 ultimas execucoes</small>
+                  <small>ultimas 12 execucoes</small>
                 </div>
               </div>
             </div>
