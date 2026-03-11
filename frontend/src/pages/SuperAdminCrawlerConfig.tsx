@@ -271,6 +271,15 @@ const SuperAdminCrawlerConfig: React.FC = () => {
             <p className="analytics-hero-text">
               O painel agora roda somente execucoes manuais, uma por vez. Cada supermercado dispara um pipeline fixo, sem seeds editaveis e sem agendamento automatico.
             </p>
+            <div className="hero-inline-actions">
+              <Link className="button secondary" to="/super-admin">Voltar ao painel</Link>
+              {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver ultimo run</Link> : null}
+            </div>
+            <div className="hero-chip-row">
+              <span className="hero-chip">{jobs.length} mercados suportados</span>
+              <span className="hero-chip">{monitor.queuedRuns || 0} na fila</span>
+              <span className="hero-chip">{activeJobs || monitor.runningRuns || 0} executando</span>
+            </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
@@ -308,11 +317,32 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           </div>
         </section>
 
-        <section className="analytics-panel reveal">
-          <div className="panel-empty" style={{ textAlign: 'left' }}>
-            Nao ha mais execucao automatica nem rodada global. O dispatcher apenas consome runs manuais da fila e rejeita execucoes com mais de um supermercado.
-          </div>
-        </section>
+        <div className="dashboard-inline-grid">
+          <section className="analytics-panel reveal dashboard-note-card">
+            <span className="section-kicker">Modo de operacao</span>
+            <h3>Somente um supermercado por vez</h3>
+            <p className="super-admin-crawler-job-text">
+              Nao ha mais execucao automatica nem rodada global. O dispatcher so consome runs manuais e rejeita execucoes com mais de um supermercado.
+            </p>
+          </section>
+          <section className="analytics-panel reveal dashboard-note-card">
+            <span className="section-kicker">Fluxo recomendado</span>
+            <div className="dashboard-quick-list">
+              <div className="dashboard-quick-item">
+                <strong>1. Escolha um mercado</strong>
+                <span>Dispare apenas o provider necessario para reduzir ruido e facilitar leitura dos logs.</span>
+              </div>
+              <div className="dashboard-quick-item">
+                <strong>2. Filtre categorias quando fizer sentido</strong>
+                <span>Use o modal para limitar captura e evitar execucao desnecessaria.</span>
+              </div>
+              <div className="dashboard-quick-item">
+                <strong>3. Valide o historico depois</strong>
+                <span>Revise importados, erros e detalhes do run antes de partir para o proximo mercado.</span>
+              </div>
+            </div>
+          </section>
+        </div>
 
         {loading ? (
           <div className="card">Carregando painel...</div>

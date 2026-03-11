@@ -429,6 +429,15 @@ const SuperAdminUsers: React.FC = () => {
             <p className="analytics-hero-text">
               Gerencie manualmente as contas dos supermercados, com plano, cobranca, validade de acesso, limite de usuarios e operacao dos acessos sem depender de gateway de pagamento.
             </p>
+            <div className="hero-inline-actions">
+              <Link to="/super-admin" className="button secondary">Voltar para a visao geral</Link>
+              <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+            </div>
+            <div className="hero-chip-row">
+              <span className="hero-chip">{overview?.totalMarkets ?? 0} contas</span>
+              <span className="hero-chip">{overview?.activeUsers ?? 0} usuarios ativos</span>
+              <span className="hero-chip">{overview?.expiringMarkets ?? 0} vencendo em breve</span>
+            </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">
@@ -454,80 +463,82 @@ const SuperAdminUsers: React.FC = () => {
           <MetricsCard title="Sem conta" value={overview?.orphanUsers ?? 0} icon="OR" caption="usuarios sem mercado" />
         </div>
 
-        <section className="analytics-panel reveal">
-          <div className="analytics-panel-head">
-            <div>
-              <span className="section-kicker">Conta SaaS</span>
-              <h3>{editingMarketId ? 'Editar conta' : 'Nova conta'}</h3>
+        <div className="dashboard-inline-grid">
+          <section className="analytics-panel reveal dashboard-form-panel">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Conta SaaS</span>
+                <h3>{editingMarketId ? 'Editar conta' : 'Nova conta'}</h3>
+              </div>
+              <div className="card-section-actions">
+                {editingMarketId ? (
+                  <Button variant="secondary" onClick={resetMarketForm}>Cancelar edicao</Button>
+                ) : null}
+              </div>
             </div>
-            <div className="card-section-actions">
-              {editingMarketId ? (
-                <Button variant="secondary" onClick={resetMarketForm}>Cancelar edicao</Button>
-              ) : null}
+            <div className="filter-bar-controls super-admin-form-grid">
+              <input className="input" placeholder="Nome da conta/mercado" value={marketForm.name} onChange={(e) => setMarketForm({ ...marketForm, name: e.target.value })} />
+              <input className="input" placeholder="CNPJ" value={marketForm.cnpj} onChange={(e) => setMarketForm({ ...marketForm, cnpj: e.target.value })} />
+              <select className="input" value={marketForm.planType} onChange={(e) => setMarketForm({ ...marketForm, planType: e.target.value })}>
+                {PLAN_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <select className="input" value={marketForm.billingStatus} onChange={(e) => setMarketForm({ ...marketForm, billingStatus: e.target.value })}>
+                {BILLING_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <input className="input" placeholder="Limite de usuarios" value={marketForm.userSeatLimit} onChange={(e) => setMarketForm({ ...marketForm, userSeatLimit: e.target.value })} />
+              <input className="input" type="datetime-local" value={marketForm.accessExpiresAt} onChange={(e) => setMarketForm({ ...marketForm, accessExpiresAt: e.target.value })} />
+              <input className="input" type="datetime-local" value={marketForm.trialEndsAt} onChange={(e) => setMarketForm({ ...marketForm, trialEndsAt: e.target.value })} />
+              <input className="input" placeholder="Contato principal" value={marketForm.contactName} onChange={(e) => setMarketForm({ ...marketForm, contactName: e.target.value })} />
+              <input className="input" placeholder="E-mail do contato" value={marketForm.contactEmail} onChange={(e) => setMarketForm({ ...marketForm, contactEmail: e.target.value })} />
+              <input className="input" placeholder="Telefone do contato" value={marketForm.contactPhone} onChange={(e) => setMarketForm({ ...marketForm, contactPhone: e.target.value })} />
+              <label className="checkbox super-admin-inline-checkbox">
+                <input type="checkbox" checked={marketForm.active} onChange={(e) => setMarketForm({ ...marketForm, active: e.target.checked })} />
+                <span>Conta ativa</span>
+              </label>
+              <textarea className="input super-admin-notes" placeholder="Observacoes internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} />
+              <Button onClick={saveMarket} disabled={savingMarket}>{savingMarket ? 'Salvando...' : (editingMarketId ? 'Salvar conta' : 'Criar conta')}</Button>
             </div>
-          </div>
-          <div className="filter-bar-controls super-admin-form-grid">
-            <input className="input" placeholder="Nome da conta/mercado" value={marketForm.name} onChange={(e) => setMarketForm({ ...marketForm, name: e.target.value })} />
-            <input className="input" placeholder="CNPJ" value={marketForm.cnpj} onChange={(e) => setMarketForm({ ...marketForm, cnpj: e.target.value })} />
-            <select className="input" value={marketForm.planType} onChange={(e) => setMarketForm({ ...marketForm, planType: e.target.value })}>
-              {PLAN_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <select className="input" value={marketForm.billingStatus} onChange={(e) => setMarketForm({ ...marketForm, billingStatus: e.target.value })}>
-              {BILLING_STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <input className="input" placeholder="Limite de usuarios" value={marketForm.userSeatLimit} onChange={(e) => setMarketForm({ ...marketForm, userSeatLimit: e.target.value })} />
-            <input className="input" type="datetime-local" value={marketForm.accessExpiresAt} onChange={(e) => setMarketForm({ ...marketForm, accessExpiresAt: e.target.value })} />
-            <input className="input" type="datetime-local" value={marketForm.trialEndsAt} onChange={(e) => setMarketForm({ ...marketForm, trialEndsAt: e.target.value })} />
-            <input className="input" placeholder="Contato principal" value={marketForm.contactName} onChange={(e) => setMarketForm({ ...marketForm, contactName: e.target.value })} />
-            <input className="input" placeholder="E-mail do contato" value={marketForm.contactEmail} onChange={(e) => setMarketForm({ ...marketForm, contactEmail: e.target.value })} />
-            <input className="input" placeholder="Telefone do contato" value={marketForm.contactPhone} onChange={(e) => setMarketForm({ ...marketForm, contactPhone: e.target.value })} />
-            <label className="checkbox super-admin-inline-checkbox">
-              <input type="checkbox" checked={marketForm.active} onChange={(e) => setMarketForm({ ...marketForm, active: e.target.checked })} />
-              <span>Conta ativa</span>
-            </label>
-            <textarea className="input super-admin-notes" placeholder="Observacoes internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} />
-            <Button onClick={saveMarket} disabled={savingMarket}>{savingMarket ? 'Salvando...' : (editingMarketId ? 'Salvar conta' : 'Criar conta')}</Button>
-          </div>
-        </section>
+          </section>
 
-        <section className="analytics-panel reveal">
-          <div className="analytics-panel-head">
-            <div>
-              <span className="section-kicker">Usuario SaaS</span>
-              <h3>{editingUserId ? 'Editar usuario' : 'Novo usuario'}</h3>
+          <section className="analytics-panel reveal dashboard-form-panel">
+            <div className="analytics-panel-head">
+              <div>
+                <span className="section-kicker">Usuario SaaS</span>
+                <h3>{editingUserId ? 'Editar usuario' : 'Novo usuario'}</h3>
+              </div>
+              <div className="card-section-actions">
+                {editingUserId ? (
+                  <Button variant="secondary" onClick={resetUserForm}>Cancelar edicao</Button>
+                ) : null}
+              </div>
             </div>
-            <div className="card-section-actions">
-              {editingUserId ? (
-                <Button variant="secondary" onClick={resetUserForm}>Cancelar edicao</Button>
-              ) : null}
+            <div className="filter-bar-controls super-admin-form-grid">
+              <input className="input" placeholder="Nome" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
+              <input className="input" placeholder="E-mail" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
+              <input className="input" placeholder={editingUserId ? 'Nova senha (opcional)' : 'Senha inicial'} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
+              <select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, marketId: e.target.value === 'SUPER_ADMIN' ? '' : userForm.marketId })}>
+                {USER_ROLE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <select className="input" value={userForm.marketId} onChange={(e) => setUserForm({ ...userForm, marketId: e.target.value })} disabled={userForm.role === 'SUPER_ADMIN'}>
+                <option value="">Sem conta vinculada</option>
+                {marketOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <label className="checkbox super-admin-inline-checkbox">
+                <input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })} />
+                <span>Usuario ativo</span>
+              </label>
+              <Button onClick={saveUser} disabled={savingUser}>{savingUser ? 'Salvando...' : (editingUserId ? 'Salvar usuario' : 'Criar usuario')}</Button>
             </div>
-          </div>
-          <div className="filter-bar-controls super-admin-form-grid">
-            <input className="input" placeholder="Nome" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
-            <input className="input" placeholder="E-mail" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
-            <input className="input" placeholder={editingUserId ? 'Nova senha (opcional)' : 'Senha inicial'} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
-            <select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, marketId: e.target.value === 'SUPER_ADMIN' ? '' : userForm.marketId })}>
-              {USER_ROLE_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <select className="input" value={userForm.marketId} onChange={(e) => setUserForm({ ...userForm, marketId: e.target.value })} disabled={userForm.role === 'SUPER_ADMIN'}>
-              <option value="">Sem conta vinculada</option>
-              {marketOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <label className="checkbox super-admin-inline-checkbox">
-              <input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })} />
-              <span>Usuario ativo</span>
-            </label>
-            <Button onClick={saveUser} disabled={savingUser}>{savingUser ? 'Salvando...' : (editingUserId ? 'Salvar usuario' : 'Criar usuario')}</Button>
-          </div>
-        </section>
+          </section>
+        </div>
 
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
