@@ -173,11 +173,15 @@ const Dashboard: React.FC = () => {
       <div className="page analytics-page">
         <section className="analytics-hero reveal">
           <div className="analytics-hero-copy">
-            <span className="pill">Painel de gestão em tempo real</span>
-            <h1 className="analytics-hero-title">Onde a venda ganha tração, perde ritmo e responde a preço.</h1>
+            <span className="pill">Resumo do dia</span>
+            <h1 className="analytics-hero-title">Acompanhe vendas, giro e sinais que pedem acao sem depender de leitura tecnica.</h1>
             <p className="analytics-hero-text">
-              O painel cruza notas reais para mostrar quais produtos puxam faturamento, quais empacam giro, quando o mercado esquenta e que combinações merecem exposição conjunta.
+              O painel organiza os principais dados do mercado em uma leitura direta: o que esta vendendo bem, o que perdeu ritmo, quais alertas exigem atencao e onde agir primeiro.
             </p>
+            <div className="hero-inline-actions">
+              <Link className="button" to="/app/produtos">Abrir produtos</Link>
+              <Link className="button secondary" to="/app/alertas">Ver alertas</Link>
+            </div>
             <div className="hero-chip-row">
               <span className="hero-chip">{dashboard.totalTransactions} transações reais</span>
               <span className="hero-chip">{dashboard.activeProducts} produtos ativos</span>

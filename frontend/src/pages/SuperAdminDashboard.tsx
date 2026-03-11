@@ -47,11 +47,15 @@ const SuperAdminDashboard: React.FC = () => {
       <div className="super-admin-page">
         <section className="analytics-hero compact reveal">
           <div className="analytics-hero-copy">
-            <span className="pill">Controle Central</span>
-            <h1 className="analytics-hero-title">Visao geral da plataforma</h1>
+            <span className="pill">Central da plataforma</span>
+            <h1 className="analytics-hero-title">Acompanhe acessos, contas, catalogo e rotinas tecnicas em um fluxo mais claro.</h1>
             <p className="analytics-hero-text">
-              Monitore a saude operacional do SaaS, com usuarios, contas ativas, cobranca manual, vencimentos e crescimento do catalogo global em um unico painel.
+              O painel agora concentra os pontos mais importantes para a operacao: liberacao de contas, usuarios ativos, vencimentos, crescimento do catalogo e execucoes tecnicas que exigem acompanhamento.
             </p>
+            <div className="hero-inline-actions">
+              <Link to="/super-admin/saas" className="button">Abrir gestao SaaS</Link>
+              <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+            </div>
           </div>
           <div className="analytics-hero-board single-board">
             <div className="hero-focus-card primary">

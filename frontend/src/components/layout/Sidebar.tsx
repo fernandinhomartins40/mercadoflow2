@@ -2,37 +2,108 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar: React.FC = () => {
-  const { role } = useAuth();
+interface SidebarProps {
+  mobileOpen: boolean;
+  onClose: () => void;
+}
+
+interface SidebarItem {
+  to: string;
+  label: string;
+  hint: string;
+  mark: string;
+  exact?: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
+  const { role, name, email } = useAuth();
   const isAdmin = role === 'ADMIN';
 
+  const sections: Array<{ title: string; items: SidebarItem[] }> = [
+    {
+      title: 'Visao do negocio',
+      items: [
+        { to: '/app', label: 'Painel geral', hint: 'Resumo diario e prioridades', mark: 'PG', exact: true },
+        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tendencia e elasticidade', mark: 'PR' },
+        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem acao imediata', mark: 'AL' },
+      ],
+    },
+    {
+      title: 'Analise e operacao',
+      items: [
+        { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', mark: 'CC' },
+        { to: '/app/previsao-demanda', label: 'Previsao', hint: 'Planejamento de demanda', mark: 'PV' },
+        { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', mark: 'CP' },
+        { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', mark: 'PD' },
+      ],
+    },
+    {
+      title: 'Configuracao',
+      items: [
+        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Catalogo global', hint: 'Base consolidada de produtos', mark: 'CG' }] : []),
+        { to: '/app/download-agente', label: 'Download do agente', hint: 'Instalacao do coletor local', mark: 'AG' },
+        { to: '/app/configuracoes', label: 'Configuracoes', hint: 'Acesso e integracoes', mark: 'CF' },
+      ],
+    },
+  ];
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
-        <div className="sidebar-brand-mark">MF</div>
-        <div>
-          <h1>MercadoFlow</h1>
-          <p style={{ color: 'var(--muted)' }}>Operacao, giro e decisao de compra</p>
+    <>
+      <button
+        type="button"
+        className={`sidebar-backdrop ${mobileOpen ? 'visible' : ''}`}
+        onClick={onClose}
+        aria-label="Fechar menu lateral"
+      />
+      <aside className={`sidebar workspace-sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
+        <div className="workspace-sidebar-head">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-mark">MF</div>
+            <div>
+              <h1>MercadoFlow</h1>
+              <p>Painel operacional para decisao no varejo</p>
+            </div>
+          </div>
+          <button type="button" className="sidebar-close" onClick={onClose} aria-label="Fechar menu">X</button>
         </div>
-      </div>
-      <nav className="sidebar-nav">
-        <NavLink className="nav-link" to="/app">Painel geral</NavLink>
-        <NavLink className="nav-link" to="/app/produtos">Produtos</NavLink>
-        <NavLink className="nav-link" to="/app/cesta">Compra casada</NavLink>
-        <NavLink className="nav-link" to="/app/previsao-demanda">Previsao</NavLink>
-        <NavLink className="nav-link" to="/app/campanhas">Campanhas</NavLink>
-        <NavLink className="nav-link" to="/app/alertas">Alertas</NavLink>
-        <NavLink className="nav-link" to="/app/pdvs">PDVs</NavLink>
-        {isAdmin ? <NavLink className="nav-link" to="/app/admin/catalogo">Catalogo global</NavLink> : null}
-        <NavLink className="nav-link" to="/app/download-agente">Download do agente</NavLink>
-        <NavLink className="nav-link" to="/app/configuracoes">Configuracoes</NavLink>
-      </nav>
-      <div className="sidebar-note">
-        <span className="section-kicker">Fluxo de decisao</span>
-        <strong>Comece em Produtos</strong>
-        <p>Busque o item, abra o dashboard e compare o comportamento por PDV antes de comprar ou promover.</p>
-      </div>
-    </aside>
+
+        <div className="sidebar-user-card">
+          <span className="section-kicker">Workspace atual</span>
+          <strong>{name || 'Usuario logado'}</strong>
+          <span>{email || 'Conta sem e-mail visivel'}</span>
+          <div className="sidebar-user-meta">
+            <span className="sidebar-chip">{role === 'ADMIN' ? 'Administrador' : 'Operacao'}</span>
+            <span className="sidebar-chip subtle">MercadoFlow</span>
+          </div>
+        </div>
+
+        <div className="sidebar-sections">
+          {sections.map((section) => (
+            <div key={section.title} className="sidebar-section">
+              <span className="sidebar-section-title">{section.title}</span>
+              <nav className="sidebar-nav">
+                {section.items.map((item) => (
+                  <NavLink key={item.to} end={item.exact} className="nav-link dashboard-nav-link" to={item.to} onClick={onClose}>
+                    <span className="nav-link-mark">{item.mark}</span>
+                    <span className="nav-link-copy">
+                      <strong className="nav-link-text">{item.label}</strong>
+                      <span className="nav-link-hint">{item.hint}</span>
+                    </span>
+                    <span className="nav-link-indicator">&gt;</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          ))}
+        </div>
+
+        <div className="sidebar-support-card">
+          <span className="section-kicker">Fluxo recomendado</span>
+          <strong>Comece em Produtos e feche em Alertas</strong>
+          <p>O caminho mais simples para usuarios leigos e ver o item, comparar o desempenho e validar os sinais operacionais antes de agir.</p>
+        </div>
+      </aside>
+    </>
   );
 };
 
