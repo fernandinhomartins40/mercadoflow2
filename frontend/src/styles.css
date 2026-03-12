@@ -6911,3 +6911,258 @@ a.dashboard-quick-item:hover {
     font-size: 13px;
   }
 }
+
+@media (max-width: 420px), (max-height: 720px) {
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    gap: 8px;
+    padding: 14px 10px 10px;
+  }
+
+  .super-admin-shell .workspace-sidebar-head {
+    margin-bottom: 2px;
+  }
+
+  .super-admin-shell .super-admin-brand,
+  .super-admin-shell .sidebar-brand {
+    gap: 10px;
+  }
+
+  .super-admin-shell .sidebar-brand h1,
+  .super-admin-shell .super-admin-brand h1 {
+    font-size: 16px;
+  }
+
+  .super-admin-shell .sidebar-brand p,
+  .super-admin-shell .super-admin-brand p,
+  .super-admin-shell .sidebar-user-card,
+  .super-admin-shell .sidebar-section-title {
+    display: none;
+  }
+
+  .super-admin-shell .sidebar-sections {
+    gap: 8px;
+  }
+
+  .super-admin-shell .sidebar-section {
+    gap: 6px;
+  }
+
+  .super-admin-shell .dashboard-nav-link {
+    min-height: 44px;
+    padding: 9px 10px;
+    border-radius: 15px;
+  }
+
+  .super-admin-shell .nav-link-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+  .super-admin-shell .nav-link-copy {
+    gap: 0;
+  }
+
+  .super-admin-shell .nav-link-text {
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .super-admin-shell .super-admin-footer .button {
+    min-height: 42px;
+    border-radius: 16px;
+  }
+}
+
+/* ==================== ADMIN SHELL STABILITY ==================== */
+
+.app-shell .workspace-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior: contain;
+}
+
+.app-shell .workspace-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.app-shell .sidebar-sections {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.app-shell .sidebar-support-card {
+  margin-top: auto;
+}
+
+@media (max-width: 1366px) and (min-width: 1025px) {
+  .app-shell.workspace-shell {
+    grid-template-columns: 264px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .app-shell .workspace-sidebar {
+    position: sticky;
+    inset: auto;
+    width: auto;
+    top: 14px;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+    height: calc(100dvh - 28px);
+    max-height: calc(100dvh - 28px);
+    min-height: calc(100dvh - 28px);
+    border-radius: 30px;
+    padding: 18px 14px 14px;
+  }
+
+  .app-shell .sidebar-toggle,
+  .app-shell .sidebar-close,
+  .app-shell .sidebar-backdrop {
+    display: none;
+  }
+
+  .app-shell .workspace-main {
+    padding: 0 0 28px;
+  }
+
+  .app-shell .workspace-content {
+    gap: 20px;
+  }
+
+  .app-shell .dashboard-topbar {
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    border-radius: 24px;
+  }
+
+  .app-shell .dashboard-topbar-main {
+    gap: 14px;
+  }
+
+  .app-shell .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .app-shell .workspace-user-chip,
+  .app-shell .header-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-shell .sidebar-support-card {
+    display: none;
+  }
+
+  .app-shell .sidebar-user-card {
+    padding: 14px;
+  }
+
+  .app-shell .sidebar-user-meta {
+    gap: 6px;
+  }
+
+  .app-shell .sidebar-chip {
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .app-shell .dashboard-nav-link {
+    min-height: 50px;
+    padding: 10px 12px;
+  }
+
+  .app-shell .nav-link-copy {
+    gap: 2px;
+  }
+
+  .app-shell .nav-link-hint {
+    display: none;
+  }
+}
+
+@media (max-height: 860px) {
+  .app-shell .workspace-sidebar {
+    gap: 12px;
+    padding: 16px 12px 12px;
+  }
+
+  .app-shell .sidebar-brand-mark {
+    width: 50px;
+    height: 50px;
+    border-radius: 18px;
+  }
+
+  .app-shell .sidebar-user-card {
+    gap: 6px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .app-shell .dashboard-nav-link {
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+
+  .app-shell .nav-link-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .app-shell .nav-link-hint {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+
+@media (max-width: 900px), (max-height: 760px) {
+  .app-shell .workspace-sidebar {
+    gap: 10px;
+  }
+
+  .app-shell .sidebar-brand h1 {
+    font-size: 18px;
+  }
+
+  .app-shell .sidebar-brand p {
+    font-size: 12px;
+  }
+
+  .app-shell .sidebar-user-card strong {
+    font-size: 14px;
+  }
+
+  .app-shell .sidebar-user-card > span:not(.section-kicker) {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .app-shell .dashboard-nav-link {
+    min-height: 46px;
+    border-radius: 16px;
+  }
+
+  .app-shell .nav-link-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .app-shell .nav-link-text {
+    font-size: 13px;
+  }
+}
