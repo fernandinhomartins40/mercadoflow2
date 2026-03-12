@@ -368,12 +368,18 @@ def run_amigao(args: argparse.Namespace) -> Dict[str, Any]:
         mode="category-tree",
         category_tree_url="https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "AMIGAO_WEB_BR"),
+        catalog_retry_attempts=7,
+        catalog_min_interval_seconds=0.15,
+        brand_resolve_workers=4,
+        non_fatal_page_errors=1,
+        non_fatal_min_imported_products=2000,
     )
     return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
         page_size=max(10, min(50, args.amigao_page_size)),
         max_pages_per_leaf=max(0, args.amigao_max_pages),
+        residual_product_workers=4,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 

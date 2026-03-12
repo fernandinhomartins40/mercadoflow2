@@ -73,6 +73,8 @@ class VtexJobConfig:
     catalog_retry_attempts: int = 5
     catalog_min_interval_seconds: float = 0.0
     brand_resolve_workers: int = 12
+    non_fatal_page_errors: int = 0
+    non_fatal_min_imported_products: int = 0
 
 
 @dataclass(frozen=True)
@@ -1591,13 +1593,29 @@ def run_vtex_category_tree_job(
             "selectedCategories": list(job.selected_categories),
         }
     )
-    total_errors = page_errors + detail_errors + residual_sitemap_errors + residual_detail_errors + int(totals.get("errors", 0))
+    import_errors = int(totals.get("errors", 0))
+    page_like_errors = page_errors + residual_sitemap_errors
+    fatal_harvest_errors = detail_errors + residual_detail_errors
+    total_errors = page_like_errors + fatal_harvest_errors + import_errors
+    imported_products = int(totals.get("importedProducts", 0))
+    softened_page_failures = (
+        job.non_fatal_page_errors > 0
+        and page_like_errors > 0
+        and page_like_errors <= job.non_fatal_page_errors
+        and fatal_harvest_errors == 0
+        and import_errors == 0
+        and imported_products >= job.non_fatal_min_imported_products
+    )
+    status = "SUCCESS" if total_errors == 0 or softened_page_failures else "FAILED"
+    message_suffix = ""
+    if softened_page_failures:
+        message_suffix = f" avisos={page_like_errors}"
     return {
-        "status": "SUCCESS" if total_errors == 0 else "FAILED",
+        "status": status,
         "message": (
             f"{job.name}: capturados={session_import.captured} "
-            f"importados={totals.get('importedProducts', 0)} "
-            f"erros={total_errors}"
+            f"importados={imported_products} "
+            f"erros={total_errors}{message_suffix}"
         ),
         "summary": [
             {
@@ -1612,12 +1630,13 @@ def run_vtex_category_tree_job(
             }
         ],
         "scannedProducts": int(totals.get("scannedProducts", session_import.captured)),
-        "importedProducts": int(totals.get("importedProducts", 0)),
+        "importedProducts": imported_products,
         "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
         "skippedMissingName": int(totals.get("skippedMissingName", 0)),
         "skippedMedication": int(totals.get("skippedMedication", 0)),
         "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
         "errors": total_errors,
+        "warnings": page_like_errors if softened_page_failures else 0,
     }
 
 
