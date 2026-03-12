@@ -6836,3 +6836,78 @@ a.dashboard-quick-item:hover {
     font-size: 11px;
   }
 }
+
+@media (max-width: 1366px) {
+  .super-admin-shell .sidebar-support-card,
+  .super-admin-shell .super-admin-support-card {
+    display: none;
+  }
+
+  .super-admin-shell .sidebar-user-card {
+    padding: 14px;
+  }
+
+  .super-admin-shell .sidebar-user-meta {
+    gap: 6px;
+  }
+
+  .super-admin-shell .sidebar-chip {
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .super-admin-shell .dashboard-nav-link {
+    min-height: 50px;
+    padding: 10px 12px;
+  }
+
+  .super-admin-shell .nav-link-copy {
+    gap: 2px;
+  }
+
+  .super-admin-shell .nav-link-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 900px), (max-height: 760px) {
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    gap: 10px;
+  }
+
+  .super-admin-shell .sidebar-brand h1,
+  .super-admin-shell .super-admin-brand h1 {
+    font-size: 18px;
+  }
+
+  .super-admin-shell .sidebar-brand p,
+  .super-admin-shell .super-admin-brand p {
+    font-size: 12px;
+  }
+
+  .super-admin-shell .sidebar-user-card strong {
+    font-size: 14px;
+  }
+
+  .super-admin-shell .sidebar-user-card > span:not(.section-kicker) {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .super-admin-shell .dashboard-nav-link {
+    min-height: 46px;
+    border-radius: 16px;
+  }
+
+  .super-admin-shell .nav-link-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .super-admin-shell .nav-link-text {
+    font-size: 13px;
+  }
+}
