@@ -17,7 +17,6 @@ CNPJ:     00000000000000
 ```
 
 ### ⚠️ IMPORTANTE - Segurança
-
 1. **ALTERE A SENHA IMEDIATAMENTE** após o primeiro login
 2. Estas credenciais são criadas automaticamente apenas se o banco estiver vazio
 3. Para alterar as credenciais padrão, configure as variáveis de ambiente no workflow:

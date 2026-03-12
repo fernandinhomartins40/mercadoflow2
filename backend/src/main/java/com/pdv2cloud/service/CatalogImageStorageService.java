@@ -2,6 +2,10 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.entity.ProductEnrichment;
 import com.pdv2cloud.repository.ProductEnrichmentRepository;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,11 +19,13 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import javax.imageio.ImageIO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Slf4j
@@ -32,18 +38,21 @@ public class CatalogImageStorageService {
     private final ProductEnrichmentRepository productEnrichmentRepository;
     private final Path catalogImagesDir;
     private final long maxImageBytes;
+    private final long maxUploadImageBytes;
     private final HttpClient httpClient;
 
     public CatalogImageStorageService(
         CatalogImageUrlResolver catalogImageUrlResolver,
         ProductEnrichmentRepository productEnrichmentRepository,
         @Value("${app.catalog.images-dir:../data/catalog/images}") String catalogImagesDir,
-        @Value("${app.catalog.max-image-bytes:5000000}") long maxImageBytes
+        @Value("${app.catalog.max-image-bytes:5000000}") long maxImageBytes,
+        @Value("${app.catalog.max-upload-image-bytes:12000000}") long maxUploadImageBytes
     ) {
         this.catalogImageUrlResolver = catalogImageUrlResolver;
         this.productEnrichmentRepository = productEnrichmentRepository;
         this.catalogImagesDir = Paths.get(catalogImagesDir).toAbsolutePath().normalize();
         this.maxImageBytes = Math.max(256_000L, maxImageBytes);
+        this.maxUploadImageBytes = Math.max(this.maxImageBytes, maxUploadImageBytes);
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
             .followRedirects(HttpClient.Redirect.NORMAL)
@@ -95,6 +104,53 @@ public class CatalogImageStorageService {
             return loadManagedResource(managedStorageKey).isPresent();
         }
         return false;
+    }
+
+    public String storeUploadedSquareImage(String imageStorageKey, MultipartFile file) {
+        String normalizedStorageKey = catalogImageUrlResolver.normalizeStorageKey(imageStorageKey);
+        Path imagePath = resolveStoragePath(normalizedStorageKey);
+        if (normalizedStorageKey == null || imagePath == null) {
+            throw new IllegalArgumentException("Chave de storage invalida para a imagem");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Nenhuma imagem foi enviada");
+        }
+        if (file.getSize() > maxUploadImageBytes) {
+            throw new IllegalArgumentException("Imagem excede o limite permitido para upload");
+        }
+
+        try {
+            Files.createDirectories(imagePath.getParent());
+            BufferedImage sourceImage = ImageIO.read(file.getInputStream());
+            if (sourceImage == null) {
+                throw new IllegalArgumentException("Arquivo enviado nao e uma imagem valida");
+            }
+            BufferedImage normalizedImage = normalizeSquareImage(sourceImage);
+            Path tempFile = Files.createTempFile(imagePath.getParent(), "catalog-upload-", ".jpg");
+            try {
+                if (!ImageIO.write(normalizedImage, "jpg", tempFile.toFile())) {
+                    throw new IllegalStateException("Nao foi possivel salvar a imagem enviada");
+                }
+                Files.move(tempFile, imagePath, StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(tempFile);
+            }
+            return catalogImageUrlResolver.managedUrl(normalizedStorageKey);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Falha ao persistir a imagem enviada", ex);
+        }
+    }
+
+    public boolean deleteManagedImage(String imageStorageKey) {
+        Path imagePath = resolveStoragePath(imageStorageKey);
+        if (imagePath == null) {
+            return false;
+        }
+        try {
+            return Files.deleteIfExists(imagePath);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Falha ao remover a imagem do storage", ex);
+        }
     }
 
     public Optional<Resource> loadManagedResource(String imageStorageKey) {
@@ -241,5 +297,43 @@ public class CatalogImageStorageService {
             return normalizedUrl;
         }
         return resolveFallbackSourceUrl(imageStorageKey);
+    }
+
+    private BufferedImage normalizeSquareImage(BufferedImage sourceImage) {
+        int width = sourceImage.getWidth();
+        int height = sourceImage.getHeight();
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Imagem enviada nao possui dimensoes validas");
+        }
+
+        int cropSize = Math.min(width, height);
+        int sourceX = Math.max(0, (width - cropSize) / 2);
+        int sourceY = Math.max(0, (height - cropSize) / 2);
+        int outputSize = Math.min(cropSize, 1200);
+
+        BufferedImage normalized = new BufferedImage(outputSize, outputSize, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = normalized.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, outputSize, outputSize);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.drawImage(
+                sourceImage,
+                0,
+                0,
+                outputSize,
+                outputSize,
+                sourceX,
+                sourceY,
+                sourceX + cropSize,
+                sourceY + cropSize,
+                null
+            );
+        } finally {
+            graphics.dispose();
+        }
+        return normalized;
     }
 }

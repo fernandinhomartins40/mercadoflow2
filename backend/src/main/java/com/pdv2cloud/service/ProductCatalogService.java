@@ -34,6 +34,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Transactional
@@ -277,6 +278,77 @@ public class ProductCatalogService {
         ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
 
         applyManualEnrichmentFields(enrichment, product, request, provider, requestedGtin);
+        enrichment = productEnrichmentRepository.save(enrichment);
+        return toCatalogAdminProductDTO(enrichment);
+    }
+
+    public CatalogAdminProductDTO replaceCatalogProductImage(UUID productId, String provider, MultipartFile file) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new IllegalArgumentException("Produto nao encontrado"));
+        String effectiveProvider = ProductCatalogUtils.canonicalizeDisplayName(provider);
+        if (effectiveProvider == null) {
+            effectiveProvider = "MANUAL_SUPER_ADMIN";
+        }
+
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, effectiveProvider);
+        initializeManualEnrichment(enrichment, product, effectiveProvider);
+
+        String storageKey = buildManualUploadStorageKey(effectiveProvider, product.getId());
+        String managedImageUrl = catalogImageStorageService.storeUploadedSquareImage(storageKey, file);
+        LocalDateTime now = LocalDateTime.now();
+
+        enrichment.setImageStorageKey(storageKey);
+        enrichment.setImageUrl(managedImageUrl);
+        enrichment.setFetchedAt(now);
+        enrichment.setLastVerifiedAt(now);
+        if (enrichment.getConfidenceScore() == null) {
+            enrichment.setConfidenceScore(scaleConfidence(BigDecimal.valueOf(0.99)));
+        }
+
+        product.setImageUrl(managedImageUrl);
+        product.setSourceBest(ProductDataSource.MANUAL);
+        product.setIdentityType(ProductIdentityType.GTIN);
+        product.setLastVerifiedAt(now);
+        if (product.getConfidenceScore() == null) {
+            product.setConfidenceScore(scaleConfidence(BigDecimal.valueOf(0.99)));
+        }
+
+        productRepository.save(product);
+        enrichment = productEnrichmentRepository.save(enrichment);
+        return toCatalogAdminProductDTO(enrichment);
+    }
+
+    public CatalogAdminProductDTO removeCatalogProductImage(UUID productId, String provider) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new IllegalArgumentException("Produto nao encontrado"));
+        String effectiveProvider = ProductCatalogUtils.canonicalizeDisplayName(provider);
+        if (effectiveProvider == null) {
+            effectiveProvider = "MANUAL_SUPER_ADMIN";
+        }
+
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, effectiveProvider);
+        initializeManualEnrichment(enrichment, product, effectiveProvider);
+        String currentStorageKey = enrichment.getImageStorageKey();
+        if (currentStorageKey == null || currentStorageKey.isBlank()) {
+            currentStorageKey = catalogImageUrlResolver.extractManagedStorageKey(enrichment.getImageUrl());
+        }
+        String currentManagedUrl = catalogImageUrlResolver.resolve(enrichment.getImageUrl(), currentStorageKey);
+
+        if (currentStorageKey != null && !currentStorageKey.isBlank()) {
+            catalogImageStorageService.deleteManagedImage(currentStorageKey);
+        }
+
+        enrichment.setImageStorageKey(null);
+        enrichment.setImageUrl(null);
+        enrichment.setFetchedAt(LocalDateTime.now());
+        enrichment.setLastVerifiedAt(LocalDateTime.now());
+
+        if (currentManagedUrl != null && currentManagedUrl.equals(catalogImageUrlResolver.resolve(product.getImageUrl(), null))) {
+            product.setImageUrl(null);
+        }
+        product.setLastVerifiedAt(LocalDateTime.now());
+
+        productRepository.save(product);
         enrichment = productEnrichmentRepository.save(enrichment);
         return toCatalogAdminProductDTO(enrichment);
     }
@@ -775,6 +847,42 @@ public class ProductCatalogService {
         );
         enrichment.setFetchedAt(LocalDateTime.now());
         enrichment.setLastVerifiedAt(LocalDateTime.now());
+    }
+
+    private void initializeManualEnrichment(ProductEnrichment enrichment, Product product, String provider) {
+        enrichment.setProduct(product);
+        enrichment.setProvider(provider);
+        if (enrichment.getProviderProductId() == null || enrichment.getProviderProductId().isBlank()) {
+            enrichment.setProviderProductId(product.getEan());
+        }
+        if (enrichment.getCanonicalName() == null || enrichment.getCanonicalName().isBlank()) {
+            enrichment.setCanonicalName(ProductCatalogUtils.canonicalizeDisplayName(product.getName()));
+        }
+        if (enrichment.getBrand() == null || enrichment.getBrand().isBlank()) {
+            enrichment.setBrand(ProductCatalogUtils.canonicalizeDisplayName(product.getBrand()));
+        }
+        if (enrichment.getCategory() == null || enrichment.getCategory().isBlank()) {
+            enrichment.setCategory(ProductCatalogUtils.canonicalizeDisplayName(product.getCategory()));
+        }
+        if (enrichment.getUnit() == null || enrichment.getUnit().isBlank()) {
+            enrichment.setUnit(ProductCatalogUtils.canonicalizeDisplayName(product.getUnit()));
+        }
+        if (enrichment.getPackageDescription() == null || enrichment.getPackageDescription().isBlank()) {
+            enrichment.setPackageDescription(ProductCatalogUtils.canonicalizeDisplayName(product.getPackageDescription()));
+        }
+        if (enrichment.getSourceLicense() == null || enrichment.getSourceLicense().isBlank()) {
+            enrichment.setSourceLicense("Imagem manual gerenciada pelo Super Admin");
+        }
+        if (enrichment.getRawPayload() == null || enrichment.getRawPayload().isBlank()) {
+            enrichment.setRawPayload("{\"origin\":\"SUPER_ADMIN_MANUAL\"}");
+        }
+    }
+
+    private String buildManualUploadStorageKey(String provider, UUID productId) {
+        String providerSegment = provider == null || provider.isBlank()
+            ? "manual_super_admin"
+            : provider.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]+", "_");
+        return providerSegment + "/manual-" + productId + ".jpg";
     }
 
     private CatalogAdminProductDTO toCatalogAdminProductDTO(ProductEnrichment enrichment) {

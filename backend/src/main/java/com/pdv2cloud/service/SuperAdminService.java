@@ -65,6 +65,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Transactional
@@ -529,6 +530,14 @@ public class SuperAdminService {
 
     public CatalogAdminProductDTO updateCatalogProduct(UUID productId, SuperAdminCatalogProductUpsertRequest request) {
         return productCatalogService.updateManualCatalogProduct(productId, request);
+    }
+
+    public CatalogAdminProductDTO replaceCatalogProductImage(UUID productId, String provider, MultipartFile file) {
+        return productCatalogService.replaceCatalogProductImage(productId, provider, file);
+    }
+
+    public CatalogAdminProductDTO removeCatalogProductImage(UUID productId, String provider) {
+        return productCatalogService.removeCatalogProductImage(productId, provider);
     }
 
     public SuperAdminCrawlerConfigDTO getCrawlerConfig(boolean onlyEnabledSources) {

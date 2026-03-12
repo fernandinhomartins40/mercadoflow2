@@ -1,0 +1,3379 @@
+[
+  {
+    "viewport": "1366",
+    "page": "admin-dashboard",
+    "route": "/app",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-admin-dashboard.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "admin-alerts",
+    "route": "/app/alertas",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-admin-alerts.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "admin-pdvs",
+    "route": "/app/pdvs",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-admin-pdvs.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "admin-catalog",
+    "route": "/app/admin/catalogo",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-admin-catalog.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "super-dashboard",
+    "route": "/super-admin",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-super-dashboard.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "super-saas",
+    "route": "/super-admin/saas",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-super-saas.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "super-catalog",
+    "route": "/super-admin/catalogo",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-super-catalog.png"
+  },
+  {
+    "viewport": "1366",
+    "page": "super-crawler",
+    "route": "/super-admin/crawler",
+    "innerWidth": 1366,
+    "clientWidth": 1366,
+    "scrollWidth": 1366,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "table",
+        "className": "table catalog-admin-table",
+        "id": "",
+        "width": 1055,
+        "left": 323,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -323,
+        "text": "Status Solicitado Finalizado Providers Importados Erros Mensagem Acoes Executand"
+      },
+      {
+        "tag": "thead",
+        "className": "",
+        "id": "",
+        "width": 1055,
+        "left": 323,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -323,
+        "text": "Status Solicitado Finalizado Providers Importados Erros Mensagem Acoes"
+      },
+      {
+        "tag": "tr",
+        "className": "",
+        "id": "",
+        "width": 1055,
+        "left": 323,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -323,
+        "text": "Status Solicitado Finalizado Providers Importados Erros Mensagem Acoes"
+      },
+      {
+        "tag": "th",
+        "className": "",
+        "id": "",
+        "width": 138,
+        "left": 1240,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -1240,
+        "text": "Acoes"
+      },
+      {
+        "tag": "tbody",
+        "className": "",
+        "id": "",
+        "width": 1055,
+        "left": 323,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -323,
+        "text": "Executando 11/03/2026, 06:15:00 11/03/2026, 06:16:00 SUPERMUFFATO_WEB_BR Categor"
+      },
+      {
+        "tag": "tr",
+        "className": "",
+        "id": "",
+        "width": 1055,
+        "left": 323,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -323,
+        "text": "Executando 11/03/2026, 06:15:00 11/03/2026, 06:16:00 SUPERMUFFATO_WEB_BR Categor"
+      },
+      {
+        "tag": "td",
+        "className": "table-action-cell",
+        "id": "",
+        "width": 138,
+        "left": 1240,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -1240,
+        "text": "Detalhes Parar Reiniciar"
+      },
+      {
+        "tag": "tr",
+        "className": "",
+        "id": "",
+        "width": 1055,
+        "left": 323,
+        "right": 1378,
+        "overRight": 12,
+        "overLeft": -323,
+        "text": "Concluido 11/03/2026, 05:00:00 11/03/2026, 05:12:00 ATACADAO_WEB_BR Categorias: "
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1366-super-crawler.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "admin-dashboard",
+    "route": "/app",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1322,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-admin-dashboard.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "admin-alerts",
+    "route": "/app/alertas",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1322,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-admin-alerts.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "admin-pdvs",
+    "route": "/app/pdvs",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1322,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-admin-pdvs.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "admin-catalog",
+    "route": "/app/admin/catalogo",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1322,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-admin-catalog.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "super-dashboard",
+    "route": "/super-admin",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1310,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-super-dashboard.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "super-saas",
+    "route": "/super-admin/saas",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1310,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-super-saas.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "super-catalog",
+    "route": "/super-admin/catalogo",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1310,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-super-catalog.png"
+  },
+  {
+    "viewport": "1024",
+    "page": "super-crawler",
+    "route": "/super-admin/crawler",
+    "innerWidth": 1024,
+    "clientWidth": 1024,
+    "scrollWidth": 1024,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -1042,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -1117,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1310,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -1063,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\1024-super-crawler.png"
+  },
+  {
+    "viewport": "768",
+    "page": "admin-dashboard",
+    "route": "/app",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1066,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 254,
+        "left": -338,
+        "right": -84,
+        "overRight": -852,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-admin-dashboard.png"
+  },
+  {
+    "viewport": "768",
+    "page": "admin-alerts",
+    "route": "/app/alertas",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1066,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 254,
+        "left": -338,
+        "right": -84,
+        "overRight": -852,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-admin-alerts.png"
+  },
+  {
+    "viewport": "768",
+    "page": "admin-pdvs",
+    "route": "/app/pdvs",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1066,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 254,
+        "left": -338,
+        "right": -84,
+        "overRight": -852,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-admin-pdvs.png"
+  },
+  {
+    "viewport": "768",
+    "page": "admin-catalog",
+    "route": "/app/admin/catalogo",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 40,
+        "left": -338,
+        "right": -298,
+        "overRight": -1066,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 254,
+        "left": -338,
+        "right": -84,
+        "overRight": -852,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -338,
+        "right": -50,
+        "overRight": -818,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-admin-catalog.png"
+  },
+  {
+    "viewport": "768",
+    "page": "super-dashboard",
+    "route": "/super-admin",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1054,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-super-dashboard.png"
+  },
+  {
+    "viewport": "768",
+    "page": "super-saas",
+    "route": "/super-admin/saas",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1054,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-super-saas.png"
+  },
+  {
+    "viewport": "768",
+    "page": "super-catalog",
+    "route": "/super-admin/catalogo",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1054,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-super-catalog.png"
+  },
+  {
+    "viewport": "768",
+    "page": "super-crawler",
+    "route": "/super-admin/crawler",
+    "innerWidth": 768,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -786,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 245,
+        "left": -338,
+        "right": -93,
+        "overRight": -861,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -338,
+        "right": -286,
+        "overRight": -1054,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 299,
+        "left": -338,
+        "right": -39,
+        "overRight": -807,
+        "overLeft": 338,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\768-super-crawler.png"
+  },
+  {
+    "viewport": "430",
+    "page": "admin-dashboard",
+    "route": "/app",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -730,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -583,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-admin-dashboard.png"
+  },
+  {
+    "viewport": "430",
+    "page": "admin-alerts",
+    "route": "/app/alertas",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -730,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -583,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-admin-alerts.png"
+  },
+  {
+    "viewport": "430",
+    "page": "admin-pdvs",
+    "route": "/app/pdvs",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -730,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -583,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-admin-pdvs.png"
+  },
+  {
+    "viewport": "430",
+    "page": "admin-catalog",
+    "route": "/app/admin/catalogo",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -730,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -583,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -484,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-admin-catalog.png"
+  },
+  {
+    "viewport": "430",
+    "page": "super-dashboard",
+    "route": "/super-admin",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -720,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-super-dashboard.png"
+  },
+  {
+    "viewport": "430",
+    "page": "super-saas",
+    "route": "/super-admin/saas",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -720,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-super-saas.png"
+  },
+  {
+    "viewport": "430",
+    "page": "super-catalog",
+    "route": "/super-admin/catalogo",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -720,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-super-catalog.png"
+  },
+  {
+    "viewport": "430",
+    "page": "super-crawler",
+    "route": "/super-admin/crawler",
+    "innerWidth": 430,
+    "clientWidth": 430,
+    "scrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -448,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -519,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -720,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -465,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\430-super-crawler.png"
+  },
+  {
+    "viewport": "390",
+    "page": "admin-dashboard",
+    "route": "/app",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -690,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -543,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-admin-dashboard.png"
+  },
+  {
+    "viewport": "390",
+    "page": "admin-alerts",
+    "route": "/app/alertas",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -690,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -543,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-admin-alerts.png"
+  },
+  {
+    "viewport": "390",
+    "page": "admin-pdvs",
+    "route": "/app/pdvs",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -690,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -543,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-admin-pdvs.png"
+  },
+  {
+    "viewport": "390",
+    "page": "admin-catalog",
+    "route": "/app/admin/catalogo",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-brand-mark",
+        "id": "",
+        "width": 42,
+        "left": -342,
+        "right": -300,
+        "overRight": -690,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card",
+        "id": "",
+        "width": 189,
+        "left": -342,
+        "right": -153,
+        "overRight": -543,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 288,
+        "left": -342,
+        "right": -54,
+        "overRight": -444,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-admin-catalog.png"
+  },
+  {
+    "viewport": "390",
+    "page": "super-dashboard",
+    "route": "/super-admin",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -680,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-super-dashboard.png"
+  },
+  {
+    "viewport": "390",
+    "page": "super-saas",
+    "route": "/super-admin/saas",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -680,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-super-saas.png"
+  },
+  {
+    "viewport": "390",
+    "page": "super-catalog",
+    "route": "/super-admin/catalogo",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -680,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-super-catalog.png"
+  },
+  {
+    "viewport": "390",
+    "page": "super-crawler",
+    "route": "/super-admin/crawler",
+    "innerWidth": 390,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "offenders": [
+      {
+        "tag": "aside",
+        "className": "super-admin-sidebar workspace-sidebar ",
+        "id": "",
+        "width": 340,
+        "left": -358,
+        "right": -18,
+        "overRight": -408,
+        "overLeft": 358,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "workspace-sidebar-head",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "super-admin-brand",
+        "id": "",
+        "width": 253,
+        "left": -342,
+        "right": -89,
+        "overRight": -479,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "super-admin-badge",
+        "id": "",
+        "width": 52,
+        "left": -342,
+        "right": -290,
+        "overRight": -680,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-user-card super-admin-user-card",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-sections",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "className": "sidebar-section",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      },
+      {
+        "tag": "span",
+        "className": "sidebar-section-title",
+        "id": "",
+        "width": 307,
+        "left": -342,
+        "right": -35,
+        "overRight": -425,
+        "overLeft": 342,
+        "text": ""
+      }
+    ],
+    "screenshot": "c:\\Projestos Claude Code\\mercadoflow2\\qa\\viewport\\390-super-crawler.png"
+  }
+]
