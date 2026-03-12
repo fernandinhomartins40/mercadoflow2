@@ -58,7 +58,7 @@ const SuperAdminLogin: React.FC = () => {
       }
       navigate('/super-admin');
     } catch (err: any) {
-      setError(err?.message || 'Falha ao autenticar no painel Super Admin');
+      setError(err?.message || 'Falha ao entrar no painel do super admin');
     }
   };
 
@@ -66,8 +66,8 @@ const SuperAdminLogin: React.FC = () => {
     <div className="super-admin-login-page">
       <div className="super-admin-login-card card">
         <span className="pill">Super Admin</span>
-        <h2>Painel da Plataforma</h2>
-        <p>Login separado da aplicacao principal para controle de usuarios, planos e catalogo global.</p>
+        <h2>Painel do super admin</h2>
+        <p>Acesso da operação para revisar contas, catálogo e coletas.</p>
         <form className="super-admin-login-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>E-mail</label>
@@ -122,7 +122,7 @@ const SuperAdminLogin: React.FC = () => {
             </label>
           </div>
           {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
-          <Button type="submit">Entrar no Super Admin</Button>
+          <Button type="submit">Entrar</Button>
         </form>
       </div>
     </div>

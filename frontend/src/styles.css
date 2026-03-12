@@ -3246,6 +3246,52 @@ button {
   gap: 8px;
 }
 
+.catalog-admin-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.catalog-admin-editor-inline-note {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(20, 24, 38, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.catalog-admin-editor-inline-note strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.catalog-admin-editor-inline-note span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.catalog-admin-editor-code {
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  white-space: pre;
+}
+
+.super-admin-saas-modal {
+  width: min(980px, 100%);
+}
+
+.super-admin-saas-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.super-admin-saas-modal-checkbox,
+.super-admin-saas-modal-notes {
+  grid-column: 1 / -1;
+}
+
 .catalog-admin-editor-chip {
   display: inline-flex;
   align-items: center;
@@ -4806,7 +4852,7 @@ button {
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1366px) {
   .sidebar-toggle,
   .sidebar-close {
     display: inline-grid;
@@ -6305,16 +6351,21 @@ select:focus,
 }
 
 @media (max-width: 1366px) {
-  .dashboard-command-grid {
-    grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
-  }
-
-  .dashboard-workbench-grid {
-    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  .dashboard-command-grid,
+  .dashboard-workbench-grid,
+  .dashboard-page-grid,
+  .dashboard-inline-grid,
+  .analytics-grid,
+  .analytics-grid-main {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-workbench-grid > :last-child {
-    grid-column: 1 / -1;
+    grid-column: auto;
+  }
+
+  .super-admin-crawler-job-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -6570,7 +6621,7 @@ a.dashboard-quick-item:hover {
   max-width: 520px;
 }
 
-@media (min-width: 1181px) {
+@media (min-width: 1367px) {
   .dashboard-home-page .dashboard-priority-rail,
   .super-admin-home-page .dashboard-priority-rail,
   .super-admin-crawler-page .dashboard-priority-rail,
@@ -6609,6 +6660,10 @@ a.dashboard-quick-item:hover {
     border-radius: 22px;
   }
 
+  .super-admin-saas-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
   .catalog-admin-page .catalog-admin-table-wrap {
     padding: 8px;
     border-radius: 20px;
@@ -6616,5 +6671,82 @@ a.dashboard-quick-item:hover {
 
   .super-admin-crawler-page .super-admin-crawler-job-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== SUPER ADMIN SHELL STABILITY ==================== */
+
+.super-admin-shell .workspace-sidebar,
+.super-admin-shell .super-admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: calc(100vh - 36px);
+  max-height: calc(100vh - 36px);
+  min-height: calc(100vh - 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.super-admin-shell .sidebar-sections {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.super-admin-shell .super-admin-footer {
+  margin-top: auto;
+}
+
+.super-admin-shell .sidebar-user-card,
+.super-admin-shell .sidebar-support-card {
+  padding: 16px;
+}
+
+.super-admin-shell .dashboard-nav-link {
+  min-height: 58px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 1366px) and (min-width: 1025px) {
+  .super-admin-shell.workspace-shell {
+    grid-template-columns: 272px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    position: sticky;
+    inset: auto;
+    width: auto;
+    top: 14px;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+    height: calc(100vh - 28px);
+    max-height: calc(100vh - 28px);
+    min-height: calc(100vh - 28px);
+    border-radius: 30px;
+  }
+
+  .super-admin-shell .sidebar-toggle,
+  .super-admin-shell .sidebar-close,
+  .super-admin-shell .sidebar-backdrop {
+    display: none;
+  }
+
+  .super-admin-shell .workspace-main {
+    padding: 0 0 28px;
+  }
+
+  .super-admin-shell .workspace-content {
+    gap: 20px;
+  }
+
+  .super-admin-shell .sidebar-user-card,
+  .super-admin-shell .sidebar-support-card {
+    padding: 14px;
   }
 }

@@ -47,7 +47,7 @@ const formatStatus = (value?: string | null) => {
   const status = (value || '').toUpperCase();
   if (status === 'RUNNING') return 'Executando';
   if (status === 'QUEUED') return 'Na fila';
-  if (status === 'SUCCESS') return 'Concluido';
+  if (status === 'SUCCESS') return 'Concluído';
   if (status === 'FAILED') return 'Falhou';
   if (status === 'CANCELLED') return 'Cancelado';
   return status || '--';
@@ -87,7 +87,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
       setDetails(response.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar detalhes da execucao');
+      setError(err?.message || 'Falha ao carregar os detalhes da execução');
     } finally {
       setLoading(false);
     }
@@ -121,15 +121,15 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
         <section className="dashboard-command-grid reveal super-admin-command-grid">
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
-              <span className="pill">Crawler manual</span>
-              <h1 className="dashboard-command-title">Detalhes operacionais da execucao.</h1>
+              <span className="pill">Detalhes da coleta</span>
+              <h1 className="dashboard-command-title">Detalhes da execução.</h1>
               <p className="dashboard-command-text">
-                Esta pagina concentra status, escopo, artefatos, amostra de produtos e logs para uma unica rodada de coleta manual.
+                Esta página concentra status, escopo, artefatos, amostra de produtos e logs de uma única rodada.
               </p>
               <div className="hero-chip-row">
                 <span className={`hero-chip status-${runStatusClass(details?.run?.status)}`}>{details?.run ? formatStatus(details.run.status) : 'Carregando'}</span>
                 <span className="hero-chip">Run {runId}</span>
-                <span className="hero-chip">{details?.active ? 'Atualizacao automatica ativa' : 'Rodada finalizada'}</span>
+                <span className="hero-chip">{details?.active ? 'Atualização automática ativa' : 'Rodada finalizada'}</span>
               </div>
             </div>
 
@@ -139,7 +139,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                 <strong>{details?.run ? formatStatus(details.run.status) : 'Carregando'}</strong>
                 <p>{details?.run?.message || 'Sem mensagem registrada.'}</p>
                 <div className="hero-inline-actions">
-                  <Link to="/super-admin/crawler" className="button secondary">Voltar para o crawler</Link>
+                  <Link to="/super-admin/crawler" className="button secondary">Voltar ao crawler</Link>
                   <Button variant="secondary" onClick={() => load(offset)} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>
                 </div>
               </article>
@@ -164,17 +164,17 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
               <span className="section-kicker">Escopo da rodada</span>
-              <h3>{details?.run?.selectedCategories && details.run.selectedCategories.length > 0 ? 'Execucao filtrada por categoria' : 'Catalogo completo'}</h3>
+              <h3>{details?.run?.selectedCategories && details.run.selectedCategories.length > 0 ? 'Execução filtrada por categoria' : 'Catálogo completo'}</h3>
               <p>
                 {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
                   ? details.run.selectedCategories.join(', ')
-                  : 'A rodada varreu todo o catalogo configurado para o provider selecionado.'}
+                  : 'A rodada varreu todo o catálogo configurado para o mercado selecionado.'}
               </p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Arquivos da rodada</span>
-              <h3>Logs e artefatos ficam visiveis aqui.</h3>
-              <p>Use esta tela para validar o que foi captado, o que entrou no catalogo e se houve erro em pagina, imagem ou importacao.</p>
+              <h3>Logs e artefatos ficam disponíveis aqui.</h3>
+              <p>Use esta tela para validar o que foi captado, o que entrou no catálogo e se houve erro em página, imagem ou importação.</p>
             </article>
           </aside>
         </section>
@@ -193,7 +193,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
               <div className="metric-card metric-card-warning reveal">
                 <div className="metric-card-top"><span className="metric-card-title">Importados</span><span className="metric-card-icon">IM</span></div>
                 <strong className="metric-card-value">{Number(details.run.importedProducts || 0)}</strong>
-                <div className="metric-card-bottom"><span className="metric-card-meta">itens enviados ao catalogo global</span></div>
+                <div className="metric-card-bottom"><span className="metric-card-meta">itens enviados ao catálogo global</span></div>
               </div>
               <div className="metric-card metric-card-danger reveal">
                 <div className="metric-card-top"><span className="metric-card-title">Erros</span><span className="metric-card-icon">ER</span></div>
@@ -210,7 +210,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
             <div className="dashboard-page-grid">
               <section className="analytics-panel reveal dashboard-note-card">
                 <span className="section-kicker">Metadados da rodada</span>
-                <h3>Contexto principal da execucao</h3>
+                <h3>Contexto principal da execução</h3>
                 <div className="dashboard-stat-list">
                   <div className="dashboard-stat-row">
                     <span>Solicitado</span>
@@ -225,7 +225,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     <strong>{formatDate(details.run.finishedAt)}</strong>
                   </div>
                   <div className="dashboard-stat-row">
-                    <span>Fonte</span>
+                    <span>Mercado</span>
                     <strong>{(details.run.sources || []).join(', ') || '--'}</strong>
                   </div>
                 </div>
@@ -240,7 +240,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     <span>{details.logPath || '--'}</span>
                   </div>
                   <div className="dashboard-quick-item">
-                    <strong>Resultado</strong>
+                    <strong>Arquivo de resultado</strong>
                     <span>{details.resultPath || '--'}</span>
                   </div>
                 </div>
@@ -253,14 +253,14 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                   <span className="section-kicker">{detailValue(manifest.provider)}</span>
                   <h3>{detailValue(manifest.source)}</h3>
                   <div className="crawler-run-detail-meta">
-                    <span><strong>Count:</strong> {detailValue(manifest.count)}</span>
+                    <span><strong>Total:</strong> {detailValue(manifest.count)}</span>
                     <span><strong>Capturados:</strong> {detailValue(manifest.capturedProducts)}</span>
                     <span><strong>Imagens:</strong> {detailValue(manifest.imagesSaved)}</span>
-                    <span><strong>Pages:</strong> {detailValue(manifest.pagesFetched)}</span>
-                    <span><strong>Unique:</strong> {detailValue(manifest.productsUnique)}</span>
+                    <span><strong>Páginas:</strong> {detailValue(manifest.pagesFetched)}</span>
+                    <span><strong>Únicos:</strong> {detailValue(manifest.productsUnique)}</span>
                   </div>
-                  <p><strong>Manifest:</strong> {detailValue(manifest.outputManifest)}</p>
-                  <p><strong>Records:</strong> {detailValue(manifest.recordsFile)}</p>
+                  <p><strong>Manifesto:</strong> {detailValue(manifest.outputManifest)}</p>
+                  <p><strong>Registros:</strong> {detailValue(manifest.recordsFile)}</p>
                 </article>
               ))}
             </section>
@@ -269,16 +269,16 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
               <div className="analytics-panel-head">
                 <div>
                   <span className="section-kicker">Produtos</span>
-                  <h3>Itens captados nesta execucao</h3>
+                  <h3>Itens captados nesta execução</h3>
                 </div>
                 <div className="crawler-run-pagination">
                   <span>{Math.min(offset + 1, Number(details.recordsTotal || 0))}-{Math.min(offset + limit, Number(details.recordsTotal || 0))} de {Number(details.recordsTotal || 0)}</span>
                   <Button variant="secondary" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={!canGoPrev || loading}>Anterior</Button>
-                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Proximos</Button>
+                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Próximos</Button>
                 </div>
               </div>
               {details.records.length === 0 ? (
-                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execucao.</div>
+                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execução.</div>
               ) : (
                 <div className="catalog-admin-table-wrap">
                   <table className="table catalog-admin-table">
@@ -289,7 +289,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                         <th>Nome</th>
                         <th>Marca</th>
                         <th>Categoria</th>
-                        <th>Provider</th>
+                        <th>Mercado</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -309,7 +309,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                           </td>
                           <td data-label="Marca">{detailValue(record.brand)}</td>
                           <td data-label="Categoria">{detailValue(record.category)}</td>
-                          <td data-label="Provider">{detailValue(record.provider)}</td>
+                          <td data-label="Mercado">{detailValue(record.provider)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -322,14 +322,14 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
               <div className="analytics-panel-head">
                 <div>
                   <span className="section-kicker">Logs</span>
-                  <h3>Saida do dispatcher</h3>
+                  <h3>Saída do dispatcher</h3>
                 </div>
               </div>
               <div className="crawler-run-log-meta">
                 <span><strong>Log:</strong> {details.logPath || '--'}</span>
-                <span><strong>Result:</strong> {details.resultPath || '--'}</span>
+                <span><strong>Resultado:</strong> {details.resultPath || '--'}</span>
               </div>
-              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execucao.'}</pre>
+              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execução.'}</pre>
             </section>
           </>
         ) : null}

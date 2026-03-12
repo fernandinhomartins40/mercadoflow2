@@ -62,7 +62,7 @@ const formatStatus = (value?: string | null) => {
   const status = (value || '').toUpperCase();
   if (status === 'RUNNING') return 'Executando';
   if (status === 'QUEUED') return 'Na fila';
-  if (status === 'SUCCESS') return 'Concluido';
+  if (status === 'SUCCESS') return 'Concluído';
   if (status === 'FAILED') return 'Falhou';
   if (status === 'CANCELLED') return 'Cancelado';
   return status || '--';
@@ -80,7 +80,7 @@ const runStatusClass = (value?: string | null) => {
 const formatJobLoad = (job: CrawlerJob) => {
   const queued = Number(job.queuedRuns || 0);
   const running = Number(job.runningRuns || 0);
-  if (running > 0) return `${running} em execucao`;
+  if (running > 0) return `${running} em execução`;
   if (queued > 0) return `${queued} na fila`;
   return 'Sem fila local';
 };
@@ -89,7 +89,7 @@ const formatJobResult = (run?: CrawlerRun | null) => {
   const imported = Number(run?.importedProducts || 0);
   const scanned = Number(run?.scannedProducts || 0);
   const errors = Number(run?.errors || 0);
-  if (!run) return 'Sem historico';
+  if (!run) return 'Sem histórico';
   if (errors > 0) return `${imported}/${scanned} | ${errors} erros`;
   return `${imported}/${scanned}`;
 };
@@ -149,7 +149,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
       await Promise.all([loadJobs(), loadMonitor()]);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar painel do crawler');
+      setError(err?.message || 'Falha ao carregar o painel do crawler');
     } finally {
       setLoading(false);
     }
@@ -185,13 +185,13 @@ const SuperAdminCrawlerConfig: React.FC = () => {
       });
       setSuccess(
         categories.length > 0
-          ? `Execucao manual enfileirada para ${provider} com ${categories.length} categorias selecionadas.`
-          : `Execucao manual enfileirada para ${provider} com catalogo completo.`
+          ? `Execução manual enfileirada para ${provider} com ${categories.length} categorias selecionadas.`
+          : `Execução manual enfileirada para ${provider} com catálogo completo.`
       );
       closeCategoryModal();
       await Promise.all([loadJobs(), loadMonitor()]);
     } catch (err: any) {
-      setError(err?.message || `Falha ao enfileirar execucao de ${provider}`);
+      setError(err?.message || `Falha ao enfileirar a execução de ${provider}`);
     } finally {
       setTriggeringProvider(null);
     }
@@ -217,7 +217,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
       setSelectedCategories([]);
     } catch (err: any) {
       closeCategoryModal();
-      setError(err?.message || `Falha ao carregar categorias de ${job.provider}`);
+      setError(err?.message || `Falha ao carregar as categorias de ${job.provider}`);
     } finally {
       setCategoriesLoading(false);
     }
@@ -247,10 +247,10 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     setSuccess(null);
     try {
       await api.post(`/v1/super-admin/catalog/crawler/runs/${runId}/cancel?triggeredBy=MANUAL_SUPER_ADMIN_CANCEL`);
-      setSuccess('Execucao marcada para cancelamento. O dispatcher vai encerrar a rodada atual assim que atingir um ponto seguro.');
+      setSuccess('Execução marcada para cancelamento. O dispatcher vai encerrar a rodada atual quando chegar a um ponto seguro.');
       await Promise.all([loadJobs(), loadMonitor()]);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao cancelar execucao');
+      setError(err?.message || 'Falha ao cancelar a execução');
     } finally {
       setStoppingRunId(null);
     }
@@ -262,10 +262,10 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     setSuccess(null);
     try {
       await api.post(`/v1/super-admin/catalog/crawler/runs/${runId}/restart?triggeredBy=MANUAL_SUPER_ADMIN_RESTART`);
-      setSuccess('Reexecucao enfileirada com os mesmos providers do run selecionado.');
+      setSuccess('Nova execução enfileirada com o mesmo mercado do run selecionado.');
       await Promise.all([loadJobs(), loadMonitor()]);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao reiniciar execucao');
+      setError(err?.message || 'Falha ao reiniciar a execução');
     } finally {
       setRestartingRunId(null);
     }
@@ -284,22 +284,22 @@ const SuperAdminCrawlerConfig: React.FC = () => {
         <section className="dashboard-command-grid reveal super-admin-command-grid">
           <article className="dashboard-command-card super-admin-command-card">
             <div className="dashboard-command-copy">
-              <span className="pill">Crawler Python</span>
-              <h1 className="dashboard-command-title">Execucao manual por mercado, sem ruido operacional.</h1>
+              <span className="pill">Crawler</span>
+              <h1 className="dashboard-command-title">Coleta manual por mercado.</h1>
               <p className="dashboard-command-text">
-                Cada bloco da tela foi reduzido para o que ajuda a decidir: estado atual, ultimo resultado e acao de disparo.
+                Aqui você acompanha o estado atual, o último resultado e dispara uma nova coleta quando precisar.
               </p>
               <div className="hero-inline-actions">
-                {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver ultimo run</Link> : null}
+                {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</Link> : null}
               </div>
             </div>
 
             <div className="dashboard-command-showcase">
               <div className="dashboard-glow-card">
                 <span className="section-kicker">Run mais recente</span>
-                <h3>{latestRun ? formatStatus(latestRun.status) : 'Sem historico'}</h3>
+                <h3>{latestRun ? formatStatus(latestRun.status) : 'Sem histórico'}</h3>
                 <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
-                <p>{latestRun?.message || 'Nenhuma execucao registrada ate o momento.'}</p>
+                <p>{latestRun?.message || 'Nenhuma execução registrada até agora.'}</p>
               </div>
             </div>
           </article>
@@ -308,7 +308,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
             <div className="dashboard-priority-card dark">
               <span className="section-kicker">Regra principal</span>
               <strong>Um supermercado por vez</strong>
-              <p>O dispatcher aceita apenas um provider por execucao para deixar o log legivel e a retomada previsivel.</p>
+              <p>O dispatcher roda um mercado por vez para manter o log claro e facilitar a retomada.</p>
             </div>
           </aside>
         </section>
@@ -322,7 +322,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
             <h3>{jobs.length}</h3>
           </div>
           <div className="card">
-            <span className="section-kicker">Em execucao</span>
+            <span className="section-kicker">Em execução</span>
             <h3>{activeJobs || monitor.runningRuns || 0}</h3>
           </div>
           <div className="card">
@@ -334,15 +334,15 @@ const SuperAdminCrawlerConfig: React.FC = () => {
         <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-note-card">
             <span className="section-kicker">Fluxo</span>
-            <h3>Executar, validar, seguir</h3>
+            <h3>Executar, revisar e seguir</h3>
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>1. Escolha um mercado</strong>
-                <span>Rode apenas o provider necessario.</span>
+                <span>Rode apenas o mercado necessário.</span>
               </div>
               <div className="dashboard-quick-item">
-                <strong>2. Revise o ultimo resultado</strong>
-                <span>Olhe importados, erros e detalhes antes do proximo mercado.</span>
+                <strong>2. Revise o último resultado</strong>
+                <span>Confira importados, erros e detalhes antes de partir para o próximo mercado.</span>
               </div>
             </div>
           </section>
@@ -357,7 +357,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                 <article className="card super-admin-crawler-job-card" key={job.provider}>
                   <div className="super-admin-crawler-job-head">
                     <div>
-                      <span className="section-kicker">{job.scopeLabel || 'Catalogo completo'}</span>
+                      <span className="section-kicker">{job.scopeLabel || 'Catálogo completo'}</span>
                       <h3>{job.name}</h3>
                     </div>
                     <span className={`status-pill ${job.enabled === false ? 'neutral' : runStatusClass(job.lastRun?.status)}`}>
@@ -374,13 +374,13 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
                   {job.enabled === false ? (
                     <div className="panel-empty" style={{ textAlign: 'left' }}>
-                      Execucao temporariamente desabilitada.
+                      Execução temporariamente desabilitada.
                     </div>
                   ) : null}
 
                   <div className="super-admin-crawler-job-stats">
                     <div>
-                      <span className="section-kicker">Ultima rodada</span>
+                      <span className="section-kicker">Última rodada</span>
                       <strong>{formatDate(job.lastRun?.finishedAt || job.lastRun?.startedAt || job.lastRun?.requestedAt)}</strong>
                     </div>
                     <div>
@@ -400,7 +400,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                         onClick={() => prepareProviderTrigger(job)}
                         disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}
                       >
-                        {triggeringProvider === job.provider ? 'Enfileirando...' : hasActiveRun ? 'Aguarde o run atual' : `Executar ${job.name}`}
+                        {triggeringProvider === job.provider ? 'Enfileirando...' : hasActiveRun ? 'Aguarde a execução atual' : `Executar ${job.name}`}
                       </Button>
                     </div>
                   </div>
@@ -411,12 +411,12 @@ const SuperAdminCrawlerConfig: React.FC = () => {
             <section className="analytics-panel reveal">
               <div className="analytics-panel-head">
                 <div>
-                  <span className="section-kicker">Historico</span>
-                  <h3>Ultimas execucoes do dispatcher</h3>
+                  <span className="section-kicker">Histórico</span>
+                  <h3>Últimas execuções</h3>
                 </div>
               </div>
               {monitor.recentRuns.length === 0 ? (
-                <div className="panel-empty">Nenhuma execucao registrada ate o momento.</div>
+                <div className="panel-empty">Nenhuma execução registrada até agora.</div>
               ) : (
                 <div className="catalog-admin-table-wrap">
                   <table className="table catalog-admin-table">
@@ -425,11 +425,11 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                         <th>Status</th>
                         <th>Solicitado</th>
                         <th>Finalizado</th>
-                        <th>Providers</th>
+                        <th>Mercados</th>
                         <th>Importados</th>
                         <th>Erros</th>
                         <th>Mensagem</th>
-                        <th>Acoes</th>
+                        <th>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -438,18 +438,18 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           <td data-label="Status"><span className={`status-pill ${runStatusClass(run.status)}`}>{formatStatus(run.status)}</span></td>
                           <td data-label="Solicitado">{formatDate(run.requestedAt)}</td>
                           <td data-label="Finalizado">{formatDate(run.finishedAt || run.startedAt)}</td>
-                          <td data-label="Providers">
+                          <td data-label="Mercados">
                             {(run.sources || []).join(', ') || '--'}
                             <div className="table-subtext">
                               {run.selectedCategories && run.selectedCategories.length > 0
                                 ? `Categorias: ${run.selectedCategories.slice(0, 3).join(', ')}${run.selectedCategories.length > 3 ? ` +${run.selectedCategories.length - 3}` : ''}`
-                                : 'Categorias: catalogo completo'}
+                                : 'Categorias: catálogo completo'}
                             </div>
                           </td>
                           <td data-label="Importados">{Number(run.importedProducts || 0)} / {Number(run.scannedProducts || 0)}</td>
                           <td data-label="Erros">{Number(run.errors || 0)}</td>
                           <td data-label="Mensagem">{run.message || '--'}</td>
-                          <td data-label="Acoes" className="table-action-cell">
+                          <td data-label="Ações" className="table-action-cell">
                             <div className="crawler-run-actions">
                               <Link className="button secondary" to={`/super-admin/crawler/runs/${run.id}`}>
                                 Detalhes
@@ -466,7 +466,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                                 onClick={() => restartRun(run.id)}
                                 disabled={!canRestartRun(run) || restartingRunId === run.id || stoppingRunId === run.id || hasActiveRun}
                               >
-                                {restartingRunId === run.id ? 'Reiniciando...' : canRestartRun(run) ? 'Reiniciar' : 'Somente 1 provider'}
+                                {restartingRunId === run.id ? 'Reiniciando...' : canRestartRun(run) ? 'Reiniciar' : 'Somente 1 mercado'}
                               </Button>
                             </div>
                           </td>
@@ -492,9 +492,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               <div className="catalog-admin-modal-head">
                 <div>
                   <span className="section-kicker">{categoryJob.provider}</span>
-                  <h3 id="crawler-category-modal-title">Selecionar categorias para {categoryJob.name}</h3>
+                  <h3 id="crawler-category-modal-title">Selecionar categorias de {categoryJob.name}</h3>
                   <p className="super-admin-crawler-job-text">
-                    Escolha apenas as categorias que devem ser capturadas neste run. Se nenhuma categoria ficar marcada, o crawler roda o catalogo inteiro do supermercado.
+                    Escolha apenas as categorias que devem ser capturadas neste run. Se nenhuma categoria ficar marcada, o crawler roda o catálogo inteiro do supermercado.
                   </p>
                 </div>
                 <Button variant="secondary" onClick={closeCategoryModal} disabled={triggeringProvider === categoryJob.provider}>
@@ -503,7 +503,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               </div>
 
               {categoriesLoading ? (
-                <div className="panel-empty">Carregando categorias disponiveis...</div>
+                <div className="panel-empty">Carregando categorias disponíveis...</div>
               ) : (
                 <>
                   <div className="crawler-category-toolbar">
@@ -519,7 +519,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                     </label>
                     <div className="crawler-category-toolbar-actions">
                       <Button variant="secondary" onClick={selectVisibleCategories}>
-                        Selecionar visiveis
+                        Selecionar visíveis
                       </Button>
                       <Button variant="secondary" onClick={clearCategorySelection}>
                         Limpar tudo
@@ -563,7 +563,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                     <div className="super-admin-crawler-job-license">
                       {selectedCategories.length > 0
                         ? 'O run sera filtrado por estas categorias.'
-                        : 'Sem selecao o run captura o catalogo completo.'}
+                        : 'Sem seleção o run captura o catálogo completo.'}
                     </div>
                     <div className="crawler-run-actions">
                       <Button variant="secondary" onClick={closeCategoryModal} disabled={triggeringProvider === categoryJob.provider}>
@@ -577,7 +577,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           ? 'Enfileirando...'
                           : selectedCategories.length > 0
                             ? `Executar ${selectedCategories.length} categorias`
-                            : 'Executar catalogo completo'}
+                            : 'Executar catálogo completo'}
                       </Button>
                     </div>
                   </div>

@@ -4,10 +4,10 @@ import Button from '../common/Button';
 import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/super-admin': { title: 'Visao geral', subtitle: 'Leitura central da plataforma, contas e indicadores do ecossistema', section: 'Controle' },
-  '/super-admin/saas': { title: 'Gestao SaaS', subtitle: 'Contas, usuarios, vencimentos e liberacoes manuais', section: 'Controle' },
-  '/super-admin/catalogo': { title: 'Catalogo global', subtitle: 'Cadastro manual, enriquecimento e gestao da base consolidada', section: 'Dados' },
-  '/super-admin/crawler': { title: 'Crawler web', subtitle: 'Execucoes de coleta, reparos e ingestao da malha de supermercados', section: 'Dados' },
+  '/super-admin': { title: 'Visão geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
+  '/super-admin/saas': { title: 'Contas e acesso', subtitle: 'Contas, usuários, vencimentos e liberações manuais', section: 'Controle' },
+  '/super-admin/catalogo': { title: 'Catálogo global', subtitle: 'Base central de produtos, ajustes manuais e revisão da qualidade', section: 'Dados' },
+  '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualização de dados dos supermercados', section: 'Dados' },
 };
 
 const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,15 +35,15 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     {
       title: 'Controle',
       links: [
-        { to: '/super-admin', label: 'Visao geral', hint: 'Saude da plataforma', mark: 'VG' },
-        { to: '/super-admin/saas', label: 'Gestao SaaS', hint: 'Contas e acessos', mark: 'SS' },
+        { to: '/super-admin', label: 'Visão geral', hint: 'Saúde da plataforma', mark: 'VG' },
+        { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usuários e vencimentos', mark: 'CT' },
       ],
     },
     {
       title: 'Dados',
       links: [
-        { to: '/super-admin/catalogo', label: 'Catalogo global', hint: 'Base central de produtos', mark: 'CG' },
-        { to: '/super-admin/crawler', label: 'Crawler web', hint: 'Captura e reparo de dados', mark: 'CW' },
+        { to: '/super-admin/catalogo', label: 'Catálogo global', hint: 'Base central de produtos', mark: 'CG' },
+        { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', mark: 'CW' },
       ],
     },
   ];
@@ -70,12 +70,12 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </div>
 
         <div className="sidebar-user-card super-admin-user-card">
-          <span className="section-kicker">Sessao ativa</span>
+          <span className="section-kicker">Sessão ativa</span>
           <strong>{name || 'Super Admin'}</strong>
           <span>{email || 'Conta principal da plataforma'}</span>
           <div className="sidebar-user-meta">
-            <span className="sidebar-chip">Controle total</span>
-            <span className="sidebar-chip subtle">Painel mestre</span>
+            <span className="sidebar-chip">Acesso total</span>
+            <span className="sidebar-chip subtle">Conta principal</span>
           </div>
         </div>
 
@@ -100,9 +100,9 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </div>
 
         <div className="sidebar-support-card super-admin-support-card">
-          <span className="section-kicker">Roteiro recomendado</span>
-          <strong>Comece no SaaS, valide no crawler e revise no catalogo</strong>
-          <p>Esse fluxo reduz erro operacional e deixa a manutencao da plataforma mais previsivel para operadores nao tecnicos.</p>
+          <span className="section-kicker">Fluxo sugerido</span>
+          <strong>Revise contas, acompanhe o crawler e valide o catálogo</strong>
+          <p>Essa ordem reduz erro operacional e deixa a manutenção diária mais simples.</p>
         </div>
 
         <div className="super-admin-footer">

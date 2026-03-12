@@ -79,6 +79,39 @@ const USER_ROLE_OPTIONS = [
 const PLAN_OPTIONS = ['BASIC', 'INTERMEDIATE', 'ADVANCED'] as const;
 const BILLING_STATUS_OPTIONS = ['ACTIVE', 'TRIAL', 'PAST_DUE', 'SUSPENDED', 'CANCELLED'] as const;
 
+const ROLE_LABELS: Record<string, string> = {
+  MARKET_OWNER: 'Responsável da conta',
+  MARKET_MANAGER: 'Gestor da conta',
+  ADMIN: 'Administrador',
+  INDUSTRY_USER: 'Indústria',
+  SUPER_ADMIN: 'Super admin',
+};
+
+const PLAN_LABELS: Record<string, string> = {
+  BASIC: 'Básico',
+  INTERMEDIATE: 'Intermediário',
+  ADVANCED: 'Avançado',
+};
+
+const BILLING_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Ativa',
+  TRIAL: 'Em teste',
+  PAST_DUE: 'Em atraso',
+  SUSPENDED: 'Suspensa',
+  CANCELLED: 'Cancelada',
+};
+
+const ACCESS_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Ativa',
+  TRIAL: 'Em teste',
+  EXPIRING_SOON: 'Vence em breve',
+  PAST_DUE: 'Em atraso',
+  BLOCKED: 'Bloqueada',
+  SUSPENDED: 'Suspensa',
+  CANCELLED: 'Cancelada',
+  EXPIRED: 'Vencida',
+};
+
 const EMPTY_USER_FORM = {
   name: '',
   email: '',
@@ -128,6 +161,14 @@ const seatCaption = (market: SuperAdminMarket) => {
   return limit ? `${market.activeUsersCount}/${limit} ativos` : `${market.activeUsersCount} ativos`;
 };
 
+const formatRole = (role?: string | null) => ROLE_LABELS[role || ''] || textValue(role);
+
+const formatPlanType = (planType?: string | null) => PLAN_LABELS[planType || ''] || textValue(planType);
+
+const formatBillingStatus = (billingStatus?: string | null) => BILLING_STATUS_LABELS[billingStatus || ''] || textValue(billingStatus);
+
+const formatAccessStatus = (accessStatus?: string | null) => ACCESS_STATUS_LABELS[accessStatus || ''] || textValue(accessStatus);
+
 const statusTone = (status?: string | null) => {
   switch ((status || '').toUpperCase()) {
     case 'ACTIVE':
@@ -169,13 +210,15 @@ const SuperAdminUsers: React.FC = () => {
   const [marketForm, setMarketForm] = useState(EMPTY_MARKET_FORM);
   const [editingUserId, setEditingUserId] = useState('');
   const [editingMarketId, setEditingMarketId] = useState('');
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [marketModalOpen, setMarketModalOpen] = useState(false);
 
   const users = usersPage?.content || [];
   const markets = marketsPage?.content || [];
   const marketLookup = marketLookupPage?.content || [];
 
   const marketOptions = useMemo(
-    () => marketLookup.map((market) => ({ label: `${market.name} (${market.planType})`, value: market.id })),
+    () => marketLookup.map((market) => ({ label: `${market.name} (${formatPlanType(market.planType)})`, value: market.id })),
     [marketLookup]
   );
 
@@ -216,7 +259,7 @@ const SuperAdminUsers: React.FC = () => {
       setMarketLookupPage(marketLookupResp.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar a gestao SaaS');
+      setError(err?.message || 'Falha ao carregar a gestão de contas');
     } finally {
       setLoading(false);
     }
@@ -265,11 +308,13 @@ const SuperAdminUsers: React.FC = () => {
   const resetUserForm = () => {
     setEditingUserId('');
     setUserForm(EMPTY_USER_FORM);
+    setUserModalOpen(false);
   };
 
   const resetMarketForm = () => {
     setEditingMarketId('');
     setMarketForm(EMPTY_MARKET_FORM);
+    setMarketModalOpen(false);
   };
 
   const saveUser = async () => {
@@ -286,24 +331,24 @@ const SuperAdminUsers: React.FC = () => {
       };
 
       if (!payload.name || !payload.email) {
-        throw new Error('Nome e e-mail do usuario sao obrigatorios.');
+        throw new Error('Nome e e-mail do usuário são obrigatórios.');
       }
       if (!editingUserId && !payload.password) {
-        throw new Error('Senha inicial obrigatoria para criar o usuario.');
+        throw new Error('Informe a senha inicial para criar o usuário.');
       }
 
       if (editingUserId) {
         await api.put(`/v1/super-admin/users/${editingUserId}`, payload);
-        setSuccess('Usuario atualizado com sucesso.');
+        setSuccess('Usuário atualizado.');
       } else {
         await api.post('/v1/super-admin/users', payload);
-        setSuccess('Usuario criado com sucesso.');
+        setSuccess('Usuário criado.');
       }
 
       resetUserForm();
       await load();
     } catch (err: any) {
-      setError(err?.message || 'Falha ao salvar usuario');
+      setError(err?.message || 'Falha ao salvar usuário');
     } finally {
       setSavingUser(false);
     }
@@ -329,24 +374,24 @@ const SuperAdminUsers: React.FC = () => {
       };
 
       if (!payload.name) {
-        throw new Error('Nome da conta SaaS obrigatorio.');
+        throw new Error('Informe o nome da conta.');
       }
       if (payload.userSeatLimit !== undefined && (!Number.isFinite(payload.userSeatLimit) || payload.userSeatLimit < 1)) {
-        throw new Error('Limite de usuarios invalido. Informe um numero maior ou igual a 1.');
+        throw new Error('Informe um limite de usuários maior ou igual a 1.');
       }
 
       if (editingMarketId) {
         await api.patch(`/v1/super-admin/markets/${editingMarketId}`, payload);
-        setSuccess('Conta SaaS atualizada com sucesso.');
+        setSuccess('Conta atualizada.');
       } else {
         await api.post('/v1/super-admin/markets', payload);
-        setSuccess('Conta SaaS criada com sucesso.');
+        setSuccess('Conta criada.');
       }
 
       resetMarketForm();
       await load();
     } catch (err: any) {
-      setError(err?.message || 'Falha ao salvar conta SaaS');
+      setError(err?.message || 'Falha ao salvar conta');
     } finally {
       setSavingMarket(false);
     }
@@ -363,6 +408,7 @@ const SuperAdminUsers: React.FC = () => {
       marketId: user.marketId || '',
       isActive: user.isActive,
     });
+    setUserModalOpen(true);
   };
 
   const startEditMarket = (market: SuperAdminMarket) => {
@@ -382,16 +428,57 @@ const SuperAdminUsers: React.FC = () => {
       contactPhone: market.contactPhone || '',
       notes: market.notes || '',
     });
+    setMarketModalOpen(true);
   };
+
+  const openCreateUserModal = () => {
+    resetFeedback();
+    setEditingUserId('');
+    setUserForm(EMPTY_USER_FORM);
+    setUserModalOpen(true);
+  };
+
+  const openCreateMarketModal = () => {
+    resetFeedback();
+    setEditingMarketId('');
+    setMarketForm(EMPTY_MARKET_FORM);
+    setMarketModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (!userModalOpen && !marketModalOpen) {
+      return undefined;
+    }
+    const originalOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (userModalOpen && !savingUser) {
+        resetUserForm();
+        return;
+      }
+      if (marketModalOpen && !savingMarket) {
+        resetMarketForm();
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [userModalOpen, marketModalOpen, savingUser, savingMarket]);
 
   const toggleUserStatus = async (user: SuperAdminUser) => {
     resetFeedback();
     try {
       await api.patch(`/v1/super-admin/users/${user.id}/status`, { active: !user.isActive });
-      setSuccess(user.isActive ? 'Usuario bloqueado.' : 'Usuario liberado.');
+      setSuccess(user.isActive ? 'Usuário bloqueado.' : 'Usuário liberado.');
       await load();
     } catch (err: any) {
-      setError(err?.message || 'Falha ao alterar status do usuario');
+      setError(err?.message || 'Falha ao alterar o status do usuário');
     }
   };
 
@@ -412,10 +499,10 @@ const SuperAdminUsers: React.FC = () => {
         contactPhone: market.contactPhone || null,
         notes: market.notes || null,
       });
-      setSuccess(market.isActive ? 'Conta SaaS bloqueada.' : 'Conta SaaS liberada.');
+      setSuccess(market.isActive ? 'Conta bloqueada.' : 'Conta liberada.');
       await load();
     } catch (err: any) {
-      setError(err?.message || 'Falha ao alterar status da conta SaaS');
+      setError(err?.message || 'Falha ao alterar o status da conta');
     }
   };
 
@@ -425,40 +512,40 @@ const SuperAdminUsers: React.FC = () => {
         <section className="dashboard-command-grid reveal super-admin-command-grid">
           <article className="dashboard-command-card super-admin-command-card">
             <div className="dashboard-command-copy">
-              <span className="pill">Gestao SaaS</span>
-              <h1 className="dashboard-command-title">Contas, usuarios, licenciamento e acesso em um fluxo mais executivo.</h1>
+              <span className="pill">Contas e acesso</span>
+              <h1 className="dashboard-command-title">Contas, usuários e acesso da operação.</h1>
               <p className="dashboard-command-text">
-                A pagina de SaaS agora abre com o estado operacional da base, nao com um hero generico. O objetivo e deixar claro o que precisa de liberacao, bloqueio ou ajuste manual.
+                Aqui você controla quem pode entrar, quantos usuários cada conta pode ter e o que precisa de ajuste manual.
               </p>
               <div className="hero-inline-actions">
-                <Link to="/super-admin" className="button secondary">Voltar para a visao geral</Link>
+                <Link to="/super-admin" className="button secondary">Voltar ao painel</Link>
                 <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
               </div>
             </div>
 
             <div className="dashboard-command-showcase">
               <div className="dashboard-glow-card">
-                <span className="section-kicker">Ocupacao de assentos</span>
-                <h3>{overview?.seatUsedTotal ?? 0} usuarios ativos</h3>
+                <span className="section-kicker">Licenças em uso</span>
+                <h3>{overview?.seatUsedTotal ?? 0} usuários ativos</h3>
                 <strong>{overview?.seatLimitTotal ?? 0}</strong>
-                <p>assentos contratados somados nas contas SaaS cadastradas.</p>
+                <p>limite total liberado nas contas cadastradas.</p>
               </div>
 
               <div className="dashboard-command-mosaic">
                 <div className="dashboard-mini-tile">
                   <span>Contas</span>
                   <strong>{overview?.totalMarkets ?? 0}</strong>
-                  <small>{overview?.activeMarkets ?? 0} ativas agora</small>
+                  <small>{overview?.activeMarkets ?? 0} ativas</small>
                 </div>
                 <div className="dashboard-mini-tile">
-                  <span>Usuarios ativos</span>
+                  <span>Usuários ativos</span>
                   <strong>{overview?.activeUsers ?? 0}</strong>
                   <small>{overview?.blockedUsers ?? 0} bloqueados</small>
                 </div>
                 <div className="dashboard-mini-tile accent">
-                  <span>Vencimento proximo</span>
+                  <span>Vencimento próximo</span>
                   <strong>{overview?.expiringMarkets ?? 0}</strong>
-                  <small>contas exigindo acao nos proximos 7 dias</small>
+                  <small>contas que vencem nos próximos 7 dias</small>
                 </div>
               </div>
             </div>
@@ -466,14 +553,14 @@ const SuperAdminUsers: React.FC = () => {
 
           <aside className="dashboard-priority-rail">
             <div className="dashboard-priority-card dark">
-              <span className="section-kicker">Risco imediato</span>
-              <strong>{overview?.pastDueMarkets ?? 0} em atraso</strong>
-              <p>{overview?.suspendedMarkets ?? 0} contas suspensas exigem validacao manual de acesso e cobranca.</p>
+              <span className="section-kicker">Atenção agora</span>
+              <strong>{overview?.pastDueMarkets ?? 0} contas em atraso</strong>
+              <p>{overview?.suspendedMarkets ?? 0} contas suspensas precisam de revisão manual.</p>
             </div>
             <div className="dashboard-priority-card">
-              <span className="section-kicker">Usuarios sem conta</span>
+              <span className="section-kicker">Usuários sem conta</span>
               <strong>{overview?.orphanUsers ?? 0}</strong>
-              <p>usuarios sem mercado vinculado pedem correcao para evitar acesso inconsistente.</p>
+              <p>Revise o vínculo desses usuários para evitar acesso incorreto.</p>
             </div>
           </aside>
         </section>
@@ -482,94 +569,45 @@ const SuperAdminUsers: React.FC = () => {
         {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Contas SaaS" value={overview?.totalMarkets ?? 0} icon="MK" caption="tenants cadastrados" />
-          <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" caption="operando agora" />
-          <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="PD" caption="cobranca manual" />
-          <MetricsCard title="Usuarios ativos" value={overview?.activeUsers ?? 0} icon="US" caption="acessos liberados" />
+          <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" />
+          <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" />
+          <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" />
+          <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" />
         </div>
 
         <div className="dashboard-inline-grid">
-          <section className="analytics-panel reveal dashboard-form-panel">
+          <section className="analytics-panel reveal dashboard-note-card">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Conta SaaS</span>
-                <h3>{editingMarketId ? 'Editar conta' : 'Nova conta'}</h3>
+                <span className="section-kicker">Conta</span>
+                <h3>Criar ou editar conta</h3>
               </div>
               <div className="card-section-actions">
-                {editingMarketId ? (
-                  <Button variant="secondary" onClick={resetMarketForm}>Cancelar edicao</Button>
-                ) : null}
+                <Button onClick={openCreateMarketModal}>Nova conta</Button>
               </div>
             </div>
-            <div className="filter-bar-controls super-admin-form-grid">
-              <input className="input" placeholder="Nome da conta/mercado" value={marketForm.name} onChange={(e) => setMarketForm({ ...marketForm, name: e.target.value })} />
-              <input className="input" placeholder="CNPJ" value={marketForm.cnpj} onChange={(e) => setMarketForm({ ...marketForm, cnpj: e.target.value })} />
-              <select className="input" value={marketForm.planType} onChange={(e) => setMarketForm({ ...marketForm, planType: e.target.value })}>
-                {PLAN_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <select className="input" value={marketForm.billingStatus} onChange={(e) => setMarketForm({ ...marketForm, billingStatus: e.target.value })}>
-                {BILLING_STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <input className="input" placeholder="Limite de usuarios" value={marketForm.userSeatLimit} onChange={(e) => setMarketForm({ ...marketForm, userSeatLimit: e.target.value })} />
-              <input className="input" type="datetime-local" value={marketForm.accessExpiresAt} onChange={(e) => setMarketForm({ ...marketForm, accessExpiresAt: e.target.value })} />
-              <input className="input" type="datetime-local" value={marketForm.trialEndsAt} onChange={(e) => setMarketForm({ ...marketForm, trialEndsAt: e.target.value })} />
-              <input className="input" placeholder="Contato principal" value={marketForm.contactName} onChange={(e) => setMarketForm({ ...marketForm, contactName: e.target.value })} />
-              <input className="input" placeholder="E-mail do contato" value={marketForm.contactEmail} onChange={(e) => setMarketForm({ ...marketForm, contactEmail: e.target.value })} />
-              <input className="input" placeholder="Telefone do contato" value={marketForm.contactPhone} onChange={(e) => setMarketForm({ ...marketForm, contactPhone: e.target.value })} />
-              <label className="checkbox super-admin-inline-checkbox">
-                <input type="checkbox" checked={marketForm.active} onChange={(e) => setMarketForm({ ...marketForm, active: e.target.checked })} />
-                <span>Conta ativa</span>
-              </label>
-              <textarea className="input super-admin-notes" placeholder="Observacoes internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} />
-              <Button onClick={saveMarket} disabled={savingMarket}>{savingMarket ? 'Salvando...' : (editingMarketId ? 'Salvar conta' : 'Criar conta')}</Button>
-            </div>
+            <p className="super-admin-table-meta">Abra o modal para cadastrar ou ajustar uma conta sem tirar o foco da listagem.</p>
           </section>
 
-          <section className="analytics-panel reveal dashboard-form-panel">
+          <section className="analytics-panel reveal dashboard-note-card">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Usuario SaaS</span>
-                <h3>{editingUserId ? 'Editar usuario' : 'Novo usuario'}</h3>
+                <span className="section-kicker">Usuário</span>
+                <h3>Criar ou editar usuário</h3>
               </div>
               <div className="card-section-actions">
-                {editingUserId ? (
-                  <Button variant="secondary" onClick={resetUserForm}>Cancelar edicao</Button>
-                ) : null}
+                <Button onClick={openCreateUserModal}>Novo usuário</Button>
               </div>
             </div>
-            <div className="filter-bar-controls super-admin-form-grid">
-              <input className="input" placeholder="Nome" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
-              <input className="input" placeholder="E-mail" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
-              <input className="input" placeholder={editingUserId ? 'Nova senha (opcional)' : 'Senha inicial'} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
-              <select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, marketId: e.target.value === 'SUPER_ADMIN' ? '' : userForm.marketId })}>
-                {USER_ROLE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <select className="input" value={userForm.marketId} onChange={(e) => setUserForm({ ...userForm, marketId: e.target.value })} disabled={userForm.role === 'SUPER_ADMIN'}>
-                <option value="">Sem conta vinculada</option>
-                {marketOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-              <label className="checkbox super-admin-inline-checkbox">
-                <input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })} />
-                <span>Usuario ativo</span>
-              </label>
-              <Button onClick={saveUser} disabled={savingUser}>{savingUser ? 'Salvando...' : (editingUserId ? 'Salvar usuario' : 'Criar usuario')}</Button>
-            </div>
+            <p className="super-admin-table-meta">Cadastre usuários e ajuste acessos pelo modal, sem formulário fixo na página.</p>
           </section>
         </div>
 
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
             <div>
-              <span className="section-kicker">Contas SaaS</span>
-              <h3>Planos, validade e licenciamento</h3>
+              <span className="section-kicker">Contas</span>
+              <h3>Plano, acesso e contato</h3>
             </div>
           </div>
           <div className="filter-bar-controls super-admin-filters-grid">
@@ -577,13 +615,13 @@ const SuperAdminUsers: React.FC = () => {
             <select className="input" value={marketDraftFilters.planType} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, planType: e.target.value })}>
               <option value="">Todos os planos</option>
               {PLAN_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>{formatPlanType(option)}</option>
               ))}
             </select>
             <select className="input" value={marketDraftFilters.billingStatus} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, billingStatus: e.target.value })}>
-              <option value="">Toda cobranca</option>
+              <option value="">Toda a cobrança</option>
               {BILLING_STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>{formatBillingStatus(option)}</option>
               ))}
             </select>
             <select className="input" value={marketDraftFilters.active} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, active: e.target.value })}>
@@ -596,19 +634,19 @@ const SuperAdminUsers: React.FC = () => {
               <Button variant="secondary" onClick={clearMarketFilters}>Limpar</Button>
             </div>
           </div>
-          {loading ? <div className="card">Carregando contas SaaS...</div> : (
+          {loading ? <div className="card">Carregando contas...</div> : (
             <div className="catalog-admin-table-wrap">
               <table className="table catalog-admin-table">
                 <thead>
                   <tr>
                     <th>Conta</th>
                     <th>Plano</th>
-                    <th>Cobranca</th>
+                    <th>Cobrança</th>
                     <th>Assentos</th>
                     <th>Validade</th>
                     <th>Contato</th>
                     <th>Status</th>
-                    <th>Acoes</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -619,12 +657,12 @@ const SuperAdminUsers: React.FC = () => {
                         <div className="super-admin-table-meta">CNPJ: {textValue(market.cnpj)}</div>
                         <div className="super-admin-table-meta">Atualizado em {formatDateTime(market.updatedAt || market.createdAt)}</div>
                       </td>
-                      <td data-label="Plano">{market.planType}</td>
-                      <td data-label="Cobranca">{market.billingStatus}</td>
+                      <td data-label="Plano">{formatPlanType(market.planType)}</td>
+                      <td data-label="Cobrança">{formatBillingStatus(market.billingStatus)}</td>
                       <td data-label="Assentos">{seatCaption(market)}</td>
                       <td data-label="Validade">
                         <div>{market.accessExpiresAt ? `Acesso: ${formatDateTime(market.accessExpiresAt)}` : 'Acesso sem vencimento'}</div>
-                        <div className="super-admin-table-meta">Trial: {formatDateTime(market.trialEndsAt)}</div>
+                        <div className="super-admin-table-meta">Teste até: {formatDateTime(market.trialEndsAt)}</div>
                       </td>
                       <td data-label="Contato">
                         <div>{textValue(market.contactName)}</div>
@@ -632,10 +670,10 @@ const SuperAdminUsers: React.FC = () => {
                         <div className="super-admin-table-meta">{textValue(market.contactPhone)}</div>
                       </td>
                       <td data-label="Status">
-                        <span className={`super-admin-status-pill ${statusTone(market.accessStatus)}`}>{textValue(market.accessStatus)}</span>
+                        <span className={`super-admin-status-pill ${statusTone(market.accessStatus)}`}>{formatAccessStatus(market.accessStatus)}</span>
                         <div className="super-admin-table-meta">{textValue(market.accessReason)}</div>
                       </td>
-                      <td data-label="Acoes" className="table-action-cell catalog-admin-action-cell">
+                      <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
                           <Button variant="secondary" onClick={() => startEditMarket(market)}>Editar</Button>
                           <Button variant="secondary" onClick={() => toggleMarketStatus(market)}>
@@ -651,24 +689,24 @@ const SuperAdminUsers: React.FC = () => {
           )}
           <div className="pager-actions admin-pager-actions" style={{ marginTop: 12 }}>
             <Button variant="secondary" onClick={() => setMarketPage((value) => Math.max(0, value - 1))} disabled={marketPage <= 0}>Anterior</Button>
-            <Button variant="secondary" onClick={() => setMarketPage((value) => value + 1)} disabled={!marketsPage || marketPage >= (marketsPage.totalPages - 1)}>Proxima</Button>
+            <Button variant="secondary" onClick={() => setMarketPage((value) => value + 1)} disabled={!marketsPage || marketPage >= (marketsPage.totalPages - 1)}>Próxima</Button>
           </div>
         </section>
 
         <section className="analytics-panel reveal">
           <div className="analytics-panel-head">
             <div>
-              <span className="section-kicker">Usuarios</span>
-              <h3>Acessos operacionais</h3>
+              <span className="section-kicker">Usuários</span>
+              <h3>Acessos e vínculo com conta</h3>
             </div>
-            <Link to="/super-admin" className="button secondary">Voltar para a visao geral</Link>
+            <Link to="/super-admin" className="button secondary">Voltar ao painel</Link>
           </div>
           <div className="filter-bar-controls super-admin-filters-grid">
             <input className="input" placeholder="Buscar por nome, e-mail ou conta" value={userDraftFilters.search} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, search: e.target.value })} />
             <select className="input" value={userDraftFilters.role} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, role: e.target.value })}>
-              <option value="">Todos os papeis</option>
+              <option value="">Todos os papéis</option>
               {USER_ROLE_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>{formatRole(option)}</option>
               ))}
             </select>
             <select className="input" value={userDraftFilters.active} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, active: e.target.value })}>
@@ -681,39 +719,39 @@ const SuperAdminUsers: React.FC = () => {
               <Button variant="secondary" onClick={clearUserFilters}>Limpar</Button>
             </div>
           </div>
-          {loading ? <div className="card">Carregando usuarios...</div> : (
+          {loading ? <div className="card">Carregando usuários...</div> : (
             <div className="catalog-admin-table-wrap">
               <table className="table catalog-admin-table">
                 <thead>
                   <tr>
-                    <th>Usuario</th>
+                    <th>Usuário</th>
                     <th>Papel</th>
-                    <th>Conta SaaS</th>
-                    <th>Ultimo login</th>
+                    <th>Conta</th>
+                    <th>Último login</th>
                     <th>Status</th>
-                    <th>Acoes</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id}>
-                      <td data-label="Usuario">
+                      <td data-label="Usuário">
                         <strong>{user.name}</strong>
                         <div className="super-admin-table-meta">{user.email}</div>
                         <div className="super-admin-table-meta">Criado em {formatDateTime(user.createdAt)}</div>
                       </td>
-                      <td data-label="Papel">{user.role}</td>
-                      <td data-label="Conta SaaS">
+                      <td data-label="Papel">{formatRole(user.role)}</td>
+                      <td data-label="Conta">
                         <div>{textValue(user.marketName)}</div>
-                        <div className="super-admin-table-meta">Plano: {textValue(user.marketPlan)}</div>
-                        <div className="super-admin-table-meta">Cobranca: {textValue(user.marketBillingStatus)}</div>
+                        <div className="super-admin-table-meta">Plano: {formatPlanType(user.marketPlan)}</div>
+                        <div className="super-admin-table-meta">Cobrança: {formatBillingStatus(user.marketBillingStatus)}</div>
                       </td>
-                      <td data-label="Ultimo login">{formatDateTime(user.lastLoginAt)}</td>
+                      <td data-label="Último login">{formatDateTime(user.lastLoginAt)}</td>
                       <td data-label="Status">
-                        <span className={`super-admin-status-pill ${statusTone(user.accessStatus)}`}>{user.isActive ? textValue(user.accessStatus) : 'BLOCKED'}</span>
-                        <div className="super-admin-table-meta">{user.isActive ? textValue(user.accessReason) : 'Usuario bloqueado manualmente'}</div>
+                        <span className={`super-admin-status-pill ${statusTone(user.accessStatus)}`}>{user.isActive ? formatAccessStatus(user.accessStatus) : 'Bloqueado'}</span>
+                        <div className="super-admin-table-meta">{user.isActive ? textValue(user.accessReason) : 'Usuário bloqueado manualmente'}</div>
                       </td>
-                      <td data-label="Acoes" className="table-action-cell catalog-admin-action-cell">
+                      <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
                           <Button variant="secondary" onClick={() => startEditUser(user)}>Editar</Button>
                           <Button variant="secondary" onClick={() => toggleUserStatus(user)}>
@@ -729,9 +767,104 @@ const SuperAdminUsers: React.FC = () => {
           )}
           <div className="pager-actions admin-pager-actions" style={{ marginTop: 12 }}>
             <Button variant="secondary" onClick={() => setUserPage((value) => Math.max(0, value - 1))} disabled={userPage <= 0}>Anterior</Button>
-            <Button variant="secondary" onClick={() => setUserPage((value) => value + 1)} disabled={!usersPage || userPage >= (usersPage.totalPages - 1)}>Proxima</Button>
+            <Button variant="secondary" onClick={() => setUserPage((value) => value + 1)} disabled={!usersPage || userPage >= (usersPage.totalPages - 1)}>Próxima</Button>
           </div>
         </section>
+
+        {marketModalOpen ? (
+          <div className="catalog-admin-modal-backdrop" role="presentation" onClick={() => { if (!savingMarket) resetMarketForm(); }}>
+            <div
+              className="catalog-admin-modal card super-admin-saas-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="super-admin-market-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="catalog-admin-modal-head">
+                <div>
+                  <span className="section-kicker">Conta</span>
+                  <h3 id="super-admin-market-modal-title">{editingMarketId ? 'Editar conta' : 'Nova conta'}</h3>
+                </div>
+                <div className="catalog-admin-modal-head-actions">
+                  <Button variant="secondary" onClick={resetMarketForm} disabled={savingMarket}>Cancelar</Button>
+                  <Button onClick={saveMarket} disabled={savingMarket}>
+                    {savingMarket ? 'Salvando...' : (editingMarketId ? 'Salvar conta' : 'Criar conta')}
+                  </Button>
+                </div>
+              </div>
+              <div className="super-admin-saas-modal-grid">
+                <input className="input" placeholder="Nome da conta" value={marketForm.name} onChange={(e) => setMarketForm({ ...marketForm, name: e.target.value })} />
+                <input className="input" placeholder="CNPJ" value={marketForm.cnpj} onChange={(e) => setMarketForm({ ...marketForm, cnpj: e.target.value })} />
+                <select className="input" value={marketForm.planType} onChange={(e) => setMarketForm({ ...marketForm, planType: e.target.value })}>
+                  {PLAN_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{formatPlanType(option)}</option>
+                  ))}
+                </select>
+                <select className="input" value={marketForm.billingStatus} onChange={(e) => setMarketForm({ ...marketForm, billingStatus: e.target.value })}>
+                  {BILLING_STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{formatBillingStatus(option)}</option>
+                  ))}
+                </select>
+                <input className="input" placeholder="Limite de usuários" value={marketForm.userSeatLimit} onChange={(e) => setMarketForm({ ...marketForm, userSeatLimit: e.target.value })} />
+                <input className="input" type="datetime-local" value={marketForm.accessExpiresAt} onChange={(e) => setMarketForm({ ...marketForm, accessExpiresAt: e.target.value })} />
+                <input className="input" type="datetime-local" value={marketForm.trialEndsAt} onChange={(e) => setMarketForm({ ...marketForm, trialEndsAt: e.target.value })} />
+                <input className="input" placeholder="Contato principal" value={marketForm.contactName} onChange={(e) => setMarketForm({ ...marketForm, contactName: e.target.value })} />
+                <input className="input" placeholder="E-mail do contato" value={marketForm.contactEmail} onChange={(e) => setMarketForm({ ...marketForm, contactEmail: e.target.value })} />
+                <input className="input" placeholder="Telefone do contato" value={marketForm.contactPhone} onChange={(e) => setMarketForm({ ...marketForm, contactPhone: e.target.value })} />
+                <label className="checkbox super-admin-inline-checkbox super-admin-saas-modal-checkbox">
+                  <input type="checkbox" checked={marketForm.active} onChange={(e) => setMarketForm({ ...marketForm, active: e.target.checked })} />
+                  <span>Conta ativa</span>
+                </label>
+                <textarea className="input super-admin-notes super-admin-saas-modal-notes" placeholder="Observações internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {userModalOpen ? (
+          <div className="catalog-admin-modal-backdrop" role="presentation" onClick={() => { if (!savingUser) resetUserForm(); }}>
+            <div
+              className="catalog-admin-modal card super-admin-saas-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="super-admin-user-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="catalog-admin-modal-head">
+                <div>
+                  <span className="section-kicker">Usuário</span>
+                  <h3 id="super-admin-user-modal-title">{editingUserId ? 'Editar usuário' : 'Novo usuário'}</h3>
+                </div>
+                <div className="catalog-admin-modal-head-actions">
+                  <Button variant="secondary" onClick={resetUserForm} disabled={savingUser}>Cancelar</Button>
+                  <Button onClick={saveUser} disabled={savingUser}>
+                    {savingUser ? 'Salvando...' : (editingUserId ? 'Salvar usuário' : 'Criar usuário')}
+                  </Button>
+                </div>
+              </div>
+              <div className="super-admin-saas-modal-grid">
+                <input className="input" placeholder="Nome" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
+                <input className="input" placeholder="E-mail" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
+                <input className="input" placeholder={editingUserId ? 'Nova senha (opcional)' : 'Senha inicial'} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
+                <select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, marketId: e.target.value === 'SUPER_ADMIN' ? '' : userForm.marketId })}>
+                  {USER_ROLE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{formatRole(option)}</option>
+                  ))}
+                </select>
+                <select className="input" value={userForm.marketId} onChange={(e) => setUserForm({ ...userForm, marketId: e.target.value })} disabled={userForm.role === 'SUPER_ADMIN'}>
+                  <option value="">Sem conta vinculada</option>
+                  {marketOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <label className="checkbox super-admin-inline-checkbox super-admin-saas-modal-checkbox">
+                  <input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })} />
+                  <span>Usuário ativo</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </SuperAdminLayout>
   );

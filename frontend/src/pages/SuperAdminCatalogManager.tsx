@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import api from '../services/api';
@@ -74,7 +74,7 @@ const EMPTY_FORM: CatalogFormState = {
   imageUrl: '',
   provider: 'MANUAL_SUPER_ADMIN',
   providerProductId: '',
-  sourceLicense: 'Cadastro manual Super Admin',
+  sourceLicense: 'Cadastro manual do super admin',
   confidenceScore: '0.99',
   attributesJson: '',
   rawPayload: '',
@@ -139,7 +139,7 @@ const validateJsonField = (label: string, value: string) => {
   try {
     return JSON.stringify(JSON.parse(trimmed));
   } catch {
-    throw new Error(`${label} invalido. Informe um JSON valido.`);
+    throw new Error(`${label} inválido. Informe um JSON válido.`);
   }
 };
 
@@ -149,6 +149,8 @@ const SuperAdminCatalogManager: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [removingImage, setRemovingImage] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [form, setForm] = useState<CatalogFormState>(EMPTY_FORM);
@@ -156,18 +158,20 @@ const SuperAdminCatalogManager: React.FC = () => {
   const [editorError, setEditorError] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<CatalogRow | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const rows = rowsPage?.content || [];
   const editorImageUrl = form.imageUrl.trim();
   const editorProviderLabel = textValue(form.provider);
   const editorProviderProductIdLabel = textValue(form.providerProductId);
+  const canManageEditorImage = Boolean(editorState?.mode === 'edit' && editorState.productId);
 
   const editorSummary = useMemo(() => {
-    if (!editorState) return 'Nenhum item em edicao.';
+    if (!editorState) return 'Nenhum item em edição.';
     if (editorState.mode === 'create') {
-      return 'Cadastre manualmente um produto global com os campos ricos do enrichment.';
+      return 'Cadastre manualmente um produto com todos os campos disponíveis.';
     }
-    return 'Atualize os metadados do produto sem sair da listagem.';
+    return 'Atualize os dados do produto sem sair da listagem.';
   }, [editorState]);
 
   const load = async () => {
@@ -183,7 +187,7 @@ const SuperAdminCatalogManager: React.FC = () => {
       setRowsPage(response.data);
       setLoadError(null);
     } catch (err: any) {
-      setLoadError(err?.message || 'Falha ao carregar catalogo');
+      setLoadError(err?.message || 'Falha ao carregar o catálogo');
     } finally {
       setLoading(false);
     }
@@ -199,7 +203,7 @@ const SuperAdminCatalogManager: React.FC = () => {
   };
 
   const closeEditorModal = () => {
-    if (saving) {
+    if (saving || uploadingImage || removingImage) {
       return;
     }
     setEditorState(null);
@@ -258,7 +262,7 @@ const SuperAdminCatalogManager: React.FC = () => {
       imageUrl: row.imageUrl || '',
       provider: row.provider || 'MANUAL_SUPER_ADMIN',
       providerProductId: row.providerProductId || '',
-      sourceLicense: row.sourceLicense || 'Cadastro manual Super Admin',
+      sourceLicense: row.sourceLicense || 'Cadastro manual do super admin',
       confidenceScore: String(row.confidenceScore ?? 0.99),
       attributesJson: normalizeJsonForEditor(row.attributesJson),
       rawPayload: normalizeJsonForEditor(row.rawPayload),
@@ -269,9 +273,88 @@ const SuperAdminCatalogManager: React.FC = () => {
     setEditorState({
       mode: 'edit',
       productId: row.productId,
-      title: 'Editar produto global',
+      title: 'Editar produto',
       subtitle: row.canonicalName || row.gtin || 'Produto selecionado',
     });
+  };
+
+  const prettifyJsonField = (field: 'attributesJson' | 'rawPayload') => {
+    setForm((current) => ({
+      ...current,
+      [field]: normalizeJsonForEditor(current[field]),
+    }));
+  };
+
+  const triggerImagePicker = () => {
+    if (!canManageEditorImage || uploadingImage || removingImage || saving) {
+      return;
+    }
+    imageInputRef.current?.click();
+  };
+
+  const uploadEditorImage = async (file?: File | null) => {
+    if (!file || !editorState?.productId) {
+      return;
+    }
+    setUploadingImage(true);
+    setEditorError(null);
+    setSuccess(null);
+    try {
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Envie um arquivo de imagem valido.');
+      }
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post(`/v1/super-admin/catalog/products/${editorState.productId}/image`, formData, {
+        params: {
+          provider: form.provider || 'MANUAL_SUPER_ADMIN',
+        },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const updated = response.data as CatalogRow;
+      setForm((current) => ({
+        ...current,
+        imageUrl: updated.imageUrl || '',
+      }));
+      setSuccess('Imagem enviada com sucesso. O arquivo foi normalizado para 1:1 e salvo no storage gerenciado.');
+      await load();
+    } catch (err: any) {
+      setEditorError(err?.message || 'Falha ao enviar imagem');
+    } finally {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+      setUploadingImage(false);
+    }
+  };
+
+  const removeEditorImage = async () => {
+    if (!editorState?.productId || !editorImageUrl) {
+      return;
+    }
+    setRemovingImage(true);
+    setEditorError(null);
+    setSuccess(null);
+    try {
+      const response = await api.delete(`/v1/super-admin/catalog/products/${editorState.productId}/image`, {
+        params: {
+          provider: form.provider || 'MANUAL_SUPER_ADMIN',
+        },
+      });
+      const updated = response.data as CatalogRow;
+      setForm((current) => ({
+        ...current,
+        imageUrl: updated.imageUrl || '',
+      }));
+      setSuccess('Imagem atual removida com sucesso.');
+      await load();
+    } catch (err: any) {
+      setEditorError(err?.message || 'Falha ao remover imagem');
+    } finally {
+      setRemovingImage(false);
+    }
   };
 
   const save = async () => {
@@ -286,12 +369,12 @@ const SuperAdminCatalogManager: React.FC = () => {
     try {
       const gtinDigits = (form.gtin || '').replace(/\D/g, '');
       if (gtinDigits.length < 8 || gtinDigits.length > 14) {
-        throw new Error('GTIN invalido. Informe entre 8 e 14 digitos.');
+        throw new Error('GTIN inválido. Informe entre 8 e 14 dígitos.');
       }
 
       const confidence = Number(form.confidenceScore);
       if (Number.isNaN(confidence) || confidence < 0 || confidence > 1) {
-        throw new Error('Confianca invalida. Use um valor entre 0 e 1.');
+        throw new Error('Confiança inválida. Use um valor entre 0 e 1.');
       }
 
       if (!form.name.trim()) {
@@ -314,21 +397,21 @@ const SuperAdminCatalogManager: React.FC = () => {
         sourceLicense: (form.sourceLicense || 'Cadastro manual Super Admin').trim(),
         confidenceScore: confidence,
         attributesJson: validateJsonField('Attributes JSON', form.attributesJson),
-        rawPayload: validateJsonField('Raw payload', form.rawPayload),
+        rawPayload: validateJsonField('Payload bruto', form.rawPayload),
       };
 
       if (editorState.mode === 'edit' && editorState.productId) {
         await api.put(`/v1/super-admin/catalog/products/${editorState.productId}`, payload);
-        setSuccess('Produto atualizado com sucesso.');
+        setSuccess('Produto atualizado.');
       } else {
         await api.post('/v1/super-admin/catalog/products', payload);
-        setSuccess('Produto criado com sucesso.');
+        setSuccess('Produto criado.');
       }
 
       closeEditorModal();
       await load();
     } catch (err: any) {
-      setEditorError(err?.message || 'Falha ao salvar produto');
+      setEditorError(err?.message || 'Falha ao salvar o produto');
     } finally {
       setSaving(false);
     }
@@ -340,10 +423,10 @@ const SuperAdminCatalogManager: React.FC = () => {
         <section className="dashboard-command-grid reveal super-admin-command-grid">
           <article className="dashboard-command-card super-admin-command-card">
             <div className="dashboard-command-copy">
-              <span className="pill">Catalogo Global</span>
-              <h1 className="dashboard-command-title">Manutencao manual de produtos sem espalhar o fluxo em blocos confusos.</h1>
+              <span className="pill">Catálogo global</span>
+              <h1 className="dashboard-command-title">Ajuste manual da base sem sair da listagem.</h1>
               <p className="dashboard-command-text">
-                A entrada desta pagina agora resume busca, criacao e estado da base antes de voce abrir o modal de cadastro ou edicao.
+                Use esta tela para localizar o item certo, revisar os dados e abrir o modal de edição quando precisar.
               </p>
               <div className="hero-inline-actions">
                 <Button onClick={openCreateModal}>Novo produto</Button>
@@ -361,10 +444,10 @@ const SuperAdminCatalogManager: React.FC = () => {
 
             <div className="dashboard-command-showcase">
               <div className="dashboard-glow-card">
-                <span className="section-kicker">Itens nesta pagina</span>
-                <h3>{rows.length} produtos visiveis</h3>
+                <span className="section-kicker">Itens nesta página</span>
+                <h3>{rows.length} produtos visíveis</h3>
                 <strong>{rowsPage?.number != null ? rowsPage.number + 1 : page + 1}</strong>
-                <p>{rowsPage ? `${rowsPage.totalPages} paginas disponiveis para navegacao.` : 'Carregue a base para ver o recorte atual.'}</p>
+                <p>{rowsPage ? `${rowsPage.totalPages} páginas disponíveis para navegação.` : 'Carregue a base para ver o recorte atual.'}</p>
               </div>
 
               <div className="dashboard-command-mosaic">
@@ -385,13 +468,13 @@ const SuperAdminCatalogManager: React.FC = () => {
           <aside className="dashboard-priority-rail">
             <div className="dashboard-priority-card dark">
               <span className="section-kicker">Fluxo principal</span>
-              <strong>Consultar, abrir o olho e editar no modal</strong>
-              <p>A tabela vira trilha de selecao. Os campos ricos ficam concentrados no editor, nao no corpo da pagina.</p>
+              <strong>Buscar, revisar e editar</strong>
+              <p>A tabela serve para localizar o item. Os ajustes ficam concentrados no modal.</p>
             </div>
             <div className="dashboard-priority-card">
-              <span className="section-kicker">Pagina atual</span>
+              <span className="section-kicker">Página atual</span>
               <strong>{page + 1}</strong>
-              <p>{rowsPage ? `${rowsPage.totalPages} paginas totais no resultado atual.` : 'Sem paginacao carregada ainda.'}</p>
+              <p>{rowsPage ? `${rowsPage.totalPages} páginas no resultado atual.` : 'A paginação aparece depois da primeira carga.'}</p>
             </div>
           </aside>
         </section>
@@ -401,7 +484,7 @@ const SuperAdminCatalogManager: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Consulta</span>
-                <h3>Itens cadastrados</h3>
+                <h3>Produtos cadastrados</h3>
               </div>
             </div>
             <div className="filter-bar-controls">
@@ -428,17 +511,17 @@ const SuperAdminCatalogManager: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Como operar</span>
-                <h3>Leitura recomendada</h3>
+                <h3>Uso da tela</h3>
               </div>
             </div>
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
-                <strong>Use a tabela como trilha de selecao</strong>
-                <span>O objetivo nao e preencher campos na pagina, mas escolher o item certo para visualizar ou editar.</span>
+                <strong>Use a tabela para localizar o item</strong>
+                <span>Escolha o produto certo e abra o modal para revisar ou editar.</span>
               </div>
               <div className="dashboard-quick-item">
-                <strong>O modal concentra os campos ricos</strong>
-                <span>Descricao, payload, atributos e preview de imagem ficaram todos dentro do editor.</span>
+                <strong>O modal concentra os campos completos</strong>
+                <span>Descrição, dados extras e imagem ficam no editor, não na página principal.</span>
               </div>
             </div>
           </section>
@@ -448,11 +531,11 @@ const SuperAdminCatalogManager: React.FC = () => {
           <div className="analytics-panel-head">
             <div>
               <span className="section-kicker">Listagem</span>
-              <h3>Produtos do catalogo global</h3>
+              <h3>Produtos do catálogo global</h3>
             </div>
           </div>
           {loading ? (
-            <div className="card">Carregando catalogo...</div>
+            <div className="card">Carregando catálogo...</div>
           ) : (
             <div className="catalog-admin-table-wrap">
               <table className="table catalog-admin-table">
@@ -462,8 +545,8 @@ const SuperAdminCatalogManager: React.FC = () => {
                     <th>GTIN</th>
                     <th>Marca</th>
                     <th>Categoria</th>
-                    <th>Fonte</th>
-                    <th>Acoes</th>
+                    <th>Origem</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -486,8 +569,8 @@ const SuperAdminCatalogManager: React.FC = () => {
                       <td data-label="GTIN">{row.gtin || '--'}</td>
                       <td data-label="Marca">{row.brand || '--'}</td>
                       <td data-label="Categoria">{row.category || '--'}</td>
-                      <td data-label="Fonte">{row.provider}</td>
-                      <td data-label="Acoes" className="table-action-cell catalog-admin-action-cell">
+                      <td data-label="Origem">{row.provider}</td>
+                      <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
                           <button
                             type="button"
@@ -521,7 +604,7 @@ const SuperAdminCatalogManager: React.FC = () => {
               onClick={() => setPage((value) => value + 1)}
               disabled={!rowsPage || page >= rowsPage.totalPages - 1}
             >
-              Proxima
+              Próxima
             </Button>
           </div>
         </section>
@@ -619,23 +702,23 @@ const SuperAdminCatalogManager: React.FC = () => {
                     <strong>{textValue(selectedProduct.unit)}</strong>
                   </div>
                   <div className="catalog-admin-detail-item">
-                    <span>Provider</span>
+                    <span>Origem</span>
                     <strong>{textValue(selectedProduct.provider)}</strong>
                   </div>
                   <div className="catalog-admin-detail-item">
-                    <span>Provider Product ID</span>
+                    <span>ID do produto na origem</span>
                     <strong>{textValue(selectedProduct.providerProductId)}</strong>
                   </div>
                   <div className="catalog-admin-detail-item">
-                    <span>Observacoes</span>
+                    <span>Observações</span>
                     <strong>{selectedProduct.observationCount ?? '--'}</strong>
                   </div>
                   <div className="catalog-admin-detail-item">
-                    <span>Confianca</span>
+                    <span>Confiança</span>
                     <strong>{selectedProduct.confidenceScore != null ? `${Math.round(selectedProduct.confidenceScore * 100)}%` : '--'}</strong>
                   </div>
                   <div className="catalog-admin-detail-item catalog-admin-detail-item-wide">
-                    <span>Descricao</span>
+                    <span>Descrição</span>
                     <strong>{textValue(selectedProduct.description)}</strong>
                   </div>
                 </div>
@@ -659,11 +742,11 @@ const SuperAdminCatalogManager: React.FC = () => {
                   <h3 id="super-admin-catalog-editor-title">{editorState.title}</h3>
                 </div>
                 <div className="catalog-admin-modal-head-actions">
-                  <Button type="button" variant="secondary" onClick={closeEditorModal} disabled={saving}>
+                  <Button type="button" variant="secondary" onClick={closeEditorModal} disabled={saving || uploadingImage || removingImage}>
                     Cancelar
                   </Button>
-                  <Button type="button" onClick={save} disabled={saving}>
-                    {saving ? 'Salvando...' : editorState.mode === 'edit' ? 'Salvar alteracoes' : 'Criar produto'}
+                  <Button type="button" onClick={save} disabled={saving || uploadingImage || removingImage}>
+                    {saving ? 'Salvando...' : editorState.mode === 'edit' ? 'Salvar alterações' : 'Criar produto'}
                   </Button>
                 </div>
               </div>
@@ -672,6 +755,13 @@ const SuperAdminCatalogManager: React.FC = () => {
 
               <div className="catalog-admin-modal-body catalog-admin-editor-layout">
                 <div className="catalog-admin-modal-media">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    hidden
+                    onChange={(event) => uploadEditorImage(event.target.files?.[0] || null)}
+                  />
                   {editorImageUrl ? (
                     <>
                       <button
@@ -680,18 +770,44 @@ const SuperAdminCatalogManager: React.FC = () => {
                         onClick={() =>
                           setLightboxImage({
                             src: editorImageUrl,
-                            alt: form.name.trim() || 'Imagem do produto em edicao',
+                            alt: form.name.trim() || 'Imagem do produto em edição',
                           })
                         }
-                        aria-label="Ampliar imagem em edicao"
+                        aria-label="Ampliar imagem em edição"
                       >
                         <img className="catalog-admin-modal-image" src={editorImageUrl} alt={form.name || 'Preview da imagem'} />
                       </button>
                       <span className="catalog-admin-image-hint">Preview ao vivo da imagem. Clique para ampliar.</span>
                     </>
                   ) : (
-                    <div className="catalog-admin-modal-image placeholder">Informe uma URL de imagem para ver o preview.</div>
+                    <div className="catalog-admin-modal-image placeholder">
+                      {canManageEditorImage ? 'Nenhuma imagem vinculada ao produto.' : 'Salve o produto para enviar uma imagem.'}
+                    </div>
                   )}
+
+                  <div className="catalog-admin-editor-panel">
+                    <span className="section-kicker">Imagem do produto</span>
+                    <h4>{editorImageUrl ? 'Substituir ou remover' : 'Enviar imagem'}</h4>
+                    <p>
+                      {canManageEditorImage
+                        ? 'A imagem enviada é convertida para 1:1, salva no storage e vinculada ao produto.'
+                        : 'Primeiro salve o produto. Depois disso o envio da imagem fica disponível neste modal.'}
+                    </p>
+                    <div className="catalog-admin-editor-actions">
+                      <Button type="button" onClick={triggerImagePicker} disabled={!canManageEditorImage || uploadingImage || removingImage || saving}>
+                        {uploadingImage ? 'Enviando...' : editorImageUrl ? 'Substituir imagem' : 'Enviar imagem'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={removeEditorImage}
+                        disabled={!canManageEditorImage || !editorImageUrl || removingImage || uploadingImage || saving}
+                      >
+                        {removingImage ? 'Excluindo...' : 'Excluir imagem'}
+                      </Button>
+                    </div>
+                    <span className="catalog-admin-image-hint">Formato final sempre 1:1.</span>
+                  </div>
 
                   <div className="catalog-admin-editor-panel">
                     <span className="section-kicker">Resumo do enrichment</span>
@@ -708,7 +824,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                   <section className="catalog-admin-editor-panel">
                     <div className="catalog-admin-editor-section-head">
                       <span className="section-kicker">Dados principais</span>
-                      <h4>Identificacao e exibicao</h4>
+                      <h4>Identificação e exibição</h4>
                     </div>
                     <div className="catalog-admin-editor-grid">
                       <div className="catalog-admin-editor-field">
@@ -716,13 +832,13 @@ const SuperAdminCatalogManager: React.FC = () => {
                         <input
                           id="catalog-form-gtin"
                           className="input"
-                          placeholder="8 a 14 digitos"
+                          placeholder="8 a 14 dígitos"
                           value={form.gtin}
                           onChange={(event) => setForm((current) => ({ ...current, gtin: event.target.value }))}
                         />
                       </div>
                       <div className="catalog-admin-editor-field catalog-admin-editor-field-wide">
-                        <label htmlFor="catalog-form-name">Nome canonical</label>
+                        <label htmlFor="catalog-form-name">Nome principal</label>
                         <input
                           id="catalog-form-name"
                           className="input"
@@ -772,11 +888,11 @@ const SuperAdminCatalogManager: React.FC = () => {
                         />
                       </div>
                       <div className="catalog-admin-editor-field catalog-admin-editor-field-wide">
-                        <label htmlFor="catalog-form-description">Descricao</label>
+                        <label htmlFor="catalog-form-description">Descrição</label>
                         <textarea
                           id="catalog-form-description"
                           className="input catalog-admin-editor-textarea"
-                          placeholder="Descricao comercial ou detalhada do produto"
+                          placeholder="Descrição comercial ou detalhada do produto"
                           value={form.description}
                           onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                         />
@@ -787,7 +903,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                   <section className="catalog-admin-editor-panel">
                     <div className="catalog-admin-editor-section-head">
                       <span className="section-kicker">Enriquecimento</span>
-                      <h4>Campos tecnicos e rastreio</h4>
+                      <h4>Campos técnicos e rastreio</h4>
                     </div>
                     <div className="catalog-admin-editor-grid">
                       <div className="catalog-admin-editor-field">
@@ -805,13 +921,13 @@ const SuperAdminCatalogManager: React.FC = () => {
                         <input
                           id="catalog-form-ncm"
                           className="input"
-                          placeholder="Codigo NCM"
+                          placeholder="Código NCM"
                           value={form.ncm}
                           onChange={(event) => setForm((current) => ({ ...current, ncm: event.target.value }))}
                         />
                       </div>
                       <div className="catalog-admin-editor-field">
-                        <label htmlFor="catalog-form-provider">Provider</label>
+                        <label htmlFor="catalog-form-provider">Origem</label>
                         <input
                           id="catalog-form-provider"
                           className="input"
@@ -821,7 +937,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                         />
                       </div>
                       <div className="catalog-admin-editor-field">
-                        <label htmlFor="catalog-form-provider-product-id">Provider Product ID</label>
+                        <label htmlFor="catalog-form-provider-product-id">ID do produto na origem</label>
                         <input
                           id="catalog-form-provider-product-id"
                           className="input"
@@ -831,7 +947,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                         />
                       </div>
                       <div className="catalog-admin-editor-field">
-                        <label htmlFor="catalog-form-confidence">Confianca</label>
+                        <label htmlFor="catalog-form-confidence">Confiança</label>
                         <input
                           id="catalog-form-confidence"
                           className="input"
@@ -841,11 +957,11 @@ const SuperAdminCatalogManager: React.FC = () => {
                         />
                       </div>
                       <div className="catalog-admin-editor-field">
-                        <label htmlFor="catalog-form-source-license">Licenca da fonte</label>
+                        <label htmlFor="catalog-form-source-license">Licença da origem</label>
                         <input
                           id="catalog-form-source-license"
                           className="input"
-                          placeholder="Licenca ou observacao de uso"
+                          placeholder="Licença ou observação de uso"
                           value={form.sourceLicense}
                           onChange={(event) => setForm((current) => ({ ...current, sourceLicense: event.target.value }))}
                         />
@@ -854,38 +970,39 @@ const SuperAdminCatalogManager: React.FC = () => {
                   </section>
                   <section className="catalog-admin-editor-panel">
                     <div className="catalog-admin-editor-section-head">
-                      <span className="section-kicker">Midia e payload</span>
+                      <span className="section-kicker">Imagem e dados extras</span>
                       <h4>Imagem e dados estruturados</h4>
                     </div>
                     <div className="catalog-admin-editor-grid">
                       <div className="catalog-admin-editor-field catalog-admin-editor-field-wide">
-                        <label htmlFor="catalog-form-image-url">URL da imagem</label>
-                        <input
-                          id="catalog-form-image-url"
-                          className="input"
-                          placeholder="https://..."
-                          value={form.imageUrl}
-                          onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))}
-                        />
+                        <label>Imagem</label>
+                        <div className="catalog-admin-editor-inline-note">
+                          <strong>{editorImageUrl ? 'Imagem vinculada ao produto' : 'Sem imagem vinculada'}</strong>
+                          <span>Use os botões de upload ou exclusão no painel lateral.</span>
+                        </div>
                       </div>
                       <div className="catalog-admin-editor-field catalog-admin-editor-field-wide">
-                        <label htmlFor="catalog-form-attributes-json">Attributes JSON</label>
+                        <label htmlFor="catalog-form-attributes-json">Atributos estruturados</label>
                         <textarea
                           id="catalog-form-attributes-json"
-                          className="input catalog-admin-editor-textarea"
+                          className="input catalog-admin-editor-textarea catalog-admin-editor-code"
                           placeholder='{"weight":"1kg","origin":"manual"}'
                           value={form.attributesJson}
                           onChange={(event) => setForm((current) => ({ ...current, attributesJson: event.target.value }))}
+                          onBlur={() => prettifyJsonField('attributesJson')}
+                          spellCheck={false}
                         />
                       </div>
                       <div className="catalog-admin-editor-field catalog-admin-editor-field-wide">
-                        <label htmlFor="catalog-form-raw-payload">Raw payload</label>
+                        <label htmlFor="catalog-form-raw-payload">Payload bruto</label>
                         <textarea
                           id="catalog-form-raw-payload"
-                          className="input catalog-admin-editor-textarea"
+                          className="input catalog-admin-editor-textarea catalog-admin-editor-code"
                           placeholder='{"origin":"SUPER_ADMIN_MANUAL"}'
                           value={form.rawPayload}
                           onChange={(event) => setForm((current) => ({ ...current, rawPayload: event.target.value }))}
+                          onBlur={() => prettifyJsonField('rawPayload')}
+                          spellCheck={false}
                         />
                       </div>
                     </div>
@@ -903,7 +1020,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                 type="button"
                 className="catalog-admin-lightbox-close"
                 onClick={() => setLightboxImage(null)}
-                aria-label="Fechar visualizacao ampliada"
+                aria-label="Fechar visualização ampliada"
               >
                 x
               </button>
