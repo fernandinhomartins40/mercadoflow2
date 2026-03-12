@@ -6514,23 +6514,39 @@ a.dashboard-quick-item:hover {
   border: 1px solid rgba(33, 21, 19, 0.08);
   background: linear-gradient(180deg, rgba(255, 252, 249, 0.98) 0%, rgba(248, 238, 231, 0.95) 100%);
   box-shadow: 0 18px 30px rgba(33, 21, 19, 0.06);
+  gap: 12px;
 }
 
 .super-admin-crawler-page .super-admin-crawler-job-head {
-  padding-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(33, 21, 19, 0.08);
 }
 
+.super-admin-crawler-page .super-admin-crawler-job-head h3 {
+  line-height: 1.08;
+}
+
+.super-admin-crawler-page .super-admin-crawler-job-meta {
+  gap: 6px;
+}
+
+.super-admin-crawler-page .super-admin-crawler-job-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .super-admin-crawler-page .super-admin-crawler-job-stats > div {
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 18px;
   border: 1px solid rgba(33, 21, 19, 0.08);
   background: rgba(255, 255, 255, 0.72);
 }
 
+.super-admin-crawler-page .super-admin-crawler-job-stats .section-kicker {
+  margin-bottom: 4px;
+}
+
 .super-admin-crawler-page .super-admin-crawler-job-footer {
-  padding-top: 12px;
-  border-top: 1px solid rgba(33, 21, 19, 0.08);
+  padding-top: 8px;
 }
 
 .super-admin-crawler-page .crawler-run-actions {
@@ -6544,6 +6560,14 @@ a.dashboard-quick-item:hover {
 .super-admin-home-page .dashboard-stat-list,
 .super-admin-home-page .dashboard-quick-list {
   gap: 14px;
+}
+
+.super-admin-crawler-page .dashboard-page-grid {
+  grid-template-columns: minmax(0, 520px);
+}
+
+.super-admin-crawler-page .dashboard-note-card {
+  max-width: 520px;
 }
 
 @media (min-width: 1181px) {

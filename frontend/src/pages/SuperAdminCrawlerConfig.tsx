@@ -77,6 +77,23 @@ const runStatusClass = (value?: string | null) => {
   return 'neutral';
 };
 
+const formatJobLoad = (job: CrawlerJob) => {
+  const queued = Number(job.queuedRuns || 0);
+  const running = Number(job.runningRuns || 0);
+  if (running > 0) return `${running} em execucao`;
+  if (queued > 0) return `${queued} na fila`;
+  return 'Sem fila local';
+};
+
+const formatJobResult = (run?: CrawlerRun | null) => {
+  const imported = Number(run?.importedProducts || 0);
+  const scanned = Number(run?.scannedProducts || 0);
+  const errors = Number(run?.errors || 0);
+  if (!run) return 'Sem historico';
+  if (errors > 0) return `${imported}/${scanned} | ${errors} erros`;
+  return `${imported}/${scanned}`;
+};
+
 const SuperAdminCrawlerConfig: React.FC = () => {
   const [jobs, setJobs] = useState<CrawlerJob[]>([]);
   const [monitor, setMonitor] = useState<CrawlerMonitor>({
@@ -268,12 +285,11 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           <article className="dashboard-command-card super-admin-command-card">
             <div className="dashboard-command-copy">
               <span className="pill">Crawler Python</span>
-              <h1 className="dashboard-command-title">Central de execucao manual por mercado, sem seeds soltos e sem rodada automatica.</h1>
+              <h1 className="dashboard-command-title">Execucao manual por mercado, sem ruido operacional.</h1>
               <p className="dashboard-command-text">
-                A pagina agora parte do estado operacional real: fila, run atual, mercado suportado e acoes de disparo ou retomada em um fluxo unico.
+                Cada bloco da tela foi reduzido para o que ajuda a decidir: estado atual, ultimo resultado e acao de disparo.
               </p>
               <div className="hero-inline-actions">
-                <Link className="button secondary" to="/super-admin">Voltar ao painel</Link>
                 {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver ultimo run</Link> : null}
               </div>
             </div>
@@ -285,19 +301,6 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                 <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
                 <p>{latestRun?.message || 'Nenhuma execucao registrada ate o momento.'}</p>
               </div>
-
-              <div className="dashboard-command-mosaic">
-                <div className="dashboard-mini-tile">
-                  <span>Mercados suportados</span>
-                  <strong>{jobs.length}</strong>
-                  <small>providers disponiveis</small>
-                </div>
-                <div className="dashboard-mini-tile accent">
-                  <span>Importados recentes</span>
-                  <strong>{totalImportedRecent}</strong>
-                  <small>ultimas 12 execucoes</small>
-                </div>
-              </div>
             </div>
           </article>
 
@@ -306,11 +309,6 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               <span className="section-kicker">Regra principal</span>
               <strong>Um supermercado por vez</strong>
               <p>O dispatcher aceita apenas um provider por execucao para deixar o log legivel e a retomada previsivel.</p>
-            </div>
-            <div className="dashboard-priority-card">
-              <span className="section-kicker">Fila local</span>
-              <strong>{monitor.queuedRuns || 0} aguardando</strong>
-              <p>{activeJobs || monitor.runningRuns || 0} rodando agora no worker.</p>
             </div>
           </aside>
         </section>
@@ -324,31 +322,27 @@ const SuperAdminCrawlerConfig: React.FC = () => {
             <h3>{jobs.length}</h3>
           </div>
           <div className="card">
-            <span className="section-kicker">Fila</span>
-            <h3>{monitor.queuedRuns || 0}</h3>
-          </div>
-          <div className="card">
-            <span className="section-kicker">Executando</span>
+            <span className="section-kicker">Em execucao</span>
             <h3>{activeJobs || monitor.runningRuns || 0}</h3>
           </div>
           <div className="card">
-            <span className="section-kicker">Importados (12 ultimas)</span>
+            <span className="section-kicker">Importados recentes</span>
             <h3>{totalImportedRecent}</h3>
           </div>
         </section>
 
         <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-note-card">
-            <span className="section-kicker">Fluxo recomendado</span>
-            <h3>Somente um supermercado por vez</h3>
+            <span className="section-kicker">Fluxo</span>
+            <h3>Executar, validar, seguir</h3>
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>1. Escolha um mercado</strong>
-                <span>Dispare apenas o provider necessario para reduzir ruido e facilitar leitura dos logs.</span>
+                <span>Rode apenas o provider necessario.</span>
               </div>
               <div className="dashboard-quick-item">
-                <strong>2. Filtre categorias quando fizer sentido</strong>
-                <span>Use o modal para limitar captura e evitar execucao desnecessaria.</span>
+                <strong>2. Revise o ultimo resultado</strong>
+                <span>Olhe importados, erros e detalhes antes do proximo mercado.</span>
               </div>
             </div>
           </section>
@@ -373,36 +367,29 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
                   <div className="super-admin-crawler-job-meta">
                     <span className="pill secondary">{job.provider}</span>
-                    <span className="pill secondary">{job.extractorType}</span>
-                    <span className="pill secondary">{job.scriptName}</span>
-                    {job.downloadsImages ? <span className="pill secondary">Imagens locais</span> : null}
-                    {job.includesMedication ? <span className="pill secondary">Inclui medicamentos</span> : null}
+                    {Number(job.runningRuns || 0) > 0 || Number(job.queuedRuns || 0) > 0 ? (
+                      <span className="pill secondary">{formatJobLoad(job)}</span>
+                    ) : null}
                   </div>
 
-                  <p className="super-admin-crawler-job-text">{job.description}</p>
                   {job.enabled === false ? (
                     <div className="panel-empty" style={{ textAlign: 'left' }}>
-                      Execucao temporariamente desabilitada. O historico e os dados ja coletados continuam preservados.
+                      Execucao temporariamente desabilitada.
                     </div>
                   ) : null}
 
                   <div className="super-admin-crawler-job-stats">
                     <div>
-                      <span className="section-kicker">Ultimo fechamento</span>
+                      <span className="section-kicker">Ultima rodada</span>
                       <strong>{formatDate(job.lastRun?.finishedAt || job.lastRun?.startedAt || job.lastRun?.requestedAt)}</strong>
                     </div>
                     <div>
-                      <span className="section-kicker">Importados</span>
-                      <strong>{Number(job.lastRun?.importedProducts || 0)} / {Number(job.lastRun?.scannedProducts || 0)}</strong>
-                    </div>
-                    <div>
-                      <span className="section-kicker">Fila local</span>
-                      <strong>{Number(job.queuedRuns || 0)} na fila, {Number(job.runningRuns || 0)} executando</strong>
+                      <span className="section-kicker">Resultado</span>
+                      <strong>{formatJobResult(job.lastRun)}</strong>
                     </div>
                   </div>
 
                   <div className="super-admin-crawler-job-footer">
-                    <div className="super-admin-crawler-job-license">{job.sourceLicense || '--'}</div>
                     <div className="crawler-run-actions">
                       {job.lastRun?.id ? (
                         <Link className="button secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
