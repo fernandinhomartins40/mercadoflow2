@@ -13,6 +13,7 @@ public class PromotionImpactDTO {
     private UUID productId;
     private String name;
     private String category;
+    private String imageUrl;
     private BigDecimal baselinePrice;
     private BigDecimal promoAveragePrice;
     private BigDecimal normalAveragePrice;

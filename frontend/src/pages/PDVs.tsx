@@ -61,9 +61,9 @@ const PDVs: React.FC = () => {
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
               <span className="pill">Estrutura operacional</span>
-              <h1 className="dashboard-command-title">Organize os PDVs como inventario operacional, nao como lista solta.</h1>
+              <h1 className="dashboard-command-title">Organize os PDVs como inventário operacional, não como lista solta.</h1>
               <p className="dashboard-command-text">
-                A pagina separa cadastro, inventario e contexto de uso para facilitar manutencao dos pontos de venda e reduzir erro de identificacao no dia a dia.
+                A página separa cadastro, inventario e contexto de uso para facilitar manutenção dos pontos de venda e reduzir erro de identificação no dia a dia.
               </p>
               <div className="hero-inline-actions">
                 <Button variant="secondary" onClick={load} disabled={loading}>Atualizar lista</Button>
@@ -100,14 +100,14 @@ const PDVs: React.FC = () => {
 
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
-              <span className="section-kicker">Boa pratica</span>
-              <h3>Use nomes reconheciveis para a operacao.</h3>
+              <span className="section-kicker">Boa prática</span>
+              <h3>Use nomes reconheciveis para a operação.</h3>
               <p>Gerentes, compradores e equipe de loja precisam bater o olho e identificar o PDV sem duvida.</p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Risco comum</span>
-              <h3>Duplicar PDV por variacao de nome.</h3>
-              <p>Padronize o cadastro para nao espalhar historico e configuracao entre nomes parecidos.</p>
+              <h3>Duplicar PDV por variação de nome.</h3>
+              <p>Padronize o cadastro para não espalhar histórico e configuração entre nomes parecidos.</p>
             </article>
           </aside>
         </section>
@@ -116,7 +116,7 @@ const PDVs: React.FC = () => {
           <MetricsCard title="PDVs" value={items.length} icon="PD" caption="pontos de venda cadastrados" />
           <MetricsCard title="Com serial" value={withSerialCount} icon="SR" caption="equipamentos identificados" />
           <MetricsCard title="Sem serial" value={Math.max(items.length - withSerialCount, 0)} icon="NS" caption="pedem complemento" />
-          <MetricsCard title="Status da pagina" value={loading ? 'Atualizando' : 'Pronta'} icon="OK" caption="situacao atual do cadastro" />
+          <MetricsCard title="Status da página" value={loading ? 'Atualizando' : 'Pronta'} icon="OK" caption="situação atual do cadastro" />
         </div>
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
@@ -125,7 +125,7 @@ const PDVs: React.FC = () => {
           <section className="analytics-panel reveal dashboard-table-panel">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Inventario</span>
+                <span className="section-kicker">Inventário</span>
                 <h3>Lista de PDVs cadastrados</h3>
               </div>
             </div>
@@ -168,7 +168,7 @@ const PDVs: React.FC = () => {
             <section className="analytics-panel reveal dashboard-form-panel">
               <div className="analytics-panel-head compact">
                 <div>
-                  <span className="section-kicker">Cadastro rapido</span>
+                  <span className="section-kicker">Cadastro rápido</span>
                   <h3>Novo PDV</h3>
                 </div>
               </div>
@@ -180,20 +180,20 @@ const PDVs: React.FC = () => {
             </section>
 
             <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Boas praticas</span>
-              <h3>Padrao de cadastro</h3>
+              <span className="section-kicker">Boas práticas</span>
+              <h3>Padrão de cadastro</h3>
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">
                   <strong>Use nomes reconheciveis</strong>
-                  <span>Facilita a leitura para gerentes, compradores e equipe de operacao.</span>
+                  <span>Facilita a leitura para gerentes, compradores e equipe de operação.</span>
                 </div>
                 <div className="dashboard-quick-item">
                   <strong>Preencha serial quando existir</strong>
-                  <span>Ajuda na identificacao do equipamento e reduz erro operacional.</span>
+                  <span>Ajuda na identificação do equipamento e reduz erro operacional.</span>
                 </div>
                 <div className="dashboard-quick-item">
                   <strong>Mantenha a lista enxuta</strong>
-                  <span>Evite duplicar PDVs com nomes parecidos ou abreviacoes diferentes.</span>
+                  <span>Evite duplicar PDVs com nomes parecidos ou abreviações diferentes.</span>
                 </div>
               </div>
             </section>

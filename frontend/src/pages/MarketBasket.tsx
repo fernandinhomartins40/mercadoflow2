@@ -51,7 +51,7 @@ const MarketBasket: React.FC = () => {
   const actionHint = (rule: BasketRule) => {
     if (Number(rule.lift || 0) >= 2.2) return 'Expor lado a lado e testar kit leve.';
     if (Number(rule.confidence || 0) >= 0.45) return 'Sinal claro para cross-sell no caixa.';
-    return 'Manter monitoramento para nova confirmacao.';
+    return 'Manter monitoramento para nova confirmação.';
   };
 
   return (
@@ -63,12 +63,12 @@ const MarketBasket: React.FC = () => {
               <span className="pill">Compra casada</span>
               <h1 className="dashboard-command-title">Use pares reais de carrinho para vender melhor.</h1>
               <p className="dashboard-command-text">
-                Em vez de adivinhar combinacoes, a tela destaca os pares que sustentam exposicao, combo e sugestao de venda com confianca e lift medidos.
+                Em vez de adivinhar combinações, a tela destaca os pares que sustentam exposição, combo e sugestao de venda com confiança e lift medidos.
               </p>
               <div className="hero-chip-row">
                 <span className="hero-chip">{rules.length} pares avaliados</span>
-                <span className="hero-chip">Confianca media {formatPercent(averageConfidence * 100)}</span>
-                <span className="hero-chip">{totalOccurrences} ocorrencias somadas</span>
+                <span className="hero-chip">Confiança media {formatPercent(averageConfidence * 100)}</span>
+                <span className="hero-chip">{totalOccurrences} ocorrências somadas</span>
               </div>
             </div>
 
@@ -82,7 +82,7 @@ const MarketBasket: React.FC = () => {
                 </strong>
                 <p>
                   {strongestRule
-                    ? `${strongestRule.pairCount} compras em conjunto e confianca de ${formatPercent(strongestRule.confidence * 100)}.`
+                    ? `${strongestRule.pairCount} compras em conjunto e confiança de ${formatPercent(strongestRule.confidence * 100)}.`
                     : 'Assim que a cesta ganhar densidade, o par campeao aparece aqui com contexto de uso.'}
                 </p>
               </article>
@@ -93,11 +93,11 @@ const MarketBasket: React.FC = () => {
                   <strong>{strongestRule ? strongestRule.lift.toFixed(2) : '0.00'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Confianca</span>
+                  <span>Confiança</span>
                   <strong>{strongestRule ? formatPercent(strongestRule.confidence * 100) : '0.0%'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Acao sugerida</span>
+                  <span>Ação sugerida</span>
                   <strong>{strongestRule ? actionHint(strongestRule) : '--'}</strong>
                 </article>
               </div>
@@ -108,12 +108,12 @@ const MarketBasket: React.FC = () => {
             <article className="dashboard-priority-card">
               <span className="section-kicker">Fonte de leitura</span>
               <h3>Escolha velocidade ou processamento vivo.</h3>
-              <p>Cache noturno para consulta rapida. Analise ao vivo quando precisar validar uma mudanca recente de comportamento.</p>
+              <p>Cache noturno para consulta rápida. Análise ao vivo quando precisar validar uma mudança recente de comportamento.</p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Uso pratico</span>
-              <h3>Transforme par forte em exposicao e combo.</h3>
-              <p>Os primeiros pares servem melhor para caixa, gondola lateral, ponta e comunicacao de compra conjunta.</p>
+              <h3>Transforme par forte em exposição e combo.</h3>
+              <p>Os primeiros pares servem melhor para caixa, gôndola lateral, ponta e comunicação de compra conjunta.</p>
             </article>
           </aside>
         </section>
@@ -125,19 +125,19 @@ const MarketBasket: React.FC = () => {
             <div className="metric-card-bottom"><span className="metric-card-meta">regras retornadas no recorte</span></div>
           </div>
           <div className="metric-card metric-card-warning reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Confianca media</span><span className="metric-card-icon">CF</span></div>
+            <div className="metric-card-top"><span className="metric-card-title">Confiança media</span><span className="metric-card-icon">CF</span></div>
             <strong className="metric-card-value">{formatPercent(averageConfidence * 100)}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">forca media das relacoes</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">força media das relações</span></div>
           </div>
           <div className="metric-card metric-card-danger reveal">
             <div className="metric-card-top"><span className="metric-card-title">Lift maximo</span><span className="metric-card-icon">LF</span></div>
             <strong className="metric-card-value">{strongestRule ? strongestRule.lift.toFixed(2) : '0.00'}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">maior impulso de combinacao</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">maior impulso de combinação</span></div>
           </div>
           <div className="metric-card metric-card-default reveal">
             <div className="metric-card-top"><span className="metric-card-title">Origem</span><span className="metric-card-icon">FG</span></div>
             <strong className="metric-card-value">{useCached ? 'Cache' : 'Ao vivo'}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">modo atual da analise</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">modo atual da análise</span></div>
           </div>
         </section>
 
@@ -146,26 +146,26 @@ const MarketBasket: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Origem</span>
-                <h3>Escolha entre analise ao vivo e cache noturno</h3>
+                <h3>Escolha entre análise ao vivo e cache noturno</h3>
               </div>
             </div>
             <label className="toggle-row">
               <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} />
-              <span>{useCached ? 'Usando cache noturno' : 'Usando analise ao vivo'}</span>
+              <span>{useCached ? 'Usando cache noturno' : 'Usando análise ao vivo'}</span>
             </label>
           </section>
 
           <aside className="dashboard-side-stack">
             <section className="analytics-panel reveal dashboard-note-card">
               <span className="section-kicker">Como agir</span>
-              <h3>Leia lift junto com confianca.</h3>
+              <h3>Leia lift junto com confiança.</h3>
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">
                   <strong>Lift alto</strong>
-                  <span>Bom candidato para exposicao conjunta e sugestao de venda.</span>
+                  <span>Bom candidato para exposição conjunta e sugestao de venda.</span>
                 </div>
                 <div className="dashboard-quick-item">
-                  <strong>Confianca alta</strong>
+                  <strong>Confiança alta</strong>
                   <span>Sinal mais estavel para orientar combo e abordagem de caixa.</span>
                 </div>
                 <div className="dashboard-quick-item">
@@ -196,10 +196,10 @@ const MarketBasket: React.FC = () => {
                   <div className="pair-arrow">combina com</div>
                   <h4>{(rule.consequentNames || rule.consequent || []).join(', ')}</h4>
                   <div className="mini-metric-grid dual">
-                    <div><span>Confianca</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
+                    <div><span>Confiança</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
                     <div><span>Suporte</span><strong>{formatPercent(Number(rule.support || 0) * 100)}</strong></div>
-                    <div><span>Ocorrencias</span><strong>{rule.pairCount || 0}</strong></div>
-                    <div><span>Acao</span><strong>{actionHint(rule)}</strong></div>
+                    <div><span>Ocorrências</span><strong>{rule.pairCount || 0}</strong></div>
+                    <div><span>Ação</span><strong>{actionHint(rule)}</strong></div>
                   </div>
                 </article>
               ))

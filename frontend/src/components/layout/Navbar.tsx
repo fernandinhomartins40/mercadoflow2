@@ -3,16 +3,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/app': { title: 'Painel geral', subtitle: 'Resumo diario das vendas, giro e prioridades da operacao', section: 'Visao do negocio' },
-  '/app/produtos': { title: 'Produtos', subtitle: 'Consulta de itens, performance e comportamento por produto', section: 'Visao do negocio' },
-  '/app/cesta': { title: 'Compra casada', subtitle: 'Itens que se fortalecem juntos no caixa e na exposicao', section: 'Analise e operacao' },
-  '/app/previsao-demanda': { title: 'Previsao', subtitle: 'Demanda futura para orientar compra e abastecimento', section: 'Analise e operacao' },
-  '/app/campanhas': { title: 'Campanhas', subtitle: 'Acompanhamento de impacto promocional com base real', section: 'Analise e operacao' },
-  '/app/alertas': { title: 'Alertas', subtitle: 'Ocorrencias e sinais que exigem acao imediata', section: 'Analise e operacao' },
-  '/app/pdvs': { title: 'PDVs', subtitle: 'Origem operacional das vendas e distribuicao dos resultados', section: 'Analise e operacao' },
-  '/app/admin/catalogo': { title: 'Catalogo global', subtitle: 'Base unificada de produtos externos para administracao', section: 'Configuracao' },
-  '/app/configuracoes': { title: 'Configuracoes', subtitle: 'Acessos, integracoes e parametros da conta', section: 'Configuracao' },
-  '/app/download-agente': { title: 'Download do agente', subtitle: 'Instalacao e distribuicao do coletor local', section: 'Configuracao' },
+  '/app': { title: 'Painel geral', subtitle: 'Resumo diário das vendas, giro e prioridades da operação', section: 'Visão do negócio' },
+  '/app/produtos': { title: 'Produtos', subtitle: 'Consulta de itens, performance e comportamento por produto', section: 'Visão do negócio' },
+  '/app/cesta': { title: 'Compra casada', subtitle: 'Itens que se fortalecem juntos no caixa e na exposição', section: 'Análise e operação' },
+  '/app/previsao-demanda': { title: 'Previsão', subtitle: 'Demanda futura para orientar compra e abastecimento', section: 'Análise e operação' },
+  '/app/campanhas': { title: 'Campanhas', subtitle: 'Acompanhamento de impacto promocional com base real', section: 'Análise e operação' },
+  '/app/alertas': { title: 'Alertas', subtitle: 'Ocorrências e sinais que exigem ação imediata', section: 'Análise e operação' },
+  '/app/pdvs': { title: 'PDVs', subtitle: 'Origem operacional das vendas e distribuição dos resultados', section: 'Análise e operação' },
+  '/app/admin/catalogo': { title: 'Catálogo global', subtitle: 'Base unificada de produtos externos para administração', section: 'Configuração' },
+  '/app/configuracoes': { title: 'Configurações', subtitle: 'Acessos, integrações e parâmetros da conta', section: 'Configuração' },
+  '/app/download-agente': { title: 'Download do agente', subtitle: 'Instalação e distribuição do coletor local', section: 'Configuração' },
 };
 
 interface NavbarProps {
@@ -39,9 +39,9 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
   const header = useMemo(() => {
     if (location.pathname.startsWith('/app/produtos/')) {
       return {
-        section: 'Visao do negocio',
+        section: 'Visão do negócio',
         title: 'Painel do produto',
-        subtitle: 'Leitura completa do item com comparacao por PDV, preco e tendencia',
+        subtitle: 'Leitura completa do item com comparação por PDV, preço e tendência',
       };
     }
     return TITLES[location.pathname] || TITLES['/app'];
@@ -79,7 +79,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
           </div>
         </div>
         <div className="header-meta-row">
-          <span className="workspace-pill">{role === 'ADMIN' ? 'Perfil admin' : 'Operacao'}</span>
+          <span className="workspace-pill">{role === 'ADMIN' ? 'Perfil admin' : 'Operação'}</span>
           <span className="workspace-pill subtle">Atualizado em {todayLabel}</span>
         </div>
       </div>
@@ -100,8 +100,8 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
         <div className="workspace-user-chip">
           <span className="workspace-user-avatar">{(name || 'U').trim().charAt(0).toUpperCase()}</span>
           <div>
-            <strong>{name || 'Usuario'}</strong>
-            <span>{role === 'ADMIN' ? 'Administrador' : 'Operacao'}</span>
+            <strong>{name || 'Usuário'}</strong>
+            <span>{role === 'ADMIN' ? 'Administrador' : 'Operação'}</span>
           </div>
         </div>
 

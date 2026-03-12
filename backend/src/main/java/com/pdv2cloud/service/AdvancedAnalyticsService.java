@@ -10,12 +10,15 @@ import com.pdv2cloud.model.dto.ProductDashboardDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.PromotionImpactDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
+import com.pdv2cloud.model.dto.SeasonalProductCollectionDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
 import com.pdv2cloud.model.entity.Alert;
 import com.pdv2cloud.model.entity.Campaign;
+import com.pdv2cloud.model.entity.Product;
 import com.pdv2cloud.repository.AlertRepository;
 import com.pdv2cloud.repository.CampaignRepository;
 import com.pdv2cloud.repository.InvoiceRepository;
+import com.pdv2cloud.repository.ProductRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.ResultSet;
@@ -24,7 +27,6 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -63,6 +65,12 @@ public class AdvancedAnalyticsService {
     @Autowired
     private PriceIntelligenceService priceIntelligenceService;
 
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private CatalogImageStorageService catalogImageStorageService;
+
     public MarketCockpitDTO getCockpit(UUID marketId, LocalDate startDate, LocalDate endDate) {
         Window window = resolveWindow(startDate, endDate, 90);
         List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null, null, null);
@@ -80,11 +88,14 @@ public class AdvancedAnalyticsService {
         cockpit.setSlowMovers(topProducts(performance, "TREND_ASC", 5));
         cockpit.setTopTurnoverProducts(topProducts(performance, "TURNOVER", 5));
         cockpit.setLowTurnoverProducts(topProducts(performance, "TURNOVER_ASC", 5));
+        cockpit.setReplenishmentCandidates(fetchReplenishmentCandidates(performance, 8));
+        cockpit.setPromotionCandidates(fetchPromotionCandidates(performance, 8));
         cockpit.setPromotionHighlights(fetchPromotionHighlights(performance, 6));
         cockpit.setWeekdaySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.WEEKDAY));
         cockpit.setHourlySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.HOUR));
         cockpit.setMonthlySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.MONTH));
         cockpit.setTopPairs(fetchBasketHighlights(marketId, 8));
+        cockpit.setSeasonalCollections(fetchSeasonalCollections(marketId, window.end()));
         cockpit.setCampaignImpacts(fetchCampaignImpacts(marketId));
         cockpit.setSalesTrend(fetchSalesTrend(marketId, window));
         cockpit.setRecentInvoices(invoiceRepository.findRecentInvoiceSummaries(marketId, PageRequest.of(0, 6)));
@@ -168,7 +179,7 @@ public class AdvancedAnalyticsService {
         String orderBy = buildPerformanceOrderByClause(sortBy);
         StringBuilder sql = new StringBuilder(
             "with market_products as ( " +
-            "   select distinct p.id as product_id, p.ean, p.name, p.category " +
+            "   select distinct p.id as product_id, p.ean, p.name, p.category, p.image_url " +
             "   from invoice_items it " +
             "   join invoices i on i.id = it.invoice_id " +
             "   join products p on p.id = it.product_id " +
@@ -214,7 +225,7 @@ public class AdvancedAnalyticsService {
             "   where i.market_id = :marketId and i.data_emissao >= :previousStart and i.data_emissao < :startDate " +
             "   group by it.product_id " +
             ") " +
-            "select mp.product_id, mp.ean, mp.name, mp.category, " +
+            "select mp.product_id, mp.ean, mp.name, mp.category, mp.image_url, " +
             "       coalesce(cp.revenue, 0) as revenue, " +
             "       coalesce(cp.quantity_sold, 0) as quantity_sold, " +
             "       coalesce(cp.average_price, 0) as average_price, " +
@@ -261,6 +272,7 @@ public class AdvancedAnalyticsService {
                 rs.getString("ean"),
                 rs.getString("name"),
                 rs.getString("category"),
+                resolveProductImage(rs.getString("image_url")),
                 defaultBigDecimal(rs.getBigDecimal("revenue")),
                 defaultBigDecimal(rs.getBigDecimal("quantity_sold")),
                 defaultBigDecimal(rs.getBigDecimal("average_price")),
@@ -351,6 +363,7 @@ public class AdvancedAnalyticsService {
                 product.ean(),
                 product.name(),
                 product.category(),
+                product.imageUrl(),
                 revenue,
                 quantitySold,
                 averagePrice,
@@ -376,7 +389,7 @@ public class AdvancedAnalyticsService {
 
     private Map<UUID, ProductSnapshot> loadMarketProducts(MapSqlParameterSource params) {
         StringBuilder sql = new StringBuilder(
-            "select distinct p.id as product_id, p.ean, p.name, p.category " +
+            "select distinct p.id as product_id, p.ean, p.name, p.category, p.image_url " +
             "from invoice_items it " +
             "join invoices i on i.id = it.invoice_id " +
             "join products p on p.id = it.product_id " +
@@ -396,7 +409,8 @@ public class AdvancedAnalyticsService {
                         productId,
                         rs.getString("ean"),
                         rs.getString("name"),
-                        rs.getString("category")
+                        rs.getString("category"),
+                        resolveProductImage(rs.getString("image_url"))
                     ));
                 }
                 return rows;
@@ -561,6 +575,27 @@ public class AdvancedAnalyticsService {
         return sortProducts(performance, sortBy).stream().limit(limit).toList();
     }
 
+    private List<ProductPerformanceDTO> fetchReplenishmentCandidates(List<ProductPerformanceDTO> performance, int limit) {
+        return sortProducts(performance, "TURNOVER").stream()
+            .filter(row -> defaultBigDecimal(row.getRevenue()).compareTo(BigDecimal.ZERO) > 0)
+            .filter(row -> defaultBigDecimal(row.getSalesVelocity()).compareTo(BigDecimal.valueOf(1)) > 0)
+            .limit(limit)
+            .toList();
+    }
+
+    private List<ProductPerformanceDTO> fetchPromotionCandidates(List<ProductPerformanceDTO> performance, int limit) {
+        return performance.stream()
+            .filter(row -> defaultBigDecimal(row.getRevenue()).compareTo(BigDecimal.ZERO) > 0)
+            .filter(row -> defaultBigDecimal(row.getPromoRevenueShare()).compareTo(BigDecimal.valueOf(0.20)) < 0)
+            .sorted(
+                Comparator.comparing((ProductPerformanceDTO row) -> defaultBigDecimal(row.getRevenue())).reversed()
+                    .thenComparing(row -> defaultBigDecimal(row.getSalesVelocity()), Comparator.reverseOrder())
+                    .thenComparing(row -> row.getRevenueTrendPercentage() != null ? row.getRevenueTrendPercentage() : 0.0)
+            )
+            .limit(limit)
+            .toList();
+    }
+
     private List<ProductPerformanceDTO> sortProducts(List<ProductPerformanceDTO> performance, String sortBy) {
         List<ProductPerformanceDTO> sorted = new ArrayList<>(performance);
         sorted.sort(resolveComparator(sortBy));
@@ -615,6 +650,11 @@ public class AdvancedAnalyticsService {
 
     private List<ProductPairInsightDTO> fetchBasketHighlights(UUID marketId, int limit) {
         List<MarketBasketDTO> rules = marketBasketService.analyzeMarketBasket(marketId, 0.01, 0.15);
+        Map<UUID, Product> productsById = loadProductsById(
+            rules.stream()
+                .flatMap(rule -> java.util.stream.Stream.concat(rule.getAntecedent().stream(), rule.getConsequent().stream()))
+                .toList()
+        );
         return rules.stream()
             .limit(limit)
             .map(rule -> new ProductPairInsightDTO(
@@ -622,6 +662,8 @@ public class AdvancedAnalyticsService {
                 rule.getConsequent().isEmpty() ? null : rule.getConsequent().get(0),
                 rule.getAntecedentNames() == null || rule.getAntecedentNames().isEmpty() ? null : rule.getAntecedentNames().get(0),
                 rule.getConsequentNames() == null || rule.getConsequentNames().isEmpty() ? null : rule.getConsequentNames().get(0),
+                resolveProductImageForId(productsById, rule.getAntecedent().isEmpty() ? null : rule.getAntecedent().get(0)),
+                resolveProductImageForId(productsById, rule.getConsequent().isEmpty() ? null : rule.getConsequent().get(0)),
                 rule.getSupport(),
                 rule.getConfidence(),
                 rule.getLift(),
@@ -639,6 +681,7 @@ public class AdvancedAnalyticsService {
                 row.getProductId(),
                 row.getName(),
                 row.getCategory(),
+                row.getImageUrl(),
                 row.getBaselinePrice(),
                 row.getPromoAveragePrice(),
                 row.getNormalAveragePrice(),
@@ -770,7 +813,13 @@ public class AdvancedAnalyticsService {
     }
 
     private List<ProductPairInsightDTO> fetchProductRelatedPairs(UUID marketId, UUID productId, int limit) {
-        return marketBasketService.analyzeMarketBasket(marketId, 0.01, 0.15).stream()
+        List<MarketBasketDTO> rules = marketBasketService.analyzeMarketBasket(marketId, 0.01, 0.15);
+        Map<UUID, Product> productsById = loadProductsById(
+            rules.stream()
+                .flatMap(rule -> java.util.stream.Stream.concat(rule.getAntecedent().stream(), rule.getConsequent().stream()))
+                .toList()
+        );
+        return rules.stream()
             .filter(rule -> rule.getAntecedent().contains(productId) || rule.getConsequent().contains(productId))
             .limit(limit)
             .map(rule -> new ProductPairInsightDTO(
@@ -778,12 +827,37 @@ public class AdvancedAnalyticsService {
                 rule.getConsequent().isEmpty() ? null : rule.getConsequent().get(0),
                 rule.getAntecedentNames() == null || rule.getAntecedentNames().isEmpty() ? null : rule.getAntecedentNames().get(0),
                 rule.getConsequentNames() == null || rule.getConsequentNames().isEmpty() ? null : rule.getConsequentNames().get(0),
+                resolveProductImageForId(productsById, rule.getAntecedent().isEmpty() ? null : rule.getAntecedent().get(0)),
+                resolveProductImageForId(productsById, rule.getConsequent().isEmpty() ? null : rule.getConsequent().get(0)),
                 rule.getSupport(),
                 rule.getConfidence(),
                 rule.getLift(),
                 rule.getPairCount()
             ))
             .toList();
+    }
+
+    private List<SeasonalProductCollectionDTO> fetchSeasonalCollections(UUID marketId, LocalDate referenceDate) {
+        List<SeasonalWindow> windows = resolveSeasonalWindows(referenceDate);
+        List<SeasonalProductCollectionDTO> collections = new ArrayList<>();
+        for (SeasonalWindow window : windows) {
+            List<ProductPerformanceDTO> products = topProducts(
+                loadProductPerformanceRows(marketId, new Window(window.start(), window.end()), null, null, null)
+                    .stream()
+                    .filter(row -> defaultBigDecimal(row.getRevenue()).compareTo(BigDecimal.ZERO) > 0)
+                    .toList(),
+                "REVENUE",
+                8
+            );
+            collections.add(new SeasonalProductCollectionDTO(
+                window.key(),
+                window.title(),
+                window.subtitle(),
+                window.periodLabel(),
+                products
+            ));
+        }
+        return collections;
     }
 
     private List<CampaignImpactDTO> fetchCampaignImpacts(UUID marketId) {
@@ -930,10 +1004,23 @@ public class AdvancedAnalyticsService {
                 case 3 -> "Qua";
                 case 4 -> "Qui";
                 case 5 -> "Sex";
-                default -> "Sab";
+                default -> "Sáb";
             };
             case HOUR -> String.format("%02dh", bucket);
-            case MONTH -> Month.of(bucket).name().substring(0, 3);
+            case MONTH -> switch (bucket) {
+                case 1 -> "Jan";
+                case 2 -> "Fev";
+                case 3 -> "Mar";
+                case 4 -> "Abr";
+                case 5 -> "Mai";
+                case 6 -> "Jun";
+                case 7 -> "Jul";
+                case 8 -> "Ago";
+                case 9 -> "Set";
+                case 10 -> "Out";
+                case 11 -> "Nov";
+                default -> "Dez";
+            };
         };
     }
 
@@ -947,6 +1034,89 @@ public class AdvancedAnalyticsService {
             alert.getProduct() != null ? alert.getProduct().getId() : null,
             alert.getIsRead(),
             alert.getCreatedAt()
+        );
+    }
+
+    private Map<UUID, Product> loadProductsById(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        return productRepository.findAllById(ids).stream()
+            .collect(java.util.stream.Collectors.toMap(Product::getId, product -> product));
+    }
+
+    private String resolveProductImageForId(Map<UUID, Product> productsById, UUID productId) {
+        if (productId == null) {
+            return null;
+        }
+        Product product = productsById.get(productId);
+        return product != null ? resolveProductImage(product.getImageUrl()) : null;
+    }
+
+    private String resolveProductImage(String imageUrl) {
+        return catalogImageStorageService.resolveCatalogImageUrl(imageUrl, null);
+    }
+
+    private List<SeasonalWindow> resolveSeasonalWindows(LocalDate referenceDate) {
+        return List.of(
+            resolveFixedSeasonalWindow("pascoa", "Páscoa", "Itens que ganham força no período pascal.", referenceDate, 3, 15, 4, 15),
+            resolveFixedSeasonalWindow("festa-junina", "Festa Junina", "Produtos que costumam subir com o calendário junino.", referenceDate, 6, 1, 6, 30),
+            resolveFixedSeasonalWindow("natal", "Natal", "Itens que puxam a venda no pico de dezembro.", referenceDate, 12, 1, 12, 25),
+            resolveCrossYearSeasonalWindow("ano-novo", "Ano Novo", "Produtos fortes na virada e no abastecimento imediato.", referenceDate, 12, 26, 1, 5)
+        );
+    }
+
+    private SeasonalWindow resolveFixedSeasonalWindow(
+        String key,
+        String title,
+        String subtitle,
+        LocalDate referenceDate,
+        int startMonth,
+        int startDay,
+        int endMonth,
+        int endDay
+    ) {
+        int year = referenceDate.getYear();
+        LocalDate end = LocalDate.of(year, endMonth, endDay);
+        if (end.isAfter(referenceDate)) {
+            year -= 1;
+            end = LocalDate.of(year, endMonth, endDay);
+        }
+        LocalDate start = LocalDate.of(year, startMonth, startDay);
+        return new SeasonalWindow(
+            key,
+            title,
+            subtitle,
+            start,
+            end,
+            start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) + " a " + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+        );
+    }
+
+    private SeasonalWindow resolveCrossYearSeasonalWindow(
+        String key,
+        String title,
+        String subtitle,
+        LocalDate referenceDate,
+        int startMonth,
+        int startDay,
+        int endMonth,
+        int endDay
+    ) {
+        int endYear = referenceDate.getYear();
+        LocalDate end = LocalDate.of(endYear, endMonth, endDay);
+        if (end.isAfter(referenceDate)) {
+            endYear -= 1;
+            end = LocalDate.of(endYear, endMonth, endDay);
+        }
+        LocalDate start = LocalDate.of(endYear - 1, startMonth, startDay);
+        return new SeasonalWindow(
+            key,
+            title,
+            subtitle,
+            start,
+            end,
+            start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " a " + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
         );
     }
 
@@ -1016,7 +1186,7 @@ public class AdvancedAnalyticsService {
         }
     }
 
-    private record ProductSnapshot(UUID productId, String ean, String name, String category) {
+    private record ProductSnapshot(UUID productId, String ean, String name, String category, String imageUrl) {
     }
 
     private record CurrentAggregate(
@@ -1045,6 +1215,16 @@ public class AdvancedAnalyticsService {
     }
 
     private record Aggregate(BigDecimal revenue, long transactions, BigDecimal averageTicket) {
+    }
+
+    private record SeasonalWindow(
+        String key,
+        String title,
+        String subtitle,
+        LocalDate start,
+        LocalDate end,
+        String periodLabel
+    ) {
     }
 
     private enum SeasonalityGranularity {

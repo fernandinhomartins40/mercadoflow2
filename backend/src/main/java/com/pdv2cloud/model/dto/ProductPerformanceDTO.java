@@ -15,6 +15,7 @@ public class ProductPerformanceDTO {
     private String ean;
     private String name;
     private String category;
+    private String imageUrl;
     private BigDecimal revenue;
     private BigDecimal quantitySold;
     private BigDecimal averagePrice;

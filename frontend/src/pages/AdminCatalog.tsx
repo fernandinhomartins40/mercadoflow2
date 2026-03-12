@@ -170,7 +170,7 @@ const CatalogAdmin: React.FC = () => {
       setPageData(response.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar catalogo global');
+      setError(err?.message || 'Falha ao carregar catálogo global');
       setPageData(null);
     } finally {
       setLoading(false);
@@ -212,7 +212,7 @@ const CatalogAdmin: React.FC = () => {
       <Layout>
         <div className="page analytics-page">
           <div className="card" style={{ color: 'var(--danger)' }}>
-            Apenas administradores podem acessar o catalogo global.
+            Apenas administradores podem acessar o catálogo global.
           </div>
         </div>
       </Layout>
@@ -226,9 +226,9 @@ const CatalogAdmin: React.FC = () => {
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
               <span className="pill">Admin</span>
-              <h1 className="dashboard-command-title">Catalogo global em uma leitura mais direta para manutencao e consulta.</h1>
+              <h1 className="dashboard-command-title">Catálogo global em uma leitura mais direta para manutenção e consulta.</h1>
               <p className="dashboard-command-text">
-                O foco desta pagina agora fica no que interessa para o operador: volume da base, cobertura de imagem, recorte atual e filtros funcionais por produto.
+                O foco desta página agora fica no que interessa para o operador: volume da base, cobertura de imagem, recorte atual e filtros funcionais por produto.
               </p>
             </div>
 
@@ -244,10 +244,10 @@ const CatalogAdmin: React.FC = () => {
                 <div className="dashboard-mini-tile">
                   <span>Base total</span>
                   <strong>{totalElements}</strong>
-                  <small>catalogo global</small>
+                  <small>catálogo global</small>
                 </div>
                 <div className="dashboard-mini-tile">
-                  <span>Imagens nesta pagina</span>
+                  <span>Imagens nesta página</span>
                   <strong>{withImageCount}</strong>
                   <small>itens prontos</small>
                 </div>
@@ -259,21 +259,21 @@ const CatalogAdmin: React.FC = () => {
             <div className="dashboard-priority-card dark">
               <span className="section-kicker">Objetivo da tela</span>
               <strong>Consultar sem ruido tecnico</strong>
-              <p>Origem, confianca e outros dados internos saem do foco para que a leitura fique centrada no produto.</p>
+              <p>Origem, confiança e outros dados internos saem do foco para que a leitura fique centrada no produto.</p>
             </div>
             <div className="dashboard-priority-card">
-              <span className="section-kicker">Pagina atual</span>
+              <span className="section-kicker">Página atual</span>
               <strong>{page + 1} de {Math.max(totalPages, 1)}</strong>
-              <p>{rows.length} itens retornados nesta pagina.</p>
+              <p>{rows.length} itens retornados nesta página.</p>
             </div>
           </aside>
         </section>
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Total no banco" value={totalElements} icon="DB" caption="catalogo enriquecido" />
-          <MetricsCard title="Itens na pagina" value={rows.length} icon="PG" caption="retorno atual" />
+          <MetricsCard title="Total no banco" value={totalElements} icon="DB" caption="catálogo enriquecido" />
+          <MetricsCard title="Itens na página" value={rows.length} icon="PG" caption="retorno atual" />
           <MetricsCard title="Com imagem" value={withImageCount} icon="IM" caption="prontos para exibicao" />
-          <MetricsCard title="Marcas na pagina" value={brandCount} icon="BR" caption="variedade no recorte" />
+          <MetricsCard title="Marcas na página" value={brandCount} icon="BR" caption="variedade no recorte" />
         </div>
 
         <div className="dashboard-page-grid">
@@ -281,7 +281,7 @@ const CatalogAdmin: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Filtros</span>
-                <h3>Refinar por informacoes do produto</h3>
+                <h3>Refinar por informações do produto</h3>
               </div>
             </div>
             <div className="filter-bar-controls catalog-admin-filters-grid">
@@ -345,17 +345,17 @@ const CatalogAdmin: React.FC = () => {
           <section className="analytics-panel reveal dashboard-note-card">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Leitura rapida</span>
-                <h3>Como usar este catalogo</h3>
+                <span className="section-kicker">Leitura rápida</span>
+                <h3>Como usar este catálogo</h3>
               </div>
             </div>
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>Busque por nome ou GTIN</strong>
-                <span>O filtro principal foi mantido centrado na consulta do produto, nao na origem tecnica.</span>
+                <span>O filtro principal foi mantido centrado na consulta do produto, não na origem técnica.</span>
               </div>
               <div className="dashboard-quick-item">
-                <strong>Use imagem como criterio de triagem</strong>
+                <strong>Use imagem como critério de triagem</strong>
                 <span>O status de imagem ajuda a localizar itens prontos para exibicao ou pendentes de tratamento.</span>
               </div>
             </div>
@@ -365,7 +365,7 @@ const CatalogAdmin: React.FC = () => {
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
 
         {loading ? (
-          <div className="card">Carregando catalogo...</div>
+          <div className="card">Carregando catálogo...</div>
         ) : (
           <section className="analytics-panel reveal">
             <div className="analytics-panel-head">
@@ -386,7 +386,7 @@ const CatalogAdmin: React.FC = () => {
                       <th>GTIN</th>
                       <th>Marca</th>
                       <th>Categoria</th>
-                      <th>Acoes</th>
+                      <th>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -409,7 +409,7 @@ const CatalogAdmin: React.FC = () => {
                         <td data-label="GTIN">{textValue(row.gtin)}</td>
                         <td data-label="Marca">{textValue(row.brand)}</td>
                         <td data-label="Categoria">{textValue(row.category)}</td>
-                        <td data-label="Acoes" className="table-action-cell catalog-admin-action-cell">
+                        <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                           <button
                             type="button"
                             className="catalog-admin-view-button"
@@ -435,8 +435,8 @@ const CatalogAdmin: React.FC = () => {
         {!loading && pageData ? (
           <div className="analytics-panel pager-panel reveal">
             <div>
-              <span className="section-kicker">Paginacao</span>
-              <h3>Pagina {pageData.number + 1} de {Math.max(totalPages, 1)}</h3>
+              <span className="section-kicker">Paginação</span>
+              <h3>Página {pageData.number + 1} de {Math.max(totalPages, 1)}</h3>
             </div>
             <div className="pager-actions admin-pager-actions">
               <Button variant="secondary" onClick={() => setPage((value) => Math.max(0, value - 1))} disabled={page <= 0}>
@@ -522,7 +522,7 @@ const CatalogAdmin: React.FC = () => {
                     <strong>{textValue(selectedProduct.unit)}</strong>
                   </div>
                   <div className="catalog-admin-detail-item">
-                    <span>Observacoes</span>
+                    <span>Observações</span>
                     <strong>{selectedProduct.observationCount ?? '--'}</strong>
                   </div>
                 </div>
@@ -537,7 +537,7 @@ const CatalogAdmin: React.FC = () => {
                 type="button"
                 className="catalog-admin-lightbox-close"
                 onClick={() => setLightboxImage(null)}
-                aria-label="Fechar visualizacao ampliada"
+                aria-label="Fechar visualização ampliada"
               >
                 ×
               </button>

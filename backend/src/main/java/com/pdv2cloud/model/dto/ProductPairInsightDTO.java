@@ -13,6 +13,8 @@ public class ProductPairInsightDTO {
     private UUID consequentId;
     private String antecedentName;
     private String consequentName;
+    private String antecedentImageUrl;
+    private String consequentImageUrl;
     private double support;
     private double confidence;
     private double lift;

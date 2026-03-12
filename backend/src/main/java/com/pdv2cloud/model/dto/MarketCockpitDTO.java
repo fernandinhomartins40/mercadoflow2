@@ -17,11 +17,14 @@ public class MarketCockpitDTO {
     private List<ProductPerformanceDTO> slowMovers;
     private List<ProductPerformanceDTO> topTurnoverProducts;
     private List<ProductPerformanceDTO> lowTurnoverProducts;
+    private List<ProductPerformanceDTO> replenishmentCandidates;
+    private List<ProductPerformanceDTO> promotionCandidates;
     private List<ProductPairInsightDTO> topPairs;
     private List<SeasonalityPointDTO> weekdaySeasonality;
     private List<SeasonalityPointDTO> hourlySeasonality;
     private List<SeasonalityPointDTO> monthlySeasonality;
     private List<PromotionImpactDTO> promotionHighlights;
+    private List<SeasonalProductCollectionDTO> seasonalCollections;
     private List<CampaignImpactDTO> campaignImpacts;
     private List<SalesTrendPointDTO> salesTrend;
     private List<RecentInvoiceSummaryDTO> recentInvoices;

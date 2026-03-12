@@ -298,13 +298,13 @@ const ProductDetail: React.FC = () => {
               <span className="pill">Dashboard do produto</span>
               <h1 className="dashboard-command-title">{overview.name}</h1>
               <p className="dashboard-command-text">
-                Uma leitura unica para entender se este item vende por tracao real, depende de preco,
+                Uma leitura única para entender se este item vende por tração real, depende de preço,
                 muda por dia da semana e em qual PDV vale negociar melhor a compra com o fornecedor.
               </p>
               <div className="hero-chip-row">
                 <span className="hero-chip">Categoria {overview.category || 'Sem categoria'}</span>
                 <span className="hero-chip">GTIN {overview.ean || '--'}</span>
-                <span className="hero-chip">Ultima venda em {formatDate(overview.lastSoldAt)}</span>
+                <span className="hero-chip">Última venda em {formatDate(overview.lastSoldAt)}</span>
               </div>
               <div className="hero-inline-actions product-detail-actions">
                 <Link className="button secondary" to="/app/produtos">Voltar ao mapa de produtos</Link>
@@ -313,9 +313,9 @@ const ProductDetail: React.FC = () => {
 
             <div className="dashboard-command-showcase">
               <article className="dashboard-glow-card">
-                <span className="section-kicker">Receita do periodo</span>
+                <span className="section-kicker">Receita do período</span>
                 <strong>{formatMoney(overview.revenue)}</strong>
-                <p>{Number(overview.quantitySold || 0).toFixed(2)} unidades vendidas em {overview.transactionCount || 0} transacoes.</p>
+                <p>{Number(overview.quantitySold || 0).toFixed(2)} unidades vendidas em {overview.transactionCount || 0} transações.</p>
               </article>
 
               <div className="dashboard-command-mosaic">
@@ -324,7 +324,7 @@ const ProductDetail: React.FC = () => {
                   <strong>{Number(overview.salesVelocity || 0).toFixed(2)}/dia</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Resposta a preco</span>
+                  <span>Resposta a preço</span>
                   <strong>{formatPercent((overview.promoRevenueShare || 0) * 100)}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
@@ -337,14 +337,14 @@ const ProductDetail: React.FC = () => {
 
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
-              <span className="section-kicker">Leitura rapida</span>
+              <span className="section-kicker">Leitura rápida</span>
               <h3>Dia mais forte: {weekdayPeak?.label || '--'}</h3>
-              <p>{weekdayPeak ? `${formatMoney(weekdayPeak.revenue)} em receita no melhor dia.` : 'Sem sazonalidade suficiente neste periodo.'}</p>
+              <p>{weekdayPeak ? `${formatMoney(weekdayPeak.revenue)} em receita no melhor dia.` : 'Sem sazonalidade suficiente neste período.'}</p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Compra casada</span>
-              <h3>{strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem relacao forte detectada'}</h3>
-              <p>{strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)} para apoiar exposicao e combo.` : 'O painel mostra aqui a melhor associacao quando o historico for suficiente.'}</p>
+              <h3>{strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem relação forte detectada'}</h3>
+              <p>{strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)} para apoiar exposição e combo.` : 'O painel mostra aqui a melhor associação quando o histórico for suficiente.'}</p>
             </article>
           </aside>
         </section>

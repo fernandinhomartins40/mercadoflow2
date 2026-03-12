@@ -20,7 +20,7 @@ const Alerts: React.FC = () => {
               <span className="pill">Centro de alertas</span>
               <h1 className="dashboard-command-title">Separe o que precisa de resposta agora do que pode esperar.</h1>
               <p className="dashboard-command-text">
-                A fila fica mais legivel para usuario leigo: leitura imediata, prioridade, acao rapida e historico visivel no mesmo fluxo operacional.
+                A fila fica mais legível para usuário leigo: leitura imediata, prioridade, ação rápida e histórico visível no mesmo fluxo operacional.
               </p>
               <div className="hero-inline-actions">
                 <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
@@ -28,7 +28,7 @@ const Alerts: React.FC = () => {
               </div>
               <div className="hero-chip-row">
                 <span className="hero-chip">{alerts.length} alertas no recorte</span>
-                <span className="hero-chip">{unreadCount} nao lidos</span>
+                <span className="hero-chip">{unreadCount} não lidos</span>
                 <span className="hero-chip">{highPriorityCount} com prioridade alta</span>
               </div>
             </div>
@@ -73,22 +73,22 @@ const Alerts: React.FC = () => {
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Total de alertas" value={alerts.length} icon="AL" caption="itens retornados agora" />
-          <MetricsCard title="Nao lidos" value={unreadCount} icon="NV" caption="pendentes de revisao" />
-          <MetricsCard title="Alta prioridade" value={highPriorityCount} icon="HP" variant="danger" caption="pedem resposta mais rapida" />
-          <MetricsCard title="Filtro ativo" value={onlyUnread ? 'Nao lidos' : 'Todos'} icon="FL" caption="escopo atual da lista" />
+          <MetricsCard title="Não lidos" value={unreadCount} icon="NV" caption="pendentes de revisão" />
+          <MetricsCard title="Alta prioridade" value={highPriorityCount} icon="HP" variant="danger" caption="pedem resposta mais rápida" />
+          <MetricsCard title="Filtro ativo" value={onlyUnread ? 'Não lidos' : 'Todos'} icon="FL" caption="escopo atual da lista" />
         </div>
 
         <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-table-panel">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Operacao</span>
+                <span className="section-kicker">Operação</span>
                 <h3>Fila de alertas</h3>
               </div>
               <div className="card-section-actions">
                 <label className="toggle-inline">
                   <input type="checkbox" checked={onlyUnread} onChange={(e) => setOnlyUnread(e.target.checked)} />
-                  Somente nao lidos
+                  Somente não lidos
                 </label>
               </div>
             </div>
@@ -107,7 +107,7 @@ const Alerts: React.FC = () => {
                       <th>Mensagem</th>
                       <th>Prioridade</th>
                       <th>Criado em</th>
-                      <th style={{ width: 160 }}>Acoes</th>
+                      <th style={{ width: 160 }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -126,9 +126,9 @@ const Alerts: React.FC = () => {
                           <td data-label="Mensagem">{alert.message}</td>
                           <td data-label="Prioridade">{alert.priority}</td>
                           <td data-label="Criado em">{alert.createdAt ? new Date(alert.createdAt).toLocaleString('pt-BR') : '-'}</td>
-                          <td data-label="Acoes" className="table-action-cell">
+                          <td data-label="Ações" className="table-action-cell">
                             {alert.isRead ? (
-                              <span style={{ color: 'var(--muted)' }}>Sem acao</span>
+                              <span style={{ color: 'var(--muted)' }}>Sem ação</span>
                             ) : (
                               <Button variant="secondary" onClick={() => markRead(alert.id)}>
                                 Marcar lido
@@ -146,7 +146,7 @@ const Alerts: React.FC = () => {
 
           <div className="dashboard-side-stack">
             <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Leitura rapida</span>
+              <span className="section-kicker">Leitura rápida</span>
               <h3>Como priorizar</h3>
               <div className="dashboard-stat-list">
                 <div className="dashboard-stat-row">
@@ -165,7 +165,7 @@ const Alerts: React.FC = () => {
             </section>
 
             <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Atalho de operacao</span>
+              <span className="section-kicker">Atalho de operação</span>
               <h3>Rotina sugerida</h3>
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">

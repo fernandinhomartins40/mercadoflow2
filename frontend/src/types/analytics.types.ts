@@ -3,6 +3,7 @@ export interface ProductPerformance {
   ean?: string | null;
   name: string;
   category?: string | null;
+  imageUrl?: string | null;
   revenue: number;
   quantitySold: number;
   averagePrice: number;
@@ -39,6 +40,8 @@ export interface ProductPairInsight {
   consequentId?: string | null;
   antecedentName?: string | null;
   consequentName?: string | null;
+  antecedentImageUrl?: string | null;
+  consequentImageUrl?: string | null;
   support: number;
   confidence: number;
   lift: number;
@@ -58,6 +61,7 @@ export interface PromotionImpact {
   productId: string;
   name: string;
   category?: string | null;
+  imageUrl?: string | null;
   baselinePrice: number;
   promoAveragePrice: number;
   normalAveragePrice: number;
@@ -116,6 +120,14 @@ export interface SalesTrendPoint {
   revenue: number;
 }
 
+export interface SeasonalProductCollection {
+  key: string;
+  title: string;
+  subtitle?: string | null;
+  periodLabel?: string | null;
+  products: ProductPerformance[];
+}
+
 export interface MarketCockpit {
   totalRevenue: number;
   averageTicket: number;
@@ -128,11 +140,14 @@ export interface MarketCockpit {
   slowMovers: ProductPerformance[];
   topTurnoverProducts: ProductPerformance[];
   lowTurnoverProducts: ProductPerformance[];
+  replenishmentCandidates: ProductPerformance[];
+  promotionCandidates: ProductPerformance[];
   topPairs: ProductPairInsight[];
   weekdaySeasonality: SeasonalityPoint[];
   hourlySeasonality: SeasonalityPoint[];
   monthlySeasonality: SeasonalityPoint[];
   promotionHighlights: PromotionImpact[];
+  seasonalCollections: SeasonalProductCollection[];
   campaignImpacts: CampaignImpact[];
   salesTrend: SalesTrendPoint[];
   recentInvoices: RecentInvoice[];

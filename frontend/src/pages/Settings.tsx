@@ -156,10 +156,10 @@ const Settings: React.FC = () => {
         <section className="dashboard-command-grid reveal">
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
-              <span className="pill">Central de configuracoes</span>
-              <h1 className="dashboard-command-title">Controle credenciais, instalador e contexto do mercado em uma unica area.</h1>
+              <span className="pill">Central de configurações</span>
+              <h1 className="dashboard-command-title">Controle credenciais, instalador e contexto do mercado em uma única area.</h1>
               <p className="dashboard-command-text">
-                Esta central concentra URL real da API, distribuicao do instalador, identidade do mercado e ciclo completo das chaves do coletor desktop.
+                Esta central concentra URL real da API, distribuição do instalador, identidade do mercado e ciclo completo das chaves do coletor desktop.
               </p>
               <div className="hero-chip-row">
                 <span className="hero-chip">Perfil {role || '--'}</span>
@@ -172,12 +172,12 @@ const Settings: React.FC = () => {
               <article className="dashboard-glow-card">
                 <span className="section-kicker">Conexao principal do agente</span>
                 <strong>{apiBaseUrl}</strong>
-                <p>{heartbeatFreshKeys.length} chaves com heartbeat recente nos ultimos 10 minutos. Isso separa instalacoes vivas das esquecidas.</p>
+                <p>{heartbeatFreshKeys.length} chaves com heartbeat recente nos últimos 10 minutos. Isso separa instalações vivas das esquecidas.</p>
               </article>
 
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
-                  <span>Versao do instalador</span>
+                  <span>Versão do instalador</span>
                   <strong>{installerInfo?.version || 'disponivel'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
@@ -185,7 +185,7 @@ const Settings: React.FC = () => {
                   <strong>{installerInfo?.sizeFormatted || '--'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Ultima atualizacao</span>
+                  <span>Última atualização</span>
                   <strong>{installerInfo?.lastModified || '--'}</strong>
                 </article>
               </div>
@@ -194,21 +194,21 @@ const Settings: React.FC = () => {
 
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
-              <span className="section-kicker">Boa pratica</span>
-              <h3>Uma chave por instalacao ou PDV.</h3>
-              <p>Evite compartilhar credenciais. Isso preserva rastreabilidade real e facilita revogacao sem atingir outras maquinas.</p>
+              <span className="section-kicker">Boa prática</span>
+              <h3>Uma chave por instalação ou PDV.</h3>
+              <p>Evite compartilhar credenciais. Isso preserva rastreabilidade real e facilita revogação sem atingir outras máquinas.</p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Risco comum</span>
-              <h3>Heartbeat sem uso precisa revisao.</h3>
-              <p>Quando o agente some ou a maquina muda, revogue a chave antiga antes que ela vire credencial esquecida em producao.</p>
+              <h3>Heartbeat sem uso precisa revisão.</h3>
+              <p>Quando o agente some ou a máquina muda, revogue a chave antiga antes que ela vire credencial esquecida em produção.</p>
             </article>
           </aside>
         </section>
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" caption="credenciais prontas para uso" />
-          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="historico desativado" />
+          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="histórico desativado" />
           <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" caption="atividade do agente" />
           <MetricsCard title="Instalador" value={installerInfo?.version || 'disponivel'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
         </div>
@@ -217,7 +217,7 @@ const Settings: React.FC = () => {
           <section className="analytics-panel reveal dashboard-form-panel">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Contexto da aplicacao</span>
+                <span className="section-kicker">Contexto da aplicação</span>
                 <h3>Identidade, endpoint e download</h3>
               </div>
             </div>
@@ -238,7 +238,7 @@ const Settings: React.FC = () => {
               </div>
               <div className="settings-line-card">
                 <div>
-                  <strong>Usuario logado</strong>
+                  <strong>Usuário logado</strong>
                   <span>{userName || '--'} | {email || '--'}</span>
                 </div>
                 <span className="status-pill positive">{role || '--'}</span>
@@ -246,7 +246,7 @@ const Settings: React.FC = () => {
               <div className="settings-line-card">
                 <div>
                   <strong>Instalador do agente</strong>
-                  <span>{installerInfo?.version || 'Versao nao informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
+                  <span>{installerInfo?.version || 'Versão não informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
                 </div>
                 <a className="button secondary" href="/app/download-agente">Abrir download</a>
               </div>
@@ -289,20 +289,20 @@ const Settings: React.FC = () => {
             </section>
 
             <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Checklist rapido</span>
-              <h3>Padrao minimo de configuracao</h3>
+              <span className="section-kicker">Checklist rápido</span>
+              <h3>Padrão mínimo de configuração</h3>
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">
                   <strong>1. Defina a URL correta</strong>
                   <span>Use exatamente {apiBaseUrl} no desktop do coletor.</span>
                 </div>
                 <div className="dashboard-quick-item">
-                  <strong>2. Gere uma chave por maquina</strong>
-                  <span>Isso evita perda de rastreabilidade e simplifica revogacao.</span>
+                  <strong>2. Gere uma chave por máquina</strong>
+                  <span>Isso evita perda de rastreabilidade e simplifica revogação.</span>
                 </div>
                 <div className="dashboard-quick-item">
                   <strong>3. Revogue chaves antigas</strong>
-                  <span>Troca de maquina sem revogacao vira credencial esquecida em producao.</span>
+                  <span>Troca de máquina sem revogação vira credencial esquecida em produção.</span>
                 </div>
               </div>
             </section>

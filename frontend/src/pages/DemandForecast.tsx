@@ -26,7 +26,7 @@ const DemandForecast: React.FC = () => {
       setRows((data || []).sort((a: ForecastRow, b: ForecastRow) => Number(b.predictedQuantity || 0) - Number(a.predictedQuantity || 0)));
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Erro ao carregar previsao');
+      setError(err?.message || 'Erro ao carregar previsão');
       setRows([]);
     } finally {
       setLoading(false);
@@ -46,22 +46,22 @@ const DemandForecast: React.FC = () => {
         <section className="dashboard-command-grid reveal">
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
-              <span className="pill">Previsao de demanda</span>
-              <h1 className="dashboard-command-title">Antecipe volume antes do pico chegar na operacao.</h1>
+              <span className="pill">Previsão de demanda</span>
+              <h1 className="dashboard-command-title">Antecipe volume antes do pico chegar na operação.</h1>
               <p className="dashboard-command-text">
-                Esta leitura organiza a pressao de demanda por prioridade, para o time agir em compra, reposicao e equipe sem esperar a ruptura aparecer no caixa.
+                Esta leitura organiza a pressão de demanda por prioridade, para o time agir em compra, reposição e equipe sem esperar a ruptura aparecer no caixa.
               </p>
               <div className="hero-chip-row">
                 <span className="hero-chip">Horizonte de {days} dias</span>
-                <span className="hero-chip">{rows.length} combinacoes previstas</span>
+                <span className="hero-chip">{rows.length} combinações previstas</span>
                 <span className="hero-chip">Total previsto {totalPredicted.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="dashboard-command-showcase">
               <article className="dashboard-glow-card">
-                <span className="section-kicker">Maior pressao prevista</span>
-                <strong>{strongest?.productName || 'Sem previsao dominante'}</strong>
+                <span className="section-kicker">Maior pressão prevista</span>
+                <strong>{strongest?.productName || 'Sem previsão dominante'}</strong>
                 <p>
                   {strongest
                     ? `Esperado para ${new Date(strongest.forecastDate).toLocaleDateString('pt-BR')} com ${Number(strongest.predictedQuantity || 0).toFixed(3)} unidades.`
@@ -89,13 +89,13 @@ const DemandForecast: React.FC = () => {
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
               <span className="section-kicker">Uso recomendado</span>
-              <h3>Encurte o horizonte quando precisar agir rapido.</h3>
-              <p>Janelas curtas ajudam na reposicao imediata. Janelas maiores servem melhor para compra e preparacao de time.</p>
+              <h3>Encurte o horizonte quando precisar agir rápido.</h3>
+              <p>Janelas curtas ajudam na reposição imediata. Janelas maiores servem melhor para compra e preparação de time.</p>
             </article>
             <article className="dashboard-priority-card">
-              <span className="section-kicker">Leitura pratica</span>
-              <h3>Trate o topo da lista como fila de atencao.</h3>
-              <p>Os primeiros itens sao os que mais pressionam estoque e operacao no recorte selecionado.</p>
+              <span className="section-kicker">Leitura prática</span>
+              <h3>Trate o topo da lista como fila de atenção.</h3>
+              <p>Os primeiros itens sao os que mais pressionam estoque e operação no recorte selecionado.</p>
             </article>
           </aside>
         </section>
@@ -104,12 +104,12 @@ const DemandForecast: React.FC = () => {
           <div className="metric-card metric-card-default reveal">
             <div className="metric-card-top"><span className="metric-card-title">Horizonte</span><span className="metric-card-icon">HZ</span></div>
             <strong className="metric-card-value">{days} dias</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">janela ativa da previsao</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">janela ativa da previsão</span></div>
           </div>
           <div className="metric-card metric-card-warning reveal">
             <div className="metric-card-top"><span className="metric-card-title">Linhas previstas</span><span className="metric-card-icon">LP</span></div>
             <strong className="metric-card-value">{rows.length}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">combinacoes produto x dia</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">combinações produto x dia</span></div>
           </div>
           <div className="metric-card metric-card-danger reveal">
             <div className="metric-card-top"><span className="metric-card-title">Total previsto</span><span className="metric-card-icon">TP</span></div>
@@ -119,7 +119,7 @@ const DemandForecast: React.FC = () => {
           <div className="metric-card metric-card-default reveal">
             <div className="metric-card-top"><span className="metric-card-title">Maior pico</span><span className="metric-card-icon">PK</span></div>
             <strong className="metric-card-value">{strongest ? Number(strongest.predictedQuantity || 0).toFixed(3) : '0.000'}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">pressao maxima encontrada</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">pressão máxima encontrada</span></div>
           </div>
         </section>
 
@@ -128,7 +128,7 @@ const DemandForecast: React.FC = () => {
             <div className="analytics-panel-head">
               <div>
                 <span className="section-kicker">Horizonte</span>
-                <h3>Ajuste a janela de previsao</h3>
+                <h3>Ajuste a janela de previsão</h3>
               </div>
             </div>
             <div className="dashboard-form-stack">
@@ -145,19 +145,19 @@ const DemandForecast: React.FC = () => {
           <aside className="dashboard-side-stack">
             <section className="analytics-panel reveal dashboard-note-card">
               <span className="section-kicker">Como usar</span>
-              <h3>Transforme previsao em acao operacional.</h3>
+              <h3>Transforme previsão em ação operacional.</h3>
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">
                   <strong>Compra</strong>
-                  <span>Use o topo da lista para priorizar reposicao e pedido antes do pico.</span>
+                  <span>Use o topo da lista para priorizar reposição e pedido antes do pico.</span>
                 </div>
                 <div className="dashboard-quick-item">
                   <strong>Equipe</strong>
                   <span>Picos concentrados pedem reforco de atendimento e abastecimento nos dias certos.</span>
                 </div>
                 <div className="dashboard-quick-item">
-                  <strong>Revisao</strong>
-                  <span>Se o item previsto parece estranho, compare com o historico do produto antes de agir.</span>
+                  <strong>Revisão</strong>
+                  <span>Se o item previsto parece estranho, compare com o histórico do produto antes de agir.</span>
                 </div>
               </div>
             </section>
@@ -171,7 +171,7 @@ const DemandForecast: React.FC = () => {
         ) : (
           <div className="analytics-card-grid forecast-grid">
             {rows.length === 0 ? (
-              <div className="analytics-panel"><div className="panel-empty">Nenhuma previsao disponivel.</div></div>
+              <div className="analytics-panel"><div className="panel-empty">Nenhuma previsão disponivel.</div></div>
             ) : (
               rows.map((row, idx) => (
                 <article key={`${row.productId}-${row.forecastDate}-${idx}`} className="forecast-card reveal">

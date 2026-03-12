@@ -21,28 +21,28 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
 
   const sections: Array<{ title: string; items: SidebarItem[] }> = [
     {
-      title: 'Visao do negocio',
+      title: 'Visão do negócio',
       items: [
-        { to: '/app', label: 'Painel geral', hint: 'Resumo diario e prioridades', mark: 'PG', exact: true },
-        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tendencia e elasticidade', mark: 'PR' },
-        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem acao imediata', mark: 'AL' },
+        { to: '/app', label: 'Painel geral', hint: 'Resumo diário e prioridades', mark: 'PG', exact: true },
+        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tendência e elasticidade', mark: 'PR' },
+        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem ação imediata', mark: 'AL' },
       ],
     },
     {
-      title: 'Analise e operacao',
+      title: 'Análise e operação',
       items: [
         { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', mark: 'CC' },
-        { to: '/app/previsao-demanda', label: 'Previsao', hint: 'Planejamento de demanda', mark: 'PV' },
+        { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Planejamento de demanda', mark: 'PV' },
         { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', mark: 'CP' },
         { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', mark: 'PD' },
       ],
     },
     {
-      title: 'Configuracao',
+      title: 'Configuração',
       items: [
-        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Catalogo global', hint: 'Base consolidada de produtos', mark: 'CG' }] : []),
-        { to: '/app/download-agente', label: 'Download do agente', hint: 'Instalacao do coletor local', mark: 'AG' },
-        { to: '/app/configuracoes', label: 'Configuracoes', hint: 'Acesso e integracoes', mark: 'CF' },
+        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Catálogo global', hint: 'Base consolidada de produtos', mark: 'CG' }] : []),
+        { to: '/app/download-agente', label: 'Download do agente', hint: 'Instalação do coletor local', mark: 'AG' },
+        { to: '/app/configuracoes', label: 'Configurações', hint: 'Acesso e integrações', mark: 'CF' },
       ],
     },
   ];
@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
             <div className="sidebar-brand-mark">MF</div>
             <div>
               <h1>MercadoFlow</h1>
-              <p>Painel operacional para decisao no varejo</p>
+              <p>Painel operacional para decisão no varejo</p>
             </div>
           </div>
           <button type="button" className="sidebar-close" onClick={onClose} aria-label="Fechar menu">X</button>
@@ -69,10 +69,10 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
 
         <div className="sidebar-user-card">
           <span className="section-kicker">Workspace atual</span>
-          <strong>{name || 'Usuario logado'}</strong>
-          <span>{email || 'Conta sem e-mail visivel'}</span>
+          <strong>{name || 'Usuário logado'}</strong>
+          <span>{email || 'Conta sem e-mail visível'}</span>
           <div className="sidebar-user-meta">
-            <span className="sidebar-chip">{role === 'ADMIN' ? 'Administrador' : 'Operacao'}</span>
+            <span className="sidebar-chip">{role === 'ADMIN' ? 'Administrador' : 'Operação'}</span>
             <span className="sidebar-chip subtle">MercadoFlow</span>
           </div>
         </div>
@@ -100,7 +100,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
         <div className="sidebar-support-card">
           <span className="section-kicker">Fluxo recomendado</span>
           <strong>Comece em Produtos e feche em Alertas</strong>
-          <p>O caminho mais simples para usuarios leigos e ver o item, comparar o desempenho e validar os sinais operacionais antes de agir.</p>
+          <p>O caminho mais simples para usuários leigos e ver o item, comparar o desempenho e validar os sinais operacionais antes de agir.</p>
         </div>
       </aside>
     </>
