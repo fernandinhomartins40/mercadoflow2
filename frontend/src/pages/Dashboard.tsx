@@ -265,10 +265,6 @@ const Dashboard: React.FC = () => {
                   <strong>Validar o que realmente deu resultado</strong>
                   <span>Compare antes, durante e depois da acao para parar de decidir no feeling.</span>
                 </Link>
-                <Link className="dashboard-quick-item" to="/app/cesta">
-                  <strong>Montar combos e compra casada</strong>
-                  <span>Use os pares com maior lift para reforcar venda conjunta no salao e no caixa.</span>
-                </Link>
               </div>
             </section>
           </div>

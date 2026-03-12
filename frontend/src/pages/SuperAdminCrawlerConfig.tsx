@@ -322,35 +322,25 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           <div className="card">
             <span className="section-kicker">Mercados suportados</span>
             <h3>{jobs.length}</h3>
-            <p>scripts fixos disponiveis no worker.</p>
           </div>
           <div className="card">
             <span className="section-kicker">Fila</span>
             <h3>{monitor.queuedRuns || 0}</h3>
-            <p>execucoes aguardando processamento.</p>
           </div>
           <div className="card">
             <span className="section-kicker">Executando</span>
             <h3>{activeJobs || monitor.runningRuns || 0}</h3>
-            <p>execucao manual em andamento no dispatcher.</p>
           </div>
           <div className="card">
             <span className="section-kicker">Importados (12 ultimas)</span>
             <h3>{totalImportedRecent}</h3>
-            <p>produtos injetados recentemente no catalogo global.</p>
           </div>
         </section>
 
         <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-note-card">
-            <span className="section-kicker">Modo de operacao</span>
-            <h3>Somente um supermercado por vez</h3>
-            <p className="super-admin-crawler-job-text">
-              Nao ha mais execucao automatica nem rodada global. O dispatcher so consome runs manuais e rejeita execucoes com mais de um supermercado.
-            </p>
-          </section>
-          <section className="analytics-panel reveal dashboard-note-card">
             <span className="section-kicker">Fluxo recomendado</span>
+            <h3>Somente um supermercado por vez</h3>
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>1. Escolha um mercado</strong>
@@ -359,10 +349,6 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               <div className="dashboard-quick-item">
                 <strong>2. Filtre categorias quando fizer sentido</strong>
                 <span>Use o modal para limitar captura e evitar execucao desnecessaria.</span>
-              </div>
-              <div className="dashboard-quick-item">
-                <strong>3. Valide o historico depois</strong>
-                <span>Revise importados, erros e detalhes do run antes de partir para o proximo mercado.</span>
               </div>
             </div>
           </section>

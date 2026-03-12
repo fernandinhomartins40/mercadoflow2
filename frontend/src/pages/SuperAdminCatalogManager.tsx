@@ -440,10 +440,6 @@ const SuperAdminCatalogManager: React.FC = () => {
                 <strong>O modal concentra os campos ricos</strong>
                 <span>Descricao, payload, atributos e preview de imagem ficaram todos dentro do editor.</span>
               </div>
-              <div className="dashboard-quick-item">
-                <strong>Mantenha a base manual sob controle</strong>
-                <span>Use provider e provider product id apenas quando fizer sentido para rastreio da manutencao.</span>
-              </div>
             </div>
           </section>
         </div>

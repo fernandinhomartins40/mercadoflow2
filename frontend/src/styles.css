@@ -6223,6 +6223,87 @@ select:focus,
   min-height: 240px;
 }
 
+.analytics-page .metric-card,
+.super-admin-page .metric-card {
+  min-height: 132px;
+  gap: 10px;
+}
+
+.analytics-page .metric-card-bottom,
+.super-admin-page .metric-card-bottom,
+.analytics-page .dashboard-command-mosaic,
+.super-admin-page .dashboard-command-mosaic,
+.analytics-page .dashboard-glow-card p,
+.super-admin-page .dashboard-glow-card p,
+.analytics-page .dashboard-priority-card p,
+.super-admin-page .dashboard-priority-card p,
+.analytics-page .dashboard-quick-item span,
+.super-admin-page .dashboard-quick-item span,
+.analytics-page .dashboard-kpi-ribbon .card p,
+.super-admin-page .dashboard-kpi-ribbon .card p {
+  display: none;
+}
+
+.analytics-page .dashboard-command-card,
+.super-admin-page .dashboard-command-card {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+}
+
+.analytics-page .dashboard-command-copy,
+.super-admin-page .dashboard-command-copy {
+  gap: 10px;
+}
+
+.analytics-page .dashboard-command-text,
+.super-admin-page .dashboard-command-text {
+  max-width: 44ch;
+  -webkit-line-clamp: 2;
+}
+
+.analytics-page .dashboard-glow-card,
+.super-admin-page .dashboard-glow-card {
+  min-height: 220px;
+}
+
+.analytics-page .dashboard-priority-rail > :not(:first-child),
+.super-admin-page .dashboard-priority-rail > :not(:first-child) {
+  display: none;
+}
+
+.analytics-page .dashboard-kpi-ribbon,
+.super-admin-page .dashboard-kpi-ribbon,
+.analytics-page .dashboard-quick-list,
+.super-admin-page .dashboard-quick-list,
+.analytics-page .dashboard-stat-list,
+.super-admin-page .dashboard-stat-list {
+  gap: 10px;
+}
+
+.analytics-page .dashboard-kpi-ribbon .card,
+.super-admin-page .dashboard-kpi-ribbon .card {
+  min-height: 132px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.analytics-page .dashboard-kpi-ribbon .card h3,
+.super-admin-page .dashboard-kpi-ribbon .card h3 {
+  margin: 0;
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: clamp(32px, 4vw, 44px);
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+}
+
+.analytics-page .dashboard-quick-item,
+.super-admin-page .dashboard-quick-item,
+.analytics-page .dashboard-stat-row,
+.super-admin-page .dashboard-stat-row {
+  min-height: 60px;
+  padding: 14px 16px;
+}
+
 @media (max-width: 1366px) {
   .dashboard-command-grid {
     grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);

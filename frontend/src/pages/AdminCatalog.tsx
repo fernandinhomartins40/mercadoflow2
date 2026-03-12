@@ -358,10 +358,6 @@ const CatalogAdmin: React.FC = () => {
                 <strong>Use imagem como criterio de triagem</strong>
                 <span>O status de imagem ajuda a localizar itens prontos para exibicao ou pendentes de tratamento.</span>
               </div>
-              <div className="dashboard-quick-item">
-                <strong>Abra o olho para validar detalhes</strong>
-                <span>O modal mostra a versao consolidada do item sem sobrecarregar a tabela principal.</span>
-              </div>
             </div>
           </section>
         </div>

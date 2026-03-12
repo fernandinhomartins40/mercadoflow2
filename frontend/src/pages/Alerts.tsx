@@ -176,10 +176,6 @@ const Alerts: React.FC = () => {
                   <strong>2. Marque como lido ao tratar</strong>
                   <span>Isso limpa a fila e evita leitura repetida entre pessoas do time.</span>
                 </div>
-                <div className="dashboard-quick-item">
-                  <strong>3. Recarregue antes de encerrar</strong>
-                  <span>Garanta que nenhum sinal novo ficou de fora antes de sair da tela.</span>
-                </div>
               </div>
             </section>
           </div>

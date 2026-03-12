@@ -484,12 +484,8 @@ const SuperAdminUsers: React.FC = () => {
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Contas SaaS" value={overview?.totalMarkets ?? 0} icon="MK" caption="tenants cadastrados" />
           <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" caption="operando agora" />
-          <MetricsCard title="Trial" value={overview?.trialMarkets ?? 0} icon="TR" caption="periodo de teste" />
           <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="PD" caption="cobranca manual" />
-          <MetricsCard title="Bloqueadas" value={overview?.suspendedMarkets ?? 0} icon="BL" caption="acesso suspenso" />
-          <MetricsCard title="Vencendo" value={overview?.expiringMarkets ?? 0} icon="EX" caption="proximos 7 dias" />
           <MetricsCard title="Usuarios ativos" value={overview?.activeUsers ?? 0} icon="US" caption="acessos liberados" />
-          <MetricsCard title="Sem conta" value={overview?.orphanUsers ?? 0} icon="OR" caption="usuarios sem mercado" />
         </div>
 
         <div className="dashboard-inline-grid">
