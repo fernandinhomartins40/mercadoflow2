@@ -6680,14 +6680,22 @@ a.dashboard-quick-item:hover {
 .super-admin-shell .super-admin-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  height: calc(100vh - 36px);
-  max-height: calc(100vh - 36px);
-  min-height: calc(100vh - 36px);
+  gap: 14px;
+  height: calc(100dvh - 36px);
+  max-height: calc(100dvh - 36px);
+  min-height: calc(100dvh - 36px);
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   overscroll-behavior: contain;
+}
+
+.super-admin-shell .workspace-sidebar::-webkit-scrollbar,
+.super-admin-shell .super-admin-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .super-admin-shell .sidebar-sections {
@@ -6725,9 +6733,9 @@ a.dashboard-quick-item:hover {
     visibility: visible;
     pointer-events: auto;
     opacity: 1;
-    height: calc(100vh - 28px);
-    max-height: calc(100vh - 28px);
-    min-height: calc(100vh - 28px);
+    height: calc(100dvh - 28px);
+    max-height: calc(100dvh - 28px);
+    min-height: calc(100dvh - 28px);
     border-radius: 30px;
   }
 
@@ -6748,5 +6756,83 @@ a.dashboard-quick-item:hover {
   .super-admin-shell .sidebar-user-card,
   .super-admin-shell .sidebar-support-card {
     padding: 14px;
+  }
+}
+
+@media (max-height: 920px) {
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    gap: 12px;
+    padding: 18px 14px 14px;
+    height: calc(100dvh - 28px);
+    max-height: calc(100dvh - 28px);
+    min-height: calc(100dvh - 28px);
+  }
+
+  .super-admin-shell .sidebar-brand-mark,
+  .super-admin-shell .super-admin-badge {
+    width: 50px;
+    height: 50px;
+    border-radius: 18px;
+  }
+
+  .super-admin-shell .sidebar-user-card,
+  .super-admin-shell .sidebar-support-card {
+    gap: 6px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .super-admin-shell .dashboard-nav-link {
+    min-height: 52px;
+    padding: 10px 12px;
+  }
+
+  .super-admin-shell .nav-link-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .super-admin-shell .nav-link-hint {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+
+@media (max-height: 820px) {
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    gap: 10px;
+    padding: 16px 12px 12px;
+  }
+
+  .super-admin-shell .workspace-sidebar-head {
+    gap: 10px;
+  }
+
+  .super-admin-shell .sidebar-section {
+    gap: 8px;
+  }
+
+  .super-admin-shell .sidebar-section-title {
+    font-size: 10px;
+  }
+
+  .super-admin-shell .sidebar-user-card strong,
+  .super-admin-shell .sidebar-support-card strong {
+    font-size: 15px;
+  }
+
+  .super-admin-shell .sidebar-user-card > span:not(.section-kicker),
+  .super-admin-shell .sidebar-support-card p {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .super-admin-shell .sidebar-chip {
+    min-height: 26px;
+    padding: 0 10px;
+    font-size: 11px;
   }
 }
