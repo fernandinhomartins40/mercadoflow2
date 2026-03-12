@@ -306,10 +306,13 @@ public class CatalogImageStorageService {
             throw new IllegalArgumentException("Imagem enviada nao possui dimensoes validas");
         }
 
-        int cropSize = Math.min(width, height);
-        int sourceX = Math.max(0, (width - cropSize) / 2);
-        int sourceY = Math.max(0, (height - cropSize) / 2);
-        int outputSize = Math.min(cropSize, 1200);
+        int longestSide = Math.max(width, height);
+        int outputSize = Math.min(longestSide, 1200);
+        double scale = Math.min((double) outputSize / (double) width, (double) outputSize / (double) height);
+        int targetWidth = Math.max(1, (int) Math.round(width * scale));
+        int targetHeight = Math.max(1, (int) Math.round(height * scale));
+        int targetX = Math.max(0, (outputSize - targetWidth) / 2);
+        int targetY = Math.max(0, (outputSize - targetHeight) / 2);
 
         BufferedImage normalized = new BufferedImage(outputSize, outputSize, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = normalized.createGraphics();
@@ -321,14 +324,14 @@ public class CatalogImageStorageService {
             graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             graphics.drawImage(
                 sourceImage,
+                targetX,
+                targetY,
+                targetX + targetWidth,
+                targetY + targetHeight,
                 0,
                 0,
-                outputSize,
-                outputSize,
-                sourceX,
-                sourceY,
-                sourceX + cropSize,
-                sourceY + cropSize,
+                width,
+                height,
                 null
             );
         } finally {

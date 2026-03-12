@@ -318,7 +318,7 @@ const SuperAdminCatalogManager: React.FC = () => {
         ...current,
         imageUrl: updated.imageUrl || '',
       }));
-      setSuccess('Imagem enviada com sucesso. O arquivo foi normalizado para 1:1 e salvo no storage gerenciado.');
+      setSuccess('Imagem enviada com sucesso. O arquivo foi ajustado para um quadro 1:1 sem corte e salvo no storage gerenciado.');
       await load();
     } catch (err: any) {
       setEditorError(err?.message || 'Falha ao enviar imagem');
@@ -790,7 +790,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                     <h4>{editorImageUrl ? 'Substituir ou remover' : 'Enviar imagem'}</h4>
                     <p>
                       {canManageEditorImage
-                        ? 'A imagem enviada é convertida para 1:1, salva no storage e vinculada ao produto.'
+                        ? 'A imagem enviada é encaixada em um quadro 1:1 sem corte, salva no storage e vinculada ao produto.'
                         : 'Primeiro salve o produto. Depois disso o envio da imagem fica disponível neste modal.'}
                     </p>
                     <div className="catalog-admin-editor-actions">
@@ -806,7 +806,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                         {removingImage ? 'Excluindo...' : 'Excluir imagem'}
                       </Button>
                     </div>
-                    <span className="catalog-admin-image-hint">Formato final sempre 1:1.</span>
+                    <span className="catalog-admin-image-hint">Formato final 1:1, mantendo a imagem inteira dentro do quadro.</span>
                   </div>
 
                   <div className="catalog-admin-editor-panel">
