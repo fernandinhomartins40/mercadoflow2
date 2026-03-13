@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
       title: 'Análise e operação',
       items: [
         { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', mark: 'CC' },
+        { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', mark: 'LC' },
         { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Planejamento de demanda', mark: 'PV' },
         { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', mark: 'CP' },
         { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', mark: 'PD' },
@@ -100,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
         <div className="sidebar-support-card">
           <span className="section-kicker">Fluxo recomendado</span>
           <strong>Comece em Produtos e feche em Alertas</strong>
-          <p>O caminho mais simples para usuários leigos e ver o item, comparar o desempenho e validar os sinais operacionais antes de agir.</p>
+          <p>O caminho mais simples para ler o negócio é analisar o item, validar a compra e só depois agir no operacional.</p>
         </div>
       </aside>
     </>

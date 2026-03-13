@@ -12,6 +12,9 @@ import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.ProductPromotionWindowDTO;
 import com.pdv2cloud.model.dto.CampaignImpactDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
+import com.pdv2cloud.model.dto.ShoppingListItemDTO;
+import com.pdv2cloud.model.dto.ShoppingListItemUpsertRequest;
+import com.pdv2cloud.model.dto.ShoppingListOverviewDTO;
 import com.pdv2cloud.model.dto.TopSellerDTO;
 import com.pdv2cloud.model.dto.AlertDTO;
 import com.pdv2cloud.model.dto.DemandForecastDTO;
@@ -24,6 +27,7 @@ import com.pdv2cloud.service.AnalyticsService;
 import com.pdv2cloud.service.ForecastService;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PriceIntelligenceService;
+import com.pdv2cloud.service.ShoppingListService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +68,9 @@ public class MarketController {
 
     @Autowired
     private PriceIntelligenceService priceIntelligenceService;
+
+    @Autowired
+    private ShoppingListService shoppingListService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -258,6 +265,47 @@ public class MarketController {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
         return ResponseEntity.ok(analyticsService.getCachedMarketBasketAnalysis(id));
+    }
+
+    @GetMapping("/{id}/shopping-list")
+    public ResponseEntity<ShoppingListOverviewDTO> getShoppingList(
+        @PathVariable("id") UUID id,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(shoppingListService.getOverview(id));
+    }
+
+    @PostMapping("/{id}/shopping-list/items")
+    public ResponseEntity<ShoppingListItemDTO> addShoppingListItem(
+        @PathVariable("id") UUID id,
+        @RequestBody ShoppingListItemUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(shoppingListService.addOrUpdate(id, request));
+    }
+
+    @PatchMapping("/{id}/shopping-list/items/{itemId}")
+    public ResponseEntity<ShoppingListItemDTO> updateShoppingListItem(
+        @PathVariable("id") UUID id,
+        @PathVariable("itemId") UUID itemId,
+        @RequestBody ShoppingListItemUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(shoppingListService.updateItem(id, itemId, request));
+    }
+
+    @DeleteMapping("/{id}/shopping-list/items/{itemId}")
+    public ResponseEntity<Void> deleteShoppingListItem(
+        @PathVariable("id") UUID id,
+        @PathVariable("itemId") UUID itemId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        shoppingListService.deleteItem(id, itemId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/analytics/demand-forecast")

@@ -176,4 +176,30 @@ export const marketService = {
     const response = await api.post(`/v1/markets/${marketId}/campaigns`, payload);
     return response.data;
   },
+
+  async getShoppingList(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/shopping-list`);
+    return response.data;
+  },
+
+  async addShoppingListItem(
+    marketId: string,
+    payload: { productId: string; quantityTarget?: number; note?: string; sourceTag?: string; reasonSummary?: string; checked?: boolean }
+  ) {
+    const response = await api.post(`/v1/markets/${marketId}/shopping-list/items`, payload);
+    return response.data;
+  },
+
+  async updateShoppingListItem(
+    marketId: string,
+    itemId: string,
+    payload: { quantityTarget?: number; note?: string; sourceTag?: string; reasonSummary?: string; checked?: boolean }
+  ) {
+    const response = await api.patch(`/v1/markets/${marketId}/shopping-list/items/${itemId}`, payload);
+    return response.data;
+  },
+
+  async deleteShoppingListItem(marketId: string, itemId: string) {
+    await api.delete(`/v1/markets/${marketId}/shopping-list/items/${itemId}`);
+  },
 };

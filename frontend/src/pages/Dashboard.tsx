@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import SalesChart from '../components/dashboard/SalesChart';
+import ShoppingListButton from '../components/common/ShoppingListButton';
 import { useMarketData } from '../hooks/useMarketData';
+import { useShoppingList } from '../hooks/useShoppingList';
 import {
   ProductPairInsight,
   ProductPerformance,
@@ -89,8 +91,15 @@ const pickLowest = (rows: SeasonalityPoint[] = []) =>
 const ProductImage: React.FC<{ src?: string | null; alt: string; className?: string }> = ({ src, alt, className }) => {
   const [broken, setBroken] = useState(false);
   const imageSrc = !broken && src ? src : FALLBACK_IMAGE;
-
   return <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
+};
+
+const recommendedQuantity = (product: ProductPerformance) => {
+  const velocity = Number(product.salesVelocity || 0);
+  if (velocity >= 8) return 24;
+  if (velocity >= 4) return 12;
+  if (velocity >= 2) return 6;
+  return 3;
 };
 
 const ProductRailCard: React.FC<{
@@ -100,64 +109,76 @@ const ProductRailCard: React.FC<{
   secondaryLabel: string;
   secondaryValue: string;
   footerValue?: string;
-}> = ({ product, primaryLabel, primaryValue, secondaryLabel, secondaryValue, footerValue }) => {
+  inList: boolean;
+  onAdd: () => Promise<void>;
+}> = ({ product, primaryLabel, primaryValue, secondaryLabel, secondaryValue, footerValue, inList, onAdd }) => {
   const trendValue = Number(product.revenueTrendPercentage || 0);
   const trendTone = trendValue > 0 ? 'positive' : trendValue < 0 ? 'negative' : 'neutral';
 
   return (
-    <Link className="sales-product-card" to={`/app/produtos/${product.productId}`}>
+    <article className="sales-product-card">
+      <Link className="sales-card-link-wrap" to={`/app/produtos/${product.productId}`}>
+        <div className="sales-product-media-shell">
+          <div className="sales-product-media-frame">
+            <ProductImage src={product.imageUrl} alt={product.name} className="sales-product-media" />
+          </div>
+        </div>
+        <div className="sales-product-body">
+          <div className="sales-product-badges">
+            <span className="sales-pill soft">{mapTurnoverLabel(product.turnoverBand)}</span>
+            <span className={`sales-pill ${trendTone}`}>{formatSignedPercent(product.revenueTrendPercentage)}</span>
+          </div>
+          <h3>{product.name}</h3>
+          <p>{compactLabel(product.category)}</p>
+          <div className="sales-product-stats compact">
+            <div>
+              <span>{primaryLabel}</span>
+              <strong>{primaryValue}</strong>
+            </div>
+            <div>
+              <span>{secondaryLabel}</span>
+              <strong>{secondaryValue}</strong>
+            </div>
+          </div>
+          {footerValue ? <div className="sales-card-foot">{footerValue}</div> : null}
+        </div>
+      </Link>
+      <div className="sales-card-action-row">
+        <ShoppingListButton inList={inList} onAdd={onAdd} />
+      </div>
+    </article>
+  );
+};
+
+const PromotionRailCard: React.FC<{ item: PromotionImpact; inList: boolean; onAdd: () => Promise<void> }> = ({ item, inList, onAdd }) => (
+  <article className="sales-product-card promo">
+    <Link className="sales-card-link-wrap" to={`/app/produtos/${item.productId}`}>
       <div className="sales-product-media-shell">
         <div className="sales-product-media-frame">
-          <ProductImage src={product.imageUrl} alt={product.name} className="sales-product-media" />
+          <ProductImage src={item.imageUrl} alt={item.name} className="sales-product-media" />
         </div>
       </div>
       <div className="sales-product-body">
         <div className="sales-product-badges">
-          <span className="sales-pill soft">{mapTurnoverLabel(product.turnoverBand)}</span>
-          <span className={`sales-pill ${trendTone}`}>{formatSignedPercent(product.revenueTrendPercentage)}</span>
+          <span className="sales-pill positive">Lift {formatPercent(item.revenueLiftPercent)}</span>
         </div>
-        <h3>{product.name}</h3>
-        <p>{compactLabel(product.category)}</p>
+        <h3>{item.name}</h3>
+        <p>{compactLabel(item.category)}</p>
         <div className="sales-product-stats compact">
           <div>
-            <span>{primaryLabel}</span>
-            <strong>{primaryValue}</strong>
+            <span>Preço base</span>
+            <strong>{formatMoney(item.baselinePrice)}</strong>
           </div>
           <div>
-            <span>{secondaryLabel}</span>
-            <strong>{secondaryValue}</strong>
+            <span>Preço promo</span>
+            <strong>{formatMoney(item.promoAveragePrice)}</strong>
           </div>
         </div>
-        {footerValue ? <div className="sales-card-foot">{footerValue}</div> : null}
+        <div className="sales-card-foot">Volume em promoção: {formatQuantity(item.promoQuantity)}</div>
       </div>
     </Link>
-  );
-};
-
-const PromotionRailCard: React.FC<{ item: PromotionImpact }> = ({ item }) => (
-  <article className="sales-product-card promo">
-    <div className="sales-product-media-shell">
-      <div className="sales-product-media-frame">
-        <ProductImage src={item.imageUrl} alt={item.name} className="sales-product-media" />
-      </div>
-    </div>
-    <div className="sales-product-body">
-      <div className="sales-product-badges">
-        <span className="sales-pill positive">Lift {formatPercent(item.revenueLiftPercent)}</span>
-      </div>
-      <h3>{item.name}</h3>
-      <p>{compactLabel(item.category)}</p>
-      <div className="sales-product-stats compact">
-        <div>
-          <span>Preço base</span>
-          <strong>{formatMoney(item.baselinePrice)}</strong>
-        </div>
-        <div>
-          <span>Preço promo</span>
-          <strong>{formatMoney(item.promoAveragePrice)}</strong>
-        </div>
-      </div>
-      <div className="sales-card-foot">Volume em promoção: {formatQuantity(item.promoQuantity)}</div>
+    <div className="sales-card-action-row">
+      <ShoppingListButton inList={inList} onAdd={onAdd} />
     </div>
   </article>
 );
@@ -199,7 +220,10 @@ const ProductRailSection: React.FC<{
   subtitle: string;
   products: ProductPerformance[];
   metricMode: 'revenue' | 'restock' | 'low' | 'promotionCandidate';
-}> = ({ title, subtitle, products, metricMode }) => {
+  sourceTag: string;
+  productIds: Set<string>;
+  onAddProduct: (product: ProductPerformance, sourceTag: string, reasonSummary: string) => Promise<void>;
+}> = ({ title, subtitle, products, metricMode, sourceTag, productIds, onAddProduct }) => {
   const getMetrics = (product: ProductPerformance) => {
     switch (metricMode) {
       case 'restock':
@@ -209,6 +233,7 @@ const ProductRailSection: React.FC<{
           secondaryLabel: 'Transações',
           secondaryValue: formatCompact(product.transactionCount),
           footerValue: `Receita ${formatMoney(product.revenue)}`,
+          reasonSummary: `Reforçar compra de ${product.name}. Giro atual de ${Number(product.salesVelocity || 0).toFixed(1)}/dia.`,
         };
       case 'low':
         return {
@@ -217,6 +242,7 @@ const ProductRailSection: React.FC<{
           secondaryLabel: 'Quantidade',
           secondaryValue: formatQuantity(product.quantitySold),
           footerValue: `${formatQuantity(product.salesDays)} dias com venda`,
+          reasonSummary: `Item sob análise. Comprar ${product.name} com cautela antes de ampliar estoque.`,
         };
       case 'promotionCandidate':
         return {
@@ -225,6 +251,7 @@ const ProductRailSection: React.FC<{
           secondaryLabel: 'Share promo',
           secondaryValue: formatPercent(Number(product.promoRevenueShare || 0) * 100),
           footerValue: `Preço médio ${formatMoney(product.averagePrice)}`,
+          reasonSummary: `Avaliar ${product.name} para ação promocional sem depender de desconto excessivo.`,
         };
       default:
         return {
@@ -233,6 +260,7 @@ const ProductRailSection: React.FC<{
           secondaryLabel: 'Quantidade',
           secondaryValue: formatQuantity(product.quantitySold),
           footerValue: `Giro ${Number(product.salesVelocity || 0).toFixed(1)}/dia`,
+          reasonSummary: `Manter compra regular de ${product.name}.`,
         };
     }
   };
@@ -252,7 +280,19 @@ const ProductRailSection: React.FC<{
         <div className="sales-rail">
           {products.map((product) => {
             const metrics = getMetrics(product);
-            return <ProductRailCard key={product.productId} product={product} {...metrics} />;
+            return (
+              <ProductRailCard
+                key={product.productId}
+                product={product}
+                primaryLabel={metrics.primaryLabel}
+                primaryValue={metrics.primaryValue}
+                secondaryLabel={metrics.secondaryLabel}
+                secondaryValue={metrics.secondaryValue}
+                footerValue={metrics.footerValue}
+                inList={productIds.has(product.productId)}
+                onAdd={() => onAddProduct(product, sourceTag, metrics.reasonSummary)}
+              />
+            );
           })}
         </div>
       )}
@@ -260,7 +300,13 @@ const ProductRailSection: React.FC<{
   );
 };
 
-const PromotionRailSection: React.FC<{ title: string; subtitle: string; items: PromotionImpact[] }> = ({ title, subtitle, items }) => (
+const PromotionRailSection: React.FC<{
+  title: string;
+  subtitle: string;
+  items: PromotionImpact[];
+  productIds: Set<string>;
+  onAddProduct: (item: PromotionImpact) => Promise<void>;
+}> = ({ title, subtitle, items, productIds, onAddProduct }) => (
   <section className="sales-section reveal">
     <div className="sales-section-head">
       <div>
@@ -273,7 +319,9 @@ const PromotionRailSection: React.FC<{ title: string; subtitle: string; items: P
       <div className="sales-empty-card">Sem produtos com resposta promocional relevante.</div>
     ) : (
       <div className="sales-rail">
-        {items.map((item) => <PromotionRailCard key={item.productId} item={item} />)}
+        {items.map((item) => (
+          <PromotionRailCard key={item.productId} item={item} inList={productIds.has(item.productId)} onAdd={() => onAddProduct(item)} />
+        ))}
       </div>
     )}
   </section>
@@ -300,7 +348,11 @@ const PairRailSection: React.FC<{ title: string; subtitle: string; items: Produc
   </section>
 );
 
-const SeasonalRailSection: React.FC<{ collection: SeasonalProductCollection }> = ({ collection }) => (
+const SeasonalRailSection: React.FC<{
+  collection: SeasonalProductCollection;
+  productIds: Set<string>;
+  onAddProduct: (product: ProductPerformance, sourceTag: string, reasonSummary: string) => Promise<void>;
+}> = ({ collection, productIds, onAddProduct }) => (
   <section className="sales-section reveal">
     <div className="sales-section-head sales-seasonal-head">
       <div>
@@ -345,6 +397,8 @@ const SeasonalRailSection: React.FC<{ collection: SeasonalProductCollection }> =
             secondaryLabel="Quantidade"
             secondaryValue={formatQuantity(product.quantitySold)}
             footerValue={`Giro ${Number(product.salesVelocity || 0).toFixed(1)}/dia`}
+            inList={productIds.has(product.productId)}
+            onAdd={() => onAddProduct(product, 'SAZONALIDADE', `Preparar ${product.name} para ${collection.title}.`)}
           />
         ))}
       </div>
@@ -354,34 +408,48 @@ const SeasonalRailSection: React.FC<{ collection: SeasonalProductCollection }> =
 
 const Dashboard: React.FC = () => {
   const { dashboard, loading, error } = useMarketData();
+  const { addItem, productIds } = useShoppingList();
 
   const strongestWeekday = useMemo(() => pickHighest(dashboard?.weekdaySeasonality || []), [dashboard?.weekdaySeasonality]);
   const weakestWeekday = useMemo(() => pickLowest(dashboard?.weekdaySeasonality || []), [dashboard?.weekdaySeasonality]);
   const strongestHour = useMemo(() => pickHighest(dashboard?.hourlySeasonality || []), [dashboard?.hourlySeasonality]);
-
-  const heroProduct = useMemo(
+  const strongestMonth = useMemo(() => pickHighest(dashboard?.monthlySeasonality || []), [dashboard?.monthlySeasonality]);
+  const featuredProduct = useMemo(
     () => dashboard?.topProducts?.[0] || dashboard?.replenishmentCandidates?.[0] || dashboard?.topTurnoverProducts?.[0],
-    [dashboard]
+    [dashboard?.replenishmentCandidates, dashboard?.topProducts, dashboard?.topTurnoverProducts]
   );
-
-  const replenishmentCandidates = dashboard?.replenishmentCandidates || dashboard?.topTurnoverProducts || [];
   const lowPerformance = dashboard?.slowMovers || [];
   const lowestSellers = dashboard?.lowTurnoverProducts || dashboard?.slowMovers || [];
-  const promotionCandidates = dashboard?.promotionCandidates || [];
-  const promotionHighlights = dashboard?.promotionHighlights || [];
-  const topPairs = dashboard?.topPairs || [];
-  const seasonalCollections = dashboard?.seasonalCollections || [];
-
   const promotionDrivenPairs = useMemo(() => {
-    const promotedIds = new Set((promotionHighlights || []).map((item) => item.productId));
-    return topPairs.filter((pair) => promotedIds.has(pair.antecedentId || '') || promotedIds.has(pair.consequentId || '')).slice(0, 10);
-  }, [promotionHighlights, topPairs]);
+    const promoNames = new Set((dashboard?.promotionHighlights || []).map((item) => item.name));
+    return (dashboard?.topPairs || []).filter(
+      (pair) => promoNames.has(pair.antecedentName || '') || promoNames.has(pair.consequentName || '')
+    );
+  }, [dashboard?.topPairs, dashboard?.promotionHighlights]);
+
+  const addProductToList = async (product: ProductPerformance, sourceTag: string, reasonSummary: string) => {
+    await addItem({
+      productId: product.productId,
+      quantityTarget: recommendedQuantity(product),
+      sourceTag,
+      reasonSummary,
+    });
+  };
+
+  const addPromotionToList = async (item: PromotionImpact) => {
+    await addItem({
+      productId: item.productId,
+      quantityTarget: 3,
+      sourceTag: 'PROMOÇÃO',
+      reasonSummary: `Avaliar ${item.name} em ação promocional. Lift de ${Number(item.revenueLiftPercent || 0).toFixed(0)}%.`,
+    });
+  };
 
   if (loading) {
     return (
       <Layout>
-        <div className="page analytics-page sales-intelligence-dashboard">
-          <div className="sales-empty-card">Carregando painel de vendas...</div>
+        <div className="page analytics-page">
+          <div className="sales-empty-card">Carregando painel...</div>
         </div>
       </Layout>
     );
@@ -390,8 +458,8 @@ const Dashboard: React.FC = () => {
   if (error || !dashboard) {
     return (
       <Layout>
-        <div className="page analytics-page sales-intelligence-dashboard">
-          <div className="sales-empty-card">{error || 'Painel indisponível.'}</div>
+        <div className="page analytics-page">
+          <div className="sales-empty-card">{error || 'Não foi possível carregar o painel.'}</div>
         </div>
       </Layout>
     );
@@ -399,49 +467,59 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="page analytics-page sales-intelligence-dashboard">
-        <section className="sales-hero reveal">
-          <article className="sales-hero-product">
-            <div className="sales-hero-media-wrap">
-              <ProductImage src={heroProduct?.imageUrl} alt={heroProduct?.name || 'Produto destaque'} className="sales-hero-media" />
+      <div className="page analytics-page sales-dashboard-page">
+        <section className="dashboard-command-grid reveal">
+          <article className="dashboard-command-card sales-command-card">
+            <div className="dashboard-command-showcase sales-dashboard-featured">
+              <div className="sales-dashboard-hero-image-shell">
+                <div className="sales-dashboard-hero-image-frame">
+                  <ProductImage
+                    src={featuredProduct?.imageUrl}
+                    alt={featuredProduct?.name || 'Produto destaque'}
+                    className="sales-dashboard-hero-image"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="sales-hero-copy">
+
+            <div className="dashboard-command-copy sales-dashboard-command-copy">
               <span className="pill">Painel geral de vendas</span>
               <h1>Decisões de compra, exposição e promoção com foco no produto.</h1>
-              <p>
-                O painel agora prioriza os itens do catálogo, mostra o que vende melhor, o que precisa de reposição,
-                o que trava espaço e o que pode puxar faturamento com promoção ou exposição conjunta.
+              <p className="dashboard-command-text">
+                O painel prioriza os itens do catálogo, mostra o que vende melhor, o que precisa de reposição,
+                o que pode entrar em promoção e o que merece ajuste de exposição.
               </p>
-              <div className="sales-hero-featured-card">
+
+              <div className="sales-hero-featured-card sales-dashboard-featured-card">
                 <div>
                   <span className="section-kicker">Produto líder do período</span>
-                  <h2>{heroProduct?.name || 'Sem destaque consolidado'}</h2>
+                  <h2>{featuredProduct?.name || 'Sem destaque suficiente'}</h2>
                 </div>
                 <div className="sales-hero-featured-metrics">
                   <div>
                     <span>Receita</span>
-                    <strong>{formatMoney(heroProduct?.revenue)}</strong>
+                    <strong>{featuredProduct ? formatMoney(featuredProduct.revenue) : 'R$ 0,00'}</strong>
                   </div>
                   <div>
                     <span>Quantidade</span>
-                    <strong>{formatQuantity(heroProduct?.quantitySold)}</strong>
+                    <strong>{featuredProduct ? formatQuantity(featuredProduct.quantitySold) : '0'}</strong>
                   </div>
                   <div>
                     <span>Giro</span>
-                    <strong>{Number(heroProduct?.salesVelocity || 0).toFixed(1)}/dia</strong>
+                    <strong>{featuredProduct ? `${Number(featuredProduct.salesVelocity || 0).toFixed(1)}/dia` : '--'}</strong>
                   </div>
                 </div>
               </div>
-              <div className="hero-inline-actions">
+
+              <div className="hero-inline-actions sales-dashboard-actions">
                 <Link className="button" to="/app/produtos">Abrir análise por produto</Link>
-                <Link className="button secondary" to="/app/campanhas">Ver promoções</Link>
+                <Link className="button secondary" to="/app/lista-compras">Ir para lista de compras</Link>
               </div>
             </div>
           </article>
 
           <aside className="sales-hero-side">
             <SalesChart
-              className="sales-hero-chart"
               data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))}
               kicker="Ritmo do faturamento"
               title="Curva diária de vendas"
@@ -450,26 +528,26 @@ const Dashboard: React.FC = () => {
             />
 
             <div className="sales-insight-grid">
-              <div className="sales-insight-card">
+              <article className="sales-insight-card">
                 <span>Melhor dia</span>
                 <strong>{strongestWeekday?.label || '--'}</strong>
-                <small>{formatMoney(strongestWeekday?.revenue)}</small>
-              </div>
-              <div className="sales-insight-card">
+                <small>{strongestWeekday ? formatMoney(strongestWeekday.revenue) : 'Sem leitura suficiente'}</small>
+              </article>
+              <article className="sales-insight-card">
                 <span>Dia mais fraco</span>
                 <strong>{weakestWeekday?.label || '--'}</strong>
-                <small>{formatMoney(weakestWeekday?.revenue)}</small>
-              </div>
-              <div className="sales-insight-card">
+                <small>{weakestWeekday ? formatMoney(weakestWeekday.revenue) : 'Sem leitura suficiente'}</small>
+              </article>
+              <article className="sales-insight-card">
                 <span>Sazonalidade próxima</span>
-                <strong>{seasonalCollections[0]?.title || '--'}</strong>
-                <small>{seasonalCollections[0]?.proximityLabel || 'Sem janela próxima identificada'}</small>
-              </div>
-              <div className="sales-insight-card">
+                <strong>{dashboard.seasonalCollections?.[0]?.title || '--'}</strong>
+                <small>{dashboard.seasonalCollections?.[0]?.proximityLabel || 'Sem janela próxima'}</small>
+              </article>
+              <article className="sales-insight-card">
                 <span>Hora mais forte</span>
                 <strong>{strongestHour?.label || '--'}</strong>
-                <small>{formatCompact(dashboard.totalTransactions)} transações</small>
-              </div>
+                <small>{strongestHour ? `${formatQuantity(strongestHour.transactions)} transações` : 'Sem leitura suficiente'}</small>
+              </article>
             </div>
           </aside>
         </section>
@@ -478,7 +556,7 @@ const Dashboard: React.FC = () => {
           <MetricsCard title="Faturamento" value={formatMoney(dashboard.totalRevenue)} icon="R$" />
           <MetricsCard title="Ticket médio" value={formatMoney(dashboard.averageTicket)} icon="TM" />
           <MetricsCard title="Transações" value={formatCompact(dashboard.totalTransactions)} icon="NF" />
-          <MetricsCard title="SKUs ativos" value={formatCompact(dashboard.activeProducts)} icon="SKU" />
+          <MetricsCard title="Produtos ativos" value={formatCompact(dashboard.activeProducts)} icon="PD" />
         </div>
 
         <ProductRailSection
@@ -486,64 +564,117 @@ const Dashboard: React.FC = () => {
           subtitle="Itens que mais puxam o faturamento e merecem compra consistente e boa exposição."
           products={dashboard.topProducts || []}
           metricMode="revenue"
+          sourceTag="PAINEL_GERAL"
+          productIds={productIds}
+          onAddProduct={addProductToList}
         />
 
         <ProductRailSection
-          title="Produtos com menor saída"
-          subtitle="Itens com pouca tração no período. Revise espaço em gôndola, preço e sortimento."
+          title="Produtos que pedem reposição"
+          subtitle="Itens com giro forte e risco maior de faltar na área de vendas se a compra não acompanhar."
+          products={dashboard.replenishmentCandidates || []}
+          metricMode="restock"
+          sourceTag="REPOSIÇÃO"
+          productIds={productIds}
+          onAddProduct={addProductToList}
+        />
+
+        <ProductRailSection
+          title="Produtos menos vendidos"
+          subtitle="Itens com tração fraca que pedem revisão antes de ocupar mais espaço em estoque ou gôndola."
           products={lowestSellers}
           metricMode="low"
-        />
-
-        <ProductRailSection
-          title="Produtos que pedem maior reposição"
-          subtitle="Itens com giro forte e risco maior de faltar na área de vendas se a compra não acompanhar."
-          products={replenishmentCandidates}
-          metricMode="restock"
+          sourceTag="CAUTELA"
+          productIds={productIds}
+          onAddProduct={addProductToList}
         />
 
         <PairRailSection
           title="Produtos que mais vendem juntos"
-          subtitle="Use estas combinações para posicionar os itens próximos e aumentar o valor da cesta."
-          items={topPairs.slice(0, 10)}
+          subtitle="Use estas combinações para montar compra casada, exposição cruzada e reforço de categoria."
+          items={dashboard.topPairs || []}
         />
 
         <ProductRailSection
-          title={`Reforçar no dia mais forte${strongestWeekday ? `: ${strongestWeekday.label}` : ''}`}
-          subtitle="Use os campeões de faturamento para abastecer melhor a operação na janela com maior demanda."
+          title={`Reforçar compra no melhor dia: ${strongestWeekday?.label || 'sem leitura'}`}
+          subtitle="Itens que merecem reforço de estoque no dia mais forte da semana."
           products={(dashboard.topProducts || []).slice(0, 10)}
-          metricMode="revenue"
+          metricMode="restock"
+          sourceTag="MELHOR_DIA"
+          productIds={productIds}
+          onAddProduct={addProductToList}
         />
 
         <ProductRailSection
-          title={`Revisar no dia mais fraco${weakestWeekday ? `: ${weakestWeekday.label}` : ''}`}
-          subtitle="Itens com baixa reação em dias fracos tendem a consumir espaço sem retorno e pedem ajuste de mix."
-          products={lowPerformance}
+          title={`Revisar no dia mais fraco: ${weakestWeekday?.label || 'sem leitura'}`}
+          subtitle="Itens para rever compra ou espaço no dia mais fraco."
+          products={lowPerformance.slice(0, 10)}
           metricMode="low"
+          sourceTag="DIA_FRACO"
+          productIds={productIds}
+          onAddProduct={addProductToList}
         />
 
         <PromotionRailSection
           title="Produtos que performaram melhor em promoção"
-          subtitle="Aqui ficam os itens que responderam melhor à redução de preço e entregaram ganho de volume ou receita."
-          items={promotionHighlights}
+          subtitle="Itens que responderam melhor à redução de preço e entregaram ganho de volume ou receita."
+          items={dashboard.promotionHighlights || []}
+          productIds={productIds}
+          onAddProduct={addPromotionToList}
         />
 
         <PairRailSection
           title="Promoções que puxaram outras vendas"
-          subtitle="Combinações em que pelo menos um dos itens já mostrou boa reação promocional. Útil para ofertas casadas."
+          subtitle="Quando o item em promoção ajuda a vender outro produto, vale repensar compra e exposição em conjunto."
           items={promotionDrivenPairs}
         />
 
+        {(dashboard.seasonalCollections || []).map((collection) => (
+          <SeasonalRailSection
+            key={collection.key}
+            collection={collection}
+            productIds={productIds}
+            onAddProduct={addProductToList}
+          />
+        ))}
+
         <ProductRailSection
-          title="Produtos sugeridos para a próxima promoção"
-          subtitle="Itens com boa base de venda e espaço para aumentar faturamento quando entram em ação promocional."
-          products={promotionCandidates}
+          title="Itens com espaço para entrar em promoção"
+          subtitle="Produtos com boa receita, mas ainda com share promocional controlado para testar novas ações."
+          products={dashboard.promotionCandidates || []}
           metricMode="promotionCandidate"
+          sourceTag="PROMOÇÃO"
+          productIds={productIds}
+          onAddProduct={addProductToList}
         />
 
-        {seasonalCollections.map((collection) => (
-          <SeasonalRailSection key={collection.key} collection={collection} />
-        ))}
+        <section className="sales-section reveal">
+          <div className="sales-section-head">
+            <div>
+              <span className="section-kicker">Resumo do calendário</span>
+              <h2>Onde o ano mais pressiona a compra</h2>
+            </div>
+            <p>O mês mais forte ajuda a antecipar pedido, espaço e negociação com fornecedor.</p>
+          </div>
+          <div className="sales-calendar-summary-card">
+            <div>
+              <span>Mês mais forte</span>
+              <strong>{strongestMonth?.label || '--'}</strong>
+            </div>
+            <div>
+              <span>Receita</span>
+              <strong>{strongestMonth ? formatMoney(strongestMonth.revenue) : 'R$ 0,00'}</strong>
+            </div>
+            <div>
+              <span>Quantidade</span>
+              <strong>{strongestMonth ? formatQuantity(strongestMonth.quantity) : '0'}</strong>
+            </div>
+            <div>
+              <span>Transações</span>
+              <strong>{strongestMonth ? formatQuantity(strongestMonth.transactions) : '0'}</strong>
+            </div>
+          </div>
+        </section>
       </div>
     </Layout>
   );

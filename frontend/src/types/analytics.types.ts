@@ -222,3 +222,27 @@ export interface ProductPromotionWindow {
   confidenceScore: number;
   status: 'SUSPECTED' | 'CONFIRMED' | 'CLOSED' | string;
 }
+
+export interface ShoppingListItem {
+  id: string;
+  productId: string;
+  ean?: string | null;
+  name: string;
+  category?: string | null;
+  brand?: string | null;
+  imageUrl?: string | null;
+  quantityTarget: number;
+  note?: string | null;
+  sourceTag: string;
+  reasonSummary?: string | null;
+  checked: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ShoppingListOverview {
+  totalItems: number;
+  checkedItems: number;
+  pendingItems: number;
+  items: ShoppingListItem[];
+}

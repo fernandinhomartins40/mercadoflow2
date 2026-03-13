@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
+import { useShoppingList } from '../hooks/useShoppingList';
 import Button from '../components/common/Button';
+import ShoppingListButton from '../components/common/ShoppingListButton';
 import { ProductPerformance } from '../types/analytics.types';
 
 const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
@@ -11,6 +13,7 @@ const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1
 
 const Products: React.FC = () => {
   const { marketId } = useAuth();
+  const { addItem, productIds } = useShoppingList();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [pageData, setPageData] = useState<{ content: ProductPerformance[]; totalPages: number; totalElements: number; number: number } | null>(null);
@@ -89,6 +92,15 @@ const Products: React.FC = () => {
     setSearchParams(next);
   };
 
+  const handleAddProduct = async (product: ProductPerformance) => {
+    await addItem({
+      productId: product.productId,
+      quantityTarget: Math.max(1, Math.round(Number(product.salesVelocity || 0) || 1)),
+      sourceTag: 'PRODUTOS',
+      reasonSummary: `Adicionar ${product.name} à lista a partir da consulta de produtos.`,
+    });
+  };
+
   return (
     <Layout>
       <div className="page analytics-page">
@@ -96,9 +108,9 @@ const Products: React.FC = () => {
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
               <span className="pill">Performance de produtos</span>
-              <h1 className="dashboard-command-title">Decida por produto sem navegar em uma grade burocratica.</h1>
+              <h1 className="dashboard-command-title">Decida por produto sem navegar em uma grade burocrática.</h1>
               <p className="dashboard-command-text">
-                Este mapa coloca primeiro o item que gira, o que segura receita, o que depende de promocao e o que precisa de leitura por filial antes de consumir mais capital.
+                Este mapa coloca primeiro o item que gira, o que segura receita, o que depende de promoção e o que precisa de leitura por filial antes de consumir mais capital.
               </p>
               <div className="hero-chip-row">
                 <span className="hero-chip">{totalElements} produtos conhecidos</span>
@@ -117,11 +129,20 @@ const Products: React.FC = () => {
                     ? `${bandLabel(highlightProduct.turnoverBand)} | Tendência ${formatPercent(highlightProduct.revenueTrendPercentage)} | Share promo ${formatPercent((highlightProduct.promoRevenueShare || 0) * 100)}`
                     : 'A ordenação escolhida passa a destacar aqui o item que merece a primeira leitura.'}
                 </p>
-                {highlightProduct ? (
-                  <button className="button hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
-                    Abrir dashboard do produto
-                  </button>
-                ) : null}
+                <div className="hero-inline-actions">
+                  {highlightProduct ? (
+                    <button className="button hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
+                      Abrir dashboard do produto
+                    </button>
+                  ) : null}
+                  {highlightProduct ? (
+                    <ShoppingListButton
+                      inList={productIds.has(highlightProduct.productId)}
+                      onAdd={() => handleAddProduct(highlightProduct)}
+                      stopPropagation={false}
+                    />
+                  ) : null}
+                </div>
               </article>
 
               <div className="dashboard-command-mosaic">
@@ -145,11 +166,11 @@ const Products: React.FC = () => {
             <article className="dashboard-priority-card">
               <span className="section-kicker">Leitura recomendada</span>
               <h3>Comece pela pergunta do time.</h3>
-              <p>Busca quando ja existe um GTIN ou nome específico. Ordenação por receita, giro ou tendência quando o problema ainda precisa ser descoberto.</p>
+              <p>Busca quando já existe um GTIN ou nome específico. Ordenação por receita, giro ou tendência quando o problema ainda precisa ser descoberto.</p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Ação mais comum</span>
-              <h3>Abra o dashboard do item certo, não de varios.</h3>
+              <h3>Abra o dashboard do item certo, não de vários.</h3>
               <p>Esta tela serve para priorizar. A investigação detalhada continua no painel individual do produto.</p>
             </article>
           </aside>
@@ -164,12 +185,12 @@ const Products: React.FC = () => {
           <div className="metric-card metric-card-warning reveal">
             <div className="metric-card-top"><span className="metric-card-title">Giro médio</span><span className="metric-card-icon">GR</span></div>
             <strong className="metric-card-value">{avgVelocity.toFixed(2)}/dia</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">velocidade media da página</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">velocidade média da página</span></div>
           </div>
           <div className="metric-card metric-card-danger reveal">
             <div className="metric-card-top"><span className="metric-card-title">Share promo</span><span className="metric-card-icon">SP</span></div>
             <strong className="metric-card-value">{formatPercent(avgPromoShare * 100)}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">participação media de promo</span></div>
+            <div className="metric-card-bottom"><span className="metric-card-meta">participação média de promo</span></div>
           </div>
           <div className="metric-card metric-card-default reveal">
             <div className="metric-card-top"><span className="metric-card-title">Ordenação ativa</span><span className="metric-card-icon">OR</span></div>
@@ -325,7 +346,10 @@ const Products: React.FC = () => {
                     <span>Última venda {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</span>
                     <span>GTIN {product.ean || '--'}</span>
                   </div>
-                  <div className="product-card-link">Abrir dashboard do produto</div>
+                  <div className="product-card-actions-row">
+                    <div className="product-card-link">Abrir dashboard do produto</div>
+                    <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
+                  </div>
                 </article>
               ))
             )}
@@ -343,7 +367,7 @@ const Products: React.FC = () => {
                 Anterior
               </Button>
               <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={totalPages === 0 || page >= totalPages - 1}>
-                Proxima
+                Próxima
               </Button>
             </div>
           </div>

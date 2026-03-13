@@ -10,6 +10,7 @@ import PDVs from './pages/PDVs';
 import Campaigns from './pages/Campaigns';
 import DemandForecast from './pages/DemandForecast';
 import Settings from './pages/Settings';
+import ShoppingListPage from './pages/ShoppingList';
 import Landing from './pages/Landing';
 import PublicAgentDownload from './pages/PublicAgentDownload';
 import AgentDownload from './pages/AgentDownload';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
       <Route path="/app/produtos/:productId" element={secure(<ProductDetail />)} />
       <Route path="/app/cesta" element={secure(<MarketBasket />)} />
       <Route path="/app/alertas" element={secure(<Alerts />)} />
+      <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
       <Route path="/app/pdvs" element={secure(<PDVs />)} />
       <Route path="/app/campanhas" element={secure(<Campaigns />)} />
       <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
@@ -80,6 +82,7 @@ const App: React.FC = () => {
       <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
       <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />
       <Route path="/alertas" element={<Navigate to="/app/alertas" replace />} />
+      <Route path="/lista-compras" element={<Navigate to="/app/lista-compras" replace />} />
       <Route path="/pdvs" element={<Navigate to="/app/pdvs" replace />} />
       <Route path="/campanhas" element={<Navigate to="/app/campanhas" replace />} />
       <Route path="/previsao-demanda" element={<Navigate to="/app/previsao-demanda" replace />} />
