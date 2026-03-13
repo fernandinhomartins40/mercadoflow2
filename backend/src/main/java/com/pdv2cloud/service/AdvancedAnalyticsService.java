@@ -19,6 +19,7 @@ import com.pdv2cloud.repository.AlertRepository;
 import com.pdv2cloud.repository.CampaignRepository;
 import com.pdv2cloud.repository.InvoiceRepository;
 import com.pdv2cloud.repository.ProductRepository;
+import java.text.NumberFormat;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.ResultSet;
@@ -841,19 +842,41 @@ public class AdvancedAnalyticsService {
         List<SeasonalWindow> windows = resolveSeasonalWindows(referenceDate);
         List<SeasonalProductCollectionDTO> collections = new ArrayList<>();
         for (SeasonalWindow window : windows) {
-            List<ProductPerformanceDTO> products = topProducts(
-                loadProductPerformanceRows(marketId, new Window(window.start(), window.end()), null, null, null)
-                    .stream()
-                    .filter(row -> defaultBigDecimal(row.getRevenue()).compareTo(BigDecimal.ZERO) > 0)
-                    .toList(),
-                "REVENUE",
-                8
-            );
+            List<ProductPerformanceDTO> performance = loadProductPerformanceRows(
+                marketId,
+                new Window(window.analysisStart(), window.analysisEnd()),
+                null,
+                null,
+                null
+            ).stream()
+                .filter(row -> defaultBigDecimal(row.getRevenue()).compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+
+            List<ProductPerformanceDTO> products = topProducts(performance, "REVENUE", 8);
+            BigDecimal totalRevenue = performance.stream()
+                .map(ProductPerformanceDTO::getRevenue)
+                .map(this::defaultBigDecimal)
+                .reduce(zero(2), BigDecimal::add);
+            BigDecimal totalQuantity = performance.stream()
+                .map(ProductPerformanceDTO::getQuantitySold)
+                .map(this::defaultBigDecimal)
+                .reduce(zero(3), BigDecimal::add);
+            long totalTransactions = performance.stream()
+                .map(ProductPerformanceDTO::getTransactionCount)
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
+
             collections.add(new SeasonalProductCollectionDTO(
                 window.key(),
                 window.title(),
-                window.subtitle(),
+                buildSeasonalSubtitle(window, totalRevenue, totalTransactions),
                 window.periodLabel(),
+                window.proximityLabel(),
+                window.status(),
+                totalRevenue,
+                totalQuantity,
+                totalTransactions,
                 products
             ));
         }
@@ -1058,66 +1081,130 @@ public class AdvancedAnalyticsService {
     }
 
     private List<SeasonalWindow> resolveSeasonalWindows(LocalDate referenceDate) {
-        return List.of(
-            resolveFixedSeasonalWindow("pascoa", "Páscoa", "Itens que ganham força no período pascal.", referenceDate, 3, 15, 4, 15),
-            resolveFixedSeasonalWindow("festa-junina", "Festa Junina", "Produtos que costumam subir com o calendário junino.", referenceDate, 6, 1, 6, 30),
-            resolveFixedSeasonalWindow("natal", "Natal", "Itens que puxam a venda no pico de dezembro.", referenceDate, 12, 1, 12, 25),
-            resolveCrossYearSeasonalWindow("ano-novo", "Ano Novo", "Produtos fortes na virada e no abastecimento imediato.", referenceDate, 12, 26, 1, 5)
+        List<SeasonalTemplate> templates = List.of(
+            new SeasonalTemplate("volta-aulas", "Volta às aulas", "Itens que costumam acelerar com a retomada escolar.", 1, 10, 2, 20),
+            new SeasonalTemplate("pascoa", "Páscoa", "Itens que ganham força no período pascal.", 3, 15, 4, 15),
+            new SeasonalTemplate("festa-junina", "Festa Junina", "Produtos que sobem com o calendário junino.", 6, 1, 6, 30),
+            new SeasonalTemplate("dia-criancas", "Dia das Crianças", "Itens que reagem melhor no calendário de outubro.", 9, 25, 10, 12),
+            new SeasonalTemplate("natal", "Natal", "Itens que puxam a venda no pico de dezembro.", 12, 1, 12, 25),
+            new SeasonalTemplate("ano-novo", "Ano Novo", "Produtos fortes na virada e no abastecimento imediato.", 12, 26, 1, 5)
+        );
+
+        return templates.stream()
+            .map(template -> resolveSeasonalWindow(template, referenceDate))
+            .sorted(Comparator.comparingInt(SeasonalWindow::priority).thenComparingLong(SeasonalWindow::distanceDays))
+            .limit(3)
+            .toList();
+    }
+
+    private SeasonalWindow resolveSeasonalWindow(SeasonalTemplate template, LocalDate referenceDate) {
+        List<SeasonalOccurrence> occurrences = List.of(
+            createSeasonalOccurrence(template, referenceDate.getYear() - 1),
+            createSeasonalOccurrence(template, referenceDate.getYear()),
+            createSeasonalOccurrence(template, referenceDate.getYear() + 1)
+        );
+
+        SeasonalOccurrence active = occurrences.stream()
+            .filter(occurrence -> !referenceDate.isBefore(occurrence.start()) && !referenceDate.isAfter(occurrence.end()))
+            .findFirst()
+            .orElse(null);
+
+        SeasonalOccurrence previous = occurrences.stream()
+            .filter(occurrence -> occurrence.end().isBefore(referenceDate))
+            .max(Comparator.comparing(SeasonalOccurrence::end))
+            .orElse(null);
+
+        SeasonalOccurrence next = occurrences.stream()
+            .filter(occurrence -> occurrence.start().isAfter(referenceDate))
+            .min(Comparator.comparing(SeasonalOccurrence::start))
+            .orElse(null);
+
+        SeasonalOccurrence displayOccurrence;
+        String status;
+        String proximityLabel;
+        int priority;
+        long distanceDays;
+
+        if (active != null) {
+            displayOccurrence = active;
+            status = "CURRENT";
+            distanceDays = Math.max(0L, ChronoUnit.DAYS.between(referenceDate, active.end()));
+            proximityLabel = distanceDays <= 1 ? "Acontecendo agora" : "Em andamento";
+            priority = 0;
+        } else if (previous == null || (next != null && ChronoUnit.DAYS.between(referenceDate, next.start()) <= ChronoUnit.DAYS.between(previous.end(), referenceDate))) {
+            displayOccurrence = next != null ? next : previous;
+            distanceDays = displayOccurrence != null ? Math.max(0L, ChronoUnit.DAYS.between(referenceDate, displayOccurrence.start())) : Long.MAX_VALUE;
+            status = "UPCOMING";
+            proximityLabel = distanceDays == 0 ? "Começa hoje" : distanceDays == 1 ? "Começa amanhã" : "Começa em " + distanceDays + " dias";
+            priority = 1;
+        } else {
+            displayOccurrence = previous;
+            distanceDays = Math.max(0L, ChronoUnit.DAYS.between(previous.end(), referenceDate));
+            status = "RECENT";
+            proximityLabel = distanceDays == 1 ? "Terminou ontem" : "Terminou há " + distanceDays + " dias";
+            priority = 2;
+        }
+
+        SeasonalOccurrence analysisOccurrence = ("RECENT".equals(status) || (active == null && next == null))
+            ? displayOccurrence
+            : previous != null ? previous : displayOccurrence;
+
+        return new SeasonalWindow(
+            template.key(),
+            template.title(),
+            template.subtitle(),
+            analysisOccurrence.start(),
+            analysisOccurrence.end(),
+            formatPeriodLabel(analysisOccurrence.start(), analysisOccurrence.end()),
+            proximityLabel,
+            status,
+            priority,
+            distanceDays
         );
     }
 
-    private SeasonalWindow resolveFixedSeasonalWindow(
-        String key,
-        String title,
-        String subtitle,
-        LocalDate referenceDate,
-        int startMonth,
-        int startDay,
-        int endMonth,
-        int endDay
-    ) {
-        int year = referenceDate.getYear();
-        LocalDate end = LocalDate.of(year, endMonth, endDay);
-        if (end.isAfter(referenceDate)) {
-            year -= 1;
-            end = LocalDate.of(year, endMonth, endDay);
-        }
-        LocalDate start = LocalDate.of(year, startMonth, startDay);
-        return new SeasonalWindow(
-            key,
-            title,
-            subtitle,
-            start,
-            end,
-            start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) + " a " + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-        );
+    private SeasonalOccurrence createSeasonalOccurrence(SeasonalTemplate template, int startYear) {
+        LocalDate start = LocalDate.of(startYear, template.startMonth(), template.startDay());
+        int endYear = template.crossYear() ? startYear + 1 : startYear;
+        LocalDate end = LocalDate.of(endYear, template.endMonth(), template.endDay());
+        return new SeasonalOccurrence(start, end);
     }
 
-    private SeasonalWindow resolveCrossYearSeasonalWindow(
-        String key,
-        String title,
-        String subtitle,
-        LocalDate referenceDate,
-        int startMonth,
-        int startDay,
-        int endMonth,
-        int endDay
-    ) {
-        int endYear = referenceDate.getYear();
-        LocalDate end = LocalDate.of(endYear, endMonth, endDay);
-        if (end.isAfter(referenceDate)) {
-            endYear -= 1;
-            end = LocalDate.of(endYear, endMonth, endDay);
+    private String formatPeriodLabel(LocalDate start, LocalDate end) {
+        return start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            + " a "
+            + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
+
+    private String buildSeasonalSubtitle(SeasonalWindow window, BigDecimal totalRevenue, long totalTransactions) {
+        String timing = switch (window.status()) {
+            case "CURRENT" -> window.title() + " está em andamento.";
+            case "UPCOMING" -> window.proximityLabel() + " para " + window.title() + ".";
+            default -> window.proximityLabel() + " o último ciclo de " + window.title() + ".";
+        };
+        String context = window.subtitle() != null && !window.subtitle().isBlank()
+            ? window.subtitle().trim() + " "
+            : "";
+
+        if (totalRevenue.compareTo(BigDecimal.ZERO) <= 0 || totalTransactions <= 0) {
+            return timing + " " + context + "Ainda não há vendas suficientes registradas para esta janela comparável.";
         }
-        LocalDate start = LocalDate.of(endYear - 1, startMonth, startDay);
-        return new SeasonalWindow(
-            key,
-            title,
-            subtitle,
-            start,
-            end,
-            start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " a " + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-        );
+
+        return timing
+            + " "
+            + context
+            + " No último ciclo comparável ("
+            + window.periodLabel()
+            + "), os itens dessa janela geraram "
+            + formatCurrency(totalRevenue)
+            + " em "
+            + totalTransactions
+            + " compras.";
+    }
+
+    private String formatCurrency(BigDecimal value) {
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        return formatter.format(defaultBigDecimal(value));
     }
 
     private BigDecimal defaultBigDecimal(BigDecimal value) {
@@ -1217,13 +1304,34 @@ public class AdvancedAnalyticsService {
     private record Aggregate(BigDecimal revenue, long transactions, BigDecimal averageTicket) {
     }
 
+    private record SeasonalTemplate(
+        String key,
+        String title,
+        String subtitle,
+        int startMonth,
+        int startDay,
+        int endMonth,
+        int endDay
+    ) {
+        boolean crossYear() {
+            return endMonth < startMonth || (endMonth == startMonth && endDay < startDay);
+        }
+    }
+
+    private record SeasonalOccurrence(LocalDate start, LocalDate end) {
+    }
+
     private record SeasonalWindow(
         String key,
         String title,
         String subtitle,
-        LocalDate start,
-        LocalDate end,
-        String periodLabel
+        LocalDate analysisStart,
+        LocalDate analysisEnd,
+        String periodLabel,
+        String proximityLabel,
+        String status,
+        int priority,
+        long distanceDays
     ) {
     }
 

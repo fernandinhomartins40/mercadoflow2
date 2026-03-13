@@ -125,6 +125,11 @@ export interface SeasonalProductCollection {
   title: string;
   subtitle?: string | null;
   periodLabel?: string | null;
+  proximityLabel?: string | null;
+  status?: string | null;
+  totalRevenue?: number | null;
+  totalQuantity?: number | null;
+  totalTransactions?: number | null;
   products: ProductPerformance[];
 }
 

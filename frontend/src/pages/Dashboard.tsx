@@ -27,6 +27,30 @@ const formatSignedPercent = (value?: number | null) => {
 const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(0)}%`;
 const formatQuantity = (value?: number | null) => Number(value || 0).toFixed(0);
 
+const seasonalStatusLabel = (value?: string | null) => {
+  switch ((value || '').toUpperCase()) {
+    case 'CURRENT':
+      return 'Em andamento';
+    case 'UPCOMING':
+      return 'Próxima janela';
+    case 'RECENT':
+      return 'Último ciclo';
+    default:
+      return 'Sazonalidade';
+  }
+};
+
+const seasonalStatusTone = (value?: string | null) => {
+  switch ((value || '').toUpperCase()) {
+    case 'CURRENT':
+      return 'positive';
+    case 'UPCOMING':
+      return 'neutral';
+    default:
+      return 'soft';
+  }
+};
+
 const compactLabel = (value?: string | null) => {
   if (!value) return 'Sem categoria';
   const normalized = value.replace(/\s*>\s*/g, ' > ').trim();
@@ -277,12 +301,55 @@ const PairRailSection: React.FC<{ title: string; subtitle: string; items: Produc
 );
 
 const SeasonalRailSection: React.FC<{ collection: SeasonalProductCollection }> = ({ collection }) => (
-  <ProductRailSection
-    title={collection.title}
-    subtitle={`${collection.subtitle || 'Produtos que ganham força nesse período.'} ${collection.periodLabel ? `Janela analisada: ${collection.periodLabel}.` : ''}`.trim()}
-    products={collection.products || []}
-    metricMode="revenue"
-  />
+  <section className="sales-section reveal">
+    <div className="sales-section-head sales-seasonal-head">
+      <div>
+        <span className="section-kicker">Calendário comercial</span>
+        <h2>{collection.title}</h2>
+      </div>
+      <div className="sales-seasonal-head-meta">
+        <span className={`sales-pill ${seasonalStatusTone(collection.status)}`}>{collection.proximityLabel || seasonalStatusLabel(collection.status)}</span>
+        {collection.periodLabel ? <span className="sales-pill soft">{collection.periodLabel}</span> : null}
+      </div>
+    </div>
+
+    <p className="sales-seasonal-copy">
+      {collection.subtitle || 'Produtos que ganham força nesta janela do calendário comercial.'}
+    </p>
+
+    <div className="sales-seasonal-metrics">
+      <div>
+        <span>Receita da janela</span>
+        <strong>{formatMoney(collection.totalRevenue)}</strong>
+      </div>
+      <div>
+        <span>Compras registradas</span>
+        <strong>{formatQuantity(collection.totalTransactions)}</strong>
+      </div>
+      <div>
+        <span>Itens vendidos</span>
+        <strong>{formatQuantity(collection.totalQuantity)}</strong>
+      </div>
+    </div>
+
+    {collection.products.length === 0 ? (
+      <div className="sales-empty-card">Sem produtos suficientes para esta janela sazonal.</div>
+    ) : (
+      <div className="sales-rail">
+        {collection.products.map((product) => (
+          <ProductRailCard
+            key={product.productId}
+            product={product}
+            primaryLabel="Receita"
+            primaryValue={formatMoney(product.revenue)}
+            secondaryLabel="Quantidade"
+            secondaryValue={formatQuantity(product.quantitySold)}
+            footerValue={`Giro ${Number(product.salesVelocity || 0).toFixed(1)}/dia`}
+          />
+        ))}
+      </div>
+    )}
+  </section>
 );
 
 const Dashboard: React.FC = () => {
@@ -290,7 +357,6 @@ const Dashboard: React.FC = () => {
 
   const strongestWeekday = useMemo(() => pickHighest(dashboard?.weekdaySeasonality || []), [dashboard?.weekdaySeasonality]);
   const weakestWeekday = useMemo(() => pickLowest(dashboard?.weekdaySeasonality || []), [dashboard?.weekdaySeasonality]);
-  const strongestMonth = useMemo(() => pickHighest(dashboard?.monthlySeasonality || []), [dashboard?.monthlySeasonality]);
   const strongestHour = useMemo(() => pickHighest(dashboard?.hourlySeasonality || []), [dashboard?.hourlySeasonality]);
 
   const heroProduct = useMemo(
@@ -395,9 +461,9 @@ const Dashboard: React.FC = () => {
                 <small>{formatMoney(weakestWeekday?.revenue)}</small>
               </div>
               <div className="sales-insight-card">
-                <span>Melhor mês</span>
-                <strong>{strongestMonth?.label || '--'}</strong>
-                <small>{formatMoney(strongestMonth?.revenue)}</small>
+                <span>Sazonalidade próxima</span>
+                <strong>{seasonalCollections[0]?.title || '--'}</strong>
+                <small>{seasonalCollections[0]?.proximityLabel || 'Sem janela próxima identificada'}</small>
               </div>
               <div className="sales-insight-card">
                 <span>Hora mais forte</span>
@@ -473,13 +539,6 @@ const Dashboard: React.FC = () => {
           subtitle="Itens com boa base de venda e espaço para aumentar faturamento quando entram em ação promocional."
           products={promotionCandidates}
           metricMode="promotionCandidate"
-        />
-
-        <ProductRailSection
-          title={`Planejar compra para ${strongestMonth?.label || 'o pico do ano'}`}
-          subtitle="Itens com giro forte que merecem compra mais agressiva quando a janela sazonal mais forte se aproxima."
-          products={dashboard.topTurnoverProducts || []}
-          metricMode="restock"
         />
 
         {seasonalCollections.map((collection) => (
