@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
       items: [
         { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', mark: 'CC' },
         { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', mark: 'LC' },
+        { to: '/app/ofertas', label: 'Ofertas', hint: 'Modelos, designer e lotes', mark: 'OF' },
         { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Planejamento de demanda', mark: 'PV' },
         { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', mark: 'CP' },
         { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', mark: 'PD' },

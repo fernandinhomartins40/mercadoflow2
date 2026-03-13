@@ -408,6 +408,7 @@ const ProductDetail: React.FC = () => {
 
               <div className="hero-inline-actions product-detail-actions">
                 <Link className="button secondary" to="/app/produtos">Voltar para produtos</Link>
+                <Link className="button secondary" to={`/app/ofertas/designer?productId=${overview.productId}`}>Criar oferta</Link>
                 <Link className="button secondary" to="/app/alertas">Abrir alertas</Link>
                 <ShoppingListButton
                   inList={overview ? productIds.has(overview.productId) : false}

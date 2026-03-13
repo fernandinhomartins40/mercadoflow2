@@ -129,15 +129,20 @@ const Products: React.FC = () => {
                     ? `${bandLabel(highlightProduct.turnoverBand)} | Tendência ${formatPercent(highlightProduct.revenueTrendPercentage)} | Share promo ${formatPercent((highlightProduct.promoRevenueShare || 0) * 100)}`
                     : 'A ordenação escolhida passa a destacar aqui o item que merece a primeira leitura.'}
                 </p>
-                <div className="hero-inline-actions">
-                  {highlightProduct ? (
-                    <button className="button hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
+              <div className="hero-inline-actions">
+                {highlightProduct ? (
+                  <button className="button hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
                       Abrir dashboard do produto
-                    </button>
-                  ) : null}
-                  {highlightProduct ? (
-                    <ShoppingListButton
-                      inList={productIds.has(highlightProduct.productId)}
+                  </button>
+                ) : null}
+                {highlightProduct ? (
+                  <button className="button secondary" onClick={() => navigate(`/app/ofertas/designer?productId=${highlightProduct.productId}`)}>
+                    Criar oferta
+                  </button>
+                ) : null}
+                {highlightProduct ? (
+                  <ShoppingListButton
+                    inList={productIds.has(highlightProduct.productId)}
                       onAdd={() => handleAddProduct(highlightProduct)}
                       stopPropagation={false}
                     />
@@ -348,7 +353,19 @@ const Products: React.FC = () => {
                   </div>
                   <div className="product-card-actions-row">
                     <div className="product-card-link">Abrir dashboard do produto</div>
-                    <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
+                    <div className="product-card-actions-inline">
+                      <button
+                        type="button"
+                        className="button secondary"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/app/ofertas/designer?productId=${product.productId}`);
+                        }}
+                      >
+                        Criar oferta
+                      </button>
+                      <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
+                    </div>
                   </div>
                 </article>
               ))

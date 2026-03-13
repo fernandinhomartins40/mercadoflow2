@@ -11,6 +11,10 @@ import Campaigns from './pages/Campaigns';
 import DemandForecast from './pages/DemandForecast';
 import Settings from './pages/Settings';
 import ShoppingListPage from './pages/ShoppingList';
+import OffersDashboard from './pages/OffersDashboard';
+import OfferTemplates from './pages/OfferTemplates';
+import OfferDesigner from './pages/OfferDesigner';
+import OfferJobs from './pages/OfferJobs';
 import Landing from './pages/Landing';
 import PublicAgentDownload from './pages/PublicAgentDownload';
 import AgentDownload from './pages/AgentDownload';
@@ -65,6 +69,10 @@ const App: React.FC = () => {
       <Route path="/app/cesta" element={secure(<MarketBasket />)} />
       <Route path="/app/alertas" element={secure(<Alerts />)} />
       <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
+      <Route path="/app/ofertas" element={secure(<OffersDashboard />)} />
+      <Route path="/app/ofertas/modelos" element={secure(<OfferTemplates />)} />
+      <Route path="/app/ofertas/designer" element={secure(<OfferDesigner />)} />
+      <Route path="/app/ofertas/jobs" element={secure(<OfferJobs />)} />
       <Route path="/app/pdvs" element={secure(<PDVs />)} />
       <Route path="/app/campanhas" element={secure(<Campaigns />)} />
       <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
@@ -83,6 +91,7 @@ const App: React.FC = () => {
       <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />
       <Route path="/alertas" element={<Navigate to="/app/alertas" replace />} />
       <Route path="/lista-compras" element={<Navigate to="/app/lista-compras" replace />} />
+      <Route path="/ofertas" element={<Navigate to="/app/ofertas" replace />} />
       <Route path="/pdvs" element={<Navigate to="/app/pdvs" replace />} />
       <Route path="/campanhas" element={<Navigate to="/app/campanhas" replace />} />
       <Route path="/previsao-demanda" element={<Navigate to="/app/previsao-demanda" replace />} />

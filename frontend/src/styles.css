@@ -8211,3 +8211,500 @@ a.dashboard-quick-item:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.offers-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.offers-command-showcase {
+  min-width: 320px;
+}
+
+.offer-dashboard-canvas,
+.offer-designer-canvas,
+.offer-template-card-preview,
+.offer-template-card-preview.compact {
+  width: 100%;
+}
+
+.offer-canvas-preview {
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+  border-radius: 2rem;
+  overflow: hidden;
+  border: 1px solid rgba(111, 73, 36, 0.12);
+  box-shadow: 0 24px 60px rgba(70, 36, 12, 0.12);
+}
+
+.offer-canvas-slot {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1b130f;
+}
+
+.offer-canvas-slot.text {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.offer-canvas-slot.tag,
+.offer-canvas-slot.badge {
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.offer-canvas-slot.image {
+  padding: 1rem;
+}
+
+.offer-canvas-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.offer-canvas-slot.price {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.25rem;
+  border-radius: 1.75rem;
+  background: linear-gradient(180deg, #3d1f12 0%, #8a3b09 100%);
+  color: #fff7ef;
+}
+
+.offer-canvas-slot.price span {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.offer-canvas-slot.price strong {
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.offer-canvas-slot.qr {
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.offer-canvas-qr-box {
+  width: 100%;
+  height: 100%;
+  border-radius: 1.5rem;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.offer-canvas-grid-layout {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.offer-canvas-grid-head h3 {
+  margin: 0.65rem 0 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+}
+
+.offer-canvas-grid-products {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.offer-mini-product-card {
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 1.5rem;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.offer-mini-product-frame,
+.offer-product-suggestion-frame,
+.offer-pair-suggestion-frame,
+.offer-search-result-frame,
+.offer-selected-product-frame,
+.offer-job-detail-item-frame,
+.offer-job-item-thumb,
+.offer-job-item-pill .offer-job-item-thumb {
+  background: #fff;
+  border-radius: 1.25rem;
+}
+
+.offer-mini-product-frame {
+  aspect-ratio: 1 / 1;
+  padding: 0.75rem;
+}
+
+.offer-mini-product-image,
+.offer-product-suggestion-image,
+.offer-pair-suggestion-image,
+.offer-search-result-image,
+.offer-selected-product-image,
+.offer-job-detail-item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.offer-template-rail,
+.offer-suggestion-rail,
+.offer-pair-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 360px);
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+}
+
+.offer-template-rail.stacked {
+  grid-auto-flow: row;
+  grid-auto-columns: unset;
+  grid-template-columns: 1fr;
+  overflow: visible;
+}
+
+.offer-template-card,
+.offer-product-suggestion-card,
+.offer-pair-suggestion-card,
+.offer-job-card,
+.offer-job-detail-card,
+.offer-search-result-card,
+.offer-selected-product-card {
+  border-radius: 1.75rem;
+  border: 1px solid rgba(111, 73, 36, 0.12);
+  background: rgba(255, 252, 248, 0.94);
+  box-shadow: 0 18px 42px rgba(70, 36, 12, 0.08);
+}
+
+.offer-template-card {
+  padding: 1rem;
+  display: grid;
+  gap: 1rem;
+  scroll-snap-align: start;
+}
+
+.offer-template-card.compact {
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  cursor: pointer;
+}
+
+.offer-template-card.selected {
+  border-color: rgba(255, 106, 0, 0.45);
+  box-shadow: 0 22px 48px rgba(255, 106, 0, 0.14);
+}
+
+.offer-template-card-preview {
+  min-height: 240px;
+}
+
+.offer-template-card-preview.compact {
+  min-height: 150px;
+}
+
+.offer-template-card-body,
+.offer-template-card-body.compact,
+.offer-product-suggestion-body,
+.offer-pair-suggestion-body,
+.offer-job-detail-item-body,
+.offer-search-result-body,
+.offer-selected-product-body {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.offer-template-card-body h3,
+.offer-product-suggestion-body h3,
+.offer-pair-suggestion-body h3,
+.offer-search-result-body h3,
+.offer-selected-product-body h3,
+.offer-job-detail-item-body h3,
+.offer-job-card-head h3,
+.offer-job-detail-head h2 {
+  margin: 0;
+}
+
+.offer-template-card-body p,
+.offer-product-suggestion-body p,
+.offer-pair-suggestion-body p,
+.offer-search-result-body p,
+.offer-selected-product-body p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.offer-template-card-meta,
+.offer-product-suggestion-metrics,
+.offer-search-result-meta,
+.offer-selected-product-meta,
+.offer-job-card-meta,
+.offer-job-detail-meta,
+.offer-pair-suggestion-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.offer-template-card-actions,
+.offer-designer-actions,
+.offer-template-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.offer-job-grid,
+.offer-jobs-page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.offer-job-card,
+.offer-job-detail-card {
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.offer-job-card-head,
+.offer-job-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.offer-job-card-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.offer-job-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(255, 248, 240, 0.95);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem 0.45rem 0.45rem;
+}
+
+.offer-job-item-thumb {
+  width: 2.4rem;
+  height: 2.4rem;
+  object-fit: contain;
+  padding: 0.3rem;
+}
+
+.offer-product-suggestion-card {
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+  scroll-snap-align: start;
+}
+
+.offer-product-suggestion-frame {
+  aspect-ratio: 1 / 1;
+  padding: 1rem;
+}
+
+.offer-product-suggestion-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.offer-product-suggestion-metrics span,
+.offer-search-result-meta span,
+.offer-selected-product-meta span,
+.offer-job-detail-item-body p {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.offer-pair-suggestion-card {
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+  scroll-snap-align: start;
+}
+
+.offer-pair-suggestion-media {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.offer-pair-suggestion-frame {
+  aspect-ratio: 1 / 1;
+  padding: 0.8rem;
+}
+
+.offer-pair-suggestion-plus {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.offer-template-page-grid,
+.offer-designer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+}
+
+.offer-template-editor-panel,
+.offer-designer-sidebar,
+.offer-designer-stage {
+  display: grid;
+  gap: 1rem;
+}
+
+.offer-designer-grid {
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  align-items: start;
+}
+
+.offer-designer-sidebar.right {
+  position: sticky;
+  top: 1.25rem;
+}
+
+.offer-designer-form-grid,
+.offer-template-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.offer-template-form-grid .full,
+.offer-checkbox-row.full {
+  grid-column: 1 / -1;
+}
+
+.offer-template-form-grid label,
+.offer-designer-form-grid label {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.offer-json-editor {
+  min-height: 360px;
+  font-family: Consolas, 'Courier New', monospace;
+  white-space: pre;
+}
+
+.offer-search-result-list,
+.offer-selected-product-list {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 600px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.offer-search-result-card,
+.offer-selected-product-card {
+  padding: 0.85rem;
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.offer-search-result-frame,
+.offer-selected-product-frame,
+.offer-job-detail-item-frame {
+  width: 88px;
+  height: 88px;
+  padding: 0.6rem;
+}
+
+.offer-job-detail-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.offer-job-detail-item {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 0.85rem;
+  padding: 0.75rem;
+  border-radius: 1.35rem;
+  background: rgba(255, 248, 240, 0.82);
+}
+
+.offer-list-empty {
+  padding: 1rem;
+  border-radius: 1.1rem;
+  background: rgba(255, 248, 240, 0.82);
+  color: var(--muted);
+}
+
+.product-card-actions-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 1366px) {
+  .offer-designer-grid,
+  .offer-template-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .offer-designer-sidebar.right {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .offer-template-card.compact,
+  .offer-search-result-card,
+  .offer-selected-product-card,
+  .offer-job-detail-item {
+    grid-template-columns: 1fr;
+  }
+
+  .offer-designer-form-grid,
+  .offer-template-form-grid,
+  .offer-product-suggestion-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .offer-template-rail,
+  .offer-suggestion-rail,
+  .offer-pair-rail {
+    grid-auto-columns: minmax(260px, 85vw);
+  }
+}

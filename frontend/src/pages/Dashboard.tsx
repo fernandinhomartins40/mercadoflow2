@@ -513,6 +513,7 @@ const Dashboard: React.FC = () => {
 
               <div className="hero-inline-actions sales-dashboard-actions">
                 <Link className="button" to="/app/produtos">Abrir análise por produto</Link>
+                {featuredProduct ? <Link className="button secondary" to={`/app/ofertas/designer?productId=${featuredProduct.productId}`}>Criar oferta do líder</Link> : null}
                 <Link className="button secondary" to="/app/lista-compras">Ir para lista de compras</Link>
               </div>
             </div>
