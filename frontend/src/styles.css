@@ -9042,3 +9042,86 @@ a.dashboard-quick-item:hover {
     border-radius: 16px;
   }
 }
+
+/* ==================== SIDEBAR OVERRIDE: LARGE DESKTOP ONLY ==================== */
+
+@media (max-width: 1536px), (max-height: 860px) {
+  .app-shell.workspace-shell,
+  .super-admin-shell.workspace-shell {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .app-shell .workspace-sidebar,
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    top: 0;
+    z-index: 30;
+    width: min(88vw, 340px);
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0 28px 28px 0;
+    transform: translateX(calc(-100% - 20px));
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .app-shell .workspace-sidebar.mobile-open,
+  .super-admin-shell .workspace-sidebar.mobile-open,
+  .super-admin-shell .super-admin-sidebar.mobile-open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+  }
+
+  .sidebar-toggle,
+  .sidebar-close {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+  }
+
+  .sidebar-support-card,
+  .super-admin-support-card,
+  .nav-link-hint {
+    display: none;
+  }
+
+  .workspace-main {
+    padding: 0 0 24px;
+  }
+}
+
+@media (min-width: 1537px) and (min-height: 861px) {
+  .app-shell.workspace-shell,
+  .super-admin-shell.workspace-shell {
+    grid-template-columns: var(--workspace-sidebar-width) minmax(0, 1fr);
+  }
+
+  .app-shell .workspace-sidebar,
+  .super-admin-shell .workspace-sidebar,
+  .super-admin-shell .super-admin-sidebar {
+    position: sticky;
+    inset: auto;
+    top: 18px;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+  }
+
+  .sidebar-toggle,
+  .sidebar-close,
+  .sidebar-backdrop {
+    display: none;
+  }
+}
