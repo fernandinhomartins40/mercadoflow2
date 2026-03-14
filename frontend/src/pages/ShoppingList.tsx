@@ -1,8 +1,12 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
+import ProductImage from '../components/product/ProductImage';
+import ProductShowcaseCard from '../components/product/ProductShowcaseCard';
 import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
 import { ProductPairInsight, ProductPerformance, ShoppingListItem } from '../types/analytics.types';
@@ -18,21 +22,6 @@ const compactLabel = (value?: string | null) => {
   return normalized.length > 68 ? `${normalized.slice(0, 65)}...` : normalized;
 };
 
-const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
-  <rect width="320" height="320" rx="32" fill="#f3ece5"/>
-  <rect x="52" y="52" width="216" height="216" rx="28" fill="#fff" stroke="#ead9ca" stroke-width="8"/>
-  <circle cx="112" cy="120" r="22" fill="#ff6a00" opacity="0.85"/>
-  <path d="M88 210l42-46c8-9 23-9 31 0l18 20 23-26c8-9 23-9 31 0l35 38" fill="none" stroke="#1a1411" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="160" y="272" text-anchor="middle" fill="#6c5443" font-size="26" font-family="Segoe UI, Arial, sans-serif">Sem imagem</text>
-</svg>
-`)}`;
-
-const ProductImage: React.FC<{ src?: string | null; alt: string; className?: string }> = ({ src, alt, className }) => {
-  const [broken, setBroken] = useState(false);
-  const imageSrc = !broken && src ? src : FALLBACK_IMAGE;
-  return <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
-};
 
 const suggestedQuantity = (product: ProductPerformance) => {
   const velocity = Number(product.salesVelocity || 0);
@@ -92,21 +81,21 @@ const ShoppingListItemCard: React.FC<{
             />
           </label>
           <label className="shopping-list-note-field">
-            <span>ObservaÃ§Ã£o</span>
+            <span>ObservaÃƒÂ§ÃƒÂ£o</span>
             <textarea
               className="input shopping-list-note-input"
               rows={2}
               value={note}
               onChange={(event) => setNote(event.target.value)}
               onBlur={() => void onUpdate({ note })}
-              placeholder="Ex.: reforÃ§ar compra antes do fim de semana"
+              placeholder="Ex.: reforÃƒÂ§ar compra antes do fim de semana"
             />
           </label>
         </div>
 
         <div className="shopping-list-item-actions">
-          <Link className="button secondary" to={`/app/produtos/${item.productId}`}>Abrir produto</Link>
-          <button type="button" className="button secondary" onClick={() => void onRemove()}>Remover</button>
+          <ButtonLink variant="secondary" to={`/app/produtos/${item.productId}`}>Abrir produto</ButtonLink>
+          <Button type="button" variant="secondary" onClick={() => void onRemove()}>Remover</Button>
         </div>
       </div>
     </article>
@@ -121,30 +110,21 @@ const SuggestionCard: React.FC<{
   reasonSummary: string;
   onAdd: () => Promise<void>;
 }> = ({ product, inList, label, meta, reasonSummary, onAdd }) => (
-  <article className="shopping-suggestion-card">
-    <div className="shopping-suggestion-media">
-      <div className="shopping-suggestion-frame">
-        <ProductImage src={product.imageUrl} alt={product.name} className="shopping-suggestion-image" />
-      </div>
-    </div>
-    <div className="shopping-suggestion-body">
-      <span className="sales-pill soft">{label}</span>
-      <h3>{product.name}</h3>
-      <p>{compactLabel(product.category)}</p>
-      <div className="shopping-suggestion-metrics">
-        <div>
-          <span>Receita</span>
-          <strong>{formatMoney(product.revenue)}</strong>
-        </div>
-        <div>
-          <span>Giro</span>
-          <strong>{Number(product.salesVelocity || 0).toFixed(1)}/dia</strong>
-        </div>
-      </div>
-      <div className="shopping-suggestion-foot">{meta}</div>
-      <ShoppingListButton inList={inList} onAdd={onAdd} />
-    </div>
-  </article>
+  <ProductShowcaseCard
+    className="shopping-suggestion-card"
+    title={product.name}
+    subtitle={compactLabel(product.category)}
+    imageUrl={product.imageUrl}
+    imageAlt={product.name}
+    href={`/app/produtos/${product.productId}`}
+    badges={<span className="sales-pill soft">{label}</span>}
+    metrics={[
+      { label: 'Receita', value: formatMoney(product.revenue) },
+      { label: 'Giro', value: `${Number(product.salesVelocity || 0).toFixed(1)}/dia` },
+    ]}
+    footer={meta}
+    actions={<ShoppingListButton inList={inList} onAdd={onAdd} />}
+  />
 );
 
 const PairSuggestionCard: React.FC<{
@@ -167,11 +147,11 @@ const PairSuggestionCard: React.FC<{
       <p>{pair.consequentName || 'Produto complementar'}</p>
       <div className="shopping-pair-stats">
         <span>{pair.pairCount || 0} cestas</span>
-        <span>ConfianÃ§a {Number((pair.confidence || 0) * 100).toFixed(0)}%</span>
+        <span>ConfianÃƒÂ§a {Number((pair.confidence || 0) * 100).toFixed(0)}%</span>
       </div>
-      <button type="button" className="button" onClick={() => void onAddPair()}>
+      <Button type="button" onClick={() => void onAddPair()}>
         Adicionar os dois
-      </button>
+      </Button>
     </div>
   </article>
 );
@@ -189,7 +169,7 @@ const ShoppingSuggestionsSection: React.FC<{
   <section className="sales-section reveal">
     <div className="sales-section-head">
       <div>
-        <span className="section-kicker">SugestÃµes inteligentes</span>
+        <span className="section-kicker">SugestÃƒÂµes inteligentes</span>
         <h2>{title}</h2>
       </div>
       <p>{subtitle}</p>
@@ -282,7 +262,7 @@ const ShoppingListPage: React.FC = () => {
     return (
       <Layout>
         <div className="page analytics-page">
-          <div className="sales-empty-card">{error || dashboardError || 'NÃ£o foi possÃ­vel carregar a lista de compras.'}</div>
+          <div className="sales-empty-card">{error || dashboardError || 'NÃƒÂ£o foi possÃƒÂ­vel carregar a lista de compras.'}</div>
         </div>
       </Layout>
     );
@@ -295,21 +275,21 @@ const ShoppingListPage: React.FC = () => {
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
               <span className="pill">Lista de compras</span>
-              <h1 className="dashboard-command-title">Monte a compra com base no que vende, no calendÃ¡rio e no risco de ruptura.</h1>
+              <h1 className="dashboard-command-title">Monte a compra com base no que vende, no calendÃƒÂ¡rio e no risco de ruptura.</h1>
               <p className="dashboard-command-text">
-                Esta pÃ¡gina junta a lista ativa do mercado com sugestÃµes automÃ¡ticas de reposiÃ§Ã£o, sazonalidade, promoÃ§Ã£o e venda combinada.
+                Esta pÃƒÂ¡gina junta a lista ativa do mercado com sugestÃƒÂµes automÃƒÂ¡ticas de reposiÃƒÂ§ÃƒÂ£o, sazonalidade, promoÃƒÂ§ÃƒÂ£o e venda combinada.
               </p>
               <div className="hero-chip-row">
                 <span className="hero-chip">{overview.pendingItems} itens pendentes</span>
-                <span className="hero-chip">{overview.checkedItems} itens jÃ¡ fechados</span>
+                <span className="hero-chip">{overview.checkedItems} itens jÃƒÂ¡ fechados</span>
                 {seasonalLead ? <span className="hero-chip">{seasonalLead.title}</span> : null}
               </div>
             </div>
 
             <div className="dashboard-command-showcase">
               <article className="dashboard-glow-card">
-                <span className="section-kicker">PrÃ³xima pressÃ£o do calendÃ¡rio</span>
-                <strong>{seasonalLead?.title || 'Sem sazonalidade prÃ³xima'}</strong>
+                <span className="section-kicker">PrÃƒÂ³xima pressÃƒÂ£o do calendÃƒÂ¡rio</span>
+                <strong>{seasonalLead?.title || 'Sem sazonalidade prÃƒÂ³xima'}</strong>
                 <p>{seasonalLead?.subtitle || 'Assim que surgirem vendas sazonais consistentes, o painel passa a recomendar os itens mais fortes aqui.'}</p>
                 <Link className="button hero-inline-button" to="/app/produtos">
                   Buscar mais produtos
@@ -321,8 +301,8 @@ const ShoppingListPage: React.FC = () => {
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
               <span className="section-kicker">Como usar</span>
-              <h3>Comece pela reposiÃ§Ã£o e depois filtre o calendÃ¡rio.</h3>
-              <p>O topo mostra o que nÃ£o pode faltar agora. As seÃ§Ãµes seguintes ajudam a antecipar datas, promoÃ§Ãµes e posicionamento.</p>
+              <h3>Comece pela reposiÃƒÂ§ÃƒÂ£o e depois filtre o calendÃƒÂ¡rio.</h3>
+              <p>O topo mostra o que nÃƒÂ£o pode faltar agora. As seÃƒÂ§ÃƒÂµes seguintes ajudam a antecipar datas, promoÃƒÂ§ÃƒÂµes e posicionamento.</p>
             </article>
           </aside>
         </section>
@@ -331,20 +311,20 @@ const ShoppingListPage: React.FC = () => {
           <MetricsCard title="Na lista" value={String(overview.totalItems)} icon="LC" />
           <MetricsCard title="Pendentes" value={String(overview.pendingItems)} icon="PD" />
           <MetricsCard title="Fechados" value={String(overview.checkedItems)} icon="OK" />
-          <MetricsCard title="ReposiÃ§Ã£o sugerida" value={String(restockSuggestions.length)} icon="RP" />
+          <MetricsCard title="ReposiÃƒÂ§ÃƒÂ£o sugerida" value={String(restockSuggestions.length)} icon="RP" />
         </div>
 
         <section className="sales-section reveal">
           <div className="sales-section-head">
             <div>
               <span className="section-kicker">Lista ativa</span>
-              <h2>Itens jÃ¡ separados para compra</h2>
+              <h2>Itens jÃƒÂ¡ separados para compra</h2>
             </div>
-            <p>Atualize quantidade, marque o que jÃ¡ foi comprado e remova o que perdeu prioridade.</p>
+            <p>Atualize quantidade, marque o que jÃƒÂ¡ foi comprado e remova o que perdeu prioridade.</p>
           </div>
           {items.length === 0 ? (
             <div className="sales-empty-card">
-              A lista ainda estÃ¡ vazia. Use os botÃµes de produto ao longo do painel ou comece pelas sugestÃµes abaixo.
+              A lista ainda estÃƒÂ¡ vazia. Use os botÃƒÂµes de produto ao longo do painel ou comece pelas sugestÃƒÂµes abaixo.
             </div>
           ) : (
             <div className="shopping-list-grid">
@@ -362,36 +342,36 @@ const ShoppingListPage: React.FC = () => {
         </section>
 
         <ShoppingSuggestionsSection
-          title="ReposiÃ§Ã£o imediata"
-          subtitle="Itens com giro forte e risco maior de faltar na Ã¡rea de vendas se a compra nÃ£o acompanhar."
+          title="ReposiÃƒÂ§ÃƒÂ£o imediata"
+          subtitle="Itens com giro forte e risco maior de faltar na ÃƒÂ¡rea de vendas se a compra nÃƒÂ£o acompanhar."
           products={restockSuggestions}
           productIds={productIds}
-          sourceTag="REPOSIÃ‡ÃƒO"
+          sourceTag="REPOSIÃƒâ€¡ÃƒÆ’O"
           onAdd={handleAddProduct}
           buildMeta={(product) => `${formatMoney(product.revenue)} e ${Number(product.salesVelocity || 0).toFixed(1)}/dia`}
           buildReason={(product) => `Repor ${product.name} com prioridade. Giro atual de ${Number(product.salesVelocity || 0).toFixed(1)}/dia.`}
         />
 
         <ShoppingSuggestionsSection
-          title={seasonalLead ? `Preparar ${seasonalLead.title}` : 'Preparar calendÃ¡rio'}
-          subtitle={seasonalLead?.subtitle || 'Itens ligados Ã  sazonalidade mais prÃ³xima do calendÃ¡rio comercial.'}
+          title={seasonalLead ? `Preparar ${seasonalLead.title}` : 'Preparar calendÃƒÂ¡rio'}
+          subtitle={seasonalLead?.subtitle || 'Itens ligados ÃƒÂ  sazonalidade mais prÃƒÂ³xima do calendÃƒÂ¡rio comercial.'}
           products={seasonalSuggestions}
           productIds={productIds}
           sourceTag="SAZONALIDADE"
           onAdd={handleAddProduct}
-          buildMeta={(product) => `${formatMoney(product.revenue)} no ciclo comparÃ¡vel`}
-          buildReason={(product) => `Produto forte em ${seasonalLead?.title || 'sazonalidade prÃ³xima'} com base nas vendas do perÃ­odo comparÃ¡vel.`}
+          buildMeta={(product) => `${formatMoney(product.revenue)} no ciclo comparÃƒÂ¡vel`}
+          buildReason={(product) => `Produto forte em ${seasonalLead?.title || 'sazonalidade prÃƒÂ³xima'} com base nas vendas do perÃƒÂ­odo comparÃƒÂ¡vel.`}
         />
 
         <ShoppingSuggestionsSection
-          title="Produtos para puxar faturamento com promoÃ§Ã£o"
-          subtitle="Itens que tÃªm espaÃ§o para aÃ§Ã£o comercial e podem ganhar volume sem depender de desconto eterno."
+          title="Produtos para puxar faturamento com promoÃƒÂ§ÃƒÂ£o"
+          subtitle="Itens que tÃƒÂªm espaÃƒÂ§o para aÃƒÂ§ÃƒÂ£o comercial e podem ganhar volume sem depender de desconto eterno."
           products={promotionSuggestions}
           productIds={productIds}
-          sourceTag="PROMOÃ‡ÃƒO"
+          sourceTag="PROMOÃƒâ€¡ÃƒÆ’O"
           onAdd={handleAddProduct}
           buildMeta={(product) => `Share promo ${Number((product.promoRevenueShare || 0) * 100).toFixed(0)}%`}
-          buildReason={(product) => `Avaliar compra para aÃ§Ã£o promocional. Receita ${formatMoney(product.revenue)} com share promo controlado.`}
+          buildReason={(product) => `Avaliar compra para aÃƒÂ§ÃƒÂ£o promocional. Receita ${formatMoney(product.revenue)} com share promo controlado.`}
         />
 
         <section className="sales-section reveal">
@@ -400,10 +380,10 @@ const ShoppingListPage: React.FC = () => {
               <span className="section-kicker">Venda combinada</span>
               <h2>Itens para comprar e expor juntos</h2>
             </div>
-            <p>Pares com boa afinidade ajudam a puxar venda adicional quando entram juntos em loja, ponta ou exposiÃ§Ã£o cruzada.</p>
+            <p>Pares com boa afinidade ajudam a puxar venda adicional quando entram juntos em loja, ponta ou exposiÃƒÂ§ÃƒÂ£o cruzada.</p>
           </div>
           {pairSuggestions.length === 0 ? (
-            <div className="sales-empty-card">Ainda nÃ£o hÃ¡ pares fortes suficientes para sugerir compra casada.</div>
+            <div className="sales-empty-card">Ainda nÃƒÂ£o hÃƒÂ¡ pares fortes suficientes para sugerir compra casada.</div>
           ) : (
             <div className="shopping-pair-rail">
               {pairSuggestions.map((pair) => (
@@ -421,41 +401,31 @@ const ShoppingListPage: React.FC = () => {
           <div className="sales-section-head">
             <div>
               <span className="section-kicker">Compra com cautela</span>
-              <h2>Itens que pedem revisÃ£o antes do prÃ³ximo pedido</h2>
+              <h2>Itens que pedem revisÃƒÂ£o antes do prÃƒÂ³ximo pedido</h2>
             </div>
-            <p>Estes produtos tÃªm baixa traÃ§Ã£o recente. Use esta faixa para nÃ£o aumentar estoque parado sem necessidade.</p>
+            <p>Estes produtos tÃƒÂªm baixa traÃƒÂ§ÃƒÂ£o recente. Use esta faixa para nÃƒÂ£o aumentar estoque parado sem necessidade.</p>
           </div>
           {cautiousProducts.length === 0 ? (
-            <div className="sales-empty-card">Sem itens de baixa traÃ§Ã£o neste recorte.</div>
+            <div className="sales-empty-card">Sem itens de baixa traÃƒÂ§ÃƒÂ£o neste recorte.</div>
           ) : (
             <div className="shopping-suggestion-rail">
               {cautiousProducts.map((product) => (
-                <article key={product.productId} className="shopping-suggestion-card caution">
-                  <div className="shopping-suggestion-media">
-                    <div className="shopping-suggestion-frame">
-                      <ProductImage src={product.imageUrl} alt={product.name} className="shopping-suggestion-image" />
-                    </div>
-                  </div>
-                  <div className="shopping-suggestion-body">
-                    <span className="sales-pill soft">Revisar antes de comprar</span>
-                    <h3>{product.name}</h3>
-                    <p>{compactLabel(product.category)}</p>
-                    <div className="shopping-suggestion-metrics">
-                      <div>
-                        <span>Receita</span>
-                        <strong>{formatMoney(product.revenue)}</strong>
-                      </div>
-                      <div>
-                        <span>Quantidade</span>
-                        <strong>{formatQuantity(product.quantitySold)}</strong>
-                      </div>
-                    </div>
-                    <div className="shopping-suggestion-foot">
-                      Giro {Number(product.salesVelocity || 0).toFixed(1)}/dia â€¢ {formatQuantity(product.salesDays)} dias com venda
-                    </div>
-                    <Link className="button secondary" to={`/app/produtos/${product.productId}`}>Analisar produto</Link>
-                  </div>
-                </article>
+                <ProductShowcaseCard
+                  key={product.productId}
+                  className="shopping-suggestion-card caution"
+                  title={product.name}
+                  subtitle={compactLabel(product.category)}
+                  imageUrl={product.imageUrl}
+                  imageAlt={product.name}
+                  href={`/app/produtos/${product.productId}`}
+                  badges={<span className="sales-pill soft">Revisar antes de comprar</span>}
+                  metrics={[
+                    { label: 'Receita', value: formatMoney(product.revenue) },
+                    { label: 'Quantidade', value: formatQuantity(product.quantitySold) },
+                  ]}
+                  footer={`Giro ${Number(product.salesVelocity || 0).toFixed(1)}/dia • ${formatQuantity(product.salesDays)} dias com venda`}
+                  actions={<ButtonLink variant="secondary" to={`/app/produtos/${product.productId}`}>Analisar produto</ButtonLink>}
+                />
               ))}
             </div>
           )}

@@ -1,9 +1,11 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import SalesChart from '../components/dashboard/SalesChart';
+import ProductImage from '../components/product/ProductImage';
 import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
 import { marketService } from '../services/market.service';
@@ -42,7 +44,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const formatTriggerType = (value?: string | null) => {
-  if (!value) return 'VariaÃ§Ã£o de preÃ§o';
+  if (!value) return 'VariaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o';
   return value
     .toLowerCase()
     .split('_')
@@ -59,7 +61,7 @@ const mapPromotionStatus = (status?: string | null) => {
     case 'SUSPECTED':
       return 'Suspeita';
     default:
-      return status || 'NÃ£o classificada';
+      return status || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o classificada';
   }
 };
 
@@ -67,23 +69,6 @@ const compactLabel = (value?: string | null) => {
   if (!value) return 'Sem categoria';
   const normalized = value.replace(/\s*>\s*/g, ' > ').trim();
   return normalized.length > 72 ? `${normalized.slice(0, 69)}...` : normalized;
-};
-
-const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
-  <rect width="320" height="320" rx="32" fill="#f3ece5"/>
-  <rect x="52" y="52" width="216" height="216" rx="28" fill="#fff" stroke="#ead9ca" stroke-width="8"/>
-  <circle cx="112" cy="120" r="22" fill="#ff6a00" opacity="0.85"/>
-  <path d="M88 210l42-46c8-9 23-9 31 0l18 20 23-26c8-9 23-9 31 0l35 38" fill="none" stroke="#1a1411" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="160" y="272" text-anchor="middle" fill="#6c5443" font-size="26" font-family="Segoe UI, Arial, sans-serif">Sem imagem</text>
-</svg>
-`)}`;
-
-const ProductImage: React.FC<{ src?: string | null; alt: string; className?: string }> = ({ src, alt, className }) => {
-  const [broken, setBroken] = useState(false);
-  const imageSrc = !broken && src ? src : FALLBACK_IMAGE;
-
-  return <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
 };
 
 const BranchRailCard: React.FC<{ branch: ProductBranchPerformance; maxRevenue: number }> = ({ branch, maxRevenue }) => (
@@ -115,7 +100,7 @@ const BranchRailCard: React.FC<{ branch: ProductBranchPerformance; maxRevenue: n
     </div>
 
     <div className="sales-card-foot">
-      PreÃ§o mÃ©dio {formatMoney(branch.averagePrice)} â€¢ Ãšltima venda em {formatDate(branch.lastSoldAt)}
+      PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dio {formatMoney(branch.averagePrice)} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡ltima venda em {formatDate(branch.lastSoldAt)}
     </div>
   </article>
 );
@@ -136,7 +121,7 @@ const SeasonalityRailCard: React.FC<{ point: SeasonalityPoint; maxRevenue: numbe
         <strong>{formatMoney(point.revenue)}</strong>
       </div>
       <div>
-        <span>Ticket mÃ©dio</span>
+        <span>Ticket mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dio</span>
         <strong>{formatMoney(point.averageTicket)}</strong>
       </div>
     </div>
@@ -172,7 +157,7 @@ const PairRailCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
       <p>{pair.consequentName || 'Produto relacionado'}</p>
       <div className="sales-product-stats compact pair">
         <div>
-          <span>ConfianÃ§a</span>
+          <span>ConfianÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a</span>
           <strong>{formatPercent((pair.confidence || 0) * 100)}</strong>
         </div>
         <div>
@@ -196,7 +181,7 @@ const ProductDetail: React.FC = () => {
     const load = async () => {
       if (!marketId || !productId) {
         setLoading(false);
-        setError('Produto nÃ£o encontrado');
+        setError('Produto nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado');
         return;
       }
 
@@ -250,7 +235,7 @@ const ProductDetail: React.FC = () => {
       productId: overview.productId,
       quantityTarget: Math.max(1, Math.round(Number(overview.salesVelocity || 0) || 1)),
       sourceTag: 'PRODUTO',
-      reasonSummary: `Adicionar ${overview.name} à lista a partir do painel do produto.`,
+      reasonSummary: `Adicionar ${overview.name} ÃƒÆ’Ã‚Â  lista a partir do painel do produto.`,
     });
   };
 
@@ -262,7 +247,7 @@ const ProductDetail: React.FC = () => {
 
   const renderPriceEvents = (rows: ProductPriceEvent[]) => {
     if (rows.length === 0) {
-      return <div className="panel-empty">Sem eventos relevantes de variaÃ§Ã£o de preÃ§o no perÃ­odo.</div>;
+      return <div className="panel-empty">Sem eventos relevantes de variaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o no perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo.</div>;
     }
 
     return (
@@ -279,19 +264,19 @@ const ProductDetail: React.FC = () => {
 
               <div className="price-event-metrics">
                 <div>
-                  <span>PreÃ§o anterior</span>
+                  <span>PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o anterior</span>
                   <strong>{formatMoney(event.oldPrice)}</strong>
                 </div>
                 <div>
-                  <span>Novo preÃ§o</span>
+                  <span>Novo preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o</span>
                   <strong>{formatMoney(event.newPrice)}</strong>
                 </div>
                 <div>
-                  <span>VariaÃ§Ã£o</span>
+                  <span>VariaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</span>
                   <strong>{formatSignedPercent(event.deltaPercent)}</strong>
                 </div>
                 <div>
-                  <span>ConfianÃ§a</span>
+                  <span>ConfianÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a</span>
                   <strong>{formatPercent(Number(event.confidenceScore || 0) * 100)}</strong>
                 </div>
               </div>
@@ -304,7 +289,7 @@ const ProductDetail: React.FC = () => {
 
   const renderPromotionWindows = (rows: ProductPromotionWindow[]) => {
     if (rows.length === 0) {
-      return <div className="panel-empty">Nenhuma janela promocional detectada no perÃ­odo.</div>;
+      return <div className="panel-empty">Nenhuma janela promocional detectada no perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo.</div>;
     }
 
     return (
@@ -319,11 +304,11 @@ const ProductDetail: React.FC = () => {
 
             <div className="price-event-metrics">
               <div>
-                <span>PreÃ§o base</span>
+                <span>PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o base</span>
                 <strong>{formatMoney(window.baselinePrice)}</strong>
               </div>
               <div>
-                <span>PreÃ§o promo</span>
+                <span>PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o promo</span>
                 <strong>{formatMoney(window.promoPrice)}</strong>
               </div>
               <div>
@@ -355,7 +340,7 @@ const ProductDetail: React.FC = () => {
     return (
       <Layout>
         <div className="page analytics-page product-detail-dashboard">
-          <div className="sales-empty-card">{error || 'Painel do produto indisponÃ­vel.'}</div>
+          <div className="sales-empty-card">{error || 'Painel do produto indisponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel.'}</div>
         </div>
       </Layout>
     );
@@ -374,20 +359,20 @@ const ProductDetail: React.FC = () => {
               <span className="pill">Produto em foco</span>
               <h1>{overview.name}</h1>
               <p>
-                Este painel mostra se vale comprar mais, expor melhor, usar promoÃ§Ã£o ou aproximar este item de outros
+                Este painel mostra se vale comprar mais, expor melhor, usar promoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ou aproximar este item de outros
                 produtos para aumentar faturamento com base nas vendas reais.
               </p>
 
               <div className="hero-chip-row">
                 <span className="hero-chip">{compactLabel(overview.category)}</span>
                 <span className="hero-chip">GTIN {overview.ean || '--'}</span>
-                <span className="hero-chip">Ãšltima venda em {formatDate(overview.lastSoldAt)}</span>
+                <span className="hero-chip">ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡ltima venda em {formatDate(overview.lastSoldAt)}</span>
               </div>
 
               <div className="sales-hero-featured-card">
                 <div>
                   <span className="section-kicker">Resumo do item</span>
-                  <h2>{formatMoney(overview.revenue)} no perÃ­odo</h2>
+                  <h2>{formatMoney(overview.revenue)} no perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo</h2>
                 </div>
 
                 <div className="sales-hero-featured-metrics">
@@ -407,9 +392,9 @@ const ProductDetail: React.FC = () => {
               </div>
 
               <div className="hero-inline-actions product-detail-actions">
-                <Link className="button secondary" to="/app/produtos">Voltar para produtos</Link>
-                <Link className="button secondary" to={`/app/ofertas/designer?productId=${overview.productId}`}>Criar oferta</Link>
-                <Link className="button secondary" to="/app/alertas">Abrir alertas</Link>
+                <ButtonLink variant="secondary" to="/app/produtos">Voltar para produtos</ButtonLink>
+                <ButtonLink variant="secondary" to={`/app/ofertas/designer?productId=${overview.productId}`}>Criar oferta</ButtonLink>
+                <ButtonLink variant="secondary" to="/app/alertas">Abrir alertas</ButtonLink>
                 <ShoppingListButton
                   inList={overview ? productIds.has(overview.productId) : false}
                   onAdd={addCurrentProductToList}
@@ -429,7 +414,7 @@ const ProductDetail: React.FC = () => {
               <article className="sales-insight-card product-detail-insight-card">
                 <span>Dia mais fraco</span>
                 <strong>{weakestWeekday?.label || '--'}</strong>
-                <small>{weakestWeekday ? formatMoney(weakestWeekday.revenue) : 'Sem comparaÃ§Ã£o suficiente'}</small>
+                <small>{weakestWeekday ? formatMoney(weakestWeekday.revenue) : 'Sem comparaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o suficiente'}</small>
               </article>
               <article className="sales-insight-card product-detail-insight-card">
                 <span>PDV mais forte</span>
@@ -439,7 +424,7 @@ const ProductDetail: React.FC = () => {
               <article className="sales-insight-card product-detail-insight-card">
                 <span>Compra casada</span>
                 <strong>{strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)}` : '--'}</strong>
-                <small>{strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associaÃ§Ã£o forte'}</small>
+                <small>{strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o forte'}</small>
               </article>
             </div>
           </aside>
@@ -447,49 +432,49 @@ const ProductDetail: React.FC = () => {
 
         <div className="metrics-grid analytics-metrics-grid sales-metric-strip">
           <MetricsCard title="Receita" value={formatMoney(overview.revenue)} icon="R$" />
-          <MetricsCard title="PreÃ§o mÃ©dio" value={formatMoney(overview.averagePrice)} icon="PM" />
-          <MetricsCard title="TransaÃ§Ãµes" value={formatQuantity(overview.transactionCount)} icon="NF" />
-          <MetricsCard title="Ãndice de preÃ§o" value={`${Number(overview.priceIndex || 0).toFixed(2)}x`} icon="PX" />
+          <MetricsCard title="PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dio" value={formatMoney(overview.averagePrice)} icon="PM" />
+          <MetricsCard title="TransaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes" value={formatQuantity(overview.transactionCount)} icon="NF" />
+          <MetricsCard title="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Ândice de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o" value={`${Number(overview.priceIndex || 0).toFixed(2)}x`} icon="PX" />
         </div>
 
         <div className="analytics-grid analytics-grid-main product-detail-overview-grid">
           <SalesChart
             data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))}
             kicker="Desempenho do produto"
-            title="Curva diÃ¡ria de faturamento"
-            panelCopy="A linha mostra o ritmo real de venda deste item ao longo do perÃ­odo."
-            calloutLabel="Ãšltimo faturamento diÃ¡rio"
+            title="Curva diÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ria de faturamento"
+            panelCopy="A linha mostra o ritmo real de venda deste item ao longo do perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo."
+            calloutLabel="ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡ltimo faturamento diÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio"
           />
 
           <section className="sales-section reveal product-detail-summary-section">
             <div className="sales-section-head">
               <div>
-                <span className="section-kicker">Leitura rÃ¡pida</span>
+                <span className="section-kicker">Leitura rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡pida</span>
                 <h2>O que decidir agora</h2>
               </div>
-              <p>Uma leitura direta para compra, exposiÃ§Ã£o e preÃ§o sem depender de texto longo.</p>
+              <p>Uma leitura direta para compra, exposiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o sem depender de texto longo.</p>
             </div>
 
             <div className="product-detail-summary-grid">
               <article className="product-detail-summary-card">
                 <span className="section-kicker">Compra</span>
                 <strong>{Number(overview.salesVelocity || 0).toFixed(1)}/dia</strong>
-                <p>{Number(overview.salesVelocity || 0) >= 1 ? 'Mantenha reposiÃ§Ã£o mais curta para nÃ£o perder venda.' : 'Pode comprar com mais cautela.'}</p>
+                <p>{Number(overview.salesVelocity || 0) >= 1 ? 'Mantenha reposiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o mais curta para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o perder venda.' : 'Pode comprar com mais cautela.'}</p>
               </article>
               <article className="product-detail-summary-card">
-                <span className="section-kicker">PreÃ§o</span>
+                <span className="section-kicker">PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o</span>
                 <strong>{formatSignedPercent(timelineDeltaPercent)}</strong>
-                <p>VariaÃ§Ã£o do preÃ§o atual contra o primeiro preÃ§o observado no perÃ­odo.</p>
+                <p>VariaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o atual contra o primeiro preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o observado no perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo.</p>
               </article>
               <article className="product-detail-summary-card">
-                <span className="section-kicker">PromoÃ§Ã£o</span>
+                <span className="section-kicker">PromoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</span>
                 <strong>{formatPercent((overview.promoRevenueShare || 0) * 100)}</strong>
-                <p>ParticipaÃ§Ã£o de receita quando este item estava em aÃ§Ã£o promocional.</p>
+                <p>ParticipaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de receita quando este item estava em aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o promocional.</p>
               </article>
               <article className="product-detail-summary-card">
                 <span className="section-kicker">Mix</span>
                 <strong>{strongestPair ? Number(strongestPair.lift || 0).toFixed(2) : '--'}</strong>
-                <p>{strongestPair ? 'HÃ¡ sinal de venda casada relevante para exposiÃ§Ã£o conjunta.' : 'Ainda sem compra casada forte o suficiente.'}</p>
+                <p>{strongestPair ? 'HÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ sinal de venda casada relevante para exposiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o conjunta.' : 'Ainda sem compra casada forte o suficiente.'}</p>
               </article>
             </div>
           </section>
@@ -501,11 +486,11 @@ const ProductDetail: React.FC = () => {
               <span className="section-kicker">Filiais e PDVs</span>
               <h2>Onde este item vende melhor</h2>
             </div>
-            <p>Use este trilho para priorizar abastecimento e negociaÃ§Ã£o nas unidades com melhor retorno.</p>
+            <p>Use este trilho para priorizar abastecimento e negociaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o nas unidades com melhor retorno.</p>
           </div>
 
           {branchPerformance.length === 0 ? (
-            <div className="sales-empty-card">Sem distribuiÃ§Ã£o por PDV neste perÃ­odo.</div>
+            <div className="sales-empty-card">Sem distribuiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o por PDV neste perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo.</div>
           ) : (
             <div className="sales-rail product-detail-rail">
               {branchPerformance.map((branch) => (
@@ -519,13 +504,13 @@ const ProductDetail: React.FC = () => {
           <div className="sales-section-head">
             <div>
               <span className="section-kicker">Sazonalidade</span>
-              <h2>Quando este item ganha ou perde traÃ§Ã£o</h2>
+              <h2>Quando este item ganha ou perde traÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</h2>
             </div>
-            <p>Os dias mais fortes e mais fracos indicam quando vale reforÃ§ar compra ou revisar espaÃ§o.</p>
+            <p>Os dias mais fortes e mais fracos indicam quando vale reforÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ar compra ou revisar espaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o.</p>
           </div>
 
           {weekdaySeasonality.length === 0 ? (
-            <div className="sales-empty-card">Sem sazonalidade suficiente neste perÃ­odo.</div>
+            <div className="sales-empty-card">Sem sazonalidade suficiente neste perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo.</div>
           ) : (
             <div className="sales-rail product-detail-rail">
               {weekdaySeasonality.map((point) => (
@@ -539,42 +524,42 @@ const ProductDetail: React.FC = () => {
           <SalesChart
             className="price-timeline-chart"
             data={(priceTimeline?.points || []).map((point) => ({ date: point.date, revenue: Number(point.weightedAveragePrice || 0) }))}
-            kicker="InteligÃªncia de preÃ§o"
-            title="Linha do tempo de preÃ§o"
-            panelCopy="A linha acompanha a evoluÃ§Ã£o do preÃ§o mÃ©dio ponderado e ajuda a enxergar alta, queda e janelas promocionais."
-            calloutLabel="Ãšltimo preÃ§o observado"
+            kicker="InteligÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o"
+            title="Linha do tempo de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o"
+            panelCopy="A linha acompanha a evoluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dio ponderado e ajuda a enxergar alta, queda e janelas promocionais."
+            calloutLabel="ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡ltimo preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o observado"
             formatter={formatMoney}
           />
 
           <section className="sales-section reveal product-detail-summary-section">
             <div className="sales-section-head">
               <div>
-                <span className="section-kicker">Resumo de preÃ§o</span>
-                <h2>Como o item estÃ¡ posicionado</h2>
+                <span className="section-kicker">Resumo de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o</span>
+                <h2>Como o item estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ posicionado</h2>
               </div>
-              <p>Baseline, preÃ§o atual e intensidade promocional em um bloco curto.</p>
+              <p>Baseline, preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o atual e intensidade promocional em um bloco curto.</p>
             </div>
 
             <div className="product-detail-summary-grid">
               <article className="product-detail-summary-card">
-                <span className="section-kicker">PreÃ§o base</span>
+                <span className="section-kicker">PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o base</span>
                 <strong>{formatMoney(overview.baselinePrice)}</strong>
-                <p>ReferÃªncia mÃ©dia sem promoÃ§Ã£o para comparar com o preÃ§o corrente.</p>
+                <p>ReferÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dia sem promoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para comparar com o preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o corrente.</p>
               </article>
               <article className="product-detail-summary-card">
-                <span className="section-kicker">PreÃ§o atual</span>
+                <span className="section-kicker">PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o atual</span>
                 <strong>{formatMoney(lastObservedPrice || overview.averagePrice)}</strong>
-                <p>Ãšltimo valor observado no histÃ³rico calculado do produto.</p>
+                <p>ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡ltimo valor observado no histÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rico calculado do produto.</p>
               </article>
               <article className="product-detail-summary-card">
                 <span className="section-kicker">Janelas promo</span>
                 <strong>{priceTimeline?.detectedPromotionWindows || 0}</strong>
-                <p>PerÃ­odos detectados automaticamente como promoÃ§Ã£o neste recorte.</p>
+                <p>PerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odos detectados automaticamente como promoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o neste recorte.</p>
               </article>
               <article className="product-detail-summary-card">
                 <span className="section-kicker">Maior queda</span>
                 <strong>{formatSignedPercent(priceTimeline?.maxDecreasePercent)}</strong>
-                <p>Melhor reduÃ§Ã£o de preÃ§o observada no perÃ­odo analisado.</p>
+                <p>Melhor reduÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o observada no perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo analisado.</p>
               </article>
             </div>
           </section>
@@ -584,7 +569,7 @@ const ProductDetail: React.FC = () => {
           <section className="analytics-panel reveal">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">Eventos de preÃ§o</span>
+                <span className="section-kicker">Eventos de preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o</span>
                 <h3>Movimentos relevantes de alta e queda</h3>
               </div>
             </div>
@@ -594,7 +579,7 @@ const ProductDetail: React.FC = () => {
           <section className="analytics-panel reveal">
             <div className="analytics-panel-head">
               <div>
-                <span className="section-kicker">PromoÃ§Ãµes</span>
+                <span className="section-kicker">PromoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes</span>
                 <h3>Janelas que impactaram este item</h3>
               </div>
             </div>
@@ -608,11 +593,11 @@ const ProductDetail: React.FC = () => {
               <span className="section-kicker">Compra casada</span>
               <h2>Itens que ajudam este produto a vender mais</h2>
             </div>
-            <p>Use estas relaÃ§Ãµes para decidir proximidade na gÃ´ndola, combo e oportunidade de promoÃ§Ã£o cruzada.</p>
+            <p>Use estas relaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes para decidir proximidade na gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´ndola, combo e oportunidade de promoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o cruzada.</p>
           </div>
 
           {relatedPairs.length === 0 ? (
-            <div className="sales-empty-card">Nenhuma associaÃ§Ã£o forte encontrada para este item.</div>
+            <div className="sales-empty-card">Nenhuma associaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o forte encontrada para este item.</div>
           ) : (
             <div className="sales-rail pairs">
               {relatedPairs.map((pair) => (

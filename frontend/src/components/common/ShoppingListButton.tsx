@@ -12,7 +12,7 @@ interface ShoppingListButtonProps {
 const ShoppingListButton: React.FC<ShoppingListButtonProps> = ({
   inList = false,
   onAdd,
-  label = 'Adicionar à lista',
+  label = 'Adicionar a lista',
   className,
   stopPropagation = true,
 }) => {

@@ -9125,3 +9125,62 @@ a.dashboard-quick-item:hover {
     display: none;
   }
 }
+
+/* Reusable product cards and action buttons */
+.product-showcase-card {
+  height: 100%;
+}
+
+.product-showcase-card .sales-card-link-wrap {
+  min-height: 0;
+}
+
+.product-showcase-card .sales-product-body {
+  flex: 1 1 auto;
+}
+
+.sales-card-action-row {
+  align-items: stretch;
+}
+
+.sales-card-action-row .button,
+.sales-card-action-row .shopping-list-button,
+.shopping-list-item-actions .button,
+.shopping-pair-body .button,
+.product-detail-actions .button {
+  min-height: 44px;
+  border-radius: 14px;
+  justify-content: center;
+}
+
+.sales-card-action-row .button,
+.sales-card-action-row .shopping-list-button,
+.shopping-pair-body .button {
+  width: 100%;
+}
+
+.shopping-list-item-actions .button {
+  flex: 1 1 0;
+}
+
+.shopping-list-item-actions {
+  align-items: stretch;
+}
+
+.shopping-pair-body .button {
+  margin-top: auto;
+}
+
+.shopping-suggestion-card .sales-card-action-row,
+.product-showcase-card .sales-card-action-row {
+  padding-top: 0;
+}
+
+.shopping-suggestion-card .sales-product-body,
+.product-showcase-card .sales-product-body {
+  gap: 12px;
+}
+
+.shopping-suggestion-card.caution {
+  background: linear-gradient(180deg, rgba(255, 252, 248, 0.98) 0%, rgba(255, 246, 239, 0.98) 100%);
+}

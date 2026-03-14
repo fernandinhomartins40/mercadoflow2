@@ -1,9 +1,11 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import SalesChart from '../components/dashboard/SalesChart';
 import ShoppingListButton from '../components/common/ShoppingListButton';
+import ProductShowcaseCard from '../components/product/ProductShowcaseCard';
+import ProductImage from '../components/product/ProductImage';
 import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
 import {
@@ -59,16 +61,6 @@ const compactLabel = (value?: string | null) => {
   return normalized.length > 64 ? `${normalized.slice(0, 61)}...` : normalized;
 };
 
-const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
-  <rect width="320" height="320" rx="32" fill="#f3ece5"/>
-  <rect x="52" y="52" width="216" height="216" rx="28" fill="#fff" stroke="#ead9ca" stroke-width="8"/>
-  <circle cx="112" cy="120" r="22" fill="#ff6a00" opacity="0.85"/>
-  <path d="M88 210l42-46c8-9 23-9 31 0l18 20 23-26c8-9 23-9 31 0l35 38" fill="none" stroke="#1a1411" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="160" y="272" text-anchor="middle" fill="#6c5443" font-size="26" font-family="Segoe UI, Arial, sans-serif">Sem imagem</text>
-</svg>
-`)}`;
-
 const mapTurnoverLabel = (value?: string | null) => {
   switch ((value || '').toUpperCase()) {
     case 'HIGH':
@@ -87,12 +79,6 @@ const pickLowest = (rows: SeasonalityPoint[] = []) =>
   [...rows]
     .filter((row) => Number(row.revenue || 0) > 0)
     .sort((a, b) => Number(a.revenue || 0) - Number(b.revenue || 0))[0];
-
-const ProductImage: React.FC<{ src?: string | null; alt: string; className?: string }> = ({ src, alt, className }) => {
-  const [broken, setBroken] = useState(false);
-  const imageSrc = !broken && src ? src : FALLBACK_IMAGE;
-  return <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
-};
 
 const recommendedQuantity = (product: ProductPerformance) => {
   const velocity = Number(product.salesVelocity || 0);
@@ -116,71 +102,44 @@ const ProductRailCard: React.FC<{
   const trendTone = trendValue > 0 ? 'positive' : trendValue < 0 ? 'negative' : 'neutral';
 
   return (
-    <article className="sales-product-card">
-      <Link className="sales-card-link-wrap" to={`/app/produtos/${product.productId}`}>
-        <div className="sales-product-media-shell">
-          <div className="sales-product-media-frame">
-            <ProductImage src={product.imageUrl} alt={product.name} className="sales-product-media" />
-          </div>
-        </div>
-        <div className="sales-product-body">
-          <div className="sales-product-badges">
-            <span className="sales-pill soft">{mapTurnoverLabel(product.turnoverBand)}</span>
-            <span className={`sales-pill ${trendTone}`}>{formatSignedPercent(product.revenueTrendPercentage)}</span>
-          </div>
-          <h3>{product.name}</h3>
-          <p>{compactLabel(product.category)}</p>
-          <div className="sales-product-stats compact">
-            <div>
-              <span>{primaryLabel}</span>
-              <strong>{primaryValue}</strong>
-            </div>
-            <div>
-              <span>{secondaryLabel}</span>
-              <strong>{secondaryValue}</strong>
-            </div>
-          </div>
-          {footerValue ? <div className="sales-card-foot">{footerValue}</div> : null}
-        </div>
-      </Link>
-      <div className="sales-card-action-row">
-        <ShoppingListButton inList={inList} onAdd={onAdd} />
-      </div>
-    </article>
+    <ProductShowcaseCard
+      title={product.name}
+      subtitle={compactLabel(product.category)}
+      imageUrl={product.imageUrl}
+      imageAlt={product.name}
+      href={`/app/produtos/${product.productId}`}
+      badges={
+        <>
+          <span className="sales-pill soft">{mapTurnoverLabel(product.turnoverBand)}</span>
+          <span className={`sales-pill ${trendTone}`}>{formatSignedPercent(product.revenueTrendPercentage)}</span>
+        </>
+      }
+      metrics={[
+        { label: primaryLabel, value: primaryValue },
+        { label: secondaryLabel, value: secondaryValue },
+      ]}
+      footer={footerValue}
+      actions={<ShoppingListButton inList={inList} onAdd={onAdd} />}
+    />
   );
 };
 
 const PromotionRailCard: React.FC<{ item: PromotionImpact; inList: boolean; onAdd: () => Promise<void> }> = ({ item, inList, onAdd }) => (
-  <article className="sales-product-card promo">
-    <Link className="sales-card-link-wrap" to={`/app/produtos/${item.productId}`}>
-      <div className="sales-product-media-shell">
-        <div className="sales-product-media-frame">
-          <ProductImage src={item.imageUrl} alt={item.name} className="sales-product-media" />
-        </div>
-      </div>
-      <div className="sales-product-body">
-        <div className="sales-product-badges">
-          <span className="sales-pill positive">Lift {formatPercent(item.revenueLiftPercent)}</span>
-        </div>
-        <h3>{item.name}</h3>
-        <p>{compactLabel(item.category)}</p>
-        <div className="sales-product-stats compact">
-          <div>
-            <span>Preço base</span>
-            <strong>{formatMoney(item.baselinePrice)}</strong>
-          </div>
-          <div>
-            <span>Preço promo</span>
-            <strong>{formatMoney(item.promoAveragePrice)}</strong>
-          </div>
-        </div>
-        <div className="sales-card-foot">Volume em promoção: {formatQuantity(item.promoQuantity)}</div>
-      </div>
-    </Link>
-    <div className="sales-card-action-row">
-      <ShoppingListButton inList={inList} onAdd={onAdd} />
-    </div>
-  </article>
+  <ProductShowcaseCard
+    className="promo"
+    title={item.name}
+    subtitle={compactLabel(item.category)}
+    imageUrl={item.imageUrl}
+    imageAlt={item.name}
+    href={`/app/produtos/${item.productId}`}
+    badges={<span className="sales-pill positive">Lift {formatPercent(item.revenueLiftPercent)}</span>}
+    metrics={[
+      { label: 'Preço base', value: formatMoney(item.baselinePrice) },
+      { label: 'Preço promo', value: formatMoney(item.promoAveragePrice) },
+    ]}
+    footer={`Volume em promoção: ${formatQuantity(item.promoQuantity)}`}
+    actions={<ShoppingListButton inList={inList} onAdd={onAdd} />}
+  />
 );
 
 const PairRailCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
