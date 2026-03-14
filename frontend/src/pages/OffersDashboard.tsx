@@ -1,7 +1,10 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
 import { offersService } from '../services/offers.service';
@@ -65,7 +68,7 @@ const SuggestionProductCard: React.FC<{
           <strong>{Number(product.salesVelocity || 0).toFixed(1)}/dia</strong>
         </div>
       </div>
-      <button type="button" className="button" onClick={onUse}>Usar na arte</button>
+      <Button type="button" onClick={onUse}>Usar na arte</Button>
     </div>
   </article>
 );
@@ -92,7 +95,7 @@ const PromotionSuggestionCard: React.FC<{
           <strong>{formatMoney(product.promoAveragePrice)}</strong>
         </div>
       </div>
-      <button type="button" className="button" onClick={onUse}>Usar na arte</button>
+      <Button type="button" onClick={onUse}>Usar na arte</Button>
     </div>
   </article>
 );
@@ -119,7 +122,7 @@ const PairSuggestionCard: React.FC<{
         <span>{pair.pairCount || 0} cestas</span>
         <span>Lift {Number(pair.lift || 0).toFixed(2)}</span>
       </div>
-      <button type="button" className="button secondary" onClick={onUse}>Montar peça combinada</button>
+      <Button type="button" variant="secondary" onClick={onUse}>Montar peça combinada</Button>
     </div>
   </article>
 );
@@ -163,34 +166,27 @@ const OffersDashboard: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page offers-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Designer de ofertas</span>
-              <h1 className="dashboard-command-title">Crie peças de oferta a partir do catálogo e das vendas reais do mercado.</h1>
-              <p className="dashboard-command-text">
-                O módulo nasce nativo: modelos em JSON, binding automático com nome, preço, unidade e imagem, e fila de geração pronta para evoluir para exportação server-side.
-              </p>
-              <div className="hero-inline-actions">
-                <button type="button" className="button" onClick={() => openDesigner(leadTemplate?.id)}>
-                  Abrir designer
-                </button>
-                <Link className="button secondary" to="/app/ofertas/modelos">Gerenciar modelos</Link>
-                <Link className="button secondary" to="/app/ofertas/jobs">Ver lotes</Link>
-              </div>
-            </div>
-            <div className="dashboard-command-showcase offers-command-showcase">
-              <OfferCanvasPreview template={leadTemplate} className="offer-dashboard-canvas" />
-            </div>
-          </article>
-          <aside className="dashboard-priority-rail">
+        <PageHero
+          badge="Designer de ofertas"
+          title="Crie peças de oferta a partir do catálogo e das vendas reais do mercado."
+          description="O módulo nasce nativo: modelos em JSON, binding automático com nome, preço, unidade e imagem, e fila de geração pronta para evoluir para exportação server-side."
+          actions={
+            <>
+              <Button type="button" onClick={() => openDesigner(leadTemplate?.id)}>Abrir designer</Button>
+              <ButtonLink variant="secondary" to="/app/ofertas/modelos">Gerenciar modelos</ButtonLink>
+              <ButtonLink variant="secondary" to="/app/ofertas/jobs">Ver lotes</ButtonLink>
+            </>
+          }
+          feature={<OfferCanvasPreview template={leadTemplate} className="offer-dashboard-canvas" />}
+          featureClassName="offers-command-showcase"
+          aside={(
             <article className="dashboard-priority-card">
               <span className="section-kicker">Leitura rápida</span>
               <h3>Escolha o modelo, arraste os produtos e gere o lote.</h3>
               <p>O catálogo e os insights sazonais já entram prontos para acelerar cartaz, encarte e peças promocionais.</p>
             </article>
-          </aside>
-        </section>
+          )}
+        />
 
         {loading ? <div className="sales-empty-card">Carregando módulo de ofertas...</div> : null}
         {error ? <div className="sales-empty-card">{error}</div> : null}
@@ -225,8 +221,8 @@ const OffersDashboard: React.FC = () => {
                         <span>{template.systemTemplate ? 'Template base' : 'Template do mercado'}</span>
                       </div>
                       <div className="offer-template-card-actions">
-                        <button type="button" className="button" onClick={() => openDesigner(template.id)}>Usar no designer</button>
-                        <Link className="button secondary" to="/app/ofertas/modelos">Editar</Link>
+                        <Button type="button" onClick={() => openDesigner(template.id)}>Usar no designer</Button>
+                        <ButtonLink variant="secondary" to="/app/ofertas/modelos">Editar</ButtonLink>
                       </div>
                     </div>
                   </article>

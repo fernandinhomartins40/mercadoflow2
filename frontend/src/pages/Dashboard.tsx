@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import SalesChart from '../components/dashboard/SalesChart';
+import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import ProductShowcaseCard from '../components/product/ProductShowcaseCard';
 import ProductImage from '../components/product/ProductImage';
@@ -24,7 +25,7 @@ const formatCompact = (value?: number | null) =>
 
 const formatSignedPercent = (value?: number | null) => {
   const numeric = Number(value || 0);
-  const prefix = numeric > 0 ? '+' : '';
+  const prefix = numeric > 0 ?'+' : '';
   return `${prefix}${numeric.toFixed(1)}%`;
 };
 
@@ -58,7 +59,7 @@ const seasonalStatusTone = (value?: string | null) => {
 const compactLabel = (value?: string | null) => {
   if (!value) return 'Sem categoria';
   const normalized = value.replace(/\s*>\s*/g, ' > ').trim();
-  return normalized.length > 64 ? `${normalized.slice(0, 61)}...` : normalized;
+  return normalized.length > 64 ?`${normalized.slice(0, 61)}...` : normalized;
 };
 
 const mapTurnoverLabel = (value?: string | null) => {
@@ -99,7 +100,7 @@ const ProductRailCard: React.FC<{
   onAdd: () => Promise<void>;
 }> = ({ product, primaryLabel, primaryValue, secondaryLabel, secondaryValue, footerValue, inList, onAdd }) => {
   const trendValue = Number(product.revenueTrendPercentage || 0);
-  const trendTone = trendValue > 0 ? 'positive' : trendValue < 0 ? 'negative' : 'neutral';
+  const trendTone = trendValue > 0 ?'positive' : trendValue < 0 ?'negative' : 'neutral';
 
   return (
     <ProductShowcaseCard
@@ -233,7 +234,7 @@ const ProductRailSection: React.FC<{
         </div>
         <p>{subtitle}</p>
       </div>
-      {products.length === 0 ? (
+      {products.length === 0 ?(
         <div className="sales-empty-card">Sem produtos suficientes para esta leitura.</div>
       ) : (
         <div className="sales-rail">
@@ -274,7 +275,7 @@ const PromotionRailSection: React.FC<{
       </div>
       <p>{subtitle}</p>
     </div>
-    {items.length === 0 ? (
+    {items.length === 0 ?(
       <div className="sales-empty-card">Sem produtos com resposta promocional relevante.</div>
     ) : (
       <div className="sales-rail">
@@ -295,7 +296,7 @@ const PairRailSection: React.FC<{ title: string; subtitle: string; items: Produc
       </div>
       <p>{subtitle}</p>
     </div>
-    {items.length === 0 ? (
+    {items.length === 0 ?(
       <div className="sales-empty-card">Sem combinações fortes neste período.</div>
     ) : (
       <div className="sales-rail pairs">
@@ -320,7 +321,7 @@ const SeasonalRailSection: React.FC<{
       </div>
       <div className="sales-seasonal-head-meta">
         <span className={`sales-pill ${seasonalStatusTone(collection.status)}`}>{collection.proximityLabel || seasonalStatusLabel(collection.status)}</span>
-        {collection.periodLabel ? <span className="sales-pill soft">{collection.periodLabel}</span> : null}
+        {collection.periodLabel ?<span className="sales-pill soft">{collection.periodLabel}</span> : null}
       </div>
     </div>
 
@@ -343,7 +344,7 @@ const SeasonalRailSection: React.FC<{
       </div>
     </div>
 
-    {collection.products.length === 0 ? (
+    {collection.products.length === 0 ?(
       <div className="sales-empty-card">Sem produtos suficientes para esta janela sazonal.</div>
     ) : (
       <div className="sales-rail">
@@ -427,90 +428,75 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page sales-dashboard-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card sales-command-card">
-            <div className="dashboard-command-showcase sales-dashboard-featured">
-              <div className="sales-dashboard-hero-image-shell">
-                <div className="sales-dashboard-hero-image-frame">
-                  <ProductImage
-                    src={featuredProduct?.imageUrl}
-                    alt={featuredProduct?.name || 'Produto destaque'}
-                    className="sales-dashboard-hero-image"
-                  />
-                </div>
+        <PageHero
+          className="sales-dashboard-hero-grid"
+          articleClassName="sales-command-card"
+          copyClassName="sales-dashboard-command-copy"
+          featureClassName="sales-dashboard-featured"
+          asideClassName="sales-hero-side"
+          visualFirst
+          badge="Painel geral de vendas"
+          title="Decisões de compra, exposição e promoção com foco no produto."
+          description="O painel prioriza os itens do catálogo, mostra o que vende melhor, o que precisa de reposição, o que pode entrar em promoção e o que merece ajuste de exposição."
+          feature={
+            <div className="sales-dashboard-hero-image-shell">
+              <div className="sales-dashboard-hero-image-frame">
+                <ProductImage
+                  src={featuredProduct?.imageUrl}
+                  alt={featuredProduct?.name || 'Produto destaque'}
+                  className="sales-dashboard-hero-image"
+                />
               </div>
             </div>
-
-            <div className="dashboard-command-copy sales-dashboard-command-copy">
-              <span className="pill">Painel geral de vendas</span>
-              <h1>Decisões de compra, exposição e promoção com foco no produto.</h1>
-              <p className="dashboard-command-text">
-                O painel prioriza os itens do catálogo, mostra o que vende melhor, o que precisa de reposição,
-                o que pode entrar em promoção e o que merece ajuste de exposição.
-              </p>
-
-              <div className="sales-hero-featured-card sales-dashboard-featured-card">
-                <div>
-                  <span className="section-kicker">Produto líder do período</span>
-                  <h2>{featuredProduct?.name || 'Sem destaque suficiente'}</h2>
-                </div>
-                <div className="sales-hero-featured-metrics">
-                  <div>
-                    <span>Receita</span>
-                    <strong>{featuredProduct ? formatMoney(featuredProduct.revenue) : 'R$ 0,00'}</strong>
-                  </div>
-                  <div>
-                    <span>Quantidade</span>
-                    <strong>{featuredProduct ? formatQuantity(featuredProduct.quantitySold) : '0'}</strong>
-                  </div>
-                  <div>
-                    <span>Giro</span>
-                    <strong>{featuredProduct ? `${Number(featuredProduct.salesVelocity || 0).toFixed(1)}/dia` : '--'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hero-inline-actions sales-dashboard-actions">
-                <Link className="button" to="/app/produtos">Abrir análise por produto</Link>
-                {featuredProduct ? <Link className="button secondary" to={`/app/ofertas/designer?productId=${featuredProduct.productId}`}>Criar oferta do líder</Link> : null}
-                <Link className="button secondary" to="/app/lista-compras">Ir para lista de compras</Link>
-              </div>
+          }
+          actions={
+            <div className="sales-dashboard-actions">
+              <ButtonLink to="/app/produtos">Abrir análise por produto</ButtonLink>
+              {featuredProduct ?(
+                <ButtonLink variant="secondary" to={`/app/ofertas/designer?productId=${featuredProduct.productId}`}>
+                  Criar oferta do líder
+                </ButtonLink>
+              ) : null}
+              <ButtonLink variant="secondary" to="/app/lista-compras">
+                Ir para lista de compras
+              </ButtonLink>
             </div>
-          </article>
+          }
+          aside={
+            <>
+              <SalesChart
+                data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))}
+                kicker="Ritmo do faturamento"
+                title="Curva diária de vendas"
+                panelCopy="Acompanhe a cadência do faturamento para decidir compra, reposição e calendário comercial."
+                calloutLabel="Último dia"
+              />
 
-          <aside className="sales-hero-side">
-            <SalesChart
-              data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))}
-              kicker="Ritmo do faturamento"
-              title="Curva diária de vendas"
-              panelCopy="Acompanhe a cadência do faturamento para decidir compra, reposição e calendário comercial."
-              calloutLabel="Último dia"
-            />
-
-            <div className="sales-insight-grid">
-              <article className="sales-insight-card">
-                <span>Melhor dia</span>
-                <strong>{strongestWeekday?.label || '--'}</strong>
-                <small>{strongestWeekday ? formatMoney(strongestWeekday.revenue) : 'Sem leitura suficiente'}</small>
-              </article>
-              <article className="sales-insight-card">
-                <span>Dia mais fraco</span>
-                <strong>{weakestWeekday?.label || '--'}</strong>
-                <small>{weakestWeekday ? formatMoney(weakestWeekday.revenue) : 'Sem leitura suficiente'}</small>
-              </article>
-              <article className="sales-insight-card">
-                <span>Sazonalidade próxima</span>
-                <strong>{dashboard.seasonalCollections?.[0]?.title || '--'}</strong>
-                <small>{dashboard.seasonalCollections?.[0]?.proximityLabel || 'Sem janela próxima'}</small>
-              </article>
-              <article className="sales-insight-card">
-                <span>Hora mais forte</span>
-                <strong>{strongestHour?.label || '--'}</strong>
-                <small>{strongestHour ? `${formatQuantity(strongestHour.transactions)} transações` : 'Sem leitura suficiente'}</small>
-              </article>
-            </div>
-          </aside>
-        </section>
+              <div className="sales-insight-grid">
+                <article className="sales-insight-card">
+                  <span>Melhor dia</span>
+                  <strong>{strongestWeekday?.label || '--'}</strong>
+                  <small>{strongestWeekday ?formatMoney(strongestWeekday.revenue) : 'Sem leitura suficiente'}</small>
+                </article>
+                <article className="sales-insight-card">
+                  <span>Dia mais fraco</span>
+                  <strong>{weakestWeekday?.label || '--'}</strong>
+                  <small>{weakestWeekday ?formatMoney(weakestWeekday.revenue) : 'Sem leitura suficiente'}</small>
+                </article>
+                <article className="sales-insight-card">
+                  <span>Sazonalidade próxima</span>
+                  <strong>{dashboard.seasonalCollections?.[0]?.title || '--'}</strong>
+                  <small>{dashboard.seasonalCollections?.[0]?.proximityLabel || 'Sem janela próxima'}</small>
+                </article>
+                <article className="sales-insight-card">
+                  <span>Hora mais forte</span>
+                  <strong>{strongestHour?.label || '--'}</strong>
+                  <small>{strongestHour ?`${formatQuantity(strongestHour.transactions)} transações` : 'Sem leitura suficiente'}</small>
+                </article>
+              </div>
+            </>
+          }
+        />
 
         <div className="metrics-grid analytics-metrics-grid sales-metric-strip">
           <MetricsCard title="Faturamento" value={formatMoney(dashboard.totalRevenue)} icon="R$" />
@@ -623,15 +609,15 @@ const Dashboard: React.FC = () => {
             </div>
             <div>
               <span>Receita</span>
-              <strong>{strongestMonth ? formatMoney(strongestMonth.revenue) : 'R$ 0,00'}</strong>
+              <strong>{strongestMonth ?formatMoney(strongestMonth.revenue) : 'R$ 0,00'}</strong>
             </div>
             <div>
               <span>Quantidade</span>
-              <strong>{strongestMonth ? formatQuantity(strongestMonth.quantity) : '0'}</strong>
+              <strong>{strongestMonth ?formatQuantity(strongestMonth.quantity) : '0'}</strong>
             </div>
             <div>
               <span>Transações</span>
-              <strong>{strongestMonth ? formatQuantity(strongestMonth.transactions) : '0'}</strong>
+              <strong>{strongestMonth ?formatQuantity(strongestMonth.transactions) : '0'}</strong>
             </div>
           </div>
         </section>

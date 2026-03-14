@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import Button from '../components/common/Button';
+import PageHero from '../components/dashboard/PageHero';
 import Layout from '../components/layout/Layout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
@@ -114,19 +116,25 @@ const OfferDesigner: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page offers-page offer-designer-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Designer nativo</span>
-              <h1 className="dashboard-command-title">Vincule o produto ao template e deixe a geração pronta para escala.</h1>
-              <p className="dashboard-command-text">Esta primeira versão já trabalha com binding real do catálogo, preview do layout e criação de lotes persistidos no backend.</p>
-            </div>
-            <div className="hero-inline-actions">
-              <button type="button" className="button secondary" onClick={() => navigate('/app/ofertas/modelos')}>Editar modelos</button>
-              <button type="button" className="button secondary" onClick={() => navigate('/app/ofertas/jobs')}>Abrir lotes</button>
-            </div>
-          </article>
-        </section>
+        <PageHero
+          badge="Designer nativo"
+          title="Vincule o produto ao template e deixe a geração pronta para escala."
+          description="Esta primeira versão já trabalha com binding real do catálogo, preview do layout e criação de lotes persistidos no backend."
+          actions={
+            <>
+              <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/modelos')}>Editar modelos</Button>
+              <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/jobs')}>Abrir lotes</Button>
+            </>
+          }
+          feature={<OfferCanvasPreview template={selectedTemplate} products={selectedProducts} className="offer-designer-canvas" />}
+          aside={(
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Fila montada</span>
+              <h3>{selectedProducts.length} produtos prontos para gerar.</h3>
+              <p>{selectedTemplate ? `Template ativo: ${selectedTemplate.name}.` : "Selecione um template para liberar o lote."}</p>
+            </article>
+          )}
+        />
 
         {error ? <div className="sales-empty-card">{error}</div> : null}
         {loading ? <div className="sales-empty-card">Carregando designer...</div> : null}
@@ -194,7 +202,7 @@ const OfferDesigner: React.FC = () => {
                         <strong>{formatMoney(product.currentPrice)}</strong>
                       </div>
                     </div>
-                    <button type="button" className="button secondary" onClick={() => addProduct(product)}>Adicionar</button>
+                    <Button type="button" variant="secondary" onClick={() => addProduct(product)}>Adicionar</Button>
                   </article>
                 ))}
               </div>
@@ -210,10 +218,10 @@ const OfferDesigner: React.FC = () => {
               </div>
               <OfferCanvasPreview template={selectedTemplate} products={selectedProducts} className="offer-designer-canvas" />
               <div className="offer-designer-actions">
-                <button type="button" className="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
                   {saving ? 'Criando lote...' : 'Criar lote de geração'}
-                </button>
-                <button type="button" className="button secondary" onClick={() => setSelectedProducts([])}>Limpar seleção</button>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setSelectedProducts([])}>Limpar seleção</Button>
               </div>
             </section>
 
@@ -240,7 +248,7 @@ const OfferDesigner: React.FC = () => {
                         <strong>{formatMoney(product.currentPrice)}</strong>
                       </div>
                     </div>
-                    <button type="button" className="button secondary" onClick={() => removeProduct(product.productId)}>Remover</button>
+                    <Button type="button" variant="secondary" onClick={() => removeProduct(product.productId)}>Remover</Button>
                   </article>
                 ))}
               </div>

@@ -1,25 +1,17 @@
-﻿import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React from 'react';
 import { useAuth } from '../../context/AuthContext';
+import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 
 interface SidebarProps {
   mobileOpen: boolean;
   onClose: () => void;
 }
 
-interface SidebarItem {
-  to: string;
-  label: string;
-  hint: string;
-  mark: string;
-  exact?: boolean;
-}
-
 const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
   const { role, name, email } = useAuth();
   const isAdmin = role === 'ADMIN';
 
-  const sections: Array<{ title: string; items: SidebarItem[] }> = [
+  const sections: WorkspaceNavSection[] = [
     {
       title: 'Visão do negócio',
       items: [
@@ -50,66 +42,24 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
   ];
 
   return (
-    <>
-      <button
-        type="button"
-        className={`sidebar-backdrop ${mobileOpen ? 'visible' : ''}`}
-        onClick={onClose}
-        aria-label="Fechar menu lateral"
-      />
-      <aside className={`sidebar workspace-sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
-        <div className="workspace-sidebar-frame">
-          <div className="workspace-sidebar-head">
-            <div className="sidebar-brand">
-              <div className="sidebar-brand-mark">MF</div>
-              <div>
-                <h1>MercadoFlow</h1>
-                <p>Painel operacional para decisão no varejo</p>
-              </div>
-            </div>
-            <button type="button" className="sidebar-close" onClick={onClose} aria-label="Fechar menu">X</button>
-          </div>
-
-          <div className="workspace-sidebar-body">
-            <div className="sidebar-user-card">
-              <span className="section-kicker">Workspace atual</span>
-              <strong>{name || 'Usuário logado'}</strong>
-              <span>{email || 'Conta sem e-mail visível'}</span>
-              <div className="sidebar-user-meta">
-                <span className="sidebar-chip">{role === 'ADMIN' ? 'Administrador' : 'Operação'}</span>
-                <span className="sidebar-chip subtle">MercadoFlow</span>
-              </div>
-            </div>
-
-            <div className="sidebar-sections">
-              {sections.map((section) => (
-                <div key={section.title} className="sidebar-section">
-                  <span className="sidebar-section-title">{section.title}</span>
-                  <nav className="sidebar-nav">
-                    {section.items.map((item) => (
-                      <NavLink key={item.to} end={item.exact} className="nav-link dashboard-nav-link" to={item.to} onClick={onClose}>
-                        <span className="nav-link-mark">{item.mark}</span>
-                        <span className="nav-link-copy">
-                          <strong className="nav-link-text">{item.label}</strong>
-                          <span className="nav-link-hint">{item.hint}</span>
-                        </span>
-                        <span className="nav-link-indicator">&gt;</span>
-                      </NavLink>
-                    ))}
-                  </nav>
-                </div>
-              ))}
-            </div>
-
-            <div className="sidebar-support-card">
-              <span className="section-kicker">Fluxo recomendado</span>
-              <strong>Comece em Produtos e feche em Alertas</strong>
-              <p>O caminho mais simples para ler o negócio é analisar o item, validar a compra e só depois agir no operacional.</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-    </>
+    <WorkspaceSidebar
+      mobileOpen={mobileOpen}
+      onClose={onClose}
+      brandMark="MF"
+      brandTitle="MercadoFlow"
+      brandSubtitle="Painel operacional para decisão no varejo"
+      userKicker="Workspace atual"
+      userName={name || 'Usuário logado'}
+      userEmail={email || 'Conta sem e-mail visível'}
+      userChips={[
+        { label: role === 'ADMIN' ? 'Administrador' : 'Operação' },
+        { label: 'MercadoFlow', subtle: true },
+      ]}
+      sections={sections}
+      supportKicker="Fluxo recomendado"
+      supportTitle="Comece em Produtos e feche em Alertas"
+      supportText="O caminho mais simples para ler o negócio é analisar o item, validar a compra e só depois agir no operacional."
+    />
   );
 };
 

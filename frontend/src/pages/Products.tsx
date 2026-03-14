@@ -7,6 +7,7 @@ import { useShoppingList } from '../hooks/useShoppingList';
 import Button from '../components/common/Button';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import PanelSection from '../components/dashboard/PanelSection';
 import { ProductPerformance } from '../types/analytics.types';
 
@@ -112,23 +113,12 @@ const Products: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Performance de produtos</span>
-              <h1 className="dashboard-command-title">Decida por produto sem navegar em uma grade burocrática.</h1>
-              <p className="dashboard-command-text">
-                Este mapa coloca primeiro o item que gira, o que segura receita, o que depende de promoção e o que precisa de leitura por filial antes de consumir mais capital.
-              </p>
-              <div className="hero-chip-row">
-                <span className="hero-chip">{totalElements} produtos conhecidos</span>
-                <span className="hero-chip">Giro médio {avgVelocity.toFixed(2)}/dia</span>
-                <span className="hero-chip">Share promo médio {formatPercent(avgPromoShare * 100)}</span>
-                {querySearch ? <span className="hero-chip">Busca ativa: {querySearch}</span> : null}
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Performance de produtos"
+          title="Decida por produto sem navegar em uma grade burocrática."
+          description="Este mapa coloca primeiro o item que gira, o que segura receita, o que depende de promoção e o que precisa de leitura por filial antes de consumir mais capital."
+          feature={
+            <>
               <article className="dashboard-glow-card">
                 <span className="section-kicker">{querySearch ? 'Melhor correspondência' : 'Produto em destaque'}</span>
                 <strong>{highlightProduct?.name || 'Sem produto destacado'}</strong>
@@ -137,27 +127,26 @@ const Products: React.FC = () => {
                     ? `${bandLabel(highlightProduct.turnoverBand)} | Tendência ${formatPercent(highlightProduct.revenueTrendPercentage)} | Share promo ${formatPercent((highlightProduct.promoRevenueShare || 0) * 100)}`
                     : 'A ordenação escolhida passa a destacar aqui o item que merece a primeira leitura.'}
                 </p>
-              <div className="hero-inline-actions">
-                {highlightProduct ? (
-                  <button className="button hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
+                <div className="hero-inline-actions">
+                  {highlightProduct ? (
+                    <Button type="button" className="hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
                       Abrir dashboard do produto
-                  </button>
-                ) : null}
-                {highlightProduct ? (
-                  <button className="button secondary" onClick={() => navigate(`/app/ofertas/designer?productId=${highlightProduct.productId}`)}>
-                    Criar oferta
-                  </button>
-                ) : null}
-                {highlightProduct ? (
-                  <ShoppingListButton
-                    inList={productIds.has(highlightProduct.productId)}
+                    </Button>
+                  ) : null}
+                  {highlightProduct ? (
+                    <Button type="button" variant="secondary" onClick={() => navigate(`/app/ofertas/designer?productId=${highlightProduct.productId}`)}>
+                      Criar oferta
+                    </Button>
+                  ) : null}
+                  {highlightProduct ? (
+                    <ShoppingListButton
+                      inList={productIds.has(highlightProduct.productId)}
                       onAdd={() => handleAddProduct(highlightProduct)}
                       stopPropagation={false}
                     />
                   ) : null}
                 </div>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Receita do destaque</span>
@@ -172,22 +161,23 @@ const Products: React.FC = () => {
                   <strong>{bandLabel(highlightProduct?.turnoverBand)}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Leitura recomendada</span>
-              <h3>Comece pela pergunta do time.</h3>
-              <p>Busca quando já existe um GTIN ou nome específico. Ordenação por receita, giro ou tendência quando o problema ainda precisa ser descoberto.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Ação mais comum</span>
-              <h3>Abra o dashboard do item certo, não de vários.</h3>
-              <p>Esta tela serve para priorizar. A investigação detalhada continua no painel individual do produto.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Leitura recomendada</span>
+                <h3>Comece pela pergunta do time.</h3>
+                <p>Busca quando já existe um GTIN ou nome específico. Ordenação por receita, giro ou tendência quando o problema ainda precisa ser descoberto.</p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Ação mais comum</span>
+                <h3>Abra o dashboard do item certo, não de vários.</h3>
+                <p>Esta tela serve para priorizar. A investigação detalhada continua no painel individual do produto.</p>
+              </article>
+            </>
+          }
+        />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           {metrics.map((metric) => (

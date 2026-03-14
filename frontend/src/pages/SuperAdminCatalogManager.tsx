@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
+import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
 
 interface CatalogRow {
@@ -106,7 +107,7 @@ const EyeIcon: React.FC = () => (
 const formatDate = (value?: string | null) => {
   if (!value) return '--';
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '--' : parsed.toLocaleString('pt-BR');
+  return Number.isNaN(parsed.getTime()) ?'--' : parsed.toLocaleString('pt-BR');
 };
 
 const textValue = (value?: string | null) => {
@@ -301,7 +302,7 @@ const SuperAdminCatalogManager: React.FC = () => {
     setSuccess(null);
     try {
       if (!file.type.startsWith('image/')) {
-        throw new Error('Envie um arquivo de imagem valido.');
+        throw new Error('Envie um arquivo de imagem v?lido.');
       }
       const formData = new FormData();
       formData.append('file', file);
@@ -420,34 +421,33 @@ const SuperAdminCatalogManager: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="super-admin-page catalog-admin-page super-admin-catalog-page">
-        <section className="dashboard-command-grid reveal super-admin-command-grid">
-          <article className="dashboard-command-card super-admin-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Catálogo global</span>
-              <h1 className="dashboard-command-title">Ajuste manual da base sem sair da listagem.</h1>
-              <p className="dashboard-command-text">
-                Use esta tela para localizar o item certo, revisar os dados e abrir o modal de edição quando precisar.
-              </p>
-              <div className="hero-inline-actions">
-                <Button onClick={openCreateModal}>Novo produto</Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setPage(0);
-                    load();
-                  }}
-                >
-                  Atualizar lista
-                </Button>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          className="super-admin-command-grid"
+          articleClassName="super-admin-command-card"
+          badge="Catálogo global"
+          title="Ajuste manual da base sem sair da listagem."
+          description="Use esta tela para localizar o item certo, revisar os dados e abrir o modal de edição quando precisar."
+          actions={
+            <>
+              <Button onClick={openCreateModal}>Novo produto</Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setPage(0);
+                  load();
+                }}
+              >
+                Atualizar lista
+              </Button>
+            </>
+          }
+          feature={
+            <>
               <div className="dashboard-glow-card">
                 <span className="section-kicker">Itens nesta página</span>
                 <h3>{rows.length} produtos visíveis</h3>
-                <strong>{rowsPage?.number != null ? rowsPage.number + 1 : page + 1}</strong>
-                <p>{rowsPage ? `${rowsPage.totalPages} páginas disponíveis para navegação.` : 'Carregue a base para ver o recorte atual.'}</p>
+                <strong>{rowsPage?.number != null ?rowsPage.number + 1 : page + 1}</strong>
+                <p>{rowsPage ?`${rowsPage.totalPages} páginas disponíveis para navegação.` : 'Carregue a base para ver o recorte atual.'}</p>
               </div>
 
               <div className="dashboard-command-mosaic">
@@ -458,27 +458,27 @@ const SuperAdminCatalogManager: React.FC = () => {
                 </div>
                 <div className="dashboard-mini-tile accent">
                   <span>Preview do editor</span>
-                  <strong>{editorImageUrl ? 'Com imagem' : 'Sem imagem'}</strong>
+                  <strong>{editorImageUrl ?'Com imagem' : 'Sem imagem'}</strong>
                   <small>preview ao vivo</small>
                 </div>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <div className="dashboard-priority-card dark">
-              <span className="section-kicker">Fluxo principal</span>
-              <strong>Buscar, revisar e editar</strong>
-              <p>A tabela serve para localizar o item. Os ajustes ficam concentrados no modal.</p>
-            </div>
-            <div className="dashboard-priority-card">
-              <span className="section-kicker">Página atual</span>
-              <strong>{page + 1}</strong>
-              <p>{rowsPage ? `${rowsPage.totalPages} páginas no resultado atual.` : 'A paginação aparece depois da primeira carga.'}</p>
-            </div>
-          </aside>
-        </section>
-
+            </>
+          }
+          aside={
+            <>
+              <div className="dashboard-priority-card dark">
+                <span className="section-kicker">Fluxo principal</span>
+                <strong>Buscar, revisar e editar</strong>
+                <p>A tabela serve para localizar o item. Os ajustes ficam concentrados no modal.</p>
+              </div>
+              <div className="dashboard-priority-card">
+                <span className="section-kicker">Página atual</span>
+                <strong>{page + 1}</strong>
+                <p>{rowsPage ?`${rowsPage.totalPages} páginas no resultado atual.` : 'A paginação aparece depois da primeira carga.'}</p>
+              </div>
+            </>
+          }
+        />
         <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-form-panel">
             <div className="analytics-panel-head">
@@ -503,8 +503,8 @@ const SuperAdminCatalogManager: React.FC = () => {
                 Buscar
               </Button>
             </div>
-            {loadError ? <div className="card" style={{ color: 'var(--danger)' }}>{loadError}</div> : null}
-            {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
+            {loadError ?<div className="card" style={{ color: 'var(--danger)' }}>{loadError}</div> : null}
+            {success ?<div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
           </section>
 
           <section className="analytics-panel reveal dashboard-note-card">
@@ -534,7 +534,7 @@ const SuperAdminCatalogManager: React.FC = () => {
               <h3>Produtos do catálogo global</h3>
             </div>
           </div>
-          {loading ? (
+          {loading ?(
             <div className="card">Carregando catálogo...</div>
           ) : (
             <div className="catalog-admin-table-wrap">
@@ -554,7 +554,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                     <tr key={row.enrichmentId}>
                       <td data-label="Produto">
                         <div className="catalog-admin-product-cell">
-                          {row.imageUrl ? (
+                          {row.imageUrl ?(
                             <img className="catalog-admin-thumb" src={row.imageUrl} alt={row.canonicalName} loading="lazy" />
                           ) : (
                             <div className="catalog-admin-thumb placeholder">Sem imagem</div>
@@ -609,7 +609,7 @@ const SuperAdminCatalogManager: React.FC = () => {
           </div>
         </section>
 
-        {selectedProduct ? (
+        {selectedProduct ?(
           <div className="catalog-admin-modal-backdrop" role="presentation" onClick={closeProductModal}>
             <div
               className="catalog-admin-modal card"
@@ -642,7 +642,7 @@ const SuperAdminCatalogManager: React.FC = () => {
 
               <div className="catalog-admin-modal-body">
                 <div className="catalog-admin-modal-media">
-                  {selectedProduct.imageUrl ? (
+                  {selectedProduct.imageUrl ?(
                     <>
                       <button
                         type="button"
@@ -715,7 +715,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                   </div>
                   <div className="catalog-admin-detail-item">
                     <span>Confiança</span>
-                    <strong>{selectedProduct.confidenceScore != null ? `${Math.round(selectedProduct.confidenceScore * 100)}%` : '--'}</strong>
+                    <strong>{selectedProduct.confidenceScore != null ?`${Math.round(selectedProduct.confidenceScore * 100)}%` : '--'}</strong>
                   </div>
                   <div className="catalog-admin-detail-item catalog-admin-detail-item-wide">
                     <span>Descrição</span>
@@ -727,7 +727,7 @@ const SuperAdminCatalogManager: React.FC = () => {
           </div>
         ) : null}
 
-        {editorState ? (
+        {editorState ?(
           <div className="catalog-admin-modal-backdrop" role="presentation" onClick={closeEditorModal}>
             <div
               className="catalog-admin-modal catalog-admin-editor-modal card"
@@ -746,12 +746,12 @@ const SuperAdminCatalogManager: React.FC = () => {
                     Cancelar
                   </Button>
                   <Button type="button" onClick={save} disabled={saving || uploadingImage || removingImage}>
-                    {saving ? 'Salvando...' : editorState.mode === 'edit' ? 'Salvar alterações' : 'Criar produto'}
+                    {saving ?'Salvando...' : editorState.mode === 'edit' ?'Salvar alterações' : 'Criar produto'}
                   </Button>
                 </div>
               </div>
 
-              {editorError ? <div className="card" style={{ color: 'var(--danger)', marginBottom: 16 }}>{editorError}</div> : null}
+              {editorError ?<div className="card" style={{ color: 'var(--danger)', marginBottom: 16 }}>{editorError}</div> : null}
 
               <div className="catalog-admin-modal-body catalog-admin-editor-layout">
                 <div className="catalog-admin-modal-media">
@@ -762,7 +762,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                     hidden
                     onChange={(event) => uploadEditorImage(event.target.files?.[0] || null)}
                   />
-                  {editorImageUrl ? (
+                  {editorImageUrl ?(
                     <>
                       <button
                         type="button"
@@ -781,21 +781,21 @@ const SuperAdminCatalogManager: React.FC = () => {
                     </>
                   ) : (
                     <div className="catalog-admin-modal-image placeholder">
-                      {canManageEditorImage ? 'Nenhuma imagem vinculada ao produto.' : 'Salve o produto para enviar uma imagem.'}
+                      {canManageEditorImage ?'Nenhuma imagem vinculada ao produto.' : 'Salve o produto para enviar uma imagem.'}
                     </div>
                   )}
 
                   <div className="catalog-admin-editor-panel">
                     <span className="section-kicker">Imagem do produto</span>
-                    <h4>{editorImageUrl ? 'Substituir ou remover' : 'Enviar imagem'}</h4>
+                    <h4>{editorImageUrl ?'Substituir ou remover' : 'Enviar imagem'}</h4>
                     <p>
                       {canManageEditorImage
-                        ? 'A imagem enviada é encaixada em um quadro 1:1 sem corte, salva no storage e vinculada ao produto.'
+                        ?'A imagem enviada é encaixada em um quadro 1:1 sem corte, salva no storage e vinculada ao produto.'
                         : 'Primeiro salve o produto. Depois disso o envio da imagem fica disponível neste modal.'}
                     </p>
                     <div className="catalog-admin-editor-actions">
                       <Button type="button" onClick={triggerImagePicker} disabled={!canManageEditorImage || uploadingImage || removingImage || saving}>
-                        {uploadingImage ? 'Enviando...' : editorImageUrl ? 'Substituir imagem' : 'Enviar imagem'}
+                        {uploadingImage ?'Enviando...' : editorImageUrl ?'Substituir imagem' : 'Enviar imagem'}
                       </Button>
                       <Button
                         type="button"
@@ -803,7 +803,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                         onClick={removeEditorImage}
                         disabled={!canManageEditorImage || !editorImageUrl || removingImage || uploadingImage || saving}
                       >
-                        {removingImage ? 'Excluindo...' : 'Excluir imagem'}
+                        {removingImage ?'Excluindo...' : 'Excluir imagem'}
                       </Button>
                     </div>
                     <span className="catalog-admin-image-hint">Formato final 1:1, mantendo a imagem inteira dentro do quadro.</span>
@@ -977,7 +977,7 @@ const SuperAdminCatalogManager: React.FC = () => {
                       <div className="catalog-admin-editor-field catalog-admin-editor-field-wide">
                         <label>Imagem</label>
                         <div className="catalog-admin-editor-inline-note">
-                          <strong>{editorImageUrl ? 'Imagem vinculada ao produto' : 'Sem imagem vinculada'}</strong>
+                          <strong>{editorImageUrl ?'Imagem vinculada ao produto' : 'Sem imagem vinculada'}</strong>
                           <span>Use os botões de upload ou exclusão no painel lateral.</span>
                         </div>
                       </div>
@@ -1013,7 +1013,7 @@ const SuperAdminCatalogManager: React.FC = () => {
           </div>
         ) : null}
 
-        {lightboxImage ? (
+        {lightboxImage ?(
           <div className="catalog-admin-lightbox-backdrop" role="presentation" onClick={() => setLightboxImage(null)}>
             <div className="catalog-admin-lightbox-frame" onClick={(event) => event.stopPropagation()}>
               <button

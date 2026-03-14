@@ -2,6 +2,7 @@
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -153,32 +154,21 @@ const Settings: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page settings-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Central de configurações</span>
-              <h1 className="dashboard-command-title">Controle credenciais, instalador e contexto do mercado em uma única area.</h1>
-              <p className="dashboard-command-text">
-                Esta central concentra URL real da API, distribuição do instalador, identidade do mercado e ciclo completo das chaves do coletor desktop.
-              </p>
-              <div className="hero-chip-row">
-                <span className="hero-chip">Perfil {role || '--'}</span>
-                <span className="hero-chip">Mercado {resolvedMarketId || '--'}</span>
-                <span className="hero-chip">{activeKeys.length} chaves ativas</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Central de configurações"
+          title="Controle credenciais, instalador e contexto do mercado em uma única área."
+          description="Esta central concentra URL real da API, distribuição do instalador, identidade do mercado e ciclo completo das chaves do coletor desktop."
+          feature={
+            <>
               <article className="dashboard-glow-card">
-                <span className="section-kicker">Conexao principal do agente</span>
+                <span className="section-kicker">Conexão principal do agente</span>
                 <strong>{apiBaseUrl}</strong>
                 <p>{heartbeatFreshKeys.length} chaves com heartbeat recente nos últimos 10 minutos. Isso separa instalações vivas das esquecidas.</p>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Versão do instalador</span>
-                  <strong>{installerInfo?.version || 'disponivel'}</strong>
+                  <strong>{installerInfo?.version || 'disponível'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
                   <span>Tamanho</span>
@@ -189,28 +179,29 @@ const Settings: React.FC = () => {
                   <strong>{installerInfo?.lastModified || '--'}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Boa prática</span>
-              <h3>Uma chave por instalação ou PDV.</h3>
-              <p>Evite compartilhar credenciais. Isso preserva rastreabilidade real e facilita revogação sem atingir outras máquinas.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Risco comum</span>
-              <h3>Heartbeat sem uso precisa revisão.</h3>
-              <p>Quando o agente some ou a máquina muda, revogue a chave antiga antes que ela vire credencial esquecida em produção.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Boa prática</span>
+                <h3>Uma chave por instalação ou PDV.</h3>
+                <p>Evite compartilhar credenciais. Isso preserva rastreabilidade real e facilita revogação sem atingir outras máquinas.</p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Risco comum</span>
+                <h3>Heartbeat sem uso precisa de revisão.</h3>
+                <p>Quando o agente some ou a máquina muda, revogue a chave antiga antes que ela vire credencial esquecida em produção.</p>
+              </article>
+            </>
+          }
+        />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" caption="credenciais prontas para uso" />
           <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="histórico desativado" />
           <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" caption="atividade do agente" />
-          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponivel'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
+          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponível'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
         </div>
 
         <div className="dashboard-page-grid">

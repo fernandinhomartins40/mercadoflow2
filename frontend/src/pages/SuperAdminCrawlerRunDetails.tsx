@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 
@@ -49,7 +51,7 @@ const formatStatus = (value?: string | null) => {
   const status = (value || '').toUpperCase();
   if (status === 'RUNNING') return 'Executando';
   if (status === 'QUEUED') return 'Na fila';
-  if (status === 'SUCCESS') return 'Concluido';
+  if (status === 'SUCCESS') return 'Concluído';
   if (status === 'FAILED') return 'Falhou';
   if (status === 'CANCELLED') return 'Cancelado';
   return status || '--';
@@ -149,36 +151,26 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="super-admin-page">
-        <section className="dashboard-command-grid reveal super-admin-command-grid">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Detalhes da coleta</span>
-              <h1 className="dashboard-command-title">Detalhes da execucao.</h1>
-              <p className="dashboard-command-text">
-                Esta pagina concentra status, escopo, artefatos, amostra de produtos e logs de uma unica rodada.
-              </p>
-              <div className="hero-chip-row">
-                <span className={`hero-chip status-${runStatusClass(details?.run?.status)}`}>
-                  {details?.run ? formatStatus(details.run.status) : 'Carregando'}
-                </span>
-                <span className="hero-chip">Run {runId}</span>
-                <span className="hero-chip">{details?.active ? 'Atualizacao automatica ativa' : 'Rodada finalizada'}</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          className="super-admin-command-grid"
+          badge="Detalhes da coleta"
+          title="Detalhes da execução."
+          description="Esta página concentra status, escopo, artefatos, amostra de produtos e logs de uma única rodada."
+          actions={
+            <>
+              <ButtonLink variant="secondary" to="/super-admin/crawler">Voltar ao crawler</ButtonLink>
+              <Button variant="secondary" onClick={() => load(offset)} disabled={loading}>
+                {loading ? 'Atualizando...' : 'Atualizar'}
+              </Button>
+            </>
+          }
+          feature={
+            <>
               <article className="dashboard-glow-card">
                 <span className="section-kicker">Resumo da rodada</span>
                 <strong>{details?.run ? formatStatus(details.run.status) : 'Carregando'}</strong>
                 <p>{details?.run?.message || 'Sem mensagem registrada.'}</p>
-                <div className="hero-inline-actions">
-                  <Link to="/super-admin/crawler" className="button secondary">Voltar ao crawler</Link>
-                  <Button variant="secondary" onClick={() => load(offset)} disabled={loading}>
-                    {loading ? 'Atualizando...' : 'Atualizar'}
-                  </Button>
-                </div>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Solicitado em</span>
@@ -193,30 +185,31 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                   <strong>{details?.run?.triggeredBy || '--'}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Escopo da rodada</span>
-              <h3>
-                {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
-                  ? 'Execucao filtrada por categoria'
-                  : 'Catalogo completo'}
-              </h3>
-              <p>
-                {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
-                  ? details.run.selectedCategories.join(', ')
-                  : 'A rodada varreu todo o catalogo configurado para o mercado selecionado.'}
-              </p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Arquivos da rodada</span>
-              <h3>Logs e artefatos ficam disponiveis aqui.</h3>
-              <p>Use esta tela para validar o que foi captado, o que entrou no catalogo e se houve erro em pagina, imagem ou importacao.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Escopo da rodada</span>
+                <h3>
+                  {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
+                    ? 'Execução filtrada por categoria'
+                    : 'Catálogo completo'}
+                </h3>
+                <p>
+                  {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
+                    ? details.run.selectedCategories.join(', ')
+                    : 'A rodada varreu todo o catálogo configurado para o mercado selecionado.'}
+                </p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Arquivos da rodada</span>
+                <h3>Logs e artefatos ficam disponíveis aqui.</h3>
+                <p>Use esta tela para validar o que foi captado, o que entrou no catálogo e se houve erro em página, imagem ou importação.</p>
+              </article>
+            </>
+          }
+        />
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
         {loading && !details ? <div className="card">Carregando detalhes...</div> : null}

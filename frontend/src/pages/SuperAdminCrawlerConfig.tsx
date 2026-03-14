@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
+import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
 
 interface CrawlerRun {
@@ -55,7 +57,7 @@ interface CrawlerCategoryOption {
 const formatDate = (value?: string | null) => {
   if (!value) return '--';
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '--' : parsed.toLocaleString('pt-BR');
+  return Number.isNaN(parsed.getTime()) ?'--' : parsed.toLocaleString('pt-BR');
 };
 
 const formatStatus = (value?: string | null) => {
@@ -185,7 +187,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
       });
       setSuccess(
         categories.length > 0
-          ? `Execução manual enfileirada para ${provider} com ${categories.length} categorias selecionadas.`
+          ?`Execução manual enfileirada para ${provider} com ${categories.length} categorias selecionadas.`
           : `Execução manual enfileirada para ${provider} com catálogo completo.`
       );
       closeCategoryModal();
@@ -207,7 +209,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     setCategoriesLoading(true);
     try {
       const response = await api.get(`/v1/super-admin/catalog/crawler/jobs/${job.provider}/categories`);
-      const options = Array.isArray(response.data) ? response.data : [];
+      const options = Array.isArray(response.data) ?response.data : [];
       if (options.length === 0) {
         closeCategoryModal();
         await triggerProvider(job.provider, []);
@@ -225,7 +227,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
   const toggleSelectedCategory = (value: string) => {
     setSelectedCategories((current) =>
-      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+      current.includes(value) ?current.filter((item) => item !== value) : [...current, value]
     );
   };
 
@@ -281,56 +283,38 @@ const SuperAdminCrawlerConfig: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="super-admin-page super-admin-crawler-page">
-        <section className="dashboard-command-grid reveal super-admin-command-grid">
-          <article className="dashboard-command-card super-admin-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Crawler</span>
-              <h1 className="dashboard-command-title">Coleta manual por mercado.</h1>
-              <p className="dashboard-command-text">
-                Aqui você acompanha o estado atual, o último resultado e dispara uma nova coleta quando precisar.
-              </p>
-              <div className="hero-inline-actions">
-                {latestRun?.id ? <Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</Link> : null}
-              </div>
+        <PageHero
+          className="super-admin-command-grid"
+          articleClassName="super-admin-command-card"
+          badge="Crawler"
+          title="Coleta manual por mercado."
+          description="Aqui você acompanha o estado atual, o último resultado e dispara uma nova coleta quando precisar."
+          actions={latestRun?.id ?<Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</Link> : null}
+          feature={
+            <div className="dashboard-glow-card">
+              <span className="section-kicker">Run mais recente</span>
+              <h3>{latestRun ?formatStatus(latestRun.status) : 'Sem histórico'}</h3>
+              <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
+              <p>{latestRun?.message || 'Nenhuma execução registrada até agora.'}</p>
             </div>
-
-            <div className="dashboard-command-showcase">
-              <div className="dashboard-glow-card">
-                <span className="section-kicker">Run mais recente</span>
-                <h3>{latestRun ? formatStatus(latestRun.status) : 'Sem histórico'}</h3>
-                <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
-                <p>{latestRun?.message || 'Nenhuma execução registrada até agora.'}</p>
-              </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
+          }
+          aside={
             <div className="dashboard-priority-card dark">
               <span className="section-kicker">Regra principal</span>
               <strong>Um supermercado por vez</strong>
               <p>O dispatcher roda um mercado por vez para manter o log claro e facilitar a retomada.</p>
             </div>
-          </aside>
-        </section>
+          }
+        />
 
-        {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
-        {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
+        {error ?<div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+        {success ?<div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <div className="card">
-            <span className="section-kicker">Mercados suportados</span>
-            <h3>{jobs.length}</h3>
-          </div>
-          <div className="card">
-            <span className="section-kicker">Em execução</span>
-            <h3>{activeJobs || monitor.runningRuns || 0}</h3>
-          </div>
-          <div className="card">
-            <span className="section-kicker">Importados recentes</span>
-            <h3>{totalImportedRecent}</h3>
-          </div>
+          <MetricsCard title="Mercados suportados" value={jobs.length} icon="MK" />
+          <MetricsCard title="Em execução" value={activeJobs || monitor.runningRuns || 0} icon="RUN" />
+          <MetricsCard title="Importados recentes" value={totalImportedRecent} icon="IMP" />
         </section>
-
         <div className="dashboard-page-grid">
           <section className="analytics-panel reveal dashboard-note-card">
             <span className="section-kicker">Fluxo</span>
@@ -348,7 +332,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           </section>
         </div>
 
-        {loading ? (
+        {loading ?(
           <div className="card">Carregando painel...</div>
         ) : (
           <>
@@ -360,19 +344,19 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                       <span className="section-kicker">{job.scopeLabel || 'Catálogo completo'}</span>
                       <h3>{job.name}</h3>
                     </div>
-                    <span className={`status-pill ${job.enabled === false ? 'neutral' : runStatusClass(job.lastRun?.status)}`}>
-                      {job.enabled === false ? 'Desabilitado' : formatStatus(job.lastRun?.status)}
+                    <span className={`status-pill ${job.enabled === false ?'neutral' : runStatusClass(job.lastRun?.status)}`}>
+                      {job.enabled === false ?'Desabilitado' : formatStatus(job.lastRun?.status)}
                     </span>
                   </div>
 
                   <div className="super-admin-crawler-job-meta">
                     <span className="pill secondary">{job.provider}</span>
-                    {Number(job.runningRuns || 0) > 0 || Number(job.queuedRuns || 0) > 0 ? (
+                    {Number(job.runningRuns || 0) > 0 || Number(job.queuedRuns || 0) > 0 ?(
                       <span className="pill secondary">{formatJobLoad(job)}</span>
                     ) : null}
                   </div>
 
-                  {job.enabled === false ? (
+                  {job.enabled === false ?(
                     <div className="panel-empty" style={{ textAlign: 'left' }}>
                       Execução temporariamente desabilitada.
                     </div>
@@ -391,7 +375,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
                   <div className="super-admin-crawler-job-footer">
                     <div className="crawler-run-actions">
-                      {job.lastRun?.id ? (
+                      {job.lastRun?.id ?(
                         <Link className="button secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
                           Ver detalhes
                         </Link>
@@ -400,7 +384,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                         onClick={() => prepareProviderTrigger(job)}
                         disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}
                       >
-                        {triggeringProvider === job.provider ? 'Enfileirando...' : hasActiveRun ? 'Aguarde a execução atual' : `Executar ${job.name}`}
+                        {triggeringProvider === job.provider ?'Enfileirando...' : hasActiveRun ?'Aguarde a execução atual' : `Executar ${job.name}`}
                       </Button>
                     </div>
                   </div>
@@ -415,7 +399,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                   <h3>Últimas execuções</h3>
                 </div>
               </div>
-              {monitor.recentRuns.length === 0 ? (
+              {monitor.recentRuns.length === 0 ?(
                 <div className="panel-empty">Nenhuma execução registrada até agora.</div>
               ) : (
                 <div className="catalog-admin-table-wrap">
@@ -442,7 +426,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                             {(run.sources || []).join(', ') || '--'}
                             <div className="table-subtext">
                               {run.selectedCategories && run.selectedCategories.length > 0
-                                ? `Categorias: ${run.selectedCategories.slice(0, 3).join(', ')}${run.selectedCategories.length > 3 ? ` +${run.selectedCategories.length - 3}` : ''}`
+                                ?`Categorias: ${run.selectedCategories.slice(0, 3).join(', ')}${run.selectedCategories.length > 3 ?` +${run.selectedCategories.length - 3}` : ''}`
                                 : 'Categorias: catálogo completo'}
                             </div>
                           </td>
@@ -459,14 +443,14 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                                 onClick={() => stopRun(run.id)}
                                 disabled={!canStopRun(run) || stoppingRunId === run.id || restartingRunId === run.id}
                               >
-                                {stoppingRunId === run.id ? 'Parando...' : 'Parar'}
+                                {stoppingRunId === run.id ?'Parando...' : 'Parar'}
                               </Button>
                               <Button
                                 variant="secondary"
                                 onClick={() => restartRun(run.id)}
                                 disabled={!canRestartRun(run) || restartingRunId === run.id || stoppingRunId === run.id || hasActiveRun}
                               >
-                                {restartingRunId === run.id ? 'Reiniciando...' : canRestartRun(run) ? 'Reiniciar' : 'Somente 1 mercado'}
+                                {restartingRunId === run.id ?'Reiniciando...' : canRestartRun(run) ?'Reiniciar' : 'Somente 1 mercado'}
                               </Button>
                             </div>
                           </td>
@@ -480,7 +464,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           </>
         )}
 
-        {categoryJob ? (
+        {categoryJob ?(
           <div className="catalog-admin-modal-backdrop" role="presentation" onClick={closeCategoryModal}>
             <div
               className="catalog-admin-modal card crawler-category-modal"
@@ -502,7 +486,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                 </Button>
               </div>
 
-              {categoriesLoading ? (
+              {categoriesLoading ?(
                 <div className="panel-empty">Carregando categorias disponíveis...</div>
               ) : (
                 <>
@@ -532,14 +516,14 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                     <span>{filteredCategoryOptions.length} categorias exibidas</span>
                   </div>
 
-                  {filteredCategoryOptions.length === 0 ? (
+                  {filteredCategoryOptions.length === 0 ?(
                     <div className="panel-empty">Nenhuma categoria encontrada para o filtro informado.</div>
                   ) : (
                     <div className="crawler-category-grid">
                       {filteredCategoryOptions.map((option) => {
                         const checked = selectedCategories.includes(option.value);
                         return (
-                          <label className={`crawler-category-option ${checked ? 'selected' : ''}`} key={option.value}>
+                          <label className={`crawler-category-option ${checked ?'selected' : ''}`} key={option.value}>
                             <input
                               type="checkbox"
                               checked={checked}
@@ -549,7 +533,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                               <strong>{option.label}</strong>
                               <span>
                                 {Number(option.childrenCount || 0) > 0
-                                  ? `${Number(option.childrenCount || 0)} subcategorias diretas`
+                                  ?`${Number(option.childrenCount || 0)} subcategorias diretas`
                                   : 'Categoria final'}
                               </span>
                             </div>
@@ -562,7 +546,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                   <div className="crawler-category-footer">
                     <div className="super-admin-crawler-job-license">
                       {selectedCategories.length > 0
-                        ? 'O run sera filtrado por estas categorias.'
+                        ?'O run será filtrado por estas categorias.'
                         : 'Sem seleção o run captura o catálogo completo.'}
                     </div>
                     <div className="crawler-run-actions">
@@ -574,9 +558,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                         disabled={triggeringProvider === categoryJob.provider}
                       >
                         {triggeringProvider === categoryJob.provider
-                          ? 'Enfileirando...'
+                          ?'Enfileirando...'
                           : selectedCategories.length > 0
-                            ? `Executar ${selectedCategories.length} categorias`
+                            ?`Executar ${selectedCategories.length} categorias`
                             : 'Executar catálogo completo'}
                       </Button>
                     </div>

@@ -2,6 +2,7 @@
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 
@@ -57,30 +58,18 @@ const PDVs: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Estrutura operacional</span>
-              <h1 className="dashboard-command-title">Organize os PDVs como inventário operacional, não como lista solta.</h1>
-              <p className="dashboard-command-text">
-                A página separa cadastro, inventario e contexto de uso para facilitar manutenção dos pontos de venda e reduzir erro de identificação no dia a dia.
-              </p>
-              <div className="hero-inline-actions">
-                <Button variant="secondary" onClick={load} disabled={loading}>Atualizar lista</Button>
-              </div>
-              <div className="hero-chip-row">
-                <span className="hero-chip">{items.length} PDVs cadastrados</span>
-                <span className="hero-chip">{withSerialCount} com serial informado</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Estrutura operacional"
+          title="Organize os PDVs como inventário operacional, não como lista solta."
+          description="A página separa cadastro, inventário e contexto de uso para facilitar manutenção dos pontos de venda e reduzir erro de identificação no dia a dia."
+          actions={<Button variant="secondary" onClick={load} disabled={loading}>Atualizar lista</Button>}
+          feature={
+            <>
               <article className="dashboard-glow-card">
-                <span className="section-kicker">Ultimo cadastro</span>
+                <span className="section-kicker">Último cadastro</span>
                 <strong>{latestItem?.name || 'Nenhum PDV cadastrado'}</strong>
                 <p>{latestItem?.createdAt ? `Criado em ${new Date(latestItem.createdAt).toLocaleString('pt-BR')}` : 'Assim que um PDV for criado, ele passa a aparecer aqui com mais destaque.'}</p>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Serial</span>
@@ -95,22 +84,23 @@ const PDVs: React.FC = () => {
                   <strong>{loading ? 'Atualizando' : 'Pronta'}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Boa prática</span>
-              <h3>Use nomes reconheciveis para a operação.</h3>
-              <p>Gerentes, compradores e equipe de loja precisam bater o olho e identificar o PDV sem duvida.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Risco comum</span>
-              <h3>Duplicar PDV por variação de nome.</h3>
-              <p>Padronize o cadastro para não espalhar histórico e configuração entre nomes parecidos.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Boa prática</span>
+                <h3>Use nomes reconhecíveis para a operação.</h3>
+                <p>Gerentes, compradores e equipe de loja precisam bater o olho e identificar o PDV sem dúvida.</p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Risco comum</span>
+                <h3>Duplicar PDV por variação de nome.</h3>
+                <p>Padronize o cadastro para não espalhar histórico e configuração entre nomes parecidos.</p>
+              </article>
+            </>
+          }
+        />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="PDVs" value={items.length} icon="PD" caption="pontos de venda cadastrados" />

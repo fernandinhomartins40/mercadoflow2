@@ -1,4 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
+import Button from '../components/common/Button';
+import PageHero from '../components/dashboard/PageHero';
 import Layout from '../components/layout/Layout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import { useAuth } from '../context/AuthContext';
@@ -108,19 +110,27 @@ const OfferTemplates: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page offers-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Modelos de oferta</span>
-              <h1 className="dashboard-command-title">Controle o design como template, não como arte solta.</h1>
-              <p className="dashboard-command-text">Cada modelo guarda tamanho, canal e JSON do layout para futura geração em massa com binding do catálogo.</p>
-            </div>
-            <div className="hero-inline-actions">
-              <button type="button" className="button" onClick={handleNew}>Novo modelo</button>
-              <button type="button" className="button secondary" onClick={() => selectedTemplate && selectTemplate(selectedTemplate)}>Recarregar selecionado</button>
-            </div>
-          </article>
-        </section>
+        <PageHero
+          badge="Modelos de oferta"
+          title="Controle o design como template, não como arte solta."
+          description="Cada modelo guarda tamanho, canal e JSON do layout para futura geração em massa com binding do catálogo."
+          actions={
+            <>
+              <Button type="button" onClick={handleNew}>Novo modelo</Button>
+              <Button type="button" variant="secondary" onClick={() => selectedTemplate && selectTemplate(selectedTemplate)} disabled={!selectedTemplate}>
+                Recarregar selecionado
+              </Button>
+            </>
+          }
+          feature={<OfferCanvasPreview template={selectedTemplate || templates[0] || null} className="offer-dashboard-canvas" />}
+          aside={(
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Estratégia correta</span>
+              <h3>Trabalhe com biblioteca de layouts, não com arquivos soltos.</h3>
+              <p>Isso permite reaproveitar estrutura visual, binding e exportação em lote sem reconstruir a arte do zero.</p>
+            </article>
+          )}
+        />
 
         {error ? <div className="sales-empty-card">{error}</div> : null}
         {loading ? <div className="sales-empty-card">Carregando modelos...</div> : null}
@@ -194,7 +204,7 @@ const OfferTemplates: React.FC = () => {
               </div>
               <div className="offer-template-editor-actions">
                 <button type="button" className="button" onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : selectedId ? 'Salvar alterações' : 'Criar modelo'}</button>
-                <button type="button" className="button secondary" onClick={handleNew}>Limpar</button>
+                <Button type="button" variant="secondary" onClick={handleNew}>Limpar</Button>
               </div>
             </section>
           </div>

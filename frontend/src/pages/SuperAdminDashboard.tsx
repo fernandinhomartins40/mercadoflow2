@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
 
 interface Overview {
@@ -45,27 +46,26 @@ const SuperAdminDashboard: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="super-admin-page super-admin-home-page">
-        {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+        {error ?<div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
 
-        {loading ? (
+        {loading ?(
           <div className="card">Carregando indicadores...</div>
         ) : (
           <>
-            <section className="dashboard-command-grid reveal super-admin-command-grid">
-              <article className="dashboard-command-card super-admin-command-card">
-                <div className="dashboard-command-copy">
-                  <span className="pill">Controle da operação</span>
-                  <h1 className="dashboard-command-title">Contas, acesso e catálogo em uma leitura rápida.</h1>
-                  <p className="dashboard-command-text">
-                    Aqui ficam os números que exigem decisão: contas ativas, vencimentos próximos, bloqueios e volume do catálogo.
-                  </p>
-                  <div className="hero-inline-actions">
-                    <Link to="/super-admin/saas" className="button">Abrir contas</Link>
-                    <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
-                  </div>
-                </div>
-
-                <div className="dashboard-command-showcase">
+            <PageHero
+              className="super-admin-command-grid"
+              articleClassName="super-admin-command-card"
+              badge="Controle da operação"
+              title="Contas, acesso e catálogo em uma leitura rápida."
+              description="Aqui ficam os números que exigem decisão: contas ativas, vencimentos próximos, bloqueios e volume do catálogo."
+              actions={
+                <>
+                  <Link to="/super-admin/saas" className="button">Abrir contas</Link>
+                  <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+                </>
+              }
+              feature={
+                <>
                   <div className="dashboard-glow-card">
                     <span className="section-kicker">Contas em operação</span>
                     <h3>{overview?.activeMarkets ?? 0} mercados ativos</h3>
@@ -85,26 +85,25 @@ const SuperAdminDashboard: React.FC = () => {
                       <small>{overview?.totalCatalogEnrichments ?? 0} registros complementares</small>
                     </div>
                   </div>
-                </div>
-              </article>
+                </>
+              }
+              aside={
+                <>
+                  <div className="dashboard-priority-card dark">
+                    <span className="section-kicker">Ação imediata</span>
+                    <strong>{overview?.expiringMarkets ?? 0} contas vencendo</strong>
+                    <p>Priorize renovação manual e revisão de acesso nas contas mais próximas do vencimento.</p>
+                    <Link to="/super-admin/saas" className="button secondary">Revisar contas</Link>
+                  </div>
 
-              <aside className="dashboard-priority-rail">
-                <div className="dashboard-priority-card dark">
-                  <span className="section-kicker">Ação imediata</span>
-                  <strong>{overview?.expiringMarkets ?? 0} contas vencendo</strong>
-                  <p>Priorize renovação manual e revisão de acesso nas contas mais próximas do vencimento.</p>
-                  <Link to="/super-admin/saas" className="button secondary">Revisar contas</Link>
-                </div>
-
-                <div className="dashboard-priority-card">
-                  <span className="section-kicker">Usuários bloqueados</span>
-                  <strong>{overview?.blockedUsers ?? 0}</strong>
-                  <p>{overview?.orphanUsers ?? 0} usuários seguem sem conta vinculada e precisam de ajuste.</p>
-                </div>
-
-              </aside>
-            </section>
-
+                  <div className="dashboard-priority-card">
+                    <span className="section-kicker">Usuários bloqueados</span>
+                    <strong>{overview?.blockedUsers ?? 0}</strong>
+                    <p>{overview?.orphanUsers ?? 0} usuários seguem sem conta vinculada e precisam de ajuste.</p>
+                  </div>
+                </>
+              }
+            />
             <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
               <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" />
               <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" />

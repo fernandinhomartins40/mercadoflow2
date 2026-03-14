@@ -2,6 +2,7 @@
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import PanelSection from '../components/dashboard/PanelSection';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
@@ -51,22 +52,12 @@ const DemandForecast: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Previsão de demanda</span>
-              <h1 className="dashboard-command-title">Antecipe volume antes do pico chegar na operação.</h1>
-              <p className="dashboard-command-text">
-                Esta leitura organiza a pressão de demanda por prioridade, para o time agir em compra, reposição e equipe sem esperar a ruptura aparecer no caixa.
-              </p>
-              <div className="hero-chip-row">
-                <span className="hero-chip">Horizonte de {days} dias</span>
-                <span className="hero-chip">{rows.length} combinações previstas</span>
-                <span className="hero-chip">Total previsto {totalPredicted.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Previsão de demanda"
+          title="Antecipe volume antes do pico chegar na operação."
+          description="Esta leitura organiza a pressão de demanda por prioridade, para o time agir em compra, reposição e equipe sem esperar a ruptura aparecer no caixa."
+          feature={
+            <>
               <article className="dashboard-glow-card">
                 <span className="section-kicker">Maior pressão prevista</span>
                 <strong>{strongest?.productName || 'Sem previsão dominante'}</strong>
@@ -76,7 +67,6 @@ const DemandForecast: React.FC = () => {
                     : 'Quando houver base suficiente, o item mais pressionado aparece aqui com prioridade.'}
                 </p>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Quantidade prevista</span>
@@ -91,22 +81,23 @@ const DemandForecast: React.FC = () => {
                   <strong>{rows.length}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Uso recomendado</span>
-              <h3>Encurte o horizonte quando precisar agir rápido.</h3>
-              <p>Janelas curtas ajudam na reposição imediata. Janelas maiores servem melhor para compra e preparação de time.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Leitura prática</span>
-              <h3>Trate o topo da lista como fila de atenção.</h3>
-              <p>Os primeiros itens são os que mais pressionam estoque e operação no recorte selecionado.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Uso recomendado</span>
+                <h3>Encurte o horizonte quando precisar agir rápido.</h3>
+                <p>Janelas curtas ajudam na reposição imediata. Janelas maiores servem melhor para compra e preparação de time.</p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Leitura prática</span>
+                <h3>Trate o topo da lista como fila de atenção.</h3>
+                <p>Os primeiros itens são os que mais pressionam estoque e operação no recorte selecionado.</p>
+              </article>
+            </>
+          }
+        />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           {metrics.map((metric) => (

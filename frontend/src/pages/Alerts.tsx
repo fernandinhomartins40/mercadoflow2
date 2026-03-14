@@ -2,6 +2,7 @@
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import { useAlerts } from '../hooks/useAlerts';
 
 const Alerts: React.FC = () => {
@@ -14,62 +15,37 @@ const Alerts: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Centro de alertas</span>
-              <h1 className="dashboard-command-title">Separe o que precisa de resposta agora do que pode esperar.</h1>
-              <p className="dashboard-command-text">
-                A fila fica mais legível para usuário leigo: leitura imediata, prioridade, ação rápida e histórico visível no mesmo fluxo operacional.
-              </p>
-              <div className="hero-inline-actions">
-                <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
-                <Button variant="secondary" onClick={markAllRead} disabled={loading || alerts.length === 0}>Marcar todos como lidos</Button>
-              </div>
-              <div className="hero-chip-row">
-                <span className="hero-chip">{alerts.length} alertas no recorte</span>
-                <span className="hero-chip">{unreadCount} não lidos</span>
-                <span className="hero-chip">{highPriorityCount} com prioridade alta</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+                <PageHero
+          badge="Centro de alertas"
+          title="Separe o que precisa de resposta agora do que pode esperar."
+          description="A fila fica mais legível para usuário leigo: leitura imediata, prioridade, ação rápida e histórico visível no mesmo fluxo operacional."
+          actions={
+            <>
+              <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
+              <Button variant="secondary" onClick={markAllRead} disabled={loading || alerts.length === 0}>Marcar todos como lidos</Button>
+            </>
+          }
+          feature={
+            <>
               <article className="dashboard-glow-card">
-                <span className="section-kicker">Ultimo alerta</span>
-                <strong>{latestAlert?.title || 'Nenhum alerta registrado'}</strong>
-                <p>{latestAlert ? latestAlert.message : 'Assim que novos sinais entrarem no sistema, eles aparecem aqui com mais contexto.'}</p>
+                <span className="section-kicker">Último alerta</span>
+                <strong>{latestAlert?.title || "Nenhum alerta registrado"}</strong>
+                <p>{latestAlert ? latestAlert.message : "Assim que novos sinais entrarem no sistema, eles aparecem aqui com mais contexto."}</p>
               </article>
-
               <div className="dashboard-command-mosaic">
-                <article className="dashboard-mini-tile">
-                  <span>Prioridade</span>
-                  <strong>{latestAlert?.priority || '--'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Status</span>
-                  <strong>{latestAlert ? (latestAlert.isRead ? 'Lido' : 'Novo') : '--'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Criado em</span>
-                  <strong>{latestAlert?.createdAt ? new Date(latestAlert.createdAt).toLocaleDateString('pt-BR') : '--'}</strong>
-                </article>
+                <article className="dashboard-mini-tile"><span>Prioridade</span><strong>{latestAlert?.priority || "--"}</strong></article>
+                <article className="dashboard-mini-tile"><span>Status</span><strong>{latestAlert ? (latestAlert.isRead ? "Lido" : "Novo") : "--"}</strong></article>
+                <article className="dashboard-mini-tile"><span>Criado em</span><strong>{latestAlert?.createdAt ? new Date(latestAlert.createdAt).toLocaleDateString('pt-BR') : "--"}</strong></article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Fila recomendada</span>
-              <h3>Prioridade alta primeiro.</h3>
-              <p>Comece pelo que pode virar perda, ruptura ou erro operacional. O resto entra depois na rotina de leitura.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Disciplina de uso</span>
-              <h3>Marque como lido so quando tratar.</h3>
-              <p>Isso limpa a fila sem esconder sinal pendente para o restante do time.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card"><span className="section-kicker">Fila recomendada</span><h3>Prioridade alta primeiro.</h3><p>Comece pelo que pode virar perda, ruptura ou erro operacional. O resto entra depois na rotina de leitura.</p></article>
+              <article className="dashboard-priority-card"><span className="section-kicker">Disciplina de uso</span><h3>Marque como lido só quando tratar.</h3><p>Isso limpa a fila sem esconder sinal pendente para o restante do time.</p></article>
+            </>
+          }
+        />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Total de alertas" value={alerts.length} icon="AL" caption="itens retornados agora" />

@@ -2,6 +2,7 @@
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import PanelSection from '../components/dashboard/PanelSection';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
@@ -87,22 +88,12 @@ const Campaigns: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Campanhas</span>
-              <h1 className="dashboard-command-title">Trate campanha como experimento, não como anotação solta.</h1>
-              <p className="dashboard-command-text">
-                Cadastre a janela, acompanhe o impacto e mantenha histórico claro para comparar o que trouxe resultado real antes, durante e depois da ação.
-              </p>
-              <div className="hero-chip-row">
-                <span className="hero-chip">{items.length} campanhas cadastradas</span>
-                <span className="hero-chip">{impacts.length} campanhas comparadas</span>
-                <span className="hero-chip">Melhor lift {bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Campanhas"
+          title="Trate campanha como experimento, não como anotação solta."
+          description="Cadastre a janela, acompanhe o impacto e mantenha histórico claro para comparar o que trouxe resultado real antes, durante e depois da ação."
+          feature={
+            <>
               <article className="dashboard-glow-card">
                 <span className="section-kicker">Campanha mais forte</span>
                 <strong>{bestImpact?.name || 'Sem campanha com impacto medido'}</strong>
@@ -112,7 +103,6 @@ const Campaigns: React.FC = () => {
                     : 'Cadastre campanhas com datas fechadas para medir janelas equivalentes e sair do achismo.'}
                 </p>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Lift de receita</span>
@@ -127,22 +117,23 @@ const Campaigns: React.FC = () => {
                   <strong>{bestImpact ? formatMoney(bestImpact.duringRevenue) : 'R$ 0.00'}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Uso correto</span>
-              <h3>Registre campanha antes dela terminar.</h3>
-              <p>Se a janela entrar tarde, a comparação fica distorcida e o histórico perde valor para o time comercial.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Leitura esperada</span>
-              <h3>Compare impacto, não so presença.</h3>
-              <p>O valor desta tela esta em mostrar se a ação mudou receita e transações, não apenas se ela existiu.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Uso correto</span>
+                <h3>Registre campanha antes dela terminar.</h3>
+                <p>Se a janela entrar tarde, a comparação fica distorcida e o histórico perde valor para o time comercial.</p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Leitura esperada</span>
+                <h3>Compare impacto, não só presença.</h3>
+                <p>O valor desta tela está em mostrar se a ação mudou receita e transações, não apenas se ela existiu.</p>
+              </article>
+            </>
+          }
+        />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           {metrics.map((metric) => (

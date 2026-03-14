@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -164,7 +165,7 @@ const CatalogAdmin: React.FC = () => {
           search: filters.search || undefined,
           brand: filters.brand || undefined,
           category: filters.category || undefined,
-          imageStatus: filters.imageStatus !== 'ALL' ? filters.imageStatus : undefined,
+          imageStatus: filters.imageStatus !== 'ALL' ?filters.imageStatus : undefined,
         },
       });
       setPageData(response.data);
@@ -222,22 +223,17 @@ const CatalogAdmin: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page catalog-admin-page admin-catalog-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Admin</span>
-              <h1 className="dashboard-command-title">Catálogo global em uma leitura mais direta para manutenção e consulta.</h1>
-              <p className="dashboard-command-text">
-                O foco desta página agora fica no que interessa para o operador: volume da base, cobertura de imagem, recorte atual e filtros funcionais por produto.
-              </p>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Admin"
+          title="Catálogo global em uma leitura mais direta para manutenção e consulta."
+          description="O foco desta página agora fica no que interessa para o operador: volume da base, cobertura de imagem, recorte atual e filtros funcionais por produto."
+          feature={
+            <>
               <div className="dashboard-glow-card">
                 <span className="section-kicker">Recorte atual</span>
                 <h3>{IMAGE_STATUS_LABELS[filters.imageStatus]}</h3>
                 <strong>{rows.length}</strong>
-                <p>{activeFilterChips.length > 0 ? `${activeFilterChips.length} filtros ativos nesta consulta.` : 'Sem filtros adicionais aplicados.'}</p>
+                <p>{activeFilterChips.length > 0 ?`${activeFilterChips.length} filtros ativos nesta consulta.` : 'Sem filtros adicionais aplicados.'}</p>
               </div>
 
               <div className="dashboard-command-mosaic">
@@ -252,27 +248,27 @@ const CatalogAdmin: React.FC = () => {
                   <small>itens prontos</small>
                 </div>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <div className="dashboard-priority-card dark">
-              <span className="section-kicker">Objetivo da tela</span>
-              <strong>Consultar sem ruido tecnico</strong>
-              <p>Origem, confiança e outros dados internos saem do foco para que a leitura fique centrada no produto.</p>
-            </div>
-            <div className="dashboard-priority-card">
-              <span className="section-kicker">Página atual</span>
-              <strong>{page + 1} de {Math.max(totalPages, 1)}</strong>
-              <p>{rows.length} itens retornados nesta página.</p>
-            </div>
-          </aside>
-        </section>
-
+            </>
+          }
+          aside={
+            <>
+              <div className="dashboard-priority-card dark">
+                <span className="section-kicker">Objetivo da tela</span>
+                <strong>Consultar sem ruído técnico</strong>
+                <p>Origem, confiança e outros dados internos saem do foco para que a leitura fique centrada no produto.</p>
+              </div>
+              <div className="dashboard-priority-card">
+                <span className="section-kicker">Página atual</span>
+                <strong>{page + 1} de {Math.max(totalPages, 1)}</strong>
+                <p>{rows.length} itens retornados nesta página.</p>
+              </div>
+            </>
+          }
+        />
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Total no banco" value={totalElements} icon="DB" caption="catálogo enriquecido" />
           <MetricsCard title="Itens na página" value={rows.length} icon="PG" caption="retorno atual" />
-          <MetricsCard title="Com imagem" value={withImageCount} icon="IM" caption="prontos para exibicao" />
+          <MetricsCard title="Com imagem" value={withImageCount} icon="IM" caption="prontos para exibição" />
           <MetricsCard title="Marcas na página" value={brandCount} icon="BR" caption="variedade no recorte" />
         </div>
 
@@ -331,7 +327,7 @@ const CatalogAdmin: React.FC = () => {
                 </Button>
               </div>
             </div>
-            {activeFilterChips.length > 0 ? (
+            {activeFilterChips.length > 0 ?(
               <div className="catalog-admin-active-filters" aria-label="Filtros ativos">
                 {activeFilterChips.map((chip) => (
                   <span key={chip} className="catalog-admin-active-filter-chip">
@@ -356,15 +352,15 @@ const CatalogAdmin: React.FC = () => {
               </div>
               <div className="dashboard-quick-item">
                 <strong>Use imagem como critério de triagem</strong>
-                <span>O status de imagem ajuda a localizar itens prontos para exibicao ou pendentes de tratamento.</span>
+                <span>O status de imagem ajuda a localizar itens prontos para exibição ou pendentes de tratamento.</span>
               </div>
             </div>
           </section>
         </div>
 
-        {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+        {error ?<div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
 
-        {loading ? (
+        {loading ?(
           <div className="card">Carregando catálogo...</div>
         ) : (
           <section className="analytics-panel reveal">
@@ -375,7 +371,7 @@ const CatalogAdmin: React.FC = () => {
               </div>
             </div>
 
-            {rows.length === 0 ? (
+            {rows.length === 0 ?(
               <div className="panel-empty">Nenhum item para os filtros atuais.</div>
             ) : (
               <div className="catalog-admin-table-wrap">
@@ -394,7 +390,7 @@ const CatalogAdmin: React.FC = () => {
                       <tr key={row.enrichmentId}>
                         <td data-label="Produto">
                           <div className="catalog-admin-product-cell">
-                            {row.imageUrl ? (
+                            {row.imageUrl ?(
                               <img className="catalog-admin-thumb" src={row.imageUrl} alt={row.canonicalName} loading="lazy" />
                             ) : (
                               <div className="catalog-admin-thumb placeholder">Sem imagem</div>
@@ -432,7 +428,7 @@ const CatalogAdmin: React.FC = () => {
           </section>
         )}
 
-        {!loading && pageData ? (
+        {!loading && pageData ?(
           <div className="analytics-panel pager-panel reveal">
             <div>
               <span className="section-kicker">Paginação</span>
@@ -443,13 +439,13 @@ const CatalogAdmin: React.FC = () => {
                 Anterior
               </Button>
               <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={totalPages === 0 || page >= totalPages - 1}>
-                Proxima
+                Próxima
               </Button>
             </div>
           </div>
         ) : null}
 
-        {selectedProduct ? (
+        {selectedProduct ?(
           <div className="catalog-admin-modal-backdrop" role="presentation" onClick={closeProductModal}>
             <div
               className="catalog-admin-modal card"
@@ -470,7 +466,7 @@ const CatalogAdmin: React.FC = () => {
 
               <div className="catalog-admin-modal-body">
                 <div className="catalog-admin-modal-media">
-                  {selectedProduct.imageUrl ? (
+                  {selectedProduct.imageUrl ?(
                     <>
                       <button
                         type="button"
@@ -530,7 +526,7 @@ const CatalogAdmin: React.FC = () => {
             </div>
           </div>
         ) : null}
-        {lightboxImage ? (
+        {lightboxImage ?(
           <div className="catalog-admin-lightbox-backdrop" role="presentation" onClick={() => setLightboxImage(null)}>
             <div className="catalog-admin-lightbox-frame" onClick={(event) => event.stopPropagation()}>
               <button

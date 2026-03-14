@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
 import Button from '../common/Button';
+import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
+import WorkspaceTopbar from './WorkspaceTopbar';
+import { useLocation } from 'react-router-dom';
 import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
@@ -31,17 +33,17 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     [],
   );
 
-  const navSections = [
+  const navSections: WorkspaceNavSection[] = [
     {
       title: 'Controle',
-      links: [
-        { to: '/super-admin', label: 'Visão geral', hint: 'Saúde da plataforma', mark: 'VG' },
+      items: [
+        { to: '/super-admin', label: 'Visão geral', hint: 'Saúde da plataforma', mark: 'VG', exact: true },
         { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usuários e vencimentos', mark: 'CT' },
       ],
     },
     {
       title: 'Dados',
-      links: [
+      items: [
         { to: '/super-admin/catalogo', label: 'Catálogo global', hint: 'Base central de produtos', mark: 'CG' },
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', mark: 'CW' },
       ],
@@ -49,101 +51,52 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   ];
 
   return (
-    <div className="super-admin-shell workspace-shell super-admin-workspace-shell">
-      <button
-        type="button"
-        className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-        aria-label="Fechar menu lateral"
+    <div className="super-admin-shell workspace-shell min-h-screen bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] px-3 pb-3 pt-3 lg:grid lg:grid-cols-[var(--workspace-sidebar-width)_minmax(0,1fr)] lg:gap-4 lg:px-4 lg:pb-4">
+      <WorkspaceSidebar
+        mobileOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        brandMark="SA"
+        brandTitle="Super Admin"
+        brandSubtitle="Controle central da plataforma"
+        userKicker="Sessão ativa"
+        userName={name || 'Super Administrador'}
+        userEmail={email || 'Conta principal da plataforma'}
+        userChips={[
+          { label: 'Acesso total' },
+          { label: 'Conta principal', subtle: true },
+        ]}
+        sections={navSections}
+        supportKicker="Fluxo sugerido"
+        supportTitle="Revise contas, acompanhe o crawler e valide o catálogo"
+        supportText="Essa ordem reduz erro operacional e deixa a manutenção diária mais simples."
+        asideClassName="super-admin-sidebar"
+        footer={<Button variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 
-      <aside className={`super-admin-sidebar workspace-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
-        <div className="workspace-sidebar-frame">
-          <div className="workspace-sidebar-head">
-            <div className="super-admin-brand">
-              <span className="super-admin-badge">SA</span>
-              <div>
-                <h1>Super Admin</h1>
-                <p>Controle central da plataforma</p>
-              </div>
-            </div>
-            <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu">X</button>
-          </div>
+      <main className="super-admin-main workspace-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-4 lg:min-h-[calc(100dvh-32px)]">
+        <WorkspaceTopbar
+          className="super-admin-topbar"
+          section={header.section}
+          title={header.title}
+          subtitle={header.subtitle}
+          onToggleSidebar={() => setSidebarOpen((current) => !current)}
+          userName={name || 'Super Admin'}
+          userSubtitle="Controle da plataforma"
+          userInitial={(name || 'S').trim().charAt(0).toUpperCase()}
+          badges={
+            <>
+              <span className="workspace-pill inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
+                Super admin
+              </span>
+              <span className="workspace-pill subtle inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
+                Atualizado em {todayLabel}
+              </span>
+            </>
+          }
+          actionSlot={<Button variant="secondary" onClick={() => logout()}>Sair</Button>}
+        />
 
-          <div className="workspace-sidebar-body">
-            <div className="sidebar-user-card super-admin-user-card">
-              <span className="section-kicker">Sessão ativa</span>
-              <strong>{name || 'Super Admin'}</strong>
-              <span>{email || 'Conta principal da plataforma'}</span>
-              <div className="sidebar-user-meta">
-                <span className="sidebar-chip">Acesso total</span>
-                <span className="sidebar-chip subtle">Conta principal</span>
-              </div>
-            </div>
-
-            <div className="sidebar-sections">
-              {navSections.map((section) => (
-                <div key={section.title} className="sidebar-section">
-                  <span className="sidebar-section-title">{section.title}</span>
-                  <nav className="super-admin-nav">
-                    {section.links.map((link) => (
-                      <NavLink key={link.to} to={link.to} end={link.to === '/super-admin'} className="super-admin-link dashboard-nav-link" onClick={() => setSidebarOpen(false)}>
-                        <span className="nav-link-mark">{link.mark}</span>
-                        <span className="nav-link-copy">
-                          <strong className="nav-link-text">{link.label}</strong>
-                          <span className="nav-link-hint">{link.hint}</span>
-                        </span>
-                        <span className="nav-link-indicator">&gt;</span>
-                      </NavLink>
-                    ))}
-                  </nav>
-                </div>
-              ))}
-            </div>
-
-            <div className="sidebar-support-card super-admin-support-card">
-              <span className="section-kicker">Fluxo sugerido</span>
-              <strong>Revise contas, acompanhe o crawler e valide o catálogo</strong>
-              <p>Essa ordem reduz erro operacional e deixa a manutenção diária mais simples.</p>
-            </div>
-          </div>
-
-          <div className="workspace-sidebar-footer super-admin-footer">
-            <Button variant="secondary" onClick={() => logout()}>Sair</Button>
-          </div>
-        </div>
-      </aside>
-
-      <main className="super-admin-main workspace-main">
-        <header className="header super-admin-topbar">
-          <div className="dashboard-topbar-main">
-            <div className="dashboard-topbar-title-row">
-              <button type="button" className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-label="Abrir menu lateral">Menu</button>
-              <div className="header-copy">
-                <span className="header-breadcrumb">{header.section} / {header.title}</span>
-                <h2>{header.title}</h2>
-                <span className="header-subtitle">{header.subtitle}</span>
-              </div>
-            </div>
-            <div className="header-meta-row">
-              <span className="workspace-pill">Super admin</span>
-              <span className="workspace-pill subtle">Atualizado em {todayLabel}</span>
-            </div>
-          </div>
-
-          <div className="header-actions">
-            <div className="workspace-user-chip">
-              <span className="workspace-user-avatar">{(name || 'S').trim().charAt(0).toUpperCase()}</span>
-              <div>
-                <strong>{name || 'Super Admin'}</strong>
-                <span>Controle da plataforma</span>
-              </div>
-            </div>
-            <Button variant="secondary" onClick={() => logout()}>Sair</Button>
-          </div>
-        </header>
-
-        <div className="workspace-content super-admin-content">{children}</div>
+        <div className="workspace-content super-admin-content flex min-h-0 flex-1 flex-col gap-4">{children}</div>
       </main>
     </div>
   );

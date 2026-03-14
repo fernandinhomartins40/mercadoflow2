@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
+import PageHero from '../components/dashboard/PageHero';
 import PanelSection from '../components/dashboard/PanelSection';
 import { analyticsService } from '../services/analytics.service';
 import { marketService } from '../services/market.service';
@@ -83,23 +84,12 @@ const MarketBasket: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Compra casada</span>
-              <h1 className="dashboard-command-title">Use pares reais de carrinho para vender melhor.</h1>
-              <p className="dashboard-command-text">
-                Em vez de adivinhar combinacoes, a tela destaca os pares que sustentam exposicao,
-                combo e sugestao de venda com confianca e lift medidos.
-              </p>
-              <div className="hero-chip-row">
-                <span className="hero-chip">{rules.length} pares avaliados</span>
-                <span className="hero-chip">Confianca media {formatPercent(averageConfidence * 100)}</span>
-                <span className="hero-chip">{totalOccurrences} ocorrencias somadas</span>
-              </div>
-            </div>
-
-            <div className="dashboard-command-showcase">
+        <PageHero
+          badge="Compra casada"
+          title="Use pares reais de carrinho para vender melhor."
+          description="Em vez de adivinhar combinações, a tela destaca os pares que sustentam exposição, combo e sugestão de venda com confiança e lift medidos."
+          feature={
+            <>
               <article className="dashboard-glow-card">
                 <span className="section-kicker">Par com maior lift</span>
                 <strong>
@@ -109,41 +99,41 @@ const MarketBasket: React.FC = () => {
                 </strong>
                 <p>
                   {strongestRule
-                    ? `${strongestRule.pairCount} compras em conjunto e confianca de ${formatPercent(strongestRule.confidence * 100)}.`
-                    : 'Assim que a cesta ganhar densidade, o par campeao aparece aqui com contexto de uso.'}
+                    ? `${strongestRule.pairCount} compras em conjunto e confiança de ${formatPercent(strongestRule.confidence * 100)}.`
+                    : 'Assim que a cesta ganhar densidade, o par campeão aparece aqui com contexto de uso.'}
                 </p>
               </article>
-
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
                   <span>Lift</span>
                   <strong>{strongestRule ? strongestRule.lift.toFixed(2) : '0.00'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Confianca</span>
+                  <span>Confiança</span>
                   <strong>{strongestRule ? formatPercent(strongestRule.confidence * 100) : '0.0%'}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Acao sugerida</span>
+                  <span>Ação sugerida</span>
                   <strong>{strongestRule ? actionHint(strongestRule) : '--'}</strong>
                 </article>
               </div>
-            </div>
-          </article>
-
-          <aside className="dashboard-priority-rail">
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Fonte de leitura</span>
-              <h3>Escolha velocidade ou processamento vivo.</h3>
-              <p>Cache noturno para consulta rapida. Analise ao vivo quando precisar validar uma mudanca recente de comportamento.</p>
-            </article>
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Uso pratico</span>
-              <h3>Transforme par forte em exposicao e combo.</h3>
-              <p>Os primeiros pares servem melhor para caixa, gondola lateral, ponta e comunicacao de compra conjunta.</p>
-            </article>
-          </aside>
-        </section>
+            </>
+          }
+          aside={
+            <>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Fonte de leitura</span>
+                <h3>Escolha velocidade ou processamento ao vivo.</h3>
+                <p>Cache noturno para consulta rápida. Análise ao vivo quando precisar validar uma mudança recente de comportamento.</p>
+              </article>
+              <article className="dashboard-priority-card">
+                <span className="section-kicker">Uso prático</span>
+                <h3>Transforme par forte em exposição e combo.</h3>
+                <p>Os primeiros pares servem melhor para caixa, gôndola lateral, ponta e comunicação de compra conjunta.</p>
+              </article>
+            </>
+          }
+        />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           {metrics.map((metric) => (

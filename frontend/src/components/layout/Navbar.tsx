@@ -1,4 +1,6 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Button from '../common/Button';
+import WorkspaceTopbar from './WorkspaceTopbar';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -69,46 +71,39 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
   };
 
   return (
-    <header className="header dashboard-topbar">
-      <div className="dashboard-topbar-main">
-        <div className="dashboard-topbar-title-row">
-          <button type="button" className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Abrir menu lateral">Menu</button>
-          <div className="header-copy">
-            <span className="header-breadcrumb">{header.section} / {header.title}</span>
-            <h2>{header.title}</h2>
-            <span className="header-subtitle">{header.subtitle}</span>
-          </div>
-        </div>
-        <div className="header-meta-row">
-          <span className="workspace-pill">{role === 'ADMIN' ? 'Perfil admin' : 'Operação'}</span>
-          <span className="workspace-pill subtle">Atualizado em {todayLabel}</span>
-        </div>
-      </div>
-
-      <div className="header-actions">
-        <form className="header-search" onSubmit={handleProductSearch}>
+    <WorkspaceTopbar
+      section={header.section}
+      title={header.title}
+      subtitle={header.subtitle}
+      onToggleSidebar={onToggleSidebar}
+      userName={name || 'Usuário'}
+      userSubtitle={role === 'ADMIN' ? 'Administrador' : 'Operação'}
+      userInitial={(name || 'U').trim().charAt(0).toUpperCase()}
+      badges={
+        <>
+          <span className="workspace-pill inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
+            {role === 'ADMIN' ? 'Perfil admin' : 'Operação'}
+          </span>
+          <span className="workspace-pill subtle inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
+            Atualizado em {todayLabel}
+          </span>
+        </>
+      }
+      searchSlot={
+        <form className="header-search flex w-full items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
           <input
-            className="input header-search-input"
+            className="input header-search-input h-12 min-w-0 flex-1 rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:min-w-[320px]"
             placeholder="Buscar produto por nome ou GTIN"
             value={productQuery}
             onChange={(event) => setProductQuery(event.target.value)}
           />
-          <button className="button header-search-submit" type="submit">
+          <Button className="header-search-submit" type="submit">
             Buscar
-          </button>
+          </Button>
         </form>
-
-        <div className="workspace-user-chip">
-          <span className="workspace-user-avatar">{(name || 'U').trim().charAt(0).toUpperCase()}</span>
-          <div>
-            <strong>{name || 'Usuário'}</strong>
-            <span>{role === 'ADMIN' ? 'Administrador' : 'Operação'}</span>
-          </div>
-        </div>
-
-        <button className="button secondary" onClick={logout}>Sair</button>
-      </div>
-    </header>
+      }
+      actionSlot={<Button variant="secondary" onClick={logout}>Sair</Button>}
+    />
   );
 };
 

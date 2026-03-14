@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Button from '../components/common/Button';
+import PageHero from '../components/dashboard/PageHero';
 import Layout from '../components/layout/Layout';
 import OfferProductImage from '../components/offers/OfferProductImage';
 import { useAuth } from '../context/AuthContext';
@@ -39,19 +41,31 @@ const OfferJobs: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page offers-page">
-        <section className="dashboard-command-grid reveal">
-          <article className="dashboard-command-card">
-            <div className="dashboard-command-copy">
-              <span className="pill">Lotes de geração</span>
-              <h1 className="dashboard-command-title">Acompanhe o que já foi preparado para renderização e exportação.</h1>
-              <p className="dashboard-command-text">A fila já registra template, produtos e binding. O próximo passo é plugar o worker de export server-side.</p>
-            </div>
-            <div className="hero-inline-actions">
-              <button type="button" className="button" onClick={() => navigate('/app/ofertas/designer')}>Novo lote</button>
-              <button type="button" className="button secondary" onClick={() => navigate('/app/ofertas/modelos')}>Modelos</button>
-            </div>
-          </article>
-        </section>
+        <PageHero
+          badge="Lotes de geração"
+          title="Acompanhe o que já foi preparado para renderização e exportação."
+          description="A fila já registra template, produtos e binding. O próximo passo é plugar o worker de export server-side."
+          actions={
+            <>
+              <Button type="button" onClick={() => navigate('/app/ofertas/designer')}>Novo lote</Button>
+              <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/modelos')}>Modelos</Button>
+            </>
+          }
+          feature={
+            <article className="dashboard-glow-card">
+              <span className="section-kicker">Lote mais recente</span>
+              <strong>{jobs[0]?.name || "Nenhum lote criado"}</strong>
+              <p>{jobs[0] ? `${jobs[0].productCount} produtos em ${jobs[0].pageCount} páginas/peças.` : "Assim que o primeiro lote for criado, ele aparece aqui com o resumo principal."}</p>
+            </article>
+          }
+          aside={(
+            <article className="dashboard-priority-card">
+              <span className="section-kicker">Operação</span>
+              <h3>{jobs.length} lotes registrados.</h3>
+              <p>Use esta fila para validar se o template, os produtos e o formato de saída já estão prontos para a exportação.</p>
+            </article>
+          )}
+        />
 
         {loading ? <div className="sales-empty-card">Carregando lotes...</div> : null}
         {error ? <div className="sales-empty-card">{error}</div> : null}

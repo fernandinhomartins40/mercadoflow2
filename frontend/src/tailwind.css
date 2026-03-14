@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #fff7f0;
+  --color-brand-100: #ffe6d1;
+  --color-brand-200: #ffd0aa;
+  --color-brand-300: #ffb073;
+  --color-brand-400: #ff8a36;
+  --color-brand-500: #ff6a00;
+  --color-brand-600: #d95600;
+  --color-brand-700: #ad4300;
+  --color-ink-50: #f7f2ee;
+  --color-ink-100: #eadfd6;
+  --color-ink-700: #5f4636;
+  --color-ink-800: #3d2a20;
+  --color-ink-900: #1a1411;
+  --font-sans: "Segoe UI", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+}
