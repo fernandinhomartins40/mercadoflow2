@@ -77,7 +77,8 @@ const App: React.FC = () => {
         <Route path="/app/cesta" element={secure(<MarketBasket />)} />
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
-        <Route path="/app/ofertas" element={secure(<OffersDashboard />)} />
+        <Route path="/app/ofertas" element={secure(<OfferDesigner />)} />
+        <Route path="/app/ofertas/inicio" element={secure(<OffersDashboard />)} />
         <Route path="/app/ofertas/modelos" element={secure(<OfferTemplates />)} />
         <Route path="/app/ofertas/designer" element={secure(<OfferDesigner />)} />
         <Route path="/app/ofertas/jobs" element={secure(<OfferJobs />)} />

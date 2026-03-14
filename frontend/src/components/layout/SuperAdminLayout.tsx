@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../common/Button';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 import WorkspaceTopbar from './WorkspaceTopbar';
 import { useLocation } from 'react-router-dom';
 import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
+import { useDesktopSidebarMode } from '../../hooks/useDesktopSidebarMode';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
   '/super-admin': { title: 'Visão geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
@@ -16,10 +17,17 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const location = useLocation();
   const { logout, name, email } = useSuperAdminAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const desktopPinned = useDesktopSidebarMode();
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (desktopPinned) {
+      setSidebarOpen(false);
+    }
+  }, [desktopPinned]);
 
   const header = useMemo(() => TITLES[location.pathname] || TITLES['/super-admin'], [location.pathname]);
 
@@ -55,6 +63,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        desktopPinned={desktopPinned}
         brandMark="SA"
         brandTitle="Super Admin"
         brandSubtitle="Controle central da plataforma"
@@ -80,6 +89,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           title={header.title}
           subtitle={header.subtitle}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
+          showMenuToggle={!desktopPinned}
           userName={name || 'Super Admin'}
           userSubtitle="Controle da plataforma"
           userInitial={(name || 'S').trim().charAt(0).toUpperCase()}

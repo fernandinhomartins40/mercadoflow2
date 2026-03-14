@@ -1,13 +1,14 @@
-import React from 'react';
+﻿import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 
 interface SidebarProps {
   mobileOpen: boolean;
   onClose: () => void;
+  desktopPinned: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose, desktopPinned }) => {
   const { role, name, email } = useAuth();
   const isAdmin = role === 'ADMIN';
 
@@ -45,6 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
     <WorkspaceSidebar
       mobileOpen={mobileOpen}
       onClose={onClose}
+      desktopPinned={desktopPinned}
       brandMark="MF"
       brandTitle="MercadoFlow"
       brandSubtitle="Painel operacional para decisão no varejo"

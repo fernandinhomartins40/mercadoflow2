@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { cn } from '../../lib/cn';
 
 interface WorkspaceTopbarProps {
@@ -12,6 +12,7 @@ interface WorkspaceTopbarProps {
   userSubtitle: string;
   userInitial: string;
   onToggleSidebar: () => void;
+  showMenuToggle?: boolean;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   userSubtitle,
   userInitial,
   onToggleSidebar,
+  showMenuToggle = true,
   className,
 }) => {
   return (
@@ -37,14 +39,16 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
     >
       <div className="dashboard-topbar-main flex min-w-0 flex-1 flex-col gap-4">
         <div className="dashboard-topbar-title-row flex items-start gap-4">
-          <button
-            type="button"
-            className="sidebar-toggle inline-flex h-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] lg:hidden"
-            onClick={onToggleSidebar}
-            aria-label="Abrir menu lateral"
-          >
-            Menu
-          </button>
+          {showMenuToggle ? (
+            <button
+              type="button"
+              className="sidebar-toggle inline-flex h-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)]"
+              onClick={onToggleSidebar}
+              aria-label="Abrir menu lateral"
+            >
+              Menu
+            </button>
+          ) : null}
           <div className="header-copy min-w-0">
             <span className="header-breadcrumb block text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
               {section} / {title}

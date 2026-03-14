@@ -6,6 +6,8 @@ interface OfferCanvasPreviewProps {
   template?: OfferTemplate | null;
   products?: OfferCatalogProduct[];
   className?: string;
+  gridLimit?: number;
+  footerText?: string | null;
 }
 
 interface CanvasSlot {
@@ -63,7 +65,13 @@ const getBindingValue = (binding: string | undefined, product: OfferCatalogProdu
   }
 };
 
-const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({ template, products = [], className }) => {
+const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
+  template,
+  products = [],
+  className,
+  gridLimit,
+  footerText,
+}) => {
   const parsedTemplate = useMemo(() => parseTemplate(template), [template]);
   const leadProduct = products[0];
   const backgroundStyle = parsedTemplate.background?.type === 'gradient'
@@ -72,6 +80,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({ template, produ
 
   const ratio = `${template?.canvasWidth || 1080} / ${template?.canvasHeight || 1350}`;
   const hasGrid = parsedTemplate.slots.some((slot: CanvasSlot) => slot.type === 'product-grid');
+  const visibleGridItems = Math.max(1, gridLimit || 6);
 
   return (
     <div className={`offer-canvas-preview ${className || ''}`} style={{ aspectRatio: ratio, ...backgroundStyle }}>
@@ -82,7 +91,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({ template, produ
             <h3>{parsedTemplate?.static?.headline || 'Selecione produtos para montar a página.'}</h3>
           </div>
           <div className="offer-canvas-grid-products">
-            {(products.length ? products : Array.from({ length: 6 })).slice(0, 6).map((product: any, index: number) => (
+            {(products.length ? products : Array.from({ length: visibleGridItems })).slice(0, visibleGridItems).map((product: any, index: number) => (
               <article key={product?.productId || index} className="offer-mini-product-card">
                 <div className="offer-mini-product-frame">
                   <OfferProductImage src={product?.imageUrl} alt={product?.name || 'Produto'} className="offer-mini-product-image" />
@@ -153,6 +162,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({ template, produ
           );
         })
       )}
+      {footerText ? <div className="offer-canvas-footer-bar">{footerText}</div> : null}
     </div>
   );
 };

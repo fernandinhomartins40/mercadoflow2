@@ -39,7 +39,7 @@ const ProductShowcaseCard: React.FC<ProductShowcaseCardProps> = ({
   return (
     <article
       className={cn(
-        'sales-product-card product-showcase-card overflow-hidden rounded-[22px] border border-[rgba(48,24,12,0.08)] bg-[rgba(255,252,249,0.96)] shadow-[0_16px_36px_rgba(36,18,8,0.07)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(36,18,8,0.12)]',
+        'sales-product-card product-showcase-card flex h-full flex-col overflow-hidden rounded-[22px] border border-[rgba(48,24,12,0.08)] bg-[rgba(255,252,249,0.96)] shadow-[0_16px_36px_rgba(36,18,8,0.07)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(36,18,8,0.12)]',
         className,
       )}
     >
@@ -51,11 +51,13 @@ const ProductShowcaseCard: React.FC<ProductShowcaseCardProps> = ({
         </div>
 
         <div className="sales-product-body flex flex-1 flex-col gap-3 p-[14px]">
-          {badges ? <div className="sales-product-badges flex flex-wrap gap-2">{badges}</div> : null}
-          <h3 className="m-0 line-clamp-2 text-base font-semibold leading-[1.15] text-[color:var(--text-primary)]">{title}</h3>
-          {subtitle ? <p className="m-0 line-clamp-2 text-[0.86rem] leading-[1.35] text-[color:var(--text-muted)]">{subtitle}</p> : null}
+          {badges ? <div className="sales-product-badges flex min-h-7 flex-wrap items-center gap-2">{badges}</div> : null}
+          <div className="sales-product-copy flex min-h-[5.1rem] flex-col gap-2">
+            <h3 className="m-0 line-clamp-2 min-h-[2.3rem] text-base font-semibold leading-[1.15] text-[color:var(--text-primary)]">{title}</h3>
+            {subtitle ? <p className="m-0 line-clamp-2 min-h-[2.35rem] text-[0.86rem] leading-[1.35] text-[color:var(--text-muted)]">{subtitle}</p> : <div className="min-h-[2.35rem]" />}
+          </div>
           {metrics.length > 0 ? (
-            <div className="sales-product-stats compact grid grid-cols-2 gap-[10px]">
+            <div className="sales-product-stats compact mt-auto grid grid-cols-2 gap-[10px]">
               {metrics.map((metric) => (
                 <div key={metric.label} className="border-t border-[rgba(48,24,12,0.08)] pt-[9px]">
                   <span className="block text-[0.74rem] leading-[1.2] text-[color:var(--text-muted)]">{metric.label}</span>
@@ -68,7 +70,7 @@ const ProductShowcaseCard: React.FC<ProductShowcaseCardProps> = ({
         </div>
       </Wrapper>
 
-      {actions ? <div className="sales-card-action-row flex items-stretch justify-end px-[1.1rem] pb-[1.1rem]">{actions}</div> : null}
+      {actions ? <div className="sales-card-action-row mt-auto flex items-stretch justify-end px-[1.1rem] pb-[1.1rem]">{actions}</div> : null}
     </article>
   );
 };

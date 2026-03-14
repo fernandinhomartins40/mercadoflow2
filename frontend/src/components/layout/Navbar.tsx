@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../common/Button';
 import WorkspaceTopbar from './WorkspaceTopbar';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -8,6 +8,11 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/app': { title: 'Painel geral', subtitle: 'Resumo diário das vendas, giro e prioridades da operação', section: 'Visão do negócio' },
   '/app/produtos': { title: 'Produtos', subtitle: 'Consulta de itens, performance e comportamento por produto', section: 'Visão do negócio' },
   '/app/lista-compras': { title: 'Lista de compras', subtitle: 'Compra orientada por giro, sazonalidade e reposição', section: 'Análise e operação' },
+  '/app/ofertas': { title: 'Designer de ofertas', subtitle: 'Monte encartes e peças com automação visual nativa', section: 'Análise e operação' },
+  '/app/ofertas/inicio': { title: 'Central de ofertas', subtitle: 'Visão geral do módulo com modelos, fila e sugestões de campanha', section: 'Análise e operação' },
+  '/app/ofertas/designer': { title: 'Designer de ofertas', subtitle: 'Monte encartes e peças com automação visual nativa', section: 'Análise e operação' },
+  '/app/ofertas/modelos': { title: 'Modelos de ofertas', subtitle: 'Biblioteca de layouts e templates automatizados', section: 'Análise e operação' },
+  '/app/ofertas/jobs': { title: 'Lotes de ofertas', subtitle: 'Fila de geração, exportação e acompanhamento', section: 'Análise e operação' },
   '/app/cesta': { title: 'Compra casada', subtitle: 'Itens que se fortalecem juntos no caixa e na exposição', section: 'Análise e operação' },
   '/app/previsao-demanda': { title: 'Previsão', subtitle: 'Demanda futura para orientar compra e abastecimento', section: 'Análise e operação' },
   '/app/campanhas': { title: 'Campanhas', subtitle: 'Acompanhamento de impacto promocional com base real', section: 'Análise e operação' },
@@ -20,13 +25,15 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
 
 interface NavbarProps {
   onToggleSidebar: () => void;
+  desktopPinned: boolean;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
+const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
   const { logout, role, name } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [productQuery, setProductQuery] = useState('');
+  const isOffersRoute = location.pathname.startsWith('/app/ofertas');
 
   useEffect(() => {
     if (location.pathname === '/app/produtos') {
@@ -76,6 +83,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
       title={header.title}
       subtitle={header.subtitle}
       onToggleSidebar={onToggleSidebar}
+      showMenuToggle={!desktopPinned}
       userName={name || 'Usuário'}
       userSubtitle={role === 'ADMIN' ? 'Administrador' : 'Operação'}
       userInitial={(name || 'U').trim().charAt(0).toUpperCase()}
@@ -90,17 +98,19 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
         </>
       }
       searchSlot={
-        <form className="header-search flex w-full items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
-          <input
-            className="input header-search-input h-12 min-w-0 flex-1 rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:min-w-[320px]"
-            placeholder="Buscar produto por nome ou GTIN"
-            value={productQuery}
-            onChange={(event) => setProductQuery(event.target.value)}
-          />
-          <Button className="header-search-submit" type="submit">
-            Buscar
-          </Button>
-        </form>
+        isOffersRoute ? null : (
+          <form className="header-search flex w-full items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
+            <input
+              className="input header-search-input h-12 min-w-0 flex-1 rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:min-w-[320px]"
+              placeholder="Buscar produto por nome ou GTIN"
+              value={productQuery}
+              onChange={(event) => setProductQuery(event.target.value)}
+            />
+            <Button className="header-search-submit" type="submit">
+              Buscar
+            </Button>
+          </form>
+        )
       }
       actionSlot={<Button variant="secondary" onClick={logout}>Sair</Button>}
     />
