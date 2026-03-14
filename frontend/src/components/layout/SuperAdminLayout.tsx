@@ -58,55 +58,59 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       />
 
       <aside className={`super-admin-sidebar workspace-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
-        <div className="workspace-sidebar-head">
-          <div className="super-admin-brand">
-            <span className="super-admin-badge">SA</span>
-            <div>
-              <h1>Super Admin</h1>
-              <p>Controle central da plataforma</p>
+        <div className="workspace-sidebar-frame">
+          <div className="workspace-sidebar-head">
+            <div className="super-admin-brand">
+              <span className="super-admin-badge">SA</span>
+              <div>
+                <h1>Super Admin</h1>
+                <p>Controle central da plataforma</p>
+              </div>
+            </div>
+            <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu">X</button>
+          </div>
+
+          <div className="workspace-sidebar-body">
+            <div className="sidebar-user-card super-admin-user-card">
+              <span className="section-kicker">Sessão ativa</span>
+              <strong>{name || 'Super Admin'}</strong>
+              <span>{email || 'Conta principal da plataforma'}</span>
+              <div className="sidebar-user-meta">
+                <span className="sidebar-chip">Acesso total</span>
+                <span className="sidebar-chip subtle">Conta principal</span>
+              </div>
+            </div>
+
+            <div className="sidebar-sections">
+              {navSections.map((section) => (
+                <div key={section.title} className="sidebar-section">
+                  <span className="sidebar-section-title">{section.title}</span>
+                  <nav className="super-admin-nav">
+                    {section.links.map((link) => (
+                      <NavLink key={link.to} to={link.to} end={link.to === '/super-admin'} className="super-admin-link dashboard-nav-link" onClick={() => setSidebarOpen(false)}>
+                        <span className="nav-link-mark">{link.mark}</span>
+                        <span className="nav-link-copy">
+                          <strong className="nav-link-text">{link.label}</strong>
+                          <span className="nav-link-hint">{link.hint}</span>
+                        </span>
+                        <span className="nav-link-indicator">&gt;</span>
+                      </NavLink>
+                    ))}
+                  </nav>
+                </div>
+              ))}
+            </div>
+
+            <div className="sidebar-support-card super-admin-support-card">
+              <span className="section-kicker">Fluxo sugerido</span>
+              <strong>Revise contas, acompanhe o crawler e valide o catálogo</strong>
+              <p>Essa ordem reduz erro operacional e deixa a manutenção diária mais simples.</p>
             </div>
           </div>
-          <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu">X</button>
-        </div>
 
-        <div className="sidebar-user-card super-admin-user-card">
-          <span className="section-kicker">Sessão ativa</span>
-          <strong>{name || 'Super Admin'}</strong>
-          <span>{email || 'Conta principal da plataforma'}</span>
-          <div className="sidebar-user-meta">
-            <span className="sidebar-chip">Acesso total</span>
-            <span className="sidebar-chip subtle">Conta principal</span>
+          <div className="workspace-sidebar-footer super-admin-footer">
+            <Button variant="secondary" onClick={() => logout()}>Sair</Button>
           </div>
-        </div>
-
-        <div className="sidebar-sections">
-          {navSections.map((section) => (
-            <div key={section.title} className="sidebar-section">
-              <span className="sidebar-section-title">{section.title}</span>
-              <nav className="super-admin-nav">
-                {section.links.map((link) => (
-                  <NavLink key={link.to} to={link.to} end={link.to === '/super-admin'} className="super-admin-link dashboard-nav-link" onClick={() => setSidebarOpen(false)}>
-                    <span className="nav-link-mark">{link.mark}</span>
-                    <span className="nav-link-copy">
-                      <strong className="nav-link-text">{link.label}</strong>
-                      <span className="nav-link-hint">{link.hint}</span>
-                    </span>
-                    <span className="nav-link-indicator">&gt;</span>
-                  </NavLink>
-                ))}
-              </nav>
-            </div>
-          ))}
-        </div>
-
-        <div className="sidebar-support-card super-admin-support-card">
-          <span className="section-kicker">Fluxo sugerido</span>
-          <strong>Revise contas, acompanhe o crawler e valide o catálogo</strong>
-          <p>Essa ordem reduz erro operacional e deixa a manutenção diária mais simples.</p>
-        </div>
-
-        <div className="super-admin-footer">
-          <Button variant="secondary" onClick={() => logout()}>Sair</Button>
         </div>
       </aside>
 

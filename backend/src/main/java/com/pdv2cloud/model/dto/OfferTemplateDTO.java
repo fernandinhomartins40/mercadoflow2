@@ -1,4 +1,4 @@
-﻿package com.pdv2cloud.model.dto;
+package com.pdv2cloud.model.dto;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-﻿package com.pdv2cloud.model.dto;
+package com.pdv2cloud.model.dto;
 
 import java.util.List;
 import java.util.UUID;

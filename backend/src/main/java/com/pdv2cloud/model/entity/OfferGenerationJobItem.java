@@ -1,4 +1,4 @@
-﻿package com.pdv2cloud.model.entity;
+package com.pdv2cloud.model.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

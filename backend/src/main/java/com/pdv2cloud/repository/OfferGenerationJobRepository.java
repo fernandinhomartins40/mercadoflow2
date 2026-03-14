@@ -1,4 +1,4 @@
-﻿package com.pdv2cloud.repository;
+package com.pdv2cloud.repository;
 
 import com.pdv2cloud.model.entity.OfferGenerationJob;
 import java.util.List;

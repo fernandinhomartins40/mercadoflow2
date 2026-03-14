@@ -1,4 +1,4 @@
-﻿create table if not exists offer_templates (
+create table if not exists offer_templates (
     id uuid primary key,
     market_id uuid not null references markets(id) on delete cascade,
     template_key varchar(120),

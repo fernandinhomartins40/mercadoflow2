@@ -1,4 +1,4 @@
-﻿package com.pdv2cloud.controller;
+package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.OfferCatalogProductDTO;
 import com.pdv2cloud.model.dto.OfferGenerationJobCreateRequest;
