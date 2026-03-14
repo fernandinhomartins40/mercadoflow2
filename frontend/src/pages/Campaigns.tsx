@@ -1,6 +1,8 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
+import MetricsCard from '../components/dashboard/MetricsCard';
+import PanelSection from '../components/dashboard/PanelSection';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import { CampaignImpact } from '../types/analytics.types';
@@ -32,6 +34,12 @@ const Campaigns: React.FC = () => {
 
   const bestImpact = useMemo(() => [...impacts].sort((a, b) => Number(b.revenueLiftPercent || 0) - Number(a.revenueLiftPercent || 0))[0], [impacts]);
   const activeWindows = useMemo(() => items.filter((item) => item.startDate && item.endDate).length, [items]);
+  const metrics = [
+    { title: 'Campanhas', value: items.length, icon: 'CP', caption: 'cadastros ativos no histórico' },
+    { title: 'Com comparação', value: impacts.length, icon: 'CM', variant: 'warning' as const, caption: 'janelas com leitura de impacto' },
+    { title: 'Melhor lift', value: bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%', icon: 'LF', variant: 'danger' as const, caption: 'maior ganho medido de receita' },
+    { title: 'Janelas definidas', value: activeWindows, icon: 'JN', caption: 'campanhas com início e fim informados' },
+  ];
 
   const load = async () => {
     if (!marketId) return;
@@ -137,37 +145,25 @@ const Campaigns: React.FC = () => {
         </section>
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <div className="metric-card metric-card-default reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Campanhas</span><span className="metric-card-icon">CP</span></div>
-            <strong className="metric-card-value">{items.length}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">cadastros ativos no histórico</span></div>
-          </div>
-          <div className="metric-card metric-card-warning reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Com comparação</span><span className="metric-card-icon">CM</span></div>
-            <strong className="metric-card-value">{impacts.length}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">janelas com leitura de impacto</span></div>
-          </div>
-          <div className="metric-card metric-card-danger reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Melhor lift</span><span className="metric-card-icon">LF</span></div>
-            <strong className="metric-card-value">{bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">maior ganho medido de receita</span></div>
-          </div>
-          <div className="metric-card metric-card-default reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Janelas definidas</span><span className="metric-card-icon">JN</span></div>
-            <strong className="metric-card-value">{activeWindows}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">campanhas com inicio e fim informados</span></div>
-          </div>
+          {metrics.map((metric) => (
+            <MetricsCard
+              key={metric.title}
+              title={metric.title}
+              value={metric.value}
+              icon={metric.icon}
+              variant={metric.variant}
+              caption={metric.caption}
+            />
+          ))}
         </section>
 
         <div className="dashboard-page-grid">
-          <section className="analytics-panel reveal dashboard-form-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Nova campanha</span>
-                <h3>Registrar uma nova janela de ação</h3>
-              </div>
-              <Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>
-            </div>
+          <PanelSection
+            className="dashboard-form-panel"
+            kicker="Nova campanha"
+            title="Registrar uma nova janela de ação"
+            action={<Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>}
+          >
             <div className="form-grid-analytics">
               <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
               <input className="input" placeholder="Inicio (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -177,12 +173,10 @@ const Campaigns: React.FC = () => {
             <div className="panel-actions">
               <Button onClick={create}>Criar campanha</Button>
             </div>
-          </section>
+          </PanelSection>
 
           <div className="dashboard-side-stack">
-            <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Mapa de cadastro</span>
-              <h3>Campanhas existentes</h3>
+            <PanelSection className="dashboard-note-card" kicker="Mapa de cadastro" title="Campanhas existentes">
               {items.length === 0 ? (
                 <div className="panel-empty">Nenhuma campanha cadastrada.</div>
               ) : (
@@ -201,7 +195,7 @@ const Campaigns: React.FC = () => {
                   ))}
                 </div>
               )}
-            </section>
+            </PanelSection>
           </div>
         </div>
 

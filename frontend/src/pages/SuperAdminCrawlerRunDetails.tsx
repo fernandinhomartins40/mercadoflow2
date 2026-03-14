@@ -1,7 +1,9 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
+import MetricsCard from '../components/dashboard/MetricsCard';
+import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 
 interface CrawlerRun {
@@ -47,7 +49,7 @@ const formatStatus = (value?: string | null) => {
   const status = (value || '').toUpperCase();
   if (status === 'RUNNING') return 'Executando';
   if (status === 'QUEUED') return 'Na fila';
-  if (status === 'SUCCESS') return 'Concluído';
+  if (status === 'SUCCESS') return 'Concluido';
   if (status === 'FAILED') return 'Falhou';
   if (status === 'CANCELLED') return 'Cancelado';
   return status || '--';
@@ -87,7 +89,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
       setDetails(response.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar os detalhes da execução');
+      setError(err?.message || 'Falha ao carregar os detalhes da execucao');
     } finally {
       setLoading(false);
     }
@@ -115,6 +117,35 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
     return offset + limit < Number(details.recordsTotal || 0);
   }, [details, offset]);
 
+  const metrics = details
+    ? [
+        { title: 'Captados', value: Number(details.run.scannedProducts || 0), icon: 'CP', caption: 'produtos analisados' },
+        {
+          title: 'Importados',
+          value: Number(details.run.importedProducts || 0),
+          icon: 'IM',
+          variant: 'warning' as const,
+          caption: 'itens enviados ao catalogo global',
+        },
+        {
+          title: 'Erros',
+          value: Number(details.run.errors || 0),
+          icon: 'ER',
+          variant: 'danger' as const,
+          caption: 'falhas registradas na rodada',
+        },
+        {
+          title: 'Escopo',
+          value:
+            details.run.selectedCategories && details.run.selectedCategories.length > 0
+              ? details.run.selectedCategories.length
+              : 'Completo',
+          icon: 'SC',
+          caption: 'categorias selecionadas ou varredura completa',
+        },
+      ]
+    : [];
+
   return (
     <SuperAdminLayout>
       <div className="super-admin-page">
@@ -122,14 +153,16 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
           <article className="dashboard-command-card">
             <div className="dashboard-command-copy">
               <span className="pill">Detalhes da coleta</span>
-              <h1 className="dashboard-command-title">Detalhes da execução.</h1>
+              <h1 className="dashboard-command-title">Detalhes da execucao.</h1>
               <p className="dashboard-command-text">
-                Esta página concentra status, escopo, artefatos, amostra de produtos e logs de uma única rodada.
+                Esta pagina concentra status, escopo, artefatos, amostra de produtos e logs de uma unica rodada.
               </p>
               <div className="hero-chip-row">
-                <span className={`hero-chip status-${runStatusClass(details?.run?.status)}`}>{details?.run ? formatStatus(details.run.status) : 'Carregando'}</span>
+                <span className={`hero-chip status-${runStatusClass(details?.run?.status)}`}>
+                  {details?.run ? formatStatus(details.run.status) : 'Carregando'}
+                </span>
                 <span className="hero-chip">Run {runId}</span>
-                <span className="hero-chip">{details?.active ? 'Atualização automática ativa' : 'Rodada finalizada'}</span>
+                <span className="hero-chip">{details?.active ? 'Atualizacao automatica ativa' : 'Rodada finalizada'}</span>
               </div>
             </div>
 
@@ -140,7 +173,9 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                 <p>{details?.run?.message || 'Sem mensagem registrada.'}</p>
                 <div className="hero-inline-actions">
                   <Link to="/super-admin/crawler" className="button secondary">Voltar ao crawler</Link>
-                  <Button variant="secondary" onClick={() => load(offset)} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>
+                  <Button variant="secondary" onClick={() => load(offset)} disabled={loading}>
+                    {loading ? 'Atualizando...' : 'Atualizar'}
+                  </Button>
                 </div>
               </article>
 
@@ -164,17 +199,21 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
           <aside className="dashboard-priority-rail">
             <article className="dashboard-priority-card">
               <span className="section-kicker">Escopo da rodada</span>
-              <h3>{details?.run?.selectedCategories && details.run.selectedCategories.length > 0 ? 'Execução filtrada por categoria' : 'Catálogo completo'}</h3>
+              <h3>
+                {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
+                  ? 'Execucao filtrada por categoria'
+                  : 'Catalogo completo'}
+              </h3>
               <p>
                 {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
                   ? details.run.selectedCategories.join(', ')
-                  : 'A rodada varreu todo o catálogo configurado para o mercado selecionado.'}
+                  : 'A rodada varreu todo o catalogo configurado para o mercado selecionado.'}
               </p>
             </article>
             <article className="dashboard-priority-card">
               <span className="section-kicker">Arquivos da rodada</span>
-              <h3>Logs e artefatos ficam disponíveis aqui.</h3>
-              <p>Use esta tela para validar o que foi captado, o que entrou no catálogo e se houve erro em página, imagem ou importação.</p>
+              <h3>Logs e artefatos ficam disponiveis aqui.</h3>
+              <p>Use esta tela para validar o que foi captado, o que entrou no catalogo e se houve erro em pagina, imagem ou importacao.</p>
             </article>
           </aside>
         </section>
@@ -185,32 +224,20 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
         {details ? (
           <>
             <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-              <div className="metric-card metric-card-default reveal">
-                <div className="metric-card-top"><span className="metric-card-title">Captados</span><span className="metric-card-icon">CP</span></div>
-                <strong className="metric-card-value">{Number(details.run.scannedProducts || 0)}</strong>
-                <div className="metric-card-bottom"><span className="metric-card-meta">produtos analisados</span></div>
-              </div>
-              <div className="metric-card metric-card-warning reveal">
-                <div className="metric-card-top"><span className="metric-card-title">Importados</span><span className="metric-card-icon">IM</span></div>
-                <strong className="metric-card-value">{Number(details.run.importedProducts || 0)}</strong>
-                <div className="metric-card-bottom"><span className="metric-card-meta">itens enviados ao catálogo global</span></div>
-              </div>
-              <div className="metric-card metric-card-danger reveal">
-                <div className="metric-card-top"><span className="metric-card-title">Erros</span><span className="metric-card-icon">ER</span></div>
-                <strong className="metric-card-value">{Number(details.run.errors || 0)}</strong>
-                <div className="metric-card-bottom"><span className="metric-card-meta">falhas registradas na rodada</span></div>
-              </div>
-              <div className="metric-card metric-card-default reveal">
-                <div className="metric-card-top"><span className="metric-card-title">Escopo</span><span className="metric-card-icon">SC</span></div>
-                <strong className="metric-card-value">{details.run.selectedCategories && details.run.selectedCategories.length > 0 ? details.run.selectedCategories.length : 'Completo'}</strong>
-                <div className="metric-card-bottom"><span className="metric-card-meta">categorias selecionadas ou varredura completa</span></div>
-              </div>
+              {metrics.map((metric) => (
+                <MetricsCard
+                  key={metric.title}
+                  title={metric.title}
+                  value={metric.value}
+                  icon={metric.icon}
+                  variant={metric.variant}
+                  caption={metric.caption}
+                />
+              ))}
             </section>
 
             <div className="dashboard-page-grid">
-              <section className="analytics-panel reveal dashboard-note-card">
-                <span className="section-kicker">Metadados da rodada</span>
-                <h3>Contexto principal da execução</h3>
+              <PanelSection className="dashboard-note-card" kicker="Metadados da rodada" title="Contexto principal da execucao">
                 <div className="dashboard-stat-list">
                   <div className="dashboard-stat-row">
                     <span>Solicitado</span>
@@ -229,11 +256,9 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     <strong>{(details.run.sources || []).join(', ') || '--'}</strong>
                   </div>
                 </div>
-              </section>
+              </PanelSection>
 
-              <section className="analytics-panel reveal dashboard-note-card">
-                <span className="section-kicker">Artefatos</span>
-                <h3>Arquivos salvos para auditoria</h3>
+              <PanelSection className="dashboard-note-card" kicker="Artefatos" title="Arquivos salvos para auditoria">
                 <div className="dashboard-quick-list">
                   <div className="dashboard-quick-item">
                     <strong>Log</strong>
@@ -244,41 +269,45 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     <span>{details.resultPath || '--'}</span>
                   </div>
                 </div>
-              </section>
+              </PanelSection>
             </div>
 
-            <section className="crawler-run-manifest-grid">
-              {details.manifests.map((manifest, index) => (
-                <article className="card crawler-run-detail-card" key={`${manifest.provider || 'provider'}-${index}`}>
-                  <span className="section-kicker">{detailValue(manifest.provider)}</span>
-                  <h3>{detailValue(manifest.source)}</h3>
-                  <div className="crawler-run-detail-meta">
-                    <span><strong>Total:</strong> {detailValue(manifest.count)}</span>
-                    <span><strong>Capturados:</strong> {detailValue(manifest.capturedProducts)}</span>
-                    <span><strong>Imagens:</strong> {detailValue(manifest.imagesSaved)}</span>
-                    <span><strong>Páginas:</strong> {detailValue(manifest.pagesFetched)}</span>
-                    <span><strong>Únicos:</strong> {detailValue(manifest.productsUnique)}</span>
-                  </div>
-                  <p><strong>Manifesto:</strong> {detailValue(manifest.outputManifest)}</p>
-                  <p><strong>Registros:</strong> {detailValue(manifest.recordsFile)}</p>
-                </article>
-              ))}
-            </section>
-
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head">
-                <div>
-                  <span className="section-kicker">Produtos</span>
-                  <h3>Itens captados nesta execução</h3>
-                </div>
-                <div className="crawler-run-pagination">
-                  <span>{Math.min(offset + 1, Number(details.recordsTotal || 0))}-{Math.min(offset + limit, Number(details.recordsTotal || 0))} de {Number(details.recordsTotal || 0)}</span>
-                  <Button variant="secondary" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={!canGoPrev || loading}>Anterior</Button>
-                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Próximos</Button>
-                </div>
+            <PanelSection className="reveal" kicker="Manifestos" title="Arquivos gerados por mercado">
+              <div className="crawler-run-manifest-grid">
+                {details.manifests.map((manifest, index) => (
+                  <article className="card crawler-run-detail-card" key={`${manifest.provider || 'provider'}-${index}`}>
+                    <span className="section-kicker">{detailValue(manifest.provider)}</span>
+                    <h3>{detailValue(manifest.source)}</h3>
+                    <div className="crawler-run-detail-meta">
+                      <span><strong>Total:</strong> {detailValue(manifest.count)}</span>
+                      <span><strong>Capturados:</strong> {detailValue(manifest.capturedProducts)}</span>
+                      <span><strong>Imagens:</strong> {detailValue(manifest.imagesSaved)}</span>
+                      <span><strong>Paginas:</strong> {detailValue(manifest.pagesFetched)}</span>
+                      <span><strong>Unicos:</strong> {detailValue(manifest.productsUnique)}</span>
+                    </div>
+                    <p><strong>Manifesto:</strong> {detailValue(manifest.outputManifest)}</p>
+                    <p><strong>Registros:</strong> {detailValue(manifest.recordsFile)}</p>
+                  </article>
+                ))}
               </div>
+            </PanelSection>
+
+            <PanelSection
+              kicker="Produtos"
+              title="Itens captados nesta execucao"
+              action={
+                <div className="crawler-run-pagination">
+                  <span>
+                    {Math.min(offset + 1, Number(details.recordsTotal || 0))}-
+                    {Math.min(offset + limit, Number(details.recordsTotal || 0))} de {Number(details.recordsTotal || 0)}
+                  </span>
+                  <Button variant="secondary" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={!canGoPrev || loading}>Anterior</Button>
+                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Proximos</Button>
+                </div>
+              }
+            >
               {details.records.length === 0 ? (
-                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execução.</div>
+                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execucao.</div>
               ) : (
                 <div className="catalog-admin-table-wrap">
                   <table className="table catalog-admin-table">
@@ -316,21 +345,15 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                   </table>
                 </div>
               )}
-            </section>
+            </PanelSection>
 
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head">
-                <div>
-                  <span className="section-kicker">Logs</span>
-                  <h3>Saída do dispatcher</h3>
-                </div>
-              </div>
+            <PanelSection kicker="Logs" title="Saida do dispatcher">
               <div className="crawler-run-log-meta">
                 <span><strong>Log:</strong> {details.logPath || '--'}</span>
                 <span><strong>Resultado:</strong> {details.resultPath || '--'}</span>
               </div>
-              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execução.'}</pre>
-            </section>
+              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execucao.'}</pre>
+            </PanelSection>
           </>
         ) : null}
       </div>

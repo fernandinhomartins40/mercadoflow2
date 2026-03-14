@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
 import Button from '../components/common/Button';
 import ShoppingListButton from '../components/common/ShoppingListButton';
+import MetricsCard from '../components/dashboard/MetricsCard';
+import PanelSection from '../components/dashboard/PanelSection';
 import { ProductPerformance } from '../types/analytics.types';
 
 const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
@@ -34,6 +36,12 @@ const Products: React.FC = () => {
   const highlightProduct = searchLead || leadProduct;
   const avgVelocity = products.length ? products.reduce((sum, product) => sum + Number(product.salesVelocity || 0), 0) / products.length : 0;
   const avgPromoShare = products.length ? products.reduce((sum, product) => sum + Number(product.promoRevenueShare || 0), 0) / products.length : 0;
+  const metrics = [
+    { title: 'Produtos no recorte', value: totalElements, icon: 'PD', caption: 'universo conhecido desta consulta' },
+    { title: 'Giro médio', value: `${avgVelocity.toFixed(2)}/dia`, icon: 'GR', variant: 'warning' as const, caption: 'velocidade média da página' },
+    { title: 'Share promo', value: formatPercent(avgPromoShare * 100), icon: 'SP', variant: 'danger' as const, caption: 'participação média de promoção' },
+    { title: 'Ordenação ativa', value: sortBy, icon: 'OR', caption: 'critério que domina o ranking' },
+  ];
 
   useEffect(() => {
     setSearchInput(querySearch);
@@ -182,36 +190,20 @@ const Products: React.FC = () => {
         </section>
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <div className="metric-card metric-card-default reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Produtos no recorte</span><span className="metric-card-icon">PD</span></div>
-            <strong className="metric-card-value">{totalElements}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">universo conhecido desta consulta</span></div>
-          </div>
-          <div className="metric-card metric-card-warning reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Giro médio</span><span className="metric-card-icon">GR</span></div>
-            <strong className="metric-card-value">{avgVelocity.toFixed(2)}/dia</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">velocidade média da página</span></div>
-          </div>
-          <div className="metric-card metric-card-danger reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Share promo</span><span className="metric-card-icon">SP</span></div>
-            <strong className="metric-card-value">{formatPercent(avgPromoShare * 100)}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">participação média de promo</span></div>
-          </div>
-          <div className="metric-card metric-card-default reveal">
-            <div className="metric-card-top"><span className="metric-card-title">Ordenação ativa</span><span className="metric-card-icon">OR</span></div>
-            <strong className="metric-card-value">{sortBy}</strong>
-            <div className="metric-card-bottom"><span className="metric-card-meta">critério que domina o ranking</span></div>
-          </div>
+          {metrics.map((metric) => (
+            <MetricsCard
+              key={metric.title}
+              title={metric.title}
+              value={metric.value}
+              icon={metric.icon}
+              variant={metric.variant}
+              caption={metric.caption}
+            />
+          ))}
         </section>
 
         <div className="dashboard-page-grid">
-          <section className="analytics-panel reveal dashboard-form-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Filtro analítico</span>
-                <h3>Procure o item e reorganize o ranking</h3>
-              </div>
-            </div>
+          <PanelSection className="dashboard-form-panel" kicker="Filtro analítico" title="Procure o item e reorganize o ranking">
             <div className="dashboard-form-stack">
               <form className="product-search-form" onSubmit={handleSearchSubmit}>
                 <input
@@ -264,12 +256,10 @@ const Products: React.FC = () => {
                 <option value="NAME">Ordenar por nome</option>
               </select>
             </div>
-          </section>
+          </PanelSection>
 
           <aside className="dashboard-side-stack">
-            <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Como ler esta tela</span>
-              <h3>Escolha o critério antes de comparar produtos.</h3>
+            <PanelSection className="dashboard-note-card" kicker="Como ler esta tela" title="Escolha o critério antes de comparar produtos.">
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">
                   <strong>Receita</strong>
@@ -284,7 +274,7 @@ const Products: React.FC = () => {
                   <span>Aponta quando a venda do item depende demais de desconto.</span>
                 </div>
               </div>
-            </section>
+            </PanelSection>
           </aside>
         </div>
 
