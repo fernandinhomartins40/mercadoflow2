@@ -61,14 +61,14 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   return (
     <div
       className={desktopPinned
-        ? 'workspace-root super-admin-workspace grid min-h-screen grid-cols-[286px_minmax(0,1fr)] items-start gap-6 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-6'
-        : 'workspace-root super-admin-workspace flex min-h-screen flex-col gap-6 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4 sm:p-5'}
+        ? 'workspace-root super-admin-workspace grid min-h-screen grid-cols-[304px_minmax(0,1fr)] items-start gap-7 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-7'
+        : 'workspace-root super-admin-workspace flex min-h-screen flex-col gap-5 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4 sm:p-5'}
     >
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         desktopPinned={desktopPinned}
-        desktopWidthClassName="w-[286px]"
+        desktopWidthClassName="w-[304px]"
         brandMark="SA"
         brandTitle="Super Admin"
         brandSubtitle="Controle central da plataforma"
@@ -86,7 +86,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         footer={<Button className="w-full" variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 
-      <main className="workspace-shell-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-6 overflow-x-hidden md:min-h-[calc(100dvh-48px)]">
+      <main className="workspace-shell-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-5 overflow-x-hidden md:min-h-[calc(100dvh-56px)]">
         <WorkspaceTopbar
           section={header.section}
           title={header.title}
@@ -110,7 +110,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           actionSlot={<Button className="min-w-[104px]" variant="secondary" onClick={() => logout()}>Sair</Button>}
         />
 
-        <div className="workspace-shell-content flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden">{children}</div>
+        <div className="workspace-shell-content workspace-stage flex min-h-0 flex-1 flex-col gap-5 overflow-x-hidden">{children}</div>
       </main>
     </div>
   );

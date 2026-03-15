@@ -48,16 +48,14 @@ const SuperAdminDashboard: React.FC = () => {
 
   return (
     <SuperAdminLayout>
-      <div className="super-admin-page super-admin-home-page">
-        {error ? <div className="sales-empty-card">{error}</div> : null}
+      <div className="page super-admin-page super-admin-home-page">
+        {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}
 
         {loading ? (
-          <div className="sales-empty-card">Carregando indicadores...</div>
+          <PanelSection reveal={false}>Carregando indicadores...</PanelSection>
         ) : (
           <>
             <PageHero
-              className="super-admin-command-grid"
-              articleClassName="super-admin-command-card"
               badge="Controle da operação"
               title="Contas, acesso e catálogo em uma leitura rápida."
               description="Aqui ficam os números que exigem decisão: contas ativas, vencimentos próximos, bloqueios e volume do catálogo."
@@ -70,7 +68,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </>
               }
               feature={
-                <>
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="dashboard-glow-card">
                     <span className="section-kicker">Contas em operação</span>
                     <h3>{overview?.activeMarkets ?? 0} mercados ativos</h3>
@@ -90,11 +88,11 @@ const SuperAdminDashboard: React.FC = () => {
                       <small>{overview?.totalCatalogEnrichments ?? 0} registros complementares</small>
                     </div>
                   </div>
-                </>
+                </div>
               }
               aside={
-                <>
-                  <div className="dashboard-priority-card dark">
+                <div className="page-side-stack">
+                  <div className="dashboard-priority-card dark min-h-[148px]">
                     <span className="section-kicker">Ação imediata</span>
                     <strong>{overview?.expiringMarkets ?? 0} contas vencendo</strong>
                     <p>Priorize renovação manual e revisão de acesso nas contas mais próximas do vencimento.</p>
@@ -103,12 +101,12 @@ const SuperAdminDashboard: React.FC = () => {
                     </ButtonLink>
                   </div>
 
-                  <div className="dashboard-priority-card">
+                  <div className="dashboard-priority-card min-h-[148px]">
                     <span className="section-kicker">Usuários bloqueados</span>
                     <strong>{overview?.blockedUsers ?? 0}</strong>
                     <p>{overview?.orphanUsers ?? 0} usuários seguem sem conta vinculada e precisam de ajuste.</p>
                   </div>
-                </>
+                </div>
               }
             />
 
@@ -119,7 +117,7 @@ const SuperAdminDashboard: React.FC = () => {
               <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" />
             </div>
 
-            <section className="dashboard-page-grid reveal">
+            <section className="page-slab-grid reveal">
               <PanelSection
                 className="dashboard-note-card"
                 kicker="Contas e acesso"

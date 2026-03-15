@@ -150,9 +150,8 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
 
   return (
     <SuperAdminLayout>
-      <div className="super-admin-page">
+      <div className="page super-admin-page">
         <PageHero
-          className="super-admin-command-grid"
           badge="Detalhes da coleta"
           title="Detalhes da execução."
           description="Esta página concentra status, escopo, artefatos, amostra de produtos e logs de uma única rodada."

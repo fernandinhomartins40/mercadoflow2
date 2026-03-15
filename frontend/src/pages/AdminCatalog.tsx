@@ -3,6 +3,7 @@ import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
+import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -272,14 +273,8 @@ const CatalogAdmin: React.FC = () => {
           <MetricsCard title="Marcas na página" value={brandCount} icon="BR" caption="variedade no recorte" />
         </div>
 
-        <div className="dashboard-page-grid">
-          <section className="analytics-panel reveal dashboard-form-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Filtros</span>
-                <h3>Refinar por informações do produto</h3>
-              </div>
-            </div>
+        <div className="page-slab-grid">
+          <PanelSection className="dashboard-form-panel" kicker="Filtros" title="Refinar por informa??es do produto">
             <div className="filter-bar-controls catalog-admin-filters-grid">
               <input
                 className="input"
@@ -336,15 +331,9 @@ const CatalogAdmin: React.FC = () => {
                 ))}
               </div>
             ) : null}
-          </section>
+          </PanelSection>
 
-          <section className="analytics-panel reveal dashboard-note-card">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Leitura rápida</span>
-                <h3>Como usar este catálogo</h3>
-              </div>
-            </div>
+          <PanelSection className="dashboard-note-card" kicker="Leitura r?pida" title="Como usar este cat?logo">
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>Busque por nome ou GTIN</strong>
@@ -355,21 +344,15 @@ const CatalogAdmin: React.FC = () => {
                 <span>O status de imagem ajuda a localizar itens prontos para exibição ou pendentes de tratamento.</span>
               </div>
             </div>
-          </section>
+          </PanelSection>
         </div>
 
-        {error ?<div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+        {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}
 
         {loading ?(
           <div className="card">Carregando catálogo...</div>
         ) : (
-          <section className="analytics-panel reveal">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Resultados</span>
-                <h3>Produtos enriquecidos</h3>
-              </div>
-            </div>
+          <PanelSection kicker="Resultados" title="Produtos enriquecidos">
 
             {rows.length === 0 ?(
               <div className="panel-empty">Nenhum item para os filtros atuais.</div>
@@ -425,15 +408,11 @@ const CatalogAdmin: React.FC = () => {
                 </table>
               </div>
             )}
-          </section>
+          </PanelSection>
         )}
 
         {!loading && pageData ?(
-          <div className="analytics-panel pager-panel reveal">
-            <div>
-              <span className="section-kicker">Paginação</span>
-              <h3>Página {pageData.number + 1} de {Math.max(totalPages, 1)}</h3>
-            </div>
+          <PanelSection className="pager-panel" kicker="Pagina??o" title={`P?gina ${pageData.number + 1} de ${Math.max(totalPages, 1)}`}>
             <div className="pager-actions admin-pager-actions">
               <Button variant="secondary" onClick={() => setPage((value) => Math.max(0, value - 1))} disabled={page <= 0}>
                 Anterior
@@ -442,7 +421,7 @@ const CatalogAdmin: React.FC = () => {
                 Próxima
               </Button>
             </div>
-          </div>
+          </PanelSection>
         ) : null}
 
         {selectedProduct ?(

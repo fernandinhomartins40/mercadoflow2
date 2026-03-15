@@ -72,8 +72,8 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         className={cn(
           'flex min-w-0 flex-col overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,#2b1a12_0%,#1b1411_100%)] text-white shadow-[0_28px_80px_rgba(10,6,4,0.34)] transition duration-300',
           desktopPinned
-            ? cn('sticky top-6 z-10 h-[calc(100dvh-48px)] shrink-0 translate-x-0 opacity-100', desktopWidthClassName || 'w-[292px]')
-            : 'fixed inset-y-4 left-4 z-50 w-[min(320px,calc(100vw-32px))] max-w-[calc(100vw-32px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
+            ? cn('sticky top-7 z-10 h-[calc(100dvh-56px)] shrink-0 translate-x-0 opacity-100', desktopWidthClassName || 'w-[304px]')
+            : 'fixed inset-y-4 left-4 z-50 w-[min(332px,calc(100vw-32px))] max-w-[calc(100vw-32px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
         )}
       >
         <div className={cn('flex h-full min-h-0 flex-col', compactDrawer ? 'gap-3' : 'gap-4')}>

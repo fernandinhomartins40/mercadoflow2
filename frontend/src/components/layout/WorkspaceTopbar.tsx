@@ -73,7 +73,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
       className={cn(
         compactMode
           ? 'rounded-[26px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] p-4 shadow-[0_20px_50px_rgba(44,20,6,0.08)] sm:p-5'
-          : 'grid gap-5 rounded-[28px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] p-5 shadow-[0_20px_50px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,auto)] xl:items-start',
+          : 'grid gap-4 rounded-[28px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] px-6 py-5 shadow-[0_20px_50px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,auto)] xl:items-center',
         className,
       )}
     >
@@ -83,6 +83,14 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 {menuButton}
+                <div className="min-w-0">
+                  <span className="block text-[0.74rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
+                    {section}
+                  </span>
+                  <strong className="mt-1 block truncate text-[1.05rem] font-semibold tracking-[-0.03em] text-[color:var(--text-primary)]">
+                    {title}
+                  </strong>
+                </div>
               </div>
               <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-3">
                 {userCard}
@@ -90,11 +98,8 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
               </div>
             </div>
 
-            <div className="min-w-0">
-              <span className="block text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
-                {section}
-              </span>
-              <h2 className="mt-2 max-w-4xl text-[clamp(1.85rem,4vw,2.75rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-[color:var(--text-primary)]">
+            <div className="min-w-0 pt-1">
+              <h2 className="max-w-4xl text-[clamp(1.95rem,4.2vw,2.85rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-[color:var(--text-primary)]">
                 {title}
               </h2>
               <span className="mt-3 block max-w-3xl text-[0.95rem] leading-6 text-[color:var(--text-muted)]">
@@ -110,15 +115,15 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
       ) : (
         <>
           <div className="flex min-w-0 flex-col gap-4">
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-4">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-3">
               <div className="min-w-0">
                 <span className="block text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
                   {section}
                 </span>
-                <h2 className="mt-2 max-w-4xl text-[clamp(2rem,4vw,3.35rem)] font-semibold leading-[0.92] tracking-[-0.06em] text-[color:var(--text-primary)]">
+                <h2 className="mt-2 max-w-4xl text-[clamp(2rem,4vw,3.05rem)] font-semibold leading-[0.94] tracking-[-0.05em] text-[color:var(--text-primary)]">
                   {title}
                 </h2>
-                <span className="mt-3 block max-w-3xl text-[0.98rem] leading-7 text-[color:var(--text-muted)]">
+                <span className="mt-2.5 block max-w-3xl text-[0.98rem] leading-7 text-[color:var(--text-muted)]">
                   {subtitle}
                 </span>
               </div>
@@ -127,7 +132,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
             {badges ? <div className="flex flex-wrap gap-3">{badges}</div> : null}
           </div>
 
-          <div className="flex min-w-0 flex-col gap-4 xl:min-w-[280px] xl:items-end">
+          <div className="flex min-w-0 flex-col gap-3 xl:min-w-[280px] xl:items-end">
             {searchSlot ? <div className="w-full xl:max-w-[420px]">{searchSlot}</div> : null}
             {userCard}
             {actionSlot ? <div className="flex w-full flex-wrap gap-3 xl:justify-end">{actionSlot}</div> : null}

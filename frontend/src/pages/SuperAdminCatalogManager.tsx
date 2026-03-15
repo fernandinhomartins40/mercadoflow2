@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import PageHero from '../components/dashboard/PageHero';
+import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 
 interface CatalogRow {
@@ -420,10 +421,8 @@ const SuperAdminCatalogManager: React.FC = () => {
 
   return (
     <SuperAdminLayout>
-      <div className="super-admin-page catalog-admin-page super-admin-catalog-page">
+      <div className="page super-admin-page catalog-admin-page super-admin-catalog-page">
         <PageHero
-          className="super-admin-command-grid"
-          articleClassName="super-admin-command-card"
           badge="Catálogo global"
           title="Ajuste manual da base sem sair da listagem."
           description="Use esta tela para localizar o item certo, revisar os dados e abrir o modal de edição quando precisar."

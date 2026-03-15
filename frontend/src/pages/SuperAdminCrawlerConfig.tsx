@@ -4,6 +4,7 @@ import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
+import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 
 interface CrawlerRun {
@@ -282,10 +283,8 @@ const SuperAdminCrawlerConfig: React.FC = () => {
 
   return (
     <SuperAdminLayout>
-      <div className="super-admin-page super-admin-crawler-page">
+      <div className="page super-admin-page super-admin-crawler-page">
         <PageHero
-          className="super-admin-command-grid"
-          articleClassName="super-admin-command-card"
           badge="Crawler"
           title="Coleta manual por mercado."
           description="Aqui você acompanha o estado atual, o último resultado e dispara uma nova coleta quando precisar."
@@ -307,18 +306,16 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           }
         />
 
-        {error ?<div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
-        {success ?<div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
+        {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}
+        {success ? <PanelSection reveal={false} className="text-[color:var(--success)]">{success}</PanelSection> : null}
 
-        <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Mercados suportados" value={jobs.length} icon="MK" />
           <MetricsCard title="Em execução" value={activeJobs || monitor.runningRuns || 0} icon="RUN" />
           <MetricsCard title="Importados recentes" value={totalImportedRecent} icon="IMP" />
-        </section>
-        <div className="dashboard-page-grid">
-          <section className="analytics-panel reveal dashboard-note-card">
-            <span className="section-kicker">Fluxo</span>
-            <h3>Executar, revisar e seguir</h3>
+        </div>
+        <div className="page-slab-grid">
+          <PanelSection className="dashboard-note-card" kicker="Fluxo" title="Executar, revisar e seguir">
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>1. Escolha um mercado</strong>
@@ -329,11 +326,11 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                 <span>Confira importados, erros e detalhes antes de partir para o próximo mercado.</span>
               </div>
             </div>
-          </section>
+          </PanelSection>
         </div>
 
         {loading ?(
-          <div className="card">Carregando painel...</div>
+          <PanelSection reveal={false}>Carregando painel...</PanelSection>
         ) : (
           <>
             <section className="super-admin-crawler-job-grid">
@@ -392,13 +389,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               ))}
             </section>
 
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head">
-                <div>
-                  <span className="section-kicker">Histórico</span>
-                  <h3>Últimas execuções</h3>
-                </div>
-              </div>
+            <PanelSection kicker="Hist?rico" title="?ltimas execu??es">
               {monitor.recentRuns.length === 0 ?(
                 <div className="panel-empty">Nenhuma execução registrada até agora.</div>
               ) : (
@@ -460,7 +451,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                   </table>
                 </div>
               )}
-            </section>
+            </PanelSection>
           </>
         )}
 

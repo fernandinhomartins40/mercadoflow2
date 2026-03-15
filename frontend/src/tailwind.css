@@ -78,6 +78,10 @@
     @apply relative w-full;
   }
 
+  .workspace-stage {
+    @apply mx-auto w-full max-w-[1640px];
+  }
+
   .workspace-shell-main,
   .workspace-shell-content {
     @apply w-full min-w-0;
@@ -208,7 +212,15 @@
     @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
   }
 
+  .page-slab-grid {
+    @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
+  }
+
   .dashboard-inline-grid {
+    @apply grid gap-6 lg:grid-cols-2;
+  }
+
+  .page-card-grid {
     @apply grid gap-6 lg:grid-cols-2;
   }
 
@@ -216,9 +228,21 @@
     @apply flex flex-col gap-6;
   }
 
+  .page-side-stack {
+    @apply flex flex-col gap-6;
+  }
+
   .dashboard-form-stack,
   .form-grid-analytics {
     @apply grid gap-4;
+  }
+
+  .page-data-grid {
+    @apply grid gap-4 md:grid-cols-2 xl:grid-cols-5;
+  }
+
+  .page-toolbar-row {
+    @apply flex flex-wrap items-center justify-between gap-4;
   }
 
   .analytics-panel {
