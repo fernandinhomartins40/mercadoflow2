@@ -113,7 +113,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
           </form>
         )
       }
-      actionSlot={<Button variant="secondary" onClick={logout}>Sair</Button>}
+      actionSlot={<Button className="min-w-[104px]" variant="secondary" onClick={logout}>Sair</Button>}
     />
   );
 };

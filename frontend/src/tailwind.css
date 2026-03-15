@@ -74,12 +74,25 @@
 }
 
 @layer components {
+  .workspace-root {
+    @apply relative w-full;
+  }
+
+  .workspace-shell-main,
+  .workspace-shell-content {
+    @apply w-full min-w-0;
+  }
+
+  .workspace-shell-content > * {
+    @apply min-w-0;
+  }
+
   .page,
   .analytics-page,
   .super-admin-page,
   .offers-page,
   .sales-dashboard-page {
-    @apply flex min-w-0 flex-col gap-6 xl:gap-8;
+    @apply flex min-w-0 flex-col gap-7 xl:gap-8;
   }
 
   .metrics-grid,
@@ -91,7 +104,7 @@
   .dashboard-command-grid,
   .super-admin-command-grid,
   .sales-dashboard-hero-grid {
-    @apply grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)];
+    @apply grid items-start gap-7 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)];
   }
 
   .dashboard-command-card,
@@ -129,11 +142,11 @@
 
   .hero-inline-actions,
   .sales-dashboard-actions {
-    @apply flex flex-wrap gap-3;
+    @apply flex flex-wrap items-center gap-3;
   }
 
   .dashboard-page-grid {
-    @apply grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] xl:items-start;
+    @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
   }
 
   .dashboard-inline-grid {
@@ -150,14 +163,14 @@
   }
 
   .analytics-panel {
-    @apply rounded-[28px] p-5 sm:p-6;
+    @apply rounded-[28px] p-6 sm:p-7;
     border: 1px solid var(--border-soft);
     background: var(--surface-base);
     box-shadow: 0 20px 50px rgba(44, 20, 6, 0.08);
   }
 
   .analytics-panel-head {
-    @apply mb-4 flex flex-wrap items-start justify-between gap-4;
+    @apply mb-5 flex flex-wrap items-start justify-between gap-4;
   }
 
   .analytics-panel-head.compact {
@@ -310,15 +323,59 @@
   }
 
   .card-section-actions {
-    @apply flex flex-wrap gap-3;
+    @apply flex flex-wrap items-center gap-3;
   }
 
   .filter-bar-controls {
-    @apply grid gap-3 md:grid-cols-2 xl:grid-cols-4;
+    @apply grid gap-3;
   }
 
   .catalog-admin-filter-actions {
     @apply flex flex-wrap gap-3 md:col-span-2 xl:col-span-4;
+  }
+
+  .catalog-admin-page {
+    @apply flex min-w-0 flex-col gap-7;
+  }
+
+  .catalog-admin-overview-grid {
+    @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
+  }
+
+  .catalog-admin-search-row {
+    @apply grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center;
+  }
+
+  .catalog-admin-search-row .button,
+  .catalog-admin-search-row button {
+    @apply w-full md:w-auto md:min-w-[144px];
+  }
+
+  .catalog-admin-feedback-stack {
+    @apply mt-4 grid gap-3;
+  }
+
+  .catalog-admin-feedback {
+    @apply rounded-[18px] border px-4 py-3 text-sm font-medium leading-6;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .catalog-admin-feedback.success {
+    border-color: rgba(14, 159, 110, 0.2);
+    color: var(--success);
+  }
+
+  .catalog-admin-feedback.error {
+    border-color: rgba(217, 72, 36, 0.2);
+    color: var(--danger);
+  }
+
+  .catalog-admin-list-panel {
+    @apply flex min-w-0 flex-col gap-5;
+  }
+
+  .catalog-admin-pager {
+    @apply flex flex-wrap items-center justify-end gap-3;
   }
 
   .input {
@@ -377,12 +434,41 @@
     color: var(--text-muted);
   }
 
+  .card {
+    @apply rounded-[18px] border px-4 py-3 text-sm leading-6;
+    border-color: rgba(87, 51, 30, 0.12);
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--text-primary);
+  }
+
   .table-action-cell {
     @apply text-right;
   }
 
+  .pager-actions,
+  .admin-pager-actions {
+    @apply mt-4 flex flex-wrap items-center justify-end gap-3;
+  }
+
   .catalog-admin-row-actions {
     @apply flex flex-wrap justify-end gap-2;
+  }
+
+  .super-admin-catalog-page .dashboard-command-card {
+    @apply gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.82fr)];
+  }
+
+  .super-admin-catalog-page .dashboard-priority-rail {
+    @apply gap-4;
+  }
+
+  .super-admin-catalog-page .dashboard-form-panel .filter-bar-controls {
+    @apply md:grid-cols-[minmax(0,1fr)_auto] md:items-center;
+  }
+
+  .super-admin-catalog-page .dashboard-form-panel .filter-bar-controls .button,
+  .super-admin-catalog-page .dashboard-form-panel .filter-bar-controls button {
+    @apply w-full md:w-auto md:min-w-[144px];
   }
 
   .panel-empty,
