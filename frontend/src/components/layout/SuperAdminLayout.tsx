@@ -59,11 +59,16 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   ];
 
   return (
-    <div className="super-admin-shell workspace-shell min-h-screen bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] px-3 pb-3 pt-3 lg:grid lg:grid-cols-[var(--workspace-sidebar-width)_minmax(0,1fr)] lg:gap-4 lg:px-4 lg:pb-4">
+    <div
+      className={desktopPinned
+        ? 'workspace-root super-admin-workspace min-h-screen bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4 grid grid-cols-[286px_minmax(0,1fr)] gap-4 items-start'
+        : 'workspace-root super-admin-workspace min-h-screen bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-3 flex flex-col gap-4'}
+    >
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         desktopPinned={desktopPinned}
+        desktopWidthClassName="w-[286px]"
         brandMark="SA"
         brandTitle="Super Admin"
         brandSubtitle="Controle central da plataforma"
@@ -78,13 +83,11 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         supportKicker="Fluxo sugerido"
         supportTitle="Revise contas, acompanhe o crawler e valide o catálogo"
         supportText="Essa ordem reduz erro operacional e deixa a manutenção diária mais simples."
-        asideClassName="super-admin-sidebar"
         footer={<Button variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 
-      <main className="super-admin-main workspace-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-4 lg:min-h-[calc(100dvh-32px)]">
+      <main className="workspace-shell-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-4 md:min-h-[calc(100dvh-32px)]">
         <WorkspaceTopbar
-          className="super-admin-topbar"
           section={header.section}
           title={header.title}
           subtitle={header.subtitle}
@@ -106,7 +109,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           actionSlot={<Button variant="secondary" onClick={() => logout()}>Sair</Button>}
         />
 
-        <div className="workspace-content super-admin-content flex min-h-0 flex-1 flex-col gap-4">{children}</div>
+        <div className="workspace-shell-content flex min-h-0 flex-1 flex-col gap-4">{children}</div>
       </main>
     </div>
   );

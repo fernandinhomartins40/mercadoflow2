@@ -31,10 +31,7 @@ interface WorkspaceSidebarProps {
   supportTitle?: string;
   supportText?: string;
   footer?: React.ReactNode;
-  asideClassName?: string;
-  brandMarkClassName?: string;
-  supportClassName?: string;
-  navClassName?: string;
+  desktopWidthClassName?: string;
 }
 
 const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
@@ -53,10 +50,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   supportTitle,
   supportText,
   footer,
-  asideClassName,
-  brandMarkClassName,
-  supportClassName,
-  navClassName,
+  desktopWidthClassName,
 }) => {
   return (
     <>
@@ -64,7 +58,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         <button
           type="button"
           className={cn(
-            'sidebar-backdrop fixed inset-0 z-40 bg-[rgba(15,10,8,0.45)] transition duration-200',
+            'workspace-drawer-backdrop fixed inset-0 z-40 bg-[rgba(15,10,8,0.45)] transition duration-200',
             mobileOpen ? 'visible opacity-100' : 'pointer-events-none opacity-0',
           )}
           onClick={onClose}
@@ -74,25 +68,16 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
       <aside
         className={cn(
-          'workspace-sidebar sidebar flex flex-col overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,#2b1a12_0%,#1b1411_100%)] text-white shadow-[0_28px_80px_rgba(10,6,4,0.34)] transition duration-300',
+          'workspace-shell-sidebar flex flex-col overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,#2b1a12_0%,#1b1411_100%)] text-white shadow-[0_28px_80px_rgba(10,6,4,0.34)] transition duration-300',
           desktopPinned
-            ? 'sticky top-4 z-10 h-[calc(100dvh-32px)] w-[var(--workspace-sidebar-width)] translate-x-0 opacity-100'
-            : cn(
-                'fixed inset-y-3 left-3 z-50 w-[min(320px,calc(100vw-24px))]',
-                mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0',
-              ),
-          asideClassName,
+            ? cn('sticky top-4 z-10 h-[calc(100dvh-32px)] shrink-0 translate-x-0 opacity-100', desktopWidthClassName || 'w-[292px]')
+            : 'fixed inset-y-3 left-3 z-50 w-[min(320px,calc(100vw-24px))] max-w-[calc(100vw-24px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
         )}
       >
-        <div className="workspace-sidebar-frame flex h-full flex-col">
-          <div className="workspace-sidebar-head flex items-start justify-between gap-4 px-5 pb-4 pt-5">
-            <div className="sidebar-brand flex items-center gap-3">
-              <div
-                className={cn(
-                  'sidebar-brand-mark inline-flex h-13 w-13 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#ff8b37_0%,#ff6a00_100%)] text-lg font-semibold tracking-[-0.03em] text-white shadow-[0_14px_28px_rgba(255,106,0,0.25)]',
-                  brandMarkClassName,
-                )}
-              >
+        <div className="flex h-full min-h-0 flex-col gap-4">
+          <div className="flex items-start justify-between gap-4 px-5 pb-1 pt-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="inline-flex h-13 w-13 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#ff8b37_0%,#ff6a00_100%)] text-lg font-semibold tracking-[-0.03em] text-white shadow-[0_14px_28px_rgba(255,106,0,0.25)]">
                 {brandMark}
               </div>
               <div className="min-w-0">
@@ -100,29 +85,30 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 <p className="mt-1 text-sm leading-5 text-[rgba(255,235,220,0.72)]">{brandSubtitle}</p>
               </div>
             </div>
+
             {!desktopPinned ? (
               <button
                 type="button"
-                className="sidebar-close inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.06)] text-sm font-semibold text-white transition hover:bg-[rgba(255,255,255,0.12)]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.06)] text-base font-semibold text-white transition hover:bg-[rgba(255,255,255,0.12)]"
                 onClick={onClose}
                 aria-label="Fechar menu"
               >
-                X
+                ×
               </button>
             ) : null}
           </div>
 
-          <div className="workspace-sidebar-body flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
-            <div className="sidebar-user-card rounded-[24px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <span className="section-kicker text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.78)]">{userKicker}</span>
-              <strong className="mt-3 block text-lg font-semibold tracking-[-0.03em] text-white">{userName}</strong>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+            <div className="rounded-[24px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <span className="text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.78)]">{userKicker}</span>
+              <strong className="mt-3 block text-[1.02rem] font-semibold tracking-[-0.03em] text-white">{userName}</strong>
               <span className="mt-1 block text-sm text-[rgba(255,235,220,0.72)]">{userEmail}</span>
-              <div className="sidebar-user-meta mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 {userChips.map((chip) => (
                   <span
                     key={chip.label}
                     className={cn(
-                      'sidebar-chip inline-flex min-h-8 items-center justify-center rounded-full px-3 text-xs font-semibold',
+                      'inline-flex min-h-8 items-center justify-center rounded-full px-3 text-xs font-semibold',
                       chip.subtle
                         ? 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,235,220,0.78)]'
                         : 'bg-[rgba(255,138,54,0.18)] text-[rgba(255,225,205,0.96)]',
@@ -134,13 +120,13 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               </div>
             </div>
 
-            <div className="sidebar-sections flex flex-col gap-5">
+            <div className="grid gap-4">
               {sections.map((section) => (
-                <div key={section.title} className="sidebar-section flex flex-col gap-3">
-                  <span className="sidebar-section-title px-1 text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.72)]">
+                <section key={section.title} className="grid gap-2">
+                  <span className="px-1 text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.72)]">
                     {section.title}
                   </span>
-                  <nav className={cn('sidebar-nav flex flex-col gap-2', navClassName)}>
+                  <nav className="grid gap-2">
                     {section.items.map((item) => (
                       <NavLink
                         key={item.to}
@@ -149,45 +135,38 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                         onClick={onClose}
                         className={({ isActive }) =>
                           cn(
-                            'dashboard-nav-link group flex items-center gap-3 rounded-[22px] border px-3 py-3 transition',
+                            'group grid min-h-[54px] grid-cols-[40px_minmax(0,1fr)_16px] items-center gap-3 rounded-[20px] border px-3 py-3 transition',
                             isActive
                               ? 'border-[rgba(255,138,54,0.32)] bg-[linear-gradient(180deg,rgba(138,73,22,0.95)_0%,rgba(101,51,14,0.92)_100%)] shadow-[0_16px_32px_rgba(0,0,0,0.18)]'
                               : 'border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] hover:border-[rgba(255,138,54,0.14)] hover:bg-[rgba(255,255,255,0.06)]',
                           )
                         }
                       >
-                        <span className="nav-link-mark inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.08)] text-xs font-bold tracking-[0.08em] text-[rgba(255,230,214,0.92)]">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.08)] text-xs font-bold tracking-[0.08em] text-[rgba(255,230,214,0.92)]">
                           {item.mark}
                         </span>
-                        <span className="nav-link-copy min-w-0 flex-1">
-                          <strong className="nav-link-text block truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-white">
+                        <span className="min-w-0">
+                          <strong className="block truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-white">
                             {item.label}
                           </strong>
                           {desktopPinned ? (
-                            <span className="nav-link-hint mt-0.5 block text-[0.82rem] leading-5 text-[rgba(255,235,220,0.68)]">
+                            <span className="mt-0.5 block text-[0.8rem] leading-5 text-[rgba(255,235,220,0.68)]">
                               {item.hint}
                             </span>
                           ) : null}
                         </span>
-                        <span className="nav-link-indicator text-sm font-semibold text-[rgba(255,225,205,0.88)] transition group-hover:translate-x-0.5">
-                          &gt;
-                        </span>
+                        <span className="text-sm font-semibold text-[rgba(255,225,205,0.88)] transition group-hover:translate-x-0.5">›</span>
                       </NavLink>
                     ))}
                   </nav>
-                </div>
+                </section>
               ))}
             </div>
 
             {supportTitle && desktopPinned ? (
-              <div
-                className={cn(
-                  'sidebar-support-card rounded-[24px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4',
-                  supportClassName,
-                )}
-              >
+              <div className="mt-auto rounded-[24px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4">
                 {supportKicker ? (
-                  <span className="section-kicker text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.72)]">
+                  <span className="text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.72)]">
                     {supportKicker}
                   </span>
                 ) : null}
@@ -197,7 +176,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          {footer ? <div className="workspace-sidebar-footer px-4 pb-4 pt-2">{footer}</div> : null}
+          {footer ? <div className="px-4 pb-4 pt-1">{footer}</div> : null}
         </div>
       </aside>
     </>
