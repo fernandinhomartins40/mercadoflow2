@@ -84,6 +84,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
       subtitle={header.subtitle}
       onToggleSidebar={onToggleSidebar}
       showMenuToggle={!desktopPinned}
+      desktopPinned={desktopPinned}
       userName={name || 'Usuário'}
       userSubtitle={role === 'ADMIN' ? 'Administrador' : 'Operação'}
       userInitial={(name || 'U').trim().charAt(0).toUpperCase()}

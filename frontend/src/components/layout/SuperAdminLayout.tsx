@@ -93,6 +93,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           subtitle={header.subtitle}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
           showMenuToggle={!desktopPinned}
+          desktopPinned={desktopPinned}
           userName={name || 'Super Admin'}
           userSubtitle="Controle da plataforma"
           userInitial={(name || 'S').trim().charAt(0).toUpperCase()}
