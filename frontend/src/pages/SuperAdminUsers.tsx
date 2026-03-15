@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
@@ -518,8 +518,8 @@ const SuperAdminUsers: React.FC = () => {
           description="Aqui você controla quem pode entrar, quantos usuários cada conta pode ter e o que precisa de ajuste manual."
           actions={
             <>
-              <Link to="/super-admin" className="button secondary">Voltar ao painel</Link>
-              <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+              <ButtonLink to="/super-admin" variant="secondary">Voltar ao painel</ButtonLink>
+              <ButtonLink to="/super-admin/crawler" variant="secondary">Abrir crawler</ButtonLink>
             </>
           }
           feature={
@@ -699,7 +699,7 @@ const SuperAdminUsers: React.FC = () => {
               <span className="section-kicker">Usuários</span>
               <h3>Acessos e vínculo com conta</h3>
             </div>
-            <Link to="/super-admin" className="button secondary">Voltar ao painel</Link>
+            <ButtonLink to="/super-admin" variant="secondary">Voltar ao painel</ButtonLink>
           </div>
           <div className="filter-bar-controls super-admin-filters-grid">
             <input className="input" placeholder="Buscar por nome, e-mail ou conta" value={userDraftFilters.search} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, search: e.target.value })} />

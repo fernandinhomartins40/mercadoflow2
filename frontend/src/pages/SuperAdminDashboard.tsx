@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
+import PanelSection from '../components/dashboard/PanelSection';
+import ButtonLink from '../components/common/ButtonLink';
 import api from '../services/api';
 
 interface Overview {
@@ -35,21 +37,22 @@ const SuperAdminDashboard: React.FC = () => {
         setOverview(response.data);
         setError(null);
       } catch (err: any) {
-        setError(err?.message || 'Falha ao carregar a visão geral');
+        setError(err?.message || 'Falha ao carregar a visão geral.');
       } finally {
         setLoading(false);
       }
     };
-    load();
+
+    void load();
   }, []);
 
   return (
     <SuperAdminLayout>
       <div className="super-admin-page super-admin-home-page">
-        {error ?<div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+        {error ? <div className="sales-empty-card">{error}</div> : null}
 
-        {loading ?(
-          <div className="card">Carregando indicadores...</div>
+        {loading ? (
+          <div className="sales-empty-card">Carregando indicadores...</div>
         ) : (
           <>
             <PageHero
@@ -60,8 +63,10 @@ const SuperAdminDashboard: React.FC = () => {
               description="Aqui ficam os números que exigem decisão: contas ativas, vencimentos próximos, bloqueios e volume do catálogo."
               actions={
                 <>
-                  <Link to="/super-admin/saas" className="button">Abrir contas</Link>
-                  <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
+                  <ButtonLink to="/super-admin/saas">Abrir contas</ButtonLink>
+                  <ButtonLink to="/super-admin/crawler" variant="secondary">
+                    Abrir crawler
+                  </ButtonLink>
                 </>
               }
               feature={
@@ -93,7 +98,9 @@ const SuperAdminDashboard: React.FC = () => {
                     <span className="section-kicker">Ação imediata</span>
                     <strong>{overview?.expiringMarkets ?? 0} contas vencendo</strong>
                     <p>Priorize renovação manual e revisão de acesso nas contas mais próximas do vencimento.</p>
-                    <Link to="/super-admin/saas" className="button secondary">Revisar contas</Link>
+                    <ButtonLink to="/super-admin/saas" variant="secondary">
+                      Revisar contas
+                    </ButtonLink>
                   </div>
 
                   <div className="dashboard-priority-card">
@@ -104,6 +111,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </>
               }
             />
+
             <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
               <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" />
               <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" />
@@ -112,18 +120,22 @@ const SuperAdminDashboard: React.FC = () => {
             </div>
 
             <section className="dashboard-page-grid reveal">
-              <article className="analytics-panel dashboard-note-card">
-                <div className="analytics-panel-head">
-                  <div>
-                    <span className="section-kicker">Contas e acesso</span>
-                    <h3>Resumo para ajuste manual</h3>
-                  </div>
-                  <Link to="/super-admin/saas" className="button secondary">Abrir contas</Link>
-                </div>
+              <PanelSection
+                className="dashboard-note-card"
+                kicker="Contas e acesso"
+                title="Resumo para ajuste manual"
+                action={
+                  <ButtonLink to="/super-admin/saas" variant="secondary">
+                    Abrir contas
+                  </ButtonLink>
+                }
+              >
                 <div className="dashboard-stat-list">
                   <div className="dashboard-stat-row">
                     <span>Assentos usados</span>
-                    <strong>{overview?.seatUsedTotal ?? 0} / {overview?.seatLimitTotal ?? 0}</strong>
+                    <strong>
+                      {overview?.seatUsedTotal ?? 0} / {overview?.seatLimitTotal ?? 0}
+                    </strong>
                   </div>
                   <div className="dashboard-stat-row">
                     <span>Usuários sem conta vinculada</span>
@@ -134,16 +146,18 @@ const SuperAdminDashboard: React.FC = () => {
                     <strong>{overview?.trialMarkets ?? 0}</strong>
                   </div>
                 </div>
-              </article>
+              </PanelSection>
 
-              <article className="analytics-panel dashboard-note-card">
-                <div className="analytics-panel-head">
-                  <div>
-                    <span className="section-kicker">Dados e automação</span>
-                    <h3>Catálogo e coleta</h3>
-                  </div>
-                  <Link to="/super-admin/crawler" className="button secondary">Abrir crawler</Link>
-                </div>
+              <PanelSection
+                className="dashboard-note-card"
+                kicker="Dados e automação"
+                title="Catálogo e coleta"
+                action={
+                  <ButtonLink to="/super-admin/crawler" variant="secondary">
+                    Abrir crawler
+                  </ButtonLink>
+                }
+              >
                 <div className="dashboard-quick-list">
                   <Link to="/super-admin/catalogo" className="dashboard-quick-item">
                     <strong>Revisar catálogo global</strong>
@@ -154,7 +168,7 @@ const SuperAdminDashboard: React.FC = () => {
                     <span>Acompanhe execuções e atualização das fontes web.</span>
                   </Link>
                 </div>
-              </article>
+              </PanelSection>
             </section>
           </>
         )}

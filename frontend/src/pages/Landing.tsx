@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { Link } from 'react-router-dom';
+import ButtonLink from '../components/common/ButtonLink';
 
 const operationalHighlights = [
   {
@@ -136,8 +137,8 @@ const Landing: React.FC = () => {
                 <span className="hero-chip">Sincronizacao desktop + API web</span>
               </div>
               <div className="hero-inline-actions">
-                <Link className="button" to="/login">Acessar plataforma</Link>
-                <Link className="button secondary" to="/download-agente">Baixar agente</Link>
+                <ButtonLink to="/login">Acessar plataforma</ButtonLink>
+                <ButtonLink variant="secondary" to="/download-agente">Baixar agente</ButtonLink>
               </div>
             </div>
 
@@ -279,8 +280,8 @@ const Landing: React.FC = () => {
           <strong>Objetivo do MercadoFlow:</strong> transformar nota fiscal em decisao comercial pratica.
           Consulte produto, valide promocao, compare filiais e ajuste compra com base no que realmente vende.
           <div className="hero-inline-actions">
-            <Link className="button" to="/login">Entrar agora</Link>
-            <Link className="button secondary" to="/download-agente">Baixar agente desktop</Link>
+            <ButtonLink to="/login">Entrar agora</ButtonLink>
+            <ButtonLink variant="secondary" to="/download-agente">Baixar agente desktop</ButtonLink>
           </div>
         </section>
       </main>
@@ -297,3 +298,4 @@ const Landing: React.FC = () => {
 };
 
 export default Landing;
+

@@ -203,7 +203,9 @@ const OfferTemplates: React.FC = () => {
                 </label>
               </div>
               <div className="offer-template-editor-actions">
-                <button type="button" className="button" onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : selectedId ? 'Salvar alterações' : 'Criar modelo'}</button>
+                <Button type="button" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Salvando...' : selectedId ? 'Salvar alterações' : 'Criar modelo'}
+                </Button>
                 <Button type="button" variant="secondary" onClick={handleNew}>Limpar</Button>
               </div>
             </section>

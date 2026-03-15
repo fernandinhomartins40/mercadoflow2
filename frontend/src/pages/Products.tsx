@@ -334,16 +334,16 @@ const Products: React.FC = () => {
                   <div className="product-card-actions-row">
                     <div className="product-card-link">Abrir dashboard do produto</div>
                     <div className="product-card-actions-inline">
-                      <button
+                      <Button
                         type="button"
-                        className="button secondary"
+                        variant="secondary"
                         onClick={(event) => {
                           event.stopPropagation();
                           navigate(`/app/ofertas/designer?productId=${product.productId}`);
                         }}
                       >
                         Criar oferta
-                      </button>
+                      </Button>
                       <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
                     </div>
                   </div>

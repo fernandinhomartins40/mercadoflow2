@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 
 interface InstallerInfo {
   filename: string;
@@ -69,9 +70,7 @@ const PublicAgentDownload: React.FC = () => {
         </div>
         <nav className="landing-nav">
           <Link to="/">Voltar</Link>
-          <Link className="button secondary" to="/login">
-            Entrar
-          </Link>
+          <ButtonLink variant="secondary" to="/login">Entrar</ButtonLink>
         </nav>
       </header>
 
@@ -194,4 +193,3 @@ const PublicAgentDownload: React.FC = () => {
 };
 
 export default PublicAgentDownload;
-

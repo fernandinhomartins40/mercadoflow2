@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
@@ -239,7 +240,7 @@ const Settings: React.FC = () => {
                   <strong>Instalador do agente</strong>
                   <span>{installerInfo?.version || 'Versão não informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
                 </div>
-                <a className="button secondary" href="/app/download-agente">Abrir download</a>
+                <ButtonLink to="/app/download-agente" variant="secondary">Abrir download</ButtonLink>
               </div>
             </div>
           </section>

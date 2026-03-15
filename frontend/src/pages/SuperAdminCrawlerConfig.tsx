@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
+import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
 import api from '../services/api';
@@ -289,7 +289,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           badge="Crawler"
           title="Coleta manual por mercado."
           description="Aqui você acompanha o estado atual, o último resultado e dispara uma nova coleta quando precisar."
-          actions={latestRun?.id ?<Link className="button secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</Link> : null}
+          actions={latestRun?.id ?<ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</ButtonLink> : null}
           feature={
             <div className="dashboard-glow-card">
               <span className="section-kicker">Run mais recente</span>
@@ -376,9 +376,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                   <div className="super-admin-crawler-job-footer">
                     <div className="crawler-run-actions">
                       {job.lastRun?.id ?(
-                        <Link className="button secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
+                        <ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
                           Ver detalhes
-                        </Link>
+                        </ButtonLink>
                       ) : null}
                       <Button
                         onClick={() => prepareProviderTrigger(job)}
@@ -435,9 +435,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
                           <td data-label="Mensagem">{run.message || '--'}</td>
                           <td data-label="Ações" className="table-action-cell">
                             <div className="crawler-run-actions">
-                              <Link className="button secondary" to={`/super-admin/crawler/runs/${run.id}`}>
+                              <ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${run.id}`}>
                                 Detalhes
-                              </Link>
+                              </ButtonLink>
                               <Button
                                 variant="secondary"
                                 onClick={() => stopRun(run.id)}
