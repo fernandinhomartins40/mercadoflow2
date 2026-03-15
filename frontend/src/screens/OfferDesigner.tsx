@@ -617,7 +617,7 @@ const OfferDesigner: React.FC = () => {
                     {overview?.seasonalSuggestions?.slice(0, 6).map((product) => (
                       <StudioSearchResultCard
                         key={product.productId}
-                        product={product as OfferCatalogProduct}
+                        product={product as unknown as OfferCatalogProduct}
                         inQueue={selectedProductIds.has(product.productId)}
                         onAdd={() => addProductById(product.productId)}
                       />

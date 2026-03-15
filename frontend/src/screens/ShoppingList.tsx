@@ -34,9 +34,9 @@ const suggestedQuantity = (product: ProductPerformance) => {
 
 const ShoppingListItemCard: React.FC<{
   item: ShoppingListItem;
-  onToggle: (checked: boolean) => Promise<void>;
-  onUpdate: (payload: { quantityTarget?: number; note?: string }) => Promise<void>;
-  onRemove: () => Promise<void>;
+  onToggle: (checked: boolean) => Promise<unknown>;
+  onUpdate: (payload: { quantityTarget?: number; note?: string }) => Promise<unknown>;
+  onRemove: () => Promise<unknown>;
 }> = ({ item, onToggle, onUpdate, onRemove }) => {
   const [quantity, setQuantity] = useState(String(item.quantityTarget || 1));
   const [note, setNote] = useState(item.note || '');

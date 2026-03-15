@@ -49,7 +49,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: "${REACT_APP_API_BASE_URL}"
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
     depends_on:
       - mercadoflow-backend
 
