@@ -90,24 +90,24 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
       userInitial={(name || 'U').trim().charAt(0).toUpperCase()}
       badges={
         <>
-          <span className="workspace-pill inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
+          <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
             {role === 'ADMIN' ? 'Perfil admin' : 'Operação'}
           </span>
-          <span className="workspace-pill subtle inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
+          <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
             Atualizado em {todayLabel}
           </span>
         </>
       }
       searchSlot={
         isOffersRoute ? null : (
-          <form className="header-search flex w-full items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
+          <form className="flex w-full items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
             <input
-              className="input header-search-input h-12 min-w-0 flex-1 rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:min-w-[320px]"
+              className="input h-12 min-w-0 flex-1 rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:min-w-[320px]"
               placeholder="Buscar produto por nome ou GTIN"
               value={productQuery}
               onChange={(event) => setProductQuery(event.target.value)}
             />
-            <Button className="header-search-submit" type="submit">
+            <Button type="submit">
               Buscar
             </Button>
           </form>

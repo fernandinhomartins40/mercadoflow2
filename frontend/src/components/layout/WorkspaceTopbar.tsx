@@ -36,7 +36,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   const menuButton = showMenuToggle ? (
     <button
       type="button"
-      className="workspace-menu-toggle inline-flex h-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] transition hover:-translate-y-px hover:bg-[rgba(255,247,240,0.92)]"
+      className="inline-flex h-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] transition hover:-translate-y-px hover:bg-[rgba(255,247,240,0.92)]"
       onClick={onToggleSidebar}
       aria-label="Abrir menu lateral"
     >
@@ -45,13 +45,25 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   ) : null;
 
   const userCard = (
-    <div className="workspace-topbar-user flex w-full items-center gap-3 rounded-[20px] border border-[rgba(87,51,30,0.12)] bg-white px-4 py-3 shadow-[0_10px_24px_rgba(44,20,6,0.06)] sm:w-auto sm:min-w-[270px]">
-      <span className="workspace-user-avatar inline-flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(180deg,#ff8b37_0%,#ff6a00_100%)] text-lg font-semibold text-white shadow-[0_14px_28px_rgba(255,106,0,0.24)]">
+    <div
+      className={cn(
+        'flex items-center gap-3 rounded-[20px] border border-[rgba(87,51,30,0.12)] bg-white shadow-[0_10px_24px_rgba(44,20,6,0.06)]',
+        compactMode ? 'w-full max-w-full px-3 py-2.5 sm:min-w-[232px] sm:max-w-[320px]' : 'w-full px-4 py-3 sm:w-auto sm:min-w-[270px]',
+      )}
+    >
+      <span
+        className={cn(
+          'inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#ff8b37_0%,#ff6a00_100%)] font-semibold text-white shadow-[0_14px_28px_rgba(255,106,0,0.24)]',
+          compactMode ? 'h-10 w-10 text-base' : 'h-12 w-12 text-lg',
+        )}
+      >
         {userInitial}
       </span>
       <div className="min-w-0">
-        <strong className="block truncate text-base font-semibold tracking-[-0.02em] text-[color:var(--text-primary)]">{userName}</strong>
-        <span className="block truncate text-sm text-[color:var(--text-muted)]">{userSubtitle}</span>
+        <strong className={cn('block truncate font-semibold tracking-[-0.02em] text-[color:var(--text-primary)]', compactMode ? 'text-[0.98rem]' : 'text-base')}>
+          {userName}
+        </strong>
+        <span className={cn('block truncate text-[color:var(--text-muted)]', compactMode ? 'text-[0.9rem]' : 'text-sm')}>{userSubtitle}</span>
       </div>
     </div>
   );
@@ -59,68 +71,65 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   return (
     <header
       className={cn(
-        'workspace-topbar-shell grid gap-5 rounded-[28px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] p-5 shadow-[0_20px_50px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,auto)] xl:items-start',
+        compactMode
+          ? 'rounded-[26px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] p-4 shadow-[0_20px_50px_rgba(44,20,6,0.08)] sm:p-5'
+          : 'grid gap-5 rounded-[28px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] p-5 shadow-[0_20px_50px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,auto)] xl:items-start',
         className,
       )}
     >
       {compactMode ? (
-        <>
-          <div className="workspace-topbar-main flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">{menuButton}</div>
-              <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-3">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                {menuButton}
+                <div className="min-w-0 flex-1">
+                  <span className="block text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
+                    {section}
+                  </span>
+                  <h2 className="mt-1 max-w-3xl text-[clamp(2rem,5vw,3rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-[color:var(--text-primary)]">
+                    {title}
+                  </h2>
+                  <span className="mt-2 block max-w-3xl text-[0.95rem] leading-6 text-[color:var(--text-muted)]">
+                    {subtitle}
+                  </span>
+                </div>
+              </div>
+              <div className="ml-auto flex w-full max-w-full flex-wrap items-center justify-end gap-3 sm:w-auto sm:max-w-[430px]">
                 {userCard}
-                {actionSlot ? <div className="workspace-topbar-actions flex flex-wrap justify-end gap-3">{actionSlot}</div> : null}
+                {actionSlot ? <div className="flex flex-wrap justify-end gap-3">{actionSlot}</div> : null}
               </div>
             </div>
 
+            {badges ? <div className="flex flex-wrap gap-3">{badges}</div> : null}
+
             {searchSlot ? <div className="w-full">{searchSlot}</div> : null}
-
-            <div className="workspace-topbar-copy min-w-0">
-              <span className="workspace-topbar-breadcrumb block text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
-                {section}
-              </span>
-              <h2 className={cn(
-                'mt-2 max-w-4xl font-semibold leading-[0.92] tracking-[-0.06em] text-[color:var(--text-primary)]',
-                compactMode ? 'text-[clamp(1.8rem,4vw,2.9rem)]' : 'text-[clamp(2rem,4vw,3.35rem)]',
-              )}>
-                {title}
-              </h2>
-              <span className={cn(
-                'workspace-topbar-subtitle mt-3 block max-w-3xl text-[color:var(--text-muted)]',
-                compactMode ? 'text-[0.95rem] leading-6' : 'text-[0.98rem] leading-7',
-              )}>
-                {subtitle}
-              </span>
-            </div>
-
-            {badges ? <div className="workspace-topbar-badges flex flex-wrap gap-3">{badges}</div> : null}
           </div>
-        </>
+        </div>
       ) : (
         <>
-          <div className="workspace-topbar-main flex min-w-0 flex-col gap-4">
-            <div className="workspace-topbar-title-row grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-4">
-              <div className="workspace-topbar-copy min-w-0">
-                <span className="workspace-topbar-breadcrumb block text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-4">
+              <div className="min-w-0">
+                <span className="block text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
                   {section}
                 </span>
                 <h2 className="mt-2 max-w-4xl text-[clamp(2rem,4vw,3.35rem)] font-semibold leading-[0.92] tracking-[-0.06em] text-[color:var(--text-primary)]">
                   {title}
                 </h2>
-                <span className="workspace-topbar-subtitle mt-3 block max-w-3xl text-[0.98rem] leading-7 text-[color:var(--text-muted)]">
+                <span className="mt-3 block max-w-3xl text-[0.98rem] leading-7 text-[color:var(--text-muted)]">
                   {subtitle}
                 </span>
               </div>
             </div>
 
-            {badges ? <div className="workspace-topbar-badges flex flex-wrap gap-3">{badges}</div> : null}
+            {badges ? <div className="flex flex-wrap gap-3">{badges}</div> : null}
           </div>
 
-          <div className="workspace-topbar-side flex min-w-0 flex-col gap-4 xl:min-w-[280px] xl:items-end">
+          <div className="flex min-w-0 flex-col gap-4 xl:min-w-[280px] xl:items-end">
             {searchSlot ? <div className="w-full xl:max-w-[420px]">{searchSlot}</div> : null}
             {userCard}
-            {actionSlot ? <div className="workspace-topbar-actions flex w-full flex-wrap gap-3 xl:justify-end">{actionSlot}</div> : null}
+            {actionSlot ? <div className="flex w-full flex-wrap gap-3 xl:justify-end">{actionSlot}</div> : null}
           </div>
         </>
       )}

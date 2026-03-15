@@ -61,8 +61,8 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   return (
     <div
       className={desktopPinned
-        ? 'workspace-root super-admin-workspace min-h-screen bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4 grid grid-cols-[286px_minmax(0,1fr)] gap-4 items-start'
-        : 'workspace-root super-admin-workspace min-h-screen bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-3 flex flex-col gap-4'}
+        ? 'workspace-root super-admin-workspace grid min-h-screen grid-cols-[286px_minmax(0,1fr)] items-start gap-4 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4'
+        : 'workspace-root super-admin-workspace flex min-h-screen flex-col gap-4 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] px-3 pb-3 pt-2 sm:p-4'}
     >
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}
@@ -83,10 +83,10 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         supportKicker="Fluxo sugerido"
         supportTitle="Revise contas, acompanhe o crawler e valide o catálogo"
         supportText="Essa ordem reduz erro operacional e deixa a manutenção diária mais simples."
-        footer={<Button variant="secondary" onClick={() => logout()}>Sair</Button>}
+        footer={<Button className="w-full" variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 
-      <main className="workspace-shell-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-4 md:min-h-[calc(100dvh-32px)]">
+      <main className="workspace-shell-main flex min-h-[calc(100dvh-24px)] min-w-0 flex-col gap-4 overflow-x-hidden md:min-h-[calc(100dvh-32px)]">
         <WorkspaceTopbar
           section={header.section}
           title={header.title}
@@ -99,10 +99,10 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           userInitial={(name || 'S').trim().charAt(0).toUpperCase()}
           badges={
             <>
-              <span className="workspace-pill inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
+              <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
                 Super admin
               </span>
-              <span className="workspace-pill subtle inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
+              <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
                 Atualizado em {todayLabel}
               </span>
             </>
@@ -110,7 +110,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           actionSlot={<Button variant="secondary" onClick={() => logout()}>Sair</Button>}
         />
 
-        <div className="workspace-shell-content flex min-h-0 flex-1 flex-col gap-4">{children}</div>
+        <div className="workspace-shell-content flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden">{children}</div>
       </main>
     </div>
   );

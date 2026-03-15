@@ -60,7 +60,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         <button
           type="button"
           className={cn(
-            'workspace-drawer-backdrop fixed inset-0 z-40 bg-[rgba(15,10,8,0.45)] transition duration-200',
+            'fixed inset-0 z-40 bg-[rgba(15,10,8,0.45)] transition duration-200',
             mobileOpen ? 'visible opacity-100' : 'pointer-events-none opacity-0',
           )}
           onClick={onClose}
@@ -70,10 +70,10 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
       <aside
         className={cn(
-          'workspace-shell-sidebar flex flex-col overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,#2b1a12_0%,#1b1411_100%)] text-white shadow-[0_28px_80px_rgba(10,6,4,0.34)] transition duration-300',
+          'flex min-w-0 flex-col overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,#2b1a12_0%,#1b1411_100%)] text-white shadow-[0_28px_80px_rgba(10,6,4,0.34)] transition duration-300',
           desktopPinned
             ? cn('sticky top-4 z-10 h-[calc(100dvh-32px)] shrink-0 translate-x-0 opacity-100', desktopWidthClassName || 'w-[292px]')
-            : 'fixed inset-y-2 left-2 z-50 w-[min(320px,calc(100vw-16px))] max-w-[calc(100vw-16px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
+            : 'fixed inset-y-2 left-2 z-50 w-[min(308px,calc(100vw-16px))] max-w-[calc(100vw-16px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
         )}
       >
         <div className={cn('flex h-full min-h-0 flex-col', compactDrawer ? 'gap-3' : 'gap-4')}>
@@ -103,9 +103,9 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto', compactDrawer ? 'gap-3 px-3 pb-3' : 'gap-4 px-4 pb-4')}>
+          <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto', compactDrawer ? 'gap-3 px-3 pb-3' : 'gap-4 px-4 pb-4')}>
             <div className={cn(
-              'border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+              'min-w-0 border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
               compactDrawer ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4',
             )}>
               <span className="text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.78)]">{userKicker}</span>
@@ -130,13 +130,13 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               ) : null}
             </div>
 
-            <div className={cn('grid', compactDrawer ? 'gap-3' : 'gap-4')}>
+            <div className={cn('grid min-w-0', compactDrawer ? 'gap-3' : 'gap-4')}>
               {sections.map((section) => (
-                <section key={section.title} className="grid gap-2">
+                <section key={section.title} className="grid min-w-0 gap-2">
                   <span className="px-1 text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[rgba(255,220,196,0.72)]">
                     {section.title}
                   </span>
-                  <nav className="grid gap-2">
+                  <nav className="grid min-w-0 gap-2">
                     {section.items.map((item) => (
                       <NavLink
                         key={item.to}
@@ -145,7 +145,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                         onClick={onClose}
                         className={({ isActive }) =>
                           cn(
-                            'group grid grid-cols-[40px_minmax(0,1fr)_16px] items-center gap-3 border transition',
+                            'group grid min-w-0 grid-cols-[40px_minmax(0,1fr)_16px] items-center gap-3 border transition',
                             compactDrawer ? 'min-h-[52px] rounded-[18px] px-3 py-2.5' : 'min-h-[54px] rounded-[20px] px-3 py-3',
                             isActive
                               ? 'border-[rgba(255,138,54,0.32)] bg-[linear-gradient(180deg,rgba(138,73,22,0.95)_0%,rgba(101,51,14,0.92)_100%)] shadow-[0_16px_32px_rgba(0,0,0,0.18)]'
@@ -153,7 +153,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                           )
                         }
                       >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.08)] text-xs font-bold tracking-[0.08em] text-[rgba(255,230,214,0.92)]">
+                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.08)] text-xs font-bold tracking-[0.08em] text-[rgba(255,230,214,0.92)]">
                           {item.mark}
                         </span>
                         <span className="min-w-0">
@@ -187,7 +187,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          {footer ? <div className={cn(compactDrawer ? 'px-3 pb-3 pt-0' : 'px-4 pb-4 pt-1')}>{footer}</div> : null}
+          {footer ? <div className={cn('min-w-0', compactDrawer ? 'px-3 pb-3 pt-0' : 'px-4 pb-4 pt-1')}>{footer}</div> : null}
         </div>
       </aside>
     </>
