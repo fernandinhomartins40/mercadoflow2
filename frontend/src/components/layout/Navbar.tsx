@@ -100,14 +100,14 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
       }
       searchSlot={
         isOffersRoute ? null : (
-          <form className="flex w-full items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
+          <form className="flex w-full min-w-0 flex-wrap items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
             <input
-              className="input h-12 min-w-0 flex-1 rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:min-w-[320px]"
+              className="input h-12 min-w-[220px] max-w-full flex-[1_1_320px] rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:max-w-[420px]"
               placeholder="Buscar produto por nome ou GTIN"
               value={productQuery}
               onChange={(event) => setProductQuery(event.target.value)}
             />
-            <Button type="submit">
+            <Button className="min-w-[120px]" type="submit">
               Buscar
             </Button>
           </form>

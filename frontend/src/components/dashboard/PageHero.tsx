@@ -31,19 +31,19 @@ const PageHero: React.FC<PageHeroProps> = ({
   visualFirst = false,
 }) => {
   const copyBlock = (
-    <div className={cn('dashboard-command-copy', copyClassName)}>
+    <div className={cn('page-hero-copy', copyClassName)}>
       <span className="pill">{badge}</span>
-      {typeof title === 'string' ? <h1 className="dashboard-command-title">{title}</h1> : title}
-      {typeof description === 'string' ? <p className="dashboard-command-text">{description}</p> : description}
-      {actions ? <div className="hero-inline-actions">{actions}</div> : null}
+      {typeof title === 'string' ? <h1 className="page-hero-title">{title}</h1> : title}
+      {typeof description === 'string' ? <p className="page-hero-text">{description}</p> : description}
+      {actions ? <div className="page-hero-actions">{actions}</div> : null}
     </div>
   );
 
-  const featureBlock = feature ? <div className={cn('dashboard-command-showcase', featureClassName)}>{feature}</div> : null;
+  const featureBlock = feature ? <div className={cn('page-hero-feature', featureClassName)}>{feature}</div> : null;
 
   return (
-    <section className={cn('dashboard-command-grid reveal', className)}>
-      <article className={cn('dashboard-command-card', articleClassName)}>
+    <section className={cn('page-hero-grid reveal', className)}>
+      <article className={cn('page-hero-card', articleClassName)}>
         {visualFirst ? (
           <>
             {featureBlock}
@@ -57,7 +57,7 @@ const PageHero: React.FC<PageHeroProps> = ({
         )}
       </article>
 
-      {aside ? <aside className={cn('dashboard-priority-rail', asideClassName)}>{aside}</aside> : null}
+      {aside ? <aside className={cn('page-hero-aside', asideClassName)}>{aside}</aside> : null}
     </section>
   );
 };
