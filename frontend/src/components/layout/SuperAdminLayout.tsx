@@ -62,7 +62,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     <div
       className={desktopPinned
         ? 'workspace-root super-admin-workspace grid min-h-screen grid-cols-[286px_minmax(0,1fr)] items-start gap-4 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4'
-        : 'workspace-root super-admin-workspace flex min-h-screen flex-col gap-4 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] px-3 pb-3 pt-2 sm:p-4'}
+        : 'workspace-root super-admin-workspace flex min-h-screen flex-col gap-4 overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4 sm:p-5'}
     >
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}

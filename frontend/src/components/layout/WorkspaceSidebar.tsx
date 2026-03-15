@@ -73,7 +73,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           'flex min-w-0 flex-col overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,#2b1a12_0%,#1b1411_100%)] text-white shadow-[0_28px_80px_rgba(10,6,4,0.34)] transition duration-300',
           desktopPinned
             ? cn('sticky top-4 z-10 h-[calc(100dvh-32px)] shrink-0 translate-x-0 opacity-100', desktopWidthClassName || 'w-[292px]')
-            : 'fixed inset-y-2 left-2 z-50 w-[min(308px,calc(100vw-16px))] max-w-[calc(100vw-16px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
+            : 'fixed inset-y-3 left-3 z-50 w-[min(308px,calc(100vw-24px))] max-w-[calc(100vw-24px)] ' + (mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-[115%] opacity-0 pointer-events-none'),
         )}
       >
         <div className={cn('flex h-full min-h-0 flex-col', compactDrawer ? 'gap-3' : 'gap-4')}>
@@ -103,7 +103,12 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto', compactDrawer ? 'gap-3 px-3 pb-3' : 'gap-4 px-4 pb-4')}>
+          <div
+            className={cn(
+              'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+              compactDrawer ? 'gap-3 px-3 pb-3' : 'gap-4 px-4 pb-4',
+            )}
+          >
             <div className={cn(
               'min-w-0 border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
               compactDrawer ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4',
@@ -187,7 +192,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          {footer ? <div className={cn('min-w-0', compactDrawer ? 'px-3 pb-3 pt-0' : 'px-4 pb-4 pt-1')}>{footer}</div> : null}
+          {footer ? <div className={cn('min-w-0 overflow-x-hidden', compactDrawer ? 'px-3 pb-3 pt-0' : 'px-4 pb-4 pt-1')}>{footer}</div> : null}
         </div>
       </aside>
     </>

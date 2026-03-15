@@ -48,7 +48,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
     <div
       className={cn(
         'flex items-center gap-3 rounded-[20px] border border-[rgba(87,51,30,0.12)] bg-white shadow-[0_10px_24px_rgba(44,20,6,0.06)]',
-        compactMode ? 'w-full max-w-full px-3 py-2.5 sm:min-w-[232px] sm:max-w-[320px]' : 'w-full px-4 py-3 sm:w-auto sm:min-w-[270px]',
+        compactMode ? 'w-auto max-w-full px-3 py-2.5 sm:min-w-[220px] sm:max-w-[320px]' : 'w-full px-4 py-3 sm:w-auto sm:min-w-[270px]',
       )}
     >
       <span
@@ -80,25 +80,26 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
       {compactMode ? (
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 {menuButton}
-                <div className="min-w-0 flex-1">
-                  <span className="block text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
-                    {section}
-                  </span>
-                  <h2 className="mt-1 max-w-3xl text-[clamp(2rem,5vw,3rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-[color:var(--text-primary)]">
-                    {title}
-                  </h2>
-                  <span className="mt-2 block max-w-3xl text-[0.95rem] leading-6 text-[color:var(--text-muted)]">
-                    {subtitle}
-                  </span>
-                </div>
               </div>
-              <div className="ml-auto flex w-full max-w-full flex-wrap items-center justify-end gap-3 sm:w-auto sm:max-w-[430px]">
+              <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-3">
                 {userCard}
                 {actionSlot ? <div className="flex flex-wrap justify-end gap-3">{actionSlot}</div> : null}
               </div>
+            </div>
+
+            <div className="min-w-0">
+              <span className="block text-[0.76rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
+                {section}
+              </span>
+              <h2 className="mt-2 max-w-4xl text-[clamp(1.85rem,4vw,2.75rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-[color:var(--text-primary)]">
+                {title}
+              </h2>
+              <span className="mt-3 block max-w-3xl text-[0.95rem] leading-6 text-[color:var(--text-muted)]">
+                {subtitle}
+              </span>
             </div>
 
             {badges ? <div className="flex flex-wrap gap-3">{badges}</div> : null}
