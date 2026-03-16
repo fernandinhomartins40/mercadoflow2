@@ -5,7 +5,9 @@ import {
   Boxes,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronLeft,
+  ChevronUp,
   ChevronRight,
   Copy,
   FileText,
@@ -253,6 +255,8 @@ const OfferDesigner: React.FC = () => {
   const [activeTool, setActiveTool] = useState<StudioTool>('products');
   const [productPanelMode, setProductPanelMode] = useState<ProductPanelMode>('search');
   const [toolPanelCollapsed, setToolPanelCollapsed] = useState(false);
+  const [searchBoxCollapsed, setSearchBoxCollapsed] = useState(false);
+  const [resultsCollapsed, setResultsCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [bulkSearching, setBulkSearching] = useState(false);
@@ -333,6 +337,18 @@ const OfferDesigner: React.FC = () => {
 
     void load();
   }, [marketId, searchParams]);
+
+  useEffect(() => {
+    if (!lookupNotice) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setLookupNotice(null);
+    }, 3200);
+
+    return () => window.clearTimeout(timer);
+  }, [lookupNotice]);
 
   useEffect(() => {
     if (!marketId) return;
@@ -470,8 +486,27 @@ const OfferDesigner: React.FC = () => {
   return (
     <OffersStudioLayout>
       <div className="page offers-studio-page">
-        {error ? <div className="sales-empty-card offer-studio-alert error">{error}</div> : null}
-        {lookupNotice ? <div className="sales-empty-card offer-studio-alert info">{lookupNotice}</div> : null}
+        {error ? (
+          <div className="offer-studio-toast-stack">
+            <div className="offer-studio-toast error">
+              <span>{error}</span>
+              <button type="button" onClick={() => setError(null)} aria-label="Fechar aviso">
+                ×
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!error && lookupNotice ? (
+          <div className="offer-studio-toast-stack">
+            <div className="offer-studio-toast info">
+              <span>{lookupNotice}</span>
+              <button type="button" onClick={() => setLookupNotice(null)} aria-label="Fechar aviso">
+                ×
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className={`offer-studio-shell ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
           <aside className="offer-studio-rail">
@@ -531,56 +566,82 @@ const OfferDesigner: React.FC = () => {
                 {productPanelMode === 'search' ? (
                   <>
                     <div className="offer-studio-search-box">
-                      <label className="offer-studio-text-field">
-                        <span>Buscar no catálogo</span>
-                        <input
-                          className="input"
-                          value={searchInput}
-                          onChange={(event) => setSearchInput(event.target.value)}
-                          placeholder="Digite nome, GTIN ou marca"
-                        />
-                      </label>
-                      <label className="offer-studio-text-field">
-                        <span>Cole a lista de produtos</span>
-                        <textarea
-                          className="textarea"
-                          rows={6}
-                          value={bulkInput}
-                          onChange={(event) => setBulkInput(event.target.value)}
-                          placeholder={'Ex.: coca cola 2l\narroz tio joao 5kg\ncerveja heineken 600ml'}
-                        />
-                      </label>
-                      <div className="offer-studio-inline-actions">
-                        <Button type="button" onClick={handleBulkLookup} disabled={bulkSearching}>
-                          <PackageSearch size={16} strokeWidth={2.1} />
-                          {bulkSearching ? 'Processando lista...' : 'Buscar produtos'}
-                        </Button>
-                        <Button type="button" variant="secondary" onClick={handleAddAllResults} disabled={!results.length}>
-                          <Boxes size={16} strokeWidth={2.1} />
-                          Adicionar resultados
-                        </Button>
-                      </div>
+                      <button
+                        type="button"
+                        className="offer-studio-section-toggle"
+                        onClick={() => setSearchBoxCollapsed((current) => !current)}
+                        aria-expanded={!searchBoxCollapsed}
+                      >
+                        <span>
+                          <strong>Buscar no catálogo</strong>
+                          <small>Digite um produto ou cole uma lista para preenchimento automático.</small>
+                        </span>
+                        {searchBoxCollapsed ? <ChevronDown size={16} strokeWidth={2.2} /> : <ChevronUp size={16} strokeWidth={2.2} />}
+                      </button>
+                      {!searchBoxCollapsed ? (
+                        <>
+                          <label className="offer-studio-text-field">
+                            <span>Buscar no catálogo</span>
+                            <input
+                              className="input"
+                              value={searchInput}
+                              onChange={(event) => setSearchInput(event.target.value)}
+                              placeholder="Digite nome, GTIN ou marca"
+                            />
+                          </label>
+                          <label className="offer-studio-text-field">
+                            <span>Cole a lista de produtos</span>
+                            <textarea
+                              className="textarea"
+                              rows={6}
+                              value={bulkInput}
+                              onChange={(event) => setBulkInput(event.target.value)}
+                              placeholder={'Ex.: coca cola 2l\narroz tio joao 5kg\ncerveja heineken 600ml'}
+                            />
+                          </label>
+                          <div className="offer-studio-inline-actions">
+                            <Button type="button" onClick={handleBulkLookup} disabled={bulkSearching}>
+                              <PackageSearch size={16} strokeWidth={2.1} />
+                              {bulkSearching ? 'Processando lista...' : 'Buscar produtos'}
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={handleAddAllResults} disabled={!results.length}>
+                              <Boxes size={16} strokeWidth={2.1} />
+                              Adicionar resultados
+                            </Button>
+                          </div>
+                        </>
+                      ) : null}
                     </div>
 
                     <div className="offer-studio-panel-list">
-                      <div className="offer-studio-panel-subhead">
+                      <button
+                        type="button"
+                        className="offer-studio-panel-subhead offer-studio-panel-subhead-button"
+                        onClick={() => setResultsCollapsed((current) => !current)}
+                        aria-expanded={!resultsCollapsed}
+                      >
                         <span className="section-kicker">Resultado da busca</span>
-                        <small>{searching ? 'Buscando...' : `${results.length} itens encontrados`}</small>
-                      </div>
-                      {results.length === 0 ? (
-                        <div className="offer-studio-empty-card">
-                          Pesquise um item do catálogo ou cole uma lista para preencher a arte automaticamente.
-                        </div>
-                      ) : (
-                        results.map((product) => (
-                          <StudioSearchResultCard
-                            key={product.productId}
-                            product={product}
-                            inQueue={selectedProductIds.has(product.productId)}
-                            onAdd={() => addProduct(product)}
-                          />
-                        ))
-                      )}
+                        <span className="offer-studio-panel-subhead-meta">
+                          <small>{searching ? 'Buscando...' : `${results.length} itens encontrados`}</small>
+                          {resultsCollapsed ? <ChevronDown size={16} strokeWidth={2.2} /> : <ChevronUp size={16} strokeWidth={2.2} />}
+                        </span>
+                      </button>
+                      {!resultsCollapsed ? (
+                        results.length === 0 ? (
+                          <div className="offer-studio-empty-card">
+                            Pesquise um item do catálogo ou cole uma lista para preencher a arte automaticamente.
+                          </div>
+                        ) : (
+                          results.map((product) => (
+                            <StudioSearchResultCard
+                              key={product.productId}
+                              product={product}
+                              inQueue={selectedProductIds.has(product.productId)}
+                              onAdd={() => addProduct(product)}
+                            />
+                          ))
+                        )
+                      ) : null}
                     </div>
                   </>
                 ) : (
