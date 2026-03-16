@@ -5,6 +5,8 @@ import {
   Boxes,
   CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   FileText,
   LayoutTemplate,
@@ -17,7 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Button from '../components/common/Button';
-import Layout from '../components/layout/Layout';
+import OffersStudioLayout from '../components/layout/OffersStudioLayout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
 import { useAuth } from '../context/AuthContext';
@@ -250,6 +252,7 @@ const OfferDesigner: React.FC = () => {
   const [coverEnabled, setCoverEnabled] = useState(false);
   const [activeTool, setActiveTool] = useState<StudioTool>('products');
   const [productPanelMode, setProductPanelMode] = useState<ProductPanelMode>('search');
+  const [toolPanelCollapsed, setToolPanelCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [bulkSearching, setBulkSearching] = useState(false);
@@ -453,11 +456,11 @@ const OfferDesigner: React.FC = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <OffersStudioLayout>
         <div className="page offers-studio-page">
           <div className="sales-empty-card">Carregando estúdio de ofertas...</div>
         </div>
-      </Layout>
+      </OffersStudioLayout>
     );
   }
 
@@ -465,12 +468,12 @@ const OfferDesigner: React.FC = () => {
   const stageProducts = selectedProducts.slice(0, itemsPerPage);
 
   return (
-    <Layout>
+    <OffersStudioLayout>
       <div className="page offers-studio-page">
         {error ? <div className="sales-empty-card offer-studio-alert error">{error}</div> : null}
         {lookupNotice ? <div className="sales-empty-card offer-studio-alert info">{lookupNotice}</div> : null}
 
-        <div className="offer-studio-shell">
+        <div className={`offer-studio-shell ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
           <aside className="offer-studio-rail">
             <div className="offer-studio-rail-brand">
               <span className="offer-studio-rail-badge">
@@ -777,6 +780,18 @@ const OfferDesigner: React.FC = () => {
           </aside>
 
           <section className="offer-studio-workspace">
+            <div className="offer-studio-workspace-topbar">
+              <button
+                type="button"
+                className="offer-studio-panel-toggle"
+                onClick={() => setToolPanelCollapsed((current) => !current)}
+                aria-label={toolPanelCollapsed ? 'Expandir painel de ferramentas' : 'Recolher painel de ferramentas'}
+              >
+                {toolPanelCollapsed ? <ChevronRight size={16} strokeWidth={2.2} /> : <ChevronLeft size={16} strokeWidth={2.2} />}
+                <span>{toolPanelCollapsed ? 'Expandir ferramentas' : 'Recolher ferramentas'}</span>
+              </button>
+            </div>
+
             <div className="offer-studio-toolbar">
               <StudioSelectField
                 label="Modelo"
@@ -850,7 +865,7 @@ const OfferDesigner: React.FC = () => {
           </section>
         </div>
       </div>
-    </Layout>
+    </OffersStudioLayout>
   );
 };
 

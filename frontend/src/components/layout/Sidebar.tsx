@@ -20,9 +20,19 @@ interface SidebarProps {
   mobileOpen: boolean;
   onClose: () => void;
   desktopPinned: boolean;
+  collapsed?: boolean;
+  desktopWidthClassName?: string;
+  footer?: React.ReactNode;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose, desktopPinned }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  mobileOpen,
+  onClose,
+  desktopPinned,
+  collapsed = false,
+  desktopWidthClassName,
+  footer,
+}) => {
   const { role, name, email } = useAuth();
   const isAdmin = role === 'ADMIN';
 
@@ -61,6 +71,8 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose, desktopPinned })
       mobileOpen={mobileOpen}
       onClose={onClose}
       desktopPinned={desktopPinned}
+      collapsed={collapsed}
+      desktopWidthClassName={desktopWidthClassName}
       brandMark="MF"
       brandTitle="MercadoFlow"
       brandSubtitle="Painel operacional para decisão no varejo"
@@ -75,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose, desktopPinned })
       supportKicker="Fluxo recomendado"
       supportTitle="Comece em Produtos e feche em Alertas"
       supportText="O caminho mais simples para ler o negócio é analisar o item, validar a compra e só depois agir no operacional."
+      footer={footer}
     />
   );
 };
