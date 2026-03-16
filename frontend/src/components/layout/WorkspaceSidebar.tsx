@@ -1,4 +1,5 @@
-﻿import React from 'react';
+import React from 'react';
+import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../../lib/cn';
 
@@ -6,7 +7,7 @@ export interface WorkspaceNavItem {
   to: string;
   label: string;
   hint: string;
-  mark: string;
+  icon: LucideIcon;
   exact?: boolean;
 }
 
@@ -158,8 +159,8 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                           )
                         }
                       >
-                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.08)] text-xs font-bold tracking-[0.08em] text-[rgba(255,230,214,0.92)]">
-                          {item.mark}
+                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.08)] text-[rgba(255,230,214,0.92)]">
+                          <item.icon className="h-[18px] w-[18px]" strokeWidth={2.15} />
                         </span>
                         <span className="min-w-0">
                           <strong className="block truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-white">

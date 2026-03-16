@@ -1,4 +1,18 @@
-Ôªøimport React from 'react';
+import React from 'react';
+import {
+  Bell,
+  Database,
+  Download,
+  Home,
+  Link2,
+  Megaphone,
+  PackageSearch,
+  Settings,
+  ShoppingCart,
+  Sparkles,
+  Store,
+  TrendingUp,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 
@@ -14,30 +28,30 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose, desktopPinned })
 
   const sections: WorkspaceNavSection[] = [
     {
-      title: 'Vis√£o do neg√≥cio',
+      title: 'Vis„o do negÛcio',
       items: [
-        { to: '/app', label: 'Painel geral', hint: 'Resumo di√°rio e prioridades', mark: 'PG', exact: true },
-        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tend√™ncia e elasticidade', mark: 'PR' },
-        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem a√ß√£o imediata', mark: 'AL' },
+        { to: '/app', label: 'Painel geral', hint: 'Resumo di·rio e prioridades', icon: Home, exact: true },
+        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tendÍncia e elasticidade', icon: PackageSearch },
+        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem aÁ„o imediata', icon: Bell },
       ],
     },
     {
-      title: 'An√°lise e opera√ß√£o',
+      title: 'An·lise e operaÁ„o',
       items: [
-        { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', mark: 'CC' },
-        { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', mark: 'LC' },
-        { to: '/app/ofertas', label: 'Ofertas', hint: 'Modelos, designer e lotes', mark: 'OF' },
-        { to: '/app/previsao-demanda', label: 'Previs√£o', hint: 'Planejamento de demanda', mark: 'PV' },
-        { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', mark: 'CP' },
-        { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', mark: 'PD' },
+        { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', icon: Link2 },
+        { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', icon: ShoppingCart },
+        { to: '/app/ofertas', label: 'Ofertas', hint: 'Modelos, designer e lotes', icon: Sparkles },
+        { to: '/app/previsao-demanda', label: 'Previs„o', hint: 'Planejamento de demanda', icon: TrendingUp },
+        { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', icon: Megaphone },
+        { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', icon: Store },
       ],
     },
     {
-      title: 'Configura√ß√£o',
+      title: 'ConfiguraÁ„o',
       items: [
-        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Cat√°logo global', hint: 'Base consolidada de produtos', mark: 'CG' }] : []),
-        { to: '/app/download-agente', label: 'Download do agente', hint: 'Instala√ß√£o do coletor local', mark: 'AG' },
-        { to: '/app/configuracoes', label: 'Configura√ß√µes', hint: 'Acesso e integra√ß√µes', mark: 'CF' },
+        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Cat·logo global', hint: 'Base consolidada de produtos', icon: Database }] : []),
+        { to: '/app/download-agente', label: 'Download do agente', hint: 'InstalaÁ„o do coletor local', icon: Download },
+        { to: '/app/configuracoes', label: 'ConfiguraÁıes', hint: 'Acesso e integraÁıes', icon: Settings },
       ],
     },
   ];
@@ -49,18 +63,18 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose, desktopPinned })
       desktopPinned={desktopPinned}
       brandMark="MF"
       brandTitle="MercadoFlow"
-      brandSubtitle="Painel operacional para decis√£o no varejo"
+      brandSubtitle="Painel operacional para decis„o no varejo"
       userKicker="Workspace atual"
-      userName={name || 'Usu√°rio logado'}
-      userEmail={email || 'Conta sem e-mail vis√≠vel'}
+      userName={name || 'Usu·rio logado'}
+      userEmail={email || 'Conta sem e-mail visÌvel'}
       userChips={[
-        { label: role === 'ADMIN' ? 'Administrador' : 'Opera√ß√£o' },
+        { label: role === 'ADMIN' ? 'Administrador' : 'OperaÁ„o' },
         { label: 'MercadoFlow', subtle: true },
       ]}
       sections={sections}
       supportKicker="Fluxo recomendado"
       supportTitle="Comece em Produtos e feche em Alertas"
-      supportText="O caminho mais simples para ler o neg√≥cio √© analisar o item, validar a compra e s√≥ depois agir no operacional."
+      supportText="O caminho mais simples para ler o negÛcio È analisar o item, validar a compra e sÛ depois agir no operacional."
     />
   );
 };

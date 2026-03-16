@@ -1,4 +1,5 @@
-Ôªøimport React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Bot, Database, Home, Users } from 'lucide-react';
 import Button from '../common/Button';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 import WorkspaceTopbar from './WorkspaceTopbar';
@@ -7,10 +8,10 @@ import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
 import { useDesktopSidebarMode } from '../../hooks/useDesktopSidebarMode';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/super-admin': { title: 'Vis√£o geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
-  '/super-admin/saas': { title: 'Contas e acesso', subtitle: 'Contas, usu√°rios, vencimentos e libera√ß√µes manuais', section: 'Controle' },
-  '/super-admin/catalogo': { title: 'Cat√°logo global', subtitle: 'Base central de produtos, ajustes manuais e revis√£o da qualidade', section: 'Dados' },
-  '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualiza√ß√£o de dados dos supermercados', section: 'Dados' },
+  '/super-admin': { title: 'Vis„o geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
+  '/super-admin/saas': { title: 'Contas e acesso', subtitle: 'Contas, usu·rios, vencimentos e liberaÁıes manuais', section: 'Controle' },
+  '/super-admin/catalogo': { title: 'Cat·logo global', subtitle: 'Base central de produtos, ajustes manuais e revis„o da qualidade', section: 'Dados' },
+  '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualizaÁ„o de dados dos supermercados', section: 'Dados' },
 };
 
 const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,15 +46,15 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     {
       title: 'Controle',
       items: [
-        { to: '/super-admin', label: 'Vis√£o geral', hint: 'Sa√∫de da plataforma', mark: 'VG', exact: true },
-        { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usu√°rios e vencimentos', mark: 'CT' },
+        { to: '/super-admin', label: 'Vis„o geral', hint: 'Sa˙de da plataforma', icon: Home, exact: true },
+        { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usu·rios e vencimentos', icon: Users },
       ],
     },
     {
       title: 'Dados',
       items: [
-        { to: '/super-admin/catalogo', label: 'Cat√°logo global', hint: 'Base central de produtos', mark: 'CG' },
-        { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', mark: 'CW' },
+        { to: '/super-admin/catalogo', label: 'Cat·logo global', hint: 'Base central de produtos', icon: Database },
+        { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
       ],
     },
   ];
@@ -72,7 +73,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         brandMark="SA"
         brandTitle="Super Admin"
         brandSubtitle="Controle central da plataforma"
-        userKicker="Sess√£o ativa"
+        userKicker="Sess„o ativa"
         userName={name || 'Super Administrador'}
         userEmail={email || 'Conta principal da plataforma'}
         userChips={[
@@ -81,8 +82,8 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         ]}
         sections={navSections}
         supportKicker="Fluxo sugerido"
-        supportTitle="Revise contas, acompanhe o crawler e valide o cat√°logo"
-        supportText="Essa ordem reduz erro operacional e deixa a manuten√ß√£o di√°ria mais simples."
+        supportTitle="Revise contas, acompanhe o crawler e valide o cat·logo"
+        supportText="Essa ordem reduz erro operacional e deixa a manutenÁ„o di·ria mais simples."
         footer={<Button className="w-full" variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 

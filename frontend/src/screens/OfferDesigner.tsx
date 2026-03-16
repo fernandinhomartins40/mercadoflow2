@@ -1,6 +1,21 @@
 ﻿
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Boxes,
+  CalendarDays,
+  Check,
+  Copy,
+  FileText,
+  LayoutTemplate,
+  PackageSearch,
+  Plus,
+  SendHorizontal,
+  Sparkles,
+  Trash2,
+  WandSparkles,
+  type LucideIcon,
+} from 'lucide-react';
 import Button from '../components/common/Button';
 import Layout from '../components/layout/Layout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
@@ -18,11 +33,11 @@ const compactCategory = (value?: string | null) => {
 };
 
 const TOOL_OPTIONS = [
-  { key: 'products', mark: 'PR', label: 'Produtos' },
-  { key: 'themes', mark: 'TM', label: 'Temas' },
-  { key: 'calendar', mark: 'DT', label: 'Datas' },
-  { key: 'copy', mark: 'TX', label: 'Texto' },
-  { key: 'publish', mark: 'PB', label: 'Publicar' },
+  { key: 'products', icon: PackageSearch, label: 'Produtos' },
+  { key: 'themes', icon: LayoutTemplate, label: 'Temas' },
+  { key: 'calendar', icon: CalendarDays, label: 'Datas' },
+  { key: 'copy', icon: FileText, label: 'Texto' },
+  { key: 'publish', icon: SendHorizontal, label: 'Publicar' },
 ] as const;
 
 type StudioTool = (typeof TOOL_OPTIONS)[number]['key'];
@@ -119,13 +134,15 @@ const mergeUniqueProducts = (base: OfferCatalogProduct[], incoming: OfferCatalog
 };
 
 const StudioToolButton: React.FC<{
-  mark: string;
+  icon: LucideIcon;
   label: string;
   active: boolean;
   onClick: () => void;
-}> = ({ mark, label, active, onClick }) => (
+}> = ({ icon: Icon, label, active, onClick }) => (
   <button type="button" className={`offer-studio-rail-button ${active ? 'active' : ''}`} onClick={onClick}>
-    <span className="offer-studio-rail-mark">{mark}</span>
+    <span className="offer-studio-rail-icon-wrap">
+      <Icon className="offer-studio-rail-icon" strokeWidth={2.1} />
+    </span>
     <span>{label}</span>
   </button>
 );
@@ -164,6 +181,7 @@ const StudioSearchResultCard: React.FC<{
       </div>
     </div>
     <Button type="button" variant={inQueue ? 'secondary' : 'primary'} onClick={onAdd} disabled={inQueue}>
+      {inQueue ? <Check size={16} strokeWidth={2.2} /> : <Plus size={16} strokeWidth={2.2} />}
       {inQueue ? 'Na fila' : 'Adicionar'}
     </Button>
   </article>
@@ -202,7 +220,10 @@ const StudioQueueCard: React.FC<{
         </div>
       </div>
     </div>
-    <Button type="button" variant="secondary" onClick={onRemove}>Remover</Button>
+    <Button type="button" variant="secondary" onClick={onRemove}>
+      <Trash2 size={16} strokeWidth={2.1} />
+      Remover
+    </Button>
   </article>
 );
 
@@ -452,7 +473,9 @@ const OfferDesigner: React.FC = () => {
         <div className="offer-studio-shell">
           <aside className="offer-studio-rail">
             <div className="offer-studio-rail-brand">
-              <span className="offer-studio-rail-badge">OF</span>
+              <span className="offer-studio-rail-badge">
+                <Sparkles className="offer-studio-rail-brand-icon" strokeWidth={2.1} />
+              </span>
               <div>
                 <strong>Designer de ofertas</strong>
                 <small>Automação visual nativa do MercadoFlow</small>
@@ -462,7 +485,7 @@ const OfferDesigner: React.FC = () => {
               {TOOL_OPTIONS.map((tool) => (
                 <StudioToolButton
                   key={tool.key}
-                  mark={tool.mark}
+                  icon={tool.icon}
                   label={tool.label}
                   active={activeTool === tool.key}
                   onClick={() => setActiveTool(tool.key)}
@@ -526,9 +549,11 @@ const OfferDesigner: React.FC = () => {
                       </label>
                       <div className="offer-studio-inline-actions">
                         <Button type="button" onClick={handleBulkLookup} disabled={bulkSearching}>
+                          <PackageSearch size={16} strokeWidth={2.1} />
                           {bulkSearching ? 'Processando lista...' : 'Buscar produtos'}
                         </Button>
                         <Button type="button" variant="secondary" onClick={handleAddAllResults} disabled={!results.length}>
+                          <Boxes size={16} strokeWidth={2.1} />
                           Adicionar resultados
                         </Button>
                       </div>
@@ -583,6 +608,7 @@ const OfferDesigner: React.FC = () => {
                     <h2>Modelos disponíveis</h2>
                   </div>
                   <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/modelos')}>
+                    <LayoutTemplate size={16} strokeWidth={2.1} />
                     Gerenciar
                   </Button>
                 </div>
@@ -684,6 +710,7 @@ const OfferDesigner: React.FC = () => {
                     <h2>Legenda automática</h2>
                   </div>
                   <Button type="button" variant="secondary" onClick={handleCopyText} disabled={copying}>
+                    <Copy size={16} strokeWidth={2.1} />
                     {copying ? 'Copiando...' : 'Copiar texto'}
                   </Button>
                 </div>
@@ -736,9 +763,11 @@ const OfferDesigner: React.FC = () => {
                   </div>
                   <div className="offer-studio-inline-actions wrap">
                     <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                      <WandSparkles size={16} strokeWidth={2.1} />
                       {saving ? 'Gerando lote...' : 'Gerar lote'}
                     </Button>
                     <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/jobs')}>
+                      <Boxes size={16} strokeWidth={2.1} />
                       Ver fila
                     </Button>
                   </div>
@@ -804,12 +833,15 @@ const OfferDesigner: React.FC = () => {
                 </div>
                 <div className="offer-studio-output-actions">
                   <Button type="button" variant="secondary" onClick={() => setActiveTool('themes')}>
+                    <LayoutTemplate size={16} strokeWidth={2.1} />
                     Modelos
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/jobs')}>
+                    <Boxes size={16} strokeWidth={2.1} />
                     Lotes
                   </Button>
                   <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                    <WandSparkles size={16} strokeWidth={2.1} />
                     {saving ? 'Gerando...' : 'Gerar lote'}
                   </Button>
                 </div>

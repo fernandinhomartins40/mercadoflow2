@@ -1,4 +1,5 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { QrCode } from 'lucide-react';
 import OfferProductImage from './OfferProductImage';
 import { OfferCatalogProduct, OfferTemplate } from '../../types/offers.types';
 
@@ -133,7 +134,9 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
           if (slot.type === 'qrcode') {
             return (
               <div key={slot.id} className="offer-canvas-slot qr" style={style}>
-                <div className="offer-canvas-qr-box">QR</div>
+                <div className="offer-canvas-qr-box">
+                  <QrCode size={28} strokeWidth={2.1} />
+                </div>
                 <small>{leadProduct ? 'Link do produto' : 'QR dinâmico'}</small>
               </div>
             );
