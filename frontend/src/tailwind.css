@@ -5582,12 +5582,16 @@
 
 .offers-studio-layout {
   align-items: stretch;
+  min-height: 0;
 }
 
 .offers-studio-layout-main {
   display: flex;
+  flex: 1 1 auto;
+  height: 100%;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .offers-studio-page {
@@ -5595,6 +5599,7 @@
   min-width: 0;
   min-height: 0;
   gap: 16px;
+  overflow: hidden;
 }
 
 .rank-pill {

@@ -42,8 +42,8 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <div
       className={sidebarPinned
-        ? 'workspace-root offers-studio-layout grid min-h-screen grid-cols-[96px_minmax(0,1fr)] gap-6 overflow-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-6'
-        : 'workspace-root offers-studio-layout flex min-h-screen flex-col gap-4 overflow-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4'}
+        ? 'workspace-root offers-studio-layout grid h-[100dvh] box-border grid-cols-[96px_minmax(0,1fr)] gap-6 overflow-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-6'
+        : 'workspace-root offers-studio-layout flex h-[100dvh] box-border flex-col gap-4 overflow-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4'}
     >
       <Sidebar
         mobileOpen={sidebarOpen}
@@ -75,7 +75,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       />
 
-      <main className={`offers-studio-layout-main min-w-0 overflow-hidden ${sidebarPinned ? 'min-h-[calc(100dvh-48px)]' : 'min-h-[calc(100dvh-32px)] pt-14'}`}>
+      <main className={`offers-studio-layout-main h-full min-w-0 min-h-0 overflow-hidden ${sidebarPinned ? '' : 'pt-14'}`}>
         {!sidebarPinned ? (
           <button
             type="button"
