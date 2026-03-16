@@ -85,6 +85,31 @@ def login(api_base: str, login_endpoint: str, email: str, password: str) -> str:
     return str(token)
 
 
+def login_with_retry(
+    api_base: str,
+    login_endpoint: str,
+    email: str,
+    password: str,
+    attempts: int = 30,
+    sleep_seconds: int = 10,
+) -> str:
+    last_error: Optional[BaseException] = None
+    total_attempts = max(1, attempts)
+    retry_sleep = max(1, sleep_seconds)
+    for attempt in range(1, total_attempts + 1):
+        try:
+            return login(api_base, login_endpoint, email, password)
+        except (requests.RequestException, RuntimeError) as exc:
+            last_error = exc
+            print(
+                f"dispatcher login pending ({attempt}/{total_attempts}): {exc}",
+                file=sys.stderr,
+            )
+            if attempt < total_attempts:
+                time.sleep(retry_sleep)
+    raise RuntimeError(f"Unable to authenticate dispatcher after {total_attempts} attempts") from last_error
+
+
 def api_get(api_base: str, endpoint: str, token: str) -> Dict[str, Any]:
     path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
     response = requests.get(
@@ -718,7 +743,7 @@ def main() -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result.get("status") != "FAILED" else 1
 
-    token = login(args.api_base, args.login_endpoint, args.email, args.password)
+    token = login_with_retry(args.api_base, args.login_endpoint, args.email, args.password)
     poll_seconds = max(5, int(args.manual_poll_seconds))
     print(f"watch mode enabled manual_only=true providers={','.join(enabled_providers())} poll={poll_seconds}s")
 

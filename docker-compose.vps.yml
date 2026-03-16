@@ -43,6 +43,12 @@ services:
     volumes:
       - ./pdv2cloud-agent/installer/Output:/opt/pdv2cloud/installer:ro
       - ./data/catalog:/opt/pdv2cloud/catalog-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
 
   mercadoflow-frontend:
     container_name: mercadoflow-frontend
@@ -51,7 +57,8 @@ services:
       args:
         NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
     depends_on:
-      - mercadoflow-backend
+      mercadoflow-backend:
+        condition: service_healthy
 
   mercadoflow-cron:
     container_name: mercadoflow-cron
@@ -65,7 +72,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION_MS=86400000
     depends_on:
-      - mercadoflow-backend
+      mercadoflow-backend:
+        condition: service_healthy
 
   mercadoflow-nginx:
     container_name: mercadoflow-nginx
@@ -75,8 +83,10 @@ services:
     volumes:
       - ./deploy/nginx.vps.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - mercadoflow-backend
-      - mercadoflow-frontend
+      mercadoflow-backend:
+        condition: service_healthy
+      mercadoflow-frontend:
+        condition: service_started
 
   mercadoflow-catalog-harvester:
     container_name: mercadoflow-catalog-harvester
@@ -97,7 +107,8 @@ services:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog
     depends_on:
-      - mercadoflow-backend
+      mercadoflow-backend:
+        condition: service_healthy
 
   mercadoflow-barcode-enricher:
     container_name: mercadoflow-barcode-enricher
@@ -118,7 +129,8 @@ services:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog
     depends_on:
-      - mercadoflow-backend
+      mercadoflow-backend:
+        condition: service_healthy
 
 volumes:
   mercadoflow_postgres_data:
