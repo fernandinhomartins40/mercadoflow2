@@ -45,7 +45,7 @@ const Settings: React.FC = () => {
 
   const resolvedMarketId = marketId || manualMarketId;
   const apiBaseUrl = useMemo(() => {
-    const configured = (process.env.NEXT_PUBLIC_API_URL || '/api').trim();
+    const configured = (import.meta.env.VITE_API_URL || '/api').trim();
     if (configured.startsWith('http://') || configured.startsWith('https://')) {
       return configured.replace(/\/api\/?$/, '').replace(/\/+$/, '');
     }
