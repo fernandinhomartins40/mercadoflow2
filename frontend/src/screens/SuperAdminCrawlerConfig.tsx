@@ -389,7 +389,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               ))}
             </section>
 
-            <PanelSection kicker="Hist?rico" title="?ltimas execu??es">
+            <PanelSection kicker="Histórico" title="Últimas execuções">
               {monitor.recentRuns.length === 0 ?(
                 <div className="panel-empty">Nenhuma execução registrada até agora.</div>
               ) : (

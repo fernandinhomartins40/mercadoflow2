@@ -274,7 +274,7 @@ const CatalogAdmin: React.FC = () => {
         </div>
 
         <div className="page-slab-grid">
-          <PanelSection className="dashboard-form-panel" kicker="Filtros" title="Refinar por informa??es do produto">
+          <PanelSection className="dashboard-form-panel" kicker="Filtros" title="Refinar por informações do produto">
             <div className="filter-bar-controls catalog-admin-filters-grid">
               <input
                 className="input"
@@ -333,7 +333,7 @@ const CatalogAdmin: React.FC = () => {
             ) : null}
           </PanelSection>
 
-          <PanelSection className="dashboard-note-card" kicker="Leitura r?pida" title="Como usar este cat?logo">
+          <PanelSection className="dashboard-note-card" kicker="Leitura rápida" title="Como usar este catálogo">
             <div className="dashboard-quick-list">
               <div className="dashboard-quick-item">
                 <strong>Busque por nome ou GTIN</strong>
@@ -412,7 +412,7 @@ const CatalogAdmin: React.FC = () => {
         )}
 
         {!loading && pageData ?(
-          <PanelSection className="pager-panel" kicker="Pagina??o" title={`P?gina ${pageData.number + 1} de ${Math.max(totalPages, 1)}`}>
+          <PanelSection className="pager-panel" kicker="Paginação" title={`Página ${pageData.number + 1} de ${Math.max(totalPages, 1)}`}>
             <div className="pager-actions admin-pager-actions">
               <Button variant="secondary" onClick={() => setPage((value) => Math.max(0, value - 1))} disabled={page <= 0}>
                 Anterior

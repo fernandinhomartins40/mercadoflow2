@@ -513,33 +513,23 @@ const SuperAdminUsers: React.FC = () => {
       <div className="page super-admin-page">
         <PageHero
           badge="Contas e acesso"
-          title="Contas, usu?rios e acesso da opera??o."
-          description="Controle quem pode entrar, quantos usu?rios cada conta pode ter e o que precisa de ajuste manual sem espalhar a opera??o pela p?gina."
+          title="Contas, usuários e acesso da operação."
+          description="Controle quem pode entrar, quantos usuários cada conta pode ter e o que precisa de ajuste manual sem espalhar a operação pela página."
+          articleClassName="super-admin-page-hero-card"
+          featureClassName="super-admin-page-hero-feature"
           feature={
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="super-admin-hero-feature-grid">
               <div className="dashboard-glow-card">
-                <span className="section-kicker">Licen?as em uso</span>
-                <h3>{overview?.seatUsedTotal ?? 0} usu?rios ativos</h3>
+                <span className="section-kicker">Licenças em uso</span>
+                <h3>{overview?.seatUsedTotal ?? 0} usuários ativos</h3>
                 <strong>{overview?.seatLimitTotal ?? 0}</strong>
                 <p>Limite total liberado nas contas cadastradas.</p>
               </div>
 
-              <div className="dashboard-command-mosaic h-full">
-                <div className="dashboard-mini-tile">
-                  <span>Contas</span>
-                  <strong>{overview?.totalMarkets ?? 0}</strong>
-                  <small>{overview?.activeMarkets ?? 0} ativas</small>
-                </div>
-                <div className="dashboard-mini-tile">
-                  <span>Usu?rios ativos</span>
-                  <strong>{overview?.activeUsers ?? 0}</strong>
-                  <small>{overview?.blockedUsers ?? 0} bloqueados</small>
-                </div>
-                <div className="dashboard-mini-tile accent">
-                  <span>Vencimento pr?ximo</span>
-                  <strong>{overview?.expiringMarkets ?? 0}</strong>
-                  <small>contas que vencem nos pr?ximos 7 dias</small>
-                </div>
+              <div className="super-admin-hero-metrics">
+                <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" caption={`${overview?.activeMarkets ?? 0} ativas`} />
+                <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" caption={`${overview?.blockedUsers ?? 0} bloqueados`} />
+                <MetricsCard className="super-admin-hero-metric-span" title="Vencimento próximo" value={overview?.expiringMarkets ?? 0} icon="VX" caption="contas que vencem nos próximos 7 dias" />
               </div>
             </div>
           }
@@ -552,14 +542,14 @@ const SuperAdminUsers: React.FC = () => {
           aside={
             <div className="page-side-stack">
               <div className="dashboard-priority-card dark min-h-[132px]">
-                <span className="section-kicker">Aten??o agora</span>
+                <span className="section-kicker">Atenção agora</span>
                 <strong>{overview?.pastDueMarkets ?? 0} contas em atraso</strong>
-                <p>{overview?.suspendedMarkets ?? 0} contas suspensas precisam de revis?o manual.</p>
+                <p>{overview?.suspendedMarkets ?? 0} contas suspensas precisam de revisão manual.</p>
               </div>
               <div className="dashboard-priority-card min-h-[132px]">
-                <span className="section-kicker">Usu?rios sem conta</span>
+                <span className="section-kicker">Usuários sem conta</span>
                 <strong>{overview?.orphanUsers ?? 0}</strong>
-                <p>Revise o v?nculo desses usu?rios para evitar acesso incorreto.</p>
+                <p>Revise o vínculo desses usuários para evitar acesso incorreto.</p>
               </div>
             </div>
           }
@@ -572,7 +562,7 @@ const SuperAdminUsers: React.FC = () => {
           <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" />
           <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" />
           <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" />
-          <MetricsCard title="Usu?rios ativos" value={overview?.activeUsers ?? 0} icon="US" />
+          <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" />
         </div>
 
         <div className="page-card-grid">
@@ -587,11 +577,11 @@ const SuperAdminUsers: React.FC = () => {
 
           <PanelSection
             className="dashboard-note-card"
-            kicker="Usu?rio"
-            title="Criar ou editar usu?rio"
-            action={<Button onClick={openCreateUserModal}>Novo usu?rio</Button>}
+            kicker="Usuário"
+            title="Criar ou editar usuário"
+            action={<Button onClick={openCreateUserModal}>Novo usuário</Button>}
           >
-            <p className="super-admin-table-meta">Cadastre usu?rios e ajuste acessos pelo modal, sem formul?rio fixo na p?gina.</p>
+            <p className="super-admin-table-meta">Cadastre usuários e ajuste acessos pelo modal, sem formulário fixo na página.</p>
           </PanelSection>
         </div>
 
@@ -605,7 +595,7 @@ const SuperAdminUsers: React.FC = () => {
               ))}
             </select>
             <select className="input" value={marketDraftFilters.billingStatus} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, billingStatus: e.target.value })}>
-              <option value="">Toda a cobran?a</option>
+              <option value="">Toda a cobrança</option>
               {BILLING_STATUS_OPTIONS.map((option) => (
                 <option key={option} value={option}>{formatBillingStatus(option)}</option>
               ))}
@@ -627,12 +617,12 @@ const SuperAdminUsers: React.FC = () => {
                   <tr>
                     <th>Conta</th>
                     <th>Plano</th>
-                    <th>Cobran?a</th>
+                    <th>Cobrança</th>
                     <th>Assentos</th>
                     <th>Validade</th>
                     <th>Contato</th>
                     <th>Status</th>
-                    <th>A??es</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -644,11 +634,11 @@ const SuperAdminUsers: React.FC = () => {
                         <div className="super-admin-table-meta">Atualizado em {formatDateTime(market.updatedAt || market.createdAt)}</div>
                       </td>
                       <td data-label="Plano">{formatPlanType(market.planType)}</td>
-                      <td data-label="Cobran?a">{formatBillingStatus(market.billingStatus)}</td>
+                      <td data-label="Cobrança">{formatBillingStatus(market.billingStatus)}</td>
                       <td data-label="Assentos">{seatCaption(market)}</td>
                       <td data-label="Validade">
                         <div>{market.accessExpiresAt ? `Acesso: ${formatDateTime(market.accessExpiresAt)}` : 'Acesso sem vencimento'}</div>
-                        <div className="super-admin-table-meta">Teste at?: {formatDateTime(market.trialEndsAt)}</div>
+                        <div className="super-admin-table-meta">Teste até: {formatDateTime(market.trialEndsAt)}</div>
                       </td>
                       <td data-label="Contato">
                         <div>{textValue(market.contactName)}</div>
@@ -659,7 +649,7 @@ const SuperAdminUsers: React.FC = () => {
                         <span className={`super-admin-status-pill ${statusTone(market.accessStatus)}`}>{formatAccessStatus(market.accessStatus)}</span>
                         <div className="super-admin-table-meta">{textValue(market.accessReason)}</div>
                       </td>
-                      <td data-label="A??es" className="table-action-cell catalog-admin-action-cell">
+                      <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
                           <Button variant="secondary" onClick={() => startEditMarket(market)}>Editar</Button>
                           <Button variant="secondary" onClick={() => toggleMarketStatus(market)}>
@@ -675,19 +665,19 @@ const SuperAdminUsers: React.FC = () => {
           )}
           <div className="pager-actions admin-pager-actions mt-3">
             <Button variant="secondary" onClick={() => setMarketPage((value) => Math.max(0, value - 1))} disabled={marketPage <= 0}>Anterior</Button>
-            <Button variant="secondary" onClick={() => setMarketPage((value) => value + 1)} disabled={!marketsPage || marketPage >= (marketsPage.totalPages - 1)}>Pr?xima</Button>
+            <Button variant="secondary" onClick={() => setMarketPage((value) => value + 1)} disabled={!marketsPage || marketPage >= (marketsPage.totalPages - 1)}>Próxima</Button>
           </div>
         </PanelSection>
 
         <PanelSection
-          kicker="Usu?rios"
-          title="Acessos e v?nculo com conta"
+          kicker="Usuários"
+          title="Acessos e vínculo com conta"
           action={<ButtonLink to="/super-admin" variant="secondary">Voltar ao painel</ButtonLink>}
         >
           <div className="filter-bar-controls page-data-grid super-admin-filters-grid">
             <input className="input" placeholder="Buscar por nome, e-mail ou conta" value={userDraftFilters.search} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, search: e.target.value })} />
             <select className="input" value={userDraftFilters.role} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, role: e.target.value })}>
-              <option value="">Todos os pap?is</option>
+              <option value="">Todos os papéis</option>
               {USER_ROLE_OPTIONS.map((option) => (
                 <option key={option} value={option}>{formatRole(option)}</option>
               ))}
@@ -702,23 +692,23 @@ const SuperAdminUsers: React.FC = () => {
               <Button variant="secondary" onClick={clearUserFilters}>Limpar</Button>
             </div>
           </div>
-          {loading ? <div className="panel-empty">Carregando usu?rios...</div> : (
+          {loading ? <div className="panel-empty">Carregando usuários...</div> : (
             <div className="catalog-admin-table-wrap">
               <table className="table catalog-admin-table">
                 <thead>
                   <tr>
-                    <th>Usu?rio</th>
+                    <th>Usuário</th>
                     <th>Papel</th>
                     <th>Conta</th>
-                    <th>?ltimo login</th>
+                    <th>Último login</th>
                     <th>Status</th>
-                    <th>A??es</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id}>
-                      <td data-label="Usu?rio">
+                      <td data-label="Usuário">
                         <strong>{user.name}</strong>
                         <div className="super-admin-table-meta">{user.email}</div>
                         <div className="super-admin-table-meta">Criado em {formatDateTime(user.createdAt)}</div>
@@ -727,14 +717,14 @@ const SuperAdminUsers: React.FC = () => {
                       <td data-label="Conta">
                         <div>{textValue(user.marketName)}</div>
                         <div className="super-admin-table-meta">Plano: {formatPlanType(user.marketPlan)}</div>
-                        <div className="super-admin-table-meta">Cobran?a: {formatBillingStatus(user.marketBillingStatus)}</div>
+                        <div className="super-admin-table-meta">Cobrança: {formatBillingStatus(user.marketBillingStatus)}</div>
                       </td>
-                      <td data-label="?ltimo login">{formatDateTime(user.lastLoginAt)}</td>
+                      <td data-label="Último login">{formatDateTime(user.lastLoginAt)}</td>
                       <td data-label="Status">
                         <span className={`super-admin-status-pill ${statusTone(user.accessStatus)}`}>{user.isActive ? formatAccessStatus(user.accessStatus) : 'Bloqueado'}</span>
-                        <div className="super-admin-table-meta">{user.isActive ? textValue(user.accessReason) : 'Usu?rio bloqueado manualmente'}</div>
+                        <div className="super-admin-table-meta">{user.isActive ? textValue(user.accessReason) : 'Usuário bloqueado manualmente'}</div>
                       </td>
-                      <td data-label="A??es" className="table-action-cell catalog-admin-action-cell">
+                      <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
                           <Button variant="secondary" onClick={() => startEditUser(user)}>Editar</Button>
                           <Button variant="secondary" onClick={() => toggleUserStatus(user)}>
@@ -750,7 +740,7 @@ const SuperAdminUsers: React.FC = () => {
           )}
           <div className="pager-actions admin-pager-actions mt-3">
             <Button variant="secondary" onClick={() => setUserPage((value) => Math.max(0, value - 1))} disabled={userPage <= 0}>Anterior</Button>
-            <Button variant="secondary" onClick={() => setUserPage((value) => value + 1)} disabled={!usersPage || userPage >= (usersPage.totalPages - 1)}>Pr?xima</Button>
+            <Button variant="secondary" onClick={() => setUserPage((value) => value + 1)} disabled={!usersPage || userPage >= (usersPage.totalPages - 1)}>Próxima</Button>
           </div>
         </PanelSection>
 

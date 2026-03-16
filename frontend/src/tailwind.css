@@ -14,7 +14,7 @@
   --color-ink-700: #5f4636;
   --color-ink-800: #3d2a20;
   --color-ink-900: #1a1411;
-  --font-sans: "Segoe UI", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 @layer base {
@@ -45,6 +45,8 @@
     --muted: var(--text-muted);
     --text-tertiary: rgba(122, 91, 73, 0.78);
     --text-secondary: var(--text-muted);
+    --font-display: "Outfit", "Sora", var(--font-sans);
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   }
 
   html,
@@ -126,6 +128,7 @@
   .page-hero-title {
     @apply max-w-4xl text-[clamp(2.1rem,4vw,4rem)] font-semibold leading-[0.92] tracking-[-0.06em];
     color: var(--text-primary);
+    font-family: var(--font-display);
   }
 
   .page-hero-text {
@@ -166,6 +169,7 @@
   .app-panel-title {
     @apply mt-2 text-xl font-semibold tracking-[-0.03em];
     color: var(--text-primary);
+    font-family: var(--font-display);
   }
 
   .metrics-grid,
@@ -197,6 +201,7 @@
   .dashboard-command-title {
     @apply max-w-4xl text-[clamp(2.1rem,4vw,4rem)] font-semibold leading-[0.92] tracking-[-0.06em];
     color: var(--text-primary);
+    font-family: var(--font-display);
   }
 
   .dashboard-command-text {
@@ -308,6 +313,7 @@
 
   .dashboard-glow-card strong {
     @apply text-[clamp(2.1rem,4vw,3.5rem)] font-semibold leading-none tracking-[-0.06em];
+    font-family: var(--font-display);
   }
 
   .dashboard-glow-card p {
@@ -317,6 +323,44 @@
 
   .dashboard-command-mosaic {
     @apply grid gap-3 sm:grid-cols-2 2xl:grid-cols-3;
+  }
+
+  .super-admin-page-hero-card {
+    @apply xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.78fr)] xl:gap-7 2xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.84fr)];
+  }
+
+  .super-admin-page-hero-feature {
+    @apply min-h-0 justify-start;
+  }
+
+  .super-admin-hero-feature-grid {
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)];
+  }
+
+  .super-admin-hero-metrics {
+    @apply grid gap-3 sm:grid-cols-2;
+  }
+
+  .super-admin-hero-metrics-two {
+    @apply xl:grid-cols-1 2xl:grid-cols-2;
+  }
+
+  .super-admin-hero-metric-span {
+    @apply sm:col-span-2;
+  }
+
+  .super-admin-hero-metrics .metric-card {
+    @apply min-h-[152px] justify-between rounded-[24px] p-4 sm:p-5;
+  }
+
+  .super-admin-hero-metrics .metric-card-value {
+    @apply text-[clamp(1.9rem,3.4vw,2.9rem)];
+    font-family: var(--font-display);
+  }
+
+  .super-admin-hero-metrics .metric-card-title,
+  .super-admin-hero-metrics .metric-card-meta {
+    @apply break-words;
   }
 
   .dashboard-mini-tile {

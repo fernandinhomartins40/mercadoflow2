@@ -59,6 +59,8 @@ const SuperAdminDashboard: React.FC = () => {
               badge="Controle da operação"
               title="Contas, acesso e catálogo em uma leitura rápida."
               description="Aqui ficam os números que exigem decisão: contas ativas, vencimentos próximos, bloqueios e volume do catálogo."
+              articleClassName="super-admin-page-hero-card"
+              featureClassName="super-admin-page-hero-feature"
               actions={
                 <>
                   <ButtonLink to="/super-admin/saas">Abrir contas</ButtonLink>
@@ -68,7 +70,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </>
               }
               feature={
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="super-admin-hero-feature-grid">
                   <div className="dashboard-glow-card">
                     <span className="section-kicker">Contas em operação</span>
                     <h3>{overview?.activeMarkets ?? 0} mercados ativos</h3>
@@ -76,17 +78,19 @@ const SuperAdminDashboard: React.FC = () => {
                     <p>{overview?.expiringMarkets ?? 0} contas vencem nos próximos 7 dias.</p>
                   </div>
 
-                  <div className="dashboard-command-mosaic">
-                    <div className="dashboard-mini-tile">
-                      <span>Usuários ativos</span>
-                      <strong>{overview?.activeUsers ?? 0}</strong>
-                      <small>{overview?.seatUsedTotal ?? 0} assentos usados</small>
-                    </div>
-                    <div className="dashboard-mini-tile">
-                      <span>Catálogo global</span>
-                      <strong>{overview?.totalCatalogProducts ?? 0}</strong>
-                      <small>{overview?.totalCatalogEnrichments ?? 0} registros complementares</small>
-                    </div>
+                  <div className="super-admin-hero-metrics super-admin-hero-metrics-two">
+                    <MetricsCard
+                      title="Usuários ativos"
+                      value={overview?.activeUsers ?? 0}
+                      icon="US"
+                      caption={`${overview?.seatUsedTotal ?? 0} assentos usados`}
+                    />
+                    <MetricsCard
+                      title="Catálogo global"
+                      value={overview?.totalCatalogProducts ?? 0}
+                      icon="CG"
+                      caption={`${overview?.totalCatalogEnrichments ?? 0} registros complementares`}
+                    />
                   </div>
                 </div>
               }
