@@ -18,11 +18,15 @@ public class OfferGenerationJobDTO {
     private String status;
     private String outputType;
     private String generationMode;
+    private String variantKey;
     private Integer productCount;
     private Integer pageCount;
     private String templateSnapshotJson;
+    private String publishTargetsJson;
+    private String renderOptionsJson;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OfferGenerationJobItemDTO> items;
+    private List<OfferRenderOutputDTO> outputs;
 }
 

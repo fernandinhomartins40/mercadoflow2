@@ -1,4 +1,4 @@
-﻿import { ProductPairInsight, ProductPerformance, PromotionImpact } from './analytics.types';
+import { ProductPairInsight, ProductPerformance, PromotionImpact } from './analytics.types';
 
 export interface OfferCatalogProduct {
   productId: string;
@@ -15,6 +15,49 @@ export interface OfferCatalogProduct {
   productUrl?: string | null;
 }
 
+export interface OfferTemplateVariant {
+  id: string;
+  templateId?: string | null;
+  variantKey: string;
+  name: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  variantJson: string;
+  previewImageUrl?: string | null;
+  active: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface OfferBrandKit {
+  id: string;
+  kitKey?: string | null;
+  name: string;
+  description?: string | null;
+  tokensJson: string;
+  assetsJson: string;
+  active: boolean;
+  systemKit: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface OfferCampaignKit {
+  id: string;
+  kitKey?: string | null;
+  name: string;
+  description?: string | null;
+  seasonKey?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  tokensJson: string;
+  assetsJson: string;
+  active: boolean;
+  systemKit: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface OfferTemplate {
   id: string;
   templateKey?: string | null;
@@ -23,10 +66,16 @@ export interface OfferTemplate {
   channel: string;
   canvasWidth: number;
   canvasHeight: number;
+  schemaVersion?: number | null;
+  masterTemplateKey?: string | null;
+  defaultVariantKey?: string | null;
+  brandKitId?: string | null;
+  campaignKitId?: string | null;
   designJson: string;
   previewImageUrl?: string | null;
   active: boolean;
   systemTemplate: boolean;
+  variants: OfferTemplateVariant[];
   createdAt?: string | null;
   updatedAt?: string | null;
 }
@@ -40,7 +89,26 @@ export interface OfferGenerationJobItem {
   currentPrice?: number | null;
   status: string;
   positionIndex: number;
+  slotIndex?: number | null;
+  zoneId?: string | null;
   bindingJson: string;
+  resolvedBindingJson?: string | null;
+}
+
+export interface OfferRenderOutput {
+  id: string;
+  jobId?: string | null;
+  templateId?: string | null;
+  variantKey?: string | null;
+  outputType: string;
+  publishTarget?: string | null;
+  status: string;
+  fileUrl?: string | null;
+  previewImageUrl?: string | null;
+  errorMessage?: string | null;
+  renderOptionsJson?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface OfferGenerationJob {
@@ -51,12 +119,41 @@ export interface OfferGenerationJob {
   status: string;
   outputType: string;
   generationMode: string;
+  variantKey?: string | null;
   productCount: number;
   pageCount: number;
   templateSnapshotJson: string;
+  publishTargetsJson?: string | null;
+  renderOptionsJson?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   items: OfferGenerationJobItem[];
+  outputs: OfferRenderOutput[];
+}
+
+export interface OfferTemplateValidation {
+  valid: boolean;
+  layerCount: number;
+  zoneCount: number;
+  variantCount: number;
+  messages: string[];
+}
+
+export interface OfferTemplatePreview {
+  templateId: string;
+  templateName: string;
+  variantKey?: string | null;
+  canvasWidth: number;
+  canvasHeight: number;
+  resolvedDesignJson: string;
+  productIds: string[];
+  warnings: string[];
+}
+
+export interface OfferBackgroundRemovalResult {
+  sourceUrl: string;
+  cleanedImageUrl: string;
+  removed: boolean;
 }
 
 export interface OfferOverview {
@@ -65,9 +162,10 @@ export interface OfferOverview {
   queuedJobs: number;
   templates: OfferTemplate[];
   recentJobs: OfferGenerationJob[];
+  brandKits: OfferBrandKit[];
+  campaignKits: OfferCampaignKit[];
   replenishmentSuggestions: ProductPerformance[];
   seasonalSuggestions: ProductPerformance[];
   promotionSuggestions: PromotionImpact[];
   pairSuggestions: ProductPairInsight[];
 }
-

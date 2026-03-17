@@ -67,6 +67,8 @@ app:
       include-open-products-facts: ${CATALOG_WEB_IMPORT_INCLUDE_OPEN_PRODUCTS:true}
   price-intelligence:
     fixed-delay-ms: ${PRICE_INTELLIGENCE_FIXED_DELAY_MS:900000}
+  offers:
+    outputs-dir: ${APP_OFFERS_OUTPUTS_DIR:../data/offers}
 
 logging:
   level:

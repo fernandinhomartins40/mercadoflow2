@@ -9,14 +9,10 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class OfferGenerationJobCreateRequest {
+public class OfferTemplatePreviewRequest {
     private UUID templateId;
-    private String name;
-    private String outputType;
-    private String generationMode;
     private String variantKey;
-    private String publishTargetsJson;
-    private String renderOptionsJson;
+    private UUID brandKitId;
+    private UUID campaignKitId;
     private List<UUID> productIds;
 }
-

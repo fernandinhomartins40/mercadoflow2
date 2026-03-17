@@ -1,7 +1,6 @@
 package com.pdv2cloud.model.dto;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,25 +9,16 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class OfferTemplateDTO {
+public class OfferTemplateVariantDTO {
     private UUID id;
-    private String templateKey;
+    private UUID templateId;
+    private String variantKey;
     private String name;
-    private String description;
-    private String channel;
     private Integer canvasWidth;
     private Integer canvasHeight;
-    private Integer schemaVersion;
-    private String masterTemplateKey;
-    private String defaultVariantKey;
-    private UUID brandKitId;
-    private UUID campaignKitId;
-    private String designJson;
+    private String variantJson;
     private String previewImageUrl;
     private Boolean active;
-    private Boolean systemTemplate;
-    private List<OfferTemplateVariantDTO> variants;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

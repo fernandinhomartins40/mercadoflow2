@@ -4820,6 +4820,11 @@
   line-height: 1.5;
 }
 
+.offer-studio-empty-card.slim {
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
 .offer-studio-result-card,
 .offer-studio-queue-card {
   display: grid;
@@ -4873,10 +4878,17 @@
   gap: 10px;
 }
 
-.offer-studio-result-card > button,
-.offer-studio-queue-card > button {
+.offer-studio-card-actions {
   grid-column: 1 / -1;
-  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.offer-studio-card-actions > * {
+  flex: 1 1 160px;
+  min-width: 0;
 }
 
 .offer-studio-pair-card {
@@ -5026,6 +5038,174 @@
 .offer-studio-summary-card strong {
   font-size: 1.2rem;
   color: #fff;
+}
+
+.offer-studio-theme-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.offer-studio-theme-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(87, 51, 30, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+}
+
+.offer-studio-structure-list,
+.offer-studio-zone-list,
+.offer-studio-binding-list {
+  display: grid;
+  gap: 10px;
+}
+
+.offer-studio-structure-row,
+.offer-studio-zone-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(87, 51, 30, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 247, 240, 0.72);
+  color: var(--text-primary);
+  text-align: left;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.offer-studio-structure-row:hover,
+.offer-studio-zone-card:hover,
+.offer-studio-structure-row.active,
+.offer-studio-zone-card.active {
+  border-color: rgba(255, 122, 18, 0.28);
+  box-shadow: 0 16px 28px rgba(255, 122, 18, 0.12);
+  transform: translateY(-1px);
+}
+
+.offer-studio-structure-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: rgba(255, 122, 18, 0.12);
+  color: var(--accent-primary);
+  flex: 0 0 38px;
+}
+
+.offer-studio-structure-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.offer-studio-structure-copy strong,
+.offer-studio-zone-card strong,
+.offer-studio-binding-row strong {
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.offer-studio-structure-copy small,
+.offer-studio-zone-meta,
+.offer-studio-binding-row small {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.offer-studio-structure-flags,
+.offer-studio-zone-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.offer-studio-zone-card {
+  align-items: flex-start;
+}
+
+.offer-studio-property-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.offer-studio-edit-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.offer-studio-property-row {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 247, 240, 0.72);
+  border: 1px solid rgba(87, 51, 30, 0.08);
+}
+
+.offer-studio-property-row span {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.offer-studio-property-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.offer-studio-binding-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 247, 240, 0.72);
+  border: 1px solid rgba(87, 51, 30, 0.08);
+}
+
+.offer-studio-binding-image {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #fff;
+  object-fit: contain;
+}
+
+.offer-studio-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 247, 240, 0.72);
+  border: 1px solid rgba(87, 51, 30, 0.08);
+}
+
+.offer-studio-check-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
 }
 
 .offer-studio-workspace {
@@ -5295,6 +5475,12 @@
     grid-template-columns: 88px minmax(300px, 344px) minmax(0, 1fr);
   }
 
+  .offer-studio-theme-grid,
+  .offer-studio-edit-grid,
+  .offer-studio-property-grid {
+    grid-template-columns: 1fr;
+  }
+
   .offer-studio-stage-header,
   .offer-studio-output-bar {
     flex-direction: column;
@@ -5363,6 +5549,7 @@
   .offer-studio-panel-header,
   .offer-studio-panel-subhead,
   .offer-studio-inline-actions,
+  .offer-studio-card-actions,
   .offer-studio-result-card,
   .offer-studio-queue-card {
     flex-direction: column;

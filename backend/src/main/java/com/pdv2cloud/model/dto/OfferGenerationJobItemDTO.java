@@ -18,6 +18,9 @@ public class OfferGenerationJobItemDTO {
     private BigDecimal currentPrice;
     private String status;
     private Integer positionIndex;
+    private Integer slotIndex;
+    private String zoneId;
     private String bindingJson;
+    private String resolvedBindingJson;
 }
 

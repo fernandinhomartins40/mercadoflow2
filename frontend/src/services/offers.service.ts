@@ -1,13 +1,104 @@
-﻿import api from './api';
+import api from './api';
+import {
+  OfferBackgroundRemovalResult,
+  OfferBrandKit,
+  OfferCampaignKit,
+  OfferCatalogProduct,
+  OfferGenerationJob,
+  OfferOverview,
+  OfferRenderOutput,
+  OfferTemplate,
+  OfferTemplatePreview,
+  OfferTemplateValidation,
+  OfferTemplateVariant,
+} from '../types/offers.types';
+
+export interface OfferTemplatePayload {
+  name: string;
+  description?: string;
+  channel?: string;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  schemaVersion?: number;
+  masterTemplateKey?: string;
+  defaultVariantKey?: string;
+  brandKitId?: string | null;
+  campaignKitId?: string | null;
+  designJson?: string;
+  active?: boolean;
+}
+
+export interface OfferTemplateVariantPayload {
+  variantKey?: string;
+  name: string;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  variantJson?: string;
+  previewImageUrl?: string;
+  active?: boolean;
+}
+
+export interface OfferBrandKitPayload {
+  kitKey?: string;
+  name: string;
+  description?: string;
+  tokensJson?: string;
+  assetsJson?: string;
+  active?: boolean;
+}
+
+export interface OfferCampaignKitPayload {
+  kitKey?: string;
+  name: string;
+  description?: string;
+  seasonKey?: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  tokensJson?: string;
+  assetsJson?: string;
+  active?: boolean;
+}
+
+export interface OfferPreviewPayload {
+  templateId: string;
+  variantKey?: string | null;
+  brandKitId?: string | null;
+  campaignKitId?: string | null;
+  productIds: string[];
+}
+
+export interface OfferCreateJobPayload {
+  templateId: string;
+  name?: string;
+  outputType?: string;
+  generationMode?: string;
+  variantKey?: string | null;
+  publishTargetsJson?: string;
+  renderOptionsJson?: string;
+  productIds: string[];
+}
+
+export interface OfferPublishPayload {
+  variantKeys?: string[];
+  outputTypes?: string[];
+  publishTargets?: string[];
+  renderOptionsJson?: string;
+}
+
+export interface OfferBackgroundRemovalPayload {
+  productId?: string | null;
+  imageUrl?: string | null;
+  imageStorageKey?: string | null;
+}
 
 export const offersService = {
   async getOverview(marketId: string) {
-    const response = await api.get(`/v1/markets/${marketId}/offers/overview`);
+    const response = await api.get<OfferOverview>(`/v1/markets/${marketId}/offers/overview`);
     return response.data;
   },
 
   async searchCatalog(marketId: string, query?: string, limit = 20) {
-    const response = await api.get(`/v1/markets/${marketId}/offers/catalog-search`, {
+    const response = await api.get<OfferCatalogProduct[]>(`/v1/markets/${marketId}/offers/catalog-search`, {
       params: { q: query?.trim() || undefined, limit },
     });
     return response.data;
@@ -16,62 +107,114 @@ export const offersService = {
   async getCatalogSelection(marketId: string, ids: string[]) {
     const params = new URLSearchParams();
     ids.forEach((id) => params.append('ids', id));
-    const response = await api.get(`/v1/markets/${marketId}/offers/catalog-selection`, {
+    const response = await api.get<OfferCatalogProduct[]>(`/v1/markets/${marketId}/offers/catalog-selection`, {
       params,
     });
     return response.data;
   },
 
   async getTemplates(marketId: string) {
-    const response = await api.get(`/v1/markets/${marketId}/offers/templates`);
+    const response = await api.get<OfferTemplate[]>(`/v1/markets/${marketId}/offers/templates`);
     return response.data;
   },
 
   async getTemplate(marketId: string, templateId: string) {
-    const response = await api.get(`/v1/markets/${marketId}/offers/templates/${templateId}`);
+    const response = await api.get<OfferTemplate>(`/v1/markets/${marketId}/offers/templates/${templateId}`);
     return response.data;
   },
 
-  async createTemplate(marketId: string, payload: {
-    name: string;
-    description?: string;
-    channel?: string;
-    canvasWidth?: number;
-    canvasHeight?: number;
-    designJson?: string;
-    active?: boolean;
-  }) {
-    const response = await api.post(`/v1/markets/${marketId}/offers/templates`, payload);
+  async createTemplate(marketId: string, payload: OfferTemplatePayload) {
+    const response = await api.post<OfferTemplate>(`/v1/markets/${marketId}/offers/templates`, payload);
     return response.data;
   },
 
-  async updateTemplate(marketId: string, templateId: string, payload: {
-    name: string;
-    description?: string;
-    channel?: string;
-    canvasWidth?: number;
-    canvasHeight?: number;
-    designJson?: string;
-    active?: boolean;
-  }) {
-    const response = await api.patch(`/v1/markets/${marketId}/offers/templates/${templateId}`, payload);
+  async updateTemplate(marketId: string, templateId: string, payload: OfferTemplatePayload) {
+    const response = await api.patch<OfferTemplate>(`/v1/markets/${marketId}/offers/templates/${templateId}`, payload);
+    return response.data;
+  },
+
+  async getTemplateVariants(marketId: string, templateId: string) {
+    const response = await api.get<OfferTemplateVariant[]>(`/v1/markets/${marketId}/offers/templates/${templateId}/variants`);
+    return response.data;
+  },
+
+  async createTemplateVariant(marketId: string, templateId: string, payload: OfferTemplateVariantPayload) {
+    const response = await api.post<OfferTemplateVariant>(`/v1/markets/${marketId}/offers/templates/${templateId}/variants`, payload);
+    return response.data;
+  },
+
+  async updateTemplateVariant(marketId: string, variantId: string, payload: OfferTemplateVariantPayload) {
+    const response = await api.patch<OfferTemplateVariant>(`/v1/markets/${marketId}/offers/variants/${variantId}`, payload);
+    return response.data;
+  },
+
+  async validateTemplate(marketId: string, templateId: string) {
+    const response = await api.get<OfferTemplateValidation>(`/v1/markets/${marketId}/offers/templates/${templateId}/validate`);
+    return response.data;
+  },
+
+  async previewTemplate(marketId: string, payload: OfferPreviewPayload) {
+    const response = await api.post<OfferTemplatePreview>(`/v1/markets/${marketId}/offers/preview`, payload);
+    return response.data;
+  },
+
+  async autoFillTemplate(marketId: string, payload: OfferPreviewPayload) {
+    const response = await api.post<OfferTemplatePreview>(`/v1/markets/${marketId}/offers/auto-fill`, payload);
+    return response.data;
+  },
+
+  async removeBackground(marketId: string, payload: OfferBackgroundRemovalPayload) {
+    const response = await api.post<OfferBackgroundRemovalResult>(`/v1/markets/${marketId}/offers/remove-background`, payload);
+    return response.data;
+  },
+
+  async getBrandKits(marketId: string) {
+    const response = await api.get<OfferBrandKit[]>(`/v1/markets/${marketId}/offers/brand-kits`);
+    return response.data;
+  },
+
+  async createBrandKit(marketId: string, payload: OfferBrandKitPayload) {
+    const response = await api.post<OfferBrandKit>(`/v1/markets/${marketId}/offers/brand-kits`, payload);
+    return response.data;
+  },
+
+  async updateBrandKit(marketId: string, kitId: string, payload: OfferBrandKitPayload) {
+    const response = await api.patch<OfferBrandKit>(`/v1/markets/${marketId}/offers/brand-kits/${kitId}`, payload);
+    return response.data;
+  },
+
+  async getCampaignKits(marketId: string) {
+    const response = await api.get<OfferCampaignKit[]>(`/v1/markets/${marketId}/offers/campaign-kits`);
+    return response.data;
+  },
+
+  async createCampaignKit(marketId: string, payload: OfferCampaignKitPayload) {
+    const response = await api.post<OfferCampaignKit>(`/v1/markets/${marketId}/offers/campaign-kits`, payload);
+    return response.data;
+  },
+
+  async updateCampaignKit(marketId: string, kitId: string, payload: OfferCampaignKitPayload) {
+    const response = await api.patch<OfferCampaignKit>(`/v1/markets/${marketId}/offers/campaign-kits/${kitId}`, payload);
     return response.data;
   },
 
   async getJobs(marketId: string) {
-    const response = await api.get(`/v1/markets/${marketId}/offers/jobs`);
+    const response = await api.get<OfferGenerationJob[]>(`/v1/markets/${marketId}/offers/jobs`);
     return response.data;
   },
 
-  async createJob(marketId: string, payload: {
-    templateId: string;
-    name?: string;
-    outputType?: string;
-    generationMode?: string;
-    productIds: string[];
-  }) {
-    const response = await api.post(`/v1/markets/${marketId}/offers/jobs`, payload);
+  async createJob(marketId: string, payload: OfferCreateJobPayload) {
+    const response = await api.post<OfferGenerationJob>(`/v1/markets/${marketId}/offers/jobs`, payload);
+    return response.data;
+  },
+
+  async getJobOutputs(marketId: string, jobId: string) {
+    const response = await api.get<OfferRenderOutput[]>(`/v1/markets/${marketId}/offers/jobs/${jobId}/outputs`);
+    return response.data;
+  },
+
+  async publishJob(marketId: string, jobId: string, payload: OfferPublishPayload) {
+    const response = await api.post<OfferRenderOutput[]>(`/v1/markets/${marketId}/offers/jobs/${jobId}/publish`, payload);
     return response.data;
   },
 };
-

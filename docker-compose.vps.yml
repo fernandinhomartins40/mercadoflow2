@@ -28,6 +28,7 @@ services:
       - INSTALLER_DIR=/opt/pdv2cloud/installer
       - APP_PUBLIC_BASE_URL=https://mercadoflow.com
       - APP_CATALOG_IMAGES_DIR=/opt/pdv2cloud/catalog-data/images
+      - APP_OFFERS_OUTPUTS_DIR=/opt/pdv2cloud/offers-data
       - APP_SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - APP_SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
       - APP_SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
@@ -43,6 +44,7 @@ services:
     volumes:
       - ./pdv2cloud-agent/installer/Output:/opt/pdv2cloud/installer:ro
       - ./data/catalog:/opt/pdv2cloud/catalog-data
+      - ./data/offers:/opt/pdv2cloud/offers-data
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
       interval: 10s

@@ -1,8 +1,5 @@
 package com.pdv2cloud.model.entity;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -13,62 +10,65 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
-@Table(name = "offer_generation_job_items")
+@Table(name = "offer_render_outputs")
 @EntityListeners(AuditingEntityListener.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class OfferGenerationJobItem {
+public class OfferRenderOutput {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "market_id", nullable = false)
+    private Market market;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
     private OfferGenerationJob job;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private Product product;
+    @JoinColumn(name = "template_id")
+    private OfferTemplate template;
 
-    @Column(name = "position_index", nullable = false)
-    private Integer positionIndex;
+    @Column(name = "variant_key", length = 120)
+    private String variantKey;
 
-    @Column(name = "slot_index")
-    private Integer slotIndex;
+    @Column(name = "output_type", nullable = false, length = 80)
+    private String outputType;
 
-    @Column(name = "zone_id", length = 120)
-    private String zoneId;
-
-    @Column(name = "product_name", nullable = false, length = 500)
-    private String productName;
-
-    @Column(name = "product_image_url", length = 2000)
-    private String productImageUrl;
-
-    @Column(name = "product_unit", length = 255)
-    private String productUnit;
-
-    @Column(name = "current_price", precision = 14, scale = 2)
-    private BigDecimal currentPrice;
+    @Column(name = "publish_target", length = 120)
+    private String publishTarget;
 
     @Column(nullable = false, length = 80)
     private String status;
 
-    @Column(name = "binding_json", nullable = false, columnDefinition = "text")
-    private String bindingJson;
+    @Column(name = "file_url", length = 2000)
+    private String fileUrl;
 
-    @Column(name = "resolved_binding_json", columnDefinition = "text")
-    private String resolvedBindingJson;
+    @Column(name = "preview_image_url", length = 2000)
+    private String previewImageUrl;
+
+    @Column(name = "error_message", length = 2000)
+    private String errorMessage;
+
+    @Column(name = "render_options_json", columnDefinition = "text")
+    private String renderOptionsJson;
 
     @CreatedDate
     private LocalDateTime createdAt;
-}
 
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+}

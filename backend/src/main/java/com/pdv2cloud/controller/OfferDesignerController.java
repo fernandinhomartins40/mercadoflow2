@@ -1,10 +1,23 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.OfferCatalogProductDTO;
+import com.pdv2cloud.model.dto.OfferBrandKitDTO;
+import com.pdv2cloud.model.dto.OfferBrandKitUpsertRequest;
+import com.pdv2cloud.model.dto.OfferBackgroundRemovalDTO;
+import com.pdv2cloud.model.dto.OfferBackgroundRemovalRequest;
+import com.pdv2cloud.model.dto.OfferCampaignKitDTO;
+import com.pdv2cloud.model.dto.OfferCampaignKitUpsertRequest;
 import com.pdv2cloud.model.dto.OfferGenerationJobCreateRequest;
 import com.pdv2cloud.model.dto.OfferGenerationJobDTO;
 import com.pdv2cloud.model.dto.OfferOverviewDTO;
+import com.pdv2cloud.model.dto.OfferPublishRequest;
+import com.pdv2cloud.model.dto.OfferRenderOutputDTO;
 import com.pdv2cloud.model.dto.OfferTemplateDTO;
+import com.pdv2cloud.model.dto.OfferTemplatePreviewDTO;
+import com.pdv2cloud.model.dto.OfferTemplatePreviewRequest;
+import com.pdv2cloud.model.dto.OfferTemplateValidationDTO;
+import com.pdv2cloud.model.dto.OfferTemplateVariantDTO;
+import com.pdv2cloud.model.dto.OfferTemplateVariantUpsertRequest;
 import com.pdv2cloud.model.dto.OfferTemplateUpsertRequest;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.OfferDesignerService;
@@ -108,6 +121,138 @@ public class OfferDesignerController {
         return ResponseEntity.ok(offerDesignerService.updateTemplate(marketId, templateId, request));
     }
 
+    @GetMapping("/templates/{templateId}/variants")
+    public ResponseEntity<List<OfferTemplateVariantDTO>> listTemplateVariants(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("templateId") UUID templateId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.listTemplateVariants(marketId, templateId));
+    }
+
+    @PostMapping("/templates/{templateId}/variants")
+    public ResponseEntity<OfferTemplateVariantDTO> createTemplateVariant(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("templateId") UUID templateId,
+        @RequestBody OfferTemplateVariantUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.createTemplateVariant(marketId, templateId, request));
+    }
+
+    @PatchMapping("/variants/{variantId}")
+    public ResponseEntity<OfferTemplateVariantDTO> updateTemplateVariant(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("variantId") UUID variantId,
+        @RequestBody OfferTemplateVariantUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.updateTemplateVariant(marketId, variantId, request));
+    }
+
+    @GetMapping("/templates/{templateId}/validate")
+    public ResponseEntity<OfferTemplateValidationDTO> validateTemplate(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("templateId") UUID templateId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.validateTemplate(marketId, templateId));
+    }
+
+    @PostMapping("/preview")
+    public ResponseEntity<OfferTemplatePreviewDTO> previewTemplate(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody OfferTemplatePreviewRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.previewTemplate(marketId, request));
+    }
+
+    @PostMapping("/auto-fill")
+    public ResponseEntity<OfferTemplatePreviewDTO> autoFillTemplate(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody OfferTemplatePreviewRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.autoFillTemplate(marketId, request));
+    }
+
+    @PostMapping("/remove-background")
+    public ResponseEntity<OfferBackgroundRemovalDTO> removeBackground(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody OfferBackgroundRemovalRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.removeBackground(marketId, request));
+    }
+
+    @GetMapping("/brand-kits")
+    public ResponseEntity<List<OfferBrandKitDTO>> listBrandKits(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.listBrandKits(marketId));
+    }
+
+    @PostMapping("/brand-kits")
+    public ResponseEntity<OfferBrandKitDTO> createBrandKit(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody OfferBrandKitUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.createBrandKit(marketId, request));
+    }
+
+    @PatchMapping("/brand-kits/{kitId}")
+    public ResponseEntity<OfferBrandKitDTO> updateBrandKit(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("kitId") UUID kitId,
+        @RequestBody OfferBrandKitUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.updateBrandKit(marketId, kitId, request));
+    }
+
+    @GetMapping("/campaign-kits")
+    public ResponseEntity<List<OfferCampaignKitDTO>> listCampaignKits(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.listCampaignKits(marketId));
+    }
+
+    @PostMapping("/campaign-kits")
+    public ResponseEntity<OfferCampaignKitDTO> createCampaignKit(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody OfferCampaignKitUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.createCampaignKit(marketId, request));
+    }
+
+    @PatchMapping("/campaign-kits/{kitId}")
+    public ResponseEntity<OfferCampaignKitDTO> updateCampaignKit(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("kitId") UUID kitId,
+        @RequestBody OfferCampaignKitUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.updateCampaignKit(marketId, kitId, request));
+    }
+
     @GetMapping("/jobs")
     public ResponseEntity<List<OfferGenerationJobDTO>> listJobs(
         @PathVariable("marketId") UUID marketId,
@@ -125,6 +270,27 @@ public class OfferDesignerController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         return ResponseEntity.ok(offerDesignerService.createJob(marketId, request));
+    }
+
+    @GetMapping("/jobs/{jobId}/outputs")
+    public ResponseEntity<List<OfferRenderOutputDTO>> listOutputs(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("jobId") UUID jobId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.listOutputs(marketId, jobId));
+    }
+
+    @PostMapping("/jobs/{jobId}/publish")
+    public ResponseEntity<List<OfferRenderOutputDTO>> publishJob(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("jobId") UUID jobId,
+        @RequestBody OfferPublishRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.publishJob(marketId, jobId, request));
     }
 }
 

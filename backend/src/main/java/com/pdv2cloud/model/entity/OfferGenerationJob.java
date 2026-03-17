@@ -53,6 +53,9 @@ public class OfferGenerationJob {
     @Column(name = "generation_mode", nullable = false, length = 80)
     private String generationMode;
 
+    @Column(name = "variant_key", length = 120)
+    private String variantKey;
+
     @Column(name = "product_count", nullable = false)
     private Integer productCount = 0;
 
@@ -61,6 +64,12 @@ public class OfferGenerationJob {
 
     @Column(name = "template_snapshot_json", nullable = false, columnDefinition = "text")
     private String templateSnapshotJson;
+
+    @Column(name = "publish_targets_json", columnDefinition = "text")
+    private String publishTargetsJson;
+
+    @Column(name = "render_options_json", columnDefinition = "text")
+    private String renderOptionsJson;
 
     @CreatedDate
     private LocalDateTime createdAt;
