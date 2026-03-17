@@ -488,7 +488,7 @@ const OfferDesigner: React.FC = () => {
         : `Confira as ofertas preparadas para o ${name || 'seu mercado'}, com foco em preço, giro e exposição:\n\n`;
     const lines = selectedProducts
       .slice(0, textMode === 'LONG' ? 8 : textMode === 'MEDIUM' ? 5 : 3)
-      .map((product) => `• ${product.name} por ${formatMoney(product.currentPrice)}${product.unit ? ` · ${product.unit}` : ''}`);
+      .map((product) => ` ${product.name} por ${formatMoney(product.currentPrice)}${product.unit ? ` · ${product.unit}` : ''}`);
     const outro = textMode === 'LONG'
       ? '\n\nValores sujeitos ao estoque da loja e à vigência da ação comercial.'
       : '\n\nOfertas sujeitas à disponibilidade.';
@@ -704,7 +704,7 @@ const OfferDesigner: React.FC = () => {
 
   const handleCleanBackground = async (product: OfferCatalogProduct) => {
     if (!marketId || !product.imageUrl) {
-      setLookupNotice('Esse produto ainda nao possui imagem para limpar.');
+      setLookupNotice('Esse produto ainda não possui imagem para limpar.');
       return;
     }
     setRemovingBackgroundId(product.productId);
@@ -716,7 +716,7 @@ const OfferDesigner: React.FC = () => {
       applyRemovedBackground(product.productId, result);
       setLookupNotice('Imagem tratada e pronta para uso no template.');
     } catch (err: any) {
-      setError(err?.message || 'Nao foi possivel remover o fundo da imagem.');
+      setError(err?.message || 'Não foi possível remover o fundo da imagem.');
     } finally {
       setRemovingBackgroundId(null);
     }
@@ -821,7 +821,7 @@ const OfferDesigner: React.FC = () => {
       await loadTemplateMeta(updated.id, nextTemplates, brandKits, campaignKits);
       await refreshPreview('preview');
     } catch (err: any) {
-      setError(err?.message || 'Nao foi possivel salvar a estrutura do template.');
+      setError(err?.message || 'Não foi possível salvar a estrutura do template.');
     } finally {
       setSaving(false);
     }
@@ -901,7 +901,7 @@ const OfferDesigner: React.FC = () => {
           <div className="offer-studio-toast-stack">
             <div className="offer-studio-toast error">
               <span>{error}</span>
-              <button type="button" onClick={() => setError(null)} aria-label="Fechar aviso">×</button>
+              <button type="button" onClick={() => setError(null)} aria-label="Fechar aviso"></button>
             </div>
           </div>
         ) : null}
@@ -910,7 +910,7 @@ const OfferDesigner: React.FC = () => {
           <div className="offer-studio-toast-stack">
             <div className="offer-studio-toast info">
               <span>{lookupNotice}</span>
-              <button type="button" onClick={() => setLookupNotice(null)} aria-label="Fechar aviso">×</button>
+              <button type="button" onClick={() => setLookupNotice(null)} aria-label="Fechar aviso"></button>
             </div>
           </div>
         ) : null}
@@ -1215,7 +1215,7 @@ const OfferDesigner: React.FC = () => {
                         </label>
                         <label>
                           <input type="checkbox" checked={layerDraft.visible} onChange={(event) => setLayerDraft((current) => ({ ...current, visible: event.target.checked }))} />
-                          <span>Camada vis�vel</span>
+                          <span>Camada visvel</span>
                         </label>
                       </div>
                     </div>
@@ -1477,7 +1477,6 @@ const OfferDesigner: React.FC = () => {
 };
 
 export default OfferDesigner;
-
 
 
 

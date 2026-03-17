@@ -38,30 +38,30 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const sections: WorkspaceNavSection[] = [
     {
-      title: 'Vis„o do negÛcio',
+      title: 'Vis√£o do neg√≥cio',
       items: [
-        { to: '/app', label: 'Painel geral', hint: 'Resumo di·rio e prioridades', icon: Home, exact: true },
-        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tendÍncia e elasticidade', icon: PackageSearch },
-        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem aÁ„o imediata', icon: Bell },
+        { to: '/app', label: 'Painel geral', hint: 'Resumo di√°rio e prioridades', icon: Home, exact: true },
+        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tend√™ncia e elasticidade', icon: PackageSearch },
+        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem a√ß√£o imediata', icon: Bell },
       ],
     },
     {
-      title: 'An·lise e operaÁ„o',
+      title: 'An√°lise e opera√ß√£o',
       items: [
         { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', icon: Link2 },
         { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', icon: ShoppingCart },
         { to: '/app/ofertas', label: 'Ofertas', hint: 'Modelos, designer e lotes', icon: Sparkles },
-        { to: '/app/previsao-demanda', label: 'Previs„o', hint: 'Planejamento de demanda', icon: TrendingUp },
+        { to: '/app/previsao-demanda', label: 'Previs√£o', hint: 'Planejamento de demanda', icon: TrendingUp },
         { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', icon: Megaphone },
         { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', icon: Store },
       ],
     },
     {
-      title: 'ConfiguraÁ„o',
+      title: 'Configura√ß√£o',
       items: [
-        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Cat·logo global', hint: 'Base consolidada de produtos', icon: Database }] : []),
-        { to: '/app/download-agente', label: 'Download do agente', hint: 'InstalaÁ„o do coletor local', icon: Download },
-        { to: '/app/configuracoes', label: 'ConfiguraÁıes', hint: 'Acesso e integraÁıes', icon: Settings },
+        ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Cat√°logo global', hint: 'Base consolidada de produtos', icon: Database }] : []),
+        { to: '/app/download-agente', label: 'Download do agente', hint: 'Instala√ß√£o do coletor local', icon: Download },
+        { to: '/app/configuracoes', label: 'Configura√ß√µes', hint: 'Acesso e integra√ß√µes', icon: Settings },
       ],
     },
   ];
@@ -75,18 +75,18 @@ const Sidebar: React.FC<SidebarProps> = ({
       desktopWidthClassName={desktopWidthClassName}
       brandMark="MF"
       brandTitle="MercadoFlow"
-      brandSubtitle="Painel operacional para decis„o no varejo"
+      brandSubtitle="Painel operacional para decis√£o no varejo"
       userKicker="Workspace atual"
-      userName={name || 'Usu·rio logado'}
-      userEmail={email || 'Conta sem e-mail visÌvel'}
+      userName={name || 'Usu√°rio logado'}
+      userEmail={email || 'Conta sem e-mail vis√≠vel'}
       userChips={[
-        { label: role === 'ADMIN' ? 'Administrador' : 'OperaÁ„o' },
+        { label: role === 'ADMIN' ? 'Administrador' : 'Opera√ß√£o' },
         { label: 'MercadoFlow', subtle: true },
       ]}
       sections={sections}
       supportKicker="Fluxo recomendado"
       supportTitle="Comece em Produtos e feche em Alertas"
-      supportText="O caminho mais simples para ler o negÛcio È analisar o item, validar a compra e sÛ depois agir no operacional."
+      supportText="O caminho mais simples para ler o neg√≥cio √© analisar o item, validar a compra e s√≥ depois agir no operacional."
       footer={footer}
     />
   );

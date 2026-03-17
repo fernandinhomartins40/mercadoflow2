@@ -59,26 +59,26 @@ const MarketBasket: React.FC = () => {
   const metrics = [
     { title: 'Pares avaliados', value: rules.length, icon: 'PR', caption: 'regras retornadas no recorte' },
     {
-      title: 'Confianca media',
+      title: 'Confiança média',
       value: formatPercent(averageConfidence * 100),
       icon: 'CF',
       variant: 'warning' as const,
-      caption: 'forca media das relacoes',
+      caption: 'força média das relações',
     },
     {
       title: 'Lift maximo',
       value: strongestRule ? strongestRule.lift.toFixed(2) : '0.00',
       icon: 'LF',
       variant: 'danger' as const,
-      caption: 'maior impulso de combinacao',
+      caption: 'maior impulso de combinação',
     },
-    { title: 'Origem', value: useCached ? 'Cache' : 'Ao vivo', icon: 'FG', caption: 'modo atual da analise' },
+    { title: 'Origem', value: useCached ? 'Cache' : 'Ao vivo', icon: 'FG', caption: 'modo atual da análise' },
   ];
 
   const actionHint = (rule: BasketRule) => {
     if (Number(rule.lift || 0) >= 2.2) return 'Expor lado a lado e testar kit leve.';
     if (Number(rule.confidence || 0) >= 0.45) return 'Sinal claro para cross-sell no caixa.';
-    return 'Manter monitoramento para nova confirmacao.';
+    return 'Manter monitoramento para nova confirmação.';
   };
 
   return (
@@ -149,26 +149,26 @@ const MarketBasket: React.FC = () => {
         </section>
 
         <div className="dashboard-page-grid">
-          <PanelSection className="dashboard-form-panel" kicker="Origem" title="Escolha entre analise ao vivo e cache noturno">
+          <PanelSection className="dashboard-form-panel" kicker="Origem" title="Escolha entre análise ao vivo e cache noturno">
             <label className="toggle-row">
               <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} />
-              <span>{useCached ? 'Usando cache noturno' : 'Usando analise ao vivo'}</span>
+              <span>{useCached ? 'Usando cache noturno' : 'Usando análise ao vivo'}</span>
             </label>
           </PanelSection>
 
           <aside className="dashboard-side-stack">
-            <PanelSection className="dashboard-note-card" kicker="Como agir" title="Leia lift junto com confianca.">
+            <PanelSection className="dashboard-note-card" kicker="Como agir" title="Leia lift junto com confiança.">
               <div className="dashboard-quick-list">
                 <div className="dashboard-quick-item">
                   <strong>Lift alto</strong>
-                  <span>Bom candidato para exposicao conjunta e sugestao de venda.</span>
+                  <span>Bom candidato para exposição conjunta e sugestão de venda.</span>
                 </div>
                 <div className="dashboard-quick-item">
-                  <strong>Confianca alta</strong>
-                  <span>Sinal mais estavel para orientar combo e abordagem de caixa.</span>
+                  <strong>Confiança alta</strong>
+                  <span>Sinal mais estável para orientar combo e abordagem de caixa.</span>
                 </div>
                 <div className="dashboard-quick-item">
-                  <strong>Ocorrencia baixa</strong>
+                  <strong>Ocorrência baixa</strong>
                   <span>Vale monitorar mais antes de transformar em regra operacional fixa.</span>
                 </div>
               </div>

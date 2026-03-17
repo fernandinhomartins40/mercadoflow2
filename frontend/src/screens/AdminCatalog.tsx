@@ -358,7 +358,7 @@ const CatalogAdmin: React.FC = () => {
               <div className="panel-empty">Nenhum item para os filtros atuais.</div>
             ) : (
               <div className="catalog-admin-table-wrap">
-                <table className="table catalog-admin-table">
+                <table className="table catalog-admin-table catalog-admin-products-table">
                   <thead>
                     <tr>
                       <th>Produto</th>

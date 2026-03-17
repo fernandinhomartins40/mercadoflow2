@@ -6,7 +6,7 @@ const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
   <rect x="52" y="52" width="216" height="216" rx="28" fill="#fff" stroke="#ead9ca" stroke-width="8"/>
   <circle cx="112" cy="120" r="22" fill="#ff6a00" opacity="0.85"/>
   <path d="M88 210l42-46c8-9 23-9 31 0l18 20 23-26c8-9 23-9 31 0l35 38" fill="none" stroke="#1a1411" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="160" y="272" text-anchor="middle" fill="#6c5443" font-size="26" font-family="Segoe UI, Arial, sans-serif">Sem imagem</text>
+  <text x="160" y="272" text-anchor="middle" fill="#6c5443" font-size="26" font-family="Manrope, Outfit, Arial, sans-serif">Sem imagem</text>
 </svg>
 `)}`;
 

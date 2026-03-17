@@ -6,6 +6,11 @@ import { AuthProvider } from './context/AuthContext';
 import { SuperAdminAuthProvider } from './context/SuperAdminAuthContext';
 import './tailwind.css';
 
+document.documentElement.lang = 'pt-BR';
+document.documentElement.setAttribute('dir', 'ltr');
+document.documentElement.setAttribute('data-locale', 'pt-BR');
+document.body.setAttribute('data-locale', 'pt-BR');
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>

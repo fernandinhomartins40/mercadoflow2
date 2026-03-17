@@ -83,6 +83,28 @@
   textarea {
     font: inherit;
   }
+
+  input,
+  select,
+  textarea,
+  button,
+  option {
+    font-family: inherit;
+  }
+
+  ::placeholder {
+    font-family: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
 }
 
 @layer components {
@@ -532,11 +554,58 @@
   .catalog-admin-product-copy strong {
     @apply line-clamp-2 text-sm font-semibold leading-6;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
   }
 
   .catalog-admin-product-copy span {
     @apply text-xs leading-5;
     color: var(--text-muted);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .catalog-admin-products-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .catalog-admin-products-table th,
+  .catalog-admin-products-table td {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .catalog-admin-products-table th:nth-child(1),
+  .catalog-admin-products-table td:nth-child(1) {
+    width: auto;
+  }
+
+  .catalog-admin-products-table th:nth-child(2),
+  .catalog-admin-products-table td:nth-child(2) {
+    width: 140px;
+  }
+
+  .catalog-admin-products-table th:nth-child(3),
+  .catalog-admin-products-table td:nth-child(3) {
+    width: 108px;
+  }
+
+  .catalog-admin-products-table th:nth-child(4),
+  .catalog-admin-products-table td:nth-child(4) {
+    width: 160px;
+  }
+
+  .catalog-admin-products-table th:nth-child(5),
+  .catalog-admin-products-table td:nth-child(5) {
+    width: 110px;
+  }
+
+  .catalog-admin-products-table th:nth-child(6),
+  .catalog-admin-products-table td:nth-child(6) {
+    width: 88px;
   }
 
   .catalog-admin-pager {

@@ -51,7 +51,7 @@ const formatStatus = (value?: string | null) => {
   const status = (value || '').toUpperCase();
   if (status === 'RUNNING') return 'Executando';
   if (status === 'QUEUED') return 'Na fila';
-  if (status === 'SUCCESS') return 'Concluído';
+  if (status === 'SUCCESS') return 'Concludo';
   if (status === 'FAILED') return 'Falhou';
   if (status === 'CANCELLED') return 'Cancelado';
   return status || '--';
@@ -91,7 +91,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
       setDetails(response.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar os detalhes da execucao');
+      setError(err?.message || 'Falha ao carregar os detalhes da execução');
     } finally {
       setLoading(false);
     }
@@ -127,7 +127,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
           value: Number(details.run.importedProducts || 0),
           icon: 'IM',
           variant: 'warning' as const,
-          caption: 'itens enviados ao catalogo global',
+          caption: 'itens enviados ao catálogo global',
         },
         {
           title: 'Erros',
@@ -229,7 +229,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
             </section>
 
             <div className="dashboard-page-grid">
-              <PanelSection className="dashboard-note-card" kicker="Metadados da rodada" title="Contexto principal da execucao">
+              <PanelSection className="dashboard-note-card" kicker="Metadados da rodada" title="Contexto principal da execução">
                 <div className="dashboard-stat-list">
                   <div className="dashboard-stat-row">
                     <span>Solicitado</span>
@@ -274,8 +274,8 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                       <span><strong>Total:</strong> {detailValue(manifest.count)}</span>
                       <span><strong>Capturados:</strong> {detailValue(manifest.capturedProducts)}</span>
                       <span><strong>Imagens:</strong> {detailValue(manifest.imagesSaved)}</span>
-                      <span><strong>Paginas:</strong> {detailValue(manifest.pagesFetched)}</span>
-                      <span><strong>Unicos:</strong> {detailValue(manifest.productsUnique)}</span>
+                      <span><strong>Páginas:</strong> {detailValue(manifest.pagesFetched)}</span>
+                      <span><strong>Únicos:</strong> {detailValue(manifest.productsUnique)}</span>
                     </div>
                     <p><strong>Manifesto:</strong> {detailValue(manifest.outputManifest)}</p>
                     <p><strong>Registros:</strong> {detailValue(manifest.recordsFile)}</p>
@@ -286,7 +286,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
 
             <PanelSection
               kicker="Produtos"
-              title="Itens captados nesta execucao"
+              title="Itens captados nesta execução"
               action={
                 <div className="crawler-run-pagination">
                   <span>
@@ -294,12 +294,12 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     {Math.min(offset + limit, Number(details.recordsTotal || 0))} de {Number(details.recordsTotal || 0)}
                   </span>
                   <Button variant="secondary" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={!canGoPrev || loading}>Anterior</Button>
-                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Proximos</Button>
+                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Próximos</Button>
                 </div>
               }
             >
               {details.records.length === 0 ? (
-                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execucao.</div>
+                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execução.</div>
               ) : (
                 <div className="catalog-admin-table-wrap">
                   <table className="table catalog-admin-table">
@@ -339,12 +339,12 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
               )}
             </PanelSection>
 
-            <PanelSection kicker="Logs" title="Saida do dispatcher">
+            <PanelSection kicker="Logs" title="Saída do dispatcher">
               <div className="crawler-run-log-meta">
                 <span><strong>Log:</strong> {details.logPath || '--'}</span>
                 <span><strong>Resultado:</strong> {details.resultPath || '--'}</span>
               </div>
-              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execucao.'}</pre>
+              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execução.'}</pre>
             </PanelSection>
           </>
         ) : null}
