@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import hashlib
 import html
 import json
 import re
@@ -13,6 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 import requests
+from optimized_image_store import OptimizedImageStore
 
 GTIN_RE = re.compile(r"^\d{8,14}$")
 HTML_TAG_RE = re.compile(r"<[^>]+>")
@@ -130,45 +130,14 @@ class RunCancelled(Exception):
 
 class LocalImageStorage:
     def __init__(self, base_dir: Path, max_bytes: int):
-        self.base_dir = base_dir
-        self.max_bytes = max(256_000, int(max_bytes))
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.cache: Dict[str, str] = {}
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)"})
+        self.store = OptimizedImageStore(
+            base_dir=base_dir,
+            max_bytes=max_bytes,
+            user_agent="Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)",
+        )
 
     def save(self, provider: str, code: str, image_url: str) -> str:
-        url = canonical_url(image_url)
-        if not url:
-            return ""
-        cached = self.cache.get(url)
-        if cached:
-            return cached
-
-        response = self.session.get(url, stream=True, timeout=25)
-        response.raise_for_status()
-
-        provider_part = safe_slug(provider.lower())
-        code_part = safe_slug(code)
-        digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:10]
-        extension = infer_extension(response.headers.get("content-type", ""), url)
-        relative = f"{provider_part}/{code_part}-{digest}{extension}"
-        target = self.base_dir / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-
-        written = 0
-        with target.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=16_384):
-                if not chunk:
-                    continue
-                written += len(chunk)
-                if written > self.max_bytes:
-                    raise RuntimeError("image too large")
-                handle.write(chunk)
-
-        key = relative.replace("\\", "/")
-        self.cache[url] = key
-        return key
+        return self.store.save(code, image_url)
 
 
 class AuditWriter:

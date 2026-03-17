@@ -13,9 +13,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ProductEnrichmentRepository extends JpaRepository<ProductEnrichment, UUID> {
-    Optional<ProductEnrichment> findTopByProduct_IdAndProviderOrderByFetchedAtDesc(UUID productId, String provider);
-    List<ProductEnrichment> findAllByProduct_IdAndProviderOrderByFetchedAtDesc(UUID productId, String provider);
-    List<ProductEnrichment> findAllByProduct_EanInAndProviderOrderByFetchedAtDesc(Collection<String> eans, String provider);
+    Optional<ProductEnrichment> findTopByProduct_IdOrderByFetchedAtDesc(UUID productId);
+    List<ProductEnrichment> findAllByProduct_IdOrderByFetchedAtDesc(UUID productId);
+    List<ProductEnrichment> findAllByProduct_EanInOrderByFetchedAtDesc(Collection<String> eans);
     Optional<ProductEnrichment> findTopByImageStorageKeyOrderByFetchedAtDesc(String imageStorageKey);
 
     @Query(
@@ -116,12 +116,6 @@ public interface ProductEnrichmentRepository extends JpaRepository<ProductEnrich
         from ProductEnrichment pe
         where (:provider = '' or pe.provider = :provider)
           and coalesce(pe.imageStorageKey, '') <> ''
-          and pe.fetchedAt = (
-            select max(pe2.fetchedAt)
-            from ProductEnrichment pe2
-            where pe2.product.id = pe.product.id
-              and pe2.provider = pe.provider
-          )
         order by pe.fetchedAt desc
         """)
     Slice<ProductEnrichment> findLatestWithImageStorageKeyForRepair(

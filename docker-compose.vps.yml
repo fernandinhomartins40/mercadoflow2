@@ -96,7 +96,7 @@ services:
     restart: unless-stopped
     working_dir: /workspace
     command: >
-      sh -c "pip install --no-cache-dir requests &&
+      sh -c "pip install --no-cache-dir requests pillow &&
       python /workspace/scripts/catalog/market_catalog_dispatcher.py
       --watch
       --interval-minutes ${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}
@@ -118,7 +118,7 @@ services:
     restart: unless-stopped
     working_dir: /workspace
     command: >
-      sh -c "pip install --no-cache-dir requests &&
+      sh -c "pip install --no-cache-dir requests pillow &&
       python /workspace/scripts/catalog/barcode_enrichment_service.py
       --watch
       --interval-minutes ${BARCODE_ENRICH_INTERVAL_MINUTES:-720}

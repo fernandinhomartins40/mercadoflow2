@@ -19,7 +19,11 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.FileImageOutputStream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
@@ -257,7 +261,10 @@ public class CatalogImageStorageService {
                     return false;
                 }
 
-                Files.move(tempFile, imagePath, StandardCopyOption.REPLACE_EXISTING);
+                if (!persistRecoveredImage(tempFile, imagePath)) {
+                    Files.deleteIfExists(tempFile);
+                    return false;
+                }
                 log.info("Recovered missing catalog image | key={} source={}", normalizedStorageKey, normalizedUrl);
                 return true;
             } finally {
@@ -338,5 +345,65 @@ public class CatalogImageStorageService {
             graphics.dispose();
         }
         return normalized;
+    }
+
+    private boolean persistRecoveredImage(Path tempFile, Path imagePath) throws IOException {
+        String lowerName = imagePath.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+            BufferedImage sourceImage = ImageIO.read(tempFile.toFile());
+            if (sourceImage == null) {
+                return false;
+            }
+            BufferedImage normalized = normalizeContainedImage(sourceImage, 1600);
+            writeJpeg(normalized, imagePath);
+            Files.deleteIfExists(tempFile);
+            return true;
+        }
+        Files.move(tempFile, imagePath, StandardCopyOption.REPLACE_EXISTING);
+        return true;
+    }
+
+    private BufferedImage normalizeContainedImage(BufferedImage sourceImage, int maxSide) {
+        int width = sourceImage.getWidth();
+        int height = sourceImage.getHeight();
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Imagem nao possui dimensoes validas");
+        }
+
+        double scale = Math.min(1d, (double) maxSide / (double) Math.max(width, height));
+        int targetWidth = Math.max(1, (int) Math.round(width * scale));
+        int targetHeight = Math.max(1, (int) Math.round(height * scale));
+        BufferedImage normalized = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = normalized.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, targetWidth, targetHeight);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.drawImage(sourceImage, 0, 0, targetWidth, targetHeight, 0, 0, width, height, null);
+        } finally {
+            graphics.dispose();
+        }
+        return normalized;
+    }
+
+    private void writeJpeg(BufferedImage image, Path target) throws IOException {
+        var writers = ImageIO.getImageWritersByFormatName("jpg");
+        if (!writers.hasNext()) {
+            throw new IOException("Nenhum writer JPEG disponivel para persistir imagem");
+        }
+        ImageWriter writer = writers.next();
+        ImageWriteParam params = writer.getDefaultWriteParam();
+        if (params.canWriteCompressed()) {
+            params.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            params.setCompressionQuality(0.82f);
+        }
+        try (FileImageOutputStream outputStream = new FileImageOutputStream(target.toFile())) {
+            writer.setOutput(outputStream);
+            writer.write(null, new IIOImage(image, null, null), params);
+        } finally {
+            writer.dispose();
+        }
     }
 }

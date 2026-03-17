@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import html
 import json
 import os
@@ -28,6 +27,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib.parse import urldefrag, urljoin, urlparse
 
 import requests
+from optimized_image_store import OptimizedImageStore
 
 DEFAULT_CONFIG = "scripts/catalog/supermarket_sources.json"
 DEFAULT_OUTPUT = "data/catalog/supermarket_products.json"
@@ -1010,53 +1010,15 @@ class Crawler:
 
 class ImageStore:
     def __init__(self, images_dir: Path, max_bytes: int, user_agent: str):
-        self.images_dir = images_dir
-        self.max_bytes = max(256_000, max_bytes)
-        self.images_dir.mkdir(parents=True, exist_ok=True)
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": user_agent,
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-            }
+        self.store = OptimizedImageStore(
+            base_dir=images_dir,
+            max_bytes=max_bytes,
+            user_agent=user_agent,
         )
-        self.cache: Dict[str, str] = {}
-
-    def _sanitize_part(self, value: str, fallback: str) -> str:
-        normalized = re.sub(r"[^a-zA-Z0-9_-]+", "-", value or "").strip("-")
-        return (normalized or fallback)[:120]
 
     def store(self, record: Record, timeout_sec: int = 20) -> str:
-        image_url = canonical_url(record.image_url)
-        if not image_url:
-            return ""
-        if image_url in self.cache:
-            return self.cache[image_url]
-
-        provider_part = self._sanitize_part(record.provider.lower(), "provider")
-        code_part = self._sanitize_part(record.code, "item")
-        digest = hashlib.sha1(image_url.encode("utf-8")).hexdigest()[:12]
-
         try:
-            response = self.session.get(image_url, timeout=timeout_sec, stream=True, allow_redirects=True)
-            response.raise_for_status()
-            extension = infer_extension(response.headers.get("content-type", ""), image_url)
-            relative = f"{provider_part}/{code_part}-{digest}{extension}"
-            target = self.images_dir / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-
-            written = 0
-            with target.open("wb") as handle:
-                for chunk in response.iter_content(chunk_size=16_384):
-                    if not chunk:
-                        continue
-                    written += len(chunk)
-                    if written > self.max_bytes:
-                        raise RuntimeError("image exceeds max size")
-                    handle.write(chunk)
-
-            self.cache[image_url] = relative.replace("\\", "/")
-            return self.cache[image_url]
+            return self.store.save(record.code, record.image_url, timeout_sec=timeout_sec)
         except Exception:
             return ""
 

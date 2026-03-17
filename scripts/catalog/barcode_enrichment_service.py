@@ -7,7 +7,6 @@ This service is independent from supermarket crawler and can be scheduled separa
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import sys
@@ -18,6 +17,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.parse import quote_plus
 
 import requests
+from optimized_image_store import OptimizedImageStore
 
 GTIN_RE = re.compile(r"^\d{8,14}$")
 
@@ -359,48 +359,14 @@ def merge_records(gtin: str, candidates: List[Dict[str, Any]]) -> Optional[Enric
 
 class LocalImageStorage:
     def __init__(self, base_dir: Path, max_bytes: int):
-        self.base_dir = base_dir
-        self.max_bytes = max(256_000, max_bytes)
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.cache: Dict[str, str] = {}
-
-    def _safe_name(self, value: str) -> str:
-        return re.sub(r"[^a-zA-Z0-9_-]+", "-", value).strip("-")[:120] or "item"
+        self.store = OptimizedImageStore(
+            base_dir=base_dir,
+            max_bytes=max_bytes,
+            user_agent="Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)",
+        )
 
     def save(self, provider: str, gtin: str, image_url: str) -> str:
-        url = canonical_url(image_url)
-        if not url:
-            return ""
-        if url in self.cache:
-            return self.cache[url]
-
-        provider_part = self._safe_name(provider.lower())
-        gtin_part = self._safe_name(gtin)
-        digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:10]
-        extension = ".jpg"
-        for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
-            if url.lower().split("?")[0].endswith(ext):
-                extension = ext
-                break
-        rel = f"{provider_part}/{gtin_part}-{digest}{extension}"
-        target = self.base_dir / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-
-        response = requests.get(url, stream=True, timeout=25)
-        response.raise_for_status()
-        written = 0
-        with target.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=16_384):
-                if not chunk:
-                    continue
-                written += len(chunk)
-                if written > self.max_bytes:
-                    raise RuntimeError("image too large")
-                handle.write(chunk)
-
-        rel_key = rel.replace("\\", "/")
-        self.cache[url] = rel_key
-        return rel_key
+        return self.store.save(gtin, image_url)
 
 
 def chunks(items: Sequence[EnrichedRecord], size: int) -> Iterable[List[EnrichedRecord]]:
@@ -549,4 +515,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

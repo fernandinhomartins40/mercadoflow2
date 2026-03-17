@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/root/mercadoflow-web}"
@@ -37,7 +37,7 @@ compose() {
 require_file() {
   local path="$1"
   if [[ ! -f "$path" ]]; then
-    echo "ERRO: arquivo obrigatório ausente: $path" >&2
+    echo "ERRO: arquivo obrigatÃ³rio ausente: $path" >&2
     exit 1
   fi
 }
@@ -101,26 +101,29 @@ backup_database() {
   fi
 
   mkdir -p "${APP_DIR}/backups"
-  local backup_file="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).sql"
+  local backup_file="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).dump"
+  local container_dump="/tmp/pdv2cloud_backup.dump"
 
-  log "Gerando backup lógico do PostgreSQL"
-  if docker exec "$container_name" sh -lc "pg_dump -U '${POSTGRES_USER}' '${POSTGRES_DB}' > /tmp/pdv2cloud_backup.sql"; then
-    docker cp "${container_name}:/tmp/pdv2cloud_backup.sql" "$backup_file"
-    docker exec "$container_name" rm -f /tmp/pdv2cloud_backup.sql >/dev/null 2>&1 || true
+  log "Gerando backup comprimido do PostgreSQL"
+  if docker exec "$container_name" sh -lc "pg_dump -Fc -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -f '${container_dump}'" \
+    && docker exec "$container_name" sh -lc "pg_restore -l '${container_dump}' >/dev/null"; then
+    docker cp "${container_name}:${container_dump}" "$backup_file"
+    docker exec "$container_name" rm -f "${container_dump}" >/dev/null 2>&1 || true
     if [[ -s "$backup_file" ]]; then
       log "Backup salvo em $backup_file"
-      ls -t "${APP_DIR}"/backups/backup_*.sql 2>/dev/null | tail -n +8 | xargs -r rm -f
+      ls -t "${APP_DIR}"/backups/backup_* 2>/dev/null | tail -n +4 | xargs -r rm -f
       return
     fi
   fi
 
+  docker exec "$container_name" rm -f "${container_dump}" >/dev/null 2>&1 || true
   rm -f "$backup_file"
   log "WARN: backup não pôde ser concluído"
 }
 
 ensure_catalog_volume() {
   if docker volume inspect "${POSTGRES_VOLUME_NAME}" >/dev/null 2>&1; then
-    log "Volume do catálogo já existe: ${POSTGRES_VOLUME_NAME}"
+    log "Volume do catÃ¡logo jÃ¡ existe: ${POSTGRES_VOLUME_NAME}"
     return
   fi
 
@@ -144,7 +147,7 @@ wait_for_health() {
     ((attempt++))
   done
 
-  echo "ERRO: aplicação não ficou saudável após o deploy" >&2
+  echo "ERRO: aplicaÃ§Ã£o nÃ£o ficou saudÃ¡vel apÃ³s o deploy" >&2
   compose ps || true
   compose logs --tail=120 || true
   exit 1
@@ -163,22 +166,22 @@ cleanup_project_containers() {
 
 cleanup_docker_artifacts() {
   if [[ "${DOCKER_CLEANUP_ENABLED}" != "true" ]]; then
-    log "Limpeza Docker desabilitada por configuração"
+    log "Limpeza Docker desabilitada por configuraÃ§Ã£o"
     return
   fi
 
-  log "Limpando artefatos Docker descartáveis sem tocar em volumes"
+  log "Limpando artefatos Docker descartÃ¡veis sem tocar em volumes"
 
   if [[ "${DOCKER_CLEANUP_PROJECT_CONTAINERS}" == "true" ]]; then
-    cleanup_project_containers || log "WARN: não foi possível remover containers descartáveis do projeto"
+    cleanup_project_containers || log "WARN: nÃ£o foi possÃ­vel remover containers descartÃ¡veis do projeto"
   fi
 
   if [[ "${DOCKER_CLEANUP_DANGLING_IMAGES}" == "true" ]]; then
-    docker image prune -f >/dev/null || log "WARN: não foi possível limpar imagens dangling"
+    docker image prune -f >/dev/null || log "WARN: nÃ£o foi possÃ­vel limpar imagens dangling"
   fi
 
   if [[ "${DOCKER_CLEANUP_BUILD_CACHE}" == "true" ]]; then
-    docker builder prune -af >/dev/null || log "WARN: não foi possível limpar cache de build Docker"
+    docker builder prune -af >/dev/null || log "WARN: nÃ£o foi possÃ­vel limpar cache de build Docker"
   fi
 }
 
@@ -191,7 +194,7 @@ report_disk_usage() {
 build_agent_installer() {
   local script_path="${APP_DIR}/pdv2cloud-agent/scripts/build-installer-vps.sh"
   if [[ ! -f "$script_path" ]]; then
-    log "Script de build do instalador não encontrado; mantendo artefato atual"
+    log "Script de build do instalador nÃ£o encontrado; mantendo artefato atual"
     return
   fi
 
@@ -202,7 +205,7 @@ build_agent_installer() {
 
 ensure_host_nginx_proxy() {
   if ! command -v nginx >/dev/null 2>&1; then
-    log "Nginx do host não encontrado; mantendo apenas o Nginx containerizado"
+    log "Nginx do host nÃ£o encontrado; mantendo apenas o Nginx containerizado"
     return
   fi
 
@@ -290,7 +293,7 @@ server {
     }
 }
 EOF
-    log "WARN: certificados SSL não encontrados; Nginx do host ficará em HTTP até o certbot ser configurado"
+    log "WARN: certificados SSL nÃ£o encontrados; Nginx do host ficarÃ¡ em HTTP atÃ© o certbot ser configurado"
   fi
 
   ln -sfn "$config_path" /etc/nginx/sites-enabled/mercadoflow.conf
@@ -336,10 +339,10 @@ main() {
 
   build_agent_installer
 
-  log "Construindo imagens da aplicação"
+  log "Construindo imagens da aplicaÃ§Ã£o"
   compose build --pull mercadoflow-backend mercadoflow-frontend mercadoflow-cron
 
-  log "Aplicando atualização sem remover volumes"
+  log "Aplicando atualizaÃ§Ã£o sem remover volumes"
   compose up -d --force-recreate --remove-orphans \
     mercadoflow-postgres \
     mercadoflow-backend \
@@ -349,7 +352,7 @@ main() {
     mercadoflow-catalog-harvester \
     mercadoflow-barcode-enricher
 
-  log "Status dos containers após atualização"
+  log "Status dos containers apÃ³s atualizaÃ§Ã£o"
   compose ps
 
   ensure_host_nginx_proxy
@@ -359,7 +362,9 @@ main() {
   cleanup_docker_artifacts
   report_disk_usage
 
-  log "Deploy concluído com volumes preservados"
+  log "Deploy concluÃ­do com volumes preservados"
 }
 
 main "$@"
+
+

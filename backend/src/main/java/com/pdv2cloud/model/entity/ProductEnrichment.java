@@ -8,7 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "product_enrichments")
+@Table(
+    name = "product_enrichments",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_product_enrichments_product", columnNames = "product_id")
+    }
+)
 @Data
 @NoArgsConstructor
 public class ProductEnrichment {

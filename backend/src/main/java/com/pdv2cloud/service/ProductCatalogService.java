@@ -135,7 +135,7 @@ public class ProductCatalogService {
             product = productRepository.save(product);
         }
 
-        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product);
         catalogImageStorageService.ensureManagedImageAvailable(request.getImageUrl(), request.getImageStorageKey());
         enrichment.setProduct(product);
         enrichment.setProvider(provider);
@@ -247,7 +247,7 @@ public class ProductCatalogService {
         applyManualProductFields(product, request);
         product = productRepository.save(product);
 
-        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product);
 
         applyManualEnrichmentFields(enrichment, product, request, provider, gtin);
         enrichment = productEnrichmentRepository.save(enrichment);
@@ -275,7 +275,7 @@ public class ProductCatalogService {
         if (provider == null) {
             provider = "MANUAL_SUPER_ADMIN";
         }
-        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, provider);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product);
 
         applyManualEnrichmentFields(enrichment, product, request, provider, requestedGtin);
         enrichment = productEnrichmentRepository.save(enrichment);
@@ -290,10 +290,10 @@ public class ProductCatalogService {
             effectiveProvider = "MANUAL_SUPER_ADMIN";
         }
 
-        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, effectiveProvider);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product);
         initializeManualEnrichment(enrichment, product, effectiveProvider);
 
-        String storageKey = buildManualUploadStorageKey(effectiveProvider, product.getId());
+        String storageKey = buildManualUploadStorageKey(product.getEan(), product.getId());
         String managedImageUrl = catalogImageStorageService.storeUploadedSquareImage(storageKey, file);
         LocalDateTime now = LocalDateTime.now();
 
@@ -326,7 +326,7 @@ public class ProductCatalogService {
             effectiveProvider = "MANUAL_SUPER_ADMIN";
         }
 
-        ProductEnrichment enrichment = resolvePrimaryEnrichment(product, effectiveProvider);
+        ProductEnrichment enrichment = resolvePrimaryEnrichment(product);
         initializeManualEnrichment(enrichment, product, effectiveProvider);
         String currentStorageKey = enrichment.getImageStorageKey();
         if (currentStorageKey == null || currentStorageKey.isBlank()) {
@@ -540,13 +540,13 @@ public class ProductCatalogService {
         }
     }
 
-    private ProductEnrichment resolvePrimaryEnrichment(Product product, String provider) {
+    private ProductEnrichment resolvePrimaryEnrichment(Product product) {
         if (product.getId() == null) {
             return new ProductEnrichment();
         }
 
         List<ProductEnrichment> enrichments = productEnrichmentRepository
-            .findAllByProduct_IdAndProviderOrderByFetchedAtDesc(product.getId(), provider);
+            .findAllByProduct_IdOrderByFetchedAtDesc(product.getId());
         if (enrichments.isEmpty()) {
             return new ProductEnrichment();
         }
@@ -556,9 +556,8 @@ public class ProductCatalogService {
             List<ProductEnrichment> duplicates = enrichments.subList(1, enrichments.size());
             productEnrichmentRepository.deleteAllInBatch(duplicates);
             log.warn(
-                "Collapsed duplicate product enrichments | productId={} provider={} removed={}",
+                "Collapsed duplicate product enrichments | productId={} removed={}",
                 product.getId(),
-                provider,
                 duplicates.size()
             );
         }
@@ -851,7 +850,9 @@ public class ProductCatalogService {
 
     private void initializeManualEnrichment(ProductEnrichment enrichment, Product product, String provider) {
         enrichment.setProduct(product);
-        enrichment.setProvider(provider);
+        if (enrichment.getProvider() == null || enrichment.getProvider().isBlank()) {
+            enrichment.setProvider(provider);
+        }
         if (enrichment.getProviderProductId() == null || enrichment.getProviderProductId().isBlank()) {
             enrichment.setProviderProductId(product.getEan());
         }
@@ -878,11 +879,14 @@ public class ProductCatalogService {
         }
     }
 
-    private String buildManualUploadStorageKey(String provider, UUID productId) {
-        String providerSegment = provider == null || provider.isBlank()
-            ? "manual_super_admin"
-            : provider.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]+", "_");
-        return providerSegment + "/manual-" + productId + ".jpg";
+    private String buildManualUploadStorageKey(String gtin, UUID productId) {
+        String identity = gtin == null || gtin.isBlank()
+            ? "manual-" + productId
+            : gtin.trim().replaceAll("[^0-9]+", "");
+        if (identity.isBlank()) {
+            identity = "manual-" + productId;
+        }
+        return "products/manual/" + identity + ".jpg";
     }
 
     private CatalogAdminProductDTO toCatalogAdminProductDTO(ProductEnrichment enrichment) {

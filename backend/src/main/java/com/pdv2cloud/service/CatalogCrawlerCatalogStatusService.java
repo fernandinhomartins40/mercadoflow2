@@ -11,7 +11,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +31,6 @@ public class CatalogCrawlerCatalogStatusService {
     private CatalogImageStorageService catalogImageStorageService;
 
     public List<SuperAdminCrawlerCatalogImageStatusDTO> auditCatalogImageStatus(String provider, Collection<String> codes) {
-        String normalizedProvider = provider == null ? "" : provider.trim().toUpperCase(Locale.ROOT);
         List<String> normalizedCodes = normalizeCodes(codes);
         if (normalizedCodes.isEmpty()) {
             return List.of();
@@ -46,7 +44,7 @@ public class CatalogCrawlerCatalogStatusService {
         }
 
         Map<String, ProductEnrichment> enrichmentsByCode = new LinkedHashMap<>();
-        for (ProductEnrichment enrichment : productEnrichmentRepository.findAllByProduct_EanInAndProviderOrderByFetchedAtDesc(normalizedCodes, normalizedProvider)) {
+        for (ProductEnrichment enrichment : productEnrichmentRepository.findAllByProduct_EanInOrderByFetchedAtDesc(normalizedCodes)) {
             Product product = enrichment.getProduct();
             String gtin = product != null ? product.getEan() : null;
             if (gtin != null && !gtin.isBlank()) {
