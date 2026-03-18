@@ -598,6 +598,18 @@
     word-break: break-word;
   }
 
+  .catalog-admin-products-table th:nth-child(2),
+  .catalog-admin-products-table td:nth-child(2),
+  .catalog-admin-products-table th:nth-child(3),
+  .catalog-admin-products-table td:nth-child(3),
+  .catalog-admin-products-table th:nth-child(5),
+  .catalog-admin-products-table td:nth-child(5),
+  .catalog-admin-products-table th:nth-child(6),
+  .catalog-admin-products-table td:nth-child(6) {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
   .catalog-admin-products-table th:nth-child(1),
   .catalog-admin-products-table td:nth-child(1) {
     width: auto;
@@ -2477,7 +2489,7 @@
   min-width: 720px;
 }
 
-@media (max-width: 1680px) {
+@media (max-width: 1180px) {
   .catalog-admin-table-wrap {
     overflow: visible;
   }
@@ -2534,20 +2546,24 @@
 
   .catalog-admin-table td {
     display: grid;
-    grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
+    grid-template-columns: minmax(92px, 116px) minmax(160px, 1fr);
     gap: 10px;
     padding: 0;
     border-bottom: none;
     align-items: start;
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   .responsive-data-table td {
     display: grid;
-    grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
+    grid-template-columns: minmax(92px, 116px) minmax(160px, 1fr);
     gap: 10px;
     padding: 0;
     border-bottom: none;
     align-items: start;
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   .catalog-admin-table td:first-child,
