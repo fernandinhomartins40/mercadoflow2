@@ -32,7 +32,7 @@ const PageHero: React.FC<PageHeroProps> = ({
 }) => {
   const copyBlock = (
     <div className={cn('page-hero-copy', copyClassName)}>
-      <span className="pill">{badge}</span>
+      <div className="page-hero-kicker">{badge}</div>
       {typeof title === 'string' ? <h1 className="page-hero-title">{title}</h1> : title}
       {typeof description === 'string' ? <p className="page-hero-text">{description}</p> : description}
       {actions ? <div className="page-hero-actions">{actions}</div> : null}

@@ -134,40 +134,45 @@
   }
 
   .page-hero-grid {
-    @apply grid items-start gap-7 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)];
+    @apply grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.38fr)];
   }
 
   .page-hero-card {
-    @apply grid gap-6 rounded-[30px] border p-6 shadow-[0_22px_54px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,0.98fr)_minmax(260px,0.72fr)] xl:items-center xl:p-7;
+    @apply grid gap-6 rounded-[30px] border p-7 shadow-[0_18px_42px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1.02fr)_minmax(280px,0.72fr)] xl:items-start xl:p-8;
     border-color: var(--border-soft);
-    background: var(--surface-base);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 243, 0.9) 100%);
   }
 
   .page-hero-copy {
-    @apply flex min-w-0 flex-col gap-4;
+    @apply flex min-w-0 flex-col gap-5;
+  }
+
+  .page-hero-kicker {
+    @apply inline-flex w-fit items-center text-[0.75rem] font-semibold uppercase tracking-[0.16em];
+    color: var(--accent-strong);
   }
 
   .page-hero-title {
-    @apply max-w-4xl text-[clamp(2.1rem,4vw,4rem)] font-semibold leading-[0.92] tracking-[-0.06em];
+    @apply max-w-[15ch] text-[clamp(2.2rem,4vw,4.2rem)] font-semibold leading-[0.94] tracking-[-0.06em];
     color: var(--text-primary);
     font-family: var(--font-display);
   }
 
   .page-hero-text {
-    @apply max-w-3xl text-base leading-7;
+    @apply max-w-2xl text-[1.02rem] leading-7;
     color: var(--text-muted);
   }
 
   .page-hero-feature {
-    @apply flex min-h-[260px] min-w-0 flex-col gap-4;
+    @apply flex min-h-0 min-w-0 flex-col gap-4;
   }
 
   .page-hero-actions {
-    @apply flex flex-wrap items-center gap-3;
+    @apply flex flex-wrap items-center gap-2.5 pt-1;
   }
 
   .page-hero-aside {
-    @apply flex flex-col gap-6;
+    @apply flex flex-col gap-4;
   }
 
   .app-panel {
@@ -203,16 +208,16 @@
   .dashboard-command-grid,
   .super-admin-command-grid,
   .sales-dashboard-hero-grid {
-    @apply grid items-start gap-7 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)];
+    @apply grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.38fr)];
   }
 
   .dashboard-command-card,
   .super-admin-command-card,
   .sales-command-card {
-    @apply grid gap-6 rounded-[30px] p-6 xl:grid-cols-[minmax(0,0.98fr)_minmax(260px,0.72fr)] xl:items-center xl:p-7;
+    @apply grid gap-6 rounded-[30px] p-7 xl:grid-cols-[minmax(0,1.02fr)_minmax(280px,0.72fr)] xl:items-start xl:p-8;
     border: 1px solid var(--border-soft);
-    background: var(--surface-base);
-    box-shadow: 0 22px 54px rgba(44, 20, 6, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 243, 0.9) 100%);
+    box-shadow: 0 18px 42px rgba(44, 20, 6, 0.08);
   }
 
   .dashboard-command-copy,
@@ -221,18 +226,18 @@
   }
 
   .dashboard-command-title {
-    @apply max-w-4xl text-[clamp(2.1rem,4vw,4rem)] font-semibold leading-[0.92] tracking-[-0.06em];
+    @apply max-w-[15ch] text-[clamp(2.2rem,4vw,4.2rem)] font-semibold leading-[0.94] tracking-[-0.06em];
     color: var(--text-primary);
     font-family: var(--font-display);
   }
 
   .dashboard-command-text {
-    @apply max-w-3xl text-base leading-7;
+    @apply max-w-2xl text-[1.02rem] leading-7;
     color: var(--text-muted);
   }
 
   .dashboard-command-showcase {
-    @apply flex min-h-[260px] min-w-0 flex-col gap-4;
+    @apply flex min-h-0 min-w-0 flex-col gap-4;
   }
 
   .dashboard-priority-rail,
@@ -242,7 +247,7 @@
 
   .hero-inline-actions,
   .sales-dashboard-actions {
-    @apply flex flex-wrap items-center gap-3;
+    @apply flex flex-wrap items-center gap-2.5;
   }
 
   .dashboard-page-grid {
@@ -310,17 +315,20 @@
   }
 
   .dashboard-glow-card {
-    @apply flex min-h-[220px] flex-col justify-end gap-3 rounded-[28px] p-5 sm:p-6;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    @apply flex min-h-[184px] flex-col justify-between gap-4 rounded-[26px] p-5 sm:p-6;
+    border: 1px solid rgba(132, 66, 30, 0.14);
     background:
-      radial-gradient(circle at top right, rgba(255, 204, 153, 0.9) 0%, rgba(255, 146, 56, 0.78) 16%, rgba(123, 48, 8, 0.92) 42%, rgba(62, 22, 7, 0.98) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 48px rgba(44, 20, 6, 0.22);
+      radial-gradient(circle at top right, rgba(255, 202, 153, 0.92) 0%, rgba(242, 148, 75, 0.82) 20%, rgba(140, 65, 25, 0.96) 54%, rgba(88, 37, 14, 0.98) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 38px rgba(44, 20, 6, 0.16);
     color: white;
   }
 
-  .dashboard-glow-card .section-kicker,
-  .dashboard-priority-card.dark .section-kicker {
+  .dashboard-glow-card .section-kicker {
     color: rgba(255, 225, 205, 0.76);
+  }
+
+  .dashboard-priority-card.dark .section-kicker {
+    color: var(--accent-strong);
   }
 
   .dashboard-glow-card h3,
@@ -330,25 +338,25 @@
   }
 
   .dashboard-glow-card h3 {
-    @apply text-[1.1rem] font-semibold tracking-[-0.03em];
+    @apply text-[1.02rem] font-semibold tracking-[-0.03em];
   }
 
   .dashboard-glow-card strong {
-    @apply text-[clamp(2.1rem,4vw,3.5rem)] font-semibold leading-none tracking-[-0.06em];
+    @apply text-[clamp(2.2rem,3.5vw,3.35rem)] font-semibold leading-none tracking-[-0.05em];
     font-family: var(--font-display);
   }
 
   .dashboard-glow-card p {
-    @apply m-0 text-sm leading-6;
+    @apply m-0 max-w-[24ch] text-sm leading-6;
     color: rgba(255, 235, 220, 0.78);
   }
 
   .dashboard-command-mosaic {
-    @apply grid gap-3 sm:grid-cols-2 2xl:grid-cols-3;
+    @apply grid gap-3 sm:grid-cols-2;
   }
 
   .super-admin-page-hero-card {
-    @apply xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.78fr)] xl:gap-7 2xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.84fr)];
+    @apply xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.82fr)] xl:gap-6 2xl:grid-cols-[minmax(0,1.06fr)_minmax(360px,0.86fr)];
   }
 
   .super-admin-page-hero-feature {
@@ -356,7 +364,7 @@
   }
 
   .super-admin-hero-feature-grid {
-    @apply grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)];
+    @apply grid gap-4;
   }
 
   .super-admin-hero-metrics {
@@ -364,7 +372,7 @@
   }
 
   .super-admin-hero-metrics-two {
-    @apply xl:grid-cols-1 2xl:grid-cols-2;
+    @apply sm:grid-cols-2;
   }
 
   .super-admin-hero-metric-span {
@@ -372,7 +380,7 @@
   }
 
   .super-admin-hero-metrics .metric-card {
-    @apply min-h-[152px] justify-between rounded-[24px] p-4 sm:p-5;
+    @apply min-h-[132px] justify-between rounded-[22px] p-4;
   }
 
   .super-admin-hero-metrics .metric-card-value {
@@ -386,10 +394,10 @@
   }
 
   .dashboard-mini-tile {
-    @apply flex min-h-[112px] flex-col justify-between gap-3 rounded-[22px] p-4;
+    @apply flex min-h-[98px] flex-col justify-between gap-2 rounded-[20px] p-4;
     border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 12px 30px rgba(44, 20, 6, 0.05);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 10px 26px rgba(44, 20, 6, 0.05);
   }
 
   .dashboard-mini-tile.accent {
@@ -403,21 +411,21 @@
   }
 
   .dashboard-mini-tile strong {
-    @apply text-[1.55rem] font-semibold leading-none tracking-[-0.04em];
+    @apply text-[1.35rem] font-semibold leading-none tracking-[-0.04em];
     color: var(--text-primary);
   }
 
   .dashboard-priority-card {
-    @apply flex flex-col gap-3 rounded-[26px] p-5;
+    @apply flex flex-col gap-3 rounded-[24px] p-5;
     border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.78);
-    box-shadow: 0 16px 36px rgba(44, 20, 6, 0.06);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 12px 30px rgba(44, 20, 6, 0.05);
   }
 
   .dashboard-priority-card.dark {
-    border-color: rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, #2b1a12 0%, #1b1411 100%);
-    color: white;
+    border-color: rgba(255, 106, 0, 0.14);
+    background: linear-gradient(180deg, rgba(255, 248, 242, 0.98) 0%, rgba(255, 240, 228, 0.92) 100%);
+    color: var(--text-primary);
   }
 
   .dashboard-priority-card p {
@@ -426,7 +434,7 @@
   }
 
   .dashboard-priority-card.dark p {
-    color: rgba(255, 235, 220, 0.74);
+    color: var(--text-muted);
   }
 
   .dashboard-priority-card strong,
@@ -462,7 +470,7 @@
   .dashboard-quick-item {
     @apply flex min-w-0 flex-col gap-1 rounded-[20px] px-4 py-4 no-underline transition;
     border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.82);
   }
 
   .dashboard-quick-item:hover {
@@ -585,27 +593,27 @@
 
   .catalog-admin-products-table th:nth-child(2),
   .catalog-admin-products-table td:nth-child(2) {
-    width: 140px;
+    width: 128px;
   }
 
   .catalog-admin-products-table th:nth-child(3),
   .catalog-admin-products-table td:nth-child(3) {
-    width: 108px;
+    width: 96px;
   }
 
   .catalog-admin-products-table th:nth-child(4),
   .catalog-admin-products-table td:nth-child(4) {
-    width: 160px;
+    width: 150px;
   }
 
   .catalog-admin-products-table th:nth-child(5),
   .catalog-admin-products-table td:nth-child(5) {
-    width: 110px;
+    width: 132px;
   }
 
   .catalog-admin-products-table th:nth-child(6),
   .catalog-admin-products-table td:nth-child(6) {
-    width: 88px;
+    width: 112px;
   }
 
   .catalog-admin-pager {
@@ -2457,7 +2465,7 @@
   min-width: 720px;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1480px) {
   .catalog-admin-table-wrap {
     overflow: visible;
   }
