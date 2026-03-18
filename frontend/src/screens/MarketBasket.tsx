@@ -119,20 +119,6 @@ const MarketBasket: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Fonte de leitura</span>
-                <h3>Escolha velocidade ou processamento ao vivo.</h3>
-                <p>Cache noturno para consulta rápida. Análise ao vivo quando precisar validar uma mudança recente de comportamento.</p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Uso prático</span>
-                <h3>Transforme par forte em exposição e combo.</h3>
-                <p>Os primeiros pares servem melhor para caixa, gôndola lateral, ponta e comunicação de compra conjunta.</p>
-              </article>
-            </>
-          }
         />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
@@ -155,25 +141,6 @@ const MarketBasket: React.FC = () => {
               <span>{useCached ? 'Usando cache noturno' : 'Usando análise ao vivo'}</span>
             </label>
           </PanelSection>
-
-          <aside className="dashboard-side-stack">
-            <PanelSection className="dashboard-note-card" kicker="Como agir" title="Leia lift junto com confiança.">
-              <div className="dashboard-quick-list">
-                <div className="dashboard-quick-item">
-                  <strong>Lift alto</strong>
-                  <span>Bom candidato para exposição conjunta e sugestão de venda.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Confiança alta</strong>
-                  <span>Sinal mais estável para orientar combo e abordagem de caixa.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Ocorrência baixa</strong>
-                  <span>Vale monitorar mais antes de transformar em regra operacional fixa.</span>
-                </div>
-              </div>
-            </PanelSection>
-          </aside>
         </div>
 
         {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}

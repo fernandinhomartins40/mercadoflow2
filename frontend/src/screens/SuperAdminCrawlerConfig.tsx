@@ -297,13 +297,6 @@ const SuperAdminCrawlerConfig: React.FC = () => {
               <p>{latestRun?.message || 'Nenhuma execução registrada até agora.'}</p>
             </div>
           }
-          aside={
-            <div className="dashboard-priority-card dark">
-              <span className="section-kicker">Regra principal</span>
-              <strong>Um supermercado por vez</strong>
-              <p>O dispatcher roda um mercado por vez para manter o log claro e facilitar a retomada.</p>
-            </div>
-          }
         />
 
         {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}

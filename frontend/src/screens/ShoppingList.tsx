@@ -301,13 +301,6 @@ const ShoppingListPage: React.FC = () => {
               </div>
             </div>
           }
-          aside={
-            <div className="dashboard-priority-card">
-              <span className="section-kicker">Como usar</span>
-              <h3>Comece pela reposição e depois filtre o calendário.</h3>
-              <p>O topo mostra o que não pode faltar agora. As seções seguintes ajudam a antecipar datas, promoções e posicionamento.</p>
-            </div>
-          }
         />
 
         <div className="metrics-grid analytics-metrics-grid sales-metric-strip">

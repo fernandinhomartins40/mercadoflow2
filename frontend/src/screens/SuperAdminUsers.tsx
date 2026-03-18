@@ -539,20 +539,6 @@ const SuperAdminUsers: React.FC = () => {
               <ButtonLink to="/super-admin/crawler" variant="secondary">Abrir crawler</ButtonLink>
             </>
           }
-          aside={
-            <div className="page-side-stack">
-              <div className="dashboard-priority-card dark min-h-[132px]">
-                <span className="section-kicker">Atenção agora</span>
-                <strong>{overview?.pastDueMarkets ?? 0} contas em atraso</strong>
-                <p>{overview?.suspendedMarkets ?? 0} contas suspensas precisam de revisão manual.</p>
-              </div>
-              <div className="dashboard-priority-card min-h-[132px]">
-                <span className="section-kicker">Usuários sem conta</span>
-                <strong>{overview?.orphanUsers ?? 0}</strong>
-                <p>Revise o vínculo desses usuários para evitar acesso incorreto.</p>
-              </div>
-            </div>
-          }
         />
 
         {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}

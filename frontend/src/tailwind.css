@@ -130,21 +130,21 @@
   .super-admin-page,
   .offers-page,
   .sales-dashboard-page {
-    @apply flex min-w-0 flex-col gap-7 xl:gap-8;
+    @apply flex min-w-0 flex-col gap-5 xl:gap-6;
   }
 
   .page-hero-grid {
-    @apply grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.38fr)];
+    @apply grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.34fr)];
   }
 
   .page-hero-card {
-    @apply grid gap-6 rounded-[30px] border p-7 shadow-[0_18px_42px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1.02fr)_minmax(280px,0.72fr)] xl:items-start xl:p-8;
+    @apply grid gap-4 rounded-[28px] border p-5 shadow-[0_14px_32px_rgba(44,20,6,0.07)] xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start xl:p-6;
     border-color: var(--border-soft);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 243, 0.9) 100%);
   }
 
   .page-hero-copy {
-    @apply flex min-w-0 flex-col gap-5;
+    @apply flex min-w-0 flex-col gap-4;
   }
 
   .page-hero-kicker {
@@ -153,36 +153,36 @@
   }
 
   .page-hero-title {
-    @apply max-w-[15ch] text-[clamp(2.2rem,4vw,4.2rem)] font-semibold leading-[0.94] tracking-[-0.06em];
+    @apply max-w-[18ch] text-[clamp(1.9rem,3vw,3.15rem)] font-semibold leading-[0.96] tracking-[-0.05em];
     color: var(--text-primary);
     font-family: var(--font-display);
   }
 
   .page-hero-text {
-    @apply max-w-2xl text-[1.02rem] leading-7;
+    @apply max-w-2xl text-[0.97rem] leading-6;
     color: var(--text-muted);
   }
 
   .page-hero-feature {
-    @apply flex min-h-0 min-w-0 flex-col gap-4;
+    @apply flex min-h-0 min-w-0 flex-col gap-3;
   }
 
   .page-hero-actions {
-    @apply flex flex-wrap items-center gap-2.5 pt-1;
+    @apply flex flex-wrap items-center gap-2 pt-1;
   }
 
   .page-hero-aside {
-    @apply flex flex-col gap-4;
+    @apply flex flex-col gap-3;
   }
 
   .app-panel {
-    @apply rounded-[28px] border p-6 shadow-[0_20px_50px_rgba(44,20,6,0.08)] sm:p-7;
+    @apply rounded-[26px] border p-5 shadow-[0_16px_36px_rgba(44,20,6,0.07)] sm:p-6;
     border-color: var(--border-soft);
     background: var(--surface-base);
   }
 
   .app-panel-head {
-    @apply mb-5 flex flex-wrap items-start justify-between gap-4;
+    @apply mb-4 flex flex-wrap items-start justify-between gap-3;
   }
 
   .app-panel-head.compact {
@@ -202,7 +202,7 @@
   .metrics-grid,
   .analytics-metrics-grid,
   .dashboard-kpi-ribbon {
-    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4;
+    @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
   }
 
   .dashboard-command-grid,
@@ -214,10 +214,10 @@
   .dashboard-command-card,
   .super-admin-command-card,
   .sales-command-card {
-    @apply grid gap-6 rounded-[30px] p-7 xl:grid-cols-[minmax(0,1.02fr)_minmax(280px,0.72fr)] xl:items-start xl:p-8;
+    @apply grid gap-4 rounded-[28px] p-5 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start xl:p-6;
     border: 1px solid var(--border-soft);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 243, 0.9) 100%);
-    box-shadow: 0 18px 42px rgba(44, 20, 6, 0.08);
+    box-shadow: 0 14px 32px rgba(44, 20, 6, 0.07);
   }
 
   .dashboard-command-copy,
@@ -251,11 +251,11 @@
   }
 
   .dashboard-page-grid {
-    @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
+    @apply grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] xl:items-start;
   }
 
   .page-slab-grid {
-    @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
+    @apply grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] xl:items-start;
   }
 
   .dashboard-inline-grid {
@@ -263,15 +263,15 @@
   }
 
   .page-card-grid {
-    @apply grid gap-6 lg:grid-cols-2;
+    @apply grid gap-4 lg:grid-cols-2;
   }
 
   .dashboard-side-stack {
-    @apply flex flex-col gap-6;
+    @apply flex flex-col gap-4;
   }
 
   .page-side-stack {
-    @apply flex flex-col gap-6;
+    @apply flex flex-col gap-4;
   }
 
   .dashboard-form-stack,
@@ -288,14 +288,14 @@
   }
 
   .analytics-panel {
-    @apply rounded-[28px] p-6 sm:p-7;
+    @apply rounded-[26px] p-5 sm:p-6;
     border: 1px solid var(--border-soft);
     background: var(--surface-base);
-    box-shadow: 0 20px 50px rgba(44, 20, 6, 0.08);
+    box-shadow: 0 16px 36px rgba(44, 20, 6, 0.07);
   }
 
   .analytics-panel-head {
-    @apply mb-5 flex flex-wrap items-start justify-between gap-4;
+    @apply mb-4 flex flex-wrap items-start justify-between gap-3;
   }
 
   .analytics-panel-head.compact {
@@ -315,11 +315,11 @@
   }
 
   .dashboard-glow-card {
-    @apply flex min-h-[184px] flex-col justify-between gap-4 rounded-[26px] p-5 sm:p-6;
+    @apply flex min-h-[156px] flex-col justify-between gap-3 rounded-[24px] p-4 sm:p-5;
     border: 1px solid rgba(132, 66, 30, 0.14);
     background:
       radial-gradient(circle at top right, rgba(255, 202, 153, 0.92) 0%, rgba(242, 148, 75, 0.82) 20%, rgba(140, 65, 25, 0.96) 54%, rgba(88, 37, 14, 0.98) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 38px rgba(44, 20, 6, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 28px rgba(44, 20, 6, 0.14);
     color: white;
   }
 
@@ -338,21 +338,21 @@
   }
 
   .dashboard-glow-card h3 {
-    @apply text-[1.02rem] font-semibold tracking-[-0.03em];
+    @apply text-[0.98rem] font-semibold tracking-[-0.03em];
   }
 
   .dashboard-glow-card strong {
-    @apply text-[clamp(2.2rem,3.5vw,3.35rem)] font-semibold leading-none tracking-[-0.05em];
+    @apply text-[clamp(1.85rem,3vw,2.7rem)] font-semibold leading-none tracking-[-0.05em];
     font-family: var(--font-display);
   }
 
   .dashboard-glow-card p {
-    @apply m-0 max-w-[24ch] text-sm leading-6;
+    @apply m-0 max-w-[32ch] text-sm leading-5;
     color: rgba(255, 235, 220, 0.78);
   }
 
   .dashboard-command-mosaic {
-    @apply grid gap-3 sm:grid-cols-2;
+    @apply grid gap-2.5 sm:grid-cols-2;
   }
 
   .super-admin-page-hero-card {
@@ -394,10 +394,10 @@
   }
 
   .dashboard-mini-tile {
-    @apply flex min-h-[98px] flex-col justify-between gap-2 rounded-[20px] p-4;
+    @apply flex min-h-[84px] flex-col justify-between gap-1.5 rounded-[18px] p-3.5;
     border: 1px solid var(--border-soft);
     background: rgba(255, 255, 255, 0.86);
-    box-shadow: 0 10px 26px rgba(44, 20, 6, 0.05);
+    box-shadow: 0 8px 20px rgba(44, 20, 6, 0.04);
   }
 
   .dashboard-mini-tile.accent {
@@ -411,15 +411,15 @@
   }
 
   .dashboard-mini-tile strong {
-    @apply text-[1.35rem] font-semibold leading-none tracking-[-0.04em];
+    @apply text-[1.18rem] font-semibold leading-none tracking-[-0.04em];
     color: var(--text-primary);
   }
 
   .dashboard-priority-card {
-    @apply flex flex-col gap-3 rounded-[24px] p-5;
+    @apply flex flex-col gap-2.5 rounded-[22px] p-4;
     border: 1px solid var(--border-soft);
     background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 12px 30px rgba(44, 20, 6, 0.05);
+    box-shadow: 0 8px 20px rgba(44, 20, 6, 0.04);
   }
 
   .dashboard-priority-card.dark {
@@ -429,7 +429,7 @@
   }
 
   .dashboard-priority-card p {
-    @apply m-0 text-sm leading-6;
+    @apply m-0 text-sm leading-5;
     color: var(--text-muted);
   }
 
@@ -439,7 +439,7 @@
 
   .dashboard-priority-card strong,
   .dashboard-priority-card h3 {
-    @apply text-[1.08rem] font-semibold leading-7 tracking-[-0.03em];
+    @apply text-[1rem] font-semibold leading-6 tracking-[-0.03em];
     color: inherit;
   }
 

@@ -462,40 +462,6 @@ const Dashboard: React.FC = () => {
               </ButtonLink>
             </div>
           }
-          aside={
-            <>
-              <SalesChart
-                data={(dashboard.salesTrend || []).map((point) => ({ date: point.date, revenue: Number(point.revenue || 0) }))}
-                kicker="Ritmo do faturamento"
-                title="Curva diária de vendas"
-                panelCopy="Acompanhe a cadência do faturamento para decidir compra, reposição e calendário comercial."
-                calloutLabel="Último dia"
-              />
-
-              <div className="sales-insight-grid">
-                <article className="sales-insight-card">
-                  <span>Melhor dia</span>
-                  <strong>{strongestWeekday?.label || '--'}</strong>
-                  <small>{strongestWeekday ?formatMoney(strongestWeekday.revenue) : 'Sem leitura suficiente'}</small>
-                </article>
-                <article className="sales-insight-card">
-                  <span>Dia mais fraco</span>
-                  <strong>{weakestWeekday?.label || '--'}</strong>
-                  <small>{weakestWeekday ?formatMoney(weakestWeekday.revenue) : 'Sem leitura suficiente'}</small>
-                </article>
-                <article className="sales-insight-card">
-                  <span>Sazonalidade próxima</span>
-                  <strong>{dashboard.seasonalCollections?.[0]?.title || '--'}</strong>
-                  <small>{dashboard.seasonalCollections?.[0]?.proximityLabel || 'Sem janela próxima'}</small>
-                </article>
-                <article className="sales-insight-card">
-                  <span>Hora mais forte</span>
-                  <strong>{strongestHour?.label || '--'}</strong>
-                  <small>{strongestHour ?`${formatQuantity(strongestHour.transactions)} transações` : 'Sem leitura suficiente'}</small>
-                </article>
-              </div>
-            </>
-          }
         />
 
         <div className="metrics-grid analytics-metrics-grid sales-metric-strip">

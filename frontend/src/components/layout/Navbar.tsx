@@ -1,7 +1,7 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import Button from '../common/Button';
 import WorkspaceTopbar from './WorkspaceTopbar';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
@@ -29,22 +29,8 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
-  const { logout, role, name } = useAuth();
+  const { logout } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [productQuery, setProductQuery] = useState('');
-  const isOffersRoute = location.pathname.startsWith('/app/ofertas');
-
-  useEffect(() => {
-    if (location.pathname === '/app/produtos') {
-      const params = new URLSearchParams(location.search);
-      setProductQuery(params.get('search') || '');
-      return;
-    }
-    if (!location.pathname.startsWith('/app/produtos/')) {
-      setProductQuery('');
-    }
-  }, [location.pathname, location.search]);
 
   const header = useMemo(() => {
     if (location.pathname.startsWith('/app/produtos/')) {
@@ -57,62 +43,12 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
     return TITLES[location.pathname] || TITLES['/app'];
   }, [location.pathname]);
 
-  const todayLabel = useMemo(
-    () =>
-      new Date().toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-    [],
-  );
-
-  const handleProductSearch = (event: React.FormEvent) => {
-    event.preventDefault();
-    const normalized = productQuery.trim();
-    if (!normalized) {
-      navigate('/app/produtos');
-      return;
-    }
-    navigate(`/app/produtos?search=${encodeURIComponent(normalized)}`);
-  };
-
   return (
     <WorkspaceTopbar
       section={header.section}
       title={header.title}
-      subtitle={header.subtitle}
       onToggleSidebar={onToggleSidebar}
       showMenuToggle={!desktopPinned}
-      desktopPinned={desktopPinned}
-      userName={name || 'Usuário'}
-      userSubtitle={role === 'ADMIN' ? 'Administrador' : 'Operação'}
-      userInitial={(name || 'U').trim().charAt(0).toUpperCase()}
-      badges={
-        <>
-          <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
-            {role === 'ADMIN' ? 'Perfil admin' : 'Operação'}
-          </span>
-          <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
-            Atualizado em {todayLabel}
-          </span>
-        </>
-      }
-      searchSlot={
-        isOffersRoute ? null : (
-          <form className="flex w-full min-w-0 flex-wrap items-center gap-3 xl:justify-end" onSubmit={handleProductSearch}>
-            <input
-              className="input h-12 min-w-[220px] max-w-full flex-[1_1_320px] rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] xl:max-w-[420px]"
-              placeholder="Buscar produto por nome ou GTIN"
-              value={productQuery}
-              onChange={(event) => setProductQuery(event.target.value)}
-            />
-            <Button className="min-w-[120px]" type="submit">
-              Buscar
-            </Button>
-          </form>
-        )
-      }
       actionSlot={<Button className="min-w-[104px]" variant="secondary" onClick={logout}>Sair</Button>}
     />
   );

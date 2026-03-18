@@ -179,13 +179,6 @@ const OffersDashboard: React.FC = () => {
           }
           feature={<OfferCanvasPreview template={leadTemplate} className="offer-dashboard-canvas" />}
           featureClassName="offers-command-showcase"
-          aside={(
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Leitura rápida</span>
-              <h3>Escolha o modelo, arraste os produtos e gere o lote.</h3>
-              <p>O catálogo e os insights sazonais já entram prontos para acelerar cartaz, encarte e peças promocionais.</p>
-            </article>
-          )}
         />
 
         {loading ? <div className="sales-empty-card">Carregando módulo de ofertas...</div> : null}

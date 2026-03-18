@@ -163,20 +163,6 @@ const Products: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Leitura recomendada</span>
-                <h3>Comece pela pergunta do time.</h3>
-                <p>Busca quando já existe um GTIN ou nome específico. Ordenação por receita, giro ou tendência quando o problema ainda precisa ser descoberto.</p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Ação mais comum</span>
-                <h3>Abra o dashboard do item certo, não de vários.</h3>
-                <p>Esta tela serve para priorizar. A investigação detalhada continua no painel individual do produto.</p>
-              </article>
-            </>
-          }
         />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
@@ -247,25 +233,6 @@ const Products: React.FC = () => {
               </select>
             </div>
           </PanelSection>
-
-          <aside className="dashboard-side-stack">
-            <PanelSection className="dashboard-note-card" kicker="Como ler esta tela" title="Escolha o critério antes de comparar produtos.">
-              <div className="dashboard-quick-list">
-                <div className="dashboard-quick-item">
-                  <strong>Receita</strong>
-                  <span>Ajuda a identificar peso financeiro e defender margem.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Giro e tendência</strong>
-                  <span>Mostram risco de capital parado ou mudança recente de comportamento.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Share promo</strong>
-                  <span>Aponta quando a venda do item depende demais de desconto.</span>
-                </div>
-              </div>
-            </PanelSection>
-          </aside>
         </div>
 
         {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}

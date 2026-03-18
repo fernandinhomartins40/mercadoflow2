@@ -186,28 +186,6 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Escopo da rodada</span>
-                <h3>
-                  {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
-                    ? 'Execução filtrada por categoria'
-                    : 'Catálogo completo'}
-                </h3>
-                <p>
-                  {details?.run?.selectedCategories && details.run.selectedCategories.length > 0
-                    ? details.run.selectedCategories.join(', ')
-                    : 'A rodada varreu todo o catálogo configurado para o mercado selecionado.'}
-                </p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Arquivos da rodada</span>
-                <h3>Logs e artefatos ficam disponíveis aqui.</h3>
-                <p>Use esta tela para validar o que foi captado, o que entrou no catálogo e se houve erro em página, imagem ou importação.</p>
-              </article>
-            </>
-          }
         />
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}

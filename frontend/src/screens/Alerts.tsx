@@ -39,12 +39,6 @@ const Alerts: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card"><span className="section-kicker">Fila recomendada</span><h3>Prioridade alta primeiro.</h3><p>Comece pelo que pode virar perda, ruptura ou erro operacional. O resto entra depois na rotina de leitura.</p></article>
-              <article className="dashboard-priority-card"><span className="section-kicker">Disciplina de uso</span><h3>Marque como lido só quando tratar.</h3><p>Isso limpa a fila sem esconder sinal pendente para o restante do time.</p></article>
-            </>
-          }
         />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">

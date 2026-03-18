@@ -32,16 +32,6 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
   const header = useMemo(() => TITLES[location.pathname] || TITLES['/super-admin'], [location.pathname]);
 
-  const todayLabel = useMemo(
-    () =>
-      new Date().toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-    [],
-  );
-
   const navSections: WorkspaceNavSection[] = [
     {
       title: 'Controle',
@@ -94,23 +84,8 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         <WorkspaceTopbar
           section={header.section}
           title={header.title}
-          subtitle={header.subtitle}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
           showMenuToggle={!desktopPinned}
-          desktopPinned={desktopPinned}
-          userName={name || 'Super Admin'}
-          userSubtitle="Controle da plataforma"
-          userInitial={(name || 'S').trim().charAt(0).toUpperCase()}
-          badges={
-            <>
-              <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(255,106,0,0.12)] px-4 text-sm font-semibold text-[color:var(--accent-strong)]">
-                Super admin
-              </span>
-              <span className="inline-flex min-h-9 items-center justify-center rounded-full bg-[rgba(47,23,11,0.06)] px-4 text-sm font-semibold text-[color:var(--text-muted)]">
-                Atualizado em {todayLabel}
-              </span>
-            </>
-          }
           actionSlot={<Button className="min-w-[104px]" variant="secondary" onClick={() => logout()}>Sair</Button>}
         />
 

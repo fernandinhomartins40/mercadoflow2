@@ -94,25 +94,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                 </div>
               }
-              aside={
-                <div className="page-side-stack">
-                  <div className="dashboard-priority-card dark min-h-[148px]">
-                    <span className="section-kicker">Ação imediata</span>
-                    <strong>{overview?.expiringMarkets ?? 0} contas vencendo</strong>
-                    <p>Priorize renovação manual e revisão de acesso nas contas mais próximas do vencimento.</p>
-                    <ButtonLink to="/super-admin/saas" variant="secondary">
-                      Revisar contas
-                    </ButtonLink>
-                  </div>
-
-                  <div className="dashboard-priority-card min-h-[148px]">
-                    <span className="section-kicker">Usuários bloqueados</span>
-                    <strong>{overview?.blockedUsers ?? 0}</strong>
-                    <p>{overview?.orphanUsers ?? 0} usuários seguem sem conta vinculada e precisam de ajuste.</p>
-                  </div>
-                </div>
-              }
-            />
+        />
 
             <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
               <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" />

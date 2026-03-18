@@ -334,13 +334,6 @@ const OfferTemplates: React.FC = () => {
             </>
           }
           feature={<OfferCanvasPreview template={selectedTemplate || templates[0] || null} className="offer-dashboard-canvas" />}
-          aside={(
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Validação</span>
-              <h3>{validation?.valid ? 'Template consistente' : 'Template em evolução'}</h3>
-              <p>{validation?.messages?.length ? validation.messages.join(' · ') : 'Camadas, zonas e variantes válidas para automação e geração.'}</p>
-            </article>
-          )}
         />
 
         {error ? <div className="sales-empty-card">{error}</div> : null}

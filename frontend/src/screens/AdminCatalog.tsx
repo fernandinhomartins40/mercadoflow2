@@ -251,20 +251,6 @@ const CatalogAdmin: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <div className="dashboard-priority-card dark">
-                <span className="section-kicker">Objetivo da tela</span>
-                <strong>Consultar sem ruído técnico</strong>
-                <p>Origem, confiança e outros dados internos saem do foco para que a leitura fique centrada no produto.</p>
-              </div>
-              <div className="dashboard-priority-card">
-                <span className="section-kicker">Página atual</span>
-                <strong>{page + 1} de {Math.max(totalPages, 1)}</strong>
-                <p>{rows.length} itens retornados nesta página.</p>
-              </div>
-            </>
-          }
         />
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Total no banco" value={totalElements} icon="DB" caption="catálogo enriquecido" />

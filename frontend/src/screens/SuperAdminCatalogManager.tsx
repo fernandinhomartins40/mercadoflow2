@@ -463,20 +463,6 @@ const SuperAdminCatalogManager: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <div className="dashboard-priority-card dark">
-                <span className="section-kicker">Fluxo principal</span>
-                <strong>Buscar, revisar e editar</strong>
-                <p>A tabela serve para localizar o item. Os ajustes ficam concentrados no modal.</p>
-              </div>
-              <div className="dashboard-priority-card">
-                <span className="section-kicker">Página atual</span>
-                <strong>{page + 1}</strong>
-                <p>{rowsPage ? `${rowsPage.totalPages} páginas no resultado atual.` : 'A paginação aparece depois da primeira carga.'}</p>
-              </div>
-            </>
-          }
         />
 
         <div className="catalog-admin-overview-grid">
@@ -503,19 +489,6 @@ const SuperAdminCatalogManager: React.FC = () => {
                 {success ? <div className="catalog-admin-feedback success">{success}</div> : null}
               </div>
             ) : null}
-          </PanelSection>
-
-          <PanelSection className="dashboard-note-card" kicker="Como operar" title="Uso da tela">
-            <div className="dashboard-quick-list">
-              <div className="dashboard-quick-item">
-                <strong>Use a tabela para localizar o item</strong>
-                <span>Escolha o produto certo e abra o modal para revisar ou editar.</span>
-              </div>
-              <div className="dashboard-quick-item">
-                <strong>O modal concentra os campos completos</strong>
-                <span>Descrição, dados extras e imagem ficam no editor, não na página principal.</span>
-              </div>
-            </div>
           </PanelSection>
         </div>
 

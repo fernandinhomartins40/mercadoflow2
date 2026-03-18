@@ -119,20 +119,6 @@ const Campaigns: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Uso correto</span>
-                <h3>Registre campanha antes dela terminar.</h3>
-                <p>Se a janela entrar tarde, a comparação fica distorcida e o histórico perde valor para o time comercial.</p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Leitura esperada</span>
-                <h3>Compare impacto, não só presença.</h3>
-                <p>O valor desta tela está em mostrar se a ação mudou receita e transações, não apenas se ela existiu.</p>
-              </article>
-            </>
-          }
         />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">

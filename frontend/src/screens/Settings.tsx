@@ -182,20 +182,6 @@ const Settings: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Boa prática</span>
-                <h3>Uma chave por instalação ou PDV.</h3>
-                <p>Evite compartilhar credenciais. Isso preserva rastreabilidade real e facilita revogação sem atingir outras máquinas.</p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Risco comum</span>
-                <h3>Heartbeat sem uso precisa de revisão.</h3>
-                <p>Quando o agente some ou a máquina muda, revogue a chave antiga antes que ela vire credencial esquecida em produção.</p>
-              </article>
-            </>
-          }
         />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">

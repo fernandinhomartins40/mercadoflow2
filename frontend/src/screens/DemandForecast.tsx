@@ -83,20 +83,6 @@ const DemandForecast: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Uso recomendado</span>
-                <h3>Encurte o horizonte quando precisar agir rápido.</h3>
-                <p>Janelas curtas ajudam na reposição imediata. Janelas maiores servem melhor para compra e preparação de time.</p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Leitura prática</span>
-                <h3>Trate o topo da lista como fila de atenção.</h3>
-                <p>Os primeiros itens são os que mais pressionam estoque e operação no recorte selecionado.</p>
-              </article>
-            </>
-          }
         />
 
         <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
@@ -124,25 +110,6 @@ const DemandForecast: React.FC = () => {
               <Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>
             </div>
           </PanelSection>
-
-          <aside className="dashboard-side-stack">
-            <PanelSection className="dashboard-note-card" kicker="Como usar" title="Transforme previsão em ação operacional.">
-              <div className="dashboard-quick-list">
-                <div className="dashboard-quick-item">
-                  <strong>Compra</strong>
-                  <span>Use o topo da lista para priorizar reposição e pedido antes do pico.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Equipe</strong>
-                  <span>Picos concentrados pedem reforço de atendimento e abastecimento nos dias certos.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Revisão</strong>
-                  <span>Se o item previsto parece estranho, compare com o histórico do produto antes de agir.</span>
-                </div>
-              </div>
-            </PanelSection>
-          </aside>
         </div>
 
         {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}

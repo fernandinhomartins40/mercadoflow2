@@ -93,13 +93,6 @@ const OfferJobs: React.FC = () => {
               <p>{jobs[0] ? `${jobs[0].variantKey || 'default'} · ${jobs[0].outputType} · ${jobs[0].outputs?.length || 0} outputs` : 'Assim que o primeiro lote for criado, ele aparece aqui com o resumo principal.'}</p>
             </article>
           }
-          aside={(
-            <article className="dashboard-priority-card">
-              <span className="section-kicker">Pipeline</span>
-              <h3>{jobs.length} lotes registrados.</h3>
-              <p>Use a fila para revisar os itens, publicar novamente e acompanhar outputs já gerados por variante e canal.</p>
-            </article>
-          )}
         />
 
         {loading ? <div className="sales-empty-card">Carregando lotes...</div> : null}

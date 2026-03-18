@@ -86,20 +86,6 @@ const PDVs: React.FC = () => {
               </div>
             </>
           }
-          aside={
-            <>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Boa prática</span>
-                <h3>Use nomes reconhecíveis para a operação.</h3>
-                <p>Gerentes, compradores e equipe de loja precisam bater o olho e identificar o PDV sem dúvida.</p>
-              </article>
-              <article className="dashboard-priority-card">
-                <span className="section-kicker">Risco comum</span>
-                <h3>Duplicar PDV por variação de nome.</h3>
-                <p>Padronize o cadastro para não espalhar histórico e configuração entre nomes parecidos.</p>
-              </article>
-            </>
-          }
         />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
