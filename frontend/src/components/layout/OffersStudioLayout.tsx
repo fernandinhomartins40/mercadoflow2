@@ -42,7 +42,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <div
       className={sidebarPinned
-        ? 'workspace-root offers-studio-layout grid h-[100dvh] box-border grid-cols-[96px_minmax(0,1fr)] overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'
+        ? 'workspace-root offers-studio-layout h-[100dvh] box-border overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'
         : 'workspace-root offers-studio-layout flex h-[100dvh] box-border flex-col overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'}
     >
       <Sidebar
@@ -75,7 +75,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       />
 
-      <main className={`offers-studio-layout-main h-full min-h-0 min-w-0 overflow-hidden ${sidebarPinned ? '' : 'pt-14'}`}>
+      <main className={`offers-studio-layout-main h-full min-h-0 min-w-0 overflow-hidden ${sidebarPinned ? 'pl-[96px]' : 'pt-14'}`}>
         {!sidebarPinned ? (
           <button
             type="button"

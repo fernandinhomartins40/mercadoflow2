@@ -62,14 +62,14 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   return (
     <div
       className={desktopPinned
-        ? 'workspace-root super-admin-workspace grid min-h-screen grid-cols-[304px_minmax(0,1fr)] overflow-x-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'
+        ? 'workspace-root super-admin-workspace min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'
         : 'workspace-root super-admin-workspace flex min-h-screen flex-col overflow-x-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'}
     >
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         desktopPinned={desktopPinned}
-        desktopWidthClassName="w-[304px]"
+        desktopWidthClassName="w-64"
         brandMark="SA"
         brandTitle="Super Admin"
         brandSubtitle="Controle central da plataforma"
@@ -87,7 +87,10 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         footer={<Button className="w-full" variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 
-      <main className="workspace-shell-main flex min-h-screen min-w-0 flex-col overflow-x-hidden">
+      <main className={desktopPinned
+        ? 'workspace-shell-main flex min-h-screen min-w-0 flex-col overflow-x-hidden pl-64'
+        : 'workspace-shell-main flex min-h-screen min-w-0 flex-col overflow-x-hidden'}
+      >
         <WorkspaceTopbar
           section={header.section}
           title={header.title}

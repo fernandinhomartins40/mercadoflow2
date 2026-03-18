@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 
-const DESKTOP_SIDEBAR_QUERY = '(min-width: 1100px)';
+const DESKTOP_SIDEBAR_QUERY = '(min-width: 1024px)';
 
 function getInitialMatch(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
