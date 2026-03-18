@@ -414,7 +414,7 @@ const OfferDesigner: React.FC = () => {
   const requestedProductId = searchParams.get('productId') || '';
   const requestedMarketId = searchParams.get('marketId') || '';
   const routeBase = isSuperAdminMode ? '/super-admin/ofertas' : '/app/ofertas';
-  const adminCampaignsRoute = '/app/ofertas';
+  const adminCampaignsRoute = '/app/ofertas/campanhas';
   const [overview, setOverview] = useState<OfferOverview | null>(null);
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
   const [brandKits, setBrandKits] = useState<OfferBrandKit[]>([]);
@@ -521,7 +521,7 @@ const OfferDesigner: React.FC = () => {
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
   }, [activeZone, resolvedDesign]);
 
-  const buildAdminDesignerRoute = (jobId: string) => `${adminCampaignsRoute}/designer?${new URLSearchParams({ jobId }).toString()}`;
+  const buildAdminDesignerRoute = (jobId: string) => `${routeBase}?${new URLSearchParams({ jobId }).toString()}`;
 
   const socialCopy = useMemo(() => {
     const previewHeadline = readHeadline(preview);
@@ -1327,12 +1327,7 @@ const OfferDesigner: React.FC = () => {
                       <LayoutTemplate size={16} strokeWidth={2.1} />
                       {saving ? 'Salvando...' : 'Salvar template'}
                     </Button>
-                  ) : (
-                    <Button type="button" variant="secondary" onClick={() => navigate(`${routeBase}/modelos`)}>
-                      <LayoutTemplate size={16} strokeWidth={2.1} />
-                      Gerenciar
-                    </Button>
-                  )}
+                  ) : null}
                 </div>
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}

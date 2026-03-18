@@ -79,7 +79,7 @@ const OfferJobs: React.FC = () => {
           description="Cada campanha salva carrega variante, canais, render options e outputs, para que a revisão final fique separada da listagem operacional."
           actions={
             <>
-              <Button type="button" onClick={() => navigate('/app/ofertas')}>Campanhas</Button>
+              <Button type="button" onClick={() => navigate('/app/ofertas/campanhas')}>Campanhas</Button>
               <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
                 <RefreshCw size={16} strokeWidth={2.1} />
                 Atualizar

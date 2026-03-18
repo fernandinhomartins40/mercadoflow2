@@ -233,7 +233,7 @@ const OffersCampaigns: React.FC = () => {
     const search = new URLSearchParams();
     if (params?.templateId) search.set('templateId', params.templateId);
     if (params?.jobId) search.set('jobId', params.jobId);
-    navigate(`/app/ofertas/designer${search.toString() ? `?${search.toString()}` : ''}`);
+    navigate(`/app/ofertas${search.toString() ? `?${search.toString()}` : ''}`);
   };
 
   const handlePublish = async (job: OfferGenerationJob) => {
@@ -301,9 +301,8 @@ const OffersCampaigns: React.FC = () => {
             <>
               <Button type="button" onClick={() => openDesigner({ templateId: leadTemplate?.id })}>
                 <Plus size={16} strokeWidth={2.1} />
-                Nova campanha
+                Abrir estúdio
               </Button>
-              <ButtonLink variant="secondary" to="/app/ofertas/modelos">Modelos</ButtonLink>
               <ButtonLink variant="secondary" to="/app/ofertas/jobs">Arquivos</ButtonLink>
             </>
           }

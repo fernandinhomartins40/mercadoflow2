@@ -40,7 +40,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode; mode?: OffersStu
       title: 'Dados',
       items: [
         { to: '/super-admin/catalogo', label: 'Catálogo global', hint: 'Base central de produtos', icon: Database },
-        { to: '/super-admin/ofertas', label: 'Estúdio de ofertas', hint: 'Templates visuais por conta', icon: Sparkles },
+        { to: '/super-admin/ofertas', label: 'Templates de ofertas', hint: 'Base visual por conta', icon: Sparkles },
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
       ],
     },
@@ -82,7 +82,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode; mode?: OffersStu
           desktopWidthClassName="w-[96px]"
           brandMark="SA"
           brandTitle="Super Admin"
-          brandSubtitle="Estúdio central de ofertas"
+          brandSubtitle="Base central de templates"
           userKicker="Sessão ativa"
           userName={superAdminAuth.name || 'Super Administrador'}
           userEmail={superAdminAuth.email || 'Conta principal da plataforma'}

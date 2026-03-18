@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', icon: Link2 },
         { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', icon: ShoppingCart },
-        { to: '/app/ofertas', label: 'Ofertas', hint: 'Campanhas, editor e arquivos', icon: Sparkles },
+        { to: '/app/ofertas', label: 'Estúdio de ofertas', hint: 'Criar encartes e peças promocionais', icon: Sparkles },
         { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Planejamento de demanda', icon: TrendingUp },
         { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', icon: Megaphone },
         { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', icon: Store },
