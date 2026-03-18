@@ -38,7 +38,6 @@ def main() -> int:
         catalog_api_base="https://www.festval.com",
         mode="category-tree",
         category_tree_url="https://www.festval.com/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.festval.com/sitemap.xml",
         catalog_retry_attempts=6,
         catalog_min_interval_seconds=0.2,
         brand_resolve_workers=3,

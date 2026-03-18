@@ -264,13 +264,12 @@ public class SuperAdminService {
             "Catalogo completo",
             "VTEX category tree + detail",
             "extract_and_import_festval.py",
-            "Importa o catalogo completo do Festval pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "Importa o catalogo completo do Festval pela arvore oficial da VTEX e detalhamento por slug para recuperar GTIN, preco e imagem.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
             List.of(
                 "https://www.festval.com/api/catalog_system/pub/category/tree/20",
-                "https://www.festval.com/sitemap.xml",
                 "https://www.festval.com/mix_cenoura_e_vagem_350_g/p"
             ),
             List.of("www.festval.com", "festval.com")

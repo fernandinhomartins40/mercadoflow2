@@ -42,8 +42,8 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <div
       className={sidebarPinned
-        ? 'workspace-root offers-studio-layout grid h-[100dvh] box-border grid-cols-[96px_minmax(0,1fr)] gap-6 overflow-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-6'
-        : 'workspace-root offers-studio-layout flex h-[100dvh] box-border flex-col gap-4 overflow-hidden bg-[radial-gradient(circle_at_top,#fff7f0_0%,#f8efe6_45%,#f1e6dc_100%)] p-4'}
+        ? 'workspace-root offers-studio-layout grid h-[100dvh] box-border grid-cols-[96px_minmax(0,1fr)] overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'
+        : 'workspace-root offers-studio-layout flex h-[100dvh] box-border flex-col overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'}
     >
       <Sidebar
         mobileOpen={sidebarOpen}
@@ -55,7 +55,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           sidebarPinned ? (
             <button
               type="button"
-              className="inline-flex h-12 w-full items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.06)] text-[rgba(255,235,220,0.9)] transition hover:bg-[rgba(255,255,255,0.12)]"
+              className="inline-flex h-12 w-full items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.12)] bg-white text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] transition hover:bg-[rgba(255,247,240,0.92)]"
               onClick={() => void logout()}
               aria-label="Sair"
               title="Sair"
@@ -65,7 +65,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           ) : (
             <button
               type="button"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.06)] px-4 text-sm font-semibold text-[rgba(255,235,220,0.9)] transition hover:bg-[rgba(255,255,255,0.12)]"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] transition hover:bg-[rgba(255,247,240,0.92)]"
               onClick={() => void logout()}
             >
               <LogOut className="h-4 w-4" strokeWidth={2.1} />
@@ -75,7 +75,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       />
 
-      <main className={`offers-studio-layout-main h-full min-w-0 min-h-0 overflow-hidden ${sidebarPinned ? '' : 'pt-14'}`}>
+      <main className={`offers-studio-layout-main h-full min-h-0 min-w-0 overflow-hidden ${sidebarPinned ? '' : 'pt-14'}`}>
         {!sidebarPinned ? (
           <button
             type="button"
@@ -87,7 +87,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           </button>
         ) : null}
 
-        {children}
+        <div className={sidebarPinned ? 'h-full p-4 lg:p-6' : 'h-full px-4 pb-4 sm:px-5'}>{children}</div>
       </main>
     </div>
   );

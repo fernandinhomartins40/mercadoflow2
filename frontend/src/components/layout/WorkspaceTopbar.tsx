@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { cn } from '../../lib/cn';
 
 interface WorkspaceTopbarProps {
@@ -36,7 +36,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   const menuButton = showMenuToggle ? (
     <button
       type="button"
-      className="inline-flex h-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] transition hover:-translate-y-px hover:bg-[rgba(255,247,240,0.92)]"
+      className="inline-flex h-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(87,51,30,0.12)] bg-white px-4 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] transition hover:bg-[rgba(255,247,240,0.92)]"
       onClick={onToggleSidebar}
       aria-label="Abrir menu lateral"
     >
@@ -45,25 +45,15 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   ) : null;
 
   const userCard = (
-    <div
-      className={cn(
-        'flex items-center gap-3 rounded-[20px] border border-[rgba(87,51,30,0.12)] bg-white shadow-[0_10px_24px_rgba(44,20,6,0.06)]',
-        compactMode ? 'w-auto max-w-full px-3 py-2.5 sm:min-w-[220px] sm:max-w-[320px]' : 'w-full px-4 py-3 sm:w-auto sm:min-w-[270px]',
-      )}
-    >
-      <span
-        className={cn(
-          'inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#ff8b37_0%,#ff6a00_100%)] font-semibold text-white shadow-[0_14px_28px_rgba(255,106,0,0.24)]',
-          compactMode ? 'h-10 w-10 text-base' : 'h-12 w-12 text-lg',
-        )}
-      >
+    <div className="flex min-w-0 items-center gap-3 rounded-[18px] border border-[rgba(87,51,30,0.12)] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(44,20,6,0.06)]">
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,#ff8b37_0%,#ff6a00_100%)] text-sm font-semibold text-white shadow-[0_12px_24px_rgba(255,106,0,0.18)]">
         {userInitial}
       </span>
       <div className="min-w-0">
-        <strong className={cn('block truncate font-semibold tracking-[-0.02em] text-[color:var(--text-primary)]', compactMode ? 'text-[0.98rem]' : 'text-base')}>
+        <strong className="block truncate text-[0.94rem] font-semibold tracking-[-0.02em] text-[color:var(--text-primary)]">
           {userName}
         </strong>
-        <span className={cn('block truncate text-[color:var(--text-muted)]', compactMode ? 'text-[0.9rem]' : 'text-sm')}>{userSubtitle}</span>
+        <span className="block truncate text-[0.82rem] text-[color:var(--text-muted)]">{userSubtitle}</span>
       </div>
     </div>
   );
@@ -71,74 +61,50 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   return (
     <header
       className={cn(
-        compactMode
-          ? 'rounded-[26px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] p-4 shadow-[0_20px_50px_rgba(44,20,6,0.08)] sm:p-5'
-          : 'grid gap-4 rounded-[28px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] px-6 py-5 shadow-[0_20px_50px_rgba(44,20,6,0.08)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,auto)] xl:items-center',
+        'sticky top-0 z-20 border-b border-[rgba(87,51,30,0.08)] bg-[rgba(252,248,243,0.88)] backdrop-blur-xl',
         className,
       )}
     >
-      {compactMode ? (
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                {menuButton}
-                <div className="min-w-0">
-                  <span className="block text-[0.74rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
-                    {section}
-                  </span>
-                  <strong className="mt-1 block truncate text-[1.05rem] font-semibold tracking-[-0.03em] text-[color:var(--text-primary)]">
-                    {title}
-                  </strong>
-                </div>
-              </div>
-              <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-3">
-                {userCard}
-                {actionSlot ? <div className="flex flex-wrap justify-end gap-3">{actionSlot}</div> : null}
-              </div>
-            </div>
+      <div
+        className={cn(
+          'workspace-stage flex w-full min-w-0 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8',
+          compactMode ? '' : 'xl:flex-row xl:items-center xl:justify-between',
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          {menuButton}
 
-            <div className="min-w-0 pt-1">
-              <h2 className="max-w-4xl text-[clamp(1.95rem,4.2vw,2.85rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-[color:var(--text-primary)]">
-                {title}
-              </h2>
-              <span className="mt-3 block max-w-3xl text-[0.95rem] leading-6 text-[color:var(--text-muted)]">
-                {subtitle}
-              </span>
-            </div>
-
-            {badges ? <div className="flex flex-wrap gap-3">{badges}</div> : null}
-
-            {searchSlot ? <div className="w-full">{searchSlot}</div> : null}
+          <div className="min-w-0">
+            <span className="block text-[0.74rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
+              {section}
+            </span>
+            <h2
+              className={cn(
+                'mt-1 font-semibold leading-[0.96] tracking-[-0.04em] text-[color:var(--text-primary)]',
+                compactMode ? 'text-[clamp(1.55rem,4vw,2rem)]' : 'text-[clamp(1.7rem,2.4vw,2.2rem)]',
+              )}
+            >
+              {title}
+            </h2>
+            <span className="mt-1.5 block max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">{subtitle}</span>
           </div>
         </div>
-      ) : (
-        <>
-          <div className="flex min-w-0 flex-col gap-4">
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-3">
-              <div className="min-w-0">
-                <span className="block text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
-                  {section}
-                </span>
-                <h2 className="mt-2 max-w-4xl text-[clamp(2rem,4vw,3.05rem)] font-semibold leading-[0.94] tracking-[-0.05em] text-[color:var(--text-primary)]">
-                  {title}
-                </h2>
-                <span className="mt-2.5 block max-w-3xl text-[0.98rem] leading-7 text-[color:var(--text-muted)]">
-                  {subtitle}
-                </span>
+
+        <div className="flex min-w-0 flex-col gap-3 xl:max-w-[56rem] xl:items-end">
+          {badges ? <div className="flex flex-wrap gap-2 xl:justify-end">{badges}</div> : null}
+
+          <div className="flex min-w-0 flex-col gap-3 xl:w-full xl:items-end">
+            <div className="flex min-w-0 flex-col gap-3 xl:w-full xl:flex-row xl:items-center xl:justify-end">
+              {searchSlot ? <div className="min-w-0 xl:max-w-[460px] xl:flex-1">{searchSlot}</div> : null}
+
+              <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                {userCard}
+                {actionSlot ? <div className="flex flex-wrap gap-3">{actionSlot}</div> : null}
               </div>
             </div>
-
-            {badges ? <div className="flex flex-wrap gap-3">{badges}</div> : null}
           </div>
-
-          <div className="flex min-w-0 flex-col gap-3 xl:min-w-[280px] xl:items-end">
-            {searchSlot ? <div className="w-full xl:max-w-[420px]">{searchSlot}</div> : null}
-            {userCard}
-            {actionSlot ? <div className="flex w-full flex-wrap gap-3 xl:justify-end">{actionSlot}</div> : null}
-          </div>
-        </>
-      )}
+        </div>
+      </div>
     </header>
   );
 };

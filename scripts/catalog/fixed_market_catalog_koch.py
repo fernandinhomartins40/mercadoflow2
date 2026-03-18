@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ from fixed_market_catalog_common import (
 
 PRODUCT_PATH_RE = re.compile(r"/produtos/(\d+)/([^/?#]+)")
 STORE_ID_RE = re.compile(r'"selectedStore"\s*:\s*\{.*?"id":"?(\d+)"?', re.S)
+STORE_ID_FALLBACK_RE = re.compile(r'"storeId":"?(\d+)"?')
 EXTRACTION_SCHEMA_VERSION = "2026-03-08-rich-metadata-v1"
 
 
@@ -54,13 +56,46 @@ def build_headers(referer: str) -> Dict[str, str]:
     }
 
 
+def extract_store_id(html: str) -> str:
+    for pattern in (STORE_ID_RE, STORE_ID_FALLBACK_RE):
+        match = pattern.search(html or "")
+        if match:
+            return match.group(1)
+    return ""
+
+
 def fetch_default_store_id(job: KochJobConfig) -> str:
-    response = requests.get(job.categories_url, timeout=45, headers={"User-Agent": "Mozilla/5.0"})
-    response.raise_for_status()
-    match = STORE_ID_RE.search(response.text)
-    if not match:
-        raise RuntimeError("Super Koch: storeId padrao nao encontrado no HTML")
-    return match.group(1)
+    candidate_urls: List[str] = []
+    for candidate in (
+        job.categories_url,
+        job.site_base,
+        f"{job.site_base.rstrip('/')}/",
+        f"{job.site_base.rstrip('/')}/categorias",
+    ):
+        normalized = norm_text(candidate)
+        if normalized and normalized not in candidate_urls:
+            candidate_urls.append(normalized)
+
+    errors: List[str] = []
+    for url in candidate_urls:
+        last_error: Optional[Exception] = None
+        for attempt in range(1, 4):
+            try:
+                response = requests.get(url, timeout=(12, 45), headers={"User-Agent": "Mozilla/5.0"})
+                response.raise_for_status()
+                store_id = extract_store_id(response.text)
+                if store_id:
+                    return store_id
+                last_error = RuntimeError("storeId padrao nao encontrado no HTML")
+            except requests.RequestException as exc:
+                last_error = exc
+            if attempt < 3:
+                time.sleep(min(1.5 * attempt, 4.0))
+        if last_error is not None:
+            errors.append(f"{url}: {last_error}")
+
+    error_suffix = " | ".join(errors) if errors else "sem detalhes adicionais"
+    raise RuntimeError(f"Super Koch: falha ao descobrir storeId padrao. Seeds testadas: {error_suffix}")
 
 
 def fetch_product_urls(job: KochJobConfig) -> List[Tuple[str, str]]:

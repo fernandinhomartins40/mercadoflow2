@@ -515,7 +515,6 @@ def run_festval(args: argparse.Namespace) -> Dict[str, Any]:
         catalog_api_base="https://www.festval.com",
         mode="category-tree",
         category_tree_url="https://www.festval.com/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.festval.com/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "FESTVAL_WEB_BR"),
         catalog_retry_attempts=6,
         catalog_min_interval_seconds=0.2,
