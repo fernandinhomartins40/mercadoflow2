@@ -208,6 +208,25 @@ export const offersService = {
     return response.data;
   },
 
+  async getJob(marketId: string, jobId: string) {
+    const response = await api.get<OfferGenerationJob>(`/v1/markets/${marketId}/offers/jobs/${jobId}`);
+    return response.data;
+  },
+
+  async updateJob(marketId: string, jobId: string, payload: OfferCreateJobPayload) {
+    const response = await api.patch<OfferGenerationJob>(`/v1/markets/${marketId}/offers/jobs/${jobId}`, payload);
+    return response.data;
+  },
+
+  async cloneJob(marketId: string, jobId: string) {
+    const response = await api.post<OfferGenerationJob>(`/v1/markets/${marketId}/offers/jobs/${jobId}/clone`);
+    return response.data;
+  },
+
+  async deleteJob(marketId: string, jobId: string) {
+    await api.delete(`/v1/markets/${marketId}/offers/jobs/${jobId}`);
+  },
+
   async getJobOutputs(marketId: string, jobId: string) {
     const response = await api.get<OfferRenderOutput[]>(`/v1/markets/${marketId}/offers/jobs/${jobId}/outputs`);
     return response.data;

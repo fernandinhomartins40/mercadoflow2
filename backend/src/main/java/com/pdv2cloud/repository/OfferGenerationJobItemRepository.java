@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OfferGenerationJobItemRepository extends JpaRepository<OfferGenerationJobItem, UUID> {
     List<OfferGenerationJobItem> findByJob_IdOrderByPositionIndexAsc(UUID jobId);
+    void deleteByJob_Id(UUID jobId);
 }
 

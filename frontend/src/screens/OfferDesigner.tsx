@@ -44,6 +44,7 @@ import {
   OfferBrandKit,
   OfferCampaignKit,
   OfferCatalogProduct,
+  OfferGenerationJob,
   OfferOverview,
   OfferTemplate,
   OfferTemplatePreview,
@@ -409,9 +410,11 @@ const OfferDesigner: React.FC = () => {
   const [searchParams] = useSearchParams();
   const isSuperAdminMode = location.pathname.startsWith('/super-admin');
   const requestedTemplateId = searchParams.get('templateId') || '';
+  const requestedJobId = searchParams.get('jobId') || '';
   const requestedProductId = searchParams.get('productId') || '';
   const requestedMarketId = searchParams.get('marketId') || '';
   const routeBase = isSuperAdminMode ? '/super-admin/ofertas' : '/app/ofertas';
+  const adminCampaignsRoute = '/app/ofertas';
   const [overview, setOverview] = useState<OfferOverview | null>(null);
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
   const [brandKits, setBrandKits] = useState<OfferBrandKit[]>([]);
@@ -424,6 +427,7 @@ const OfferDesigner: React.FC = () => {
   const [selectedBrandKitId, setSelectedBrandKitId] = useState('');
   const [selectedCampaignKitId, setSelectedCampaignKitId] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<OfferCatalogProduct[]>([]);
+  const [activeJobId, setActiveJobId] = useState(requestedJobId);
   const [results, setResults] = useState<OfferCatalogProduct[]>([]);
   const [preview, setPreview] = useState<OfferTemplatePreview | null>(null);
   const [validation, setValidation] = useState<OfferTemplateValidation | null>(null);
@@ -467,6 +471,7 @@ const OfferDesigner: React.FC = () => {
   );
   const effectiveMarketId = isSuperAdminMode ? selectedSuperAdminMarketId : marketId || '';
   const effectiveMarketName = isSuperAdminMode ? selectedSuperAdminMarket?.name || 'conta selecionada' : name || 'MercadoFlow';
+  const isEditingCampaign = !isSuperAdminMode && Boolean(activeJobId);
   const selectedTemplate = useMemo(() => templates.find((template) => template.id === selectedTemplateId) || null, [templates, selectedTemplateId]);
   const selectedVariant = useMemo(() => templateVariants.find((variant) => variant.variantKey === selectedVariantKey) || null, [templateVariants, selectedVariantKey]);
   const selectedBrandKit = useMemo(() => brandKits.find((kit) => kit.id === selectedBrandKitId) || null, [brandKits, selectedBrandKitId]);
@@ -516,6 +521,8 @@ const OfferDesigner: React.FC = () => {
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
   }, [activeZone, resolvedDesign]);
 
+  const buildAdminDesignerRoute = (jobId: string) => `${adminCampaignsRoute}/designer?${new URLSearchParams({ jobId }).toString()}`;
+
   const socialCopy = useMemo(() => {
     const previewHeadline = readHeadline(preview);
     if (!selectedProducts.length) {
@@ -534,6 +541,61 @@ const OfferDesigner: React.FC = () => {
       : '\n\nOfertas sujeitas à disponibilidade.';
     return `${intro}${lines.join('\n')}${outro}`;
   }, [name, preview, selectedProducts, textMode]);
+
+  const resetCampaignDraft = () => {
+    setActiveJobId('');
+    setJobName('');
+    setOutputType('PNG');
+    setGenerationMode('CATALOG');
+    setGridPreset('AUTO');
+    setProductBoxMode('SMART');
+    setTextMode('MEDIUM');
+    setColorMode('SMART');
+    setFooterMode('ROUND');
+    setZoomMode('AUTO');
+    setRenderQuality('high');
+    setPublishTargets(['DOWNLOAD']);
+    setCoverEnabled(false);
+  };
+
+  const hydrateDraftFromJob = async (
+    job: OfferGenerationJob,
+    templateData: OfferTemplate[],
+    brandList: OfferBrandKit[],
+    campaignList: OfferCampaignKit[],
+  ) => {
+    const renderOptions = parseJson<JsonMap>(job.renderOptionsJson, {}) || {};
+    const jobTemplateId = job.templateId || templateData[0]?.id || '';
+    setActiveJobId(job.id);
+    setSelectedTemplateId(jobTemplateId);
+    await loadTemplateMeta(jobTemplateId, templateData, brandList, campaignList);
+    setJobName(job.name || '');
+    setOutputType(job.outputType || 'PNG');
+    setGenerationMode(job.generationMode || 'CATALOG');
+    setSelectedVariantKey(job.variantKey || '');
+    setSelectedBrandKitId(normalizeSelection(brandList, typeof renderOptions.brandKitId === 'string' ? renderOptions.brandKitId : '', '') || '');
+    setSelectedCampaignKitId(normalizeSelection(campaignList, typeof renderOptions.campaignKitId === 'string' ? renderOptions.campaignKitId : '', '') || '');
+    setGridPreset(String(renderOptions.gridPreset || 'AUTO'));
+    setProductBoxMode(String(renderOptions.productBoxMode || 'SMART'));
+    setTextMode(String(renderOptions.textMode || 'MEDIUM'));
+    setColorMode(String(renderOptions.colorMode || 'SMART'));
+    setFooterMode(String(renderOptions.footerMode || 'ROUND'));
+    setZoomMode(String(renderOptions.zoomMode || 'AUTO'));
+    setRenderQuality(String(renderOptions.quality || 'high'));
+    setPublishTargets(parseJson<string[]>(job.publishTargetsJson, ['DOWNLOAD']) || ['DOWNLOAD']);
+    setCoverEnabled(Boolean(renderOptions.coverEnabled));
+    setSelectedProducts(
+      job.items.map((item) => ({
+        productId: item.productId || item.id,
+        name: item.productName,
+        category: item.zoneId || null,
+        unit: item.productUnit || null,
+        imageUrl: item.productImageUrl || null,
+        currentPrice: Number(item.currentPrice || 0),
+        baselinePrice: Number(item.currentPrice || 0),
+      })),
+    );
+  };
 
   const refreshPreview = async (mode: 'preview' | 'autofill' = 'preview', productIds?: string[]) => {
     if (!effectiveMarketId || !selectedTemplateId) {
@@ -640,6 +702,7 @@ const OfferDesigner: React.FC = () => {
         setBrandKits([]);
         setCampaignKits([]);
         setTemplateVariants([]);
+        resetCampaignDraft();
         setSelectedTemplateId('');
         setSelectedProducts([]);
         setResults([]);
@@ -662,16 +725,22 @@ const OfferDesigner: React.FC = () => {
         setOverview(overviewData);
         setBrandKits(overviewData.brandKits || []);
         setCampaignKits(overviewData.campaignKits || []);
-        const initialTemplateId = requestedTemplateId || templateData[0]?.id || '';
-        setSelectedTemplateId(initialTemplateId);
-        setSelectedProducts([]);
         setResults([]);
         setPreview(null);
-        await loadTemplateMeta(initialTemplateId, templateData, overviewData.brandKits || [], overviewData.campaignKits || []);
-        const initialProductId = requestedProductId;
-        if (initialProductId) {
-          const selection = await offersService.getCatalogSelection(effectiveMarketId, [initialProductId]);
-          setSelectedProducts(selection);
+        if (requestedJobId && !isSuperAdminMode) {
+          const job = await offersService.getJob(effectiveMarketId, requestedJobId);
+          await hydrateDraftFromJob(job, templateData, overviewData.brandKits || [], overviewData.campaignKits || []);
+        } else {
+          resetCampaignDraft();
+          const initialTemplateId = requestedTemplateId || templateData[0]?.id || '';
+          setSelectedTemplateId(initialTemplateId);
+          setSelectedProducts([]);
+          await loadTemplateMeta(initialTemplateId, templateData, overviewData.brandKits || [], overviewData.campaignKits || []);
+          const initialProductId = requestedProductId;
+          if (initialProductId) {
+            const selection = await offersService.getCatalogSelection(effectiveMarketId, [initialProductId]);
+            setSelectedProducts(selection);
+          }
         }
         setError(null);
       } catch (err: any) {
@@ -681,7 +750,7 @@ const OfferDesigner: React.FC = () => {
       }
     };
     void load();
-  }, [effectiveMarketId, isSuperAdminMode, marketsLoading, requestedProductId, requestedTemplateId]);
+  }, [effectiveMarketId, isSuperAdminMode, marketsLoading, requestedJobId, requestedProductId, requestedTemplateId]);
 
   useEffect(() => {
     if (!effectiveMarketId || !selectedTemplateId) return;
@@ -992,9 +1061,9 @@ const OfferDesigner: React.FC = () => {
     }
   };
 
-  const handleCreateJob = async () => {
+  const handleSaveCampaign = async () => {
     if (!effectiveMarketId || !selectedTemplateId || selectedProducts.length === 0) {
-      setError('Escolha um modelo e pelo menos um produto antes de gerar o lote.');
+      setError('Escolha um modelo e pelo menos um produto antes de salvar a campanha.');
       return;
     }
     const payload: OfferCreateJobPayload = {
@@ -1020,10 +1089,16 @@ const OfferDesigner: React.FC = () => {
     };
     setSaving(true);
     try {
-      await offersService.createJob(effectiveMarketId, payload);
-      navigate(`${routeBase}/jobs`);
+      const persistedJob = activeJobId
+        ? await offersService.updateJob(effectiveMarketId, activeJobId, payload)
+        : await offersService.createJob(effectiveMarketId, payload);
+      setActiveJobId(persistedJob.id);
+      setLookupNotice(activeJobId ? 'Campanha atualizada.' : 'Campanha salva.');
+      if (!activeJobId) {
+        navigate(buildAdminDesignerRoute(persistedJob.id), { replace: true });
+      }
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível criar o lote.');
+      setError(err?.message || 'Não foi possível salvar a campanha.');
     } finally {
       setSaving(false);
     }
@@ -1113,6 +1188,13 @@ const OfferDesigner: React.FC = () => {
               <LayoutTemplate size={16} strokeWidth={2.1} />
               {saving ? 'Salvando...' : 'Salvar como template'}
             </Button>
+          </div>
+        ) : null}
+
+        {isEditingCampaign ? (
+          <div className="mb-5 rounded-[22px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.82)] px-4 py-3 text-sm text-[color:var(--text-secondary)]">
+            <strong className="block text-[color:var(--text-primary)]">Campanha em ediÃ§Ã£o</strong>
+            <span>As alteraÃ§Ãµes feitas no estÃºdio atualizam a campanha salva, sem criar um registro novo.</span>
           </div>
         ) : null}
 
@@ -1535,12 +1617,12 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-panel-header compact">
                   <div>
                     <span className="section-kicker">Publicação</span>
-                    <h2>Fechar lote</h2>
+                    <h2>{isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha'}</h2>
                   </div>
                 </div>
                 <div className="offer-studio-publish-box">
                   <label className="offer-studio-text-field">
-                    <span>Nome do lote</span>
+                    <span>Nome da campanha</span>
                     <input className="input" value={jobName} onChange={(event) => setJobName(event.target.value)} placeholder="Ex.: Encarte fim de semana" />
                   </label>
                   <label className="offer-studio-text-field">
@@ -1586,13 +1668,13 @@ const OfferDesigner: React.FC = () => {
                     </div>
                   </div>
                   <div className="offer-studio-inline-actions wrap">
-                    <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                    <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
                       <WandSparkles size={16} strokeWidth={2.1} />
-                      {saving ? 'Gerando lote...' : 'Gerar lote'}
+                      {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
                     </Button>
-                    <Button type="button" variant="secondary" onClick={() => navigate(`${routeBase}/jobs`)}>
+                    <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
                       <Boxes size={16} strokeWidth={2.1} />
-                      Ver fila
+                      Ver campanhas
                     </Button>
                   </div>
                 </div>
@@ -1673,13 +1755,13 @@ const OfferDesigner: React.FC = () => {
                     </Button>
                   ) : (
                     <>
-                      <Button type="button" variant="secondary" onClick={() => navigate(`${routeBase}/jobs`)}>
+                      <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
                         <Boxes size={16} strokeWidth={2.1} />
-                        Lotes
+                        Campanhas
                       </Button>
-                      <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                      <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
                         <WandSparkles size={16} strokeWidth={2.1} />
-                        {saving ? 'Gerando...' : 'Gerar lote'}
+                        {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
                       </Button>
                     </>
                   )}

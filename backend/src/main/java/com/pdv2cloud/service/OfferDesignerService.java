@@ -138,9 +138,9 @@ public class OfferDesignerService {
         return new OfferOverviewDTO(
             templates.size(),
             offerGenerationJobRepository.countByMarket_Id(marketId),
-            offerGenerationJobRepository.countByMarket_IdAndStatus(marketId, "QUEUED"),
+            offerGenerationJobRepository.countByMarket_IdAndStatusIn(marketId, List.of("DRAFT", "QUEUED", "PROCESSING")),
             templates,
-            recentJobs,
+            recentJobs.stream().limit(8).toList(),
             brandKits,
             campaignKits,
             cockpit.getReplenishmentCandidates() != null ? cockpit.getReplenishmentCandidates().stream().limit(8).toList() : List.of(),
@@ -350,6 +350,8 @@ public class OfferDesignerService {
         List<String> outputTypes = nonEmptyList(request.getOutputTypes(), List.of(normalizeText(job.getOutputType(), "PNG")));
         List<String> publishTargets = nonEmptyList(request.getPublishTargets(), List.of("DOWNLOAD"));
         List<OfferRenderOutputDTO> created = new ArrayList<>();
+        job.setStatus("PROCESSING");
+        offerGenerationJobRepository.save(job);
         for (String variantKey : variantKeys) {
             OfferTemplateVariant variant = resolveVariant(template, variantKey);
             OfferBrandKit brandKit = resolveBrandKit(marketId, template, selectedBrandKitId);
@@ -381,6 +383,18 @@ public class OfferDesignerService {
                 }
             }
         }
+        long readyCount = created.stream().filter(output -> "READY".equalsIgnoreCase(output.getStatus())).count();
+        long failedCount = created.stream().filter(output -> "FAILED".equalsIgnoreCase(output.getStatus())).count();
+        if (readyCount > 0 && failedCount > 0) {
+            job.setStatus("PARTIAL");
+        } else if (readyCount > 0) {
+            job.setStatus("READY");
+        } else if (failedCount > 0) {
+            job.setStatus("FAILED");
+        } else {
+            job.setStatus("QUEUED");
+        }
+        offerGenerationJobRepository.save(job);
         return created;
     }
 
@@ -510,9 +524,14 @@ public class OfferDesignerService {
 
     @Transactional(readOnly = true)
     public List<OfferGenerationJobDTO> listJobs(UUID marketId) {
-        return offerGenerationJobRepository.findTop20ByMarket_IdOrderByCreatedAtDesc(marketId).stream()
+        return offerGenerationJobRepository.findTop50ByMarket_IdOrderByUpdatedAtDesc(marketId).stream()
             .map(this::toJobDto)
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OfferGenerationJobDTO getJob(UUID marketId, UUID jobId) {
+        return toJobDto(findJob(marketId, jobId));
     }
 
     @Transactional
@@ -537,7 +556,7 @@ public class OfferDesignerService {
         job.setTemplate(template);
         job.setTemplateName(template.getName());
         job.setName(normalizeText(request.getName(), template.getName() + " · " + products.size() + " itens"));
-        job.setStatus("QUEUED");
+        job.setStatus("DRAFT");
         job.setOutputType(normalizeText(request.getOutputType(), "PNG"));
         job.setGenerationMode(normalizeText(request.getGenerationMode(), "INDIVIDUAL"));
         job.setVariantKey(normalizeText(request.getVariantKey(), normalizeText(template.getDefaultVariantKey(), "default")));
@@ -573,6 +592,116 @@ public class OfferDesignerService {
         }
         offerGenerationJobItemRepository.saveAll(items);
         return toJobDto(savedJob);
+    }
+
+    @Transactional
+    public OfferGenerationJobDTO updateJob(UUID marketId, UUID jobId, OfferGenerationJobCreateRequest request) {
+        if (request.getTemplateId() == null) {
+            throw new IllegalArgumentException("Template eh obrigatorio");
+        }
+        if (request.getProductIds() == null || request.getProductIds().isEmpty()) {
+            throw new IllegalArgumentException("Selecione pelo menos um produto");
+        }
+
+        OfferGenerationJob job = findJob(marketId, jobId);
+        OfferTemplate template = offerTemplateRepository.findByIdAndMarket_Id(request.getTemplateId(), marketId)
+            .orElseThrow(() -> new IllegalArgumentException("Template nao encontrado"));
+        List<OfferCatalogProductDTO> products = getCatalogSelection(marketId, request.getProductIds());
+        if (products.isEmpty()) {
+            throw new IllegalArgumentException("Nenhum produto valido foi encontrado para a campanha");
+        }
+
+        job.setTemplate(template);
+        job.setTemplateName(template.getName());
+        job.setName(normalizeText(request.getName(), template.getName() + " - " + products.size() + " itens"));
+        job.setStatus("DRAFT");
+        job.setOutputType(normalizeText(request.getOutputType(), "PNG"));
+        job.setGenerationMode(normalizeText(request.getGenerationMode(), "INDIVIDUAL"));
+        job.setVariantKey(normalizeText(request.getVariantKey(), normalizeText(template.getDefaultVariantKey(), "default")));
+        job.setProductCount(products.size());
+        job.setPageCount("CATALOG".equalsIgnoreCase(job.getGenerationMode())
+            ? (int) Math.ceil(products.size() / 6.0d)
+            : products.size());
+        job.setTemplateSnapshotJson(template.getDesignJson());
+        job.setPublishTargetsJson(normalizeText(request.getPublishTargetsJson(), "[\"DOWNLOAD\"]"));
+        job.setRenderOptionsJson(normalizeText(request.getRenderOptionsJson(), "{\"quality\":\"high\"}"));
+        OfferGenerationJob savedJob = offerGenerationJobRepository.save(job);
+
+        Map<UUID, Product> productsById = new LinkedHashMap<>();
+        productRepository.findAllById(request.getProductIds()).forEach(product -> productsById.put(product.getId(), product));
+
+        offerRenderOutputRepository.deleteByJob_Id(jobId);
+        offerGenerationJobItemRepository.deleteByJob_Id(jobId);
+
+        List<OfferGenerationJobItem> items = new ArrayList<>();
+        for (int index = 0; index < products.size(); index++) {
+            OfferCatalogProductDTO product = products.get(index);
+            OfferGenerationJobItem item = new OfferGenerationJobItem();
+            item.setJob(savedJob);
+            item.setProduct(productsById.get(product.getProductId()));
+            item.setPositionIndex(index);
+            item.setSlotIndex(index);
+            item.setZoneId("primary-grid");
+            item.setProductName(product.getName());
+            item.setProductImageUrl(product.getImageUrl());
+            item.setProductUnit(product.getUnit());
+            item.setCurrentPrice(product.getCurrentPrice());
+            item.setStatus("PENDING");
+            item.setBindingJson(buildBindingJson(product));
+            item.setResolvedBindingJson(buildBindingJson(product));
+            items.add(item);
+        }
+        offerGenerationJobItemRepository.saveAll(items);
+        return toJobDto(savedJob);
+    }
+
+    @Transactional
+    public OfferGenerationJobDTO cloneJob(UUID marketId, UUID jobId) {
+        OfferGenerationJob source = findJob(marketId, jobId);
+        OfferGenerationJob clone = new OfferGenerationJob();
+        clone.setMarket(source.getMarket());
+        clone.setTemplate(source.getTemplate());
+        clone.setTemplateName(source.getTemplateName());
+        clone.setName(normalizeText(source.getName(), "Campanha") + " copia");
+        clone.setStatus("DRAFT");
+        clone.setOutputType(normalizeText(source.getOutputType(), "PNG"));
+        clone.setGenerationMode(normalizeText(source.getGenerationMode(), "CATALOG"));
+        clone.setVariantKey(normalizeText(source.getVariantKey(), "default"));
+        clone.setProductCount(source.getProductCount());
+        clone.setPageCount(source.getPageCount());
+        clone.setTemplateSnapshotJson(normalizeText(source.getTemplateSnapshotJson(), "{}"));
+        clone.setPublishTargetsJson(normalizeText(source.getPublishTargetsJson(), "[\"DOWNLOAD\"]"));
+        clone.setRenderOptionsJson(normalizeText(source.getRenderOptionsJson(), "{\"quality\":\"high\"}"));
+        OfferGenerationJob savedClone = offerGenerationJobRepository.save(clone);
+
+        List<OfferGenerationJobItem> clonedItems = offerGenerationJobItemRepository.findByJob_IdOrderByPositionIndexAsc(jobId).stream()
+            .map(item -> {
+                OfferGenerationJobItem next = new OfferGenerationJobItem();
+                next.setJob(savedClone);
+                next.setProduct(item.getProduct());
+                next.setPositionIndex(item.getPositionIndex());
+                next.setSlotIndex(item.getSlotIndex());
+                next.setZoneId(item.getZoneId());
+                next.setProductName(item.getProductName());
+                next.setProductImageUrl(item.getProductImageUrl());
+                next.setProductUnit(item.getProductUnit());
+                next.setCurrentPrice(item.getCurrentPrice());
+                next.setStatus("PENDING");
+                next.setBindingJson(item.getBindingJson());
+                next.setResolvedBindingJson(item.getResolvedBindingJson());
+                return next;
+            })
+            .toList();
+        offerGenerationJobItemRepository.saveAll(clonedItems);
+        return toJobDto(savedClone);
+    }
+
+    @Transactional
+    public void deleteJob(UUID marketId, UUID jobId) {
+        OfferGenerationJob job = findJob(marketId, jobId);
+        offerRenderOutputRepository.deleteByJob_Id(jobId);
+        offerGenerationJobItemRepository.deleteByJob_Id(jobId);
+        offerGenerationJobRepository.delete(job);
     }
 
     private void ensureStarterData(UUID marketId) {
@@ -862,6 +991,11 @@ public class OfferDesignerService {
     private Market findMarket(UUID marketId) {
         return marketRepository.findById(marketId)
             .orElseThrow(() -> new IllegalArgumentException("Mercado não encontrado"));
+    }
+
+    private OfferGenerationJob findJob(UUID marketId, UUID jobId) {
+        return offerGenerationJobRepository.findByIdAndMarket_Id(jobId, marketId)
+            .orElseThrow(() -> new IllegalArgumentException("Campanha nao encontrada"));
     }
 
     private String buildBindingJson(OfferCatalogProductDTO product) {

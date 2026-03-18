@@ -14,7 +14,7 @@ const Campaigns = lazy(() => import('./screens/Campaigns'));
 const DemandForecast = lazy(() => import('./screens/DemandForecast'));
 const Settings = lazy(() => import('./screens/Settings'));
 const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
-const OffersDashboard = lazy(() => import('./screens/OffersDashboard'));
+const OffersCampaigns = lazy(() => import('./screens/OffersCampaigns'));
 const OfferTemplates = lazy(() => import('./screens/OfferTemplates'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
 const OfferJobs = lazy(() => import('./screens/OfferJobs'));
@@ -77,8 +77,8 @@ const App: React.FC = () => {
         <Route path="/app/cesta" element={secure(<MarketBasket />)} />
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
-        <Route path="/app/ofertas" element={secure(<OfferDesigner />)} />
-        <Route path="/app/ofertas/inicio" element={secure(<OffersDashboard />)} />
+        <Route path="/app/ofertas" element={secure(<OffersCampaigns />)} />
+        <Route path="/app/ofertas/inicio" element={<Navigate to="/app/ofertas" replace />} />
         <Route path="/app/ofertas/modelos" element={secure(<OfferTemplates />)} />
         <Route path="/app/ofertas/designer" element={secure(<OfferDesigner />)} />
         <Route path="/app/ofertas/jobs" element={secure(<OfferJobs />)} />

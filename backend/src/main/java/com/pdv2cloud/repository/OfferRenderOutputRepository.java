@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface OfferRenderOutputRepository extends JpaRepository<OfferRenderOutput, UUID> {
     List<OfferRenderOutput> findByJob_IdOrderByCreatedAtDesc(UUID jobId);
     List<OfferRenderOutput> findTop50ByMarket_IdOrderByCreatedAtDesc(UUID marketId);
+    void deleteByJob_Id(UUID jobId);
 }

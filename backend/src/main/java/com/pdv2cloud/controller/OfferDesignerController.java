@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -270,6 +271,48 @@ public class OfferDesignerController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         return ResponseEntity.ok(offerDesignerService.createJob(marketId, request));
+    }
+
+    @GetMapping("/jobs/{jobId}")
+    public ResponseEntity<OfferGenerationJobDTO> getJob(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("jobId") UUID jobId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.getJob(marketId, jobId));
+    }
+
+    @PatchMapping("/jobs/{jobId}")
+    public ResponseEntity<OfferGenerationJobDTO> updateJob(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("jobId") UUID jobId,
+        @RequestBody OfferGenerationJobCreateRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.updateJob(marketId, jobId, request));
+    }
+
+    @PostMapping("/jobs/{jobId}/clone")
+    public ResponseEntity<OfferGenerationJobDTO> cloneJob(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("jobId") UUID jobId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.cloneJob(marketId, jobId));
+    }
+
+    @DeleteMapping("/jobs/{jobId}")
+    public ResponseEntity<Void> deleteJob(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("jobId") UUID jobId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        offerDesignerService.deleteJob(marketId, jobId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/jobs/{jobId}/outputs")

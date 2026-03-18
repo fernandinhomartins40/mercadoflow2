@@ -42,7 +42,7 @@ const OfferJobs: React.FC = () => {
       setJobs(data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível carregar os lotes.');
+      setError(err?.message || 'Não foi possível carregar os arquivos das campanhas.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ const OfferJobs: React.FC = () => {
       });
       await loadJobs();
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível publicar o lote.');
+      setError(err?.message || 'Não foi possível publicar a campanha.');
     } finally {
       setPublishingId(null);
     }
@@ -74,12 +74,12 @@ const OfferJobs: React.FC = () => {
     <Layout>
       <div className="page analytics-page offers-page">
         <PageHero
-          badge="Lotes e outputs"
-          title="Acompanhe, publique e reaproveite a geração do estúdio."
-          description="Cada lote agora carrega variante, targets de publicação, render options e outputs gerados, em vez de ser apenas um registro raso de template."
+          badge="Arquivos e publicações"
+          title="Revise os arquivos gerados e a fila de publicação."
+          description="Cada campanha salva carrega variante, canais, render options e outputs, para que a revisão final fique separada da listagem operacional."
           actions={
             <>
-              <Button type="button" onClick={() => navigate('/app/ofertas/designer')}>Novo lote</Button>
+              <Button type="button" onClick={() => navigate('/app/ofertas')}>Campanhas</Button>
               <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
                 <RefreshCw size={16} strokeWidth={2.1} />
                 Atualizar
@@ -88,19 +88,19 @@ const OfferJobs: React.FC = () => {
           }
           feature={
             <article className="dashboard-glow-card">
-              <span className="section-kicker">Lote mais recente</span>
-              <strong>{jobs[0]?.name || 'Nenhum lote criado'}</strong>
-              <p>{jobs[0] ? `${jobs[0].variantKey || 'default'} · ${jobs[0].outputType} · ${jobs[0].outputs?.length || 0} outputs` : 'Assim que o primeiro lote for criado, ele aparece aqui com o resumo principal.'}</p>
+              <span className="section-kicker">Campanha mais recente</span>
+              <strong>{jobs[0]?.name || 'Nenhuma campanha salva'}</strong>
+              <p>{jobs[0] ? `${jobs[0].variantKey || 'default'} · ${jobs[0].outputType} · ${jobs[0].outputs?.length || 0} arquivos` : 'Assim que a primeira campanha for publicada, ela aparece aqui com o resumo principal.'}</p>
             </article>
           }
         />
 
-        {loading ? <div className="sales-empty-card">Carregando lotes...</div> : null}
+        {loading ? <div className="sales-empty-card">Carregando arquivos...</div> : null}
         {error ? <div className="sales-empty-card">{error}</div> : null}
 
         {!loading && !error ? (
           <div className="offer-jobs-page-grid">
-            {jobs.length === 0 ? <div className="sales-empty-card">Nenhum lote foi criado ainda.</div> : null}
+            {jobs.length === 0 ? <div className="sales-empty-card">Nenhuma campanha foi publicada ainda.</div> : null}
             {jobs.map((job) => (
               <article key={job.id} className="offer-job-detail-card">
                 <div className="offer-job-detail-head">
@@ -169,7 +169,7 @@ const OfferJobs: React.FC = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="sales-empty-card">Nenhum output gerado para este lote ainda.</div>
+                      <div className="sales-empty-card">Nenhum output gerado para esta campanha ainda.</div>
                     )}
                   </div>
                 </div>
