@@ -374,7 +374,20 @@ const CatalogAdmin: React.FC = () => {
                         <td data-label="Produto">
                           <div className="catalog-admin-product-cell">
                             {row.imageUrl ?(
-                              <img className="catalog-admin-thumb" src={row.imageUrl} alt={row.canonicalName} loading="lazy" />
+                              <button
+                                type="button"
+                                className="catalog-admin-thumb-button"
+                                onClick={() =>
+                                  setLightboxImage({
+                                    src: row.imageUrl as string,
+                                    alt: row.canonicalName || 'Imagem do produto',
+                                  })
+                                }
+                                aria-label={`Ampliar imagem de ${row.canonicalName || 'produto'}`}
+                                title="Ampliar imagem"
+                              >
+                                <img className="catalog-admin-thumb" src={row.imageUrl} alt={row.canonicalName} loading="lazy" />
+                              </button>
                             ) : (
                               <div className="catalog-admin-thumb placeholder">Sem imagem</div>
                             )}

@@ -335,7 +335,14 @@ def provider_kind(source: Source) -> str:
     provider = source.provider.strip().upper()
     if provider in GPA_BRAND_BY_PROVIDER:
         return "gpa"
-    if provider in {"CARREFOUR_WEB_BR", "DROGARIASP_WEB_BR", "DROGARIA_SP_WEB_BR"}:
+    if provider in {
+        "CARREFOUR_WEB_BR",
+        "DROGARIASP_WEB_BR",
+        "DROGARIA_SP_WEB_BR",
+        "GUANABARA_WEB_BR",
+        "REDETOPONLINE_WEB_BR",
+        "NORDESTAO_WEB_BR",
+    }:
         return "sitemap_product_first"
     return "generic"
 
@@ -1011,7 +1018,7 @@ class Crawler:
 
 class ImageStore:
     def __init__(self, images_dir: Path, max_bytes: int, user_agent: str):
-        self.store = OptimizedImageStore(
+        self._store = OptimizedImageStore(
             base_dir=images_dir,
             max_bytes=max_bytes,
             user_agent=user_agent,
@@ -1019,7 +1026,7 @@ class ImageStore:
 
     def store(self, record: Record, timeout_sec: int = 20) -> str:
         try:
-            return self.store.save(record.code, record.image_url, timeout_sec=timeout_sec)
+            return self._store.save(record.code, record.image_url, timeout_sec=timeout_sec)
         except Exception:
             return ""
 

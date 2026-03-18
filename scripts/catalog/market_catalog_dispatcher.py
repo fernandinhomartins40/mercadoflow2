@@ -15,6 +15,11 @@ import requests
 from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text
 from fixed_market_catalog_condor import CondorJobConfig, run_condor_catalog_job
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
+from fixed_market_catalog_guanabara import GuanabaraJobConfig, run_guanabara_catalog_job
+from fixed_market_catalog_supermercados_online import (
+    SupermercadosOnlineJobConfig,
+    run_supermercados_online_catalog_job,
+)
 from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job, run_vtex_sitemap_job
 from fixed_market_catalog_koch import KochJobConfig, run_koch_catalog_job
 from fixed_market_catalog_nissei import NisseiJobConfig, run_nissei_catalog_job
@@ -500,6 +505,132 @@ def run_deliveryfort(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
 
+def run_festval(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Festval",
+        provider="FESTVAL_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/festval_web_br_catalog",
+        site_base="https://www.festval.com",
+        catalog_api_base="https://www.festval.com",
+        mode="category-tree",
+        category_tree_url="https://www.festval.com/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.festval.com/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "FESTVAL_WEB_BR"),
+        catalog_retry_attempts=6,
+        catalog_min_interval_seconds=0.2,
+        brand_resolve_workers=3,
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        residual_product_workers=4,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_giassi(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Giassi",
+        provider="GIASSI_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/giassi_web_br_catalog",
+        site_base="https://www.giassi.com.br",
+        catalog_api_base="https://www.giassi.com.br",
+        mode="category-tree",
+        category_tree_url="https://www.giassi.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.giassi.com.br/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "GIASSI_WEB_BR"),
+        catalog_retry_attempts=6,
+        catalog_min_interval_seconds=0.2,
+        brand_resolve_workers=3,
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        residual_product_workers=4,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_supernosso(args: argparse.Namespace) -> Dict[str, Any]:
+    job = VtexJobConfig(
+        name="Super Nosso",
+        provider="SUPERNOSSO_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/supernosso_web_br_catalog",
+        site_base="https://www.supernosso.com",
+        catalog_api_base="https://www.supernosso.com",
+        mode="category-tree",
+        category_tree_url="https://www.supernosso.com/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.supernosso.com/sitemap.xml",
+        selected_categories=selected_categories_for_provider(args, "SUPERNOSSO_WEB_BR"),
+        catalog_retry_attempts=6,
+        catalog_min_interval_seconds=0.2,
+        brand_resolve_workers=3,
+    )
+    return run_vtex_category_tree_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        page_size=50,
+        max_pages_per_leaf=0,
+        residual_product_workers=4,
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_guanabara(args: argparse.Namespace) -> Dict[str, Any]:
+    job = GuanabaraJobConfig(
+        name="Supermercado Guanabara",
+        provider="GUANABARA_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/guanabara_web_br_catalog",
+        site_base="https://smguanabaraonline.com.br",
+        sitemap_url="https://smguanabaraonline.com.br/sitemap.xml",
+        product_example_url="https://smguanabaraonline.com.br",
+    )
+    return run_guanabara_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+    )
+
+
+def run_redetop(args: argparse.Namespace) -> Dict[str, Any]:
+    job = SupermercadosOnlineJobConfig(
+        name="Redetop Online",
+        provider="REDETOPONLINE_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/redetoponline_web_br_catalog",
+        site_base="https://www.redetoponline.com.br",
+        sitemap_url="https://www.redetoponline.com.br/sitemap.xml",
+        product_example_url="https://www.redetoponline.com.br/produto/7922/creme-leite-lactovale-330g-nata-pacote",
+    )
+    return run_supermercados_online_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+    )
+
+
+def run_nordestao(args: argparse.Namespace) -> Dict[str, Any]:
+    job = SupermercadosOnlineJobConfig(
+        name="Nordestao Online",
+        provider="NORDESTAO_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/nordestao_web_br_catalog",
+        site_base="https://www.lojaonline.nordestao.com.br",
+        sitemap_url="https://www.lojaonline.nordestao.com.br/sitemap.xml",
+        product_example_url="https://www.lojaonline.nordestao.com.br/produto/11635/tomate-italiano-kg",
+    )
+    return run_supermercados_online_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+    )
+
+
 def run_extrafarma(args: argparse.Namespace) -> Dict[str, Any]:
     job = VtexJobConfig(
         name="Extrafarma",
@@ -596,10 +727,23 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "ANGELONI_WEB_BR": run_angeloni,
     "BISTEK_WEB_BR": run_bistek,
     "DELIVERYFORT_WEB_BR": run_deliveryfort,
+    "FESTVAL_WEB_BR": run_festval,
+    "GIASSI_WEB_BR": run_giassi,
+    "SUPERNOSSO_WEB_BR": run_supernosso,
+    "GUANABARA_WEB_BR": run_guanabara,
+    "REDETOPONLINE_WEB_BR": run_redetop,
+    "NORDESTAO_WEB_BR": run_nordestao,
     "CONDOR_WEB_BR": run_condor,
     "EXTRAFARMA_WEB_BR": run_extrafarma,
     "PAGUEMENOS_WEB_BR": run_paguemenos,
     "FARMACIASNISSEI_WEB_BR": run_farmacias_nissei,
+    "ASSAI_WEB_BR": lambda args: {
+        "status": "FAILED",
+        "message": "Assai no dominio oficial informado nao expoe uma fonte first-party publica e estavel de catalogo para este pipeline.",
+        "summary": [{"provider": "ASSAI_WEB_BR", "source": "Assai", "error": "no-first-party-catalog-source"}],
+        **empty_totals(),
+        "errors": 1,
+    },
     "DROGARAIA_WEB_BR": lambda args: {
         "status": "FAILED",
         "message": "Drogaria Raia bloqueia acesso automatizado deste ambiente com HTTP 403.",
@@ -608,7 +752,7 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
         "errors": 1,
     },
 }
-DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR", "DROGARAIA_WEB_BR"}
+DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR", "ASSAI_WEB_BR", "DROGARAIA_WEB_BR"}
 
 
 def enabled_providers() -> List[str]:
@@ -831,3 +975,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+

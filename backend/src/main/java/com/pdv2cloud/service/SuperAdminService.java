@@ -258,6 +258,125 @@ public class SuperAdminService {
             List.of("www.deliveryfort.com.br", "deliveryfort.com.br")
         ),
         new FixedCrawlerJob(
+            "Festval",
+            "FESTVAL_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_festval.py",
+            "Importa o catalogo completo do Festval pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.festval.com/api/catalog_system/pub/category/tree/20",
+                "https://www.festval.com/sitemap.xml",
+                "https://www.festval.com/mix_cenoura_e_vagem_350_g/p"
+            ),
+            List.of("www.festval.com", "festval.com")
+        ),
+        new FixedCrawlerJob(
+            "Giassi",
+            "GIASSI_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_giassi.py",
+            "Importa o catalogo completo do Giassi pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.giassi.com.br/api/catalog_system/pub/category/tree/20",
+                "https://www.giassi.com.br/sitemap.xml",
+                "https://www.giassi.com.br/gelato_leite_e_creme_de_leite_bacio_di_latte_casa_pote_490ml_1638491/p"
+            ),
+            List.of("www.giassi.com.br", "giassi.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Super Nosso",
+            "SUPERNOSSO_WEB_BR",
+            true,
+            "Catalogo completo",
+            "VTEX category tree + detail",
+            "extract_and_import_supernosso.py",
+            "Importa o catalogo completo do Super Nosso pela arvore oficial da VTEX ou endpoints legacy compativeis, com complemento por sitemap e detalhamento por slug.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.supernosso.com/api/catalog_system/pub/category/tree/20",
+                "https://www.supernosso.com/sitemap.xml",
+                "https://www.supernosso.com/88080-whisky-black---white-1l/p"
+            ),
+            List.of("www.supernosso.com", "supernosso.com")
+        ),
+        new FixedCrawlerJob(
+            "Supermercado Guanabara",
+            "GUANABARA_WEB_BR",
+            true,
+            "Catalogo completo",
+            "Sitemap + HTML detail",
+            "extract_and_import_guanabara.py",
+            "Importa o catalogo do Guanabara pela leitura de sitemap e detalhamento HTML/JSON-LD das paginas, mantendo compatibilidade com a plataforma online atual.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://smguanabaraonline.com.br/sitemap.xml",
+                "https://smguanabaraonline.com.br/"
+            ),
+            List.of("smguanabaraonline.com.br", "www.smguanabaraonline.com.br", "api.smguanabaraonline.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Redetop Online",
+            "REDETOPONLINE_WEB_BR",
+            true,
+            "Catalogo completo",
+            "Sitemap + HTML detail (SPA)",
+            "extract_and_import_redetop.py",
+            "Importa o catalogo do Redetop Online por sitemap e paginas de produto da plataforma Supermercados Online, com fallback por browser simulation para descoberta de links.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.redetoponline.com.br/sitemap.xml",
+                "https://www.redetoponline.com.br/produto/7922/creme-leite-lactovale-330g-nata-pacote"
+            ),
+            List.of("www.redetoponline.com.br", "redetoponline.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Nordestao Online",
+            "NORDESTAO_WEB_BR",
+            true,
+            "Catalogo completo",
+            "Sitemap + HTML detail (SPA)",
+            "extract_and_import_nordestao.py",
+            "Importa o catalogo do Nordestao Online pela mesma familia de plataforma Supermercados Online, usando sitemap e paginas de produto como fonte de detalhe.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            true,
+            List.of(
+                "https://www.lojaonline.nordestao.com.br/sitemap.xml",
+                "https://www.lojaonline.nordestao.com.br/produto/11635/tomate-italiano-kg"
+            ),
+            List.of("www.lojaonline.nordestao.com.br", "lojaonline.nordestao.com.br")
+        ),
+        new FixedCrawlerJob(
+            "Assai Atacadista",
+            "ASSAI_WEB_BR",
+            false,
+            "Catalogo completo",
+            "Institutional / partner marketplaces",
+            "extract_and_import_assai.py",
+            "Documenta a fonte Assai no dominio oficial informado, mas mantem o job desabilitado porque o site direciona a compra online para parceiros e nao expoe uma fonte first-party publica e estavel de catalogo para este pipeline.",
+            "Public website/API data (respect provider terms and robots)",
+            false,
+            false,
+            List.of("https://www.assai.com.br/"),
+            List.of("www.assai.com.br", "assai.com.br")
+        ),
+        new FixedCrawlerJob(
             "Condor",
             "CONDOR_WEB_BR",
             true,
@@ -1491,3 +1610,5 @@ public class SuperAdminService {
     ) {
     }
 }
+
+

@@ -550,6 +550,18 @@
     border-color: rgba(87, 51, 30, 0.08);
   }
 
+  .catalog-admin-thumb-button {
+    @apply m-0 inline-flex shrink-0 rounded-[18px] border-0 bg-transparent p-0 transition outline-none;
+  }
+
+  .catalog-admin-thumb-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .catalog-admin-thumb-button:focus-visible {
+    box-shadow: 0 0 0 4px rgba(255, 106, 0, 0.14);
+  }
+
   .catalog-admin-thumb.placeholder {
     @apply text-center text-[11px] font-semibold leading-4;
     color: var(--text-muted);
@@ -2465,7 +2477,7 @@
   min-width: 720px;
 }
 
-@media (max-width: 1480px) {
+@media (max-width: 1680px) {
   .catalog-admin-table-wrap {
     overflow: visible;
   }
@@ -2522,8 +2534,8 @@
 
   .catalog-admin-table td {
     display: grid;
-    grid-template-columns: minmax(108px, 132px) minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
+    gap: 10px;
     padding: 0;
     border-bottom: none;
     align-items: start;
@@ -2531,11 +2543,17 @@
 
   .responsive-data-table td {
     display: grid;
-    grid-template-columns: minmax(108px, 132px) minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
+    gap: 10px;
     padding: 0;
     border-bottom: none;
     align-items: start;
+  }
+
+  .catalog-admin-table td:first-child,
+  .responsive-data-table td:first-child {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .catalog-admin-table td::before {
@@ -2566,6 +2584,10 @@
 
   .catalog-admin-product-cell {
     min-width: 0;
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
   }
 
   .table-action-cell .button,
@@ -2580,7 +2602,11 @@
   }
 
   .catalog-admin-row-actions {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
     justify-content: flex-start;
+    gap: 10px;
   }
 }
 
