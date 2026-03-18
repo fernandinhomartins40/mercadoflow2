@@ -58,7 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/catalog/images/**").permitAll()
                 .requestMatchers("/api/v1/agent/**").hasRole("AGENT")
                 .requestMatchers("/api/v1/ingest/**").hasRole("AGENT")
-                .requestMatchers("/api/v1/markets/**").hasAnyRole("MARKET_OWNER", "MARKET_MANAGER", "ADMIN")
+                .requestMatchers("/api/v1/markets/**").hasAnyRole("MARKET_OWNER", "MARKET_MANAGER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/industries/**").hasAnyRole("INDUSTRY_USER", "ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/super-admin/**").hasRole("SUPER_ADMIN")

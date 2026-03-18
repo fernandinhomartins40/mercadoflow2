@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Boxes,
   BoxSelect,
@@ -37,6 +37,7 @@ import OffersStudioLayout from '../components/layout/OffersStudioLayout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import { offersService, type OfferCreateJobPayload } from '../services/offers.service';
 import {
   OfferBackgroundRemovalResult,
@@ -128,6 +129,18 @@ type ZoneDraft = {
   y: string;
   w: string;
   h: string;
+};
+
+type SuperAdminMarketOption = {
+  id: string;
+  name: string;
+  planType?: string | null;
+  billingStatus?: string | null;
+  isActive?: boolean | null;
+};
+
+type PaginatedResponse<T> = {
+  content: T[];
 };
 
 const GRID_PRESET_OPTIONS = [
@@ -391,13 +404,21 @@ const StudioPropertyRow: React.FC<{ label: string; value?: React.ReactNode }> = 
 
 const OfferDesigner: React.FC = () => {
   const { marketId, name } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const isSuperAdminMode = location.pathname.startsWith('/super-admin');
+  const requestedTemplateId = searchParams.get('templateId') || '';
+  const requestedProductId = searchParams.get('productId') || '';
+  const requestedMarketId = searchParams.get('marketId') || '';
+  const routeBase = isSuperAdminMode ? '/super-admin/ofertas' : '/app/ofertas';
   const [overview, setOverview] = useState<OfferOverview | null>(null);
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
   const [brandKits, setBrandKits] = useState<OfferBrandKit[]>([]);
   const [campaignKits, setCampaignKits] = useState<OfferCampaignKit[]>([]);
   const [templateVariants, setTemplateVariants] = useState<OfferTemplateVariant[]>([]);
+  const [superAdminMarkets, setSuperAdminMarkets] = useState<SuperAdminMarketOption[]>([]);
+  const [selectedSuperAdminMarketId, setSelectedSuperAdminMarketId] = useState(requestedMarketId);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedVariantKey, setSelectedVariantKey] = useState('');
   const [selectedBrandKitId, setSelectedBrandKitId] = useState('');
@@ -431,6 +452,7 @@ const OfferDesigner: React.FC = () => {
   const [layerDraft, setLayerDraft] = useState<LayerDraft>(emptyLayerDraft);
   const [zoneDraft, setZoneDraft] = useState<ZoneDraft>(emptyZoneDraft);
   const [loading, setLoading] = useState(true);
+  const [marketsLoading, setMarketsLoading] = useState(isSuperAdminMode);
   const [searching, setSearching] = useState(false);
   const [bulkSearching, setBulkSearching] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -439,6 +461,12 @@ const OfferDesigner: React.FC = () => {
   const [lookupNotice, setLookupNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedSuperAdminMarket = useMemo(
+    () => superAdminMarkets.find((market) => market.id === selectedSuperAdminMarketId) || null,
+    [selectedSuperAdminMarketId, superAdminMarkets],
+  );
+  const effectiveMarketId = isSuperAdminMode ? selectedSuperAdminMarketId : marketId || '';
+  const effectiveMarketName = isSuperAdminMode ? selectedSuperAdminMarket?.name || 'conta selecionada' : name || 'MercadoFlow';
   const selectedTemplate = useMemo(() => templates.find((template) => template.id === selectedTemplateId) || null, [templates, selectedTemplateId]);
   const selectedVariant = useMemo(() => templateVariants.find((variant) => variant.variantKey === selectedVariantKey) || null, [templateVariants, selectedVariantKey]);
   const selectedBrandKit = useMemo(() => brandKits.find((kit) => kit.id === selectedBrandKitId) || null, [brandKits, selectedBrandKitId]);
@@ -459,6 +487,18 @@ const OfferDesigner: React.FC = () => {
   );
   const brandKitOptions = useMemo(() => brandKits.map((kit) => ({ value: kit.id, label: kit.name })), [brandKits]);
   const campaignKitOptions = useMemo(() => campaignKits.map((kit) => ({ value: kit.id, label: kit.name })), [campaignKits]);
+  const superAdminMarketOptions = useMemo(
+    () =>
+      superAdminMarkets.map((market) => ({
+        value: market.id,
+        label: market.planType ? `${market.name} · ${market.planType}` : market.name,
+      })),
+    [superAdminMarkets],
+  );
+  const visibleToolOptions = useMemo(
+    () => (isSuperAdminMode ? TOOL_OPTIONS.filter((tool) => tool.key !== 'publish') : TOOL_OPTIONS),
+    [isSuperAdminMode],
+  );
   const stageProducts = useMemo(() => selectedProducts.slice(0, itemsPerPage), [itemsPerPage, selectedProducts]);
   const resolvedDesign = useMemo(() => parseJson<JsonMap>(preview?.resolvedDesignJson, {}) || {}, [preview?.resolvedDesignJson]);
   const resolvedLayers = useMemo(() => asList(resolvedDesign.layers), [resolvedDesign]);
@@ -496,7 +536,7 @@ const OfferDesigner: React.FC = () => {
   }, [name, preview, selectedProducts, textMode]);
 
   const refreshPreview = async (mode: 'preview' | 'autofill' = 'preview', productIds?: string[]) => {
-    if (!marketId || !selectedTemplateId) {
+    if (!effectiveMarketId || !selectedTemplateId) {
       setPreview(null);
       return;
     }
@@ -510,8 +550,8 @@ const OfferDesigner: React.FC = () => {
         productIds: productIds || selectedProducts.map((product) => product.productId),
       };
       const data = mode === 'autofill'
-        ? await offersService.autoFillTemplate(marketId, payload)
-        : await offersService.previewTemplate(marketId, payload);
+        ? await offersService.autoFillTemplate(effectiveMarketId, payload)
+        : await offersService.previewTemplate(effectiveMarketId, payload);
       setPreview(data);
     } catch (err: any) {
       setError(err?.message || 'Não foi possível atualizar a prévia.');
@@ -521,7 +561,7 @@ const OfferDesigner: React.FC = () => {
   };
 
   const loadTemplateMeta = async (templateId: string, templateList: OfferTemplate[], brandList: OfferBrandKit[], campaignList: OfferCampaignKit[]) => {
-    if (!marketId || !templateId) {
+    if (!effectiveMarketId || !templateId) {
       setTemplateVariants([]);
       setValidation(null);
       return;
@@ -529,8 +569,8 @@ const OfferDesigner: React.FC = () => {
     const template = templateList.find((item) => item.id === templateId) || null;
     try {
       const [variantsData, validationData] = await Promise.all([
-        offersService.getTemplateVariants(marketId, templateId),
-        offersService.validateTemplate(marketId, templateId),
+        offersService.getTemplateVariants(effectiveMarketId, templateId),
+        offersService.validateTemplate(effectiveMarketId, templateId),
       ]);
       setTemplateVariants(variantsData);
       setValidation(validationData);
@@ -546,27 +586,91 @@ const OfferDesigner: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!isSuperAdminMode) {
+      return;
+    }
+
+    let active = true;
+
+    const loadMarkets = async () => {
+      setMarketsLoading(true);
+      try {
+        const response = await api.get<PaginatedResponse<SuperAdminMarketOption>>('/v1/super-admin/markets', {
+          params: { page: 0, size: 200 },
+        });
+        if (!active) {
+          return;
+        }
+        const marketOptions = response.data.content || [];
+        setSuperAdminMarkets(marketOptions);
+        setSelectedSuperAdminMarketId((current) => {
+          const preferredMarketId = current || requestedMarketId;
+          if (preferredMarketId && marketOptions.some((item) => item.id === preferredMarketId)) {
+            return preferredMarketId;
+          }
+          return marketOptions[0]?.id || '';
+        });
+      } catch (err: any) {
+        if (active) {
+          setError(err?.message || 'Nao foi possivel carregar as contas do super admin.');
+        }
+      } finally {
+        if (active) {
+          setMarketsLoading(false);
+        }
+      }
+    };
+
+    void loadMarkets();
+
+    return () => {
+      active = false;
+    };
+  }, [isSuperAdminMode, requestedMarketId]);
+
+  useEffect(() => {
     const load = async () => {
-      if (!marketId) {
+      if (isSuperAdminMode && marketsLoading) {
+        setLoading(true);
+        return;
+      }
+      if (!effectiveMarketId) {
+        setTemplates([]);
+        setOverview(null);
+        setBrandKits([]);
+        setCampaignKits([]);
+        setTemplateVariants([]);
+        setSelectedTemplateId('');
+        setSelectedProducts([]);
+        setResults([]);
+        setPreview(null);
+        setValidation(null);
         setLoading(false);
+        if (isSuperAdminMode) {
+          window.setTimeout(() => setError('Selecione uma conta para abrir o estudio de ofertas.'), 0);
+        }
         setError('Mercado não encontrado.');
         return;
       }
       try {
+        setLoading(true);
         const [templateData, overviewData] = await Promise.all([
-          offersService.getTemplates(marketId),
-          offersService.getOverview(marketId),
+          offersService.getTemplates(effectiveMarketId),
+          offersService.getOverview(effectiveMarketId),
         ]);
         setTemplates(templateData);
         setOverview(overviewData);
         setBrandKits(overviewData.brandKits || []);
         setCampaignKits(overviewData.campaignKits || []);
-        const initialTemplateId = searchParams.get('templateId') || templateData[0]?.id || '';
+        const initialTemplateId = requestedTemplateId || templateData[0]?.id || '';
         setSelectedTemplateId(initialTemplateId);
+        setSelectedProducts([]);
+        setResults([]);
+        setPreview(null);
         await loadTemplateMeta(initialTemplateId, templateData, overviewData.brandKits || [], overviewData.campaignKits || []);
-        const initialProductId = searchParams.get('productId');
+        const initialProductId = requestedProductId;
         if (initialProductId) {
-          const selection = await offersService.getCatalogSelection(marketId, [initialProductId]);
+          const selection = await offersService.getCatalogSelection(effectiveMarketId, [initialProductId]);
           setSelectedProducts(selection);
         }
         setError(null);
@@ -577,15 +681,21 @@ const OfferDesigner: React.FC = () => {
       }
     };
     void load();
-  }, [marketId, searchParams]);
+  }, [effectiveMarketId, isSuperAdminMode, marketsLoading, requestedProductId, requestedTemplateId]);
 
   useEffect(() => {
-    if (!marketId || !selectedTemplateId) return;
+    if (!effectiveMarketId || !selectedTemplateId) return;
     const timer = window.setTimeout(() => {
       void refreshPreview('preview');
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [marketId, selectedTemplateId, selectedVariantKey, selectedBrandKitId, selectedCampaignKitId, selectedProducts]);
+  }, [effectiveMarketId, selectedTemplateId, selectedVariantKey, selectedBrandKitId, selectedCampaignKitId, selectedProducts]);
+
+  useEffect(() => {
+    if (isSuperAdminMode && activeTool === 'publish') {
+      setActiveTool('themes');
+    }
+  }, [activeTool, isSuperAdminMode]);
 
   useEffect(() => {
     if (!lookupNotice) return undefined;
@@ -644,7 +754,7 @@ const OfferDesigner: React.FC = () => {
   }, [activeZone]);
 
   useEffect(() => {
-    if (!marketId) return;
+    if (!effectiveMarketId) return;
     const normalized = searchInput.trim();
     if (normalized.length < 2) {
       setResults([]);
@@ -653,7 +763,7 @@ const OfferDesigner: React.FC = () => {
     const handler = window.setTimeout(async () => {
       setSearching(true);
       try {
-        const data = await offersService.searchCatalog(marketId, normalized, 20);
+        const data = await offersService.searchCatalog(effectiveMarketId, normalized, 20);
         setResults(data);
         setLookupNotice(null);
       } catch (err: any) {
@@ -663,7 +773,7 @@ const OfferDesigner: React.FC = () => {
       }
     }, 250);
     return () => window.clearTimeout(handler);
-  }, [marketId, searchInput]);
+  }, [effectiveMarketId, searchInput]);
 
   const handleTemplateChange = async (templateId: string) => {
     setSelectedTemplateId(templateId);
@@ -680,9 +790,9 @@ const OfferDesigner: React.FC = () => {
   };
 
   const addProductById = async (productId?: string | null) => {
-    if (!marketId || !productId || selectedProductIds.has(productId)) return;
+    if (!effectiveMarketId || !productId || selectedProductIds.has(productId)) return;
     try {
-      const selection = await offersService.getCatalogSelection(marketId, [productId]);
+      const selection = await offersService.getCatalogSelection(effectiveMarketId, [productId]);
       if (selection.length) {
         setSelectedProducts((current) => mergeUniqueProducts(current, selection));
       }
@@ -703,13 +813,13 @@ const OfferDesigner: React.FC = () => {
   };
 
   const handleCleanBackground = async (product: OfferCatalogProduct) => {
-    if (!marketId || !product.imageUrl) {
+    if (!effectiveMarketId || !product.imageUrl) {
       setLookupNotice('Esse produto ainda não possui imagem para limpar.');
       return;
     }
     setRemovingBackgroundId(product.productId);
     try {
-      const result = await offersService.removeBackground(marketId, {
+      const result = await offersService.removeBackground(effectiveMarketId, {
         productId: product.productId,
         imageUrl: product.imageUrl,
       });
@@ -723,7 +833,7 @@ const OfferDesigner: React.FC = () => {
   };
 
   const handleBulkLookup = async () => {
-    if (!marketId) return;
+    if (!effectiveMarketId) return;
     const terms = bulkInput.split(/\n|,|;/).map((item) => item.trim()).filter(Boolean).slice(0, 16);
     if (!terms.length) {
       setLookupNotice('Digite ao menos um produto para buscar.');
@@ -731,7 +841,7 @@ const OfferDesigner: React.FC = () => {
     }
     setBulkSearching(true);
     try {
-      const responses = await Promise.all(terms.map((term) => offersService.searchCatalog(marketId, term, 6)));
+      const responses = await Promise.all(terms.map((term) => offersService.searchCatalog(effectiveMarketId, term, 6)));
       const bestMatches = responses.map((items) => items[0]).filter(Boolean) as OfferCatalogProduct[];
       setResults(bestMatches);
       const mergedSelection = mergeUniqueProducts(selectedProducts, bestMatches);
@@ -756,7 +866,7 @@ const OfferDesigner: React.FC = () => {
 
 
   const handleSaveStructure = async () => {
-    if (!marketId || !selectedTemplateId || !selectedTemplate) return;
+    if (!effectiveMarketId || !selectedTemplateId || !selectedTemplate) return;
     const parsedDesign = parseJson<JsonMap>(selectedTemplate.designJson, {}) || {};
     const nextDesign: JsonMap = {
       ...parsedDesign,
@@ -801,7 +911,7 @@ const OfferDesigner: React.FC = () => {
 
     setSaving(true);
     try {
-      const updated = await offersService.updateTemplate(marketId, selectedTemplateId, {
+      const updated = await offersService.updateTemplate(effectiveMarketId, selectedTemplateId, {
         name: selectedTemplate.name,
         description: selectedTemplate.description || '',
         channel: selectedTemplate.channel,
@@ -825,8 +935,65 @@ const OfferDesigner: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };  const handleCreateJob = async () => {
-    if (!marketId || !selectedTemplateId || selectedProducts.length === 0) {
+  };
+
+  const handleCreateTemplateFromCurrent = async () => {
+    if (!effectiveMarketId) {
+      setError('Selecione uma conta antes de salvar um template.');
+      return;
+    }
+
+    const baseTemplate = selectedTemplate;
+    const nextNameBase = baseTemplate?.name || 'Novo template';
+
+    setSaving(true);
+    try {
+      const createdTemplate = await offersService.createTemplate(effectiveMarketId, {
+        name: `${nextNameBase} copia`,
+        description: baseTemplate?.description || 'Template criado no estudio visual.',
+        channel: baseTemplate?.channel || 'PRINT',
+        canvasWidth: baseTemplate?.canvasWidth || selectedVariant?.canvasWidth || 1080,
+        canvasHeight: baseTemplate?.canvasHeight || selectedVariant?.canvasHeight || 1350,
+        schemaVersion: baseTemplate?.schemaVersion || 2,
+        masterTemplateKey: baseTemplate?.masterTemplateKey || '',
+        defaultVariantKey: selectedVariantKey || baseTemplate?.defaultVariantKey || '',
+        brandKitId: selectedBrandKitId || baseTemplate?.brandKitId || null,
+        campaignKitId: selectedCampaignKitId || baseTemplate?.campaignKitId || null,
+        designJson: preview?.resolvedDesignJson || baseTemplate?.designJson || '{}',
+        active: true,
+      });
+
+      if (templateVariants.length > 0) {
+        await Promise.all(
+          templateVariants.map((variant) =>
+            offersService.createTemplateVariant(effectiveMarketId, createdTemplate.id, {
+              variantKey: variant.variantKey,
+              name: variant.name,
+              canvasWidth: variant.canvasWidth,
+              canvasHeight: variant.canvasHeight,
+              variantJson: variant.variantJson,
+              previewImageUrl: variant.previewImageUrl || undefined,
+              active: variant.active,
+            }),
+          ),
+        );
+      }
+
+      const persistedTemplate = await offersService.getTemplate(effectiveMarketId, createdTemplate.id);
+      const nextTemplates = [persistedTemplate, ...templates.filter((item) => item.id !== persistedTemplate.id)];
+      setTemplates(nextTemplates);
+      setSelectedTemplateId(persistedTemplate.id);
+      await loadTemplateMeta(persistedTemplate.id, nextTemplates, brandKits, campaignKits);
+      setLookupNotice('Template salvo e liberado para a conta selecionada.');
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel salvar o template.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateJob = async () => {
+    if (!effectiveMarketId || !selectedTemplateId || selectedProducts.length === 0) {
       setError('Escolha um modelo e pelo menos um produto antes de gerar o lote.');
       return;
     }
@@ -853,8 +1020,8 @@ const OfferDesigner: React.FC = () => {
     };
     setSaving(true);
     try {
-      await offersService.createJob(marketId, payload);
-      navigate('/app/ofertas/jobs');
+      await offersService.createJob(effectiveMarketId, payload);
+      navigate(`${routeBase}/jobs`);
     } catch (err: any) {
       setError(err?.message || 'Não foi possível criar o lote.');
     } finally {
@@ -886,7 +1053,7 @@ const OfferDesigner: React.FC = () => {
 
   if (loading) {
     return (
-      <OffersStudioLayout>
+      <OffersStudioLayout mode={isSuperAdminMode ? 'super-admin' : 'admin'}>
         <div className="page offers-studio-page">
           <div className="sales-empty-card">Carregando estúdio de ofertas...</div>
         </div>
@@ -895,7 +1062,7 @@ const OfferDesigner: React.FC = () => {
   }
 
   return (
-    <OffersStudioLayout>
+    <OffersStudioLayout mode={isSuperAdminMode ? 'super-admin' : 'admin'}>
       <div className="page offers-studio-page">
         {error ? (
           <div className="offer-studio-toast-stack">
@@ -915,6 +1082,40 @@ const OfferDesigner: React.FC = () => {
           </div>
         ) : null}
 
+        {isSuperAdminMode ? (
+          <div className="mb-5 flex flex-col gap-3 rounded-[24px] border border-[rgba(87,51,30,0.1)] bg-white/82 p-4 shadow-[0_18px_40px_rgba(44,20,6,0.06)] lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-end">
+              <label className="offer-studio-text-field min-w-0 lg:min-w-[320px]">
+                <span>Conta da plataforma</span>
+                <select
+                  className="input"
+                  value={selectedSuperAdminMarketId}
+                  onChange={(event) => setSelectedSuperAdminMarketId(event.target.value)}
+                  disabled={marketsLoading || superAdminMarketOptions.length === 0}
+                >
+                  {superAdminMarketOptions.length ? (
+                    superAdminMarketOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Nenhuma conta encontrada</option>
+                  )}
+                </select>
+              </label>
+              <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-3 text-sm text-[color:var(--text-secondary)]">
+                <strong className="block text-[color:var(--text-primary)]">Templates salvos aqui aparecem no painel admin da conta.</strong>
+                <span>{selectedSuperAdminMarket ? `Conta ativa: ${selectedSuperAdminMarket.name}` : 'Selecione uma conta para abrir os dados.'}</span>
+              </div>
+            </div>
+            <Button type="button" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
+              <LayoutTemplate size={16} strokeWidth={2.1} />
+              {saving ? 'Salvando...' : 'Salvar como template'}
+            </Button>
+          </div>
+        ) : null}
+
         <div className={`offer-studio-shell ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
           <aside className="offer-studio-rail">
             <div className="offer-studio-rail-brand">
@@ -925,7 +1126,7 @@ const OfferDesigner: React.FC = () => {
               </div>
             </div>
             <div className="offer-studio-rail-nav">
-              {TOOL_OPTIONS.map((tool) => <StudioToolButton key={tool.key} icon={tool.icon} label={tool.label} active={activeTool === tool.key} onClick={() => setActiveTool(tool.key)} />)}
+              {visibleToolOptions.map((tool) => <StudioToolButton key={tool.key} icon={tool.icon} label={tool.label} active={activeTool === tool.key} onClick={() => setActiveTool(tool.key)} />)}
             </div>
             <div className="offer-studio-rail-summary">
               <span className="section-kicker">Resumo</span>
@@ -1039,10 +1240,17 @@ const OfferDesigner: React.FC = () => {
                     <span className="section-kicker">Temas</span>
                     <h2>Template, variantes e kits</h2>
                   </div>
-                  <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/modelos')}>
-                    <LayoutTemplate size={16} strokeWidth={2.1} />
-                    Gerenciar
-                  </Button>
+                  {isSuperAdminMode ? (
+                    <Button type="button" variant="secondary" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
+                      <LayoutTemplate size={16} strokeWidth={2.1} />
+                      {saving ? 'Salvando...' : 'Salvar template'}
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="secondary" onClick={() => navigate(`${routeBase}/modelos`)}>
+                      <LayoutTemplate size={16} strokeWidth={2.1} />
+                      Gerenciar
+                    </Button>
+                  )}
                 </div>
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}
@@ -1382,7 +1590,7 @@ const OfferDesigner: React.FC = () => {
                       <WandSparkles size={16} strokeWidth={2.1} />
                       {saving ? 'Gerando lote...' : 'Gerar lote'}
                     </Button>
-                    <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/jobs')}>
+                    <Button type="button" variant="secondary" onClick={() => navigate(`${routeBase}/jobs`)}>
                       <Boxes size={16} strokeWidth={2.1} />
                       Ver fila
                     </Button>
@@ -1458,14 +1666,23 @@ const OfferDesigner: React.FC = () => {
                     <WandSparkles size={16} strokeWidth={2.1} />
                     Auto-fill
                   </Button>
-                  <Button type="button" variant="secondary" onClick={() => navigate('/app/ofertas/jobs')}>
-                    <Boxes size={16} strokeWidth={2.1} />
-                    Lotes
-                  </Button>
-                  <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
-                    <WandSparkles size={16} strokeWidth={2.1} />
-                    {saving ? 'Gerando...' : 'Gerar lote'}
-                  </Button>
+                  {isSuperAdminMode ? (
+                    <Button type="button" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
+                      <LayoutTemplate size={16} strokeWidth={2.1} />
+                      {saving ? 'Salvando...' : 'Salvar template'}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button type="button" variant="secondary" onClick={() => navigate(`${routeBase}/jobs`)}>
+                        <Boxes size={16} strokeWidth={2.1} />
+                        Lotes
+                      </Button>
+                      <Button type="button" onClick={handleCreateJob} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                        <WandSparkles size={16} strokeWidth={2.1} />
+                        {saving ? 'Gerando...' : 'Gerar lote'}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1477,6 +1694,3 @@ const OfferDesigner: React.FC = () => {
 };
 
 export default OfferDesigner;
-
-
-

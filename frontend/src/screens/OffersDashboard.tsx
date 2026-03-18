@@ -169,7 +169,7 @@ const OffersDashboard: React.FC = () => {
         <PageHero
           badge="Designer de ofertas"
           title="Crie peças de oferta a partir do catálogo e das vendas reais do mercado."
-          description="O módulo nasce nativo: modelos em JSON, binding automático com nome, preço, unidade e imagem, e fila de geração pronta para evoluir para exportação server-side."
+          description="Modelos em JSON, binding automático com nome, preço, unidade e imagem, preview em tempo real e geração de lotes já ligada ao motor de render."
           actions={
             <>
               <Button type="button" onClick={() => openDesigner(leadTemplate?.id)}>Abrir designer</Button>
@@ -199,7 +199,7 @@ const OffersDashboard: React.FC = () => {
                   <span className="section-kicker">Modelos</span>
                   <h2>Base nativa para cartaz e encarte</h2>
                 </div>
-                <p>Os modelos ficam no banco, em JSON, e já podem ser ligados ao catálogo sem depender do Gwaphics como runtime.</p>
+                <p>Os modelos ficam no banco, em JSON, e já abastecem o estúdio visual usado para montagem, preview e publicação.</p>
               </div>
               <div className="offer-template-rail">
                 {overview.templates.map((template) => (
@@ -229,7 +229,7 @@ const OffersDashboard: React.FC = () => {
                   <span className="section-kicker">Fila de geração</span>
                   <h2>Lotes já preparados</h2>
                 </div>
-                <p>A fundação já registra lotes por template e produto. A próxima etapa é plugar a engine de exportação server-side.</p>
+                <p>Os lotes já são gravados com template, produtos e saídas renderizadas pelo motor server-side do módulo.</p>
               </div>
               {overview.recentJobs.length === 0 ? (
                 <div className="sales-empty-card">Nenhum lote foi criado ainda.</div>
@@ -325,4 +325,3 @@ const OffersDashboard: React.FC = () => {
 };
 
 export default OffersDashboard;
-

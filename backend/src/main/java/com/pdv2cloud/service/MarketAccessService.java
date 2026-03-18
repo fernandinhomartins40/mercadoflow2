@@ -19,7 +19,7 @@ public class MarketAccessService {
 
     public void assertCanAccessMarket(UUID marketId, Authentication authentication) {
         User user = requireUser(authentication);
-        if (user.getRole() == UserRole.ADMIN) {
+        if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
             return;
         }
         if (user.getMarket() == null || user.getMarket().getId() == null) {
@@ -51,4 +51,3 @@ public class MarketAccessService {
             .orElseThrow(() -> new AccessDeniedException("User not found"));
     }
 }
-
