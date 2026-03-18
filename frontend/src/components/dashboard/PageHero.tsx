@@ -30,6 +30,8 @@ const PageHero: React.FC<PageHeroProps> = ({
   asideClassName,
   visualFirst = false,
 }) => {
+  const hasAside = Boolean(aside);
+
   const copyBlock = (
     <div className={cn('page-hero-copy', copyClassName)}>
       <div className="page-hero-kicker">{badge}</div>
@@ -42,7 +44,7 @@ const PageHero: React.FC<PageHeroProps> = ({
   const featureBlock = feature ? <div className={cn('page-hero-feature', featureClassName)}>{feature}</div> : null;
 
   return (
-    <section className={cn('page-hero-grid reveal', className)}>
+    <section className={cn('page-hero-grid reveal', !hasAside && 'page-hero-grid-single', className)}>
       <article className={cn('page-hero-card', articleClassName)}>
         {visualFirst ? (
           <>
@@ -57,7 +59,7 @@ const PageHero: React.FC<PageHeroProps> = ({
         )}
       </article>
 
-      {aside ? <aside className={cn('page-hero-aside', asideClassName)}>{aside}</aside> : null}
+      {hasAside ? <aside className={cn('page-hero-aside', asideClassName)}>{aside}</aside> : null}
     </section>
   );
 };

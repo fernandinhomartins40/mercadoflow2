@@ -137,6 +137,21 @@
     @apply grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.34fr)];
   }
 
+  .page-hero-grid-single {
+    @apply 2xl:grid-cols-1;
+  }
+
+  .page-hero-grid > :only-child,
+  .dashboard-page-grid > :only-child,
+  .page-slab-grid > :only-child,
+  .page-card-grid > :only-child,
+  .catalog-admin-overview-grid > :only-child,
+  .dashboard-command-grid > :only-child,
+  .super-admin-command-grid > :only-child,
+  .sales-dashboard-hero-grid > :only-child {
+    grid-column: 1 / -1;
+  }
+
   .page-hero-card {
     @apply grid gap-4 rounded-[28px] border p-5 shadow-[0_14px_32px_rgba(44,20,6,0.07)] xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start xl:p-6;
     border-color: var(--border-soft);
@@ -505,8 +520,8 @@
     @apply flex min-w-0 flex-col gap-7;
   }
 
-  .catalog-admin-overview-grid {
-    @apply grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start;
+  .catalog-admin-search-panel {
+    @apply w-full;
   }
 
   .catalog-admin-search-row {

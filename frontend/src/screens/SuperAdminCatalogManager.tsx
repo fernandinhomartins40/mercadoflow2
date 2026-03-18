@@ -465,32 +465,30 @@ const SuperAdminCatalogManager: React.FC = () => {
           }
         />
 
-        <div className="catalog-admin-overview-grid">
-          <PanelSection className="dashboard-form-panel" kicker="Consulta" title="Produtos cadastrados">
-            <div className="catalog-admin-search-row">
-              <input
-                className="input"
-                placeholder="Buscar por GTIN, nome, marca..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <Button
-                onClick={() => {
-                  setPage(0);
-                  load();
-                }}
-              >
-                Buscar
-              </Button>
+        <PanelSection className="dashboard-form-panel catalog-admin-search-panel" kicker="Consulta" title="Produtos cadastrados">
+          <div className="catalog-admin-search-row">
+            <input
+              className="input"
+              placeholder="Buscar por GTIN, nome, marca..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <Button
+              onClick={() => {
+                setPage(0);
+                load();
+              }}
+            >
+              Buscar
+            </Button>
+          </div>
+          {loadError || success ? (
+            <div className="catalog-admin-feedback-stack">
+              {loadError ? <div className="catalog-admin-feedback error">{loadError}</div> : null}
+              {success ? <div className="catalog-admin-feedback success">{success}</div> : null}
             </div>
-            {loadError || success ? (
-              <div className="catalog-admin-feedback-stack">
-                {loadError ? <div className="catalog-admin-feedback error">{loadError}</div> : null}
-                {success ? <div className="catalog-admin-feedback success">{success}</div> : null}
-              </div>
-            ) : null}
-          </PanelSection>
-        </div>
+          ) : null}
+        </PanelSection>
 
         <PanelSection className="catalog-admin-list-panel" kicker="Listagem" title="Produtos do catálogo global">
           {loading ? (
