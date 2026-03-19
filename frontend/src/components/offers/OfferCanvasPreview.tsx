@@ -10,6 +10,7 @@ interface OfferCanvasPreviewProps {
   gridLimit?: number;
   footerText?: string | null;
   resolvedDesignJson?: string | null;
+  respectCanvasDimensions?: boolean;
 }
 
 type JsonMap = Record<string, any>;
@@ -134,6 +135,25 @@ const resolveReference = (value: unknown, resolver: (binding?: string, fallback?
   return resolver(normalized, fallback);
 };
 
+const buildCanvasStyle = (
+  canvasWidth: number,
+  canvasHeight: number,
+  backgroundStyle: React.CSSProperties,
+  respectCanvasDimensions: boolean,
+): React.CSSProperties =>
+  respectCanvasDimensions
+    ? {
+        width: `${canvasWidth}px`,
+        height: `${canvasHeight}px`,
+        minWidth: `${canvasWidth}px`,
+        minHeight: `${canvasHeight}px`,
+        ...backgroundStyle,
+      }
+    : {
+        aspectRatio: `${canvasWidth} / ${canvasHeight}`,
+        ...backgroundStyle,
+      };
+
 const backgroundFromCanvas = (canvas: JsonMap, brandTokens: JsonMap, campaignAssets: JsonMap) => {
   const background = asMap(canvas.background);
   const colors = asMap(brandTokens.colors);
@@ -163,6 +183,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   gridLimit,
   footerText,
   resolvedDesignJson,
+  respectCanvasDimensions = false,
 }) => {
   const resolved = useMemo(() => parseJson(resolvedDesignJson), [resolvedDesignJson]);
   const parsedTemplate = useMemo(() => parseLegacyTemplate(template), [template]);
@@ -183,12 +204,16 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
         ? { background: `linear-gradient(180deg, ${parsedTemplate.background.start || '#fff7ef'} 0%, ${parsedTemplate.background.end || '#ffd4b4'} 100%)` }
         : { background: parsedTemplate.background?.color || '#fff7ef' };
 
-    const ratio = `${template?.canvasWidth || 1080} / ${template?.canvasHeight || 1350}`;
+    const legacyCanvasWidth = template?.canvasWidth || 1080;
+    const legacyCanvasHeight = template?.canvasHeight || 1350;
     const hasGrid = parsedTemplate.slots.some((slot: CanvasSlot) => slot.type === 'product-grid');
     const visibleGridItems = Math.max(1, gridLimit || 6);
 
     return (
-      <div className={`offer-canvas-preview ${className || ''}`} style={{ aspectRatio: ratio, ...backgroundStyle }}>
+      <div
+        className={`offer-canvas-preview ${className || ''}`}
+        style={buildCanvasStyle(legacyCanvasWidth, legacyCanvasHeight, backgroundStyle, respectCanvasDimensions)}
+      >
         {hasGrid ? (
           <div className="offer-canvas-grid-layout">
             <div className="offer-canvas-grid-head">
@@ -289,7 +314,6 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   const zoneBindings = asMap(source.zoneBindings);
   const layers = asList(source.layers);
   const zones = asList(source.productZones);
-  const ratio = `${canvasWidth} / ${canvasHeight}`;
   const backgroundStyle = backgroundFromCanvas(canvas, brandTokens, campaignAssets);
   const marketFooter = asMap(marketProfile.footer);
   const marketAssets = asMap(marketProfile.assets);
@@ -298,6 +322,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   const backgroundConfig = asMap(canvas.background);
   const renderOptions = asMap(source.renderOptions);
   const footerHidden = String(renderOptions.footerMode || '').toUpperCase() === 'NONE';
+  const canvasStyle = buildCanvasStyle(canvasWidth, canvasHeight, backgroundStyle, respectCanvasDimensions);
 
   const bindingContext: JsonMap = {
     static: staticBindings,
@@ -556,7 +581,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   };
 
   return (
-    <div className={`offer-canvas-preview relative overflow-hidden rounded-[32px] border border-[rgba(87,51,30,0.08)] shadow-[0_20px_40px_rgba(44,20,6,0.08)] ${className || ''}`} style={{ aspectRatio: ratio, ...backgroundStyle }}>
+    <div className={`offer-canvas-preview relative overflow-hidden rounded-[32px] border border-[rgba(87,51,30,0.08)] shadow-[0_20px_40px_rgba(44,20,6,0.08)] ${className || ''}`} style={canvasStyle}>
       <div className="absolute inset-0">
         {backgroundImageUrl ? (
           <OfferProductImage src={backgroundImageUrl} alt="Fundo do template" className={`absolute inset-0 h-full w-full ${backgroundFit}`} />

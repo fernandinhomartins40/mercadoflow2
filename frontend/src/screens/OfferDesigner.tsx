@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Boxes,
@@ -1075,6 +1075,7 @@ const StudioBoundsFields: React.FC<{
 const OfferDesigner: React.FC = () => {
   const { buildUrl, isSuperAdminMode, marketId, userName } = useOffersAppSession();
   const navigate = useNavigate();
+  const stageSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [searchParams] = useSearchParams();
   const requestedTemplateId = searchParams.get('templateId') || '';
   const requestedJobId = searchParams.get('jobId') || '';
@@ -1138,6 +1139,7 @@ const OfferDesigner: React.FC = () => {
   const [copying, setCopying] = useState(false);
   const [lookupNotice, setLookupNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stageSurfaceSize, setStageSurfaceSize] = useState({ width: 0, height: 0 });
 
   const selectedSuperAdminMarket = useMemo(
     () => superAdminMarkets.find((market) => market.id === selectedSuperAdminMarketId) || null,
@@ -1157,7 +1159,57 @@ const OfferDesigner: React.FC = () => {
     const basePages = Math.max(Math.ceil(selectedProducts.length / Math.max(itemsPerPage, 1)), 1);
     return coverEnabled ? basePages + 1 : basePages;
   }, [coverEnabled, generationMode, itemsPerPage, selectedProducts.length]);
-  const stageScale = useMemo(() => zoomToScale(zoomMode), [zoomMode]);
+  const stageCanvasWidth = useMemo(
+    () => (
+      isSuperAdminMode
+        ? clampNumber(
+            templateBuilderDraft.canvasWidth,
+            selectedVariant?.canvasWidth || selectedTemplate?.canvasWidth || 1080,
+            720,
+            3200,
+          )
+        : selectedVariant?.canvasWidth || preview?.canvasWidth || selectedTemplate?.canvasWidth || 1080
+    ),
+    [
+      isSuperAdminMode,
+      preview?.canvasWidth,
+      selectedTemplate?.canvasWidth,
+      selectedVariant?.canvasWidth,
+      templateBuilderDraft.canvasWidth,
+    ],
+  );
+  const stageCanvasHeight = useMemo(
+    () => (
+      isSuperAdminMode
+        ? clampNumber(
+            templateBuilderDraft.canvasHeight,
+            selectedVariant?.canvasHeight || selectedTemplate?.canvasHeight || 1350,
+            720,
+            4800,
+          )
+        : selectedVariant?.canvasHeight || preview?.canvasHeight || selectedTemplate?.canvasHeight || 1350
+    ),
+    [
+      isSuperAdminMode,
+      preview?.canvasHeight,
+      selectedTemplate?.canvasHeight,
+      selectedVariant?.canvasHeight,
+      templateBuilderDraft.canvasHeight,
+    ],
+  );
+  const stageScale = useMemo(() => {
+    if (zoomMode !== 'AUTO') {
+      return zoomToScale(zoomMode);
+    }
+
+    if (!stageSurfaceSize.width || !stageSurfaceSize.height || !stageCanvasWidth || !stageCanvasHeight) {
+      return 1;
+    }
+
+    return Math.min(stageSurfaceSize.width / stageCanvasWidth, stageSurfaceSize.height / stageCanvasHeight, 1);
+  }, [stageCanvasHeight, stageCanvasWidth, stageSurfaceSize.height, stageSurfaceSize.width, zoomMode]);
+  const scaledStageWidth = Math.max(stageCanvasWidth * stageScale, 1);
+  const scaledStageHeight = Math.max(stageCanvasHeight * stageScale, 1);
   const footerText = useMemo(() => footerPreviewLabel(footerMode), [footerMode]);
   const templateOptions = useMemo(() => templates.map((template) => ({ value: template.id, label: template.name })), [templates]);
   const variantOptions = useMemo(
@@ -1224,6 +1276,35 @@ const OfferDesigner: React.FC = () => {
     const zoneBindings = asMap(resolvedDesign.zoneBindings);
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
   }, [activeZone, resolvedDesign]);
+
+  useEffect(() => {
+    const node = stageSurfaceRef.current;
+    if (!node || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const updateStageSurfaceSize = () => {
+      const styles = window.getComputedStyle(node);
+      const horizontalPadding = Number.parseFloat(styles.paddingLeft || '0') + Number.parseFloat(styles.paddingRight || '0');
+      const verticalPadding = Number.parseFloat(styles.paddingTop || '0') + Number.parseFloat(styles.paddingBottom || '0');
+      setStageSurfaceSize({
+        width: Math.max(node.clientWidth - horizontalPadding, 0),
+        height: Math.max(node.clientHeight - verticalPadding, 0),
+      });
+    };
+
+    updateStageSurfaceSize();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateStageSurfaceSize);
+      return () => window.removeEventListener('resize', updateStageSurfaceSize);
+    }
+
+    const observer = new ResizeObserver(() => updateStageSurfaceSize());
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
 
   const buildDesignerRoute = (jobId: string) => buildUrl('/ofertas', new URLSearchParams({ jobId }).toString());
 
@@ -3469,9 +3550,11 @@ const OfferDesigner: React.FC = () => {
                 </div>
               </div>
 
-              <div className="offer-studio-stage-surface">
-                <div className="offer-studio-stage-canvas" style={{ transform: `scale(${stageScale})` }}>
-                  <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} footerText={activeTool === 'themes' ? null : footerText} className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
+              <div ref={stageSurfaceRef} className="offer-studio-stage-surface">
+                <div className="offer-studio-stage-canvas" style={{ width: `${scaledStageWidth}px`, height: `${scaledStageHeight}px` }}>
+                  <div style={{ width: `${stageCanvasWidth}px`, height: `${stageCanvasHeight}px`, transform: `scale(${stageScale})`, transformOrigin: 'top left' }}>
+                    <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} footerText={activeTool === 'themes' ? null : footerText} respectCanvasDimensions className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
+                  </div>
                 </div>
               </div>
 
