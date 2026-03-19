@@ -136,7 +136,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </aside>
       ) : null}
 
-      <main className={cn('offers-studio-layout-main h-full min-h-0 min-w-0 overflow-hidden', showAppRail && navPinned ? 'pl-[96px]' : '', showAppRail && !navPinned ? 'pt-14' : '')}>
+      <main className={cn('offers-studio-layout-main h-full min-h-0 min-w-0 w-full overflow-hidden', showAppRail && navPinned ? 'pl-[96px]' : '', showAppRail && !navPinned ? 'pt-14' : '')}>
         {!navPinned && showAppRail ? (
           <button
             type="button"
@@ -149,10 +149,10 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         ) : null}
 
         <div className={cn(
-          'flex h-full min-h-0 flex-col overflow-hidden',
+          'flex h-full min-h-0 w-full flex-col overflow-hidden',
           showAppRail ? (navPinned ? 'p-3 lg:p-4' : 'px-4 pb-4 sm:px-5') : 'p-0',
         )}>
-          <div className={cn('offers-app-body', showAppRail ? 'rounded-[28px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,252,248,0.6)]' : '')}>
+          <div className={cn('offers-app-body w-full', showAppRail ? 'rounded-[28px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,252,248,0.6)]' : '')}>
             {showAppRail ? (
               <div className="offers-app-floating-session">
                 <span className="offers-app-session-role">{isSuperAdminMode ? 'Super admin' : 'Admin'}</span>

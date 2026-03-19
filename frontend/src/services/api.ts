@@ -1,5 +1,18 @@
-import axios from 'axios';
-import { getOffersWorkspaceLoginRoute, isOffersAppPath } from '../lib/offersApp';
+import axios, { AxiosHeaders } from 'axios';
+import { getOffersWorkspaceLoginRoute, isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
+
+const AUTH_SCOPE_HEADER = 'X-Auth-Scope';
+
+const shouldPreferSuperAdminScope = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return (
+    window.location.pathname.startsWith('/super-admin')
+    || (isOffersAppPath(window.location.pathname) && resolveOffersWorkspace(window.location.search) === 'super-admin')
+  );
+};
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -8,6 +21,19 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+api.interceptors.request.use((config) => {
+  const headers = AxiosHeaders.from(config.headers);
+
+  if (shouldPreferSuperAdminScope()) {
+    headers.set(AUTH_SCOPE_HEADER, 'super-admin');
+  } else {
+    headers.delete(AUTH_SCOPE_HEADER);
+  }
+
+  config.headers = headers;
+  return config;
 });
 
 api.interceptors.response.use(

@@ -18,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String AUTH_SCOPE_HEADER = "X-Auth-Scope";
     private static final String MAIN_COOKIE_NAME = "pdv2cloud_token";
     private static final String SUPER_ADMIN_COOKIE_NAME = "pdv2cloud_superadmin_token";
 
@@ -53,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         Cookie[] cookies = request.getCookies();
-        String preferredCookie = request.getRequestURI() != null && request.getRequestURI().startsWith("/api/v1/super-admin")
+        String preferredCookie = shouldPreferSuperAdminCookie(request)
             ? SUPER_ADMIN_COOKIE_NAME
             : MAIN_COOKIE_NAME;
         String fallbackCookie = MAIN_COOKIE_NAME.equals(preferredCookie) ? SUPER_ADMIN_COOKIE_NAME : MAIN_COOKIE_NAME;
@@ -72,5 +73,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return null;
+    }
+
+    private boolean shouldPreferSuperAdminCookie(HttpServletRequest request) {
+        String requestUri = request.getRequestURI();
+        if (requestUri != null && requestUri.startsWith("/api/v1/super-admin")) {
+            return true;
+        }
+
+        String authScope = request.getHeader(AUTH_SCOPE_HEADER);
+        return StringUtils.hasText(authScope) && "super-admin".equalsIgnoreCase(authScope.trim());
     }
 }

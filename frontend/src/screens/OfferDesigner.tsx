@@ -2030,7 +2030,7 @@ const OfferDesigner: React.FC = () => {
 
   return (
     <OffersStudioLayout>
-      <div className="page offers-studio-page">
+      <div className="page offers-studio-page w-full">
         {error ? (
           <div className="offer-studio-toast-stack">
             <div className="offer-studio-toast error">
@@ -2056,7 +2056,7 @@ const OfferDesigner: React.FC = () => {
           </div>
         ) : null}
 
-        <div className={`offer-studio-shell ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
+        <div className={`offer-studio-shell w-full ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
           <aside className="offer-studio-rail">
             <div className="offer-studio-rail-brand">
               <span className="offer-studio-rail-badge"><Sparkles className="offer-studio-rail-brand-icon" strokeWidth={2.1} /></span>
