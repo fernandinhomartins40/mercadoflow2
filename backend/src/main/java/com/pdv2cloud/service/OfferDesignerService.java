@@ -1194,13 +1194,7 @@ public class OfferDesignerService {
             layer.put("binding", slot.get("binding"));
             layer.put("locked", true);
             layer.put("bounds", boundsFromLegacySlot(slot, width, height));
-            layer.put("props", Map.of(
-                "background", slot.get("background"),
-                "radius", slot.get("radius"),
-                "fontSize", slot.get("fontSize"),
-                "fontWeight", slot.get("fontWeight"),
-                "fit", slot.get("fit")
-            ));
+            layer.put("props", legacyLayerProps(slot));
             layers.add(layer);
         }
 
@@ -1469,6 +1463,16 @@ public class OfferDesignerService {
         bounds.put("w", intValue(slot.get("w"), width));
         bounds.put("h", intValue(slot.get("h"), height));
         return bounds;
+    }
+
+    private Map<String, Object> legacyLayerProps(Map<String, Object> slot) {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("background", slot.get("background"));
+        props.put("radius", slot.get("radius"));
+        props.put("fontSize", slot.get("fontSize"));
+        props.put("fontWeight", slot.get("fontWeight"));
+        props.put("fit", slot.get("fit"));
+        return props;
     }
 
     private String buildOutputUrl(OfferGenerationJob job, OfferRenderOutput output) {
