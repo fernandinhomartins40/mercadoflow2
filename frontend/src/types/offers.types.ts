@@ -80,6 +80,26 @@ export interface OfferTemplate {
   updatedAt?: string | null;
 }
 
+export interface OfferMarketProfile {
+  id: string;
+  marketId?: string | null;
+  footerContent?: string | null;
+  footerLegalText?: string | null;
+  primaryLogoUrl?: string | null;
+  primaryLogoStorageKey?: string | null;
+  secondaryLogoUrl?: string | null;
+  secondaryLogoStorageKey?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface OfferAssetUploadResult {
+  assetUrl: string;
+  storageKey?: string | null;
+  width?: number | null;
+  height?: number | null;
+}
+
 export interface OfferGenerationJobItem {
   id: string;
   productId?: string | null;
@@ -164,6 +184,7 @@ export interface OfferOverview {
   recentJobs: OfferGenerationJob[];
   brandKits: OfferBrandKit[];
   campaignKits: OfferCampaignKit[];
+  marketProfile?: OfferMarketProfile | null;
   replenishmentSuggestions: ProductPerformance[];
   seasonalSuggestions: ProductPerformance[];
   promotionSuggestions: PromotionImpact[];

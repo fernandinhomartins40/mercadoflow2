@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.OfferBrandKitDTO;
 import com.pdv2cloud.model.dto.OfferBrandKitUpsertRequest;
+import com.pdv2cloud.model.dto.OfferAssetUploadDTO;
 import com.pdv2cloud.model.dto.OfferBackgroundRemovalDTO;
 import com.pdv2cloud.model.dto.OfferBackgroundRemovalRequest;
 import com.pdv2cloud.model.dto.OfferCampaignKitDTO;
@@ -14,6 +15,8 @@ import com.pdv2cloud.model.dto.OfferCatalogProductDTO;
 import com.pdv2cloud.model.dto.OfferGenerationJobCreateRequest;
 import com.pdv2cloud.model.dto.OfferGenerationJobDTO;
 import com.pdv2cloud.model.dto.OfferGenerationJobItemDTO;
+import com.pdv2cloud.model.dto.OfferMarketProfileDTO;
+import com.pdv2cloud.model.dto.OfferMarketProfileUpsertRequest;
 import com.pdv2cloud.model.dto.OfferOverviewDTO;
 import com.pdv2cloud.model.dto.OfferPublishRequest;
 import com.pdv2cloud.model.dto.OfferRenderOutputDTO;
@@ -30,6 +33,7 @@ import com.pdv2cloud.model.entity.OfferBrandKit;
 import com.pdv2cloud.model.entity.OfferCampaignKit;
 import com.pdv2cloud.model.entity.OfferGenerationJob;
 import com.pdv2cloud.model.entity.OfferGenerationJobItem;
+import com.pdv2cloud.model.entity.OfferMarketProfile;
 import com.pdv2cloud.model.entity.OfferRenderOutput;
 import com.pdv2cloud.model.entity.OfferTemplate;
 import com.pdv2cloud.model.entity.OfferTemplateVariant;
@@ -39,6 +43,7 @@ import com.pdv2cloud.repository.OfferCampaignKitRepository;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.OfferGenerationJobItemRepository;
 import com.pdv2cloud.repository.OfferGenerationJobRepository;
+import com.pdv2cloud.repository.OfferMarketProfileRepository;
 import com.pdv2cloud.repository.OfferRenderOutputRepository;
 import com.pdv2cloud.repository.OfferTemplateRepository;
 import com.pdv2cloud.repository.OfferTemplateVariantRepository;
@@ -63,6 +68,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class OfferDesignerService {
@@ -76,11 +82,13 @@ public class OfferDesignerService {
     private final OfferRenderOutputRepository offerRenderOutputRepository;
     private final OfferBrandKitRepository offerBrandKitRepository;
     private final OfferCampaignKitRepository offerCampaignKitRepository;
+    private final OfferMarketProfileRepository offerMarketProfileRepository;
     private final MarketRepository marketRepository;
     private final ProductRepository productRepository;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final CatalogImageStorageService catalogImageStorageService;
     private final OfferBackgroundRemovalService offerBackgroundRemovalService;
+    private final OfferAssetStorageService offerAssetStorageService;
     private final OfferRenderEngineService offerRenderEngineService;
     private final AdvancedAnalyticsService advancedAnalyticsService;
     private final ObjectMapper objectMapper;
@@ -93,11 +101,13 @@ public class OfferDesignerService {
         OfferRenderOutputRepository offerRenderOutputRepository,
         OfferBrandKitRepository offerBrandKitRepository,
         OfferCampaignKitRepository offerCampaignKitRepository,
+        OfferMarketProfileRepository offerMarketProfileRepository,
         MarketRepository marketRepository,
         ProductRepository productRepository,
         NamedParameterJdbcTemplate jdbcTemplate,
         CatalogImageStorageService catalogImageStorageService,
         OfferBackgroundRemovalService offerBackgroundRemovalService,
+        OfferAssetStorageService offerAssetStorageService,
         OfferRenderEngineService offerRenderEngineService,
         AdvancedAnalyticsService advancedAnalyticsService,
         ObjectMapper objectMapper
@@ -109,11 +119,13 @@ public class OfferDesignerService {
         this.offerRenderOutputRepository = offerRenderOutputRepository;
         this.offerBrandKitRepository = offerBrandKitRepository;
         this.offerCampaignKitRepository = offerCampaignKitRepository;
+        this.offerMarketProfileRepository = offerMarketProfileRepository;
         this.marketRepository = marketRepository;
         this.productRepository = productRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.catalogImageStorageService = catalogImageStorageService;
         this.offerBackgroundRemovalService = offerBackgroundRemovalService;
+        this.offerAssetStorageService = offerAssetStorageService;
         this.offerRenderEngineService = offerRenderEngineService;
         this.advancedAnalyticsService = advancedAnalyticsService;
         this.objectMapper = objectMapper;
@@ -127,6 +139,7 @@ public class OfferDesignerService {
         List<OfferGenerationJobDTO> recentJobs = listJobs(marketId);
         List<OfferBrandKitDTO> brandKits = listBrandKits(marketId);
         List<OfferCampaignKitDTO> campaignKits = listCampaignKits(marketId);
+        OfferMarketProfileDTO marketProfile = toMarketProfileDto(ensureStarterMarketProfile(marketId));
 
         List<ProductPerformanceDTO> seasonalSuggestions = List.of();
         if (cockpit.getSeasonalCollections() != null && !cockpit.getSeasonalCollections().isEmpty()) {
@@ -143,11 +156,63 @@ public class OfferDesignerService {
             recentJobs.stream().limit(8).toList(),
             brandKits,
             campaignKits,
+            marketProfile,
             cockpit.getReplenishmentCandidates() != null ? cockpit.getReplenishmentCandidates().stream().limit(8).toList() : List.of(),
             seasonalSuggestions,
             cockpit.getPromotionHighlights() != null ? cockpit.getPromotionHighlights().stream().limit(8).toList() : List.of(),
             cockpit.getTopPairs() != null ? cockpit.getTopPairs().stream().limit(8).toList() : List.of()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public OfferMarketProfileDTO getMarketProfile(UUID marketId) {
+        ensureStarterData(marketId);
+        return toMarketProfileDto(ensureStarterMarketProfile(marketId));
+    }
+
+    @Transactional
+    public OfferMarketProfileDTO updateMarketProfile(UUID marketId, OfferMarketProfileUpsertRequest request) {
+        OfferMarketProfile profile = ensureStarterMarketProfile(marketId);
+        applyMarketProfileRequest(profile, request);
+        return toMarketProfileDto(offerMarketProfileRepository.save(profile));
+    }
+
+    @Transactional
+    public OfferAssetUploadDTO uploadMarketProfileLogo(UUID marketId, String slot, MultipartFile file) {
+        OfferMarketProfile profile = ensureStarterMarketProfile(marketId);
+        String normalizedSlot = normalizeText(slot, "PRIMARY");
+        boolean secondary = "SECONDARY".equalsIgnoreCase(normalizedSlot) || "RIGHT".equalsIgnoreCase(normalizedSlot);
+        OfferAssetStorageService.StoredAsset storedAsset = offerAssetStorageService.storeUploadedAsset(
+            marketId,
+            secondary ? "market-profile-secondary-logo" : "market-profile-primary-logo",
+            file,
+            1400,
+            1400
+        );
+        if (secondary) {
+            profile.setSecondaryLogoUrl(storedAsset.assetUrl());
+            profile.setSecondaryLogoStorageKey(storedAsset.storageKey());
+        } else {
+            profile.setPrimaryLogoUrl(storedAsset.assetUrl());
+            profile.setPrimaryLogoStorageKey(storedAsset.storageKey());
+        }
+        offerMarketProfileRepository.save(profile);
+        return toAssetUploadDto(storedAsset);
+    }
+
+    @Transactional
+    public OfferAssetUploadDTO uploadTemplateAsset(UUID marketId, String purpose, MultipartFile file) {
+        String normalizedPurpose = normalizeText(purpose, "template-asset").toLowerCase(Locale.ROOT);
+        int maxWidth = normalizedPurpose.contains("background") ? 3200 : 1800;
+        int maxHeight = normalizedPurpose.contains("background") ? 4800 : 1800;
+        OfferAssetStorageService.StoredAsset storedAsset = offerAssetStorageService.storeUploadedAsset(
+            marketId,
+            "template-" + slugify(normalizedPurpose),
+            file,
+            maxWidth,
+            maxHeight
+        );
+        return toAssetUploadDto(storedAsset);
     }
 
     @Transactional
@@ -299,7 +364,9 @@ public class OfferDesignerService {
         OfferTemplateVariant variant = resolveVariant(template, request.getVariantKey());
         OfferBrandKit brandKit = resolveBrandKit(marketId, template, request.getBrandKitId());
         OfferCampaignKit campaignKit = resolveCampaignKit(marketId, template, request.getCampaignKitId());
-        Map<String, Object> resolved = buildResolvedDesign(template, variant, brandKit, campaignKit, products);
+        OfferMarketProfile marketProfile = ensureStarterMarketProfile(marketId);
+        Map<String, Object> renderOptions = parseJsonObject(request.getRenderOptionsJson());
+        Map<String, Object> resolved = buildResolvedDesign(template, variant, brandKit, campaignKit, marketProfile, products, renderOptions);
         return new OfferTemplatePreviewDTO(
             template.getId(),
             template.getName(),
@@ -346,6 +413,7 @@ public class OfferDesignerService {
         UUID selectedBrandKitId = uuidFromText((String) renderOptions.get("brandKitId"));
         UUID selectedCampaignKitId = uuidFromText((String) renderOptions.get("campaignKitId"));
         List<OfferCatalogProductDTO> products = buildJobProducts(job.getId());
+        OfferMarketProfile marketProfile = ensureStarterMarketProfile(marketId);
         List<String> variantKeys = nonEmptyList(request.getVariantKeys(), List.of(normalizeText(job.getVariantKey(), "default")));
         List<String> outputTypes = nonEmptyList(request.getOutputTypes(), List.of(normalizeText(job.getOutputType(), "PNG")));
         List<String> publishTargets = nonEmptyList(request.getPublishTargets(), List.of("DOWNLOAD"));
@@ -356,7 +424,7 @@ public class OfferDesignerService {
             OfferTemplateVariant variant = resolveVariant(template, variantKey);
             OfferBrandKit brandKit = resolveBrandKit(marketId, template, selectedBrandKitId);
             OfferCampaignKit campaignKit = resolveCampaignKit(marketId, template, selectedCampaignKitId);
-            String resolvedDesignJson = writeJson(buildResolvedDesign(template, variant, brandKit, campaignKit, products));
+            String resolvedDesignJson = writeJson(buildResolvedDesign(template, variant, brandKit, campaignKit, marketProfile, products, renderOptions));
             for (String outputType : outputTypes) {
                 for (String publishTarget : publishTargets) {
                     OfferRenderOutput output = new OfferRenderOutput();
@@ -564,7 +632,7 @@ public class OfferDesignerService {
         job.setPageCount("CATALOG".equalsIgnoreCase(job.getGenerationMode())
             ? (int) Math.ceil(products.size() / 6.0d)
             : products.size());
-        job.setTemplateSnapshotJson(template.getDesignJson());
+        job.setTemplateSnapshotJson(writeJson(normalizeSchema(template)));
         job.setPublishTargetsJson(normalizeText(request.getPublishTargetsJson(), "[\"DOWNLOAD\"]"));
         job.setRenderOptionsJson(normalizeText(request.getRenderOptionsJson(), "{\"quality\":\"high\"}"));
         OfferGenerationJob savedJob = offerGenerationJobRepository.save(job);
@@ -622,7 +690,7 @@ public class OfferDesignerService {
         job.setPageCount("CATALOG".equalsIgnoreCase(job.getGenerationMode())
             ? (int) Math.ceil(products.size() / 6.0d)
             : products.size());
-        job.setTemplateSnapshotJson(template.getDesignJson());
+        job.setTemplateSnapshotJson(writeJson(normalizeSchema(template)));
         job.setPublishTargetsJson(normalizeText(request.getPublishTargetsJson(), "[\"DOWNLOAD\"]"));
         job.setRenderOptionsJson(normalizeText(request.getRenderOptionsJson(), "{\"quality\":\"high\"}"));
         OfferGenerationJob savedJob = offerGenerationJobRepository.save(job);
@@ -707,6 +775,7 @@ public class OfferDesignerService {
     private void ensureStarterData(UUID marketId) {
         OfferBrandKit brandKit = ensureStarterBrandKit(marketId);
         OfferCampaignKit campaignKit = ensureStarterCampaignKit(marketId);
+        ensureStarterMarketProfile(marketId);
         ensureStarterTemplates(marketId);
         offerTemplateRepository.findByMarket_IdOrderByIsSystemTemplateDescUpdatedAtDesc(marketId).forEach(template -> {
             boolean changed = false;
@@ -765,6 +834,18 @@ public class OfferDesignerService {
                 kit.setIsActive(true);
                 kit.setIsSystemKit(true);
                 return offerCampaignKitRepository.save(kit);
+            });
+    }
+
+    private OfferMarketProfile ensureStarterMarketProfile(UUID marketId) {
+        return offerMarketProfileRepository.findByMarket_Id(marketId)
+            .orElseGet(() -> {
+                Market market = findMarket(marketId);
+                OfferMarketProfile profile = new OfferMarketProfile();
+                profile.setMarket(market);
+                profile.setFooterContent(normalizeText(market.getName(), "Sua loja") + " · ofertas atualizadas no portal da loja");
+                profile.setFooterLegalText("Ofertas validas enquanto durarem os estoques. Imagens meramente ilustrativas.");
+                return offerMarketProfileRepository.save(profile);
             });
     }
 
@@ -869,7 +950,7 @@ public class OfferDesignerService {
             template.getDefaultVariantKey(),
             template.getBrandKit() != null ? template.getBrandKit().getId() : null,
             template.getCampaignKit() != null ? template.getCampaignKit().getId() : null,
-            template.getDesignJson(),
+            writeJson(normalizeSchema(template)),
             template.getPreviewImageUrl(),
             template.getIsActive(),
             template.getIsSystemTemplate(),
@@ -877,6 +958,25 @@ public class OfferDesignerService {
             template.getCreatedAt(),
             template.getUpdatedAt()
         );
+    }
+
+    private OfferMarketProfileDTO toMarketProfileDto(OfferMarketProfile profile) {
+        return new OfferMarketProfileDTO(
+            profile.getId(),
+            profile.getMarket() != null ? profile.getMarket().getId() : null,
+            profile.getFooterContent(),
+            profile.getFooterLegalText(),
+            profile.getPrimaryLogoUrl(),
+            profile.getPrimaryLogoStorageKey(),
+            profile.getSecondaryLogoUrl(),
+            profile.getSecondaryLogoStorageKey(),
+            profile.getCreatedAt(),
+            profile.getUpdatedAt()
+        );
+    }
+
+    private OfferAssetUploadDTO toAssetUploadDto(OfferAssetStorageService.StoredAsset asset) {
+        return new OfferAssetUploadDTO(asset.assetUrl(), asset.storageKey(), asset.width(), asset.height());
     }
 
     private OfferBrandKitDTO toBrandKitDto(OfferBrandKit kit) {
@@ -1034,7 +1134,31 @@ public class OfferDesignerService {
             })
             .toList();
     }
-    private String buildPosterTemplateJson() {
+
+    private void applyMarketProfileRequest(OfferMarketProfile profile, OfferMarketProfileUpsertRequest request) {
+        if (request == null) {
+            return;
+        }
+        if (request.getFooterContent() != null) {
+            profile.setFooterContent(emptyToNull(request.getFooterContent()));
+        }
+        if (request.getFooterLegalText() != null) {
+            profile.setFooterLegalText(emptyToNull(request.getFooterLegalText()));
+        }
+        if (request.getPrimaryLogoUrl() != null) {
+            profile.setPrimaryLogoUrl(emptyToNull(request.getPrimaryLogoUrl()));
+            if (profile.getPrimaryLogoUrl() == null) {
+                profile.setPrimaryLogoStorageKey(null);
+            }
+        }
+        if (request.getSecondaryLogoUrl() != null) {
+            profile.setSecondaryLogoUrl(emptyToNull(request.getSecondaryLogoUrl()));
+            if (profile.getSecondaryLogoUrl() == null) {
+                profile.setSecondaryLogoStorageKey(null);
+            }
+        }
+    }
+    private String buildPosterTemplateJsonLegacy() {
         try {
             return objectMapper.writeValueAsString(Map.of(
                 "version", 1,
@@ -1063,7 +1187,7 @@ public class OfferDesignerService {
         }
     }
 
-    private String buildFlyerTemplateJson() {
+    private String buildFlyerTemplateJsonLegacy() {
         try {
             return objectMapper.writeValueAsString(Map.of(
                 "version", 1,
@@ -1085,6 +1209,72 @@ public class OfferDesignerService {
             ));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Não foi possível montar o template de encarte", exception);
+        }
+    }
+
+    private String buildPosterTemplateJson() {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                "schemaVersion", 2,
+                "canvas", Map.of(
+                    "width", 1080,
+                    "height", 1350,
+                    "safeArea", Map.of("top", 48, "right", 48, "bottom", 48, "left", 48),
+                    "background", Map.of("type", "gradient", "start", "#fff7ef", "end", "#ffd4b4")
+                ),
+                "layers", List.of(
+                    Map.of("id", "kicker", "type", "tag", "binding", "campaign.kicker", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 72, "w", 260, "h", 44), "props", Map.of("fontSize", 24, "fontWeight", 700, "background", "rgba(255,255,255,0.86)", "radius", 999)),
+                    Map.of("id", "headline", "type", "text", "binding", "campaign.headline", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 132, "w", 620, "h", 124), "props", Map.of("fontSize", 58, "fontWeight", 800)),
+                    Map.of("id", "subheadline", "type", "text", "binding", "campaign.subheadline", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 268, "w", 640, "h", 88), "props", Map.of("fontSize", 28, "fontWeight", 500)),
+                    Map.of("id", "campaign-badge", "type", "campaignbadge", "binding", "static.assets.campaignBadgeUrl", "locked", true, "visible", true, "bounds", Map.of("x", 814, "y", 72, "w", 194, "h", 194), "props", Map.of("radius", 0, "frame", false, "fit", "contain")),
+                    Map.of("id", "footer", "type", "footer", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 1220, "w", 936, "h", 72), "props", Map.of("radius", 18, "background", "#2c1d17", "textColor", "#fff4ee", "containerOnly", true)),
+                    Map.of("id", "footer-content", "type", "text", "binding", "marketProfile.footer.content", "locked", true, "visible", true, "bounds", Map.of("x", 248, "y", 1232, "w", 452, "h", 46), "props", Map.of("fontSize", 15, "fontWeight", 600, "textColor", "#fff4ee")),
+                    Map.of("id", "footer-legal", "type", "text", "binding", "marketProfile.footer.legalText", "locked", true, "visible", true, "bounds", Map.of("x", 700, "y", 1232, "w", 288, "h", 46), "props", Map.of("fontSize", 12, "fontWeight", 500, "textColor", "#fff4ee")),
+                    Map.of("id", "footer-logo-left", "type", "image", "binding", "marketProfile.assets.primaryLogo.imageUrl", "locked", true, "visible", true, "bounds", Map.of("x", 88, "y", 1230, "w", 132, "h", 52), "props", Map.of("radius", 0, "frame", false, "fit", "contain")),
+                    Map.of("id", "footer-logo-right", "type", "image", "binding", "marketProfile.assets.secondaryLogo.imageUrl", "locked", true, "visible", false, "bounds", Map.of("x", 876, "y", 1230, "w", 116, "h", 52), "props", Map.of("radius", 0, "frame", false, "fit", "contain"))
+                ),
+                "productZones", List.of(
+                    Map.of("id", "content-zone", "name", "Area de conteudo", "zoneType", "single", "layout", "single", "columns", 1, "rows", 1, "slotCount", 1, "bounds", Map.of("x", 72, "y", 388, "w", 936, "h", 784), "cardTemplate", defaultCardTemplate())
+                ),
+                "bindings", Map.of("static", Map.of("assets", Map.of("backgroundImageUrl", "", "campaignBadgeUrl", ""))),
+                "brandTokens", Map.of(),
+                "campaignTokens", starterCampaignTokens("Oferta do dia")
+            ));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Nao foi possivel montar o template inicial", exception);
+        }
+    }
+
+    private String buildFlyerTemplateJson() {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                "schemaVersion", 2,
+                "canvas", Map.of(
+                    "width", 1600,
+                    "height", 2000,
+                    "safeArea", Map.of("top", 56, "right", 56, "bottom", 56, "left", 56),
+                    "background", Map.of("type", "solid", "color", "#fff6ee")
+                ),
+                "layers", List.of(
+                    Map.of("id", "kicker", "type", "tag", "binding", "campaign.kicker", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 64, "w", 260, "h", 48), "props", Map.of("fontSize", 24, "fontWeight", 700, "background", "rgba(255,255,255,0.86)", "radius", 999)),
+                    Map.of("id", "headline", "type", "text", "binding", "campaign.headline", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 132, "w", 920, "h", 128), "props", Map.of("fontSize", 54, "fontWeight", 800)),
+                    Map.of("id", "subheadline", "type", "text", "binding", "campaign.subheadline", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 272, "w", 980, "h", 96), "props", Map.of("fontSize", 28, "fontWeight", 500)),
+                    Map.of("id", "campaign-badge", "type", "campaignbadge", "binding", "static.assets.campaignBadgeUrl", "locked", true, "visible", true, "bounds", Map.of("x", 1310, "y", 72, "w", 210, "h", 210), "props", Map.of("radius", 0, "frame", false, "fit", "contain")),
+                    Map.of("id", "footer", "type", "footer", "locked", true, "visible", true, "bounds", Map.of("x", 72, "y", 1880, "w", 1456, "h", 72), "props", Map.of("radius", 18, "background", "#2c1d17", "textColor", "#fff4ee", "containerOnly", true)),
+                    Map.of("id", "footer-content", "type", "text", "binding", "marketProfile.footer.content", "locked", true, "visible", true, "bounds", Map.of("x", 276, "y", 1892, "w", 720, "h", 46), "props", Map.of("fontSize", 16, "fontWeight", 600, "textColor", "#fff4ee")),
+                    Map.of("id", "footer-legal", "type", "text", "binding", "marketProfile.footer.legalText", "locked", true, "visible", true, "bounds", Map.of("x", 1020, "y", 1892, "w", 480, "h", 46), "props", Map.of("fontSize", 12, "fontWeight", 500, "textColor", "#fff4ee")),
+                    Map.of("id", "footer-logo-left", "type", "image", "binding", "marketProfile.assets.primaryLogo.imageUrl", "locked", true, "visible", true, "bounds", Map.of("x", 88, "y", 1890, "w", 164, "h", 52), "props", Map.of("radius", 0, "frame", false, "fit", "contain")),
+                    Map.of("id", "footer-logo-right", "type", "image", "binding", "marketProfile.assets.secondaryLogo.imageUrl", "locked", true, "visible", false, "bounds", Map.of("x", 1360, "y", 1890, "w", 140, "h", 52), "props", Map.of("radius", 0, "frame", false, "fit", "contain"))
+                ),
+                "productZones", List.of(
+                    Map.of("id", "content-zone", "name", "Area de conteudo", "zoneType", "grid", "layout", "grid", "columns", 2, "rows", 3, "slotCount", 6, "bounds", Map.of("x", 72, "y", 408, "w", 1456, "h", 1428), "cardTemplate", defaultCardTemplate())
+                ),
+                "bindings", Map.of("static", Map.of("assets", Map.of("backgroundImageUrl", "", "campaignBadgeUrl", ""))),
+                "brandTokens", Map.of(),
+                "campaignTokens", starterCampaignTokens("Ofertas da semana")
+            ));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Nao foi possivel montar o template de encarte", exception);
         }
     }
 
@@ -1158,9 +1348,9 @@ public class OfferDesignerService {
             normalized.putIfAbsent("bindings", Map.of());
             normalized.putIfAbsent("brandTokens", Map.of());
             normalized.putIfAbsent("campaignTokens", Map.of());
-            return normalized;
+            return upgradeNormalizedSchema(normalized, width, height);
         }
-        return migrateLegacySchema(template, parsed, width, height);
+        return upgradeNormalizedSchema(migrateLegacySchema(template, parsed, width, height), width, height);
     }
 
     private Map<String, Object> migrateLegacySchema(OfferTemplate template, Map<String, Object> parsed, int width, int height) {
@@ -1183,7 +1373,7 @@ public class OfferDesignerService {
                 zone.put("rows", rows);
                 zone.put("slotCount", Math.max(1, columns * rows));
                 zone.put("bounds", boundsFromLegacySlot(slot, width, height));
-                zone.put("cardTemplate", Map.of("imageFit", "contain", "showBaselinePrice", true, "showUnit", true));
+                zone.put("cardTemplate", defaultCardTemplate());
                 zones.add(zone);
                 continue;
             }
@@ -1210,7 +1400,7 @@ public class OfferDesignerService {
             zone.put("rows", 3);
             zone.put("slotCount", "FLYER".equalsIgnoreCase(template.getChannel()) ? 6 : 1);
             zone.put("bounds", Map.of("x", 72, "y", 520, "w", Math.max(width - 144, 640), "h", Math.max(height - 720, 420)));
-            zone.put("cardTemplate", Map.of("imageFit", "contain", "showBaselinePrice", true, "showUnit", true));
+            zone.put("cardTemplate", defaultCardTemplate());
             zones.add(zone);
         }
 
@@ -1230,12 +1420,235 @@ public class OfferDesignerService {
         return migrated;
     }
 
+    private Map<String, Object> upgradeNormalizedSchema(Map<String, Object> normalized, int width, int height) {
+        Map<String, Object> upgraded = new LinkedHashMap<>(normalized);
+        List<Map<String, Object>> layers = new ArrayList<>(listOfMaps(upgraded.get("layers")));
+        List<Map<String, Object>> zones = new ArrayList<>(listOfMaps(upgraded.get("productZones")));
+        Map<String, Object> bindings = new LinkedHashMap<>(asMap(upgraded.get("bindings")));
+        Map<String, Object> staticBindings = new LinkedHashMap<>(asMap(bindings.get("static")));
+        Map<String, Object> staticFooter = new LinkedHashMap<>(asMap(staticBindings.get("footer")));
+
+        for (int index = 0; index < layers.size(); index++) {
+            Map<String, Object> layer = new LinkedHashMap<>(layers.get(index));
+            String layerId = normalizeText(String.valueOf(layer.get("id")), "").toLowerCase(Locale.ROOT);
+            String binding = normalizeText(String.valueOf(layer.get("binding")), null);
+            if ("kicker".equals(layerId) && (binding == null || binding.startsWith("static."))) {
+                layer.put("binding", "campaign.kicker");
+            } else if ("headline".equals(layerId) && (binding == null || binding.startsWith("static."))) {
+                layer.put("binding", "campaign.headline");
+            } else if ("subheadline".equals(layerId) && (binding == null || binding.startsWith("static."))) {
+                layer.put("binding", "campaign.subheadline");
+            } else if ("footer".equals(layerId) && "static.footer.text".equalsIgnoreCase(normalizeText(binding, ""))) {
+                Map<String, Object> props = new LinkedHashMap<>(asMap(layer.get("props")));
+                props.put("containerOnly", true);
+                layer.put("props", props);
+                layer.remove("binding");
+            } else if ("footer-logo-left".equals(layerId) && "static.footer.logoLeftUrl".equalsIgnoreCase(normalizeText(binding, ""))) {
+                layer.put("binding", "marketProfile.assets.primaryLogo.imageUrl");
+            } else if ("footer-logo-right".equals(layerId) && "static.footer.logoRightUrl".equalsIgnoreCase(normalizeText(binding, ""))) {
+                layer.put("binding", "marketProfile.assets.secondaryLogo.imageUrl");
+            }
+            layers.set(index, layer);
+        }
+
+        Map<String, Object> footerLayer = layers.stream()
+            .filter(layer -> "footer".equalsIgnoreCase(String.valueOf(layer.get("id"))))
+            .findFirst()
+            .orElse(null);
+        if (footerLayer != null) {
+            Map<String, Object> footerBounds = asMap(footerLayer.get("bounds"));
+            Map<String, Object> footerProps = new LinkedHashMap<>(asMap(footerLayer.get("props")));
+            footerProps.put("containerOnly", true);
+            footerLayer.put("props", footerProps);
+            footerLayer.remove("binding");
+
+            if (layers.stream().noneMatch(layer -> "footer-content".equalsIgnoreCase(String.valueOf(layer.get("id"))))) {
+                layers.add(newTextLayer(
+                    "footer-content",
+                    "Texto do rodape",
+                    "marketProfile.footer.content",
+                    intValue(footerBounds.get("x"), 72) + 168,
+                    intValue(footerBounds.get("y"), height - 148) + 12,
+                    Math.max(220, intValue(footerBounds.get("w"), width - 144) - 360),
+                    Math.max(22, intValue(footerBounds.get("h"), 72) - 20),
+                    15,
+                    600,
+                    true,
+                    colorText(footerProps.get("textColor"), "#fff4ee")
+                ));
+            }
+            if (layers.stream().noneMatch(layer -> "footer-legal".equalsIgnoreCase(String.valueOf(layer.get("id"))))) {
+                layers.add(newTextLayer(
+                    "footer-legal",
+                    "Aviso legal",
+                    "marketProfile.footer.legalText",
+                    intValue(footerBounds.get("x"), 72) + intValue(footerBounds.get("w"), width - 144) - 360,
+                    intValue(footerBounds.get("y"), height - 148) + 12,
+                    320,
+                    Math.max(22, intValue(footerBounds.get("h"), 72) - 20),
+                    12,
+                    500,
+                    true,
+                    colorText(footerProps.get("textColor"), "#fff4ee")
+                ));
+            }
+        }
+
+        if (layers.stream().noneMatch(layer -> "footer-logo-left".equalsIgnoreCase(String.valueOf(layer.get("id"))))) {
+            layers.add(newImageLayer("footer-logo-left", "Logo rodape esquerdo", "marketProfile.assets.primaryLogo.imageUrl", 88, height - 138, 140, 52, true));
+        }
+        if (layers.stream().noneMatch(layer -> "footer-logo-right".equalsIgnoreCase(String.valueOf(layer.get("id"))))) {
+            layers.add(newImageLayer("footer-logo-right", "Logo rodape direito", "marketProfile.assets.secondaryLogo.imageUrl", width - 228, height - 138, 140, 52, true));
+        }
+
+        if (zones.isEmpty()) {
+            Map<String, Object> zone = new LinkedHashMap<>();
+            zone.put("id", "content-zone");
+            zone.put("zoneType", "grid");
+            zone.put("layout", "grid");
+            zone.put("columns", 2);
+            zone.put("rows", 3);
+            zone.put("slotCount", 6);
+            zone.put("bounds", Map.of("x", 72, "y", 360, "w", Math.max(width - 144, 640), "h", Math.max(height - 540, 420)));
+            zone.put("cardTemplate", defaultCardTemplate());
+            zones.add(zone);
+        } else {
+            for (int index = 0; index < zones.size(); index++) {
+                Map<String, Object> zone = new LinkedHashMap<>(zones.get(index));
+                Map<String, Object> cardTemplate = new LinkedHashMap<>(defaultCardTemplate());
+                cardTemplate.putAll(asMap(zone.get("cardTemplate")));
+                zone.put("cardTemplate", cardTemplate);
+                zones.set(index, zone);
+            }
+        }
+
+        if (!staticFooter.isEmpty()) {
+            staticBindings.remove("footer");
+        }
+        bindings.put("static", staticBindings);
+        upgraded.put("bindings", bindings);
+        upgraded.put("layers", layers);
+        upgraded.put("productZones", zones);
+        upgraded.putIfAbsent("brandTokens", Map.of());
+        upgraded.putIfAbsent("campaignTokens", Map.of());
+        return upgraded;
+    }
+
+    private Map<String, Object> defaultCardTemplate() {
+        return new LinkedHashMap<>(Map.of(
+            "imageFit", "contain",
+            "showBaselinePrice", true,
+            "showUnit", true,
+            "showDescription", true,
+            "background", "#ffffff",
+            "borderColor", "#ead9ca",
+            "textColor", "#1f1613",
+            "priceBoxBackground", "#ff3b1f",
+            "priceBoxTextColor", "#ffffff",
+            "priceBoxLabelColor", "#fff1d6",
+            "priceLabel", "R$",
+            "cardRadius", 28,
+            "priceBoxRadius", 26,
+            "nameFontSize", 30,
+            "descriptionFontSize", 18,
+            "priceFontSize", 54
+        ));
+    }
+
+    private Map<String, Object> newTextLayer(
+        String id,
+        String name,
+        String binding,
+        int x,
+        int y,
+        int w,
+        int h,
+        int fontSize,
+        int fontWeight,
+        boolean locked,
+        String textColor
+    ) {
+        return new LinkedHashMap<>(Map.of(
+            "id", id,
+            "name", name,
+            "type", "text",
+            "binding", binding,
+            "locked", locked,
+            "visible", true,
+            "bounds", Map.of("x", x, "y", y, "w", w, "h", h),
+            "props", Map.of(
+                "fontSize", fontSize,
+                "fontWeight", fontWeight,
+                "textColor", textColor
+            )
+        ));
+    }
+
+    private Map<String, Object> newImageLayer(String id, String name, String binding, int x, int y, int w, int h, boolean locked) {
+        return new LinkedHashMap<>(Map.of(
+            "id", id,
+            "name", name,
+            "type", "image",
+            "binding", binding,
+            "locked", locked,
+            "visible", true,
+            "bounds", Map.of("x", x, "y", y, "w", w, "h", h),
+            "props", Map.of(
+                "radius", 0,
+                "frame", false,
+                "fit", "contain"
+            )
+        ));
+    }
+
+    private String colorText(Object value, String fallback) {
+        String normalized = normalizeText(String.valueOf(value), null);
+        return normalized != null && normalized.startsWith("#") ? normalized : fallback;
+    }
+
+    private Map<String, Object> buildCampaignTokens(OfferCampaignKit campaignKit, Map<String, Object> renderOptions) {
+        Map<String, Object> tokens = new LinkedHashMap<>(campaignKit != null ? parseJsonObject(campaignKit.getTokensJson()) : Map.of());
+        Map<String, Object> campaignCopy = asMap(renderOptions == null ? null : renderOptions.get("campaignCopy"));
+        if (!campaignCopy.isEmpty()) {
+            putIfPresent(tokens, "kicker", campaignCopy.get("kicker"));
+            putIfPresent(tokens, "headline", campaignCopy.get("headline"));
+            putIfPresent(tokens, "subheadline", campaignCopy.get("subheadline"));
+            putIfPresent(tokens, "badgeLabel", campaignCopy.get("badgeLabel"));
+        }
+        return tokens;
+    }
+
+    private Map<String, Object> marketProfileAsMap(OfferMarketProfile profile) {
+        if (profile == null) {
+            return Map.of();
+        }
+        return new LinkedHashMap<>(Map.of(
+            "footer", Map.of(
+                "content", normalizeText(profile.getFooterContent(), ""),
+                "legalText", normalizeText(profile.getFooterLegalText(), "")
+            ),
+            "assets", Map.of(
+                "primaryLogo", Map.of("imageUrl", normalizeText(profile.getPrimaryLogoUrl(), "")),
+                "secondaryLogo", Map.of("imageUrl", normalizeText(profile.getSecondaryLogoUrl(), ""))
+            )
+        ));
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        String normalized = normalizeText(value == null ? null : String.valueOf(value), null);
+        if (normalized != null) {
+            target.put(key, normalized);
+        }
+    }
+
     private Map<String, Object> buildResolvedDesign(
         OfferTemplate template,
         OfferTemplateVariant variant,
         OfferBrandKit brandKit,
         OfferCampaignKit campaignKit,
-        List<OfferCatalogProductDTO> products
+        OfferMarketProfile marketProfile,
+        List<OfferCatalogProductDTO> products,
+        Map<String, Object> renderOptions
     ) {
         Map<String, Object> normalized = normalizeSchema(template);
         Map<String, Object> resolved = new LinkedHashMap<>(normalized);
@@ -1248,8 +1661,10 @@ public class OfferDesignerService {
         resolved.put("canvas", canvas);
         resolved.put("brandTokens", brandKit != null ? parseJsonObject(brandKit.getTokensJson()) : Map.of());
         resolved.put("brandAssets", brandKit != null ? parseJsonObject(brandKit.getAssetsJson()) : Map.of());
-        resolved.put("campaignTokens", campaignKit != null ? parseJsonObject(campaignKit.getTokensJson()) : Map.of());
+        resolved.put("campaignTokens", buildCampaignTokens(campaignKit, renderOptions));
         resolved.put("campaignAssets", campaignKit != null ? parseJsonObject(campaignKit.getAssetsJson()) : Map.of());
+        resolved.put("marketProfile", marketProfileAsMap(marketProfile));
+        resolved.put("renderOptions", renderOptions == null ? Map.of() : renderOptions);
         resolved.put("resolvedProducts", products.stream().map(this::productAsMap).toList());
         resolved.put("zoneBindings", buildZoneBindings(normalized, products));
         return resolved;

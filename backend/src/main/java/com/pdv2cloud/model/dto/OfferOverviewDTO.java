@@ -16,6 +16,7 @@ public class OfferOverviewDTO {
     private List<OfferGenerationJobDTO> recentJobs;
     private List<OfferBrandKitDTO> brandKits;
     private List<OfferCampaignKitDTO> campaignKits;
+    private OfferMarketProfileDTO marketProfile;
     private List<ProductPerformanceDTO> replenishmentSuggestions;
     private List<ProductPerformanceDTO> seasonalSuggestions;
     private List<PromotionImpactDTO> promotionSuggestions;

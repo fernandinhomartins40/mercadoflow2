@@ -45,6 +45,7 @@ import {
   OfferCampaignKit,
   OfferCatalogProduct,
   OfferGenerationJob,
+  OfferMarketProfile,
   OfferOverview,
   OfferTemplate,
   OfferTemplatePreview,
@@ -103,6 +104,7 @@ const layerTypeIcon = (type?: string): LucideIcon => {
 const TOOL_OPTIONS = [
   { key: 'products', icon: PackageSearch, label: 'Produtos' },
   { key: 'themes', icon: LayoutTemplate, label: 'Temas' },
+  { key: 'market', icon: Factory, label: 'Marca' },
   { key: 'calendar', icon: CalendarDays, label: 'Datas' },
   { key: 'copy', icon: FileText, label: 'Texto' },
   { key: 'publish', icon: SendHorizontal, label: 'Publicar' },
@@ -153,13 +155,29 @@ type TemplateBuilderImageLayerDraft = TemplateBuilderBoundsDraft & {
   frame: boolean;
 };
 
-type TemplateBuilderFooterLayerDraft = TemplateBuilderBoundsDraft & {
-  text: string;
+type TemplateBuilderBoxLayerDraft = TemplateBuilderBoundsDraft & {
   visible: boolean;
   radius: string;
   background: string;
-  textColor: string;
+  textColor?: string;
   fontSize: string;
+};
+
+type TemplateBuilderCardDraft = {
+  background: string;
+  borderColor: string;
+  textColor: string;
+  cardRadius: string;
+  priceBoxBackground: string;
+  priceBoxTextColor: string;
+  priceLabel: string;
+  priceBoxRadius: string;
+  nameFontSize: string;
+  descriptionFontSize: string;
+  priceFontSize: string;
+  showUnit: boolean;
+  showDescription: boolean;
+  showBaselinePrice: boolean;
 };
 
 type TemplateBuilderZoneDraft = TemplateBuilderBoundsDraft & {
@@ -184,10 +202,13 @@ type TemplateBuilderDraft = {
   headline: TemplateBuilderTextLayerDraft;
   subheadline: TemplateBuilderTextLayerDraft;
   badge: TemplateBuilderImageLayerDraft;
-  footer: TemplateBuilderFooterLayerDraft;
+  footer: TemplateBuilderBoxLayerDraft;
+  footerContent: TemplateBuilderTextLayerDraft;
+  footerLegal: TemplateBuilderTextLayerDraft;
   footerLeftLogo: TemplateBuilderImageLayerDraft;
   footerRightLogo: TemplateBuilderImageLayerDraft;
   contentZone: TemplateBuilderZoneDraft;
+  card: TemplateBuilderCardDraft;
 };
 
 type SuperAdminMarketOption = {
@@ -352,6 +373,23 @@ const findLayer = (layers: JsonMap[], ids: string[], types: string[] = []) =>
     );
   }) || null;
 
+const defaultCardDraft = (): TemplateBuilderCardDraft => ({
+  background: '#ffffff',
+  borderColor: '#ead9ca',
+  textColor: '#1f1613',
+  cardRadius: '28',
+  priceBoxBackground: '#ff3b1f',
+  priceBoxTextColor: '#ffffff',
+  priceLabel: 'R$',
+  priceBoxRadius: '26',
+  nameFontSize: '30',
+  descriptionFontSize: '18',
+  priceFontSize: '54',
+  showUnit: true,
+  showDescription: true,
+  showBaselinePrice: true,
+});
+
 const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: OfferTemplateVariant | null): TemplateBuilderDraft => {
   const width = clampNumber(variant?.canvasWidth ?? template?.canvasWidth, 1080, 720, 3200);
   const height = clampNumber(variant?.canvasHeight ?? template?.canvasHeight, 1350, 720, 4800);
@@ -403,7 +441,6 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
       ...boundsDraft(width - safeX - Math.round(width * 0.2), safeY + 8, Math.round(width * 0.18), Math.round(width * 0.18)),
     },
     footer: {
-      text: 'Ofertas válidas enquanto durarem os estoques. Imagens meramente ilustrativas.',
       visible: true,
       radius: '18',
       background: '#2c1d17',
@@ -411,9 +448,23 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
       fontSize: '15',
       ...boundsDraft(safeX, footerY, width - safeX * 2, footerHeight),
     },
+    footerContent: {
+      text: 'Conteúdo principal do rodapé',
+      visible: true,
+      fontSize: '15',
+      fontWeight: '600',
+      ...boundsDraft(safeX + 176, footerY + 12, Math.round(width * 0.42), footerHeight - 24),
+    },
+    footerLegal: {
+      text: 'Aviso legal do mercado',
+      visible: true,
+      fontSize: '12',
+      fontWeight: '500',
+      ...boundsDraft(width - safeX - Math.round(width * 0.28), footerY + 12, Math.round(width * 0.24), footerHeight - 24),
+    },
     footerLeftLogo: {
       imageUrl: '',
-      visible: false,
+      visible: true,
       radius: '0',
       frame: false,
       ...boundsDraft(safeX + 16, footerY + 10, logoWidth, footerHeight - 20),
@@ -432,6 +483,7 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
       slotCount: '6',
       ...boundsDraft(safeX, contentTop, width - safeX * 2, Math.min(contentHeight, footerY - contentTop - 20)),
     },
+    card: defaultCardDraft(),
   };
 };
 
@@ -449,9 +501,12 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
   const subheadlineLayer = findLayer(layers, ['subheadline']);
   const badgeLayer = findLayer(layers, ['campaign-badge', 'badge3d', 'badge'], ['campaignbadge']);
   const footerLayer = findLayer(layers, ['footer'], ['footer']);
+  const footerContentLayer = findLayer(layers, ['footer-content']);
+  const footerLegalLayer = findLayer(layers, ['footer-legal']);
   const footerLeftLogoLayer = findLayer(layers, ['footer-logo-left', 'logo-left']);
   const footerRightLogoLayer = findLayer(layers, ['footer-logo-right', 'logo-right']);
   const contentZone = zones.find((zone) => String(zone.id || '').toLowerCase().includes('content')) || zones[0] || null;
+  const cardTemplate = asMap(contentZone?.cardTemplate);
 
   return {
     ...fallback,
@@ -467,7 +522,7 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     backgroundImageUrl: resolveStaticBinding(background.imageUrl, staticBindings, fallback.backgroundImageUrl),
     kicker: {
       ...fallback.kicker,
-      text: resolveStaticBinding(kickerLayer?.binding, staticBindings, fallback.kicker.text),
+      text: fallback.kicker.text,
       visible: kickerLayer?.visible !== false,
       fontSize: asText(kickerLayer?.props?.fontSize, fallback.kicker.fontSize),
       fontWeight: asText(kickerLayer?.props?.fontWeight, fallback.kicker.fontWeight),
@@ -475,7 +530,7 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     },
     headline: {
       ...fallback.headline,
-      text: resolveStaticBinding(headlineLayer?.binding, staticBindings, fallback.headline.text),
+      text: fallback.headline.text,
       visible: headlineLayer?.visible !== false,
       fontSize: asText(headlineLayer?.props?.fontSize, fallback.headline.fontSize),
       fontWeight: asText(headlineLayer?.props?.fontWeight, fallback.headline.fontWeight),
@@ -483,7 +538,7 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     },
     subheadline: {
       ...fallback.subheadline,
-      text: resolveStaticBinding(subheadlineLayer?.binding, staticBindings, fallback.subheadline.text),
+      text: fallback.subheadline.text,
       visible: subheadlineLayer?.visible !== false,
       fontSize: asText(subheadlineLayer?.props?.fontSize, fallback.subheadline.fontSize),
       fontWeight: asText(subheadlineLayer?.props?.fontWeight, fallback.subheadline.fontWeight),
@@ -499,7 +554,6 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     },
     footer: {
       ...fallback.footer,
-      text: resolveStaticBinding(footerLayer?.binding, staticBindings, fallback.footer.text),
       visible: footerLayer ? footerLayer.visible !== false : fallback.footer.visible,
       radius: asText(footerLayer?.props?.radius, fallback.footer.radius),
       background: asText(footerLayer?.props?.background, fallback.footer.background),
@@ -507,18 +561,30 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
       fontSize: asText(footerLayer?.props?.fontSize, fallback.footer.fontSize),
       ...parseLayerBoundsDraft(footerLayer, parseBoundsDraft(fallback.footer, { x: 0, y: 0, w: 1, h: 1 })),
     },
+    footerContent: {
+      ...fallback.footerContent,
+      visible: footerContentLayer ? footerContentLayer.visible !== false : fallback.footerContent.visible,
+      fontSize: asText(footerContentLayer?.props?.fontSize, fallback.footerContent.fontSize),
+      fontWeight: asText(footerContentLayer?.props?.fontWeight, fallback.footerContent.fontWeight),
+      ...parseLayerBoundsDraft(footerContentLayer, parseBoundsDraft(fallback.footerContent, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    footerLegal: {
+      ...fallback.footerLegal,
+      visible: footerLegalLayer ? footerLegalLayer.visible !== false : fallback.footerLegal.visible,
+      fontSize: asText(footerLegalLayer?.props?.fontSize, fallback.footerLegal.fontSize),
+      fontWeight: asText(footerLegalLayer?.props?.fontWeight, fallback.footerLegal.fontWeight),
+      ...parseLayerBoundsDraft(footerLegalLayer, parseBoundsDraft(fallback.footerLegal, { x: 0, y: 0, w: 1, h: 1 })),
+    },
     footerLeftLogo: {
       ...fallback.footerLeftLogo,
-      imageUrl: resolveStaticBinding(footerLeftLogoLayer?.binding, staticBindings, fallback.footerLeftLogo.imageUrl),
-      visible: footerLeftLogoLayer ? footerLeftLogoLayer.visible !== false : Boolean(fallback.footerLeftLogo.imageUrl),
+      visible: footerLeftLogoLayer ? footerLeftLogoLayer.visible !== false : fallback.footerLeftLogo.visible,
       radius: asText(footerLeftLogoLayer?.props?.radius, fallback.footerLeftLogo.radius),
       frame: Boolean(footerLeftLogoLayer?.props?.frame ?? fallback.footerLeftLogo.frame),
       ...parseLayerBoundsDraft(footerLeftLogoLayer, parseBoundsDraft(fallback.footerLeftLogo, { x: 0, y: 0, w: 1, h: 1 })),
     },
     footerRightLogo: {
       ...fallback.footerRightLogo,
-      imageUrl: resolveStaticBinding(footerRightLogoLayer?.binding, staticBindings, fallback.footerRightLogo.imageUrl),
-      visible: footerRightLogoLayer ? footerRightLogoLayer.visible !== false : Boolean(fallback.footerRightLogo.imageUrl),
+      visible: footerRightLogoLayer ? footerRightLogoLayer.visible !== false : fallback.footerRightLogo.visible,
       radius: asText(footerRightLogoLayer?.props?.radius, fallback.footerRightLogo.radius),
       frame: Boolean(footerRightLogoLayer?.props?.frame ?? fallback.footerRightLogo.frame),
       ...parseLayerBoundsDraft(footerRightLogoLayer, parseBoundsDraft(fallback.footerRightLogo, { x: 0, y: 0, w: 1, h: 1 })),
@@ -531,6 +597,23 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
       slotCount: asText(contentZone?.slotCount, fallback.contentZone.slotCount),
       ...parseLayerBoundsDraft(contentZone, parseBoundsDraft(fallback.contentZone, { x: 0, y: 0, w: 1, h: 1 })),
     },
+    card: {
+      ...fallback.card,
+      background: asText(cardTemplate.background, fallback.card.background),
+      borderColor: asText(cardTemplate.borderColor, fallback.card.borderColor),
+      textColor: asText(cardTemplate.textColor, fallback.card.textColor),
+      cardRadius: asText(cardTemplate.cardRadius, fallback.card.cardRadius),
+      priceBoxBackground: asText(cardTemplate.priceBoxBackground, fallback.card.priceBoxBackground),
+      priceBoxTextColor: asText(cardTemplate.priceBoxTextColor, fallback.card.priceBoxTextColor),
+      priceLabel: asText(cardTemplate.priceLabel, fallback.card.priceLabel),
+      priceBoxRadius: asText(cardTemplate.priceBoxRadius, fallback.card.priceBoxRadius),
+      nameFontSize: asText(cardTemplate.nameFontSize, fallback.card.nameFontSize),
+      descriptionFontSize: asText(cardTemplate.descriptionFontSize, fallback.card.descriptionFontSize),
+      priceFontSize: asText(cardTemplate.priceFontSize, fallback.card.priceFontSize),
+      showUnit: cardTemplate.showUnit !== false,
+      showDescription: cardTemplate.showDescription !== false,
+      showBaselinePrice: cardTemplate.showBaselinePrice !== false,
+    },
   };
 };
 
@@ -542,18 +625,12 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
   const subheadlineBounds = parseBoundsDraft(draft.subheadline, { x: 72, y: 280, w: 560, h: 100 });
   const badgeBounds = parseBoundsDraft(draft.badge, { x: width - 280, y: 72, w: 200, h: 200 });
   const footerBounds = parseBoundsDraft(draft.footer, { x: 72, y: height - 148, w: width - 144, h: 72 });
+  const footerContentBounds = parseBoundsDraft(draft.footerContent, { x: 248, y: height - 136, w: 452, h: 48 });
+  const footerLegalBounds = parseBoundsDraft(draft.footerLegal, { x: width - 360, y: height - 136, w: 280, h: 48 });
   const footerLeftBounds = parseBoundsDraft(draft.footerLeftLogo, { x: 88, y: height - 138, w: 140, h: 52 });
   const footerRightBounds = parseBoundsDraft(draft.footerRightLogo, { x: width - 228, y: height - 138, w: 140, h: 52 });
   const zoneBounds = parseBoundsDraft(draft.contentZone, { x: 72, y: 360, w: width - 144, h: height - 540 });
   const staticBindings = {
-    kicker: draft.kicker.text.trim() || 'Catálogo global',
-    headline: draft.headline.text.trim() || 'Template pronto para campanhas de ofertas.',
-    subheadline: draft.subheadline.text.trim() || 'Defina áreas, imagens e logos para receber os produtos automaticamente.',
-    footer: {
-      text: draft.footer.text.trim() || 'Ofertas válidas enquanto durarem os estoques. Imagens meramente ilustrativas.',
-      logoLeftUrl: draft.footerLeftLogo.imageUrl.trim(),
-      logoRightUrl: draft.footerRightLogo.imageUrl.trim(),
-    },
     assets: {
       backgroundImageUrl: draft.backgroundImageUrl.trim(),
       campaignBadgeUrl: draft.badge.imageUrl.trim(),
@@ -565,7 +642,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       id: 'kicker',
       name: 'Kicker',
       type: 'tag',
-      binding: 'static.kicker',
+      binding: 'campaign.kicker',
       locked: true,
       visible: draft.kicker.visible,
       bounds: kickerBounds,
@@ -580,7 +657,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       id: 'headline',
       name: 'Título principal',
       type: 'text',
-      binding: 'static.headline',
+      binding: 'campaign.headline',
       locked: true,
       visible: draft.headline.visible,
       bounds: headlineBounds,
@@ -593,7 +670,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       id: 'subheadline',
       name: 'Subtítulo',
       type: 'text',
-      binding: 'static.subheadline',
+      binding: 'campaign.subheadline',
       locked: true,
       visible: draft.subheadline.visible,
       bounds: subheadlineBounds,
@@ -620,7 +697,6 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       id: 'footer',
       name: 'Rodapé',
       type: 'footer',
-      binding: 'static.footer.text',
       locked: true,
       visible: draft.footer.visible,
       bounds: footerBounds,
@@ -629,13 +705,42 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
         background: draft.footer.background.trim() || '#2c1d17',
         textColor: draft.footer.textColor.trim() || '#fff4ee',
         fontSize: clampNumber(draft.footer.fontSize, 15, 10, 48),
+        containerOnly: true,
+      },
+    },
+    {
+      id: 'footer-content',
+      name: 'Conteúdo principal do rodapé',
+      type: 'text',
+      binding: 'marketProfile.footer.content',
+      locked: true,
+      visible: draft.footerContent.visible,
+      bounds: footerContentBounds,
+      props: {
+        fontSize: clampNumber(draft.footerContent.fontSize, 15, 10, 48),
+        fontWeight: clampNumber(draft.footerContent.fontWeight, 600, 300, 900),
+        textColor: draft.footer.textColor.trim() || '#fff4ee',
+      },
+    },
+    {
+      id: 'footer-legal',
+      name: 'Aviso legal do rodapé',
+      type: 'text',
+      binding: 'marketProfile.footer.legalText',
+      locked: true,
+      visible: draft.footerLegal.visible,
+      bounds: footerLegalBounds,
+      props: {
+        fontSize: clampNumber(draft.footerLegal.fontSize, 12, 10, 48),
+        fontWeight: clampNumber(draft.footerLegal.fontWeight, 500, 300, 900),
+        textColor: draft.footer.textColor.trim() || '#fff4ee',
       },
     },
     {
       id: 'footer-logo-left',
       name: 'Logo rodapé esquerdo',
       type: 'image',
-      binding: 'static.footer.logoLeftUrl',
+      binding: 'marketProfile.assets.primaryLogo.imageUrl',
       locked: true,
       visible: draft.footerLeftLogo.visible,
       bounds: footerLeftBounds,
@@ -649,7 +754,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       id: 'footer-logo-right',
       name: 'Logo rodapé direito',
       type: 'image',
-      binding: 'static.footer.logoRightUrl',
+      binding: 'marketProfile.assets.secondaryLogo.imageUrl',
       locked: true,
       visible: draft.footerRightLogo.visible,
       bounds: footerRightBounds,
@@ -699,8 +804,20 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
         bounds: zoneBounds,
         cardTemplate: {
           imageFit: 'contain',
-          showBaselinePrice: true,
-          showUnit: true,
+          background: draft.card.background.trim() || '#ffffff',
+          borderColor: draft.card.borderColor.trim() || '#ead9ca',
+          textColor: draft.card.textColor.trim() || '#1f1613',
+          cardRadius: clampNumber(draft.card.cardRadius, 28, 8, 80),
+          priceBoxBackground: draft.card.priceBoxBackground.trim() || '#ff3b1f',
+          priceBoxTextColor: draft.card.priceBoxTextColor.trim() || '#ffffff',
+          priceLabel: draft.card.priceLabel.trim() || 'R$',
+          priceBoxRadius: clampNumber(draft.card.priceBoxRadius, 26, 8, 80),
+          nameFontSize: clampNumber(draft.card.nameFontSize, 30, 14, 120),
+          descriptionFontSize: clampNumber(draft.card.descriptionFontSize, 18, 10, 72),
+          priceFontSize: clampNumber(draft.card.priceFontSize, 54, 18, 160),
+          showBaselinePrice: draft.card.showBaselinePrice,
+          showUnit: draft.card.showUnit,
+          showDescription: draft.card.showDescription,
         },
       },
     ],
@@ -716,18 +833,37 @@ const buildTemplateResolvedDesignFromDraft = (
   draft: TemplateBuilderDraft,
   brandKit?: OfferBrandKit | null,
   campaignKit?: OfferCampaignKit | null,
+  marketProfile?: OfferMarketProfile | null,
+  campaignCopy?: { kicker: string; headline: string; subheadline: string; badgeLabel: string } | null,
   products: OfferCatalogProduct[] = [],
 ) => {
   const design = buildTemplateDesignFromDraft(draft);
   const zone = asList(design.productZones)[0];
   const zoneId = String(zone?.id || 'content-zone');
   const slotCount = clampNumber(zone?.slotCount, 6, 1, 24);
+  const campaignTokens = {
+    ...(parseJson<JsonMap>(campaignKit?.tokensJson, {}) || {}),
+    kicker: campaignCopy?.kicker?.trim() || 'Oferta do dia',
+    headline: campaignCopy?.headline?.trim() || 'Template pronto para campanhas de ofertas.',
+    subheadline: campaignCopy?.subheadline?.trim() || 'Defina áreas, imagens e logos para receber os produtos automaticamente.',
+    badgeLabel: campaignCopy?.badgeLabel?.trim() || 'Oferta',
+  };
   return {
     ...design,
     brandTokens: parseJson<JsonMap>(brandKit?.tokensJson, {}) || {},
     brandAssets: parseJson<JsonMap>(brandKit?.assetsJson, {}) || {},
-    campaignTokens: parseJson<JsonMap>(campaignKit?.tokensJson, {}) || {},
+    campaignTokens,
     campaignAssets: parseJson<JsonMap>(campaignKit?.assetsJson, {}) || {},
+    marketProfile: {
+      footer: {
+        content: marketProfile?.footerContent || 'Conteúdo principal do rodapé',
+        legalText: marketProfile?.footerLegalText || 'Aviso legal do mercado',
+      },
+      assets: {
+        primaryLogo: { imageUrl: marketProfile?.primaryLogoUrl || '' },
+        secondaryLogo: { imageUrl: marketProfile?.secondaryLogoUrl || '' },
+      },
+    },
     resolvedProducts: products.map((product) => ({ ...product })),
     zoneBindings: {
       [zoneId]: products.slice(0, slotCount).map((product) => ({ ...product })),
@@ -954,6 +1090,7 @@ const OfferDesigner: React.FC = () => {
   const [campaignKits, setCampaignKits] = useState<OfferCampaignKit[]>([]);
   const [templateVariants, setTemplateVariants] = useState<OfferTemplateVariant[]>([]);
   const [superAdminMarkets, setSuperAdminMarkets] = useState<SuperAdminMarketOption[]>([]);
+  const [marketProfile, setMarketProfile] = useState<OfferMarketProfile | null>(null);
   const [selectedSuperAdminMarketId, setSelectedSuperAdminMarketId] = useState(requestedMarketId);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedVariantKey, setSelectedVariantKey] = useState('');
@@ -967,6 +1104,10 @@ const OfferDesigner: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
   const [bulkInput, setBulkInput] = useState('');
   const [jobName, setJobName] = useState('');
+  const [campaignKicker, setCampaignKicker] = useState('Oferta do dia');
+  const [campaignHeadline, setCampaignHeadline] = useState('Ofertas da semana');
+  const [campaignSubheadline, setCampaignSubheadline] = useState('Selecione os produtos para montar a arte automaticamente.');
+  const [campaignBadgeLabel, setCampaignBadgeLabel] = useState('Oferta');
   const [outputType, setOutputType] = useState('PNG');
   const [generationMode, setGenerationMode] = useState('CATALOG');
   const [gridPreset, setGridPreset] = useState('AUTO');
@@ -995,6 +1136,8 @@ const OfferDesigner: React.FC = () => {
   const [bulkSearching, setBulkSearching] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingMarketProfile, setSavingMarketProfile] = useState(false);
+  const [uploadingAsset, setUploadingAsset] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [lookupNotice, setLookupNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1035,7 +1178,7 @@ const OfferDesigner: React.FC = () => {
     [superAdminMarkets],
   );
   const visibleToolOptions = useMemo(
-    () => (isSuperAdminMode ? TOOL_OPTIONS.filter((tool) => tool.key !== 'publish') : TOOL_OPTIONS),
+    () => (isSuperAdminMode ? TOOL_OPTIONS.filter((tool) => tool.key === 'themes') : TOOL_OPTIONS),
     [isSuperAdminMode],
   );
   const stageProducts = useMemo(
@@ -1043,16 +1186,31 @@ const OfferDesigner: React.FC = () => {
     [itemsPerPage, selectedProducts, templateBuilderDraft.contentZone.slotCount],
   );
   const builderResolvedDesignJson = useMemo(
-    () => JSON.stringify(buildTemplateResolvedDesignFromDraft(templateBuilderDraft, selectedBrandKit, selectedCampaignKit, stageProducts)),
-    [selectedBrandKit, selectedCampaignKit, stageProducts, templateBuilderDraft],
+    () =>
+      JSON.stringify(
+        buildTemplateResolvedDesignFromDraft(
+          templateBuilderDraft,
+          selectedBrandKit,
+          selectedCampaignKit,
+          marketProfile,
+          {
+            kicker: campaignKicker,
+            headline: campaignHeadline,
+            subheadline: campaignSubheadline,
+            badgeLabel: campaignBadgeLabel,
+          },
+          stageProducts,
+        ),
+      ),
+    [campaignBadgeLabel, campaignHeadline, campaignKicker, campaignSubheadline, marketProfile, selectedBrandKit, selectedCampaignKit, stageProducts, templateBuilderDraft],
   );
   const stageGridLimit = useMemo(
     () => (activeTool === 'themes' ? clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24) : generationMode === 'CATALOG' ? itemsPerPage : 1),
     [activeTool, generationMode, itemsPerPage, templateBuilderDraft.contentZone.slotCount],
   );
   const effectiveResolvedDesignJson = useMemo(
-    () => (activeTool === 'themes' && selectedTemplateId ? builderResolvedDesignJson : preview?.resolvedDesignJson || null),
-    [activeTool, builderResolvedDesignJson, preview?.resolvedDesignJson, selectedTemplateId],
+    () => (activeTool === 'themes' ? builderResolvedDesignJson : preview?.resolvedDesignJson || null),
+    [activeTool, builderResolvedDesignJson, preview?.resolvedDesignJson],
   );
   const resolvedDesign = useMemo(() => parseJson<JsonMap>(effectiveResolvedDesignJson, {}) || {}, [effectiveResolvedDesignJson]);
   const resolvedLayers = useMemo(() => asList(resolvedDesign.layers), [resolvedDesign]);
@@ -1071,6 +1229,25 @@ const OfferDesigner: React.FC = () => {
   }, [activeZone, resolvedDesign]);
 
   const buildAdminDesignerRoute = (jobId: string) => `${routeBase}?${new URLSearchParams({ jobId }).toString()}`;
+
+  const buildRenderOptionsPayload = () => ({
+    quality: renderQuality,
+    coverEnabled,
+    gridPreset,
+    productBoxMode,
+    textMode,
+    colorMode,
+    footerMode,
+    zoomMode,
+    brandKitId: selectedBrandKitId || null,
+    campaignKitId: selectedCampaignKitId || null,
+    campaignCopy: {
+      kicker: campaignKicker,
+      headline: campaignHeadline,
+      subheadline: campaignSubheadline,
+      badgeLabel: campaignBadgeLabel,
+    },
+  });
 
   const socialCopy = useMemo(() => {
     const previewHeadline = readHeadline(preview);
@@ -1094,6 +1271,10 @@ const OfferDesigner: React.FC = () => {
   const resetCampaignDraft = () => {
     setActiveJobId('');
     setJobName('');
+    setCampaignKicker('Oferta do dia');
+    setCampaignHeadline('Ofertas da semana');
+    setCampaignSubheadline('Selecione os produtos para montar a arte automaticamente.');
+    setCampaignBadgeLabel('Oferta');
     setOutputType('PNG');
     setGenerationMode('CATALOG');
     setGridPreset('AUTO');
@@ -1114,11 +1295,16 @@ const OfferDesigner: React.FC = () => {
     campaignList: OfferCampaignKit[],
   ) => {
     const renderOptions = parseJson<JsonMap>(job.renderOptionsJson, {}) || {};
+    const campaignCopy = asMap(renderOptions.campaignCopy);
     const jobTemplateId = job.templateId || templateData[0]?.id || '';
     setActiveJobId(job.id);
     setSelectedTemplateId(jobTemplateId);
     await loadTemplateMeta(jobTemplateId, templateData, brandList, campaignList);
     setJobName(job.name || '');
+    setCampaignKicker(String(campaignCopy.kicker || 'Oferta do dia'));
+    setCampaignHeadline(String(campaignCopy.headline || job.name || 'Ofertas da semana'));
+    setCampaignSubheadline(String(campaignCopy.subheadline || 'Selecione os produtos para montar a arte automaticamente.'));
+    setCampaignBadgeLabel(String(campaignCopy.badgeLabel || 'Oferta'));
     setOutputType(job.outputType || 'PNG');
     setGenerationMode(job.generationMode || 'CATALOG');
     setSelectedVariantKey(job.variantKey || '');
@@ -1158,6 +1344,7 @@ const OfferDesigner: React.FC = () => {
         variantKey: selectedVariantKey || undefined,
         brandKitId: selectedBrandKitId || undefined,
         campaignKitId: selectedCampaignKitId || undefined,
+        renderOptionsJson: JSON.stringify(buildRenderOptionsPayload()),
         productIds: productIds || selectedProducts.map((product) => product.productId),
       };
       const data = mode === 'autofill'
@@ -1250,6 +1437,7 @@ const OfferDesigner: React.FC = () => {
         setOverview(null);
         setBrandKits([]);
         setCampaignKits([]);
+        setMarketProfile(null);
         setTemplateVariants([]);
         resetCampaignDraft();
         setSelectedTemplateId('');
@@ -1274,6 +1462,7 @@ const OfferDesigner: React.FC = () => {
         setOverview(overviewData);
         setBrandKits(overviewData.brandKits || []);
         setCampaignKits(overviewData.campaignKits || []);
+        setMarketProfile(overviewData.marketProfile || null);
         setResults([]);
         setPreview(null);
         if (requestedJobId && !isSuperAdminMode) {
@@ -1307,10 +1496,28 @@ const OfferDesigner: React.FC = () => {
       void refreshPreview('preview');
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [effectiveMarketId, selectedTemplateId, selectedVariantKey, selectedBrandKitId, selectedCampaignKitId, selectedProducts]);
+  }, [
+    campaignBadgeLabel,
+    campaignHeadline,
+    campaignKicker,
+    campaignSubheadline,
+    colorMode,
+    coverEnabled,
+    effectiveMarketId,
+    footerMode,
+    gridPreset,
+    productBoxMode,
+    selectedBrandKitId,
+    selectedCampaignKitId,
+    selectedProducts,
+    selectedTemplateId,
+    selectedVariantKey,
+    textMode,
+    zoomMode,
+  ]);
 
   useEffect(() => {
-    if (isSuperAdminMode && activeTool === 'publish') {
+    if (isSuperAdminMode && activeTool !== 'themes') {
       setActiveTool('themes');
     }
   }, [activeTool, isSuperAdminMode]);
@@ -1486,6 +1693,71 @@ const OfferDesigner: React.FC = () => {
     setLookupNotice(`${results.length} produtos da busca foram incluídos na fila.`);
   };
 
+  const handleMarketProfileField = (field: keyof OfferMarketProfile, value: string) => {
+    setMarketProfile((current) => ({ ...(current || { id: 'draft' }), [field]: value }));
+  };
+
+  const handleSaveMarketProfile = async () => {
+    if (!effectiveMarketId || isSuperAdminMode) return;
+    setSavingMarketProfile(true);
+    try {
+      const saved = await offersService.updateMarketProfile(effectiveMarketId, {
+        footerContent: marketProfile?.footerContent || '',
+        footerLegalText: marketProfile?.footerLegalText || '',
+        primaryLogoUrl: marketProfile?.primaryLogoUrl || '',
+        secondaryLogoUrl: marketProfile?.secondaryLogoUrl || '',
+      });
+      setMarketProfile(saved);
+      setLookupNotice('Perfil visual do mercado atualizado.');
+      await refreshPreview('preview');
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível salvar o perfil do mercado.');
+    } finally {
+      setSavingMarketProfile(false);
+    }
+  };
+
+  const handleUploadMarketLogo = async (slot: 'PRIMARY' | 'SECONDARY', file?: File | null) => {
+    if (!effectiveMarketId || !file || isSuperAdminMode) return;
+    setUploadingAsset(`market-${slot.toLowerCase()}`);
+    try {
+      const uploaded = await offersService.uploadMarketProfileLogo(effectiveMarketId, slot, file);
+      setMarketProfile((current) => ({
+        ...(current || { id: 'draft' }),
+        primaryLogoUrl: slot === 'PRIMARY' ? uploaded.assetUrl : current?.primaryLogoUrl || '',
+        secondaryLogoUrl: slot === 'SECONDARY' ? uploaded.assetUrl : current?.secondaryLogoUrl || '',
+      }));
+      setLookupNotice(slot === 'PRIMARY' ? 'Logo principal enviada.' : 'Logo secundária enviada.');
+      await refreshPreview('preview');
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível enviar a logo.');
+    } finally {
+      setUploadingAsset(null);
+    }
+  };
+
+  const handleUploadTemplateAsset = async (purpose: 'template-background' | 'template-badge', file?: File | null) => {
+    if (!isSuperAdminMode) {
+      setError('O upload de assets do template fica disponível apenas no painel super admin.');
+      return;
+    }
+    if (!effectiveMarketId || !file) return;
+    setUploadingAsset(purpose);
+    try {
+      const uploaded = await offersService.uploadTemplateAsset(effectiveMarketId, purpose, file);
+      if (purpose === 'template-background') {
+        setTemplateBuilderDraft((current) => ({ ...current, backgroundMode: 'image', backgroundImageUrl: uploaded.assetUrl }));
+      } else {
+        setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, imageUrl: uploaded.assetUrl, visible: true } }));
+      }
+      setLookupNotice(purpose === 'template-background' ? 'Imagem de fundo enviada.' : 'PNG do selo enviado.');
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível enviar o asset.');
+    } finally {
+      setUploadingAsset(null);
+    }
+  };
+
 
   const persistSelectedVariantDimensions = async (canvasWidth: number, canvasHeight: number) => {
     if (!effectiveMarketId || !selectedVariant) return;
@@ -1508,6 +1780,10 @@ const OfferDesigner: React.FC = () => {
   };
 
   const handleSaveTemplateBuilder = async () => {
+    if (!isSuperAdminMode) {
+      setError('A edição de templates fica disponível apenas no painel super admin.');
+      return;
+    }
     if (!effectiveMarketId || !selectedTemplateId || !selectedTemplate) return;
     const nextDesign = buildTemplateDesignFromDraft(templateBuilderDraft);
     const canvasWidth = clampNumber(templateBuilderDraft.canvasWidth, selectedTemplate.canvasWidth || 1080, 720, 3200);
@@ -1549,6 +1825,10 @@ const OfferDesigner: React.FC = () => {
   };
 
   const handleSaveStructure = async () => {
+    if (!isSuperAdminMode) {
+      setError('A edição de templates fica disponível apenas no painel super admin.');
+      return;
+    }
     if (!effectiveMarketId || !selectedTemplateId || !selectedTemplate) return;
     const parsedDesign = buildTemplateDesignFromDraft(templateBuilderDraft);
     const nextDesign: JsonMap = {
@@ -1637,6 +1917,10 @@ const OfferDesigner: React.FC = () => {
   };
 
   const handleCreateTemplateFromCurrent = async () => {
+    if (!isSuperAdminMode) {
+      setError('A criação de templates fica disponível apenas no painel super admin.');
+      return;
+    }
     if (!effectiveMarketId) {
       setError('Selecione uma conta antes de salvar um template.');
       return;
@@ -1695,18 +1979,7 @@ const OfferDesigner: React.FC = () => {
       generationMode,
       variantKey: selectedVariantKey || undefined,
       publishTargetsJson: JSON.stringify(publishTargets),
-      renderOptionsJson: JSON.stringify({
-        quality: renderQuality,
-        coverEnabled,
-        gridPreset,
-        productBoxMode,
-        textMode,
-        colorMode,
-        footerMode,
-        zoomMode,
-        brandKitId: selectedBrandKitId || null,
-        campaignKitId: selectedCampaignKitId || null,
-      }),
+      renderOptionsJson: JSON.stringify(buildRenderOptionsPayload()),
       productIds: selectedProducts.map((product) => product.productId),
     };
     setSaving(true);
@@ -1908,7 +2181,7 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-panel-header">
                   <div>
                     <span className="section-kicker">Temas</span>
-                    <h2>Template, variantes e kits</h2>
+                    <h2>{isSuperAdminMode ? 'Template builder' : 'Modelos prontos'}</h2>
                   </div>
                   {isSuperAdminMode ? (
                     <Button type="button" variant="secondary" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
@@ -1920,6 +2193,8 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}
                 </div>
+                {isSuperAdminMode ? (
+                <>
                 <div className="offer-studio-theme-grid">
                   <section className="offer-studio-theme-card md:col-span-2">
                     <div className="offer-studio-panel-subhead">
@@ -2083,12 +2358,32 @@ const OfferDesigner: React.FC = () => {
                         />
                       </label>
                       <label className="offer-studio-text-field md:col-span-2">
+                        <span>Upload da imagem de fundo</span>
+                        <input
+                          className="input"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={(event) => void handleUploadTemplateAsset('template-background', event.target.files?.[0])}
+                          disabled={uploadingAsset === 'template-background'}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field md:col-span-2">
                         <span>PNG do selo 3D</span>
                         <input
                           className="input"
                           value={templateBuilderDraft.badge.imageUrl}
                           onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, imageUrl: event.target.value } }))}
                           placeholder="https://..."
+                        />
+                      </label>
+                      <label className="offer-studio-text-field md:col-span-2">
+                        <span>Upload do selo 3D</span>
+                        <input
+                          className="input"
+                          type="file"
+                          accept="image/png,image/webp"
+                          onChange={(event) => void handleUploadTemplateAsset('template-badge', event.target.files?.[0])}
+                          disabled={uploadingAsset === 'template-badge'}
                         />
                       </label>
                       <label className="offer-studio-text-field">
@@ -2130,19 +2425,133 @@ const OfferDesigner: React.FC = () => {
 
                   <section className="offer-studio-theme-card">
                     <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Rodapé e logos</span>
-                      <small>Base da peça e logos posicionados em camada.</small>
+                      <span className="section-kicker">Card do produto</span>
+                      <small>Receita visual dos produtos dentro da area branca do template.</small>
                     </div>
                     <div className="offer-studio-edit-grid">
-                      <label className="offer-studio-text-field md:col-span-2">
-                        <span>Texto do rodapé</span>
-                        <textarea
-                          className="textarea"
-                          rows={3}
-                          value={templateBuilderDraft.footer.text}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, text: event.target.value } }))}
+                      <label className="offer-studio-text-field">
+                        <span>Fundo do card</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.background}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, background: event.target.value } }))}
                         />
                       </label>
+                      <label className="offer-studio-text-field">
+                        <span>Borda do card</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.borderColor}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, borderColor: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Cor do texto</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.textColor}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, textColor: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fundo do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceBoxBackground}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Texto do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceBoxTextColor}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxTextColor: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Prefixo do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceLabel}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabel: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Raio do card</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.cardRadius}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, cardRadius: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Raio do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceBoxRadius}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxRadius: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte do nome</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.nameFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, nameFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte da descricao</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.descriptionFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, descriptionFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceFontSize: event.target.value } }))}
+                        />
+                      </label>
+                    </div>
+                    <div className="offer-studio-check-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.card.showUnit}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, showUnit: event.target.checked } }))}
+                        />
+                        <span>Mostrar unidade</span>
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.card.showDescription}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, showDescription: event.target.checked } }))}
+                        />
+                        <span>Mostrar descricao</span>
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.card.showBaselinePrice}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, showBaselinePrice: event.target.checked } }))}
+                        />
+                        <span>Mostrar preco anterior</span>
+                      </label>
+                    </div>
+                  </section>
+
+                  <section className="offer-studio-theme-card">
+                    <div className="offer-studio-panel-subhead">
+                      <span className="section-kicker">Rodape</span>
+                      <small>O template define fundo, areas de texto e posicao das logos. O conteudo vem do mercado.</small>
+                    </div>
+                    <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
                         <span>Cor do fundo</span>
                         <input
@@ -2160,21 +2569,19 @@ const OfferDesigner: React.FC = () => {
                         />
                       </label>
                       <label className="offer-studio-text-field">
-                        <span>Logo esquerda</span>
+                        <span>Raio do rodape</span>
                         <input
                           className="input"
-                          value={templateBuilderDraft.footerLeftLogo.imageUrl}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, imageUrl: event.target.value } }))}
-                          placeholder="https://..."
+                          value={templateBuilderDraft.footer.radius}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, radius: event.target.value } }))}
                         />
                       </label>
                       <label className="offer-studio-text-field">
-                        <span>Logo direita</span>
+                        <span>Fonte base</span>
                         <input
                           className="input"
-                          value={templateBuilderDraft.footerRightLogo.imageUrl}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, imageUrl: event.target.value } }))}
-                          placeholder="https://..."
+                          value={templateBuilderDraft.footer.fontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, fontSize: event.target.value } }))}
                         />
                       </label>
                     </div>
@@ -2187,33 +2594,91 @@ const OfferDesigner: React.FC = () => {
                             setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, visible: event.target.checked } }))
                           }
                         />
-                        <span>Exibir rodapé</span>
+                        <span>Exibir rodape</span>
                       </label>
                       <label>
                         <input
                           type="checkbox"
-                          checked={templateBuilderDraft.footerLeftLogo.visible}
+                          checked={templateBuilderDraft.footerContent.visible}
                           onChange={(event) =>
-                            setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, visible: event.target.checked } }))
+                            setTemplateBuilderDraft((current) => ({ ...current, footerContent: { ...current.footerContent, visible: event.target.checked } }))
                           }
                         />
-                        <span>Exibir logo esquerda</span>
+                        <span>Exibir texto principal</span>
                       </label>
                       <label>
                         <input
                           type="checkbox"
-                          checked={templateBuilderDraft.footerRightLogo.visible}
+                          checked={templateBuilderDraft.footerLegal.visible}
                           onChange={(event) =>
-                            setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, visible: event.target.checked } }))
+                            setTemplateBuilderDraft((current) => ({ ...current, footerLegal: { ...current.footerLegal, visible: event.target.checked } }))
                           }
                         />
-                        <span>Exibir logo direita</span>
+                        <span>Exibir aviso legal</span>
                       </label>
                     </div>
                     <StudioBoundsFields
                       value={templateBuilderDraft.footer}
                       onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, ...next } }))}
                     />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                        <div className="offer-studio-panel-subhead">
+                          <span className="section-kicker">Conteudo principal</span>
+                          <small>Area do texto principal do mercado</small>
+                        </div>
+                        <div className="offer-studio-edit-grid">
+                          <label className="offer-studio-text-field">
+                            <span>Fonte</span>
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footerContent.fontSize}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerContent: { ...current.footerContent, fontSize: event.target.value } }))}
+                            />
+                          </label>
+                          <label className="offer-studio-text-field">
+                            <span>Peso</span>
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footerContent.fontWeight}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerContent: { ...current.footerContent, fontWeight: event.target.value } }))}
+                            />
+                          </label>
+                        </div>
+                        <StudioBoundsFields
+                          value={templateBuilderDraft.footerContent}
+                          onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footerContent: { ...current.footerContent, ...next } }))}
+                        />
+                      </div>
+                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                        <div className="offer-studio-panel-subhead">
+                          <span className="section-kicker">Aviso legal</span>
+                          <small>Area do texto secundario do mercado</small>
+                        </div>
+                        <div className="offer-studio-edit-grid">
+                          <label className="offer-studio-text-field">
+                            <span>Fonte</span>
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footerLegal.fontSize}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerLegal: { ...current.footerLegal, fontSize: event.target.value } }))}
+                            />
+                          </label>
+                          <label className="offer-studio-text-field">
+                            <span>Peso</span>
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footerLegal.fontWeight}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerLegal: { ...current.footerLegal, fontWeight: event.target.value } }))}
+                            />
+                          </label>
+                        </div>
+                        <StudioBoundsFields
+                          value={templateBuilderDraft.footerLegal}
+                          onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footerLegal: { ...current.footerLegal, ...next } }))}
+                        />
+                      </div>
+                    </div>
                   </section>
 
                   <section className="offer-studio-theme-card md:col-span-2">
@@ -2266,8 +2731,41 @@ const OfferDesigner: React.FC = () => {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
                         <div className="offer-studio-panel-subhead">
-                          <span className="section-kicker">Logo esquerda</span>
-                          <small>Dimensões da camada</small>
+                          <span className="section-kicker">Logo primaria</span>
+                          <small>Area da logo do mercado</small>
+                        </div>
+                        <div className="offer-studio-check-row">
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={templateBuilderDraft.footerLeftLogo.visible}
+                              onChange={(event) =>
+                                setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, visible: event.target.checked } }))
+                              }
+                            />
+                            <span>Exibir logo</span>
+                          </label>
+                        </div>
+                        <div className="offer-studio-edit-grid">
+                          <label className="offer-studio-text-field">
+                            <span>Raio</span>
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footerLeftLogo.radius}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, radius: event.target.value } }))}
+                            />
+                          </label>
+                          <label className="offer-studio-text-field">
+                            <span>Moldura</span>
+                            <select
+                              className="input"
+                              value={templateBuilderDraft.footerLeftLogo.frame ? 'yes' : 'no'}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, frame: event.target.value === 'yes' } }))}
+                            >
+                              <option value="no">Sem moldura</option>
+                              <option value="yes">Com moldura</option>
+                            </select>
+                          </label>
                         </div>
                         <StudioBoundsFields
                           value={templateBuilderDraft.footerLeftLogo}
@@ -2276,8 +2774,41 @@ const OfferDesigner: React.FC = () => {
                       </div>
                       <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
                         <div className="offer-studio-panel-subhead">
-                          <span className="section-kicker">Logo direita</span>
-                          <small>Dimensões da camada</small>
+                          <span className="section-kicker">Logo secundaria</span>
+                          <small>Area opcional do rodape</small>
+                        </div>
+                        <div className="offer-studio-check-row">
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={templateBuilderDraft.footerRightLogo.visible}
+                              onChange={(event) =>
+                                setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, visible: event.target.checked } }))
+                              }
+                            />
+                            <span>Exibir logo</span>
+                          </label>
+                        </div>
+                        <div className="offer-studio-edit-grid">
+                          <label className="offer-studio-text-field">
+                            <span>Raio</span>
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footerRightLogo.radius}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, radius: event.target.value } }))}
+                            />
+                          </label>
+                          <label className="offer-studio-text-field">
+                            <span>Moldura</span>
+                            <select
+                              className="input"
+                              value={templateBuilderDraft.footerRightLogo.frame ? 'yes' : 'no'}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, frame: event.target.value === 'yes' } }))}
+                            >
+                              <option value="no">Sem moldura</option>
+                              <option value="yes">Com moldura</option>
+                            </select>
+                          </label>
                         </div>
                         <StudioBoundsFields
                           value={templateBuilderDraft.footerRightLogo}
@@ -2484,6 +3015,226 @@ const OfferDesigner: React.FC = () => {
                     ) : null}
                   </section>
                 </div>
+                </>
+                ) : (
+                  <div className="offer-studio-theme-grid">
+                    <section className="offer-studio-theme-card md:col-span-2">
+                      <div className="offer-studio-panel-subhead">
+                        <span className="section-kicker">Template em uso</span>
+                        <small>O painel admin apenas escolhe templates prontos. A estrutura e mantida no super admin.</small>
+                      </div>
+                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-4 text-sm text-[color:var(--text-secondary)]">
+                        <strong className="block text-base text-[color:var(--text-primary)]">{selectedTemplate?.name || 'Selecione um template'}</strong>
+                        <p className="mt-2">{selectedTemplate?.description || 'Escolha um template para montar encartes com produtos reais, logo e rodape do mercado.'}</p>
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3">
+                          <span className="section-kicker">Canvas</span>
+                          <strong className="mt-1 block text-2xl">{selectedVariant?.canvasWidth || selectedTemplate?.canvasWidth || clampNumber(templateBuilderDraft.canvasWidth, 1080, 720, 3200)} x {selectedVariant?.canvasHeight || selectedTemplate?.canvasHeight || clampNumber(templateBuilderDraft.canvasHeight, 1350, 720, 4800)}</strong>
+                        </div>
+                        <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3">
+                          <span className="section-kicker">Slots</span>
+                          <strong className="mt-1 block text-2xl">{templateBuilderDraft.contentZone.slotCount}</strong>
+                        </div>
+                        <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3">
+                          <span className="section-kicker">Rodape</span>
+                          <strong className="mt-1 block text-2xl">{templateBuilderDraft.footer.visible ? 'Ativo' : 'Oculto'}</strong>
+                        </div>
+                      </div>
+                      <div className="offer-studio-inline-actions wrap">
+                        <Button type="button" variant="secondary" onClick={() => void refreshPreview('preview')} disabled={!selectedTemplateId}>
+                          <RefreshCw size={16} strokeWidth={2.1} />
+                          Atualizar previa
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
+                          <Boxes size={16} strokeWidth={2.1} />
+                          Ver campanhas
+                        </Button>
+                      </div>
+                    </section>
+
+                    <section className="offer-studio-theme-card">
+                      <div className="offer-studio-panel-subhead">
+                        <span className="section-kicker">Estrutura</span>
+                        <small>Resumo rapido da area de produtos e do rodape.</small>
+                      </div>
+                      <div className="offer-studio-property-grid">
+                        <StudioPropertyRow label="Layout" value={templateBuilderDraft.contentZone.layout} />
+                        <StudioPropertyRow label="Colunas x linhas" value={`${templateBuilderDraft.contentZone.columns} x ${templateBuilderDraft.contentZone.rows}`} />
+                        <StudioPropertyRow label="Camadas" value={String(validation?.layerCount || resolvedLayers.length || 0)} />
+                        <StudioPropertyRow label="Zonas" value={String(validation?.zoneCount || resolvedZones.length || 0)} />
+                        <StudioPropertyRow label="Logo primaria" value={templateBuilderDraft.footerLeftLogo.visible ? 'Sim' : 'Nao'} />
+                        <StudioPropertyRow label="Logo secundaria" value={templateBuilderDraft.footerRightLogo.visible ? 'Sim' : 'Nao'} />
+                      </div>
+                    </section>
+
+                    <section className="offer-studio-theme-card">
+                      <div className="offer-studio-panel-subhead">
+                        <span className="section-kicker">Card do produto</span>
+                        <small>Receita visual usada para cada item da campanha.</small>
+                      </div>
+                      <div className="offer-studio-property-grid">
+                        <StudioPropertyRow label="Raio do card" value={`${templateBuilderDraft.card.cardRadius}px`} />
+                        <StudioPropertyRow label="Raio do preco" value={`${templateBuilderDraft.card.priceBoxRadius}px`} />
+                        <StudioPropertyRow label="Mostrar unidade" value={templateBuilderDraft.card.showUnit ? 'Sim' : 'Nao'} />
+                        <StudioPropertyRow label="Mostrar descricao" value={templateBuilderDraft.card.showDescription ? 'Sim' : 'Nao'} />
+                        <StudioPropertyRow label="Preco anterior" value={templateBuilderDraft.card.showBaselinePrice ? 'Sim' : 'Nao'} />
+                        <StudioPropertyRow label="Prefixo" value={templateBuilderDraft.card.priceLabel} />
+                      </div>
+                    </section>
+
+                    <section className="offer-studio-theme-card md:col-span-2">
+                      <div className="offer-studio-panel-subhead">
+                        <span className="section-kicker">Camadas e zonas</span>
+                        <small>Consulta somente leitura do template selecionado.</small>
+                      </div>
+                      <div className="offer-studio-theme-grid">
+                        <section className="offer-studio-theme-card">
+                          <div className="offer-studio-panel-subhead">
+                            <span className="section-kicker">Camadas</span>
+                            <small>{resolvedLayers.length} itens</small>
+                          </div>
+                          <div className="offer-studio-structure-list">
+                            {resolvedLayers.length ? (
+                              resolvedLayers.map((layer, index) => (
+                                <StudioLayerRow
+                                  key={String(layer.id || `layer-${index}`)}
+                                  layer={layer}
+                                  active={String(layer.id || '') === String(activeLayer?.id || '')}
+                                  onSelect={() => setSelectedLayerId(String(layer.id || ''))}
+                                />
+                              ))
+                            ) : (
+                              <div className="offer-studio-empty-card slim">Nenhuma camada resolvida para este template.</div>
+                            )}
+                          </div>
+                        </section>
+                        <section className="offer-studio-theme-card">
+                          <div className="offer-studio-panel-subhead">
+                            <span className="section-kicker">Zonas de produto</span>
+                            <small>{resolvedZones.length} areas</small>
+                          </div>
+                          <div className="offer-studio-zone-list">
+                            {resolvedZones.length ? (
+                              resolvedZones.map((zone, index) => (
+                                <StudioZoneCard
+                                  key={String(zone.id || `zone-${index}`)}
+                                  zone={zone}
+                                  active={String(zone.id || '') === String(activeZone?.id || '')}
+                                  onSelect={() => setSelectedZoneId(String(zone.id || ''))}
+                                />
+                              ))
+                            ) : (
+                              <div className="offer-studio-empty-card slim">Nenhuma zona de produto foi resolvida.</div>
+                            )}
+                          </div>
+                        </section>
+                      </div>
+                    </section>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {activeTool === 'market' ? (
+              <div className="offer-studio-panel-stack">
+                <div className="offer-studio-panel-header compact">
+                  <div>
+                    <span className="section-kicker">Marca</span>
+                    <h2>Perfil visual do mercado</h2>
+                  </div>
+                </div>
+
+                <section className="offer-studio-theme-card">
+                  <div className="offer-studio-panel-subhead">
+                    <span className="section-kicker">Rodape da conta</span>
+                    <small>O template reserva a area. Aqui o mercado define textos e logos que vao preencher o rodape.</small>
+                  </div>
+                  <div className="offer-studio-edit-grid">
+                    <label className="offer-studio-text-field md:col-span-2">
+                      <span>Conteudo principal do rodape</span>
+                      <textarea
+                        className="textarea"
+                        rows={4}
+                        value={marketProfile?.footerContent || ''}
+                        onChange={(event) => handleMarketProfileField('footerContent', event.target.value)}
+                        placeholder="Ex.: ofertas validas no fim de semana, endereco da loja, horario ou mensagem principal."
+                      />
+                    </label>
+                    <label className="offer-studio-text-field md:col-span-2">
+                      <span>Aviso legal do rodape</span>
+                      <textarea
+                        className="textarea"
+                        rows={4}
+                        value={marketProfile?.footerLegalText || ''}
+                        onChange={(event) => handleMarketProfileField('footerLegalText', event.target.value)}
+                        placeholder="Ex.: imagens meramente ilustrativas. consulte disponibilidade na loja."
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="offer-studio-theme-card">
+                  <div className="offer-studio-panel-subhead">
+                    <span className="section-kicker">Logos do rodape</span>
+                    <small>Essas imagens sao aplicadas nas areas reservadas pelo template.</small>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <div className="offer-studio-panel-subhead">
+                        <span className="section-kicker">Logo principal</span>
+                        <small>Slot esquerdo</small>
+                      </div>
+                      <div className="mb-4 flex h-28 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+                        {marketProfile?.primaryLogoUrl ? (
+                          <OfferProductImage src={marketProfile.primaryLogoUrl} alt="Logo principal" className="h-full w-full object-contain p-4" />
+                        ) : (
+                          <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                        )}
+                      </div>
+                      <label className="offer-studio-text-field">
+                        <span>Upload da logo principal</span>
+                        <input
+                          className="input"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          onChange={(event) => void handleUploadMarketLogo('PRIMARY', event.target.files?.[0])}
+                          disabled={uploadingAsset === 'market-primary'}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <div className="offer-studio-panel-subhead">
+                        <span className="section-kicker">Logo secundaria</span>
+                        <small>Slot direito</small>
+                      </div>
+                      <div className="mb-4 flex h-28 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+                        {marketProfile?.secondaryLogoUrl ? (
+                          <OfferProductImage src={marketProfile.secondaryLogoUrl} alt="Logo secundaria" className="h-full w-full object-contain p-4" />
+                        ) : (
+                          <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                        )}
+                      </div>
+                      <label className="offer-studio-text-field">
+                        <span>Upload da logo secundaria</span>
+                        <input
+                          className="input"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          onChange={(event) => void handleUploadMarketLogo('SECONDARY', event.target.files?.[0])}
+                          disabled={uploadingAsset === 'market-secondary'}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="offer-studio-inline-actions wrap">
+                    <Button type="button" onClick={() => void handleSaveMarketProfile()} disabled={savingMarketProfile}>
+                      <Factory size={16} strokeWidth={2.1} />
+                      {savingMarketProfile ? 'Salvando...' : 'Salvar perfil do mercado'}
+                    </Button>
+                  </div>
+                </section>
               </div>
             ) : null}
 
@@ -2548,15 +3299,45 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-panel-header compact">
                   <div>
                     <span className="section-kicker">Texto</span>
-                    <h2>Legenda automática</h2>
+                    <h2>Campanha e legenda</h2>
                   </div>
                   <Button type="button" variant="secondary" onClick={handleCopyText} disabled={copying}>
                     <Copy size={16} strokeWidth={2.1} />
                     {copying ? 'Copiando...' : 'Copiar texto'}
                   </Button>
                 </div>
+                <section className="offer-studio-theme-card">
+                  <div className="offer-studio-panel-subhead">
+                    <span className="section-kicker">Texto da arte</span>
+                    <small>Esses campos alimentam o topo do template sem alterar a estrutura.</small>
+                  </div>
+                  <div className="offer-studio-edit-grid">
+                    <label className="offer-studio-text-field">
+                      <span>Kicker</span>
+                      <input className="input" value={campaignKicker} onChange={(event) => setCampaignKicker(event.target.value)} placeholder="Ex.: Ofertao da semana" />
+                    </label>
+                    <label className="offer-studio-text-field">
+                      <span>Selo</span>
+                      <input className="input" value={campaignBadgeLabel} onChange={(event) => setCampaignBadgeLabel(event.target.value)} placeholder="Ex.: Oferta" />
+                    </label>
+                    <label className="offer-studio-text-field md:col-span-2">
+                      <span>Titulo</span>
+                      <input className="input" value={campaignHeadline} onChange={(event) => setCampaignHeadline(event.target.value)} placeholder="Ex.: Ofertas da semana" />
+                    </label>
+                    <label className="offer-studio-text-field md:col-span-2">
+                      <span>Subtitulo</span>
+                      <textarea
+                        className="textarea"
+                        rows={4}
+                        value={campaignSubheadline}
+                        onChange={(event) => setCampaignSubheadline(event.target.value)}
+                        placeholder="Ex.: selecione produtos para montar a arte automaticamente."
+                      />
+                    </label>
+                  </div>
+                </section>
                 <div className="offer-studio-copy-box">
-                  <p>Gere um texto de apoio para redes sociais e comunicação acessível com base nos produtos já selecionados e na campanha ativa.</p>
+                  <p>Gere um texto de apoio para redes sociais e comunicacao acessivel com base nos produtos selecionados e na campanha ativa.</p>
                   <textarea className="textarea" rows={18} value={socialCopy} readOnly />
                 </div>
               </div>
@@ -2645,17 +3426,21 @@ const OfferDesigner: React.FC = () => {
               <StudioSelectField label="Variante" value={selectedVariantKey} onChange={setSelectedVariantKey} options={variantOptions.length ? variantOptions : [{ value: '', label: 'Formato principal' }]} />
               <StudioSelectField label="Brand kit" value={selectedBrandKitId} onChange={setSelectedBrandKitId} options={brandKitOptions.length ? brandKitOptions : [{ value: '', label: 'Sem brand kit' }]} />
               <StudioSelectField label="Campanha" value={selectedCampaignKitId} onChange={setSelectedCampaignKitId} options={campaignKitOptions.length ? campaignKitOptions : [{ value: '', label: 'Sem campanha' }]} />
-              <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...GRID_PRESET_OPTIONS]} />
-              <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
-              <StudioSelectField label="Texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
-              <StudioSelectField label="Cores" value={colorMode} onChange={setColorMode} options={[...COLOR_MODE_OPTIONS]} />
-              <label className="offer-studio-toggle-field">
-                <span>Gerar capa</span>
-                <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
-                  <span />
-                </button>
-              </label>
-              <StudioSelectField label="Rodapé" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
+              {!isSuperAdminMode ? (
+                <>
+                  <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...GRID_PRESET_OPTIONS]} />
+                  <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
+                  <StudioSelectField label="Texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
+                  <StudioSelectField label="Cores" value={colorMode} onChange={setColorMode} options={[...COLOR_MODE_OPTIONS]} />
+                  <label className="offer-studio-toggle-field">
+                    <span>Gerar capa</span>
+                    <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
+                      <span />
+                    </button>
+                  </label>
+                  <StudioSelectField label="Rodape" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
+                </>
+              ) : null}
               <StudioSelectField label="Zoom" value={zoomMode} onChange={setZoomMode} options={[...ZOOM_OPTIONS]} />
             </div>
 
@@ -2672,8 +3457,17 @@ const OfferDesigner: React.FC = () => {
                   </div>
                 </div>
                 <div className="offer-studio-stage-meta">
-                  <span>{generationMode === 'CATALOG' ? 'Encarte automático' : 'Peças individuais'}</span>
-                  <span>{stageGridLimit} slots</span>
+                  {isSuperAdminMode ? (
+                    <>
+                      <span>{templateBuilderDraft.channel || 'PRINT'}</span>
+                      <span>{templateBuilderDraft.contentZone.slotCount} slots</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{generationMode === 'CATALOG' ? 'Encarte automático' : 'Peças individuais'}</span>
+                      <span>{stageGridLimit} slots</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -2685,26 +3479,42 @@ const OfferDesigner: React.FC = () => {
 
               <div className="offer-studio-output-bar">
                 <div className="offer-studio-output-meta">
-                  <strong>Página 1 de {pageEstimate}</strong>
-                  <span>{selectedProducts.length} produtos selecionados</span>
-                  <span>{validation?.layerCount || 0} camadas · {validation?.zoneCount || 0} zonas</span>
+                  {isSuperAdminMode ? (
+                    <>
+                      <strong>{selectedVariant?.canvasWidth || clampNumber(templateBuilderDraft.canvasWidth, 1080, 720, 3200)} x {selectedVariant?.canvasHeight || clampNumber(templateBuilderDraft.canvasHeight, 1350, 720, 4800)}</strong>
+                      <span>{validation?.layerCount || resolvedLayers.length || 0} camadas</span>
+                      <span>{validation?.zoneCount || resolvedZones.length || 0} zonas</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>Página 1 de {pageEstimate}</strong>
+                      <span>{selectedProducts.length} produtos selecionados</span>
+                      <span>{validation?.layerCount || 0} camadas · {validation?.zoneCount || 0} zonas</span>
+                    </>
+                  )}
                 </div>
                 <div className="offer-studio-output-actions">
                   <Button type="button" variant="secondary" onClick={() => setActiveTool('themes')}>
                     <LayoutTemplate size={16} strokeWidth={2.1} />
                     Modelos
                   </Button>
-                  <Button type="button" variant="secondary" onClick={() => void refreshPreview('autofill')}>
-                    <WandSparkles size={16} strokeWidth={2.1} />
-                    Auto-fill
-                  </Button>
                   {isSuperAdminMode ? (
-                    <Button type="button" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
-                      <LayoutTemplate size={16} strokeWidth={2.1} />
-                      {saving ? 'Salvando...' : 'Salvar template'}
-                    </Button>
+                    <>
+                      <Button type="button" variant="secondary" onClick={() => selectedTemplateId && void loadTemplateMeta(selectedTemplateId, templates, brandKits, campaignKits)}>
+                        <Target size={16} strokeWidth={2.1} />
+                        Revalidar
+                      </Button>
+                      <Button type="button" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
+                        <LayoutTemplate size={16} strokeWidth={2.1} />
+                        {saving ? 'Salvando...' : 'Salvar template'}
+                      </Button>
+                    </>
                   ) : (
                     <>
+                      <Button type="button" variant="secondary" onClick={() => void refreshPreview('autofill')}>
+                        <WandSparkles size={16} strokeWidth={2.1} />
+                        Auto-fill
+                      </Button>
                       <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
                         <Boxes size={16} strokeWidth={2.1} />
                         Campanhas

@@ -55,4 +55,19 @@ public class OfferRenderStorageService {
         String publicPath = relative.toString().replace("\\", "/");
         return PUBLIC_PREFIX + publicPath;
     }
+
+    public Path resolvePublicPath(String publicUrl) {
+        if (publicUrl == null || publicUrl.isBlank() || !publicUrl.startsWith(PUBLIC_PREFIX)) {
+            return null;
+        }
+        String relativePath = publicUrl.substring(PUBLIC_PREFIX.length());
+        if (relativePath.isBlank()) {
+            return null;
+        }
+        Path resolved = outputsDir.resolve(relativePath).normalize();
+        if (!resolved.startsWith(outputsDir)) {
+            return null;
+        }
+        return resolved;
+    }
 }

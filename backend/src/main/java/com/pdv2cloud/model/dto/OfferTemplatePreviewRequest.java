@@ -14,5 +14,6 @@ public class OfferTemplatePreviewRequest {
     private String variantKey;
     private UUID brandKitId;
     private UUID campaignKitId;
+    private String renderOptionsJson;
     private List<UUID> productIds;
 }

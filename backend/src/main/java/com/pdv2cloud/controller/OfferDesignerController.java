@@ -3,12 +3,15 @@ package com.pdv2cloud.controller;
 import com.pdv2cloud.model.dto.OfferCatalogProductDTO;
 import com.pdv2cloud.model.dto.OfferBrandKitDTO;
 import com.pdv2cloud.model.dto.OfferBrandKitUpsertRequest;
+import com.pdv2cloud.model.dto.OfferAssetUploadDTO;
 import com.pdv2cloud.model.dto.OfferBackgroundRemovalDTO;
 import com.pdv2cloud.model.dto.OfferBackgroundRemovalRequest;
 import com.pdv2cloud.model.dto.OfferCampaignKitDTO;
 import com.pdv2cloud.model.dto.OfferCampaignKitUpsertRequest;
 import com.pdv2cloud.model.dto.OfferGenerationJobCreateRequest;
 import com.pdv2cloud.model.dto.OfferGenerationJobDTO;
+import com.pdv2cloud.model.dto.OfferMarketProfileDTO;
+import com.pdv2cloud.model.dto.OfferMarketProfileUpsertRequest;
 import com.pdv2cloud.model.dto.OfferOverviewDTO;
 import com.pdv2cloud.model.dto.OfferPublishRequest;
 import com.pdv2cloud.model.dto.OfferRenderOutputDTO;
@@ -23,6 +26,7 @@ import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.OfferDesignerService;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,10 +34,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/offers")
@@ -78,6 +84,47 @@ public class OfferDesignerController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         return ResponseEntity.ok(offerDesignerService.getCatalogSelection(marketId, ids));
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<OfferMarketProfileDTO> getMarketProfile(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.getMarketProfile(marketId));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<OfferMarketProfileDTO> updateMarketProfile(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody OfferMarketProfileUpsertRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.updateMarketProfile(marketId, request));
+    }
+
+    @PostMapping(value = "/profile/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OfferAssetUploadDTO> uploadMarketProfileLogo(
+        @PathVariable("marketId") UUID marketId,
+        @RequestParam("slot") String slot,
+        @RequestParam("file") MultipartFile file,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.uploadMarketProfileLogo(marketId, slot, file));
+    }
+
+    @PostMapping(value = "/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OfferAssetUploadDTO> uploadTemplateAsset(
+        @PathVariable("marketId") UUID marketId,
+        @RequestParam("purpose") String purpose,
+        @RequestParam("file") MultipartFile file,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(offerDesignerService.uploadTemplateAsset(marketId, purpose, file));
     }
 
     @GetMapping("/templates")

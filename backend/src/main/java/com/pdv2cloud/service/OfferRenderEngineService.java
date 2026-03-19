@@ -183,7 +183,11 @@ public class OfferRenderEngineService {
         String type = normalizeText(String.valueOf(layer.get("type")), "text").toLowerCase(Locale.ROOT);
         String binding = layer.get("binding") == null ? null : String.valueOf(layer.get("binding"));
         String text = resolveText(resolved, binding);
+        String layerId = normalizeText(String.valueOf(layer.get("id")), "");
         if (Boolean.FALSE.equals(layer.get("visible"))) {
+            return;
+        }
+        if (isFooterHidden(resolved) && ("footer".equals(type) || layerId.startsWith("footer-"))) {
             return;
         }
 
@@ -258,15 +262,28 @@ public class OfferRenderEngineService {
     }
 
     private void paintFooter(Graphics2D graphics, Map<String, Object> resolved, Map<String, Object> layer, String text, int x, int y, int w, int h) {
+        Map<String, Object> marketProfile = asMap(resolved.get("marketProfile"));
+        Map<String, Object> marketFooter = asMap(marketProfile.get("footer"));
         Map<String, Object> campaignTokens = asMap(resolved.get("campaignTokens"));
         Map<String, Object> brandAssets = asMap(resolved.get("brandAssets"));
         Map<String, Object> props = asMap(layer.get("props"));
-        String label = normalizeText(text, normalizeText(String.valueOf(campaignTokens.get("footer")), normalizeText(String.valueOf(asMap(brandAssets.get("footer")).get("disclaimer")), "")));
+        boolean containerOnly = Boolean.TRUE.equals(props.get("containerOnly"));
+        String label = containerOnly
+            ? null
+            : normalizeText(
+                text,
+                normalizeText(
+                    String.valueOf(marketFooter.get("content")),
+                    normalizeText(String.valueOf(campaignTokens.get("footer")), normalizeText(String.valueOf(asMap(brandAssets.get("footer")).get("disclaimer")), ""))
+                )
+            );
         int radius = intValue(props.get("radius"), 18);
         int fontSize = intValue(props.get("fontSize"), 14);
         graphics.setColor(color(props.get("background"), new Color(29, 23, 19, 226)));
         graphics.fill(new RoundRectangle2D.Float(x, y, w, h, radius, radius));
-        drawWrappedText(graphics, label, x + 16, y + 12, w - 32, h - 16, font("SansSerif", Font.PLAIN, fontSize), color(props.get("textColor"), new Color(255, 244, 238)), 2);
+        if (label != null) {
+            drawWrappedText(graphics, label, x + 16, y + 12, w - 32, h - 16, font("SansSerif", Font.PLAIN, fontSize), color(props.get("textColor"), new Color(255, 244, 238)), 2);
+        }
     }
 
     private void paintImageLayer(Graphics2D graphics, Map<String, Object> resolved, Map<String, Object> layer, int x, int y, int w, int h) {
@@ -310,42 +327,87 @@ public class OfferRenderEngineService {
         int cardWidth = columns == 1 ? w : (w - (gap * (columns - 1))) / columns;
         int cardHeight = rows == 1 ? h : (h - (gap * (rows - 1))) / rows;
         List<Map<String, Object>> products = listOfMaps(asMap(resolved.get("zoneBindings")).get(zoneId));
+        Map<String, Object> cardTemplate = asMap(zone.get("cardTemplate"));
 
         for (int index = 0; index < Math.min(slotCount, products.size()); index++) {
             int row = index / columns;
             int col = index % columns;
             int cardX = x + (col * (cardWidth + gap));
             int cardY = y + (row * (cardHeight + gap));
-            paintProductCard(graphics, products.get(index), cardX, cardY, cardWidth, cardHeight, "hero".equals(zoneType) || "single".equals(zoneType));
+            paintProductCard(
+                graphics,
+                products.get(index),
+                cardTemplate,
+                cardX,
+                cardY,
+                cardWidth,
+                cardHeight,
+                "hero".equals(zoneType) || "single".equals(zoneType)
+            );
         }
     }
 
-    private void paintProductCard(Graphics2D graphics, Map<String, Object> product, int x, int y, int w, int h, boolean hero) {
-        graphics.setColor(new Color(255, 255, 255, 240));
-        graphics.fill(new RoundRectangle2D.Float(x, y, w, h, 28, 28));
-        graphics.setColor(new Color(234, 217, 202, 220));
+    private void paintProductCard(Graphics2D graphics, Map<String, Object> product, Map<String, Object> cardTemplate, int x, int y, int w, int h, boolean hero) {
+        int cardRadius = intValue(cardTemplate.get("cardRadius"), 28);
+        int priceBoxRadius = intValue(cardTemplate.get("priceBoxRadius"), 26);
+        int nameFontSize = intValue(cardTemplate.get("nameFontSize"), hero ? 38 : 30);
+        int descriptionFontSize = intValue(cardTemplate.get("descriptionFontSize"), hero ? 18 : 15);
+        int priceFontSize = intValue(cardTemplate.get("priceFontSize"), hero ? 64 : 54);
+        boolean showUnit = !Boolean.FALSE.equals(cardTemplate.get("showUnit"));
+        boolean showDescription = !Boolean.FALSE.equals(cardTemplate.get("showDescription"));
+        boolean showBaselinePrice = !Boolean.FALSE.equals(cardTemplate.get("showBaselinePrice"));
+        String priceLabel = normalizeText(String.valueOf(cardTemplate.get("priceLabel")), "R$");
+
+        graphics.setColor(color(cardTemplate.get("background"), new Color(255, 255, 255, 240)));
+        graphics.fill(new RoundRectangle2D.Float(x, y, w, h, cardRadius, cardRadius));
+        graphics.setColor(color(cardTemplate.get("borderColor"), new Color(234, 217, 202, 220)));
         graphics.setStroke(new BasicStroke(2f));
-        graphics.draw(new RoundRectangle2D.Float(x + 1, y + 1, w - 2, h - 2, 28, 28));
+        graphics.draw(new RoundRectangle2D.Float(x + 1, y + 1, w - 2, h - 2, cardRadius, cardRadius));
 
         int padding = hero ? 28 : 18;
-        int imageHeight = hero ? (int) (h * 0.54) : (int) (h * 0.48);
+        int priceBoxHeight = Math.max(hero ? 126 : 104, (int) Math.round(h * 0.2));
+        int imageHeight = hero ? (int) (h * 0.44) : (int) (h * 0.34);
         paintContainedImage(graphics, loadImage(normalizeText(String.valueOf(product.get("imageUrl")), null)), x + padding, y + padding, w - (padding * 2), imageHeight, 24);
 
         int textY = y + padding + imageHeight + 12;
         String name = normalizeText(String.valueOf(product.get("name")), "Produto do encarte");
         String unit = normalizeText(String.valueOf(product.get("unit")), "Unidade");
+        String description = normalizeText(String.valueOf(product.get("packageDescription")), null);
         double currentPrice = numberValue(product.get("currentPrice"));
         double baselinePrice = numberValue(product.get("baselinePrice"));
 
-        drawWrappedText(graphics, name, x + padding, textY, w - (padding * 2), hero ? 70 : 52, font("SansSerif", Font.BOLD, hero ? 24 : 18), new Color(31, 22, 19), 2);
-        drawText(graphics, unit, x + padding, textY + (hero ? 92 : 74), font("SansSerif", Font.PLAIN, hero ? 18 : 14), new Color(122, 91, 73));
-        drawText(graphics, formatMoney(currentPrice), x + padding, y + h - padding - 12, font("SansSerif", Font.BOLD, hero ? 30 : 22), new Color(47, 23, 11));
+        drawWrappedText(graphics, name, x + padding, textY, w - (padding * 2), hero ? 92 : 72, font("SansSerif", Font.BOLD, nameFontSize), color(cardTemplate.get("textColor"), new Color(31, 22, 19)), 2);
+        int detailY = textY + (hero ? 96 : 80);
+        if (showUnit) {
+            drawText(graphics, unit, x + padding, detailY, font("SansSerif", Font.PLAIN, hero ? 18 : 14), new Color(122, 91, 73));
+            detailY += hero ? 28 : 22;
+        }
+        if (showDescription && description != null) {
+            drawWrappedText(graphics, description, x + padding, detailY - (hero ? 12 : 10), w - (padding * 2), hero ? 56 : 44, font("SansSerif", Font.PLAIN, descriptionFontSize), new Color(122, 91, 73), 2);
+        }
 
-        if (baselinePrice > currentPrice) {
+        int priceBoxY = y + h - padding - priceBoxHeight;
+        graphics.setColor(color(cardTemplate.get("priceBoxBackground"), new Color(255, 59, 31)));
+        graphics.fill(new RoundRectangle2D.Float(x + padding, priceBoxY, w - (padding * 2), priceBoxHeight, priceBoxRadius, priceBoxRadius));
+        graphics.setColor(new Color(255, 196, 79, 210));
+        graphics.setStroke(new BasicStroke(4f));
+        graphics.draw(new RoundRectangle2D.Float(x + padding + 2, priceBoxY + 2, w - (padding * 2) - 4, priceBoxHeight - 4, priceBoxRadius, priceBoxRadius));
+
+        drawText(graphics, priceLabel, x + padding + 20, priceBoxY + priceBoxHeight - 24, font("SansSerif", Font.PLAIN, hero ? 28 : 24), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE));
+        drawText(
+            graphics,
+            formatMoney(currentPrice).replace(priceLabel, "").trim(),
+            x + padding + (hero ? 92 : 82),
+            priceBoxY + priceBoxHeight - 20,
+            font("SansSerif", Font.BOLD, priceFontSize),
+            color(cardTemplate.get("priceBoxTextColor"), Color.WHITE)
+        );
+
+        if (showBaselinePrice && baselinePrice > currentPrice) {
             String baseline = formatMoney(baselinePrice);
             Font baselineFont = font("SansSerif", Font.PLAIN, hero ? 16 : 13);
             FontMetrics metrics = graphics.getFontMetrics(baselineFont);
-            int baseY = y + h - padding - (hero ? 44 : 34);
+            int baseY = priceBoxY - 12;
             graphics.setFont(baselineFont);
             graphics.setColor(new Color(122, 91, 73));
             graphics.drawString(baseline, x + padding, baseY);
@@ -479,6 +541,10 @@ public class OfferRenderEngineService {
             return null;
         }
         try {
+            Path localAsset = offerRenderStorageService.resolvePublicPath(url);
+            if (localAsset != null && Files.isRegularFile(localAsset)) {
+                return ImageIO.read(localAsset.toFile());
+            }
             if (catalogImageUrlResolver.isManagedImage(url)) {
                 String storageKey = catalogImageUrlResolver.extractManagedStorageKey(url);
                 Resource resource = catalogImageStorageService.loadManagedResource(storageKey).orElse(null);
@@ -666,6 +732,10 @@ public class OfferRenderEngineService {
             Object value = lookup(asMap(resolved.get("campaignTokens")), binding.substring("campaign.".length()));
             return value == null ? null : String.valueOf(value);
         }
+        if (binding.startsWith("marketProfile.")) {
+            Object value = lookup(asMap(resolved.get("marketProfile")), binding.substring("marketProfile.".length()));
+            return value == null ? null : String.valueOf(value);
+        }
         if (binding.startsWith("product.")) {
             List<Map<String, Object>> products = listOfMaps(resolved.get("resolvedProducts"));
             if (!products.isEmpty()) {
@@ -758,6 +828,11 @@ public class OfferRenderEngineService {
 
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private boolean isFooterHidden(Map<String, Object> resolved) {
+        Map<String, Object> renderOptions = asMap(resolved.get("renderOptions"));
+        return "NONE".equalsIgnoreCase(normalizeText(String.valueOf(renderOptions.get("footerMode")), ""));
     }
 
     private String formatMoney(double value) {

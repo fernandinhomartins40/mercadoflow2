@@ -1,10 +1,12 @@
 import api from './api';
 import {
+  OfferAssetUploadResult,
   OfferBackgroundRemovalResult,
   OfferBrandKit,
   OfferCampaignKit,
   OfferCatalogProduct,
   OfferGenerationJob,
+  OfferMarketProfile,
   OfferOverview,
   OfferRenderOutput,
   OfferTemplate,
@@ -64,7 +66,15 @@ export interface OfferPreviewPayload {
   variantKey?: string | null;
   brandKitId?: string | null;
   campaignKitId?: string | null;
+  renderOptionsJson?: string;
   productIds: string[];
+}
+
+export interface OfferMarketProfilePayload {
+  footerContent?: string | null;
+  footerLegalText?: string | null;
+  primaryLogoUrl?: string | null;
+  secondaryLogoUrl?: string | null;
 }
 
 export interface OfferCreateJobPayload {
@@ -115,6 +125,36 @@ export const offersService = {
 
   async getTemplates(marketId: string) {
     const response = await api.get<OfferTemplate[]>(`/v1/markets/${marketId}/offers/templates`);
+    return response.data;
+  },
+
+  async getMarketProfile(marketId: string) {
+    const response = await api.get<OfferMarketProfile>(`/v1/markets/${marketId}/offers/profile`);
+    return response.data;
+  },
+
+  async updateMarketProfile(marketId: string, payload: OfferMarketProfilePayload) {
+    const response = await api.put<OfferMarketProfile>(`/v1/markets/${marketId}/offers/profile`, payload);
+    return response.data;
+  },
+
+  async uploadMarketProfileLogo(marketId: string, slot: 'PRIMARY' | 'SECONDARY', file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<OfferAssetUploadResult>(`/v1/markets/${marketId}/offers/profile/logo`, formData, {
+      params: { slot },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  async uploadTemplateAsset(marketId: string, purpose: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<OfferAssetUploadResult>(`/v1/markets/${marketId}/offers/assets`, formData, {
+      params: { purpose },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
