@@ -158,7 +158,9 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode; mode?: OffersStu
           </button>
         ) : null}
 
-        <div className={sidebarPinned ? 'h-full p-4 lg:p-6' : 'h-full px-4 pb-4 sm:px-5'}>{children}</div>
+        <div className={sidebarPinned ? 'flex h-full min-h-0 flex-col overflow-hidden p-4 lg:p-6' : 'flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4 sm:px-5'}>
+          {children}
+        </div>
       </main>
     </div>
   );

@@ -4612,10 +4612,11 @@
 
 .offer-studio-shell {
   display: grid;
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  height: 0;
   min-width: 0;
   min-height: 0;
-  max-height: 100%;
+  max-height: none;
   align-items: stretch;
   grid-template-columns: 96px minmax(340px, 420px) minmax(0, 1fr);
   border: 1px solid rgba(87, 51, 30, 0.12);
@@ -6054,6 +6055,7 @@
 
 .offers-studio-page {
   flex: 1 1 auto;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   gap: 16px;
