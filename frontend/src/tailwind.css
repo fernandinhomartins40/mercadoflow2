@@ -6200,9 +6200,16 @@
 .offers-app-body {
   display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
   position: relative;
+}
+
+.offers-app-body > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .offers-app-floating-session {
