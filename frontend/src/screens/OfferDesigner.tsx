@@ -132,6 +132,64 @@ type ZoneDraft = {
   h: string;
 };
 
+type TemplateBuilderBoundsDraft = {
+  x: string;
+  y: string;
+  w: string;
+  h: string;
+};
+
+type TemplateBuilderTextLayerDraft = TemplateBuilderBoundsDraft & {
+  text: string;
+  visible: boolean;
+  fontSize: string;
+  fontWeight: string;
+};
+
+type TemplateBuilderImageLayerDraft = TemplateBuilderBoundsDraft & {
+  imageUrl: string;
+  visible: boolean;
+  radius: string;
+  frame: boolean;
+};
+
+type TemplateBuilderFooterLayerDraft = TemplateBuilderBoundsDraft & {
+  text: string;
+  visible: boolean;
+  radius: string;
+  background: string;
+  textColor: string;
+  fontSize: string;
+};
+
+type TemplateBuilderZoneDraft = TemplateBuilderBoundsDraft & {
+  layout: string;
+  columns: string;
+  rows: string;
+  slotCount: string;
+};
+
+type TemplateBuilderDraft = {
+  name: string;
+  description: string;
+  channel: string;
+  canvasWidth: string;
+  canvasHeight: string;
+  backgroundMode: string;
+  backgroundColor: string;
+  backgroundStart: string;
+  backgroundEnd: string;
+  backgroundImageUrl: string;
+  kicker: TemplateBuilderTextLayerDraft;
+  headline: TemplateBuilderTextLayerDraft;
+  subheadline: TemplateBuilderTextLayerDraft;
+  badge: TemplateBuilderImageLayerDraft;
+  footer: TemplateBuilderFooterLayerDraft;
+  footerLeftLogo: TemplateBuilderImageLayerDraft;
+  footerRightLogo: TemplateBuilderImageLayerDraft;
+  contentZone: TemplateBuilderZoneDraft;
+};
+
 type SuperAdminMarketOption = {
   id: string;
   name: string;
@@ -224,6 +282,457 @@ const normalizeSelection = <T extends { id: string }>(items: T[], currentId?: st
   if (currentId && items.some((item) => item.id === currentId)) return currentId;
   if (fallbackId && items.some((item) => item.id === fallbackId)) return fallbackId;
   return items[0]?.id || '';
+};
+
+const clampNumber = (value: unknown, fallback: number, min: number, max: number) => {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return Math.min(Math.max(Math.round(numeric), min), max);
+  }
+  return fallback;
+};
+
+const asText = (value: unknown, fallback = '') => {
+  if (value == null) return fallback;
+  const normalized = String(value).trim();
+  return normalized || fallback;
+};
+
+const getByPath = (source: JsonMap, path?: string) => {
+  if (!path) return undefined;
+  return path.split('.').reduce<any>((current, segment) => {
+    if (current == null) return undefined;
+    if (Array.isArray(current) && /^\d+$/.test(segment)) {
+      return current[Number(segment)];
+    }
+    if (typeof current !== 'object') return undefined;
+    return (current as JsonMap)[segment];
+  }, source);
+};
+
+const boundsDraft = (x: number, y: number, w: number, h: number): TemplateBuilderBoundsDraft => ({
+  x: String(Math.round(x)),
+  y: String(Math.round(y)),
+  w: String(Math.round(w)),
+  h: String(Math.round(h)),
+});
+
+const parseBoundsDraft = (value: TemplateBuilderBoundsDraft, fallback: { x: number; y: number; w: number; h: number }) => ({
+  x: clampNumber(value.x, fallback.x, 0, 4000),
+  y: clampNumber(value.y, fallback.y, 0, 6000),
+  w: clampNumber(value.w, fallback.w, 1, 4000),
+  h: clampNumber(value.h, fallback.h, 1, 6000),
+});
+
+const parseLayerBoundsDraft = (layer: JsonMap | null, fallback: { x: number; y: number; w: number; h: number }) =>
+  boundsDraft(
+    clampNumber(layer?.bounds?.x, fallback.x, 0, 4000),
+    clampNumber(layer?.bounds?.y, fallback.y, 0, 6000),
+    clampNumber(layer?.bounds?.w, fallback.w, 1, 4000),
+    clampNumber(layer?.bounds?.h, fallback.h, 1, 6000),
+  );
+
+const resolveStaticBinding = (binding: unknown, staticBindings: JsonMap, fallback = '') => {
+  const normalized = asText(binding);
+  if (!normalized) return fallback;
+  if (!normalized.startsWith('static.')) return normalized;
+  const value = getByPath({ static: staticBindings }, normalized);
+  return value == null ? fallback : String(value);
+};
+
+const findLayer = (layers: JsonMap[], ids: string[], types: string[] = []) =>
+  layers.find((layer) => {
+    const id = String(layer.id || '').toLowerCase();
+    const type = String(layer.type || '').toLowerCase();
+    const binding = String(layer.binding || '').toLowerCase();
+    return (
+      ids.some((candidate) => id === candidate || id.includes(candidate)) ||
+      types.includes(type) ||
+      ids.some((candidate) => binding.includes(candidate))
+    );
+  }) || null;
+
+const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: OfferTemplateVariant | null): TemplateBuilderDraft => {
+  const width = clampNumber(variant?.canvasWidth ?? template?.canvasWidth, 1080, 720, 3200);
+  const height = clampNumber(variant?.canvasHeight ?? template?.canvasHeight, 1350, 720, 4800);
+  const safeX = Math.round(width * 0.067);
+  const safeY = Math.round(height * 0.053);
+  const footerHeight = Math.round(height * 0.09);
+  const footerY = height - footerHeight - safeY;
+  const contentTop = Math.round(height * 0.28);
+  const contentHeight = Math.max(Math.round(height * 0.44), 320);
+  const logoWidth = Math.round(width * 0.15);
+
+  return {
+    name: template?.name || 'Novo template em camadas',
+    description: template?.description || 'Template criado no estúdio visual.',
+    channel: template?.channel || 'PRINT',
+    canvasWidth: String(width),
+    canvasHeight: String(height),
+    backgroundMode: 'gradient',
+    backgroundColor: '#fff7ef',
+    backgroundStart: '#fff7ef',
+    backgroundEnd: '#ffd4b4',
+    backgroundImageUrl: '',
+    kicker: {
+      text: 'Catálogo global',
+      visible: true,
+      fontSize: '24',
+      fontWeight: '700',
+      ...boundsDraft(safeX, safeY, Math.round(width * 0.22), 44),
+    },
+    headline: {
+      text: 'Template pronto para campanhas de ofertas.',
+      visible: true,
+      fontSize: '64',
+      fontWeight: '800',
+      ...boundsDraft(safeX, safeY + 60, Math.round(width * 0.5), Math.round(height * 0.12)),
+    },
+    subheadline: {
+      text: 'Defina áreas, imagens e logos para receber os produtos automaticamente.',
+      visible: true,
+      fontSize: '28',
+      fontWeight: '500',
+      ...boundsDraft(safeX, safeY + 176, Math.round(width * 0.54), Math.round(height * 0.08)),
+    },
+    badge: {
+      imageUrl: '',
+      visible: true,
+      radius: '0',
+      frame: false,
+      ...boundsDraft(width - safeX - Math.round(width * 0.2), safeY + 8, Math.round(width * 0.18), Math.round(width * 0.18)),
+    },
+    footer: {
+      text: 'Ofertas válidas enquanto durarem os estoques. Imagens meramente ilustrativas.',
+      visible: true,
+      radius: '18',
+      background: '#2c1d17',
+      textColor: '#fff4ee',
+      fontSize: '15',
+      ...boundsDraft(safeX, footerY, width - safeX * 2, footerHeight),
+    },
+    footerLeftLogo: {
+      imageUrl: '',
+      visible: false,
+      radius: '0',
+      frame: false,
+      ...boundsDraft(safeX + 16, footerY + 10, logoWidth, footerHeight - 20),
+    },
+    footerRightLogo: {
+      imageUrl: '',
+      visible: false,
+      radius: '0',
+      frame: false,
+      ...boundsDraft(width - safeX - logoWidth - 16, footerY + 10, logoWidth, footerHeight - 20),
+    },
+    contentZone: {
+      layout: 'grid',
+      columns: '2',
+      rows: '3',
+      slotCount: '6',
+      ...boundsDraft(safeX, contentTop, width - safeX * 2, Math.min(contentHeight, footerY - contentTop - 20)),
+    },
+  };
+};
+
+const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: OfferTemplateVariant | null): TemplateBuilderDraft => {
+  const fallback = createDefaultTemplateBuilderDraft(template, variant);
+  const parsedDesign = parseJson<JsonMap>(template?.designJson, {}) || {};
+  const canvas = asMap(parsedDesign.canvas);
+  const background = asMap(canvas.background);
+  const bindings = asMap(parsedDesign.bindings);
+  const staticBindings = asMap(bindings.static);
+  const layers = asList(parsedDesign.layers);
+  const zones = asList(parsedDesign.productZones);
+  const kickerLayer = findLayer(layers, ['kicker']);
+  const headlineLayer = findLayer(layers, ['headline'], ['headline']);
+  const subheadlineLayer = findLayer(layers, ['subheadline']);
+  const badgeLayer = findLayer(layers, ['campaign-badge', 'badge3d', 'badge'], ['campaignbadge']);
+  const footerLayer = findLayer(layers, ['footer'], ['footer']);
+  const footerLeftLogoLayer = findLayer(layers, ['footer-logo-left', 'logo-left']);
+  const footerRightLogoLayer = findLayer(layers, ['footer-logo-right', 'logo-right']);
+  const contentZone = zones.find((zone) => String(zone.id || '').toLowerCase().includes('content')) || zones[0] || null;
+
+  return {
+    ...fallback,
+    name: template?.name || fallback.name,
+    description: template?.description || fallback.description,
+    channel: template?.channel || fallback.channel,
+    canvasWidth: String(clampNumber(canvas.width ?? variant?.canvasWidth ?? template?.canvasWidth, Number(fallback.canvasWidth), 720, 3200)),
+    canvasHeight: String(clampNumber(canvas.height ?? variant?.canvasHeight ?? template?.canvasHeight, Number(fallback.canvasHeight), 720, 4800)),
+    backgroundMode: asText(background.type, fallback.backgroundMode),
+    backgroundColor: asText(background.color, fallback.backgroundColor),
+    backgroundStart: asText(background.start, fallback.backgroundStart),
+    backgroundEnd: asText(background.end, fallback.backgroundEnd),
+    backgroundImageUrl: resolveStaticBinding(background.imageUrl, staticBindings, fallback.backgroundImageUrl),
+    kicker: {
+      ...fallback.kicker,
+      text: resolveStaticBinding(kickerLayer?.binding, staticBindings, fallback.kicker.text),
+      visible: kickerLayer?.visible !== false,
+      fontSize: asText(kickerLayer?.props?.fontSize, fallback.kicker.fontSize),
+      fontWeight: asText(kickerLayer?.props?.fontWeight, fallback.kicker.fontWeight),
+      ...parseLayerBoundsDraft(kickerLayer, parseBoundsDraft(fallback.kicker, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    headline: {
+      ...fallback.headline,
+      text: resolveStaticBinding(headlineLayer?.binding, staticBindings, fallback.headline.text),
+      visible: headlineLayer?.visible !== false,
+      fontSize: asText(headlineLayer?.props?.fontSize, fallback.headline.fontSize),
+      fontWeight: asText(headlineLayer?.props?.fontWeight, fallback.headline.fontWeight),
+      ...parseLayerBoundsDraft(headlineLayer, parseBoundsDraft(fallback.headline, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    subheadline: {
+      ...fallback.subheadline,
+      text: resolveStaticBinding(subheadlineLayer?.binding, staticBindings, fallback.subheadline.text),
+      visible: subheadlineLayer?.visible !== false,
+      fontSize: asText(subheadlineLayer?.props?.fontSize, fallback.subheadline.fontSize),
+      fontWeight: asText(subheadlineLayer?.props?.fontWeight, fallback.subheadline.fontWeight),
+      ...parseLayerBoundsDraft(subheadlineLayer, parseBoundsDraft(fallback.subheadline, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    badge: {
+      ...fallback.badge,
+      imageUrl: resolveStaticBinding(badgeLayer?.binding, staticBindings, fallback.badge.imageUrl),
+      visible: badgeLayer ? badgeLayer.visible !== false : fallback.badge.visible,
+      radius: asText(badgeLayer?.props?.radius, fallback.badge.radius),
+      frame: Boolean(badgeLayer?.props?.frame ?? fallback.badge.frame),
+      ...parseLayerBoundsDraft(badgeLayer, parseBoundsDraft(fallback.badge, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    footer: {
+      ...fallback.footer,
+      text: resolveStaticBinding(footerLayer?.binding, staticBindings, fallback.footer.text),
+      visible: footerLayer ? footerLayer.visible !== false : fallback.footer.visible,
+      radius: asText(footerLayer?.props?.radius, fallback.footer.radius),
+      background: asText(footerLayer?.props?.background, fallback.footer.background),
+      textColor: asText(footerLayer?.props?.textColor, fallback.footer.textColor),
+      fontSize: asText(footerLayer?.props?.fontSize, fallback.footer.fontSize),
+      ...parseLayerBoundsDraft(footerLayer, parseBoundsDraft(fallback.footer, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    footerLeftLogo: {
+      ...fallback.footerLeftLogo,
+      imageUrl: resolveStaticBinding(footerLeftLogoLayer?.binding, staticBindings, fallback.footerLeftLogo.imageUrl),
+      visible: footerLeftLogoLayer ? footerLeftLogoLayer.visible !== false : Boolean(fallback.footerLeftLogo.imageUrl),
+      radius: asText(footerLeftLogoLayer?.props?.radius, fallback.footerLeftLogo.radius),
+      frame: Boolean(footerLeftLogoLayer?.props?.frame ?? fallback.footerLeftLogo.frame),
+      ...parseLayerBoundsDraft(footerLeftLogoLayer, parseBoundsDraft(fallback.footerLeftLogo, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    footerRightLogo: {
+      ...fallback.footerRightLogo,
+      imageUrl: resolveStaticBinding(footerRightLogoLayer?.binding, staticBindings, fallback.footerRightLogo.imageUrl),
+      visible: footerRightLogoLayer ? footerRightLogoLayer.visible !== false : Boolean(fallback.footerRightLogo.imageUrl),
+      radius: asText(footerRightLogoLayer?.props?.radius, fallback.footerRightLogo.radius),
+      frame: Boolean(footerRightLogoLayer?.props?.frame ?? fallback.footerRightLogo.frame),
+      ...parseLayerBoundsDraft(footerRightLogoLayer, parseBoundsDraft(fallback.footerRightLogo, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+    contentZone: {
+      ...fallback.contentZone,
+      layout: asText(contentZone?.layout || contentZone?.zoneType, fallback.contentZone.layout),
+      columns: asText(contentZone?.columns, fallback.contentZone.columns),
+      rows: asText(contentZone?.rows, fallback.contentZone.rows),
+      slotCount: asText(contentZone?.slotCount, fallback.contentZone.slotCount),
+      ...parseLayerBoundsDraft(contentZone, parseBoundsDraft(fallback.contentZone, { x: 0, y: 0, w: 1, h: 1 })),
+    },
+  };
+};
+
+const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
+  const width = clampNumber(draft.canvasWidth, 1080, 720, 3200);
+  const height = clampNumber(draft.canvasHeight, 1350, 720, 4800);
+  const kickerBounds = parseBoundsDraft(draft.kicker, { x: 72, y: 72, w: 240, h: 44 });
+  const headlineBounds = parseBoundsDraft(draft.headline, { x: 72, y: 132, w: 540, h: 160 });
+  const subheadlineBounds = parseBoundsDraft(draft.subheadline, { x: 72, y: 280, w: 560, h: 100 });
+  const badgeBounds = parseBoundsDraft(draft.badge, { x: width - 280, y: 72, w: 200, h: 200 });
+  const footerBounds = parseBoundsDraft(draft.footer, { x: 72, y: height - 148, w: width - 144, h: 72 });
+  const footerLeftBounds = parseBoundsDraft(draft.footerLeftLogo, { x: 88, y: height - 138, w: 140, h: 52 });
+  const footerRightBounds = parseBoundsDraft(draft.footerRightLogo, { x: width - 228, y: height - 138, w: 140, h: 52 });
+  const zoneBounds = parseBoundsDraft(draft.contentZone, { x: 72, y: 360, w: width - 144, h: height - 540 });
+  const staticBindings = {
+    kicker: draft.kicker.text.trim() || 'Catálogo global',
+    headline: draft.headline.text.trim() || 'Template pronto para campanhas de ofertas.',
+    subheadline: draft.subheadline.text.trim() || 'Defina áreas, imagens e logos para receber os produtos automaticamente.',
+    footer: {
+      text: draft.footer.text.trim() || 'Ofertas válidas enquanto durarem os estoques. Imagens meramente ilustrativas.',
+      logoLeftUrl: draft.footerLeftLogo.imageUrl.trim(),
+      logoRightUrl: draft.footerRightLogo.imageUrl.trim(),
+    },
+    assets: {
+      backgroundImageUrl: draft.backgroundImageUrl.trim(),
+      campaignBadgeUrl: draft.badge.imageUrl.trim(),
+    },
+  };
+
+  const layers: JsonMap[] = [
+    {
+      id: 'kicker',
+      name: 'Kicker',
+      type: 'tag',
+      binding: 'static.kicker',
+      locked: true,
+      visible: draft.kicker.visible,
+      bounds: kickerBounds,
+      props: {
+        fontSize: clampNumber(draft.kicker.fontSize, 24, 12, 120),
+        fontWeight: clampNumber(draft.kicker.fontWeight, 700, 300, 900),
+        background: 'rgba(255,255,255,0.86)',
+        radius: 999,
+      },
+    },
+    {
+      id: 'headline',
+      name: 'Título principal',
+      type: 'text',
+      binding: 'static.headline',
+      locked: true,
+      visible: draft.headline.visible,
+      bounds: headlineBounds,
+      props: {
+        fontSize: clampNumber(draft.headline.fontSize, 64, 18, 180),
+        fontWeight: clampNumber(draft.headline.fontWeight, 800, 300, 900),
+      },
+    },
+    {
+      id: 'subheadline',
+      name: 'Subtítulo',
+      type: 'text',
+      binding: 'static.subheadline',
+      locked: true,
+      visible: draft.subheadline.visible,
+      bounds: subheadlineBounds,
+      props: {
+        fontSize: clampNumber(draft.subheadline.fontSize, 28, 14, 120),
+        fontWeight: clampNumber(draft.subheadline.fontWeight, 500, 300, 900),
+      },
+    },
+    {
+      id: 'campaign-badge',
+      name: 'Selo 3D',
+      type: 'campaignbadge',
+      binding: 'static.assets.campaignBadgeUrl',
+      locked: true,
+      visible: draft.badge.visible,
+      bounds: badgeBounds,
+      props: {
+        radius: clampNumber(draft.badge.radius, 0, 0, 200),
+        frame: draft.badge.frame,
+        fit: 'contain',
+      },
+    },
+    {
+      id: 'footer',
+      name: 'Rodapé',
+      type: 'footer',
+      binding: 'static.footer.text',
+      locked: true,
+      visible: draft.footer.visible,
+      bounds: footerBounds,
+      props: {
+        radius: clampNumber(draft.footer.radius, 18, 0, 160),
+        background: draft.footer.background.trim() || '#2c1d17',
+        textColor: draft.footer.textColor.trim() || '#fff4ee',
+        fontSize: clampNumber(draft.footer.fontSize, 15, 10, 48),
+      },
+    },
+    {
+      id: 'footer-logo-left',
+      name: 'Logo rodapé esquerdo',
+      type: 'image',
+      binding: 'static.footer.logoLeftUrl',
+      locked: true,
+      visible: draft.footerLeftLogo.visible,
+      bounds: footerLeftBounds,
+      props: {
+        radius: clampNumber(draft.footerLeftLogo.radius, 0, 0, 120),
+        frame: draft.footerLeftLogo.frame,
+        fit: 'contain',
+      },
+    },
+    {
+      id: 'footer-logo-right',
+      name: 'Logo rodapé direito',
+      type: 'image',
+      binding: 'static.footer.logoRightUrl',
+      locked: true,
+      visible: draft.footerRightLogo.visible,
+      bounds: footerRightBounds,
+      props: {
+        radius: clampNumber(draft.footerRightLogo.radius, 0, 0, 120),
+        frame: draft.footerRightLogo.frame,
+        fit: 'contain',
+      },
+    },
+  ];
+
+  return {
+    schemaVersion: 2,
+    canvas: {
+      width,
+      height,
+      safeArea: { top: 48, right: 48, bottom: 48, left: 48 },
+      background:
+        draft.backgroundMode === 'image'
+          ? {
+              type: 'image',
+              imageUrl: 'static.assets.backgroundImageUrl',
+              color: draft.backgroundColor.trim() || '#fff7ef',
+              fit: 'cover',
+            }
+          : draft.backgroundMode === 'gradient'
+            ? {
+                type: 'gradient',
+                start: draft.backgroundStart.trim() || '#fff7ef',
+                end: draft.backgroundEnd.trim() || '#ffd4b4',
+              }
+            : {
+                type: 'solid',
+                color: draft.backgroundColor.trim() || '#fff7ef',
+              },
+    },
+    layers,
+    productZones: [
+      {
+        id: 'content-zone',
+        name: 'Área de conteúdo',
+        zoneType: draft.contentZone.layout === 'single' ? 'single' : draft.contentZone.layout === 'hero' ? 'hero' : 'grid',
+        layout: draft.contentZone.layout === 'single' ? 'single' : draft.contentZone.layout === 'hero' ? 'hero' : 'grid',
+        columns: clampNumber(draft.contentZone.columns, draft.contentZone.layout === 'grid' ? 2 : 1, 1, 6),
+        rows: clampNumber(draft.contentZone.rows, draft.contentZone.layout === 'grid' ? 3 : 1, 1, 8),
+        slotCount: clampNumber(draft.contentZone.slotCount, draft.contentZone.layout === 'grid' ? 6 : 1, 1, 24),
+        bounds: zoneBounds,
+        cardTemplate: {
+          imageFit: 'contain',
+          showBaselinePrice: true,
+          showUnit: true,
+        },
+      },
+    ],
+    bindings: {
+      static: staticBindings,
+    },
+    brandTokens: {},
+    campaignTokens: {},
+  };
+};
+
+const buildTemplateResolvedDesignFromDraft = (
+  draft: TemplateBuilderDraft,
+  brandKit?: OfferBrandKit | null,
+  campaignKit?: OfferCampaignKit | null,
+  products: OfferCatalogProduct[] = [],
+) => {
+  const design = buildTemplateDesignFromDraft(draft);
+  const zone = asList(design.productZones)[0];
+  const zoneId = String(zone?.id || 'content-zone');
+  const slotCount = clampNumber(zone?.slotCount, 6, 1, 24);
+  return {
+    ...design,
+    brandTokens: parseJson<JsonMap>(brandKit?.tokensJson, {}) || {},
+    brandAssets: parseJson<JsonMap>(brandKit?.assetsJson, {}) || {},
+    campaignTokens: parseJson<JsonMap>(campaignKit?.tokensJson, {}) || {},
+    campaignAssets: parseJson<JsonMap>(campaignKit?.assetsJson, {}) || {},
+    resolvedProducts: products.map((product) => ({ ...product })),
+    zoneBindings: {
+      [zoneId]: products.slice(0, slotCount).map((product) => ({ ...product })),
+    },
+  };
 };
 
 const emptyLayerDraft: LayerDraft = {
@@ -403,6 +912,30 @@ const StudioPropertyRow: React.FC<{ label: string; value?: React.ReactNode }> = 
   </div>
 );
 
+const StudioBoundsFields: React.FC<{
+  value: TemplateBuilderBoundsDraft;
+  onChange: (next: TemplateBuilderBoundsDraft) => void;
+}> = ({ value, onChange }) => (
+  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <label className="offer-studio-text-field">
+      <span>X</span>
+      <input className="input" value={value.x} onChange={(event) => onChange({ ...value, x: event.target.value })} />
+    </label>
+    <label className="offer-studio-text-field">
+      <span>Y</span>
+      <input className="input" value={value.y} onChange={(event) => onChange({ ...value, y: event.target.value })} />
+    </label>
+    <label className="offer-studio-text-field">
+      <span>Largura</span>
+      <input className="input" value={value.w} onChange={(event) => onChange({ ...value, w: event.target.value })} />
+    </label>
+    <label className="offer-studio-text-field">
+      <span>Altura</span>
+      <input className="input" value={value.h} onChange={(event) => onChange({ ...value, h: event.target.value })} />
+    </label>
+  </div>
+);
+
 const OfferDesigner: React.FC = () => {
   const { marketId, name } = useAuth();
   const location = useLocation();
@@ -455,6 +988,7 @@ const OfferDesigner: React.FC = () => {
   const [removingBackgroundId, setRemovingBackgroundId] = useState<string | null>(null);
   const [layerDraft, setLayerDraft] = useState<LayerDraft>(emptyLayerDraft);
   const [zoneDraft, setZoneDraft] = useState<ZoneDraft>(emptyZoneDraft);
+  const [templateBuilderDraft, setTemplateBuilderDraft] = useState<TemplateBuilderDraft>(() => createDefaultTemplateBuilderDraft());
   const [loading, setLoading] = useState(true);
   const [marketsLoading, setMarketsLoading] = useState(isSuperAdminMode);
   const [searching, setSearching] = useState(false);
@@ -504,8 +1038,23 @@ const OfferDesigner: React.FC = () => {
     () => (isSuperAdminMode ? TOOL_OPTIONS.filter((tool) => tool.key !== 'publish') : TOOL_OPTIONS),
     [isSuperAdminMode],
   );
-  const stageProducts = useMemo(() => selectedProducts.slice(0, itemsPerPage), [itemsPerPage, selectedProducts]);
-  const resolvedDesign = useMemo(() => parseJson<JsonMap>(preview?.resolvedDesignJson, {}) || {}, [preview?.resolvedDesignJson]);
+  const stageProducts = useMemo(
+    () => selectedProducts.slice(0, Math.max(itemsPerPage, clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24))),
+    [itemsPerPage, selectedProducts, templateBuilderDraft.contentZone.slotCount],
+  );
+  const builderResolvedDesignJson = useMemo(
+    () => JSON.stringify(buildTemplateResolvedDesignFromDraft(templateBuilderDraft, selectedBrandKit, selectedCampaignKit, stageProducts)),
+    [selectedBrandKit, selectedCampaignKit, stageProducts, templateBuilderDraft],
+  );
+  const stageGridLimit = useMemo(
+    () => (activeTool === 'themes' ? clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24) : generationMode === 'CATALOG' ? itemsPerPage : 1),
+    [activeTool, generationMode, itemsPerPage, templateBuilderDraft.contentZone.slotCount],
+  );
+  const effectiveResolvedDesignJson = useMemo(
+    () => (activeTool === 'themes' && selectedTemplateId ? builderResolvedDesignJson : preview?.resolvedDesignJson || null),
+    [activeTool, builderResolvedDesignJson, preview?.resolvedDesignJson, selectedTemplateId],
+  );
+  const resolvedDesign = useMemo(() => parseJson<JsonMap>(effectiveResolvedDesignJson, {}) || {}, [effectiveResolvedDesignJson]);
   const resolvedLayers = useMemo(() => asList(resolvedDesign.layers), [resolvedDesign]);
   const resolvedZones = useMemo(() => asList(resolvedDesign.productZones), [resolvedDesign]);
   const activeLayer = useMemo(
@@ -823,6 +1372,10 @@ const OfferDesigner: React.FC = () => {
   }, [activeZone]);
 
   useEffect(() => {
+    setTemplateBuilderDraft(buildTemplateBuilderDraft(selectedTemplate, selectedVariant));
+  }, [selectedTemplate, selectedVariant]);
+
+  useEffect(() => {
     if (!effectiveMarketId) return;
     const normalized = searchInput.trim();
     if (normalized.length < 2) {
@@ -934,9 +1487,70 @@ const OfferDesigner: React.FC = () => {
   };
 
 
+  const persistSelectedVariantDimensions = async (canvasWidth: number, canvasHeight: number) => {
+    if (!effectiveMarketId || !selectedVariant) return;
+    const variantJson = parseJson<JsonMap>(selectedVariant.variantJson, {}) || {};
+    await offersService.updateTemplateVariant(effectiveMarketId, selectedVariant.id, {
+      variantKey: selectedVariant.variantKey,
+      name: selectedVariant.name,
+      canvasWidth,
+      canvasHeight,
+      variantJson: JSON.stringify({
+        ...variantJson,
+        variantKey: selectedVariant.variantKey,
+        name: selectedVariant.name,
+        canvasWidth,
+        canvasHeight,
+      }),
+      previewImageUrl: selectedVariant.previewImageUrl || undefined,
+      active: selectedVariant.active,
+    });
+  };
+
+  const handleSaveTemplateBuilder = async () => {
+    if (!effectiveMarketId || !selectedTemplateId || !selectedTemplate) return;
+    const nextDesign = buildTemplateDesignFromDraft(templateBuilderDraft);
+    const canvasWidth = clampNumber(templateBuilderDraft.canvasWidth, selectedTemplate.canvasWidth || 1080, 720, 3200);
+    const canvasHeight = clampNumber(templateBuilderDraft.canvasHeight, selectedTemplate.canvasHeight || 1350, 720, 4800);
+
+    setSaving(true);
+    try {
+      const updated = await offersService.updateTemplate(effectiveMarketId, selectedTemplateId, {
+        name: templateBuilderDraft.name.trim() || selectedTemplate.name,
+        description: templateBuilderDraft.description.trim() || '',
+        channel: templateBuilderDraft.channel || selectedTemplate.channel,
+        canvasWidth,
+        canvasHeight,
+        schemaVersion: 2,
+        masterTemplateKey: selectedTemplate.masterTemplateKey || '',
+        defaultVariantKey: selectedTemplate.defaultVariantKey || selectedVariantKey || '',
+        brandKitId: selectedBrandKitId || selectedTemplate.brandKitId || null,
+        campaignKitId: selectedCampaignKitId || selectedTemplate.campaignKitId || null,
+        designJson: JSON.stringify(nextDesign),
+        active: selectedTemplate.active,
+      });
+      await persistSelectedVariantDimensions(canvasWidth, canvasHeight);
+      const nextTemplates = templates.map((item) => (item.id === updated.id ? updated : item));
+      setTemplates(nextTemplates);
+      setTemplateBuilderDraft(
+        buildTemplateBuilderDraft(
+          updated,
+          selectedVariant ? { ...selectedVariant, canvasWidth, canvasHeight } : selectedVariant,
+        ),
+      );
+      setLookupNotice('Template atualizado com fundo, selo, logos e área de conteúdo.');
+      await loadTemplateMeta(updated.id, nextTemplates, brandKits, campaignKits);
+      await refreshPreview('preview');
+    } catch (err: any) {
+      setError(err?.message || 'NÃ£o foi possÃ­vel salvar a composiÃ§Ã£o do template.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveStructure = async () => {
     if (!effectiveMarketId || !selectedTemplateId || !selectedTemplate) return;
-    const parsedDesign = parseJson<JsonMap>(selectedTemplate.designJson, {}) || {};
+    const parsedDesign = buildTemplateDesignFromDraft(templateBuilderDraft);
     const nextDesign: JsonMap = {
       ...parsedDesign,
       layers: asList(parsedDesign.layers).map((layer) =>
@@ -981,12 +1595,12 @@ const OfferDesigner: React.FC = () => {
     setSaving(true);
     try {
       const updated = await offersService.updateTemplate(effectiveMarketId, selectedTemplateId, {
-        name: selectedTemplate.name,
-        description: selectedTemplate.description || '',
-        channel: selectedTemplate.channel,
-        canvasWidth: selectedTemplate.canvasWidth,
-        canvasHeight: selectedTemplate.canvasHeight,
-        schemaVersion: selectedTemplate.schemaVersion || 2,
+        name: templateBuilderDraft.name.trim() || selectedTemplate.name,
+        description: templateBuilderDraft.description.trim() || selectedTemplate.description || '',
+        channel: templateBuilderDraft.channel || selectedTemplate.channel,
+        canvasWidth: clampNumber(templateBuilderDraft.canvasWidth, selectedTemplate.canvasWidth || 1080, 720, 3200),
+        canvasHeight: clampNumber(templateBuilderDraft.canvasHeight, selectedTemplate.canvasHeight || 1350, 720, 4800),
+        schemaVersion: 2,
         masterTemplateKey: selectedTemplate.masterTemplateKey || '',
         defaultVariantKey: selectedTemplate.defaultVariantKey || selectedVariantKey || '',
         brandKitId: selectedTemplate.brandKitId || selectedBrandKitId || null,
@@ -994,8 +1608,24 @@ const OfferDesigner: React.FC = () => {
         designJson: JSON.stringify(nextDesign),
         active: selectedTemplate.active,
       });
+      await persistSelectedVariantDimensions(
+        clampNumber(templateBuilderDraft.canvasWidth, selectedTemplate.canvasWidth || updated.canvasWidth, 720, 3200),
+        clampNumber(templateBuilderDraft.canvasHeight, selectedTemplate.canvasHeight || updated.canvasHeight, 720, 4800),
+      );
       const nextTemplates = templates.map((item) => (item.id === updated.id ? updated : item));
       setTemplates(nextTemplates);
+      setTemplateBuilderDraft(
+        buildTemplateBuilderDraft(
+          updated,
+          selectedVariant
+            ? {
+                ...selectedVariant,
+                canvasWidth: clampNumber(templateBuilderDraft.canvasWidth, selectedVariant.canvasWidth || updated.canvasWidth, 720, 3200),
+                canvasHeight: clampNumber(templateBuilderDraft.canvasHeight, selectedVariant.canvasHeight || updated.canvasHeight, 720, 4800),
+              }
+            : selectedVariant,
+        ),
+      );
       setLookupNotice('Estrutura do template atualizada.');
       await loadTemplateMeta(updated.id, nextTemplates, brandKits, campaignKits);
       await refreshPreview('preview');
@@ -1013,45 +1643,37 @@ const OfferDesigner: React.FC = () => {
     }
 
     const baseTemplate = selectedTemplate;
-    const nextNameBase = baseTemplate?.name || 'Novo template';
+    const nextDesign = buildTemplateDesignFromDraft(templateBuilderDraft);
+    const canvasWidth = clampNumber(templateBuilderDraft.canvasWidth, baseTemplate?.canvasWidth || selectedVariant?.canvasWidth || 1080, 720, 3200);
+    const canvasHeight = clampNumber(templateBuilderDraft.canvasHeight, baseTemplate?.canvasHeight || selectedVariant?.canvasHeight || 1350, 720, 4800);
 
     setSaving(true);
     try {
       const createdTemplate = await offersService.createTemplate(effectiveMarketId, {
-        name: `${nextNameBase} copia`,
-        description: baseTemplate?.description || 'Template criado no estudio visual.',
-        channel: baseTemplate?.channel || 'PRINT',
-        canvasWidth: baseTemplate?.canvasWidth || selectedVariant?.canvasWidth || 1080,
-        canvasHeight: baseTemplate?.canvasHeight || selectedVariant?.canvasHeight || 1350,
-        schemaVersion: baseTemplate?.schemaVersion || 2,
+        name: templateBuilderDraft.name.trim() || baseTemplate?.name || 'Novo template',
+        description: templateBuilderDraft.description.trim() || baseTemplate?.description || 'Template criado no estudio visual.',
+        channel: templateBuilderDraft.channel || baseTemplate?.channel || 'PRINT',
+        canvasWidth,
+        canvasHeight,
+        schemaVersion: 2,
         masterTemplateKey: baseTemplate?.masterTemplateKey || '',
         defaultVariantKey: selectedVariantKey || baseTemplate?.defaultVariantKey || '',
         brandKitId: selectedBrandKitId || baseTemplate?.brandKitId || null,
         campaignKitId: selectedCampaignKitId || baseTemplate?.campaignKitId || null,
-        designJson: preview?.resolvedDesignJson || baseTemplate?.designJson || '{}',
+        designJson: JSON.stringify(nextDesign),
         active: true,
       });
-
-      if (templateVariants.length > 0) {
-        await Promise.all(
-          templateVariants.map((variant) =>
-            offersService.createTemplateVariant(effectiveMarketId, createdTemplate.id, {
-              variantKey: variant.variantKey,
-              name: variant.name,
-              canvasWidth: variant.canvasWidth,
-              canvasHeight: variant.canvasHeight,
-              variantJson: variant.variantJson,
-              previewImageUrl: variant.previewImageUrl || undefined,
-              active: variant.active,
-            }),
-          ),
-        );
-      }
 
       const persistedTemplate = await offersService.getTemplate(effectiveMarketId, createdTemplate.id);
       const nextTemplates = [persistedTemplate, ...templates.filter((item) => item.id !== persistedTemplate.id)];
       setTemplates(nextTemplates);
       setSelectedTemplateId(persistedTemplate.id);
+      setTemplateBuilderDraft(
+        buildTemplateBuilderDraft(
+          persistedTemplate,
+          selectedVariant ? { ...selectedVariant, canvasWidth, canvasHeight } : selectedVariant,
+        ),
+      );
       await loadTemplateMeta(persistedTemplate.id, nextTemplates, brandKits, campaignKits);
       setLookupNotice('Template salvo e liberado para a conta selecionada.');
     } catch (err: any) {
@@ -1331,6 +1953,346 @@ const OfferDesigner: React.FC = () => {
                 </div>
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}
+                </div>
+                <div className="offer-studio-theme-grid">
+                  <section className="offer-studio-theme-card md:col-span-2">
+                    <div className="offer-studio-panel-subhead">
+                      <span className="section-kicker">Template builder</span>
+                      <small>Crie templates com áreas de fundo, selo, rodapé, logos e conteúdo.</small>
+                    </div>
+                    <div className="offer-studio-edit-grid">
+                      <label className="offer-studio-text-field">
+                        <span>Nome do template</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.name}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, name: event.target.value }))}
+                          placeholder="Ex.: Cartaz premium vertical"
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Canal</span>
+                        <select
+                          className="input"
+                          value={templateBuilderDraft.channel}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, channel: event.target.value }))}
+                        >
+                          <option value="PRINT">Print</option>
+                          <option value="SOCIAL">Social</option>
+                          <option value="PORTAL">Portal</option>
+                          <option value="TV">TV</option>
+                        </select>
+                      </label>
+                      <label className="offer-studio-text-field md:col-span-2">
+                        <span>Descrição</span>
+                        <textarea
+                          className="textarea"
+                          rows={3}
+                          value={templateBuilderDraft.description}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, description: event.target.value }))}
+                          placeholder="Descreva em que contexto esse template deve ser usado."
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Largura do canvas</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.canvasWidth}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, canvasWidth: event.target.value }))}
+                          placeholder="1080"
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Altura do canvas</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.canvasHeight}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, canvasHeight: event.target.value }))}
+                          placeholder="1350"
+                        />
+                      </label>
+                    </div>
+                    <div className="offer-studio-inline-actions wrap">
+                      <Button type="button" onClick={() => void handleSaveTemplateBuilder()} disabled={saving || !selectedTemplateId}>
+                        <Layers3 size={16} strokeWidth={2.1} />
+                        {saving ? 'Aplicando...' : 'Aplicar no template atual'}
+                      </Button>
+                      {isSuperAdminMode ? (
+                        <Button type="button" variant="secondary" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
+                          <LayoutTemplate size={16} strokeWidth={2.1} />
+                          {saving ? 'Salvando...' : 'Salvar como novo template'}
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setTemplateBuilderDraft(buildTemplateBuilderDraft(selectedTemplate, selectedVariant))}
+                        disabled={!selectedTemplate}
+                      >
+                        <RefreshCw size={16} strokeWidth={2.1} />
+                        Recarregar estrutura atual
+                      </Button>
+                    </div>
+                  </section>
+
+                  <section className="offer-studio-theme-card">
+                    <div className="offer-studio-panel-subhead">
+                      <span className="section-kicker">Fundo e selo</span>
+                      <small>Imagem de fundo e PNG do selo 3D.</small>
+                    </div>
+                    <div className="offer-studio-edit-grid">
+                      <label className="offer-studio-text-field">
+                        <span>Modo do fundo</span>
+                        <select
+                          className="input"
+                          value={templateBuilderDraft.backgroundMode}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundMode: event.target.value }))}
+                        >
+                          <option value="solid">Cor sólida</option>
+                          <option value="gradient">Gradiente</option>
+                          <option value="image">Imagem</option>
+                        </select>
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Cor base</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.backgroundColor}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: event.target.value }))}
+                          placeholder="#fff7ef"
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Início do gradiente</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.backgroundStart}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: event.target.value }))}
+                          placeholder="#fff7ef"
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fim do gradiente</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.backgroundEnd}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: event.target.value }))}
+                          placeholder="#ffd4b4"
+                        />
+                      </label>
+                      <label className="offer-studio-text-field md:col-span-2">
+                        <span>Imagem de fundo</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.backgroundImageUrl}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundImageUrl: event.target.value }))}
+                          placeholder="https://..."
+                        />
+                      </label>
+                      <label className="offer-studio-text-field md:col-span-2">
+                        <span>PNG do selo 3D</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.badge.imageUrl}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, imageUrl: event.target.value } }))}
+                          placeholder="https://..."
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Raio do selo</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.badge.radius}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, radius: event.target.value } }))}
+                        />
+                      </label>
+                    </div>
+                    <div className="offer-studio-check-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.badge.visible}
+                          onChange={(event) =>
+                            setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, visible: event.target.checked } }))
+                          }
+                        />
+                        <span>Exibir selo</span>
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.badge.frame}
+                          onChange={(event) =>
+                            setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, frame: event.target.checked } }))
+                          }
+                        />
+                        <span>Aplicar moldura</span>
+                      </label>
+                    </div>
+                    <StudioBoundsFields
+                      value={templateBuilderDraft.badge}
+                      onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, ...next } }))}
+                    />
+                  </section>
+
+                  <section className="offer-studio-theme-card">
+                    <div className="offer-studio-panel-subhead">
+                      <span className="section-kicker">Rodapé e logos</span>
+                      <small>Base da peça e logos posicionados em camada.</small>
+                    </div>
+                    <div className="offer-studio-edit-grid">
+                      <label className="offer-studio-text-field md:col-span-2">
+                        <span>Texto do rodapé</span>
+                        <textarea
+                          className="textarea"
+                          rows={3}
+                          value={templateBuilderDraft.footer.text}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, text: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Cor do fundo</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.footer.background}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, background: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Cor do texto</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.footer.textColor}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, textColor: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Logo esquerda</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.footerLeftLogo.imageUrl}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, imageUrl: event.target.value } }))}
+                          placeholder="https://..."
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Logo direita</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.footerRightLogo.imageUrl}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, imageUrl: event.target.value } }))}
+                          placeholder="https://..."
+                        />
+                      </label>
+                    </div>
+                    <div className="offer-studio-check-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.footer.visible}
+                          onChange={(event) =>
+                            setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, visible: event.target.checked } }))
+                          }
+                        />
+                        <span>Exibir rodapé</span>
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.footerLeftLogo.visible}
+                          onChange={(event) =>
+                            setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, visible: event.target.checked } }))
+                          }
+                        />
+                        <span>Exibir logo esquerda</span>
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.footerRightLogo.visible}
+                          onChange={(event) =>
+                            setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, visible: event.target.checked } }))
+                          }
+                        />
+                        <span>Exibir logo direita</span>
+                      </label>
+                    </div>
+                    <StudioBoundsFields
+                      value={templateBuilderDraft.footer}
+                      onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, ...next } }))}
+                    />
+                  </section>
+
+                  <section className="offer-studio-theme-card md:col-span-2">
+                    <div className="offer-studio-panel-subhead">
+                      <span className="section-kicker">Área de conteúdo</span>
+                      <small>Zona onde os produtos serão distribuídos automaticamente.</small>
+                    </div>
+                    <div className="offer-studio-edit-grid">
+                      <label className="offer-studio-text-field">
+                        <span>Layout</span>
+                        <select
+                          className="input"
+                          value={templateBuilderDraft.contentZone.layout}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, contentZone: { ...current.contentZone, layout: event.target.value } }))}
+                        >
+                          <option value="grid">Grade</option>
+                          <option value="hero">Hero</option>
+                          <option value="single">Single</option>
+                        </select>
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Slots</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.contentZone.slotCount}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, contentZone: { ...current.contentZone, slotCount: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Colunas</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.contentZone.columns}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, contentZone: { ...current.contentZone, columns: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Linhas</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.contentZone.rows}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, contentZone: { ...current.contentZone, rows: event.target.value } }))}
+                        />
+                      </label>
+                    </div>
+                    <StudioBoundsFields
+                      value={templateBuilderDraft.contentZone}
+                      onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, contentZone: { ...current.contentZone, ...next } }))}
+                    />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                        <div className="offer-studio-panel-subhead">
+                          <span className="section-kicker">Logo esquerda</span>
+                          <small>Dimensões da camada</small>
+                        </div>
+                        <StudioBoundsFields
+                          value={templateBuilderDraft.footerLeftLogo}
+                          onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, ...next } }))}
+                        />
+                      </div>
+                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                        <div className="offer-studio-panel-subhead">
+                          <span className="section-kicker">Logo direita</span>
+                          <small>Dimensões da camada</small>
+                        </div>
+                        <StudioBoundsFields
+                          value={templateBuilderDraft.footerRightLogo}
+                          onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footerRightLogo: { ...current.footerRightLogo, ...next } }))}
+                        />
+                      </div>
+                    </div>
+                  </section>
                 </div>
                 <div className="rounded-[28px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,255,255,0.04)] p-5">
                   <div className="offer-studio-panel-subhead">
@@ -1708,7 +2670,7 @@ const OfferDesigner: React.FC = () => {
               <div className="offer-studio-stage-header">
                 <div>
                   <span className="section-kicker">Prévia da arte</span>
-                  <h2>{selectedTemplate?.name || 'Selecione um modelo'}</h2>
+                  <h2>{activeTool === 'themes' ? templateBuilderDraft.name || selectedTemplate?.name || 'Selecione um modelo' : selectedTemplate?.name || 'Selecione um modelo'}</h2>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedVariant ? <span className="sales-pill soft">{selectedVariant.name}</span> : null}
                     {selectedBrandKit ? <span className="sales-pill soft"><Factory size={14} strokeWidth={2.1} /> {selectedBrandKit.name}</span> : null}
@@ -1718,13 +2680,13 @@ const OfferDesigner: React.FC = () => {
                 </div>
                 <div className="offer-studio-stage-meta">
                   <span>{generationMode === 'CATALOG' ? 'Encarte automático' : 'Peças individuais'}</span>
-                  <span>{itemsPerPage} slots</span>
+                  <span>{stageGridLimit} slots</span>
                 </div>
               </div>
 
               <div className="offer-studio-stage-surface">
                 <div className="offer-studio-stage-canvas" style={{ transform: `scale(${stageScale})` }}>
-                  <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={preview?.resolvedDesignJson} products={stageProducts} gridLimit={generationMode === 'CATALOG' ? itemsPerPage : 1} footerText={footerText} className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
+                  <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} footerText={activeTool === 'themes' ? null : footerText} className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
                 </div>
               </div>
 

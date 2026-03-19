@@ -125,6 +125,15 @@ const boundsToStyle = (bounds: JsonMap, canvasWidth: number, canvasHeight: numbe
   height: `${(((Number(bounds.h) || canvasHeight) / canvasHeight) * 100).toFixed(2)}%`,
 });
 
+const resolveReference = (value: unknown, resolver: (binding?: string, fallback?: string) => string, fallback = '') => {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!normalized) return fallback;
+  if (/^(https?:)?\/\//i.test(normalized) || normalized.startsWith('data:') || normalized.startsWith('/')) {
+    return normalized;
+  }
+  return resolver(normalized, fallback);
+};
+
 const backgroundFromCanvas = (canvas: JsonMap, brandTokens: JsonMap, campaignAssets: JsonMap) => {
   const background = asMap(canvas.background);
   const colors = asMap(brandTokens.colors);
@@ -283,6 +292,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   const backgroundStyle = backgroundFromCanvas(canvas, brandTokens, campaignAssets);
   const fallbackFooter = footerText || String(campaignTokens.footer || brandAssets.footer?.disclaimer || '');
   const textColor = String(asMap(brandTokens.colors).text || '#1f1613');
+  const backgroundConfig = asMap(canvas.background);
 
   const bindingContext: JsonMap = {
     static: staticBindings,
@@ -303,21 +313,27 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     return String(value);
   };
 
+  const resolveAsset = (value: unknown, fallback = '') => resolveReference(value, resolveValue, fallback);
+  const backgroundImageUrl = resolveAsset(backgroundConfig.imageUrl);
+  const backgroundFit = String(backgroundConfig.fit || 'cover').toLowerCase() === 'contain' ? 'object-contain' : 'object-cover';
+  const hasFooterLayer = layers.some((layer) => String(layer.type || '').toLowerCase() === 'footer' && layer.visible !== false);
+
   const renderLayer = (layer: JsonMap) => {
     const layerId = String(layer.id || `layer-${Math.random()}`);
     const layerType = String(layer.type || 'text').toLowerCase();
     const bounds = asMap(layer.bounds);
     const props = asMap(layer.props);
+    const layerTextColor = String(props.textColor || textColor);
     const style: React.CSSProperties = {
       ...boundsToStyle(bounds, canvasWidth, canvasHeight),
-      color: textColor,
+      color: layerTextColor,
     };
     const radius = Number(props.radius) || 24;
     const background = props.background ? String(props.background) : undefined;
     const fontSize = Number(props.fontSize);
     const fontWeight = Number(props.fontWeight) || 700;
 
-    if (layerType === 'background') return null;
+    if (layerType === 'background' || layer.visible === false) return null;
 
     if (layerType === 'image' || layerType === 'brandlogo' || layerType === 'campaignbadge') {
       const fallbackImage =
@@ -326,15 +342,32 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
           : layerType === 'campaignbadge'
             ? String(getByPath(bindingContext, 'campaignAssets.badge3d.imageUrl') || '')
             : '';
-      const src = resolveValue(String(layer.binding || ''), fallbackImage);
-      if (!src) return null;
+      const src = resolveAsset(layer.binding, fallbackImage);
+      const hasFrame = props.frame !== false && layerType !== 'campaignbadge';
+      const fitClass = String(props.fit || 'contain').toLowerCase() === 'cover' ? 'object-cover' : 'object-contain';
+      const padding = hasFrame ? Number(props.padding) || 12 : Number(props.padding) || 0;
+      if (!src) {
+        if (layerType === 'campaignbadge') {
+          return (
+            <div
+              key={layerId}
+              className="absolute flex items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,#ff8b2a_0%,#ff6a00_100%)] px-4 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white shadow-[0_16px_36px_rgba(255,106,0,0.24)]"
+              style={{ ...style, borderRadius: radius || 24 }}
+            >
+              {resolveValue('campaign.badgeLabel', 'Oferta')}
+            </div>
+          );
+        }
+        return null;
+      }
       return (
         <div
           key={layerId}
-          className="absolute overflow-hidden border border-[rgba(87,51,30,0.08)] shadow-[0_10px_30px_rgba(44,20,6,0.08)]"
-          style={{ ...style, borderRadius: radius, background: background || 'rgba(255,255,255,0.88)' }}
+          className={hasFrame ? 'absolute overflow-hidden border border-[rgba(87,51,30,0.08)] shadow-[0_10px_30px_rgba(44,20,6,0.08)]' : 'absolute overflow-hidden'}
+          style={{ ...style, borderRadius: radius, background: background || (hasFrame ? 'rgba(255,255,255,0.88)' : 'transparent') }}
         >
-          <OfferProductImage src={src} alt={layerType} className="h-full w-full object-contain p-3" />
+          <OfferProductImage src={src} alt={layerType} className={`h-full w-full ${fitClass}`} />
+          {padding > 0 ? <div className="pointer-events-none absolute inset-0" style={{ boxShadow: `inset 0 0 0 ${padding}px ${background || 'rgba(255,255,255,0.88)'}` }} /> : null}
         </div>
       );
     }
@@ -381,12 +414,12 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
         className={`absolute ${layerType === 'tag' || layerType === 'badge' ? 'inline-flex items-center justify-center rounded-full border border-[rgba(87,51,30,0.08)] bg-white/85 px-3 py-1 text-center text-xs font-semibold uppercase tracking-[0.12em]' : 'flex items-start justify-start text-left'} overflow-hidden`}
         style={{
           ...style,
-          background: background,
+          background: layerType === 'footer' ? background || 'rgba(44,20,6,0.86)' : background,
           borderRadius: layerType === 'tag' || layerType === 'badge' ? 9999 : radius,
-          fontSize: fontSize ? `${Math.max(fontSize / 26, 0.7)}rem` : undefined,
+          fontSize: fontSize ? `${Math.max(fontSize / 26, 0.7)}rem` : layerType === 'footer' ? '0.62rem' : undefined,
           fontWeight,
           lineHeight: layerType === 'footer' ? 1.45 : 1.08,
-          padding: layerType === 'text' || layerType === 'footer' ? '0.2rem' : undefined,
+          padding: layerType === 'text' ? '0.2rem' : layerType === 'footer' ? '0.72rem 0.95rem' : undefined,
         }}
       >
         <span className="line-clamp-4">{content}</span>
@@ -456,10 +489,13 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   return (
     <div className={`offer-canvas-preview relative overflow-hidden rounded-[32px] border border-[rgba(87,51,30,0.08)] shadow-[0_20px_40px_rgba(44,20,6,0.08)] ${className || ''}`} style={{ aspectRatio: ratio, ...backgroundStyle }}>
       <div className="absolute inset-0">
+        {backgroundImageUrl ? (
+          <OfferProductImage src={backgroundImageUrl} alt="Fundo do template" className={`absolute inset-0 h-full w-full ${backgroundFit}`} />
+        ) : null}
         {layers.map(renderLayer)}
         {zones.map(renderZone)}
       </div>
-      {fallbackFooter ? (
+      {fallbackFooter && !hasFooterLayer ? (
         <div className="absolute inset-x-4 bottom-4 rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(44,20,6,0.86)] px-4 py-3 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-white/82">
           {fallbackFooter}
         </div>

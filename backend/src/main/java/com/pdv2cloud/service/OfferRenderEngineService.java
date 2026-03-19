@@ -14,6 +14,7 @@ import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
 import java.awt.MultipleGradientPaint;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -143,6 +144,23 @@ public class OfferRenderEngineService {
 
         Color start = color(background.get("start"), color(colors.get("surface"), new Color(0xFFF7EF)));
         Color end = color(background.get("end"), color(colors.get("surfaceAlt"), Color.WHITE));
+        String backgroundImageUrl = resolveAssetReference(resolved, background.get("imageUrl"));
+        if ("image".equalsIgnoreCase(String.valueOf(background.get("type"))) && backgroundImageUrl != null) {
+            graphics.setColor(color(background.get("color"), start));
+            graphics.fillRect(0, 0, width, height);
+            paintRawImage(
+                graphics,
+                loadImage(backgroundImageUrl),
+                0,
+                0,
+                width,
+                height,
+                0,
+                normalizeText(String.valueOf(background.get("fit")), "cover"),
+                color(background.get("color"), new Color(0, 0, 0, 0))
+            );
+            return;
+        }
         if ("gradient".equalsIgnoreCase(String.valueOf(background.get("type")))) {
             graphics.setPaint(new LinearGradientPaint(0, 0, 0, height, new float[] { 0f, 1f }, new Color[] { start, end }, MultipleGradientPaint.CycleMethod.NO_CYCLE));
             graphics.fillRect(0, 0, width, height);
@@ -165,6 +183,9 @@ public class OfferRenderEngineService {
         String type = normalizeText(String.valueOf(layer.get("type")), "text").toLowerCase(Locale.ROOT);
         String binding = layer.get("binding") == null ? null : String.valueOf(layer.get("binding"));
         String text = resolveText(resolved, binding);
+        if (Boolean.FALSE.equals(layer.get("visible"))) {
+            return;
+        }
 
         switch (type) {
             case "tag", "badge" -> {
@@ -173,11 +194,11 @@ public class OfferRenderEngineService {
                 drawText(graphics, text, x + 18, y + (h / 2) + 5, font(Font.SANS_SERIF, Font.BOLD, Math.max(18, h / 2 - 8)), new Color(95, 46, 13));
             }
             case "text" -> drawWrappedText(graphics, normalizeText(text, ""), x, y, w, h, font("SansSerif", Font.BOLD, 42), new Color(0x1F1613), 3);
-            case "brandlogo" -> paintBrandLogo(graphics, resolved, x, y, w, h);
-            case "campaignbadge" -> paintCampaignBadge(graphics, resolved, x, y, w, h);
+            case "brandlogo" -> paintBrandLogo(graphics, resolved, layer, x, y, w, h);
+            case "campaignbadge" -> paintCampaignBadge(graphics, resolved, layer, text, x, y, w, h);
             case "qrcode" -> paintQrCode(graphics, normalizeText(text, normalizeText(resolveText(resolved, "brand.qrValue"), "https://mercadoflow.com")), x, y, w, h);
-            case "footer" -> paintFooter(graphics, resolved, x, y, w, h);
-            case "image" -> paintContainedImage(graphics, loadImage(resolveText(resolved, binding)), x, y, w, h, 28);
+            case "footer" -> paintFooter(graphics, resolved, layer, text, x, y, w, h);
+            case "image" -> paintImageLayer(graphics, resolved, layer, x, y, w, h);
             case "price" -> {
                 graphics.setColor(new Color(255, 255, 255, 228));
                 graphics.fill(new RoundRectangle2D.Float(x, y, w, h, 28, 28));
@@ -191,9 +212,22 @@ public class OfferRenderEngineService {
         }
     }
 
-    private void paintBrandLogo(Graphics2D graphics, Map<String, Object> resolved, int x, int y, int w, int h) {
+    private void paintBrandLogo(Graphics2D graphics, Map<String, Object> resolved, Map<String, Object> layer, int x, int y, int w, int h) {
         Map<String, Object> brandTokens = asMap(resolved.get("brandTokens"));
         Map<String, Object> brandAssets = asMap(resolved.get("brandAssets"));
+        Map<String, Object> props = asMap(layer.get("props"));
+        String imageUrl = resolveAssetReference(resolved, layer.get("binding"));
+        if (imageUrl == null) {
+            imageUrl = resolveAssetReference(resolved, "brandAssets.logo.imageUrl");
+        }
+        if (imageUrl != null) {
+            if (!Boolean.FALSE.equals(props.get("frame"))) {
+                paintContainedImage(graphics, loadImage(imageUrl), x, y, w, h, intValue(props.get("radius"), 26));
+            } else {
+                paintRawImage(graphics, loadImage(imageUrl), x, y, w, h, intValue(props.get("radius"), 0), normalizeText(String.valueOf(props.get("fit")), "contain"), color(props.get("background"), new Color(0, 0, 0, 0)));
+            }
+            return;
+        }
         String label = normalizeText(resolveText(resolved, "brand.logoLabel"), normalizeText(String.valueOf(asMap(brandAssets.get("logo")).get("label")), "Mercado"));
         graphics.setColor(new Color(255, 255, 255, 228));
         graphics.fill(new RoundRectangle2D.Float(x, y, w, h, 26, 26));
@@ -202,21 +236,54 @@ public class OfferRenderEngineService {
         drawText(graphics, label, x + 72, y + (h / 2) + 6, font("SansSerif", Font.BOLD, 22), new Color(47, 23, 11));
     }
 
-    private void paintCampaignBadge(Graphics2D graphics, Map<String, Object> resolved, int x, int y, int w, int h) {
+    private void paintCampaignBadge(Graphics2D graphics, Map<String, Object> resolved, Map<String, Object> layer, String text, int x, int y, int w, int h) {
         Map<String, Object> campaignTokens = asMap(resolved.get("campaignTokens"));
-        String label = normalizeText(String.valueOf(campaignTokens.get("badgeLabel")), "Encarte rapido");
+        Map<String, Object> props = asMap(layer.get("props"));
+        String imageUrl = resolveAssetReference(resolved, layer.get("binding"));
+        if (imageUrl == null) {
+            imageUrl = resolveAssetReference(resolved, "campaignAssets.badge3d.imageUrl");
+        }
+        if (imageUrl != null) {
+            if (!Boolean.FALSE.equals(props.get("frame"))) {
+                paintContainedImage(graphics, loadImage(imageUrl), x, y, w, h, intValue(props.get("radius"), 28));
+            } else {
+                paintRawImage(graphics, loadImage(imageUrl), x, y, w, h, intValue(props.get("radius"), 0), normalizeText(String.valueOf(props.get("fit")), "contain"), color(props.get("background"), new Color(0, 0, 0, 0)));
+            }
+            return;
+        }
+        String label = normalizeText(text, normalizeText(String.valueOf(campaignTokens.get("badgeLabel")), "Encarte rapido"));
         graphics.setPaint(new GradientPaint(x, y, new Color(255, 122, 18), x + w, y + h, new Color(240, 90, 0)));
         graphics.fill(new RoundRectangle2D.Float(x, y, w, h, 28, 28));
         drawText(graphics, label, x + 18, y + (h / 2) + 6, font("SansSerif", Font.BOLD, 20), Color.WHITE);
     }
 
-    private void paintFooter(Graphics2D graphics, Map<String, Object> resolved, int x, int y, int w, int h) {
+    private void paintFooter(Graphics2D graphics, Map<String, Object> resolved, Map<String, Object> layer, String text, int x, int y, int w, int h) {
         Map<String, Object> campaignTokens = asMap(resolved.get("campaignTokens"));
         Map<String, Object> brandAssets = asMap(resolved.get("brandAssets"));
-        String label = normalizeText(String.valueOf(campaignTokens.get("footer")), normalizeText(String.valueOf(asMap(brandAssets.get("footer")).get("disclaimer")), ""));
-        graphics.setColor(new Color(29, 23, 19, 226));
-        graphics.fill(new RoundRectangle2D.Float(x, y, w, h, 18, 18));
-        drawWrappedText(graphics, label, x + 16, y + 12, w - 32, h - 16, font("SansSerif", Font.PLAIN, 14), new Color(255, 244, 238), 2);
+        Map<String, Object> props = asMap(layer.get("props"));
+        String label = normalizeText(text, normalizeText(String.valueOf(campaignTokens.get("footer")), normalizeText(String.valueOf(asMap(brandAssets.get("footer")).get("disclaimer")), "")));
+        int radius = intValue(props.get("radius"), 18);
+        int fontSize = intValue(props.get("fontSize"), 14);
+        graphics.setColor(color(props.get("background"), new Color(29, 23, 19, 226)));
+        graphics.fill(new RoundRectangle2D.Float(x, y, w, h, radius, radius));
+        drawWrappedText(graphics, label, x + 16, y + 12, w - 32, h - 16, font("SansSerif", Font.PLAIN, fontSize), color(props.get("textColor"), new Color(255, 244, 238)), 2);
+    }
+
+    private void paintImageLayer(Graphics2D graphics, Map<String, Object> resolved, Map<String, Object> layer, int x, int y, int w, int h) {
+        Map<String, Object> props = asMap(layer.get("props"));
+        String imageUrl = resolveAssetReference(resolved, layer.get("binding"));
+        if (imageUrl == null) {
+            return;
+        }
+        boolean frame = !Boolean.FALSE.equals(props.get("frame"));
+        int radius = intValue(props.get("radius"), 28);
+        String fit = normalizeText(String.valueOf(props.get("fit")), "contain");
+        BufferedImage image = loadImage(imageUrl);
+        if (frame) {
+            paintContainedImage(graphics, image, x, y, w, h, radius);
+            return;
+        }
+        paintRawImage(graphics, image, x, y, w, h, radius, fit, color(props.get("background"), new Color(0, 0, 0, 0)));
     }
 
     private void paintQrCode(Graphics2D graphics, String value, int x, int y, int w, int h) {
@@ -304,6 +371,33 @@ public class OfferRenderEngineService {
         int drawX = x + Math.round((w - drawWidth) / 2f);
         int drawY = y + Math.round((h - drawHeight) / 2f);
         graphics.drawImage(source, drawX, drawY, drawWidth, drawHeight, null);
+    }
+
+    private void paintRawImage(Graphics2D graphics, BufferedImage source, int x, int y, int w, int h, int radius, String fit, Color background) {
+        Shape previousClip = graphics.getClip();
+        RoundRectangle2D.Float clipShape = new RoundRectangle2D.Float(x, y, w, h, radius, radius);
+        if (background.getAlpha() > 0) {
+            graphics.setColor(background);
+            graphics.fill(clipShape);
+        }
+        graphics.setClip(clipShape);
+        if (source == null) {
+            graphics.setClip(previousClip);
+            graphics.setColor(new Color(210, 199, 191));
+            graphics.draw(new RoundRectangle2D.Float(x + 1, y + 1, w - 2, h - 2, radius, radius));
+            drawText(graphics, "Sem imagem", x + 18, y + (h / 2) + 4, font("SansSerif", Font.BOLD, 18), new Color(122, 91, 73));
+            return;
+        }
+
+        float scale = "cover".equalsIgnoreCase(normalizeText(fit, "contain"))
+            ? Math.max(w / (float) source.getWidth(), h / (float) source.getHeight())
+            : Math.min(w / (float) source.getWidth(), h / (float) source.getHeight());
+        int drawWidth = Math.max(1, Math.round(source.getWidth() * scale));
+        int drawHeight = Math.max(1, Math.round(source.getHeight() * scale));
+        int drawX = x + Math.round((w - drawWidth) / 2f);
+        int drawY = y + Math.round((h - drawHeight) / 2f);
+        graphics.drawImage(source, drawX, drawY, drawWidth, drawHeight, null);
+        graphics.setClip(previousClip);
     }
 
     private void drawWrappedText(Graphics2D graphics, String text, int x, int y, int width, int height, Font font, Color color, int maxLines) {
@@ -540,6 +634,20 @@ public class OfferRenderEngineService {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Falha ao gerar MP4 do lote", ex);
         }
+    }
+
+    private String resolveAssetReference(Map<String, Object> resolved, Object reference) {
+        if (reference == null) {
+            return null;
+        }
+        String normalized = normalizeText(String.valueOf(reference), null);
+        if (normalized == null) {
+            return null;
+        }
+        if (normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("data:") || normalized.startsWith("/")) {
+            return normalized;
+        }
+        return normalizeText(resolveText(resolved, normalized), normalized);
     }
 
     private String resolveText(Map<String, Object> resolved, String binding) {
