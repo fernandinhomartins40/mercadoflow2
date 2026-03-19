@@ -1779,40 +1779,6 @@ const OfferDesigner: React.FC = () => {
           </div>
         ) : null}
 
-        {isSuperAdminMode ? (
-          <div className="mb-5 flex flex-col gap-3 rounded-[24px] border border-[rgba(87,51,30,0.1)] bg-white/82 p-4 shadow-[0_18px_40px_rgba(44,20,6,0.06)] lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-end">
-              <label className="offer-studio-text-field min-w-0 lg:min-w-[320px]">
-                <span>Conta da plataforma</span>
-                <select
-                  className="input"
-                  value={selectedSuperAdminMarketId}
-                  onChange={(event) => setSelectedSuperAdminMarketId(event.target.value)}
-                  disabled={marketsLoading || superAdminMarketOptions.length === 0}
-                >
-                  {superAdminMarketOptions.length ? (
-                    superAdminMarketOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">Nenhuma conta encontrada</option>
-                  )}
-                </select>
-              </label>
-              <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-3 text-sm text-[color:var(--text-secondary)]">
-                <strong className="block text-[color:var(--text-primary)]">Templates salvos aqui aparecem no painel admin da conta.</strong>
-                <span>{selectedSuperAdminMarket ? `Conta ativa: ${selectedSuperAdminMarket.name}` : 'Selecione uma conta para abrir os dados.'}</span>
-              </div>
-            </div>
-            <Button type="button" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
-              <LayoutTemplate size={16} strokeWidth={2.1} />
-              {saving ? 'Salvando...' : 'Salvar como template'}
-            </Button>
-          </div>
-        ) : null}
-
         {isEditingCampaign ? (
           <div className="mb-5 rounded-[22px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.82)] px-4 py-3 text-sm text-[color:var(--text-secondary)]">
             <strong className="block text-[color:var(--text-primary)]">Campanha em ediÃ§Ã£o</strong>
@@ -1961,6 +1927,33 @@ const OfferDesigner: React.FC = () => {
                       <small>Crie templates com áreas de fundo, selo, rodapé, logos e conteúdo.</small>
                     </div>
                     <div className="offer-studio-edit-grid">
+                      {isSuperAdminMode ? (
+                        <>
+                          <label className="offer-studio-text-field md:col-span-2">
+                            <span>Conta da plataforma</span>
+                            <select
+                              className="input"
+                              value={selectedSuperAdminMarketId}
+                              onChange={(event) => setSelectedSuperAdminMarketId(event.target.value)}
+                              disabled={marketsLoading || superAdminMarketOptions.length === 0}
+                            >
+                              {superAdminMarketOptions.length ? (
+                                superAdminMarketOptions.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))
+                              ) : (
+                                <option value="">Nenhuma conta encontrada</option>
+                              )}
+                            </select>
+                          </label>
+                          <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-3 text-sm text-[color:var(--text-secondary)] md:col-span-2">
+                            <strong className="block text-[color:var(--text-primary)]">Templates salvos aqui aparecem no painel admin da conta.</strong>
+                            <span>{selectedSuperAdminMarket ? `Conta ativa: ${selectedSuperAdminMarket.name}` : 'Selecione uma conta para abrir os dados.'}</span>
+                          </div>
+                        </>
+                      ) : null}
                       <label className="offer-studio-text-field">
                         <span>Nome do template</span>
                         <input
