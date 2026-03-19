@@ -15,24 +15,6 @@ import { cn } from '../../lib/cn';
 
 const OFFERS_PINNED_SIDEBAR_QUERY = '(min-width: 1024px)';
 
-const PAGE_COPY = {
-  '/ofertas': {
-    kicker: 'MercadoFlow Ofertas',
-    title: 'Estudio visual de ofertas',
-    subtitle: 'Aplicacao dedicada do ecossistema para templates, campanhas e publicacao.',
-  },
-  '/ofertas/campanhas': {
-    kicker: 'MercadoFlow Ofertas',
-    title: 'Campanhas de ofertas',
-    subtitle: 'Fluxo operacional das campanhas sem conflito com os shells dos paineis.',
-  },
-  '/ofertas/jobs': {
-    kicker: 'MercadoFlow Ofertas',
-    title: 'Arquivos e saidas',
-    subtitle: 'Fila de render, revisao dos arquivos e historico do modulo.',
-  },
-} as const;
-
 function getInitialMatch(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
@@ -46,6 +28,8 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const { buildUrl, dashboardHref, isSuperAdminMode, logout, userEmail, userName } = useOffersAppSession();
   const [navOpen, setNavOpen] = useState(false);
   const [navPinned, setNavPinned] = useState<boolean>(getInitialMatch);
+  const isEditorRoute = location.pathname === '/ofertas';
+  const showAppRail = !isEditorRoute;
 
   const navItems = useMemo(
     () => (isSuperAdminMode
@@ -59,8 +43,6 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         ]),
     [buildUrl, isSuperAdminMode],
   );
-
-  const pageMeta = PAGE_COPY[location.pathname as keyof typeof PAGE_COPY] || PAGE_COPY['/ofertas'];
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -89,7 +71,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <div className="workspace-root offers-studio-layout h-[100dvh] box-border overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]">
-      {!navPinned ? (
+      {!navPinned && showAppRail ? (
         <button
           type="button"
           className={cn(
@@ -101,59 +83,61 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         />
       ) : null}
 
-      <aside
-        className={cn(
-          'offers-app-rail',
-          navPinned ? 'offers-app-rail-desktop' : 'offers-app-rail-mobile',
-          navPinned || navOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[110%] opacity-0',
-        )}
-      >
-        <div className="offers-app-brand">
-          <div className="offers-app-brand-mark">{isSuperAdminMode ? 'SA' : 'MF'}</div>
-          <div className="offers-app-brand-copy">
-            <strong>Ofertas</strong>
-            <span>{isSuperAdminMode ? 'Templates da plataforma' : 'Campanhas do mercado'}</span>
+      {showAppRail ? (
+        <aside
+          className={cn(
+            'offers-app-rail',
+            navPinned ? 'offers-app-rail-desktop' : 'offers-app-rail-mobile',
+            navPinned || navOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[110%] opacity-0',
+          )}
+        >
+          <div className="offers-app-brand">
+            <div className="offers-app-brand-mark">{isSuperAdminMode ? 'SA' : 'MF'}</div>
+            <div className="offers-app-brand-copy">
+              <strong>Ofertas</strong>
+              <span>{isSuperAdminMode ? 'Templates da plataforma' : 'Campanhas do mercado'}</span>
+            </div>
+            {!navPinned ? (
+              <button
+                type="button"
+                className="offers-app-close"
+                onClick={() => setNavOpen(false)}
+                aria-label="Fechar menu do modulo"
+              >
+                <X className="h-4 w-4" strokeWidth={2.2} />
+              </button>
+            ) : null}
           </div>
-          {!navPinned ? (
-            <button
-              type="button"
-              className="offers-app-close"
-              onClick={() => setNavOpen(false)}
-              aria-label="Fechar menu do modulo"
-            >
-              <X className="h-4 w-4" strokeWidth={2.2} />
-            </button>
-          ) : null}
-        </div>
 
-        <nav className="offers-app-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.exact}
-              className={({ isActive }) => cn('offers-app-nav-item', isActive && 'active')}
-            >
-              <item.icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
-              <span>{item.label}</span>
+          <nav className="offers-app-nav">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact}
+                className={({ isActive }) => cn('offers-app-nav-item', isActive && 'active')}
+              >
+                <item.icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="offers-app-rail-footer">
+            <NavLink to={dashboardHref} className="offers-app-utility">
+              <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.1} />
+              <span>Voltar</span>
             </NavLink>
-          ))}
-        </nav>
+            <button type="button" className="offers-app-utility" onClick={() => void logout()}>
+              <LogOut className="h-[18px] w-[18px]" strokeWidth={2.1} />
+              <span>Sair</span>
+            </button>
+          </div>
+        </aside>
+      ) : null}
 
-        <div className="offers-app-rail-footer">
-          <NavLink to={dashboardHref} className="offers-app-utility">
-            <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.1} />
-            <span>Voltar</span>
-          </NavLink>
-          <button type="button" className="offers-app-utility" onClick={() => void logout()}>
-            <LogOut className="h-[18px] w-[18px]" strokeWidth={2.1} />
-            <span>Sair</span>
-          </button>
-        </div>
-      </aside>
-
-      <main className={cn('offers-studio-layout-main h-full min-h-0 min-w-0 overflow-hidden', navPinned ? 'pl-[96px]' : 'pt-14')}>
-        {!navPinned ? (
+      <main className={cn('offers-studio-layout-main h-full min-h-0 min-w-0 overflow-hidden', showAppRail && navPinned ? 'pl-[96px]' : '', showAppRail && !navPinned ? 'pt-14' : '')}>
+        {!navPinned && showAppRail ? (
           <button
             type="button"
             className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.08)] transition hover:-translate-y-px hover:bg-[rgba(255,247,240,0.92)]"
@@ -164,21 +148,18 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           </button>
         ) : null}
 
-        <div className={navPinned ? 'flex h-full min-h-0 flex-col overflow-hidden p-4 lg:p-6' : 'flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4 sm:px-5'}>
-          <header className="offers-app-header">
-            <div className="offers-app-header-copy">
-              <span className="section-kicker">{pageMeta.kicker}</span>
-              <h1>{pageMeta.title}</h1>
-              <p>{pageMeta.subtitle}</p>
-            </div>
-            <div className="offers-app-session">
-              <span className="offers-app-session-role">{isSuperAdminMode ? 'Super admin' : 'Admin'}</span>
-              <strong>{userName}</strong>
-              <small>{userEmail}</small>
-            </div>
-          </header>
-
-          <div className="offers-app-body">
+        <div className={cn(
+          'flex h-full min-h-0 flex-col overflow-hidden',
+          showAppRail ? (navPinned ? 'p-3 lg:p-4' : 'px-4 pb-4 sm:px-5') : 'p-0',
+        )}>
+          <div className={cn('offers-app-body', showAppRail ? 'rounded-[28px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,252,248,0.6)]' : '')}>
+            {showAppRail ? (
+              <div className="offers-app-floating-session">
+                <span className="offers-app-session-role">{isSuperAdminMode ? 'Super admin' : 'Admin'}</span>
+                <strong>{userName}</strong>
+                <small>{userEmail}</small>
+              </div>
+            ) : null}
             {children}
           </div>
         </div>

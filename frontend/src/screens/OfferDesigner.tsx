@@ -3462,6 +3462,7 @@ const OfferDesigner: React.FC = () => {
                   ) : (
                     <>
                       <span>{generationMode === 'CATALOG' ? 'Encarte automático' : 'Peças individuais'}</span>
+                      {isEditingCampaign ? <span>Campanha em edicao</span> : null}
                       <span>{stageGridLimit} slots</span>
                     </>
                   )}
@@ -3515,6 +3516,10 @@ const OfferDesigner: React.FC = () => {
                       <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
                         <Boxes size={16} strokeWidth={2.1} />
                         Campanhas
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => navigate(buildUrl('/ofertas/jobs'))}>
+                        <FileText size={16} strokeWidth={2.1} />
+                        Arquivos
                       </Button>
                       <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
                         <WandSparkles size={16} strokeWidth={2.1} />
