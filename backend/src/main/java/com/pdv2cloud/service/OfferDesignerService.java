@@ -1535,23 +1535,23 @@ public class OfferDesignerService {
     }
 
     private Map<String, Object> defaultCardTemplate() {
-        return new LinkedHashMap<>(Map.of(
-            "imageFit", "contain",
-            "showBaselinePrice", true,
-            "showUnit", true,
-            "showDescription", true,
-            "background", "#ffffff",
-            "borderColor", "#ead9ca",
-            "textColor", "#1f1613",
-            "priceBoxBackground", "#ff3b1f",
-            "priceBoxTextColor", "#ffffff",
-            "priceBoxLabelColor", "#fff1d6",
-            "priceLabel", "R$",
-            "cardRadius", 28,
-            "priceBoxRadius", 26,
-            "nameFontSize", 30,
-            "descriptionFontSize", 18,
-            "priceFontSize", 54
+        return new LinkedHashMap<>(Map.ofEntries(
+            Map.entry("imageFit", "contain"),
+            Map.entry("showBaselinePrice", true),
+            Map.entry("showUnit", true),
+            Map.entry("showDescription", true),
+            Map.entry("background", "#ffffff"),
+            Map.entry("borderColor", "#ead9ca"),
+            Map.entry("textColor", "#1f1613"),
+            Map.entry("priceBoxBackground", "#ff3b1f"),
+            Map.entry("priceBoxTextColor", "#ffffff"),
+            Map.entry("priceBoxLabelColor", "#fff1d6"),
+            Map.entry("priceLabel", "R$"),
+            Map.entry("cardRadius", 28),
+            Map.entry("priceBoxRadius", 26),
+            Map.entry("nameFontSize", 30),
+            Map.entry("descriptionFontSize", 18),
+            Map.entry("priceFontSize", 54)
         ));
     }
 
