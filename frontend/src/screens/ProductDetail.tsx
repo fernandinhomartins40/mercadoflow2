@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import { buildOffersUrl } from '../lib/offersApp';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
@@ -393,7 +394,7 @@ const ProductDetail: React.FC = () => {
 
               <div className="hero-inline-actions product-detail-actions">
                 <ButtonLink variant="secondary" to="/app/produtos">Voltar para produtos</ButtonLink>
-                <ButtonLink variant="secondary" to={`/app/ofertas/designer?productId=${overview.productId}`}>Criar oferta</ButtonLink>
+                <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin', `productId=${overview.productId}`)}>Criar oferta</ButtonLink>
                 <ButtonLink variant="secondary" to="/app/alertas">Abrir alertas</ButtonLink>
                 <ShoppingListButton
                   inList={overview ?productIds.has(overview.productId) : false}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Boxes,
   BoxSelect,
@@ -36,7 +36,7 @@ import Button from '../components/common/Button';
 import OffersStudioLayout from '../components/layout/OffersStudioLayout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
-import { useAuth } from '../context/AuthContext';
+import { useOffersAppSession } from '../hooks/useOffersAppSession';
 import api from '../services/api';
 import { offersService, type OfferCreateJobPayload } from '../services/offers.service';
 import {
@@ -1073,17 +1073,14 @@ const StudioBoundsFields: React.FC<{
 );
 
 const OfferDesigner: React.FC = () => {
-  const { marketId, name } = useAuth();
-  const location = useLocation();
+  const { buildUrl, isSuperAdminMode, marketId, userName } = useOffersAppSession();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isSuperAdminMode = location.pathname.startsWith('/super-admin');
   const requestedTemplateId = searchParams.get('templateId') || '';
   const requestedJobId = searchParams.get('jobId') || '';
   const requestedProductId = searchParams.get('productId') || '';
   const requestedMarketId = searchParams.get('marketId') || '';
-  const routeBase = isSuperAdminMode ? '/super-admin/ofertas' : '/app/ofertas';
-  const adminCampaignsRoute = '/app/ofertas/campanhas';
+  const adminCampaignsRoute = buildUrl('/ofertas/campanhas');
   const [overview, setOverview] = useState<OfferOverview | null>(null);
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
   const [brandKits, setBrandKits] = useState<OfferBrandKit[]>([]);
@@ -1147,7 +1144,7 @@ const OfferDesigner: React.FC = () => {
     [selectedSuperAdminMarketId, superAdminMarkets],
   );
   const effectiveMarketId = isSuperAdminMode ? selectedSuperAdminMarketId : marketId || '';
-  const effectiveMarketName = isSuperAdminMode ? selectedSuperAdminMarket?.name || 'conta selecionada' : name || 'MercadoFlow';
+  const effectiveMarketName = isSuperAdminMode ? selectedSuperAdminMarket?.name || 'conta selecionada' : userName || 'MercadoFlow';
   const isEditingCampaign = !isSuperAdminMode && Boolean(activeJobId);
   const selectedTemplate = useMemo(() => templates.find((template) => template.id === selectedTemplateId) || null, [templates, selectedTemplateId]);
   const selectedVariant = useMemo(() => templateVariants.find((variant) => variant.variantKey === selectedVariantKey) || null, [templateVariants, selectedVariantKey]);
@@ -1228,7 +1225,7 @@ const OfferDesigner: React.FC = () => {
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
   }, [activeZone, resolvedDesign]);
 
-  const buildAdminDesignerRoute = (jobId: string) => `${routeBase}?${new URLSearchParams({ jobId }).toString()}`;
+  const buildDesignerRoute = (jobId: string) => buildUrl('/ofertas', new URLSearchParams({ jobId }).toString());
 
   const buildRenderOptionsPayload = () => ({
     quality: renderQuality,
@@ -1990,7 +1987,7 @@ const OfferDesigner: React.FC = () => {
       setActiveJobId(persistedJob.id);
       setLookupNotice(activeJobId ? 'Campanha atualizada.' : 'Campanha salva.');
       if (!activeJobId) {
-        navigate(buildAdminDesignerRoute(persistedJob.id), { replace: true });
+        navigate(buildDesignerRoute(persistedJob.id), { replace: true });
       }
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar a campanha.');
@@ -2023,7 +2020,7 @@ const OfferDesigner: React.FC = () => {
 
   if (loading) {
     return (
-      <OffersStudioLayout mode={isSuperAdminMode ? 'super-admin' : 'admin'}>
+      <OffersStudioLayout>
         <div className="page offers-studio-page">
           <div className="sales-empty-card">Carregando estúdio de ofertas...</div>
         </div>
@@ -2032,7 +2029,7 @@ const OfferDesigner: React.FC = () => {
   }
 
   return (
-    <OffersStudioLayout mode={isSuperAdminMode ? 'super-admin' : 'admin'}>
+    <OffersStudioLayout>
       <div className="page offers-studio-page">
         {error ? (
           <div className="offer-studio-toast-stack">

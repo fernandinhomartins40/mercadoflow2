@@ -1,7 +1,8 @@
 import React, { Suspense, lazy } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useSuperAdminAuth } from './context/SuperAdminAuthContext';
+import { buildOffersUrl, resolveOffersWorkspace } from './lib/offersApp';
 
 const Login = lazy(() => import('./screens/Login'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
@@ -60,6 +61,36 @@ const SuperAdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ chi
 
 const secureSuperAdmin = (element: React.ReactNode) => <SuperAdminProtectedRoute>{element}</SuperAdminProtectedRoute>;
 
+const OffersAppProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const auth = useAuth();
+  const superAdminAuth = useSuperAdminAuth();
+  const workspace = resolveOffersWorkspace(location.search);
+  const isSuperAdminMode = workspace === 'super-admin';
+  const loading = isSuperAdminMode ? superAdminAuth.loading : auth.loading;
+
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (isSuperAdminMode) {
+    if (!superAdminAuth.userId || superAdminAuth.role !== 'SUPER_ADMIN') {
+      return <Navigate to="/super-admin/login" replace />;
+    }
+  } else if (!auth.userId) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const secureOffers = (element: React.ReactNode) => <OffersAppProtectedRoute>{element}</OffersAppProtectedRoute>;
+
+const OffersWorkspaceRedirect: React.FC<{ targetPath: string; workspace: 'admin' | 'super-admin' }> = ({ targetPath, workspace }) => {
+  const location = useLocation();
+  return <Navigate to={buildOffersUrl(targetPath, workspace, location.search)} replace />;
+};
+
 const App: React.FC = () => {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -76,12 +107,12 @@ const App: React.FC = () => {
         <Route path="/app/cesta" element={secure(<MarketBasket />)} />
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
-        <Route path="/app/ofertas" element={secure(<OfferDesigner />)} />
-        <Route path="/app/ofertas/campanhas" element={secure(<OffersCampaigns />)} />
-        <Route path="/app/ofertas/inicio" element={<Navigate to="/app/ofertas/campanhas" replace />} />
-        <Route path="/app/ofertas/modelos" element={<Navigate to="/app/ofertas" replace />} />
-        <Route path="/app/ofertas/designer" element={secure(<OfferDesigner />)} />
-        <Route path="/app/ofertas/jobs" element={secure(<OfferJobs />)} />
+        <Route path="/app/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
+        <Route path="/app/ofertas/campanhas" element={<OffersWorkspaceRedirect targetPath="/ofertas/campanhas" workspace="admin" />} />
+        <Route path="/app/ofertas/inicio" element={<OffersWorkspaceRedirect targetPath="/ofertas/campanhas" workspace="admin" />} />
+        <Route path="/app/ofertas/modelos" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
+        <Route path="/app/ofertas/designer" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
+        <Route path="/app/ofertas/jobs" element={<OffersWorkspaceRedirect targetPath="/ofertas/jobs" workspace="admin" />} />
         <Route path="/app/pdvs" element={secure(<PDVs />)} />
         <Route path="/app/campanhas" element={secure(<Campaigns />)} />
         <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
@@ -93,15 +124,18 @@ const App: React.FC = () => {
         <Route path="/super-admin/saas" element={secureSuperAdmin(<SuperAdminUsers />)} />
         <Route path="/super-admin/usuarios" element={<Navigate to="/super-admin/saas" replace />} />
         <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
-        <Route path="/super-admin/ofertas" element={secureSuperAdmin(<OfferDesigner />)} />
+        <Route path="/super-admin/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="super-admin" />} />
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
+
+        <Route path="/ofertas" element={secureOffers(<OfferDesigner />)} />
+        <Route path="/ofertas/campanhas" element={secureOffers(<OffersCampaigns />)} />
+        <Route path="/ofertas/jobs" element={secureOffers(<OfferJobs />)} />
 
         <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
         <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />
         <Route path="/alertas" element={<Navigate to="/app/alertas" replace />} />
         <Route path="/lista-compras" element={<Navigate to="/app/lista-compras" replace />} />
-        <Route path="/ofertas" element={<Navigate to="/app/ofertas" replace />} />
         <Route path="/pdvs" element={<Navigate to="/app/pdvs" replace />} />
         <Route path="/campanhas" element={<Navigate to="/app/campanhas" replace />} />
         <Route path="/previsao-demanda" element={<Navigate to="/app/previsao-demanda" replace />} />

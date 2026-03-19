@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
+import { buildOffersUrl } from '../lib/offersApp';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -453,7 +454,7 @@ const Dashboard: React.FC = () => {
             <div className="sales-dashboard-actions">
               <ButtonLink to="/app/produtos">Abrir análise por produto</ButtonLink>
               {featuredProduct ?(
-                <ButtonLink variant="secondary" to={`/app/ofertas/designer?productId=${featuredProduct.productId}`}>
+                <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin', `productId=${featuredProduct.productId}`)}>
                   Criar oferta do líder
                 </ButtonLink>
               ) : null}

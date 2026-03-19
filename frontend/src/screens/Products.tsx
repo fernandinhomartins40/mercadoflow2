@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import { buildOffersUrl } from '../lib/offersApp';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
@@ -134,7 +135,7 @@ const Products: React.FC = () => {
                     </Button>
                   ) : null}
                   {highlightProduct ? (
-                    <Button type="button" variant="secondary" onClick={() => navigate(`/app/ofertas/designer?productId=${highlightProduct.productId}`)}>
+                    <Button type="button" variant="secondary" onClick={() => navigate(buildOffersUrl('/ofertas', 'admin', `productId=${highlightProduct.productId}`))}>
                       Criar oferta
                     </Button>
                   ) : null}
@@ -306,7 +307,7 @@ const Products: React.FC = () => {
                         variant="secondary"
                         onClick={(event) => {
                           event.stopPropagation();
-                          navigate(`/app/ofertas/designer?productId=${product.productId}`);
+                          navigate(buildOffersUrl('/ofertas', 'admin', `productId=${product.productId}`));
                         }}
                       >
                         Criar oferta

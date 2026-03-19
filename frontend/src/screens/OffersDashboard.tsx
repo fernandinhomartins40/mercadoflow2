@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import { buildOffersUrl } from '../lib/offersApp';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
@@ -160,7 +161,7 @@ const OffersDashboard: React.FC = () => {
     const params = new URLSearchParams();
     if (templateId) params.set('templateId', templateId);
     if (productId) params.set('productId', productId);
-    navigate(`/app/ofertas/designer${params.toString() ? `?${params.toString()}` : ''}`);
+    navigate(buildOffersUrl('/ofertas', 'admin', params.toString()));
   };
 
   return (
@@ -173,8 +174,8 @@ const OffersDashboard: React.FC = () => {
           actions={
             <>
               <Button type="button" onClick={() => openDesigner(leadTemplate?.id)}>Abrir designer</Button>
-              <ButtonLink variant="secondary" to="/app/ofertas/modelos">Gerenciar modelos</ButtonLink>
-              <ButtonLink variant="secondary" to="/app/ofertas/jobs">Ver lotes</ButtonLink>
+              <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin')}>Gerenciar modelos</ButtonLink>
+              <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas/jobs', 'admin')}>Ver lotes</ButtonLink>
             </>
           }
           feature={<OfferCanvasPreview template={leadTemplate} className="offer-dashboard-canvas" />}
@@ -215,7 +216,7 @@ const OffersDashboard: React.FC = () => {
                       </div>
                       <div className="offer-template-card-actions">
                         <Button type="button" onClick={() => openDesigner(template.id)}>Usar no designer</Button>
-                        <ButtonLink variant="secondary" to="/app/ofertas/modelos">Editar</ButtonLink>
+                        <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin')}>Editar</ButtonLink>
                       </div>
                     </div>
                   </article>

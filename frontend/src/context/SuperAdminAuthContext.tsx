@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
 import superAdminAuthService from '../services/superAdminAuth.service';
 
 interface SuperAdminAuthState {
@@ -29,7 +30,11 @@ export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = (
 
   useEffect(() => {
     const load = async () => {
-      if (!location.pathname.startsWith('/super-admin')) {
+      const shouldLoadForWorkspace =
+        location.pathname.startsWith('/super-admin')
+        || (isOffersAppPath(location.pathname) && resolveOffersWorkspace(location.search) === 'super-admin');
+
+      if (!shouldLoadForWorkspace) {
         setState({ role: null, userId: null, email: null, name: null });
         setLoading(false);
         return;
@@ -53,7 +58,7 @@ export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = (
       }
     };
     load();
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   const login = async (email: string, password: string, keepConnected = false) => {
     await superAdminAuthService.login(email, password, keepConnected);

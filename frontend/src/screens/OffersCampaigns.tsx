@@ -9,15 +9,15 @@ import {
   SendHorizontal,
   Trash2,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
-import Layout from '../components/layout/Layout';
+import OffersStudioLayout from '../components/layout/OffersStudioLayout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
-import { useAuth } from '../context/AuthContext';
+import { useOffersAppSession } from '../hooks/useOffersAppSession';
 import { offersService } from '../services/offers.service';
 import { OfferGenerationJob, OfferOverview, OfferTemplate } from '../types/offers.types';
 
@@ -165,7 +165,7 @@ const CampaignCard: React.FC<{
 };
 
 const OffersCampaigns: React.FC = () => {
-  const { marketId } = useAuth();
+  const { buildUrl, isSuperAdminMode, marketId } = useOffersAppSession();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<OfferOverview | null>(null);
   const [jobs, setJobs] = useState<OfferGenerationJob[]>([]);
@@ -175,6 +175,10 @@ const OffersCampaigns: React.FC = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'draft' | 'published' | 'failed'>('all');
+
+  if (isSuperAdminMode) {
+    return <Navigate to={buildUrl('/ofertas')} replace />;
+  }
 
   const loadData = async () => {
     if (!marketId) {
@@ -233,7 +237,7 @@ const OffersCampaigns: React.FC = () => {
     const search = new URLSearchParams();
     if (params?.templateId) search.set('templateId', params.templateId);
     if (params?.jobId) search.set('jobId', params.jobId);
-    navigate(`/app/ofertas${search.toString() ? `?${search.toString()}` : ''}`);
+    navigate(buildUrl('/ofertas', search.toString()));
   };
 
   const handlePublish = async (job: OfferGenerationJob) => {
@@ -288,7 +292,7 @@ const OffersCampaigns: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <OffersStudioLayout>
       <div className="page analytics-page offers-page">
         {error ? <div className="sales-empty-card">{error}</div> : null}
         {!error && notice ? <div className="sales-empty-card">{notice}</div> : null}
@@ -303,7 +307,7 @@ const OffersCampaigns: React.FC = () => {
                 <Plus size={16} strokeWidth={2.1} />
                 Abrir estúdio
               </Button>
-              <ButtonLink variant="secondary" to="/app/ofertas/jobs">Arquivos</ButtonLink>
+              <ButtonLink variant="secondary" to={buildUrl('/ofertas/jobs')}>Arquivos</ButtonLink>
             </>
           }
           feature={
@@ -422,7 +426,7 @@ const OffersCampaigns: React.FC = () => {
                   <strong className="block text-xl text-[color:var(--text-primary)]">Centro de arquivos do modulo</strong>
                   <p className="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">Abra a fila detalhada para revisar outputs, links finais e historico de publicacao.</p>
                 </div>
-                <ButtonLink to="/app/ofertas/jobs">
+                <ButtonLink to={buildUrl('/ofertas/jobs')}>
                   <FileImage size={16} strokeWidth={2.1} />
                   Abrir arquivos
                 </ButtonLink>
@@ -431,7 +435,7 @@ const OffersCampaigns: React.FC = () => {
           </>
         ) : null}
       </div>
-    </Layout>
+    </OffersStudioLayout>
   );
 };
 

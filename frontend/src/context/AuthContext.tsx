@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
 import authService from '../services/auth.service';
 
 interface AuthState {
@@ -31,7 +32,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const load = async () => {
-      if (location.pathname.startsWith('/super-admin')) {
+      const shouldSkipForWorkspace =
+        location.pathname.startsWith('/super-admin')
+        || (isOffersAppPath(location.pathname) && resolveOffersWorkspace(location.search) === 'super-admin');
+
+      if (shouldSkipForWorkspace) {
         setState({
           role: null,
           marketId: null,
@@ -64,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     load();
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   const login = async (email: string, password: string, keepConnected = false) => {
     await authService.login(email, password, keepConnected);

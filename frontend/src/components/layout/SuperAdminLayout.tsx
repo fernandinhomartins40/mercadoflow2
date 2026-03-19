@@ -8,10 +8,10 @@ import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
 import { useDesktopSidebarMode } from '../../hooks/useDesktopSidebarMode';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/super-admin': { title: 'Visão geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
-  '/super-admin/saas': { title: 'Contas e acesso', subtitle: 'Contas, usuários, vencimentos e liberações manuais', section: 'Controle' },
-  '/super-admin/catalogo': { title: 'Catálogo global', subtitle: 'Base central de produtos, ajustes manuais e revisão da qualidade', section: 'Dados' },
-  '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualização de dados dos supermercados', section: 'Dados' },
+  '/super-admin': { title: 'VisÃ£o geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
+  '/super-admin/saas': { title: 'Contas e acesso', subtitle: 'Contas, usuÃ¡rios, vencimentos e liberaÃ§Ãµes manuais', section: 'Controle' },
+  '/super-admin/catalogo': { title: 'CatÃ¡logo global', subtitle: 'Base central de produtos, ajustes manuais e revisÃ£o da qualidade', section: 'Dados' },
+  '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualizaÃ§Ã£o de dados dos supermercados', section: 'Dados' },
   '/super-admin/ofertas': { title: 'Templates de ofertas', subtitle: 'Base visual compartilhada para as contas da plataforma', section: 'Dados' },
 };
 
@@ -37,15 +37,15 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     {
       title: 'Controle',
       items: [
-        { to: '/super-admin', label: 'Visão geral', hint: 'Saúde da plataforma', icon: Home, exact: true },
-        { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usuários e vencimentos', icon: Users },
+        { to: '/super-admin', label: 'VisÃ£o geral', hint: 'SaÃºde da plataforma', icon: Home, exact: true },
+        { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usuÃ¡rios e vencimentos', icon: Users },
       ],
     },
     {
       title: 'Dados',
       items: [
-        { to: '/super-admin/catalogo', label: 'Catálogo global', hint: 'Base central de produtos', icon: Database },
-        { to: '/super-admin/ofertas', label: 'Templates de ofertas', hint: 'Base visual por conta', icon: Sparkles },
+        { to: '/super-admin/catalogo', label: 'CatÃ¡logo global', hint: 'Base central de produtos', icon: Database },
+        { to: '/ofertas?workspace=super-admin', label: 'Templates de ofertas', hint: 'Base visual por conta', icon: Sparkles },
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
       ],
     },
@@ -65,7 +65,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         brandMark="SA"
         brandTitle="Super Admin"
         brandSubtitle="Controle central da plataforma"
-        userKicker="Sessão ativa"
+        userKicker="SessÃ£o ativa"
         userName={name || 'Super Administrador'}
         userEmail={email || 'Conta principal da plataforma'}
         userChips={[
@@ -74,8 +74,8 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         ]}
         sections={navSections}
         supportKicker="Fluxo sugerido"
-        supportTitle="Revise contas, acompanhe o crawler e valide o catálogo"
-        supportText="Essa ordem reduz erro operacional e deixa a manutenção diária mais simples."
+        supportTitle="Revise contas, acompanhe o crawler e valide o catÃ¡logo"
+        supportText="Essa ordem reduz erro operacional e deixa a manutenÃ§Ã£o diÃ¡ria mais simples."
         footer={<Button className="w-full" variant="secondary" onClick={() => logout()}>Sair</Button>}
       />
 

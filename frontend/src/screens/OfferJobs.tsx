@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, ExternalLink, RefreshCw, SendHorizontal, WandSparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Eye, ExternalLink, RefreshCw, SendHorizontal } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import PageHero from '../components/dashboard/PageHero';
-import Layout from '../components/layout/Layout';
+import OffersStudioLayout from '../components/layout/OffersStudioLayout';
 import OfferProductImage from '../components/offers/OfferProductImage';
-import { useAuth } from '../context/AuthContext';
+import { useOffersAppSession } from '../hooks/useOffersAppSession';
 import { offersService } from '../services/offers.service';
 import { OfferGenerationJob } from '../types/offers.types';
 
@@ -23,12 +23,16 @@ const parseJsonList = (value?: string | null, fallback: string[] = []) => {
 };
 
 const OfferJobs: React.FC = () => {
-  const { marketId } = useAuth();
+  const { buildUrl, isSuperAdminMode, marketId } = useOffersAppSession();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<OfferGenerationJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  if (isSuperAdminMode) {
+    return <Navigate to={buildUrl('/ofertas')} replace />;
+  }
 
   const loadJobs = async () => {
     if (!marketId) {
@@ -71,7 +75,7 @@ const OfferJobs: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <OffersStudioLayout>
       <div className="page analytics-page offers-page">
         <PageHero
           badge="Arquivos e publicações"
@@ -79,7 +83,7 @@ const OfferJobs: React.FC = () => {
           description="Cada campanha salva carrega variante, canais, render options e outputs, para que a revisão final fique separada da listagem operacional."
           actions={
             <>
-              <Button type="button" onClick={() => navigate('/app/ofertas/campanhas')}>Campanhas</Button>
+              <Button type="button" onClick={() => navigate(buildUrl('/ofertas/campanhas'))}>Campanhas</Button>
               <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
                 <RefreshCw size={16} strokeWidth={2.1} />
                 Atualizar
@@ -178,7 +182,7 @@ const OfferJobs: React.FC = () => {
           </div>
         ) : null}
       </div>
-    </Layout>
+    </OffersStudioLayout>
   );
 };
 

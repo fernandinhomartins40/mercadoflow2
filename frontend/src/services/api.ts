@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getOffersWorkspaceLoginRoute, isOffersAppPath } from '../lib/offersApp';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -25,7 +26,9 @@ api.interceptors.response.use(
       const publicPaths = ['/', '/login', '/download-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
-        if (window.location.pathname.startsWith('/super-admin')) {
+        if (isOffersAppPath(window.location.pathname)) {
+          window.location.href = getOffersWorkspaceLoginRoute(window.location.search);
+        } else if (window.location.pathname.startsWith('/super-admin')) {
           window.location.href = '/super-admin/login';
         } else {
           window.location.href = '/login';
