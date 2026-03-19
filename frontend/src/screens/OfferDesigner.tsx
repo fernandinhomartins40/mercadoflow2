@@ -2137,7 +2137,7 @@ const OfferDesigner: React.FC = () => {
           </div>
         ) : null}
 
-        <div className={`offer-studio-shell w-full ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
+        <div className={`offer-studio-shell w-full ${isSuperAdminMode && activeTool === 'themes' ? 'is-template-builder' : ''} ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
           <aside className="offer-studio-rail">
             <div className="offer-studio-rail-brand">
               <span className="offer-studio-rail-badge"><Sparkles className="offer-studio-rail-brand-icon" strokeWidth={2.1} /></span>
