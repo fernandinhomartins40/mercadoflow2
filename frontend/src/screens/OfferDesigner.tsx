@@ -216,7 +216,17 @@ type TemplateBuilderDraft = {
   layerLocks: Record<string, boolean>;
 };
 
-type CanvasEditableTarget = 'badge' | 'footer' | 'footerLeftLogo' | 'footerRightLogo';
+type CanvasEditableTarget =
+  | 'kicker'
+  | 'headline'
+  | 'subheadline'
+  | 'badge'
+  | 'footer'
+  | 'footerContent'
+  | 'footerLegal'
+  | 'footerLeftLogo'
+  | 'footerRightLogo'
+  | 'contentZone';
 
 type CanvasEditInteraction = {
   target: CanvasEditableTarget;
@@ -444,12 +454,26 @@ const TEMPLATE_BUILDER_LAYER_IDS = [
 const TEMPLATE_BUILDER_LAYER_ID_SET = new Set<string>(TEMPLATE_BUILDER_LAYER_IDS);
 const CANVAS_EDITABLE_TARGET_META: Record<
   CanvasEditableTarget,
-  { label: string; layerId: string; minWidth: number; minHeight: number; accent: string }
+  {
+    label: string;
+    selectionKind: 'layer' | 'zone';
+    selectionId: string;
+    minWidth: number;
+    minHeight: number;
+    accent: string;
+    overlayLevel: number;
+  }
 > = {
-  badge: { label: 'Selo 3D', layerId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#ff7a12' },
-  footer: { label: 'Rodape', layerId: 'footer', minWidth: 260, minHeight: 48, accent: '#4f2a16' },
-  footerLeftLogo: { label: 'Logo primaria', layerId: 'footer-logo-left', minWidth: 84, minHeight: 42, accent: '#8f4618' },
-  footerRightLogo: { label: 'Logo secundaria', layerId: 'footer-logo-right', minWidth: 84, minHeight: 42, accent: '#b55e24' },
+  kicker: { label: 'Kicker', selectionKind: 'layer', selectionId: 'kicker', minWidth: 140, minHeight: 32, accent: '#b6642b', overlayLevel: 5 },
+  headline: { label: 'Titulo principal', selectionKind: 'layer', selectionId: 'headline', minWidth: 220, minHeight: 72, accent: '#d56d1c', overlayLevel: 5 },
+  subheadline: { label: 'Subtitulo', selectionKind: 'layer', selectionId: 'subheadline', minWidth: 220, minHeight: 52, accent: '#c18651', overlayLevel: 5 },
+  badge: { label: 'Selo 3D', selectionKind: 'layer', selectionId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#ff7a12', overlayLevel: 6 },
+  footer: { label: 'Rodape', selectionKind: 'layer', selectionId: 'footer', minWidth: 260, minHeight: 48, accent: '#4f2a16', overlayLevel: 2 },
+  footerContent: { label: 'Conteudo principal', selectionKind: 'layer', selectionId: 'footer-content', minWidth: 180, minHeight: 32, accent: '#6d3d20', overlayLevel: 4 },
+  footerLegal: { label: 'Aviso legal', selectionKind: 'layer', selectionId: 'footer-legal', minWidth: 160, minHeight: 28, accent: '#946348', overlayLevel: 4 },
+  footerLeftLogo: { label: 'Logo primaria', selectionKind: 'layer', selectionId: 'footer-logo-left', minWidth: 84, minHeight: 42, accent: '#8f4618', overlayLevel: 4 },
+  footerRightLogo: { label: 'Logo secundaria', selectionKind: 'layer', selectionId: 'footer-logo-right', minWidth: 84, minHeight: 42, accent: '#b55e24', overlayLevel: 4 },
+  contentZone: { label: 'Area de conteudo', selectionKind: 'zone', selectionId: 'content-zone', minWidth: 240, minHeight: 180, accent: '#f0a15c', overlayLevel: 1 },
 };
 
 const createDefaultLayerLocks = () =>
@@ -479,31 +503,88 @@ const reorderLayerOrder = (order: string[], sourceId: string, targetId: string) 
   return currentOrder;
 };
 
+const editableTargetFromLayerId = (layerId: string): CanvasEditableTarget | null => {
+  switch (layerId) {
+    case 'kicker':
+      return 'kicker';
+    case 'headline':
+      return 'headline';
+    case 'subheadline':
+      return 'subheadline';
+    case 'campaign-badge':
+      return 'badge';
+    case 'footer':
+      return 'footer';
+    case 'footer-content':
+      return 'footerContent';
+    case 'footer-legal':
+      return 'footerLegal';
+    case 'footer-logo-left':
+      return 'footerLeftLogo';
+    case 'footer-logo-right':
+      return 'footerRightLogo';
+    default:
+      return null;
+  }
+};
+
+const editableTargetFromZoneId = (zoneId: string): CanvasEditableTarget | null => {
+  if (zoneId === 'content-zone') {
+    return 'contentZone';
+  }
+
+  return null;
+};
+
 const editableBoundsDraftByTarget = (draft: TemplateBuilderDraft, target: CanvasEditableTarget): TemplateBuilderBoundsDraft => {
   switch (target) {
+    case 'kicker':
+      return draft.kicker;
+    case 'headline':
+      return draft.headline;
+    case 'subheadline':
+      return draft.subheadline;
     case 'badge':
       return draft.badge;
     case 'footer':
       return draft.footer;
+    case 'footerContent':
+      return draft.footerContent;
+    case 'footerLegal':
+      return draft.footerLegal;
     case 'footerLeftLogo':
       return draft.footerLeftLogo;
     case 'footerRightLogo':
       return draft.footerRightLogo;
+    case 'contentZone':
+      return draft.contentZone;
     default:
-      return draft.badge;
+      return draft.kicker;
   }
 };
 
 const editableVisibilityByTarget = (draft: TemplateBuilderDraft, target: CanvasEditableTarget) => {
   switch (target) {
+    case 'kicker':
+      return draft.kicker.visible;
+    case 'headline':
+      return draft.headline.visible;
+    case 'subheadline':
+      return draft.subheadline.visible;
     case 'badge':
       return draft.badge.visible;
     case 'footer':
       return draft.footer.visible;
+    case 'footerContent':
+      return draft.footerContent.visible;
+    case 'footerLegal':
+      return draft.footerLegal.visible;
     case 'footerLeftLogo':
       return draft.footerLeftLogo.visible;
     case 'footerRightLogo':
       return draft.footerRightLogo.visible;
+    case 'contentZone':
+      return true;
     default:
       return true;
   }
@@ -515,14 +596,26 @@ const updateEditableBoundsByTarget = (
   next: TemplateBuilderBoundsDraft,
 ): TemplateBuilderDraft => {
   switch (target) {
+    case 'kicker':
+      return { ...draft, kicker: { ...draft.kicker, ...next } };
+    case 'headline':
+      return { ...draft, headline: { ...draft.headline, ...next } };
+    case 'subheadline':
+      return { ...draft, subheadline: { ...draft.subheadline, ...next } };
     case 'badge':
       return { ...draft, badge: { ...draft.badge, ...next } };
     case 'footer':
       return { ...draft, footer: { ...draft.footer, ...next } };
+    case 'footerContent':
+      return { ...draft, footerContent: { ...draft.footerContent, ...next } };
+    case 'footerLegal':
+      return { ...draft, footerLegal: { ...draft.footerLegal, ...next } };
     case 'footerLeftLogo':
       return { ...draft, footerLeftLogo: { ...draft.footerLeftLogo, ...next } };
     case 'footerRightLogo':
       return { ...draft, footerRightLogo: { ...draft.footerRightLogo, ...next } };
+    case 'contentZone':
+      return { ...draft, contentZone: { ...draft.contentZone, ...next } };
     default:
       return draft;
   }
@@ -1597,6 +1690,14 @@ const OfferDesigner: React.FC = () => {
     () => resolvedZones.find((zone) => String(zone.id || '') === selectedZoneId) || resolvedZones[0] || null,
     [resolvedZones, selectedZoneId],
   );
+  const activeInspectorCanvasTarget = useMemo(() => {
+    const layerTarget = editableTargetFromLayerId(String(activeLayer?.id || ''));
+    if (layerTarget) {
+      return layerTarget;
+    }
+
+    return editableTargetFromZoneId(String(activeZone?.id || ''));
+  }, [activeLayer, activeZone]);
   const activeZoneBinding = useMemo(() => {
     const zoneBindings = asMap(resolvedDesign.zoneBindings);
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
@@ -1615,8 +1716,10 @@ const OfferDesigner: React.FC = () => {
         return {
           key: target,
           label: CANVAS_EDITABLE_TARGET_META[target].label,
-          layerId: CANVAS_EDITABLE_TARGET_META[target].layerId,
+          selectionKind: CANVAS_EDITABLE_TARGET_META[target].selectionKind,
+          selectionId: CANVAS_EDITABLE_TARGET_META[target].selectionId,
           accent: CANVAS_EDITABLE_TARGET_META[target].accent,
+          overlayLevel: CANVAS_EDITABLE_TARGET_META[target].overlayLevel,
           bounds,
           visible: editableVisibilityByTarget(templateBuilderDraft, target),
           active: canvasEditTarget === target,
@@ -2255,10 +2358,26 @@ const OfferDesigner: React.FC = () => {
     setDraggingLayerId('');
   };
 
+  const syncCanvasEditSelection = (target: CanvasEditableTarget | null) => {
+    if (!target) {
+      return;
+    }
+
+    const meta = CANVAS_EDITABLE_TARGET_META[target];
+    if (meta.selectionKind === 'zone') {
+      setSelectedLayerId('');
+      setSelectedZoneId(meta.selectionId);
+      return;
+    }
+
+    setSelectedLayerId(meta.selectionId);
+  };
+
   const handleCanvasEditToggle = (target: CanvasEditableTarget) => {
+    const nextTarget = canvasEditTarget === target ? null : target;
     setCanvasEditInteraction(null);
-    setCanvasEditTarget((current) => (current === target ? null : target));
-    setSelectedLayerId(CANVAS_EDITABLE_TARGET_META[target].layerId);
+    setCanvasEditTarget(nextTarget);
+    syncCanvasEditSelection(nextTarget);
   };
 
   const handleCanvasEditPointerStart = (
@@ -2284,7 +2403,7 @@ const OfferDesigner: React.FC = () => {
     const localY = (event.clientY - rect.top) / Math.max(stageScale, MIN_STAGE_ZOOM);
 
     setCanvasEditTarget(target);
-    setSelectedLayerId(CANVAS_EDITABLE_TARGET_META[target].layerId);
+    syncCanvasEditSelection(target);
     setCanvasEditInteraction({
       target,
       mode,
@@ -3496,6 +3615,9 @@ const OfferDesigner: React.FC = () => {
                           <span className="section-kicker">Conteudo principal</span>
                           <small>Area do texto principal do mercado</small>
                         </div>
+                        <div className="offer-studio-card-toolbar compact">
+                          {renderCanvasEditButton('footerContent', 'Posicionar texto')}
+                        </div>
                         <div className="offer-studio-edit-grid">
                           <label className="offer-studio-text-field">
                             <span>Fonte</span>
@@ -3523,6 +3645,9 @@ const OfferDesigner: React.FC = () => {
                         <div className="offer-studio-panel-subhead">
                           <span className="section-kicker">Aviso legal</span>
                           <small>Area do texto secundario do mercado</small>
+                        </div>
+                        <div className="offer-studio-card-toolbar compact">
+                          {renderCanvasEditButton('footerLegal', 'Posicionar texto')}
                         </div>
                         <div className="offer-studio-edit-grid">
                           <label className="offer-studio-text-field">
@@ -3557,6 +3682,9 @@ const OfferDesigner: React.FC = () => {
                     onToggle={() => toggleConfigSection('builderContent')}
                     className="md:col-span-2"
                   >
+                    <div className="offer-studio-card-toolbar">
+                      {renderCanvasEditButton('contentZone', 'Posicionar area')}
+                    </div>
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
                         <span>Layout</span>
@@ -3881,6 +4009,12 @@ const OfferDesigner: React.FC = () => {
                       </div>
                     </div>
                     <div className="offer-studio-inline-actions wrap">
+                      {activeInspectorCanvasTarget ? (
+                        <Button type="button" variant="secondary" onClick={() => handleCanvasEditToggle(activeInspectorCanvasTarget)}>
+                          <BoxSelect size={16} strokeWidth={2.1} />
+                          {canvasEditTarget === activeInspectorCanvasTarget ? 'Parar ajuste na arte' : 'Posicionar na arte'}
+                        </Button>
+                      ) : null}
                       <Button type="button" onClick={() => void handleSaveStructure()} disabled={saving || !selectedTemplateId}>
                         <Layers3 size={16} strokeWidth={2.1} />
                         {saving ? 'Salvando estrutura...' : 'Salvar camada e zona'}
@@ -4402,7 +4536,7 @@ const OfferDesigner: React.FC = () => {
                               height: `${item.bounds.h}px`,
                               color: item.accent,
                               background: `${item.accent}1a`,
-                              zIndex: item.active ? 4 : item.key === 'footer' ? 1 : 2,
+                              zIndex: item.active ? item.overlayLevel + 10 : item.overlayLevel,
                             }}
                           >
                             <button
@@ -4411,7 +4545,7 @@ const OfferDesigner: React.FC = () => {
                               onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'move', event)}
                               onClick={() => {
                                 setCanvasEditTarget(item.key);
-                                setSelectedLayerId(item.layerId);
+                                syncCanvasEditSelection(item.key);
                               }}
                             >
                               <span className="offer-studio-stage-guide-label">{item.label}</span>
