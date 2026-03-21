@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Boxes,
@@ -19,6 +19,7 @@ import {
   Lock,
   PackageSearch,
   Palette,
+  Minus,
   Plus,
   QrCode,
   RefreshCw,
@@ -255,12 +256,9 @@ const FOOTER_OPTIONS = [
   { value: 'NONE', label: 'Sem rodapé' },
 ] as const;
 
-const ZOOM_OPTIONS = [
-  { value: 'AUTO', label: 'Auto' },
-  { value: '75', label: '75%' },
-  { value: '100', label: '100%' },
-  { value: '125', label: '125%' },
-] as const;
+const ZOOM_PRESET_VALUES = [1, 2, 5, 10, 25, 50, 75, 100, 125, 150, 200, 300, 400] as const;
+const MIN_STAGE_ZOOM = 0.01;
+const MAX_STAGE_ZOOM = 4;
 
 const QUALITY_OPTIONS = [
   { value: 'high', label: 'Alta qualidade' },
@@ -278,7 +276,36 @@ const PUBLISH_TARGET_OPTIONS = [
 
 const gridPresetToCount = (value: string) => (value === '1x1' ? 1 : value === '2x2' ? 4 : value === '3x2' ? 6 : value === '3x3' ? 9 : 6);
 
-const zoomToScale = (value: string) => (value === '75' ? 0.75 : value === '125' ? 1.25 : 1);
+const clampZoomScale = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+
+  return Math.min(Math.max(value, MIN_STAGE_ZOOM), MAX_STAGE_ZOOM);
+};
+
+const zoomToScale = (value: string, fallback = 1) => {
+  if (value === 'AUTO') {
+    return clampZoomScale(fallback);
+  }
+
+  return clampZoomScale((Number(value) || Math.round(fallback * 100)) / 100);
+};
+
+const scaleToZoomValue = (value: number) => String(Math.round(clampZoomScale(value) * 100));
+
+const formatZoomLabel = (value: number) => `${Math.round(clampZoomScale(value) * 100)}%`;
+
+const resolveStepZoomScale = (currentScale: number, direction: 'in' | 'out') => {
+  const current = clampZoomScale(currentScale);
+  const presets = ZOOM_PRESET_VALUES.map((value) => value / 100);
+
+  if (direction === 'in') {
+    return presets.find((value) => value > current + 0.001) ?? MAX_STAGE_ZOOM;
+  }
+
+  return [...presets].reverse().find((value) => value < current - 0.001) ?? MIN_STAGE_ZOOM;
+};
 
 const footerPreviewLabel = (value: string) =>
   value === 'SLIM'
@@ -1052,7 +1079,7 @@ const StudioBoundsFields: React.FC<{
   value: TemplateBuilderBoundsDraft;
   onChange: (next: TemplateBuilderBoundsDraft) => void;
 }> = ({ value, onChange }) => (
-  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <div className="offer-studio-bounds-grid">
     <label className="offer-studio-text-field">
       <span>X</span>
       <input className="input" value={value.x} onChange={(event) => onChange({ ...value, x: event.target.value })} />
@@ -1076,6 +1103,7 @@ const OfferDesigner: React.FC = () => {
   const { buildUrl, isSuperAdminMode, marketId, userName } = useOffersAppSession();
   const navigate = useNavigate();
   const stageSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const pendingStageViewportRef = useRef<{ anchorX: number; anchorY: number; nextScale: number } | null>(null);
   const [searchParams] = useSearchParams();
   const requestedTemplateId = searchParams.get('templateId') || '';
   const requestedJobId = searchParams.get('jobId') || '';
@@ -1197,19 +1225,37 @@ const OfferDesigner: React.FC = () => {
       templateBuilderDraft.canvasHeight,
     ],
   );
-  const stageScale = useMemo(() => {
-    if (zoomMode !== 'AUTO') {
-      return zoomToScale(zoomMode);
-    }
-
+  const fitStageScale = useMemo(() => {
     if (!stageSurfaceSize.width || !stageSurfaceSize.height || !stageCanvasWidth || !stageCanvasHeight) {
       return 1;
     }
 
     return Math.min(stageSurfaceSize.width / stageCanvasWidth, stageSurfaceSize.height / stageCanvasHeight, 1);
-  }, [stageCanvasHeight, stageCanvasWidth, stageSurfaceSize.height, stageSurfaceSize.width, zoomMode]);
+  }, [stageCanvasHeight, stageCanvasWidth, stageSurfaceSize.height, stageSurfaceSize.width]);
+  const stageScale = useMemo(() => {
+    if (zoomMode !== 'AUTO') {
+      return zoomToScale(zoomMode, fitStageScale);
+    }
+
+    return fitStageScale;
+  }, [fitStageScale, zoomMode]);
   const scaledStageWidth = Math.max(stageCanvasWidth * stageScale, 1);
   const scaledStageHeight = Math.max(stageCanvasHeight * stageScale, 1);
+  const zoomOptions = useMemo(() => {
+    const manualValues = new Set<number>(ZOOM_PRESET_VALUES);
+
+    if (zoomMode !== 'AUTO') {
+      manualValues.add(Math.round(zoomToScale(zoomMode, fitStageScale) * 100));
+    }
+
+    return [
+      { value: 'AUTO', label: `Ajustar (${formatZoomLabel(fitStageScale)})` },
+      ...Array.from(manualValues)
+        .sort((left, right) => left - right)
+        .map((value) => ({ value: String(value), label: `${value}%` })),
+    ];
+  }, [fitStageScale, zoomMode]);
+  const zoomDisplayLabel = useMemo(() => formatZoomLabel(stageScale), [stageScale]);
   const footerText = useMemo(() => footerPreviewLabel(footerMode), [footerMode]);
   const templateOptions = useMemo(
     () => (
@@ -1313,6 +1359,131 @@ const OfferDesigner: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  const setViewportZoom = (nextMode: string, nextScale: number, pointer?: { clientX: number; clientY: number }) => {
+    const surface = stageSurfaceRef.current;
+
+    if (surface) {
+      const bounds = surface.getBoundingClientRect();
+      const localX = pointer ? pointer.clientX - bounds.left + surface.scrollLeft : surface.scrollLeft + surface.clientWidth / 2;
+      const localY = pointer ? pointer.clientY - bounds.top + surface.scrollTop : surface.scrollTop + surface.clientHeight / 2;
+      pendingStageViewportRef.current = {
+        anchorX: localX / Math.max(stageScale, MIN_STAGE_ZOOM),
+        anchorY: localY / Math.max(stageScale, MIN_STAGE_ZOOM),
+        nextScale: clampZoomScale(nextScale),
+      };
+    }
+
+    setZoomMode(nextMode);
+  };
+
+  const handleZoomSelect = (value: string) => {
+    if (value === 'AUTO') {
+      setViewportZoom('AUTO', fitStageScale);
+      return;
+    }
+
+    const nextScale = zoomToScale(value, fitStageScale);
+    setViewportZoom(scaleToZoomValue(nextScale), nextScale);
+  };
+
+  const handleZoomStep = (direction: 'in' | 'out', pointer?: { clientX: number; clientY: number }) => {
+    const nextScale = resolveStepZoomScale(stageScale, direction);
+
+    if (Math.abs(nextScale - stageScale) < 0.001) {
+      return;
+    }
+
+    setViewportZoom(scaleToZoomValue(nextScale), nextScale, pointer);
+  };
+
+  useLayoutEffect(() => {
+    const surface = stageSurfaceRef.current;
+    const pendingViewport = pendingStageViewportRef.current;
+
+    if (!surface || !pendingViewport) {
+      return;
+    }
+
+    if (Math.abs(stageScale - pendingViewport.nextScale) > 0.001) {
+      return;
+    }
+
+    const nextLeft = pendingViewport.anchorX * stageScale - surface.clientWidth / 2;
+    const nextTop = pendingViewport.anchorY * stageScale - surface.clientHeight / 2;
+    surface.scrollTo({
+      left: Math.max(nextLeft, 0),
+      top: Math.max(nextTop, 0),
+    });
+    pendingStageViewportRef.current = null;
+  }, [stageScale]);
+
+  useEffect(() => {
+    const surface = stageSurfaceRef.current;
+    if (!surface) {
+      return undefined;
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextScale = clampZoomScale(stageScale * (event.deltaY < 0 ? 1.12 : 1 / 1.12));
+
+      if (Math.abs(nextScale - stageScale) < 0.001) {
+        return;
+      }
+
+      setViewportZoom(scaleToZoomValue(nextScale), nextScale, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    };
+
+    surface.addEventListener('wheel', handleWheel, { passive: false });
+    return () => surface.removeEventListener('wheel', handleWheel);
+  }, [stageScale]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName || '';
+
+      if (target?.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
+        return;
+      }
+
+      if (!(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+
+      if (event.key === '0') {
+        event.preventDefault();
+        handleZoomSelect('AUTO');
+        return;
+      }
+
+      if (event.key === '=' || event.key === '+') {
+        event.preventDefault();
+        handleZoomStep('in');
+        return;
+      }
+
+      if (event.key === '-') {
+        event.preventDefault();
+        handleZoomStep('out');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fitStageScale, stageScale]);
+
   const buildDesignerRoute = (jobId: string) => buildUrl('/ofertas', new URLSearchParams({ jobId }).toString());
 
   const buildRenderOptionsPayload = () => ({
@@ -1323,7 +1494,6 @@ const OfferDesigner: React.FC = () => {
     textMode,
     colorMode,
     footerMode,
-    zoomMode,
     brandKitId: selectedBrandKitId || null,
     campaignKitId: selectedCampaignKitId || null,
     campaignCopy: {
@@ -1598,7 +1768,6 @@ const OfferDesigner: React.FC = () => {
     selectedTemplateId,
     selectedVariantKey,
     textMode,
-    zoomMode,
   ]);
 
   useEffect(() => {
@@ -3553,7 +3722,6 @@ const OfferDesigner: React.FC = () => {
                   <StudioSelectField label="Rodape" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
                 </>
               ) : null}
-              <StudioSelectField label="Zoom" value={zoomMode} onChange={setZoomMode} options={[...ZOOM_OPTIONS]} />
             </div>
 
             <div className="offer-studio-stage-wrap">
@@ -3609,6 +3777,51 @@ const OfferDesigner: React.FC = () => {
                   )}
                 </div>
                 <div className="offer-studio-output-actions">
+                  <div className="offer-studio-zoom-control">
+                    <span>Zoom da arte</span>
+                    <div className="offer-studio-zoom-control-row">
+                      <button
+                        type="button"
+                        className="offer-studio-zoom-button"
+                        onClick={() => handleZoomStep('out')}
+                        aria-label="Diminuir zoom"
+                        title="Diminuir zoom (Ctrl/Cmd -)"
+                      >
+                        <Minus size={16} strokeWidth={2.2} />
+                      </button>
+                      <select
+                        className="input"
+                        value={zoomMode}
+                        onChange={(event) => handleZoomSelect(event.target.value)}
+                        aria-label="Selecionar zoom da arte"
+                        title="Zoom da arte"
+                      >
+                        {zoomOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="offer-studio-zoom-button"
+                        onClick={() => handleZoomStep('in')}
+                        aria-label="Aumentar zoom"
+                        title="Aumentar zoom (Ctrl/Cmd +)"
+                      >
+                        <Plus size={16} strokeWidth={2.2} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`offer-studio-zoom-fit ${zoomMode === 'AUTO' ? 'active' : ''}`}
+                        onClick={() => handleZoomSelect('AUTO')}
+                        title="Ajustar ao palco (Ctrl/Cmd 0)"
+                      >
+                        Ajustar
+                      </button>
+                      <span className="offer-studio-zoom-indicator">{zoomDisplayLabel}</span>
+                    </div>
+                  </div>
                   <Button type="button" variant="secondary" onClick={() => setActiveTool('themes')}>
                     <LayoutTemplate size={16} strokeWidth={2.1} />
                     Modelos

@@ -42,7 +42,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/v1/markets/{marketId}/offers")
+@RequestMapping({
+    "/api/v1/markets/{marketId}/offers",
+    "/api/v1/super-admin/markets/{marketId}/offers"
+})
 public class OfferDesignerController {
 
     private final MarketAccessService marketAccessService;
