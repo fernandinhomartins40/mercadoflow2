@@ -15,6 +15,7 @@ import java.awt.LinearGradientPaint;
 import java.awt.MultipleGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -290,6 +291,9 @@ public class OfferRenderEngineService {
         Map<String, Object> props = asMap(layer.get("props"));
         String imageUrl = resolveAssetReference(resolved, layer.get("binding"));
         if (imageUrl == null) {
+            imageUrl = resolveAssetReference(resolved, props.get("imageUrl"));
+        }
+        if (imageUrl == null) {
             return;
         }
         boolean frame = !Boolean.FALSE.equals(props.get("frame"));
@@ -353,10 +357,22 @@ public class OfferRenderEngineService {
         int nameFontSize = intValue(cardTemplate.get("nameFontSize"), hero ? 38 : 30);
         int descriptionFontSize = intValue(cardTemplate.get("descriptionFontSize"), hero ? 18 : 15);
         int priceFontSize = intValue(cardTemplate.get("priceFontSize"), hero ? 64 : 54);
+        int priceLabelFontSize = intValue(cardTemplate.get("priceLabelFontSize"), hero ? 28 : 24);
+        int priceFractionFontSize = intValue(cardTemplate.get("priceFractionFontSize"), Math.max((int) Math.round(priceFontSize * 0.5d), 18));
+        int priceUnitFontSize = intValue(cardTemplate.get("priceUnitFontSize"), hero ? 20 : 18);
+        int priceBaselineFontSize = intValue(cardTemplate.get("priceBaselineFontSize"), hero ? 16 : 13);
+        int priceBorderWidth = intValue(cardTemplate.get("priceBorderWidth"), 4);
+        int pricePaddingX = intValue(cardTemplate.get("pricePaddingX"), hero ? 22 : 16);
+        int pricePaddingY = intValue(cardTemplate.get("pricePaddingY"), hero ? 18 : 12);
+        int priceGap = intValue(cardTemplate.get("priceGap"), hero ? 16 : 12);
+        int priceLabelRadius = intValue(cardTemplate.get("priceLabelRadius"), 999);
+        int priceLabelSize = intValue(cardTemplate.get("priceLabelSize"), hero ? 84 : 72);
         boolean showUnit = !Boolean.FALSE.equals(cardTemplate.get("showUnit"));
         boolean showDescription = !Boolean.FALSE.equals(cardTemplate.get("showDescription"));
         boolean showBaselinePrice = !Boolean.FALSE.equals(cardTemplate.get("showBaselinePrice"));
         String priceLabel = normalizeText(String.valueOf(cardTemplate.get("priceLabel")), "R$");
+        boolean splitLayout = "split".equalsIgnoreCase(normalizeText(String.valueOf(cardTemplate.get("priceLayout")), "inline"));
+        boolean stackedUnit = !"side".equalsIgnoreCase(normalizeText(String.valueOf(cardTemplate.get("priceUnitLayout")), "stacked"));
 
         graphics.setColor(color(cardTemplate.get("background"), new Color(255, 255, 255, 240)));
         graphics.fill(new RoundRectangle2D.Float(x, y, w, h, cardRadius, cardRadius));
@@ -387,34 +403,191 @@ public class OfferRenderEngineService {
         }
 
         int priceBoxY = y + h - padding - priceBoxHeight;
+        int priceBoxX = x + padding;
+        int priceBoxWidth = w - (padding * 2);
         graphics.setColor(color(cardTemplate.get("priceBoxBackground"), new Color(255, 59, 31)));
-        graphics.fill(new RoundRectangle2D.Float(x + padding, priceBoxY, w - (padding * 2), priceBoxHeight, priceBoxRadius, priceBoxRadius));
-        graphics.setColor(new Color(255, 196, 79, 210));
-        graphics.setStroke(new BasicStroke(4f));
-        graphics.draw(new RoundRectangle2D.Float(x + padding + 2, priceBoxY + 2, w - (padding * 2) - 4, priceBoxHeight - 4, priceBoxRadius, priceBoxRadius));
-
-        drawText(graphics, priceLabel, x + padding + 20, priceBoxY + priceBoxHeight - 24, font("SansSerif", Font.PLAIN, hero ? 28 : 24), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE));
-        drawText(
-            graphics,
-            formatMoney(currentPrice).replace(priceLabel, "").trim(),
-            x + padding + (hero ? 92 : 82),
-            priceBoxY + priceBoxHeight - 20,
-            font("SansSerif", Font.BOLD, priceFontSize),
-            color(cardTemplate.get("priceBoxTextColor"), Color.WHITE)
-        );
-
         if (showBaselinePrice && baselinePrice > currentPrice) {
             String baseline = formatMoney(baselinePrice);
-            Font baselineFont = font("SansSerif", Font.PLAIN, hero ? 16 : 13);
+            Font baselineFont = font("SansSerif", Font.PLAIN, priceBaselineFontSize);
             FontMetrics metrics = graphics.getFontMetrics(baselineFont);
             int baseY = priceBoxY - 12;
             graphics.setFont(baselineFont);
-            graphics.setColor(new Color(122, 91, 73));
+            graphics.setColor(color(cardTemplate.get("priceBaselineColor"), new Color(122, 91, 73)));
             graphics.drawString(baseline, x + padding, baseY);
             int baseWidth = metrics.stringWidth(baseline);
             graphics.setStroke(new BasicStroke(2f));
             graphics.drawLine(x + padding, baseY - 6, x + padding + baseWidth, baseY - 6);
         }
+
+        paintPriceContainer(graphics, cardTemplate, priceBoxX, priceBoxY, priceBoxWidth, priceBoxHeight, priceBoxRadius, priceBorderWidth);
+
+        if (splitLayout) {
+            paintSplitPriceBlock(
+                graphics,
+                cardTemplate,
+                currentPrice,
+                priceLabel,
+                compactPriceUnit(unit),
+                showUnit,
+                stackedUnit,
+                priceBoxX,
+                priceBoxY,
+                priceBoxWidth,
+                priceBoxHeight,
+                pricePaddingX,
+                pricePaddingY,
+                priceGap,
+                priceLabelSize,
+                priceLabelRadius,
+                priceLabelFontSize,
+                priceFontSize,
+                priceFractionFontSize,
+                priceUnitFontSize
+            );
+            return;
+        }
+
+        paintInlinePriceBlock(
+            graphics,
+            cardTemplate,
+            currentPrice,
+            priceLabel,
+            priceBoxX,
+            priceBoxY,
+            priceBoxHeight,
+            pricePaddingX,
+            pricePaddingY,
+            priceGap,
+            priceLabelFontSize,
+            priceFontSize
+        );
+    }
+
+    private void paintPriceContainer(Graphics2D graphics, Map<String, Object> cardTemplate, int x, int y, int w, int h, int radius, int borderWidth) {
+        graphics.setColor(color(cardTemplate.get("priceBoxBackground"), new Color(255, 59, 31)));
+        graphics.fill(new RoundRectangle2D.Float(x, y, w, h, radius, radius));
+        if (borderWidth <= 0) {
+            return;
+        }
+
+        Stroke previousStroke = graphics.getStroke();
+        String borderStyle = normalizeText(String.valueOf(cardTemplate.get("priceBorderStyle")), "solid");
+        graphics.setColor(color(cardTemplate.get("priceBorderColor"), new Color(255, 196, 79, 210)));
+        graphics.setStroke(
+            "dashed".equalsIgnoreCase(borderStyle)
+                ? new BasicStroke(borderWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10f, new float[] { 10f, 8f }, 0f)
+                : new BasicStroke(borderWidth)
+        );
+        int inset = Math.max(Math.round(borderWidth / 2f), 1);
+        graphics.draw(new RoundRectangle2D.Float(x + inset, y + inset, Math.max(w - (inset * 2), 1), Math.max(h - (inset * 2), 1), radius, radius));
+        graphics.setStroke(previousStroke);
+    }
+
+    private void paintInlinePriceBlock(
+        Graphics2D graphics,
+        Map<String, Object> cardTemplate,
+        double currentPrice,
+        String priceLabel,
+        int x,
+        int y,
+        int h,
+        int paddingX,
+        int paddingY,
+        int gap,
+        int labelFontSize,
+        int valueFontSize
+    ) {
+        String numericValue = formatMoney(currentPrice).replace(priceLabel, "").trim();
+        Font labelFont = font("SansSerif", Font.PLAIN, labelFontSize);
+        Font valueFont = font("SansSerif", Font.BOLD, valueFontSize);
+        FontMetrics labelMetrics = graphics.getFontMetrics(labelFont);
+        int baseline = y + h - paddingY;
+        int labelX = x + paddingX;
+        drawText(graphics, priceLabel, labelX, baseline, labelFont, color(cardTemplate.get("priceLabelTextColor"), color(cardTemplate.get("priceBoxLabelColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE))));
+        drawText(
+            graphics,
+            numericValue,
+            labelX + labelMetrics.stringWidth(priceLabel) + gap,
+            baseline,
+            valueFont,
+            color(cardTemplate.get("priceValueColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE))
+        );
+    }
+
+    private void paintSplitPriceBlock(
+        Graphics2D graphics,
+        Map<String, Object> cardTemplate,
+        double currentPrice,
+        String priceLabel,
+        String unitLabel,
+        boolean showUnit,
+        boolean stackedUnit,
+        int x,
+        int y,
+        int w,
+        int h,
+        int paddingX,
+        int paddingY,
+        int gap,
+        int labelSize,
+        int labelRadius,
+        int labelFontSize,
+        int valueFontSize,
+        int fractionFontSize,
+        int unitFontSize
+    ) {
+        String[] priceParts = splitPriceParts(currentPrice);
+        int contentX = x + paddingX;
+
+        if (priceLabel != null && !priceLabel.isBlank()) {
+            int bubbleY = y + Math.max((h - labelSize) / 2, 0);
+            paintPriceLabelBubble(graphics, cardTemplate, priceLabel, contentX, bubbleY, labelSize, labelRadius, labelFontSize);
+            contentX += labelSize + gap;
+        }
+
+        Font valueFont = font("SansSerif", Font.BOLD, valueFontSize);
+        Font fractionFont = font("SansSerif", Font.BOLD, fractionFontSize);
+        Font unitFont = font("SansSerif", Font.BOLD, unitFontSize);
+        FontMetrics valueMetrics = graphics.getFontMetrics(valueFont);
+        FontMetrics fractionMetrics = graphics.getFontMetrics(fractionFont);
+        FontMetrics unitMetrics = graphics.getFontMetrics(unitFont);
+        int valueBaseline = y + h - paddingY;
+        int valueX = contentX;
+        drawText(graphics, priceParts[0], valueX, valueBaseline, valueFont, color(cardTemplate.get("priceValueColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE)));
+
+        int fractionX = valueX + valueMetrics.stringWidth(priceParts[0]) + Math.max(gap / 2, 4);
+        if (stackedUnit) {
+            int fractionBaseline = y + paddingY + fractionMetrics.getAscent();
+            drawText(graphics, "," + priceParts[1], fractionX, fractionBaseline, fractionFont, color(cardTemplate.get("priceFractionColor"), color(cardTemplate.get("priceValueColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE))));
+            if (showUnit) {
+                int unitBaseline = y + h - paddingY;
+                drawText(graphics, unitLabel, fractionX, unitBaseline, unitFont, color(cardTemplate.get("priceUnitColor"), color(cardTemplate.get("priceValueColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE))));
+            }
+            return;
+        }
+
+        int fractionBaseline = valueBaseline - Math.max(valueMetrics.getAscent() / 2, 10);
+        drawText(graphics, "," + priceParts[1], fractionX, fractionBaseline, fractionFont, color(cardTemplate.get("priceFractionColor"), color(cardTemplate.get("priceValueColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE))));
+        if (showUnit) {
+            int unitX = fractionX + fractionMetrics.stringWidth("," + priceParts[1]) + Math.max(gap / 2, 4);
+            drawText(graphics, unitLabel, unitX, valueBaseline, unitFont, color(cardTemplate.get("priceUnitColor"), color(cardTemplate.get("priceValueColor"), color(cardTemplate.get("priceBoxTextColor"), Color.WHITE))));
+        }
+    }
+
+    private void paintPriceLabelBubble(Graphics2D graphics, Map<String, Object> cardTemplate, String label, int x, int y, int size, int radius, int fontSize) {
+        graphics.setColor(color(cardTemplate.get("priceLabelBackground"), Color.WHITE));
+        graphics.fill(new RoundRectangle2D.Float(x, y, size, size, radius, radius));
+        Stroke previousStroke = graphics.getStroke();
+        graphics.setColor(color(cardTemplate.get("priceLabelBorderColor"), Color.WHITE));
+        graphics.setStroke(new BasicStroke(2f));
+        graphics.draw(new RoundRectangle2D.Float(x + 1, y + 1, size - 2, size - 2, radius, radius));
+        graphics.setStroke(previousStroke);
+
+        Font font = font("SansSerif", Font.BOLD, fontSize);
+        FontMetrics metrics = graphics.getFontMetrics(font);
+        int textX = x + Math.round((size - metrics.stringWidth(label)) / 2f);
+        int textY = y + Math.round((size - metrics.getHeight()) / 2f) + metrics.getAscent();
+        drawText(graphics, label, textX, textY, font, color(cardTemplate.get("priceLabelTextColor"), color(cardTemplate.get("priceBoxLabelColor"), new Color(255, 241, 214))));
     }
 
     private void paintContainedImage(Graphics2D graphics, BufferedImage source, int x, int y, int w, int h, int radius) {
@@ -519,6 +692,29 @@ public class OfferRenderEngineService {
         graphics.setFont(font);
         graphics.setColor(color);
         graphics.drawString(normalizeText(text, ""), x, y);
+    }
+
+    private String[] splitPriceParts(double value) {
+        double normalized = Double.isFinite(value) ? Math.max(value, 0d) : 0d;
+        long cents = Math.round(normalized * 100d);
+        long integerPart = cents / 100L;
+        long decimalPart = Math.abs(cents % 100L);
+        return new String[] { String.valueOf(integerPart), String.format(Locale.ROOT, "%02d", decimalPart) };
+    }
+
+    private String compactPriceUnit(String unit) {
+        String normalized = normalizeText(unit, "und.");
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        if ("unidade".equals(lower) || "unidades".equals(lower) || lower.startsWith("uni")) {
+            return "und.";
+        }
+        if ("quilo".equals(lower) || "quilos".equals(lower) || "kg".equals(lower)) {
+            return "kg";
+        }
+        if ("litro".equals(lower) || "litros".equals(lower) || "l".equals(lower)) {
+            return "l";
+        }
+        return normalized.length() > 8 ? normalized.substring(0, 7) + "." : normalized;
     }
 
     private Font font(String family, int style, int size) {

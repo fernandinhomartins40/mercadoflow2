@@ -4829,6 +4829,29 @@
   gap: 12px;
 }
 
+.offer-studio-panel-header-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.offer-studio-panel-header-copy h2 {
+  overflow-wrap: anywhere;
+}
+
+.offer-studio-panel-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.offer-studio-panel-header-actions > * {
+  min-width: 0;
+}
+
 .offer-studio-panel-header.compact {
   justify-content: flex-start;
 }
@@ -5281,6 +5304,27 @@
   padding: 14px 12px;
 }
 
+.offer-studio-shell.is-template-builder .offer-studio-panel-header-builder {
+  display: grid;
+  gap: 12px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-panel-header-builder .offer-studio-panel-header-copy {
+  gap: 6px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-panel-header-builder .offer-studio-panel-header-actions {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  justify-content: stretch;
+  gap: 10px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-panel-header-builder .offer-studio-panel-header-actions > * {
+  width: 100%;
+}
+
 .offer-studio-shell.is-template-builder .offer-studio-theme-card {
   gap: 10px;
   padding: 14px;
@@ -5323,6 +5367,7 @@
   background: rgba(255, 247, 240, 0.72);
   color: var(--text-primary);
   text-align: left;
+  scroll-margin-top: 18px;
   transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -5337,6 +5382,12 @@
   border-color: rgba(255, 122, 18, 0.28);
   box-shadow: 0 16px 28px rgba(255, 122, 18, 0.12);
   transform: translateY(-1px);
+}
+
+.offer-studio-structure-row.canvas-linked,
+.offer-studio-zone-card.canvas-linked {
+  border-color: rgba(255, 122, 18, 0.42);
+  box-shadow: 0 0 0 2px rgba(255, 122, 18, 0.12), 0 18px 30px rgba(255, 122, 18, 0.16);
 }
 
 .offer-studio-structure-row.draggable {
@@ -5416,6 +5467,20 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.offer-studio-structure-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 122, 18, 0.14);
+  color: #9a4f1b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .offer-studio-structure-actions {
@@ -5608,6 +5673,45 @@
 .offer-studio-color-picker::-moz-color-swatch {
   border: 0;
   border-radius: 10px;
+}
+
+.offer-studio-asset-status {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(87, 51, 30, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 248, 243, 0.72);
+}
+
+.offer-studio-asset-status-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: rgba(122, 91, 73, 0.88);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.offer-studio-asset-status strong {
+  color: var(--text-primary);
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.offer-studio-asset-status small {
+  color: rgba(95, 67, 51, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.offer-studio-asset-status.is-empty strong {
+  color: rgba(95, 67, 51, 0.78);
 }
 
 .offer-studio-property-row {
@@ -6264,6 +6368,7 @@
 
   .offer-studio-panel-header,
   .offer-studio-panel-subhead:not(.offer-studio-panel-subhead-button),
+  .offer-studio-panel-header-actions,
   .offer-studio-inline-actions,
   .offer-studio-card-actions,
   .offer-studio-result-card,

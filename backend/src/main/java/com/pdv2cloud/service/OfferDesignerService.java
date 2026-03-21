@@ -1543,10 +1543,31 @@ public class OfferDesignerService {
             Map.entry("background", "#ffffff"),
             Map.entry("borderColor", "#ead9ca"),
             Map.entry("textColor", "#1f1613"),
+            Map.entry("priceLayout", "inline"),
             Map.entry("priceBoxBackground", "#ff3b1f"),
             Map.entry("priceBoxTextColor", "#ffffff"),
             Map.entry("priceBoxLabelColor", "#fff1d6"),
             Map.entry("priceLabel", "R$"),
+            Map.entry("priceBorderColor", "#ffc44f"),
+            Map.entry("priceBorderWidth", 4),
+            Map.entry("priceBorderStyle", "solid"),
+            Map.entry("pricePaddingX", 16),
+            Map.entry("pricePaddingY", 12),
+            Map.entry("priceGap", 12),
+            Map.entry("priceLabelBackground", "#ffffff"),
+            Map.entry("priceLabelTextColor", "#fff1d6"),
+            Map.entry("priceLabelBorderColor", "#ffffff"),
+            Map.entry("priceLabelRadius", 999),
+            Map.entry("priceLabelSize", 72),
+            Map.entry("priceLabelFontSize", 24),
+            Map.entry("priceValueColor", "#ffffff"),
+            Map.entry("priceFractionColor", "#ffffff"),
+            Map.entry("priceFractionFontSize", 28),
+            Map.entry("priceUnitColor", "#ffffff"),
+            Map.entry("priceUnitFontSize", 18),
+            Map.entry("priceUnitLayout", "stacked"),
+            Map.entry("priceBaselineColor", "#7a5b49"),
+            Map.entry("priceBaselineFontSize", 13),
             Map.entry("cardRadius", 28),
             Map.entry("priceBoxRadius", 26),
             Map.entry("nameFontSize", 30),
@@ -1628,8 +1649,14 @@ public class OfferDesignerService {
                 "legalText", normalizeText(profile.getFooterLegalText(), "")
             ),
             "assets", Map.of(
-                "primaryLogo", Map.of("imageUrl", normalizeText(profile.getPrimaryLogoUrl(), "")),
-                "secondaryLogo", Map.of("imageUrl", normalizeText(profile.getSecondaryLogoUrl(), ""))
+                "primaryLogo", Map.of(
+                    "imageUrl", normalizeText(profile.getPrimaryLogoUrl(), ""),
+                    "storageKey", normalizeText(profile.getPrimaryLogoStorageKey(), "")
+                ),
+                "secondaryLogo", Map.of(
+                    "imageUrl", normalizeText(profile.getSecondaryLogoUrl(), ""),
+                    "storageKey", normalizeText(profile.getSecondaryLogoStorageKey(), "")
+                )
             )
         ));
     }

@@ -131,6 +131,7 @@ type LayerDraft = {
   visible: boolean;
   content: string;
   imageUrl: string;
+  imageStorageKey: string;
   background: string;
   textColor: string;
   borderColor: string;
@@ -169,6 +170,7 @@ type TemplateBuilderTextLayerDraft = TemplateBuilderBoundsDraft & {
 
 type TemplateBuilderImageLayerDraft = TemplateBuilderBoundsDraft & {
   imageUrl: string;
+  storageKey: string;
   visible: boolean;
   radius: string;
   frame: boolean;
@@ -187,10 +189,31 @@ type TemplateBuilderCardDraft = {
   borderColor: string;
   textColor: string;
   cardRadius: string;
+  priceLayout: string;
   priceBoxBackground: string;
   priceBoxTextColor: string;
   priceLabel: string;
   priceBoxRadius: string;
+  priceBorderColor: string;
+  priceBorderWidth: string;
+  priceBorderStyle: string;
+  pricePaddingX: string;
+  pricePaddingY: string;
+  priceGap: string;
+  priceLabelBackground: string;
+  priceLabelTextColor: string;
+  priceLabelBorderColor: string;
+  priceLabelRadius: string;
+  priceLabelSize: string;
+  priceLabelFontSize: string;
+  priceValueColor: string;
+  priceFractionColor: string;
+  priceFractionFontSize: string;
+  priceUnitColor: string;
+  priceUnitFontSize: string;
+  priceUnitLayout: string;
+  priceBaselineColor: string;
+  priceBaselineFontSize: string;
   nameFontSize: string;
   descriptionFontSize: string;
   priceFontSize: string;
@@ -209,6 +232,7 @@ type TemplateBuilderCustomLayerDraft = TemplateBuilderBoundsDraft & {
   visible: boolean;
   content: string;
   imageUrl: string;
+  storageKey: string;
   background: string;
   textColor: string;
   borderColor: string;
@@ -238,6 +262,7 @@ type TemplateBuilderDraft = {
   backgroundStart: string;
   backgroundEnd: string;
   backgroundImageUrl: string;
+  backgroundImageStorageKey: string;
   kicker: TemplateBuilderTextLayerDraft;
   headline: TemplateBuilderTextLayerDraft;
   subheadline: TemplateBuilderTextLayerDraft;
@@ -610,6 +635,7 @@ const createCustomLayerDraft = (
     visible: true,
     content: defaults.content,
     imageUrl: '',
+    storageKey: '',
     background: defaults.background,
     textColor: defaults.textColor,
     borderColor: '#ead9ca',
@@ -637,6 +663,7 @@ const parseCustomLayerDraft = (layer: JsonMap, staticBindings: JsonMap): Templat
     visible: layer.visible !== false,
     content: asText(props.content, layerType === 'text' || layerType === 'tag' || layerType === 'qrcode' ? resolveStaticBinding(layer.binding, staticBindings, '') : ''),
     imageUrl: asText(props.imageUrl, layerType === 'image' ? resolveStaticBinding(layer.binding, staticBindings, '') : ''),
+    storageKey: asText(props.storageKey),
     background: asText(props.background, layerType === 'shape' ? '#ffede0' : layerType === 'image' ? 'rgba(255,255,255,0.88)' : layerType === 'tag' ? '#ffffff' : 'transparent'),
     textColor: asText(props.textColor, layerType === 'tag' ? '#7b4318' : '#1f1613'),
     borderColor: asText(props.borderColor, '#ead9ca'),
@@ -804,10 +831,31 @@ const defaultCardDraft = (): TemplateBuilderCardDraft => ({
   borderColor: '#ead9ca',
   textColor: '#1f1613',
   cardRadius: '28',
+  priceLayout: 'inline',
   priceBoxBackground: '#ff3b1f',
   priceBoxTextColor: '#ffffff',
   priceLabel: 'R$',
   priceBoxRadius: '26',
+  priceBorderColor: '#ffc44f',
+  priceBorderWidth: '4',
+  priceBorderStyle: 'solid',
+  pricePaddingX: '16',
+  pricePaddingY: '12',
+  priceGap: '12',
+  priceLabelBackground: '#ffffff',
+  priceLabelTextColor: '#fff1d6',
+  priceLabelBorderColor: '#ffffff',
+  priceLabelRadius: '999',
+  priceLabelSize: '72',
+  priceLabelFontSize: '24',
+  priceValueColor: '#ffffff',
+  priceFractionColor: '#ffffff',
+  priceFractionFontSize: '28',
+  priceUnitColor: '#ffffff',
+  priceUnitFontSize: '18',
+  priceUnitLayout: 'stacked',
+  priceBaselineColor: '#7a5b49',
+  priceBaselineFontSize: '13',
   nameFontSize: '30',
   descriptionFontSize: '18',
   priceFontSize: '54',
@@ -838,6 +886,7 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
     backgroundStart: '#fff7ef',
     backgroundEnd: '#ffd4b4',
     backgroundImageUrl: '',
+    backgroundImageStorageKey: '',
     kicker: {
       text: 'Catálogo global',
       visible: true,
@@ -861,6 +910,7 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
     },
     badge: {
       imageUrl: '',
+      storageKey: '',
       visible: true,
       radius: '0',
       frame: false,
@@ -890,6 +940,7 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
     },
     footerLeftLogo: {
       imageUrl: '',
+      storageKey: '',
       visible: true,
       radius: '0',
       frame: false,
@@ -897,6 +948,7 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
     },
     footerRightLogo: {
       imageUrl: '',
+      storageKey: '',
       visible: false,
       radius: '0',
       frame: false,
@@ -923,6 +975,7 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
   const background = asMap(canvas.background);
   const bindings = asMap(parsedDesign.bindings);
   const staticBindings = asMap(bindings.static);
+  const staticAssets = asMap(staticBindings.assets);
   const layers = asList(parsedDesign.layers);
   const zones = asList(parsedDesign.productZones);
   const kickerLayer = findLayer(layers, ['kicker']);
@@ -972,6 +1025,7 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     backgroundStart: asText(background.start, fallback.backgroundStart),
     backgroundEnd: asText(background.end, fallback.backgroundEnd),
     backgroundImageUrl: resolveStaticBinding(background.imageUrl, staticBindings, fallback.backgroundImageUrl),
+    backgroundImageStorageKey: asText(staticAssets.backgroundImageStorageKey, fallback.backgroundImageStorageKey),
     kicker: {
       ...fallback.kicker,
       text: fallback.kicker.text,
@@ -999,6 +1053,7 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     badge: {
       ...fallback.badge,
       imageUrl: resolveStaticBinding(badgeLayer?.binding, staticBindings, fallback.badge.imageUrl),
+      storageKey: asText(staticAssets.campaignBadgeStorageKey, fallback.badge.storageKey),
       visible: badgeLayer ? badgeLayer.visible !== false : fallback.badge.visible,
       radius: asText(badgeLayer?.props?.radius, fallback.badge.radius),
       frame: Boolean(badgeLayer?.props?.frame ?? fallback.badge.frame),
@@ -1055,10 +1110,31 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
       borderColor: asText(cardTemplate.borderColor, fallback.card.borderColor),
       textColor: asText(cardTemplate.textColor, fallback.card.textColor),
       cardRadius: asText(cardTemplate.cardRadius, fallback.card.cardRadius),
+      priceLayout: asText(cardTemplate.priceLayout, fallback.card.priceLayout),
       priceBoxBackground: asText(cardTemplate.priceBoxBackground, fallback.card.priceBoxBackground),
       priceBoxTextColor: asText(cardTemplate.priceBoxTextColor, fallback.card.priceBoxTextColor),
       priceLabel: asText(cardTemplate.priceLabel, fallback.card.priceLabel),
       priceBoxRadius: asText(cardTemplate.priceBoxRadius, fallback.card.priceBoxRadius),
+      priceBorderColor: asText(cardTemplate.priceBorderColor, fallback.card.priceBorderColor),
+      priceBorderWidth: asText(cardTemplate.priceBorderWidth, fallback.card.priceBorderWidth),
+      priceBorderStyle: asText(cardTemplate.priceBorderStyle, fallback.card.priceBorderStyle),
+      pricePaddingX: asText(cardTemplate.pricePaddingX, fallback.card.pricePaddingX),
+      pricePaddingY: asText(cardTemplate.pricePaddingY, fallback.card.pricePaddingY),
+      priceGap: asText(cardTemplate.priceGap, fallback.card.priceGap),
+      priceLabelBackground: asText(cardTemplate.priceLabelBackground, fallback.card.priceLabelBackground),
+      priceLabelTextColor: asText(cardTemplate.priceLabelTextColor ?? cardTemplate.priceBoxLabelColor, fallback.card.priceLabelTextColor),
+      priceLabelBorderColor: asText(cardTemplate.priceLabelBorderColor, fallback.card.priceLabelBorderColor),
+      priceLabelRadius: asText(cardTemplate.priceLabelRadius, fallback.card.priceLabelRadius),
+      priceLabelSize: asText(cardTemplate.priceLabelSize, fallback.card.priceLabelSize),
+      priceLabelFontSize: asText(cardTemplate.priceLabelFontSize, fallback.card.priceLabelFontSize),
+      priceValueColor: asText(cardTemplate.priceValueColor ?? cardTemplate.priceBoxTextColor, fallback.card.priceValueColor),
+      priceFractionColor: asText(cardTemplate.priceFractionColor ?? cardTemplate.priceValueColor ?? cardTemplate.priceBoxTextColor, fallback.card.priceFractionColor),
+      priceFractionFontSize: asText(cardTemplate.priceFractionFontSize, fallback.card.priceFractionFontSize),
+      priceUnitColor: asText(cardTemplate.priceUnitColor ?? cardTemplate.priceValueColor ?? cardTemplate.priceBoxTextColor, fallback.card.priceUnitColor),
+      priceUnitFontSize: asText(cardTemplate.priceUnitFontSize, fallback.card.priceUnitFontSize),
+      priceUnitLayout: asText(cardTemplate.priceUnitLayout, fallback.card.priceUnitLayout),
+      priceBaselineColor: asText(cardTemplate.priceBaselineColor, fallback.card.priceBaselineColor),
+      priceBaselineFontSize: asText(cardTemplate.priceBaselineFontSize, fallback.card.priceBaselineFontSize),
       nameFontSize: asText(cardTemplate.nameFontSize, fallback.card.nameFontSize),
       descriptionFontSize: asText(cardTemplate.descriptionFontSize, fallback.card.descriptionFontSize),
       priceFontSize: asText(cardTemplate.priceFontSize, fallback.card.priceFontSize),
@@ -1089,6 +1165,7 @@ const buildCustomLayerFromDraft = (layer: TemplateBuilderCustomLayerDraft, layer
       ...common,
       props: {
         imageUrl: layer.imageUrl.trim() || undefined,
+        storageKey: layer.storageKey.trim() || undefined,
         background: layer.background.trim() || 'rgba(255,255,255,0.88)',
         radius: clampNumber(layer.radius, 24, 0, 200),
         frame: layer.frame,
@@ -1146,6 +1223,7 @@ const buildLayerPropsFromInspectorDraft = (layer: JsonMap, draft: LayerDraft, is
     return {
       ...currentProps,
       imageUrl: draft.imageUrl.trim() || undefined,
+      storageKey: draft.imageStorageKey.trim() || undefined,
       background: draft.background.trim() || undefined,
       radius: draft.radius ? Number(draft.radius) : currentProps.radius,
       frame: draft.frame,
@@ -1200,7 +1278,9 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
   const staticBindings = {
     assets: {
       backgroundImageUrl: draft.backgroundImageUrl.trim(),
+      backgroundImageStorageKey: draft.backgroundImageStorageKey.trim(),
       campaignBadgeUrl: draft.badge.imageUrl.trim(),
+      campaignBadgeStorageKey: draft.badge.storageKey.trim(),
     },
   };
 
@@ -1382,11 +1462,33 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
           background: draft.card.background.trim() || '#ffffff',
           borderColor: draft.card.borderColor.trim() || '#ead9ca',
           textColor: draft.card.textColor.trim() || '#1f1613',
+          priceLayout: draft.card.priceLayout === 'split' ? 'split' : 'inline',
           cardRadius: clampNumber(draft.card.cardRadius, 28, 8, 80),
           priceBoxBackground: draft.card.priceBoxBackground.trim() || '#ff3b1f',
-          priceBoxTextColor: draft.card.priceBoxTextColor.trim() || '#ffffff',
+          priceBoxTextColor: draft.card.priceValueColor.trim() || draft.card.priceBoxTextColor.trim() || '#ffffff',
+          priceBoxLabelColor: draft.card.priceLabelTextColor.trim() || '#fff1d6',
           priceLabel: draft.card.priceLabel.trim() || 'R$',
           priceBoxRadius: clampNumber(draft.card.priceBoxRadius, 26, 8, 80),
+          priceBorderColor: draft.card.priceBorderColor.trim() || '#ffc44f',
+          priceBorderWidth: clampNumber(draft.card.priceBorderWidth, 4, 0, 16),
+          priceBorderStyle: draft.card.priceBorderStyle === 'dashed' ? 'dashed' : 'solid',
+          pricePaddingX: clampNumber(draft.card.pricePaddingX, 16, 4, 64),
+          pricePaddingY: clampNumber(draft.card.pricePaddingY, 12, 4, 48),
+          priceGap: clampNumber(draft.card.priceGap, 12, 0, 48),
+          priceLabelBackground: draft.card.priceLabelBackground.trim() || '#ffffff',
+          priceLabelTextColor: draft.card.priceLabelTextColor.trim() || '#fff1d6',
+          priceLabelBorderColor: draft.card.priceLabelBorderColor.trim() || '#ffffff',
+          priceLabelRadius: clampNumber(draft.card.priceLabelRadius, 999, 0, 999),
+          priceLabelSize: clampNumber(draft.card.priceLabelSize, 72, 24, 200),
+          priceLabelFontSize: clampNumber(draft.card.priceLabelFontSize, 24, 8, 80),
+          priceValueColor: draft.card.priceValueColor.trim() || '#ffffff',
+          priceFractionColor: draft.card.priceFractionColor.trim() || draft.card.priceValueColor.trim() || '#ffffff',
+          priceFractionFontSize: clampNumber(draft.card.priceFractionFontSize, 28, 8, 96),
+          priceUnitColor: draft.card.priceUnitColor.trim() || draft.card.priceValueColor.trim() || '#ffffff',
+          priceUnitFontSize: clampNumber(draft.card.priceUnitFontSize, 18, 8, 72),
+          priceUnitLayout: draft.card.priceUnitLayout === 'side' ? 'side' : 'stacked',
+          priceBaselineColor: draft.card.priceBaselineColor.trim() || '#7a5b49',
+          priceBaselineFontSize: clampNumber(draft.card.priceBaselineFontSize, 13, 8, 60),
           nameFontSize: clampNumber(draft.card.nameFontSize, 30, 14, 120),
           descriptionFontSize: clampNumber(draft.card.descriptionFontSize, 18, 10, 72),
           priceFontSize: clampNumber(draft.card.priceFontSize, 54, 18, 160),
@@ -1435,8 +1537,14 @@ const buildTemplateResolvedDesignFromDraft = (
         legalText: marketProfile?.footerLegalText || 'Aviso legal do mercado',
       },
       assets: {
-        primaryLogo: { imageUrl: marketProfile?.primaryLogoUrl || '' },
-        secondaryLogo: { imageUrl: marketProfile?.secondaryLogoUrl || '' },
+        primaryLogo: {
+          imageUrl: marketProfile?.primaryLogoUrl || '',
+          storageKey: marketProfile?.primaryLogoStorageKey || '',
+        },
+        secondaryLogo: {
+          imageUrl: marketProfile?.secondaryLogoUrl || '',
+          storageKey: marketProfile?.secondaryLogoStorageKey || '',
+        },
       },
     },
     resolvedProducts: products.map((product) => ({ ...product })),
@@ -1458,6 +1566,7 @@ const emptyLayerDraft: LayerDraft = {
   visible: true,
   content: '',
   imageUrl: '',
+  imageStorageKey: '',
   background: '',
   textColor: '',
   borderColor: '',
@@ -1591,6 +1700,7 @@ const StudioQueueCard: React.FC<{
 const StudioLayerRow: React.FC<{
   layer: JsonMap;
   active: boolean;
+  identified?: boolean;
   onSelect: () => void;
   draggableLayer?: boolean;
   dragging?: boolean;
@@ -1602,7 +1712,7 @@ const StudioLayerRow: React.FC<{
   onToggleVisibility?: () => void;
   onToggleLock?: () => void;
   onDelete?: () => void;
-}> = ({ layer, active, onSelect, draggableLayer = false, dragging = false, dropTarget = false, onDragStart, onDragOver, onDrop, onDragEnd, onToggleVisibility, onToggleLock, onDelete }) => {
+}> = ({ layer, active, identified = false, onSelect, draggableLayer = false, dragging = false, dropTarget = false, onDragStart, onDragOver, onDrop, onDragEnd, onToggleVisibility, onToggleLock, onDelete }) => {
   const Icon = layerTypeIcon(String(layer.type || layer.kind || 'layer'));
   const visibilityLabel = layer.visible === false ? 'Mostrar camada' : 'Ocultar camada';
   const lockLabel = layer.locked ? 'Desbloquear camada' : 'Bloquear camada';
@@ -1611,7 +1721,8 @@ const StudioLayerRow: React.FC<{
   const canDelete = Boolean(onDelete);
   return (
     <div
-      className={`offer-studio-structure-row ${active ? 'active' : ''} ${draggableLayer ? 'draggable' : ''} ${dragging ? 'dragging' : ''} ${dropTarget ? 'drop-target' : ''}`}
+      className={`offer-studio-structure-row ${active ? 'active' : ''} ${identified ? 'canvas-linked' : ''} ${draggableLayer ? 'draggable' : ''} ${dragging ? 'dragging' : ''} ${dropTarget ? 'drop-target' : ''}`}
+      data-structure-layer-id={String(layer.id || '')}
       draggable={draggableLayer}
       onDragStart={draggableLayer ? onDragStart : undefined}
       onDragOver={draggableLayer ? onDragOver : undefined}
@@ -1623,7 +1734,7 @@ const StudioLayerRow: React.FC<{
           <GripVertical size={16} strokeWidth={2.1} />
         </span>
       ) : null}
-      <button type="button" className="offer-studio-structure-main" onClick={onSelect}>
+      <button type="button" className="offer-studio-structure-main" onClick={onSelect} aria-current={active || identified ? 'true' : undefined}>
         <span className="offer-studio-structure-icon">
           <Icon size={16} strokeWidth={2.1} />
         </span>
@@ -1632,6 +1743,7 @@ const StudioLayerRow: React.FC<{
           <small>{String(layer.type || 'layer')}</small>
         </span>
         <span className="offer-studio-structure-flags">
+          {identified ? <span className="offer-studio-structure-badge">Na arte</span> : null}
           {layer.locked && !canToggleLock ? <Lock size={14} strokeWidth={2.1} /> : null}
           {layer.visible === false && !canToggleVisibility ? <EyeOff size={14} strokeWidth={2.1} className="opacity-45" /> : null}
         </span>
@@ -1689,14 +1801,22 @@ const StudioLayerRow: React.FC<{
 const StudioZoneCard: React.FC<{
   zone: JsonMap;
   active: boolean;
+  identified?: boolean;
   onSelect: () => void;
-}> = ({ zone, active, onSelect }) => (
-  <button type="button" className={`offer-studio-zone-card ${active ? 'active' : ''}`} onClick={onSelect}>
+}> = ({ zone, active, identified = false, onSelect }) => (
+  <button
+    type="button"
+    className={`offer-studio-zone-card ${active ? 'active' : ''} ${identified ? 'canvas-linked' : ''}`}
+    data-structure-zone-id={String(zone.id || '')}
+    onClick={onSelect}
+    aria-current={active || identified ? 'true' : undefined}
+  >
     <div>
       <span className="section-kicker">{String(zone.layout || 'grid')}</span>
       <strong>{String(zone.name || zone.id || 'Zona')}</strong>
     </div>
     <div className="offer-studio-zone-meta">
+      {identified ? <span className="offer-studio-structure-badge">Na arte</span> : null}
       <span>{Number(zone.slotCount || 0)} slots</span>
       <span>{Number(zone.columns || 1)} colunas</span>
     </div>
@@ -1762,6 +1882,26 @@ const StudioColorField: React.FC<{
     </div>
   </label>
 );
+
+const StudioAssetStatus: React.FC<{
+  label: string;
+  storageKey?: string | null;
+  hasAsset?: boolean;
+  readyLabel?: string;
+  emptyLabel?: string;
+}> = ({ label, storageKey, hasAsset = false, readyLabel = 'Imagem persistida no banco e no storage.', emptyLabel = 'Nenhuma imagem enviada ainda.' }) => {
+  const ready = Boolean(storageKey) || hasAsset;
+  return (
+    <div className={`offer-studio-asset-status ${ready ? 'is-ready' : 'is-empty'}`} role="status" aria-live="polite">
+      <div className="offer-studio-asset-status-head">
+        <ImageIcon size={16} strokeWidth={2} />
+        <span>{label}</span>
+      </div>
+      <strong>{ready ? readyLabel : emptyLabel}</strong>
+      <small>{storageKey ? `Storage key: ${storageKey}` : ready ? 'Arquivo gerenciado pelo template.' : 'Envie um arquivo para vincular este asset ao template.'}</small>
+    </div>
+  );
+};
 
 const StudioCollapsibleSection: React.FC<{
   title: string;
@@ -1863,6 +2003,7 @@ const OfferDesigner: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [stageSurfaceSize, setStageSurfaceSize] = useState({ width: 0, height: 0 });
   const [collapsedConfigSections, setCollapsedConfigSections] = useState<Record<string, boolean>>({});
+  const [pendingStructureReveal, setPendingStructureReveal] = useState<{ kind: 'layer' | 'zone'; id: string } | null>(null);
 
   const selectedSuperAdminMarket = useMemo(
     () => superAdminMarkets.find((market) => market.id === selectedSuperAdminMarketId) || null,
@@ -2081,6 +2222,12 @@ const OfferDesigner: React.FC = () => {
       }),
     [canvasEditTarget, stageCanvasHeight, stageCanvasWidth, templateBuilderDraft],
   );
+  const activeCanvasSelection = useMemo(
+    () => (canvasEditTarget ? getCanvasEditableMeta(templateBuilderDraft, canvasEditTarget) : null),
+    [canvasEditTarget, templateBuilderDraft],
+  );
+  const canvasSelectedLayerId = activeCanvasSelection?.selectionKind === 'layer' ? activeCanvasSelection.selectionId : '';
+  const canvasSelectedZoneId = activeCanvasSelection?.selectionKind === 'zone' ? activeCanvasSelection.selectionId : '';
   const activeCanvasEditLabel = canvasEditTarget ? getCanvasEditableMeta(templateBuilderDraft, canvasEditTarget).label : '';
 
   useEffect(() => {
@@ -2536,6 +2683,33 @@ const OfferDesigner: React.FC = () => {
   }, [lookupNotice]);
 
   useEffect(() => {
+    if (!pendingStructureReveal || !isSuperAdminMode || activeTool !== 'themes' || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const selector =
+      pendingStructureReveal.kind === 'layer'
+        ? `[data-structure-layer-id="${pendingStructureReveal.id}"]`
+        : `[data-structure-zone-id="${pendingStructureReveal.id}"]`;
+
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(selector);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      setPendingStructureReveal(null);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    activeTool,
+    collapsedConfigSections.inspectorPanel,
+    collapsedConfigSections.layersPanel,
+    collapsedConfigSections.structure,
+    collapsedConfigSections.zonesPanel,
+    isSuperAdminMode,
+    pendingStructureReveal,
+  ]);
+
+  useEffect(() => {
     if (resolvedLayers.length) {
       setSelectedLayerId((current) => (resolvedLayers.some((layer) => String(layer.id || '') === current) ? current : String(resolvedLayers[0].id || '')));
     } else {
@@ -2567,6 +2741,7 @@ const OfferDesigner: React.FC = () => {
       visible: activeLayer.visible !== false,
       content: activeCustomLayer?.content || String(props.content || ''),
       imageUrl: activeCustomLayer?.imageUrl || String(props.imageUrl || ''),
+      imageStorageKey: activeCustomLayer?.storageKey || String(props.storageKey || ''),
       background: String(props.background || activeCustomLayer?.background || ''),
       textColor: String(props.textColor || activeCustomLayer?.textColor || ''),
       borderColor: String(props.borderColor || activeCustomLayer?.borderColor || ''),
@@ -2869,6 +3044,20 @@ const OfferDesigner: React.FC = () => {
     setDraggingLayerId('');
   };
 
+  const revealStructureSelection = (kind: 'layer' | 'zone', id: string) => {
+    if (!id) {
+      return;
+    }
+
+    setCollapsedConfigSections((current) => ({
+      ...current,
+      structure: false,
+      inspectorPanel: false,
+      [kind === 'layer' ? 'layersPanel' : 'zonesPanel']: false,
+    }));
+    setPendingStructureReveal({ kind, id });
+  };
+
   const syncCanvasEditSelection = (target: CanvasEditableTarget | null) => {
     if (!target) {
       return;
@@ -2878,10 +3067,12 @@ const OfferDesigner: React.FC = () => {
     if (meta.selectionKind === 'zone') {
       setSelectedLayerId('');
       setSelectedZoneId(meta.selectionId);
+      revealStructureSelection('zone', meta.selectionId);
       return;
     }
 
     setSelectedLayerId(meta.selectionId);
+    revealStructureSelection('layer', meta.selectionId);
   };
 
   const handleCanvasEditToggle = (target: CanvasEditableTarget) => {
@@ -3106,7 +3297,9 @@ const OfferDesigner: React.FC = () => {
       setMarketProfile((current) => ({
         ...(current || { id: 'draft' }),
         primaryLogoUrl: slot === 'PRIMARY' ? uploaded.assetUrl : current?.primaryLogoUrl || '',
+        primaryLogoStorageKey: slot === 'PRIMARY' ? uploaded.storageKey || null : current?.primaryLogoStorageKey || null,
         secondaryLogoUrl: slot === 'SECONDARY' ? uploaded.assetUrl : current?.secondaryLogoUrl || '',
+        secondaryLogoStorageKey: slot === 'SECONDARY' ? uploaded.storageKey || null : current?.secondaryLogoStorageKey || null,
       }));
       setLookupNotice(slot === 'PRIMARY' ? 'Logo principal enviada.' : 'Logo secundária enviada.');
       await refreshPreview('preview');
@@ -3117,21 +3310,60 @@ const OfferDesigner: React.FC = () => {
     }
   };
 
-  const handleUploadTemplateAsset = async (purpose: 'template-background' | 'template-badge', file?: File | null) => {
+  const handleUploadTemplateAsset = async (
+    purpose: 'template-background' | 'template-badge' | 'template-layer-image',
+    file?: File | null,
+    layerId?: string,
+  ) => {
     if (!isSuperAdminMode) {
       setError('O upload de assets do template fica disponível apenas no painel super admin.');
       return;
     }
     if (!effectiveMarketId || !file) return;
-    setUploadingAsset(purpose);
+    const uploadToken = purpose === 'template-layer-image' && layerId ? `template-layer-image:${layerId}` : purpose;
+    setUploadingAsset(uploadToken);
     try {
-      const uploaded = await offersService.uploadTemplateAsset(effectiveMarketId, purpose, file);
+      const uploadPurpose = purpose === 'template-layer-image' && layerId ? `${purpose}-${layerId}` : purpose;
+      const uploaded = await offersService.uploadTemplateAsset(effectiveMarketId, uploadPurpose, file);
       if (purpose === 'template-background') {
-        setTemplateBuilderDraft((current) => ({ ...current, backgroundMode: 'image', backgroundImageUrl: uploaded.assetUrl }));
-      } else {
-        setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, imageUrl: uploaded.assetUrl, visible: true } }));
+        setTemplateBuilderDraft((current) => ({
+          ...current,
+          backgroundMode: 'image',
+          backgroundImageUrl: uploaded.assetUrl,
+          backgroundImageStorageKey: uploaded.storageKey || '',
+        }));
+      } else if (purpose === 'template-badge') {
+        setTemplateBuilderDraft((current) => ({
+          ...current,
+          badge: {
+            ...current.badge,
+            imageUrl: uploaded.assetUrl,
+            storageKey: uploaded.storageKey || '',
+            visible: true,
+          },
+        }));
+      } else if (layerId) {
+        setTemplateBuilderDraft((current) => ({
+          ...current,
+          customLayers: current.customLayers.map((layer) =>
+            layer.id === layerId
+              ? {
+                  ...layer,
+                  imageUrl: uploaded.assetUrl,
+                  storageKey: uploaded.storageKey || '',
+                  visible: true,
+                }
+              : layer,
+          ),
+        }));
       }
-      setLookupNotice(purpose === 'template-background' ? 'Imagem de fundo enviada.' : 'PNG do selo enviado.');
+      setLookupNotice(
+        purpose === 'template-background'
+          ? 'Imagem de fundo enviada.'
+          : purpose === 'template-badge'
+            ? 'PNG do selo enviado.'
+            : 'Imagem da camada enviada.',
+      );
     } catch (err: any) {
       setError(err?.message || 'Não foi possível enviar o asset.');
     } finally {
@@ -3567,13 +3799,13 @@ const OfferDesigner: React.FC = () => {
 
             {activeTool === 'themes' ? (
               <div className="offer-studio-panel-stack">
-                <div className="offer-studio-panel-header">
-                  <div>
+                <div className={`offer-studio-panel-header ${isSuperAdminMode ? 'offer-studio-panel-header-builder' : ''}`}>
+                  <div className="offer-studio-panel-header-copy">
                     <span className="section-kicker">Temas</span>
                     <h2>{isSuperAdminMode ? 'Template builder' : 'Modelos prontos'}</h2>
                   </div>
                   {isSuperAdminMode ? (
-                    <div className="flex flex-wrap gap-3">
+                    <div className="offer-studio-panel-header-actions">
                       <Button type="button" variant="secondary" onClick={handleStartNewTemplate} disabled={saving || !effectiveMarketId}>
                         <Plus size={16} strokeWidth={2.1} />
                         Novo template
@@ -3750,15 +3982,13 @@ const OfferDesigner: React.FC = () => {
                             onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
                             placeholder="#fff7ef"
                           />
-                          <label className="offer-studio-text-field md:col-span-2">
-                            <span>Imagem de fundo</span>
-                            <input
-                              className="input"
-                              value={templateBuilderDraft.backgroundImageUrl}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundImageUrl: event.target.value }))}
-                              placeholder="https://..."
+                          <div className="md:col-span-2">
+                            <StudioAssetStatus
+                              label="Imagem de fundo"
+                              storageKey={templateBuilderDraft.backgroundImageStorageKey}
+                              hasAsset={Boolean(templateBuilderDraft.backgroundImageUrl)}
                             />
-                          </label>
+                          </div>
                           <label className="offer-studio-text-field md:col-span-2">
                             <span>Upload da imagem de fundo</span>
                             <input
@@ -3784,15 +4014,13 @@ const OfferDesigner: React.FC = () => {
                       {renderCanvasEditButton('campaign-badge', 'Posicionar selo')}
                     </div>
                     <div className="offer-studio-edit-grid">
-                      <label className="offer-studio-text-field md:col-span-2">
-                        <span>PNG do selo 3D</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.badge.imageUrl}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, imageUrl: event.target.value } }))}
-                          placeholder="https://..."
+                      <div className="md:col-span-2">
+                        <StudioAssetStatus
+                          label="PNG do selo 3D"
+                          storageKey={templateBuilderDraft.badge.storageKey}
+                          hasAsset={Boolean(templateBuilderDraft.badge.imageUrl)}
                         />
-                      </label>
+                      </div>
                       <label className="offer-studio-text-field md:col-span-2">
                         <span>Upload do selo 3D</span>
                         <input
@@ -3909,54 +4137,6 @@ const OfferDesigner: React.FC = () => {
                           </div>
                       </label>
                       <label className="offer-studio-text-field">
-                        <span>Fundo do preco</span>
-                          <div className="offer-studio-color-control">
-                            <input
-                              className="offer-studio-color-picker"
-                              type="color"
-                              value={normalizeHexColor(templateBuilderDraft.card.priceBoxBackground, '#ff3b1f')}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: event.target.value } }))}
-                              aria-label="Fundo do preco"
-                            />
-                            <input
-                              className="input"
-                              value={templateBuilderDraft.card.priceBoxBackground}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: event.target.value } }))}
-                              spellCheck={false}
-                              autoCapitalize="off"
-                              autoCorrect="off"
-                            />
-                          </div>
-                      </label>
-                      <label className="offer-studio-text-field">
-                        <span>Texto do preco</span>
-                          <div className="offer-studio-color-control">
-                            <input
-                              className="offer-studio-color-picker"
-                              type="color"
-                              value={normalizeHexColor(templateBuilderDraft.card.priceBoxTextColor, '#ffffff')}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxTextColor: event.target.value } }))}
-                              aria-label="Texto do preco"
-                            />
-                            <input
-                              className="input"
-                              value={templateBuilderDraft.card.priceBoxTextColor}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxTextColor: event.target.value } }))}
-                              spellCheck={false}
-                              autoCapitalize="off"
-                              autoCorrect="off"
-                            />
-                          </div>
-                      </label>
-                      <label className="offer-studio-text-field">
-                        <span>Prefixo do preco</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.card.priceLabel}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabel: event.target.value } }))}
-                        />
-                      </label>
-                      <label className="offer-studio-text-field">
                         <span>Raio do card</span>
                         <input
                           className="input"
@@ -3988,12 +4168,215 @@ const OfferDesigner: React.FC = () => {
                           onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, descriptionFontSize: event.target.value } }))}
                         />
                       </label>
+                    </div>
+                    <div className="offer-studio-check-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={templateBuilderDraft.card.showDescription}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, showDescription: event.target.checked } }))}
+                        />
+                        <span>Mostrar descricao</span>
+                      </label>
+                    </div>
+                  </StudioCollapsibleSection>
+
+                  <StudioCollapsibleSection
+                    title="Preco do card"
+                    description="Personalize manualmente o bloco de preco, prefixo, centavos e unidade."
+                    collapsed={Boolean(collapsedConfigSections.builderPrice)}
+                    onToggle={() => toggleConfigSection('builderPrice')}
+                  >
+                    <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
-                        <span>Fonte do preco</span>
+                        <span>Layout do preco</span>
+                        <select
+                          className="input"
+                          value={templateBuilderDraft.card.priceLayout}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLayout: event.target.value } }))}
+                        >
+                          <option value="inline">Inline classico</option>
+                          <option value="split">Destacado com centavos</option>
+                        </select>
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Prefixo do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceLabel}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabel: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Layout da unidade</span>
+                        <select
+                          className="input"
+                          value={templateBuilderDraft.card.priceUnitLayout}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceUnitLayout: event.target.value } }))}
+                        >
+                          <option value="stacked">Empilhada</option>
+                          <option value="side">Lateral</option>
+                        </select>
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Estilo da borda</span>
+                        <select
+                          className="input"
+                          value={templateBuilderDraft.card.priceBorderStyle}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBorderStyle: event.target.value } }))}
+                        >
+                          <option value="solid">Solida</option>
+                          <option value="dashed">Tracejada</option>
+                        </select>
+                      </label>
+                      <StudioColorField
+                        label="Fundo do preco"
+                        value={templateBuilderDraft.card.priceBoxBackground}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: value } }))}
+                        placeholder="#ff3b1f"
+                      />
+                      <StudioColorField
+                        label="Borda do preco"
+                        value={templateBuilderDraft.card.priceBorderColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBorderColor: value } }))}
+                        placeholder="#ffc44f"
+                      />
+                      <StudioColorField
+                        label="Fundo do prefixo"
+                        value={templateBuilderDraft.card.priceLabelBackground}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabelBackground: value } }))}
+                        placeholder="#ffffff"
+                      />
+                      <StudioColorField
+                        label="Texto do prefixo"
+                        value={templateBuilderDraft.card.priceLabelTextColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabelTextColor: value } }))}
+                        placeholder="#fff1d6"
+                      />
+                      <StudioColorField
+                        label="Borda do prefixo"
+                        value={templateBuilderDraft.card.priceLabelBorderColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabelBorderColor: value } }))}
+                        placeholder="#ffffff"
+                      />
+                      <StudioColorField
+                        label="Cor do valor"
+                        value={templateBuilderDraft.card.priceValueColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceValueColor: value, priceBoxTextColor: value } }))}
+                        placeholder="#ffffff"
+                      />
+                      <StudioColorField
+                        label="Cor dos centavos"
+                        value={templateBuilderDraft.card.priceFractionColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceFractionColor: value } }))}
+                        placeholder="#ffffff"
+                      />
+                      <StudioColorField
+                        label="Cor da unidade"
+                        value={templateBuilderDraft.card.priceUnitColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceUnitColor: value } }))}
+                        placeholder="#ffffff"
+                      />
+                      <StudioColorField
+                        label="Preco anterior"
+                        value={templateBuilderDraft.card.priceBaselineColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBaselineColor: value } }))}
+                        placeholder="#7a5b49"
+                      />
+                      <label className="offer-studio-text-field">
+                        <span>Raio do preco</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceBoxRadius}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxRadius: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Espessura da borda</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceBorderWidth}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBorderWidth: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Raio do prefixo</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceLabelRadius}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabelRadius: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Tamanho do prefixo</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceLabelSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabelSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte do prefixo</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceLabelFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceLabelFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte do valor</span>
                         <input
                           className="input"
                           value={templateBuilderDraft.card.priceFontSize}
                           onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte dos centavos</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceFractionFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceFractionFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte da unidade</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceUnitFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceUnitFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Fonte do preco anterior</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceBaselineFontSize}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBaselineFontSize: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Padding horizontal</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.pricePaddingX}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, pricePaddingX: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Padding vertical</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.pricePaddingY}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, pricePaddingY: event.target.value } }))}
+                        />
+                      </label>
+                      <label className="offer-studio-text-field">
+                        <span>Gap interno</span>
+                        <input
+                          className="input"
+                          value={templateBuilderDraft.card.priceGap}
+                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceGap: event.target.value } }))}
                         />
                       </label>
                     </div>
@@ -4005,14 +4388,6 @@ const OfferDesigner: React.FC = () => {
                           onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, showUnit: event.target.checked } }))}
                         />
                         <span>Mostrar unidade</span>
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={templateBuilderDraft.card.showDescription}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, showDescription: event.target.checked } }))}
-                        />
-                        <span>Mostrar descricao</span>
                       </label>
                       <label>
                         <input
@@ -4421,6 +4796,7 @@ const OfferDesigner: React.FC = () => {
                               key={String(layer.id || `layer-${index}`)}
                               layer={layer}
                               active={String(layer.id || '') === String(activeLayer?.id || '')}
+                              identified={String(layer.id || '') === canvasSelectedLayerId}
                               onSelect={() => setSelectedLayerId(String(layer.id || ''))}
                               draggableLayer={resolvedLayers.length > 1}
                               dragging={draggingLayerId === String(layer.id || '')}
@@ -4453,6 +4829,7 @@ const OfferDesigner: React.FC = () => {
                               key={String(zone.id || `zone-${index}`)}
                               zone={zone}
                               active={String(zone.id || '') === String(activeZone?.id || '')}
+                              identified={String(zone.id || '') === canvasSelectedZoneId}
                               onSelect={() => setSelectedZoneId(String(zone.id || ''))}
                             />
                           ))
@@ -4533,15 +4910,25 @@ const OfferDesigner: React.FC = () => {
                             </label>
                           ) : null}
                           {activeCustomLayerSupportsImage ? (
-                            <label className="offer-studio-text-field md:col-span-2">
-                              <span>URL da imagem</span>
-                              <input
-                                className="input"
-                                value={layerDraft.imageUrl}
-                                onChange={(event) => setLayerDraft((current) => ({ ...current, imageUrl: event.target.value }))}
-                                placeholder="https://..."
-                              />
-                            </label>
+                            <>
+                              <div className="md:col-span-2">
+                                <StudioAssetStatus
+                                  label="Imagem da camada"
+                                  storageKey={layerDraft.imageStorageKey || activeCustomLayer.storageKey}
+                                  hasAsset={Boolean(layerDraft.imageUrl || activeCustomLayer.imageUrl)}
+                                />
+                              </div>
+                              <label className="offer-studio-text-field md:col-span-2">
+                                <span>Upload da imagem</span>
+                                <input
+                                  className="input"
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                  onChange={(event) => void handleUploadTemplateAsset('template-layer-image', event.target.files?.[0], activeCustomLayer.id)}
+                                  disabled={uploadingAsset === `template-layer-image:${activeCustomLayer.id}`}
+                                />
+                              </label>
+                            </>
                           ) : null}
                           {activeCustomLayerSupportsText || activeCustomLayerSupportsShape || activeCustomLayerSupportsImage ? (
                             <StudioColorField
@@ -4785,6 +5172,7 @@ const OfferDesigner: React.FC = () => {
                                   key={String(layer.id || `layer-${index}`)}
                                   layer={layer}
                                   active={String(layer.id || '') === String(activeLayer?.id || '')}
+                                  identified={String(layer.id || '') === canvasSelectedLayerId}
                                   onSelect={() => setSelectedLayerId(String(layer.id || ''))}
                                 />
                               ))
@@ -4806,6 +5194,7 @@ const OfferDesigner: React.FC = () => {
                                   key={String(zone.id || `zone-${index}`)}
                                   zone={zone}
                                   active={String(zone.id || '') === String(activeZone?.id || '')}
+                                  identified={String(zone.id || '') === canvasSelectedZoneId}
                                   onSelect={() => setSelectedZoneId(String(zone.id || ''))}
                                 />
                               ))
@@ -4879,6 +5268,13 @@ const OfferDesigner: React.FC = () => {
                           <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
                         )}
                       </div>
+                      <div className="mb-4">
+                        <StudioAssetStatus
+                          label="Logo principal"
+                          storageKey={marketProfile?.primaryLogoStorageKey}
+                          hasAsset={Boolean(marketProfile?.primaryLogoUrl)}
+                        />
+                      </div>
                       <label className="offer-studio-text-field">
                         <span>Upload da logo principal</span>
                         <input
@@ -4902,6 +5298,13 @@ const OfferDesigner: React.FC = () => {
                         ) : (
                           <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
                         )}
+                      </div>
+                      <div className="mb-4">
+                        <StudioAssetStatus
+                          label="Logo secundaria"
+                          storageKey={marketProfile?.secondaryLogoStorageKey}
+                          hasAsset={Boolean(marketProfile?.secondaryLogoUrl)}
+                        />
                       </div>
                       <label className="offer-studio-text-field">
                         <span>Upload da logo secundaria</span>

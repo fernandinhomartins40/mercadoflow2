@@ -39,6 +39,25 @@ const defaultLegacyTemplate = {
 const formatMoney = (value?: number | null) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 
+const splitPriceParts = (value?: number | null) => {
+  const numeric = Number.isFinite(Number(value)) ? Math.max(Number(value), 0) : 0;
+  const [integerPart, decimalPart] = numeric.toFixed(2).split('.');
+  return {
+    integerPart: integerPart || '0',
+    decimalPart: decimalPart || '00',
+  };
+};
+
+const compactPriceUnit = (value?: string | null) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return 'und.';
+  const lower = normalized.toLowerCase();
+  if (lower === 'unidade' || lower === 'unidades' || lower.startsWith('uni')) return 'und.';
+  if (lower === 'quilo' || lower === 'quilos' || lower === 'kg') return 'kg';
+  if (lower === 'litro' || lower === 'litros' || lower === 'l') return 'l';
+  return normalized.length > 8 ? `${normalized.slice(0, 7)}.` : normalized;
+};
+
 const asMap = (value: unknown): JsonMap => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
@@ -355,8 +374,10 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   const backgroundImageUrl = resolveAsset(backgroundConfig.imageUrl);
   const backgroundFit = String(backgroundConfig.fit || 'cover').toLowerCase() === 'contain' ? 'object-contain' : 'object-cover';
   const hasFooterLayer = layers.some((layer) => String(layer.type || '').toLowerCase() === 'footer' && layer.visible !== false);
+  const zoneBaseZIndex = 20;
+  const layerBaseZIndex = 100;
 
-  const renderLayer = (layer: JsonMap) => {
+  const renderLayer = (layer: JsonMap, index: number) => {
     const layerId = String(layer.id || `layer-${Math.random()}`);
     const layerType = String(layer.type || 'text').toLowerCase();
     const bounds = asMap(layer.bounds);
@@ -367,6 +388,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     const style: React.CSSProperties = {
       ...boundsToStyle(bounds, canvasWidth, canvasHeight),
       color: layerTextColor,
+      zIndex: layerBaseZIndex + index,
     };
     const radius = Number(props.radius) || 24;
     const background = props.background ? String(props.background) : undefined;
@@ -518,7 +540,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     );
   };
 
-  const renderZone = (zone: JsonMap) => {
+  const renderZone = (zone: JsonMap, index: number) => {
     const zoneId = String(zone.id || `zone-${Math.random()}`);
     const bounds = asMap(zone.bounds);
     const slotCount = Number(zone.slotCount) || 1;
@@ -529,19 +551,39 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     const slots = (boundProducts.length ? boundProducts : Array.from({ length: Math.min(slotCount, gridLimit || slotCount) })).slice(0, gridLimit || slotCount);
     const cardRadius = Number(cardTemplate.cardRadius) || 28;
     const priceBoxRadius = Number(cardTemplate.priceBoxRadius) || 26;
+    const priceLayout = String(cardTemplate.priceLayout || 'inline').toLowerCase() === 'split' ? 'split' : 'inline';
     const showUnit = cardTemplate.showUnit !== false;
     const showDescription = cardTemplate.showDescription !== false;
     const showBaselinePrice = cardTemplate.showBaselinePrice !== false;
     const priceLabel = String(cardTemplate.priceLabel || 'R$');
     const priceBoxBackground = String(cardTemplate.priceBoxBackground || '#ff3b1f');
     const priceBoxTextColor = String(cardTemplate.priceBoxTextColor || '#ffffff');
-    const priceLabelColor = String(cardTemplate.priceBoxLabelColor || 'rgba(255,255,255,0.82)');
     const textColorValue = String(cardTemplate.textColor || '#1f1613');
     const cardBackground = String(cardTemplate.background || 'rgba(255,255,255,0.92)');
     const borderColor = String(cardTemplate.borderColor || 'rgba(87,51,30,0.08)');
     const nameFontSize = Number(cardTemplate.nameFontSize) || (zoneType === 'hero' ? 32 : 22);
     const descriptionFontSize = Number(cardTemplate.descriptionFontSize) || (zoneType === 'hero' ? 18 : 14);
     const priceFontSize = Number(cardTemplate.priceFontSize) || (zoneType === 'hero' ? 64 : 46);
+    const priceBorderColor = String(cardTemplate.priceBorderColor || '#ffc44f');
+    const priceBorderWidth = Math.max(Number(cardTemplate.priceBorderWidth) || 4, 0);
+    const priceBorderStyle = String(cardTemplate.priceBorderStyle || 'solid').toLowerCase() === 'dashed' ? 'dashed' : 'solid';
+    const pricePaddingX = Math.max(Number(cardTemplate.pricePaddingX) || 16, 4);
+    const pricePaddingY = Math.max(Number(cardTemplate.pricePaddingY) || 12, 4);
+    const priceGap = Math.max(Number(cardTemplate.priceGap) || 12, 0);
+    const priceLabelBackground = String(cardTemplate.priceLabelBackground || '#ffffff');
+    const priceLabelColor = String(cardTemplate.priceLabelTextColor || cardTemplate.priceBoxLabelColor || 'rgba(255,255,255,0.82)');
+    const priceLabelBorderColor = String(cardTemplate.priceLabelBorderColor || '#ffffff');
+    const priceLabelRadius = Number(cardTemplate.priceLabelRadius) || 999;
+    const priceLabelSize = Math.max(Number(cardTemplate.priceLabelSize) || 72, 24);
+    const priceLabelFontSize = Math.max(Number(cardTemplate.priceLabelFontSize) || Math.round(priceFontSize * 0.4), 10);
+    const priceValueColor = String(cardTemplate.priceValueColor || priceBoxTextColor || '#ffffff');
+    const priceFractionColor = String(cardTemplate.priceFractionColor || priceValueColor || '#ffffff');
+    const priceFractionFontSize = Math.max(Number(cardTemplate.priceFractionFontSize) || Math.round(priceFontSize * 0.5), 10);
+    const priceUnitColor = String(cardTemplate.priceUnitColor || priceValueColor || '#ffffff');
+    const priceUnitFontSize = Math.max(Number(cardTemplate.priceUnitFontSize) || Math.round(descriptionFontSize * 0.95), 10);
+    const priceUnitLayout = String(cardTemplate.priceUnitLayout || 'stacked').toLowerCase() === 'side' ? 'side' : 'stacked';
+    const priceBaselineColor = String(cardTemplate.priceBaselineColor || 'rgba(122,91,73,0.92)');
+    const priceBaselineFontSize = Math.max(Number(cardTemplate.priceBaselineFontSize) || 13, 10);
     const unitFontSize = Math.max(Math.round(descriptionFontSize * 0.84), 11);
 
     return (
@@ -550,6 +592,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
         className="absolute grid gap-3 rounded-[28px] bg-transparent p-0"
         style={{
           ...boundsToStyle(bounds, canvasWidth, canvasHeight),
+          zIndex: zoneBaseZIndex + index,
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           alignContent: 'start',
         }}
@@ -560,6 +603,8 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
           const showUnit = cardTemplate.showUnit !== false;
           const formattedPrice = item.currentPrice != null ? formatMoney(Number(item.currentPrice)) : 'R$ 0,00';
           const numericPrice = formattedPrice.replace(/^R\$\s?/, '').trim();
+          const priceParts = splitPriceParts(item.currentPrice);
+          const priceUnitLabel = compactPriceUnit(String(item.unit || ''));
 
           return (
             <article
@@ -596,19 +641,83 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
                     {String(item.packageDescription)}
                   </p>
                 ) : null}
-                <div
-                  className="mt-4 flex items-end justify-between gap-3 border-4 px-4 py-3"
-                  style={{ background: priceBoxBackground, borderColor: 'rgba(255,196,79,0.82)', borderRadius: `${priceBoxRadius}px` }}
-                >
-                  <span className="font-medium" style={{ color: priceLabelColor, fontSize: `${Math.max(Math.round(priceFontSize * 0.4) / 16, 1.1)}rem` }}>
-                    {priceLabel}
+                {showBaselinePrice && item.baselinePrice != null ? (
+                  <span
+                    className="mt-3 inline-flex line-through"
+                    style={{ color: priceBaselineColor, fontSize: `${Math.max(priceBaselineFontSize / 16, 0.68)}rem` }}
+                  >
+                    {formatMoney(Number(item.baselinePrice))}
                   </span>
-                  <strong className="font-semibold leading-none" style={{ color: priceBoxTextColor, fontSize: `${Math.max(priceFontSize / 16, 1.8)}rem` }}>
-                    {numericPrice || '0,00'}
-                  </strong>
-                  {showBaselinePrice && item.baselinePrice != null ? (
-                    <span className="text-xs text-white/80 line-through">{formatMoney(Number(item.baselinePrice))}</span>
-                  ) : null}
+                ) : null}
+                <div
+                  className={`mt-3 border ${priceLayout === 'split' ? 'flex items-center justify-start' : 'flex items-end justify-between'} overflow-hidden`}
+                  style={{
+                    background: priceBoxBackground,
+                    borderColor: priceBorderColor,
+                    borderWidth: `${priceBorderWidth}px`,
+                    borderStyle: priceBorderStyle,
+                    borderRadius: `${priceBoxRadius}px`,
+                    padding: `${pricePaddingY}px ${pricePaddingX}px`,
+                    gap: `${priceGap}px`,
+                  }}
+                >
+                  {priceLayout === 'split' ? (
+                    <>
+                      {priceLabel ? (
+                        <span
+                          className="inline-flex shrink-0 items-center justify-center border font-semibold leading-none"
+                          style={{
+                            minWidth: `${priceLabelSize}px`,
+                            width: `${priceLabelSize}px`,
+                            height: `${priceLabelSize}px`,
+                            background: priceLabelBackground,
+                            color: priceLabelColor,
+                            borderColor: priceLabelBorderColor,
+                            borderRadius: `${priceLabelRadius}px`,
+                            fontSize: `${Math.max(priceLabelFontSize / 16, 0.7)}rem`,
+                          }}
+                        >
+                          {priceLabel}
+                        </span>
+                      ) : null}
+                      <div className="flex min-w-0 items-end" style={{ gap: `${Math.max(Math.round(priceGap * 0.5), 4)}px` }}>
+                        <strong
+                          className="font-black leading-none tracking-[-0.04em]"
+                          style={{ color: priceValueColor, fontSize: `${Math.max(priceFontSize / 16, 1.8)}rem` }}
+                        >
+                          {priceParts.integerPart}
+                        </strong>
+                        <div
+                          className={`flex min-w-0 ${showUnit && priceUnitLayout === 'stacked' ? 'flex-col items-start justify-end' : 'items-end'}`}
+                          style={{ gap: `${Math.max(Math.round(priceGap * 0.35), 2)}px` }}
+                        >
+                          <span
+                            className="font-bold leading-none tracking-[-0.02em]"
+                            style={{ color: priceFractionColor, fontSize: `${Math.max(priceFractionFontSize / 16, 0.86)}rem` }}
+                          >
+                            ,{priceParts.decimalPart}
+                          </span>
+                          {showUnit ? (
+                            <span
+                              className="font-semibold leading-none"
+                              style={{ color: priceUnitColor, fontSize: `${Math.max(priceUnitFontSize / 16, 0.7)}rem` }}
+                            >
+                              {priceUnitLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium" style={{ color: priceLabelColor, fontSize: `${Math.max(priceLabelFontSize / 16, 0.9)}rem` }}>
+                        {priceLabel}
+                      </span>
+                      <strong className="font-semibold leading-none" style={{ color: priceValueColor, fontSize: `${Math.max(priceFontSize / 16, 1.8)}rem` }}>
+                        {numericPrice || '0,00'}
+                      </strong>
+                    </>
+                  )}
                 </div>
               </div>
             </article>
@@ -622,13 +731,13 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     <div className={`offer-canvas-preview relative overflow-hidden rounded-[32px] border border-[rgba(87,51,30,0.08)] shadow-[0_20px_40px_rgba(44,20,6,0.08)] ${className || ''}`} style={canvasStyle}>
       <div className="absolute inset-0">
         {backgroundImageUrl ? (
-          <OfferProductImage src={backgroundImageUrl} alt="Fundo do template" className={`absolute inset-0 h-full w-full ${backgroundFit}`} />
+          <OfferProductImage src={backgroundImageUrl} alt="Fundo do template" className={`absolute inset-0 h-full w-full ${backgroundFit}`} style={{ zIndex: 0 }} />
         ) : null}
-        {layers.map(renderLayer)}
         {zones.map(renderZone)}
+        {layers.map(renderLayer)}
       </div>
       {fallbackFooter && !hasFooterLayer && !footerHidden ? (
-        <div className="absolute inset-x-4 bottom-4 rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(44,20,6,0.86)] px-4 py-3 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-white/82">
+        <div className="absolute inset-x-4 bottom-4 rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(44,20,6,0.86)] px-4 py-3 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-white/82" style={{ zIndex: layerBaseZIndex + layers.length + 1 }}>
           {fallbackFooter}
         </div>
       ) : null}
