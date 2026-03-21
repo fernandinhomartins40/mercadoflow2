@@ -5258,6 +5258,10 @@
   transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
+.offer-studio-structure-row {
+  padding: 10px 12px;
+}
+
 .offer-studio-structure-row:hover,
 .offer-studio-zone-card:hover,
 .offer-studio-structure-row.active,
@@ -5265,6 +5269,42 @@
   border-color: rgba(255, 122, 18, 0.28);
   box-shadow: 0 16px 28px rgba(255, 122, 18, 0.12);
   transform: translateY(-1px);
+}
+
+.offer-studio-structure-row.draggable {
+  cursor: grab;
+}
+
+.offer-studio-structure-row.dragging {
+  opacity: 0.58;
+  transform: scale(0.985);
+}
+
+.offer-studio-structure-row.drop-target {
+  border-color: rgba(255, 122, 18, 0.4);
+  box-shadow: 0 0 0 1px rgba(255, 122, 18, 0.2), 0 18px 30px rgba(255, 122, 18, 0.14);
+}
+
+.offer-studio-structure-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.offer-studio-structure-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex: 0 0 24px;
+  color: rgba(122, 91, 73, 0.56);
 }
 
 .offer-studio-structure-icon {
@@ -5308,6 +5348,31 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.offer-studio-structure-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid rgba(87, 51, 30, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary);
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.offer-studio-structure-lock:hover {
+  border-color: rgba(255, 122, 18, 0.24);
+  color: var(--accent-primary);
+}
+
+.offer-studio-structure-lock.active {
+  border-color: rgba(87, 51, 30, 0.16);
+  background: rgba(87, 51, 30, 0.08);
+  color: #4f2a16;
 }
 
 .offer-studio-zone-card {
@@ -5537,6 +5602,37 @@
   min-height: 44px;
 }
 
+.offer-studio-card-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.offer-studio-card-toolbar.compact {
+  margin-bottom: 10px;
+}
+
+.offer-studio-stage-tool-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(87, 51, 30, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.offer-studio-stage-tool-button.active {
+  border-color: rgba(255, 122, 18, 0.28);
+  background: rgba(255, 122, 18, 0.12);
+  color: #8f4618;
+}
+
 .offer-studio-workspace {
   display: flex;
   height: 100%;
@@ -5720,6 +5816,10 @@
   transform-origin: top center;
 }
 
+.offer-studio-stage-artboard {
+  position: relative;
+}
+
 .offer-studio-canvas-preview {
   width: min(100%, 540px);
   min-width: 320px;
@@ -5761,6 +5861,89 @@
 
 .offer-studio-canvas-preview.mode-featured .offer-canvas-grid-products {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.offer-studio-stage-edit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 122, 18, 0.14);
+  background: rgba(255, 247, 240, 0.9);
+  color: var(--text-secondary);
+}
+
+.offer-studio-stage-edit-banner strong {
+  color: var(--text-primary);
+}
+
+.offer-studio-stage-editor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.offer-studio-stage-guide {
+  position: absolute;
+  pointer-events: auto;
+  border: 2px dashed currentColor;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+}
+
+.offer-studio-stage-guide.is-hidden {
+  opacity: 0.45;
+}
+
+.offer-studio-stage-guide.active {
+  border-style: solid;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+}
+
+.offer-studio-stage-guide-body {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: move;
+}
+
+.offer-studio-stage-guide-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(87, 51, 30, 0.08);
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.offer-studio-stage-guide-handle {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 8px 18px rgba(44, 20, 6, 0.18);
+  cursor: nwse-resize;
 }
 
 .offer-studio-output-bar {

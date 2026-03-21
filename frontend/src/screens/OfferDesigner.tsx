@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Layers3,
   Lock,
+  GripVertical,
   PackageSearch,
   Palette,
   Minus,
@@ -30,6 +31,7 @@ import {
   Tag,
   Trash2,
   Type,
+  Unlock,
   WandSparkles,
   type LucideIcon,
 } from 'lucide-react';
@@ -210,6 +212,18 @@ type TemplateBuilderDraft = {
   footerRightLogo: TemplateBuilderImageLayerDraft;
   contentZone: TemplateBuilderZoneDraft;
   card: TemplateBuilderCardDraft;
+  layerOrder: string[];
+  layerLocks: Record<string, boolean>;
+};
+
+type CanvasEditableTarget = 'badge' | 'footer' | 'footerLeftLogo' | 'footerRightLogo';
+
+type CanvasEditInteraction = {
+  target: CanvasEditableTarget;
+  mode: 'move' | 'resize';
+  anchorX: number;
+  anchorY: number;
+  startBounds: { x: number; y: number; w: number; h: number };
 };
 
 type SuperAdminMarketOption = {
@@ -416,6 +430,124 @@ const findLayer = (layers: JsonMap[], ids: string[], types: string[] = []) =>
     );
   }) || null;
 
+const TEMPLATE_BUILDER_LAYER_IDS = [
+  'kicker',
+  'headline',
+  'subheadline',
+  'campaign-badge',
+  'footer',
+  'footer-content',
+  'footer-legal',
+  'footer-logo-left',
+  'footer-logo-right',
+] as const;
+const TEMPLATE_BUILDER_LAYER_ID_SET = new Set<string>(TEMPLATE_BUILDER_LAYER_IDS);
+const CANVAS_EDITABLE_TARGET_META: Record<
+  CanvasEditableTarget,
+  { label: string; layerId: string; minWidth: number; minHeight: number; accent: string }
+> = {
+  badge: { label: 'Selo 3D', layerId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#ff7a12' },
+  footer: { label: 'Rodape', layerId: 'footer', minWidth: 260, minHeight: 48, accent: '#4f2a16' },
+  footerLeftLogo: { label: 'Logo primaria', layerId: 'footer-logo-left', minWidth: 84, minHeight: 42, accent: '#8f4618' },
+  footerRightLogo: { label: 'Logo secundaria', layerId: 'footer-logo-right', minWidth: 84, minHeight: 42, accent: '#b55e24' },
+};
+
+const createDefaultLayerLocks = () =>
+  Object.fromEntries(TEMPLATE_BUILDER_LAYER_IDS.map((layerId) => [layerId, true])) as Record<string, boolean>;
+
+const normalizeLayerOrder = (order: string[] | undefined, fallback = [...TEMPLATE_BUILDER_LAYER_IDS]) => {
+  const available = new Set(fallback);
+  const normalized = (order || []).filter((layerId, index, items) => available.has(layerId) && items.indexOf(layerId) === index);
+  return [...normalized, ...fallback.filter((layerId) => !normalized.includes(layerId))];
+};
+
+const reorderLayerOrder = (order: string[], sourceId: string, targetId: string) => {
+  if (!sourceId || !targetId || sourceId === targetId) {
+    return order;
+  }
+
+  const currentOrder = [...order];
+  const sourceIndex = currentOrder.indexOf(sourceId);
+  const targetIndex = currentOrder.indexOf(targetId);
+
+  if (sourceIndex < 0 || targetIndex < 0) {
+    return currentOrder;
+  }
+
+  const [sourceLayerId] = currentOrder.splice(sourceIndex, 1);
+  currentOrder.splice(targetIndex, 0, sourceLayerId);
+  return currentOrder;
+};
+
+const editableBoundsDraftByTarget = (draft: TemplateBuilderDraft, target: CanvasEditableTarget): TemplateBuilderBoundsDraft => {
+  switch (target) {
+    case 'badge':
+      return draft.badge;
+    case 'footer':
+      return draft.footer;
+    case 'footerLeftLogo':
+      return draft.footerLeftLogo;
+    case 'footerRightLogo':
+      return draft.footerRightLogo;
+    default:
+      return draft.badge;
+  }
+};
+
+const editableVisibilityByTarget = (draft: TemplateBuilderDraft, target: CanvasEditableTarget) => {
+  switch (target) {
+    case 'badge':
+      return draft.badge.visible;
+    case 'footer':
+      return draft.footer.visible;
+    case 'footerLeftLogo':
+      return draft.footerLeftLogo.visible;
+    case 'footerRightLogo':
+      return draft.footerRightLogo.visible;
+    default:
+      return true;
+  }
+};
+
+const updateEditableBoundsByTarget = (
+  draft: TemplateBuilderDraft,
+  target: CanvasEditableTarget,
+  next: TemplateBuilderBoundsDraft,
+): TemplateBuilderDraft => {
+  switch (target) {
+    case 'badge':
+      return { ...draft, badge: { ...draft.badge, ...next } };
+    case 'footer':
+      return { ...draft, footer: { ...draft.footer, ...next } };
+    case 'footerLeftLogo':
+      return { ...draft, footerLeftLogo: { ...draft.footerLeftLogo, ...next } };
+    case 'footerRightLogo':
+      return { ...draft, footerRightLogo: { ...draft.footerRightLogo, ...next } };
+    default:
+      return draft;
+  }
+};
+
+const clampEditableBounds = (
+  target: CanvasEditableTarget,
+  bounds: { x: number; y: number; w: number; h: number },
+  canvasWidth: number,
+  canvasHeight: number,
+) => {
+  const meta = CANVAS_EDITABLE_TARGET_META[target];
+  const width = Math.min(Math.max(Math.round(bounds.w), meta.minWidth), Math.max(canvasWidth, meta.minWidth));
+  const height = Math.min(Math.max(Math.round(bounds.h), meta.minHeight), Math.max(canvasHeight, meta.minHeight));
+  const x = Math.min(Math.max(Math.round(bounds.x), 0), Math.max(canvasWidth - width, 0));
+  const y = Math.min(Math.max(Math.round(bounds.y), 0), Math.max(canvasHeight - height, 0));
+
+  return {
+    x,
+    y,
+    w: Math.min(width, Math.max(canvasWidth - x, meta.minWidth)),
+    h: Math.min(height, Math.max(canvasHeight - y, meta.minHeight)),
+  };
+};
+
 const defaultCardDraft = (): TemplateBuilderCardDraft => ({
   background: '#ffffff',
   borderColor: '#ead9ca',
@@ -527,6 +659,8 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
       ...boundsDraft(safeX, contentTop, width - safeX * 2, Math.min(contentHeight, footerY - contentTop - 20)),
     },
     card: defaultCardDraft(),
+    layerOrder: [...TEMPLATE_BUILDER_LAYER_IDS],
+    layerLocks: createDefaultLayerLocks(),
   };
 };
 
@@ -550,6 +684,22 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
   const footerRightLogoLayer = findLayer(layers, ['footer-logo-right', 'logo-right']);
   const contentZone = zones.find((zone) => String(zone.id || '').toLowerCase().includes('content')) || zones[0] || null;
   const cardTemplate = asMap(contentZone?.cardTemplate);
+  const layerOrder = normalizeLayerOrder(
+    layers.map((layer) => String(layer.id || '')).filter((layerId) => TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)),
+    fallback.layerOrder,
+  );
+  const layerLocks = layers.reduce<Record<string, boolean>>(
+    (accumulator, layer) => {
+      const layerId = String(layer.id || '');
+      if (!TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)) {
+        return accumulator;
+      }
+
+      accumulator[layerId] = Boolean(layer.locked);
+      return accumulator;
+    },
+    { ...fallback.layerLocks },
+  );
 
   return {
     ...fallback,
@@ -657,6 +807,8 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
       showDescription: cardTemplate.showDescription !== false,
       showBaselinePrice: cardTemplate.showBaselinePrice !== false,
     },
+    layerOrder,
+    layerLocks,
   };
 };
 
@@ -680,13 +832,13 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
     },
   };
 
-  const layers: JsonMap[] = [
+  const baseLayers: JsonMap[] = [
     {
       id: 'kicker',
       name: 'Kicker',
       type: 'tag',
       binding: 'campaign.kicker',
-      locked: true,
+      locked: draft.layerLocks.kicker ?? true,
       visible: draft.kicker.visible,
       bounds: kickerBounds,
       props: {
@@ -701,7 +853,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Título principal',
       type: 'text',
       binding: 'campaign.headline',
-      locked: true,
+      locked: draft.layerLocks.headline ?? true,
       visible: draft.headline.visible,
       bounds: headlineBounds,
       props: {
@@ -714,7 +866,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Subtítulo',
       type: 'text',
       binding: 'campaign.subheadline',
-      locked: true,
+      locked: draft.layerLocks.subheadline ?? true,
       visible: draft.subheadline.visible,
       bounds: subheadlineBounds,
       props: {
@@ -727,7 +879,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Selo 3D',
       type: 'campaignbadge',
       binding: 'static.assets.campaignBadgeUrl',
-      locked: true,
+      locked: draft.layerLocks['campaign-badge'] ?? true,
       visible: draft.badge.visible,
       bounds: badgeBounds,
       props: {
@@ -740,7 +892,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       id: 'footer',
       name: 'Rodapé',
       type: 'footer',
-      locked: true,
+      locked: draft.layerLocks.footer ?? true,
       visible: draft.footer.visible,
       bounds: footerBounds,
       props: {
@@ -756,7 +908,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Conteúdo principal do rodapé',
       type: 'text',
       binding: 'marketProfile.footer.content',
-      locked: true,
+      locked: draft.layerLocks['footer-content'] ?? true,
       visible: draft.footerContent.visible,
       bounds: footerContentBounds,
       props: {
@@ -770,7 +922,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Aviso legal do rodapé',
       type: 'text',
       binding: 'marketProfile.footer.legalText',
-      locked: true,
+      locked: draft.layerLocks['footer-legal'] ?? true,
       visible: draft.footerLegal.visible,
       bounds: footerLegalBounds,
       props: {
@@ -784,7 +936,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Logo rodapé esquerdo',
       type: 'image',
       binding: 'marketProfile.assets.primaryLogo.imageUrl',
-      locked: true,
+      locked: draft.layerLocks['footer-logo-left'] ?? true,
       visible: draft.footerLeftLogo.visible,
       bounds: footerLeftBounds,
       props: {
@@ -798,7 +950,7 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       name: 'Logo rodapé direito',
       type: 'image',
       binding: 'marketProfile.assets.secondaryLogo.imageUrl',
-      locked: true,
+      locked: draft.layerLocks['footer-logo-right'] ?? true,
       visible: draft.footerRightLogo.visible,
       bounds: footerRightBounds,
       props: {
@@ -808,6 +960,13 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
       },
     },
   ];
+
+  const orderedLayerIds = normalizeLayerOrder(
+    draft.layerOrder,
+    baseLayers.map((layer) => String(layer.id || '')).filter((layerId) => TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)),
+  );
+  const layersById = new Map(baseLayers.map((layer) => [String(layer.id || ''), layer]));
+  const layers = orderedLayerIds.map((layerId) => layersById.get(layerId)).filter((layer): layer is JsonMap => Boolean(layer));
 
   return {
     schemaVersion: 2,
@@ -1048,22 +1207,60 @@ const StudioLayerRow: React.FC<{
   layer: JsonMap;
   active: boolean;
   onSelect: () => void;
-}> = ({ layer, active, onSelect }) => {
+  draggableLayer?: boolean;
+  dragging?: boolean;
+  dropTarget?: boolean;
+  onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
+  onToggleLock?: () => void;
+}> = ({ layer, active, onSelect, draggableLayer = false, dragging = false, dropTarget = false, onDragStart, onDragOver, onDrop, onDragEnd, onToggleLock }) => {
   const Icon = layerTypeIcon(String(layer.type || layer.kind || 'layer'));
+  const lockLabel = layer.locked ? 'Desbloquear camada' : 'Bloquear camada';
+  const canToggleLock = Boolean(onToggleLock);
   return (
-    <button type="button" className={`offer-studio-structure-row ${active ? 'active' : ''}`} onClick={onSelect}>
-      <span className="offer-studio-structure-icon">
-        <Icon size={16} strokeWidth={2.1} />
-      </span>
-      <span className="offer-studio-structure-copy">
-        <strong>{String(layer.name || layer.id || 'Camada')}</strong>
-        <small>{String(layer.type || 'layer')}</small>
-      </span>
-      <span className="offer-studio-structure-flags">
-        {layer.locked ? <Lock size={14} strokeWidth={2.1} /> : null}
-        {layer.visible === false ? <Eye size={14} strokeWidth={2.1} className="opacity-45" /> : null}
-      </span>
-    </button>
+    <div
+      className={`offer-studio-structure-row ${active ? 'active' : ''} ${draggableLayer ? 'draggable' : ''} ${dragging ? 'dragging' : ''} ${dropTarget ? 'drop-target' : ''}`}
+      draggable={draggableLayer}
+      onDragStart={draggableLayer ? onDragStart : undefined}
+      onDragOver={draggableLayer ? onDragOver : undefined}
+      onDrop={draggableLayer ? onDrop : undefined}
+      onDragEnd={draggableLayer ? onDragEnd : undefined}
+    >
+      {draggableLayer ? (
+        <span className="offer-studio-structure-grip" aria-hidden="true">
+          <GripVertical size={16} strokeWidth={2.1} />
+        </span>
+      ) : null}
+      <button type="button" className="offer-studio-structure-main" onClick={onSelect}>
+        <span className="offer-studio-structure-icon">
+          <Icon size={16} strokeWidth={2.1} />
+        </span>
+        <span className="offer-studio-structure-copy">
+          <strong>{String(layer.name || layer.id || 'Camada')}</strong>
+          <small>{String(layer.type || 'layer')}</small>
+        </span>
+        <span className="offer-studio-structure-flags">
+          {layer.locked && !canToggleLock ? <Lock size={14} strokeWidth={2.1} /> : null}
+          {layer.visible === false ? <Eye size={14} strokeWidth={2.1} className="opacity-45" /> : null}
+        </span>
+      </button>
+      {canToggleLock ? (
+        <button
+          type="button"
+          className={`offer-studio-structure-lock ${layer.locked ? 'active' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleLock?.();
+          }}
+          title={lockLabel}
+          aria-label={lockLabel}
+        >
+          {layer.locked ? <Lock size={15} strokeWidth={2.1} /> : <Unlock size={15} strokeWidth={2.1} />}
+        </button>
+      ) : null}
+    </div>
   );
 };
 
@@ -1144,10 +1341,35 @@ const StudioColorField: React.FC<{
   </label>
 );
 
+const StudioCollapsibleSection: React.FC<{
+  title: string;
+  description?: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  className?: string;
+  containerClassName?: string;
+  children: React.ReactNode;
+}> = ({ title, description, collapsed, onToggle, className, containerClassName, children }) => (
+  <section className={[containerClassName || 'offer-studio-theme-card', className].filter(Boolean).join(' ')}>
+    <button type="button" className="offer-studio-panel-subhead offer-studio-panel-subhead-button" onClick={onToggle} aria-expanded={!collapsed}>
+      <span>
+        <span className="section-kicker">{title}</span>
+        {description ? <small>{description}</small> : null}
+      </span>
+      <span className="offer-studio-panel-subhead-meta">
+        <small>{collapsed ? 'Expandir' : 'Recolher'}</small>
+        {collapsed ? <ChevronDown size={16} strokeWidth={2.2} /> : <ChevronUp size={16} strokeWidth={2.2} />}
+      </span>
+    </button>
+    {!collapsed ? children : null}
+  </section>
+);
+
 const OfferDesigner: React.FC = () => {
   const { buildUrl, isSuperAdminMode, marketId, userName } = useOffersAppSession();
   const navigate = useNavigate();
   const stageSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const stageArtboardRef = useRef<HTMLDivElement | null>(null);
   const pendingStageViewportRef = useRef<{ anchorX: number; anchorY: number; nextScale: number } | null>(null);
   const [searchParams] = useSearchParams();
   const requestedTemplateId = searchParams.get('templateId') || '';
@@ -1197,6 +1419,10 @@ const OfferDesigner: React.FC = () => {
   const [resultsCollapsed, setResultsCollapsed] = useState(false);
   const [selectedLayerId, setSelectedLayerId] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState('');
+  const [draggingLayerId, setDraggingLayerId] = useState('');
+  const [dragOverLayerId, setDragOverLayerId] = useState('');
+  const [canvasEditTarget, setCanvasEditTarget] = useState<CanvasEditableTarget | null>(null);
+  const [canvasEditInteraction, setCanvasEditInteraction] = useState<CanvasEditInteraction | null>(null);
   const [removingBackgroundId, setRemovingBackgroundId] = useState<string | null>(null);
   const [layerDraft, setLayerDraft] = useState<LayerDraft>(emptyLayerDraft);
   const [zoneDraft, setZoneDraft] = useState<ZoneDraft>(emptyZoneDraft);
@@ -1213,6 +1439,7 @@ const OfferDesigner: React.FC = () => {
   const [lookupNotice, setLookupNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stageSurfaceSize, setStageSurfaceSize] = useState({ width: 0, height: 0 });
+  const [collapsedConfigSections, setCollapsedConfigSections] = useState<Record<string, boolean>>({});
 
   const selectedSuperAdminMarket = useMemo(
     () => superAdminMarkets.find((market) => market.id === selectedSuperAdminMarketId) || null,
@@ -1374,6 +1601,30 @@ const OfferDesigner: React.FC = () => {
     const zoneBindings = asMap(resolvedDesign.zoneBindings);
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
   }, [activeZone, resolvedDesign]);
+  const canvasEditableOverlays = useMemo(
+    () =>
+      (Object.keys(CANVAS_EDITABLE_TARGET_META) as CanvasEditableTarget[]).map((target) => {
+        const rawBounds = editableBoundsDraftByTarget(templateBuilderDraft, target);
+        const bounds = clampEditableBounds(
+          target,
+          parseBoundsDraft(rawBounds, { x: 0, y: 0, w: CANVAS_EDITABLE_TARGET_META[target].minWidth, h: CANVAS_EDITABLE_TARGET_META[target].minHeight }),
+          stageCanvasWidth,
+          stageCanvasHeight,
+        );
+
+        return {
+          key: target,
+          label: CANVAS_EDITABLE_TARGET_META[target].label,
+          layerId: CANVAS_EDITABLE_TARGET_META[target].layerId,
+          accent: CANVAS_EDITABLE_TARGET_META[target].accent,
+          bounds,
+          visible: editableVisibilityByTarget(templateBuilderDraft, target),
+          active: canvasEditTarget === target,
+        };
+      }),
+    [canvasEditTarget, stageCanvasHeight, stageCanvasWidth, templateBuilderDraft],
+  );
+  const activeCanvasEditLabel = canvasEditTarget ? CANVAS_EDITABLE_TARGET_META[canvasEditTarget].label : '';
 
   useEffect(() => {
     const node = stageSurfaceRef.current;
@@ -1880,6 +2131,186 @@ const OfferDesigner: React.FC = () => {
   useEffect(() => {
     setTemplateBuilderDraft(buildTemplateBuilderDraft(selectedTemplate, selectedVariant));
   }, [selectedTemplate, selectedVariant]);
+
+  useEffect(() => {
+    if (!(isSuperAdminMode && activeTool === 'themes')) {
+      setCanvasEditInteraction(null);
+      setCanvasEditTarget(null);
+    }
+  }, [activeTool, isSuperAdminMode]);
+
+  useEffect(() => {
+    if (!canvasEditInteraction) {
+      return undefined;
+    }
+
+    const handlePointerMove = (event: MouseEvent) => {
+      const artboard = stageArtboardRef.current;
+      if (!artboard) {
+        return;
+      }
+
+      const rect = artboard.getBoundingClientRect();
+      const localX = (event.clientX - rect.left) / Math.max(stageScale, MIN_STAGE_ZOOM);
+      const localY = (event.clientY - rect.top) / Math.max(stageScale, MIN_STAGE_ZOOM);
+
+      const nextBounds =
+        canvasEditInteraction.mode === 'move'
+          ? clampEditableBounds(
+              canvasEditInteraction.target,
+              {
+                ...canvasEditInteraction.startBounds,
+                x: localX - canvasEditInteraction.anchorX,
+                y: localY - canvasEditInteraction.anchorY,
+              },
+              stageCanvasWidth,
+              stageCanvasHeight,
+            )
+          : clampEditableBounds(
+              canvasEditInteraction.target,
+              {
+                ...canvasEditInteraction.startBounds,
+                w: canvasEditInteraction.startBounds.w + (localX - canvasEditInteraction.anchorX),
+                h: canvasEditInteraction.startBounds.h + (localY - canvasEditInteraction.anchorY),
+              },
+              stageCanvasWidth,
+              stageCanvasHeight,
+            );
+
+      setTemplateBuilderDraft((current) =>
+        updateEditableBoundsByTarget(current, canvasEditInteraction.target, boundsDraft(nextBounds.x, nextBounds.y, nextBounds.w, nextBounds.h)),
+      );
+    };
+
+    const handlePointerUp = () => setCanvasEditInteraction(null);
+
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+    };
+  }, [canvasEditInteraction, stageCanvasHeight, stageCanvasWidth, stageScale]);
+
+  const handleToggleLayerLock = (layerId: string) => {
+    if (!layerId || !TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)) {
+      return;
+    }
+
+    setTemplateBuilderDraft((current) => ({
+      ...current,
+      layerLocks: {
+        ...current.layerLocks,
+        [layerId]: !(current.layerLocks[layerId] ?? true),
+      },
+    }));
+  };
+
+  const handleLayerDragStart = (layerId: string, event: React.DragEvent<HTMLDivElement>) => {
+    if (!layerId) {
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', layerId);
+    setDraggingLayerId(layerId);
+    setDragOverLayerId(layerId);
+    setSelectedLayerId(layerId);
+  };
+
+  const handleLayerDragOver = (layerId: string, event: React.DragEvent<HTMLDivElement>) => {
+    if (!draggingLayerId || !layerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (draggingLayerId !== layerId) {
+      setDragOverLayerId(layerId);
+    }
+  };
+
+  const handleLayerDrop = (targetLayerId: string, event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const sourceLayerId = draggingLayerId || event.dataTransfer.getData('text/plain') || '';
+
+    if (!sourceLayerId || !targetLayerId || sourceLayerId === targetLayerId) {
+      setDragOverLayerId('');
+      setDraggingLayerId('');
+      return;
+    }
+
+    setTemplateBuilderDraft((current) => ({
+      ...current,
+      layerOrder: reorderLayerOrder(normalizeLayerOrder(current.layerOrder), sourceLayerId, targetLayerId),
+    }));
+    setSelectedLayerId(sourceLayerId);
+    setDragOverLayerId('');
+    setDraggingLayerId('');
+  };
+
+  const handleLayerDragEnd = () => {
+    setDragOverLayerId('');
+    setDraggingLayerId('');
+  };
+
+  const handleCanvasEditToggle = (target: CanvasEditableTarget) => {
+    setCanvasEditInteraction(null);
+    setCanvasEditTarget((current) => (current === target ? null : target));
+    setSelectedLayerId(CANVAS_EDITABLE_TARGET_META[target].layerId);
+  };
+
+  const handleCanvasEditPointerStart = (
+    target: CanvasEditableTarget,
+    mode: 'move' | 'resize',
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const artboard = stageArtboardRef.current;
+    const descriptor = canvasEditableOverlays.find((item) => item.key === target);
+    if (!artboard || !descriptor) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = artboard.getBoundingClientRect();
+    const localX = (event.clientX - rect.left) / Math.max(stageScale, MIN_STAGE_ZOOM);
+    const localY = (event.clientY - rect.top) / Math.max(stageScale, MIN_STAGE_ZOOM);
+
+    setCanvasEditTarget(target);
+    setSelectedLayerId(CANVAS_EDITABLE_TARGET_META[target].layerId);
+    setCanvasEditInteraction({
+      target,
+      mode,
+      anchorX: mode === 'move' ? localX - descriptor.bounds.x : localX,
+      anchorY: mode === 'move' ? localY - descriptor.bounds.y : localY,
+      startBounds: descriptor.bounds,
+    });
+  };
+
+  const renderCanvasEditButton = (target: CanvasEditableTarget, label = 'Editar na arte') => (
+    <button
+      type="button"
+      className={`offer-studio-stage-tool-button ${canvasEditTarget === target ? 'active' : ''}`}
+      onClick={() => handleCanvasEditToggle(target)}
+    >
+      <BoxSelect size={15} strokeWidth={2.1} />
+      <span>{canvasEditTarget === target ? 'Parar edicao' : label}</span>
+    </button>
+  );
+
+  const toggleConfigSection = (sectionId: string) => {
+    setCollapsedConfigSections((current) => ({
+      ...current,
+      [sectionId]: !current[sectionId],
+    }));
+  };
 
   const handleStartNewTemplate = () => {
     if (!isSuperAdminMode) {
@@ -2522,11 +2953,13 @@ const OfferDesigner: React.FC = () => {
                 {isSuperAdminMode ? (
                 <>
                 <div className="offer-studio-theme-grid">
-                  <section className="offer-studio-theme-card md:col-span-2">
-                    <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Template builder</span>
-                      <small>Crie templates com áreas de fundo, selo, rodapé, logos e conteúdo.</small>
-                    </div>
+                  <StudioCollapsibleSection
+                    title="Template builder"
+                    description="Crie templates com areas de fundo, selo, rodape, logos e conteudo."
+                    collapsed={Boolean(collapsedConfigSections.builderGeneral)}
+                    onToggle={() => toggleConfigSection('builderGeneral')}
+                    className="md:col-span-2"
+                  >
                     <div className="offer-studio-edit-grid">
                       {isSuperAdminMode ? (
                         <>
@@ -2627,93 +3060,92 @@ const OfferDesigner: React.FC = () => {
                         Recarregar estrutura atual
                       </Button>
                     </div>
-                  </section>
-
-                  <section className="offer-studio-theme-card">
-                    <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Fundo e selo</span>
-                      <small>Imagem de fundo e PNG do selo 3D.</small>
-                    </div>
+                  </StudioCollapsibleSection>
+                  <StudioCollapsibleSection
+                    title="Fundo"
+                    description="As opcoes mudam conforme o tipo de fundo selecionado."
+                    collapsed={Boolean(collapsedConfigSections.builderBackground)}
+                    onToggle={() => toggleConfigSection('builderBackground')}
+                  >
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
-                        <span>Modo do fundo</span>
+                        <span>Tipo de fundo</span>
                         <select
                           className="input"
                           value={templateBuilderDraft.backgroundMode}
                           onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundMode: event.target.value }))}
                         >
-                          <option value="solid">Cor sólida</option>
+                          <option value="solid">Cor solida</option>
                           <option value="gradient">Gradiente</option>
                           <option value="image">Imagem</option>
                         </select>
                       </label>
-                      <StudioColorField
-                        label="Cor base"
-                        value={templateBuilderDraft.backgroundColor}
-                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
-                        placeholder="#fff7ef"
-                      />
-                      <label className="offer-studio-text-field">
-                        <span>Início do gradiente</span>
-                          <div className="offer-studio-color-control">
-                            <input
-                              className="offer-studio-color-picker"
-                              type="color"
-                              value={normalizeHexColor(templateBuilderDraft.backgroundStart, '#fff7ef')}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: event.target.value }))}
-                              aria-label="InÃ­cio do gradiente"
-                            />
+                      {templateBuilderDraft.backgroundMode === 'solid' ? (
+                        <StudioColorField
+                          label="Cor base"
+                          value={templateBuilderDraft.backgroundColor}
+                          onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
+                          placeholder="#fff7ef"
+                        />
+                      ) : null}
+                      {templateBuilderDraft.backgroundMode === 'gradient' ? (
+                        <>
+                          <StudioColorField
+                            label="Inicio do gradiente"
+                            value={templateBuilderDraft.backgroundStart}
+                            onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: value }))}
+                            placeholder="#fff7ef"
+                          />
+                          <StudioColorField
+                            label="Fim do gradiente"
+                            value={templateBuilderDraft.backgroundEnd}
+                            onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: value }))}
+                            placeholder="#ffd4b4"
+                          />
+                        </>
+                      ) : null}
+                      {templateBuilderDraft.backgroundMode === 'image' ? (
+                        <>
+                          <StudioColorField
+                            label="Cor de apoio"
+                            value={templateBuilderDraft.backgroundColor}
+                            onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
+                            placeholder="#fff7ef"
+                          />
+                          <label className="offer-studio-text-field md:col-span-2">
+                            <span>Imagem de fundo</span>
                             <input
                               className="input"
-                              value={templateBuilderDraft.backgroundStart}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: event.target.value }))}
-                              placeholder="#fff7ef"
-                              spellCheck={false}
-                              autoCapitalize="off"
-                              autoCorrect="off"
+                              value={templateBuilderDraft.backgroundImageUrl}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundImageUrl: event.target.value }))}
+                              placeholder="https://..."
                             />
-                          </div>
-                      </label>
-                      <label className="offer-studio-text-field">
-                        <span>Fim do gradiente</span>
-                          <div className="offer-studio-color-control">
-                            <input
-                              className="offer-studio-color-picker"
-                              type="color"
-                              value={normalizeHexColor(templateBuilderDraft.backgroundEnd, '#ffd4b4')}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: event.target.value }))}
-                              aria-label="Fim do gradiente"
-                            />
+                          </label>
+                          <label className="offer-studio-text-field md:col-span-2">
+                            <span>Upload da imagem de fundo</span>
                             <input
                               className="input"
-                              value={templateBuilderDraft.backgroundEnd}
-                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: event.target.value }))}
-                              placeholder="#ffd4b4"
-                              spellCheck={false}
-                              autoCapitalize="off"
-                              autoCorrect="off"
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              onChange={(event) => void handleUploadTemplateAsset('template-background', event.target.files?.[0])}
+                              disabled={uploadingAsset === 'template-background'}
                             />
-                          </div>
-                      </label>
-                      <label className="offer-studio-text-field md:col-span-2">
-                        <span>Imagem de fundo</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.backgroundImageUrl}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundImageUrl: event.target.value }))}
-                          placeholder="https://..."
-                        />
-                      </label>
-                      <label className="offer-studio-text-field md:col-span-2">
-                        <span>Upload da imagem de fundo</span>
-                        <input
-                          className="input"
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          onChange={(event) => void handleUploadTemplateAsset('template-background', event.target.files?.[0])}
-                          disabled={uploadingAsset === 'template-background'}
-                        />
-                      </label>
+                          </label>
+                        </>
+                      ) : null}
+                    </div>
+                  </StudioCollapsibleSection>
+
+                  <StudioCollapsibleSection
+                    title="Selo 3D"
+                    description="Posicione a area do selo direto na arte."
+                    collapsed={Boolean(collapsedConfigSections.builderBadge)}
+                    onToggle={() => toggleConfigSection('builderBadge')}
+                  >
+                    <div className="offer-studio-card-toolbar">
+                      {renderCanvasEditButton('badge', 'Posicionar selo')}
+                    </div>
+                    <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field md:col-span-2">
                         <span>PNG do selo 3D</span>
                         <input
@@ -2768,13 +3200,15 @@ const OfferDesigner: React.FC = () => {
                       value={templateBuilderDraft.badge}
                       onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, badge: { ...current.badge, ...next } }))}
                     />
-                  </section>
+                  </StudioCollapsibleSection>
 
-                  <section className="offer-studio-theme-card">
-                    <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Card do produto</span>
-                      <small>Receita visual dos produtos dentro da area branca do template.</small>
-                    </div>
+
+                  <StudioCollapsibleSection
+                    title="Card do produto"
+                    description="Receita visual dos produtos dentro da area branca do template."
+                    collapsed={Boolean(collapsedConfigSections.builderCard)}
+                    onToggle={() => toggleConfigSection('builderCard')}
+                  >
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
                         <span>Fundo do card</span>
@@ -2951,12 +3385,16 @@ const OfferDesigner: React.FC = () => {
                         <span>Mostrar preco anterior</span>
                       </label>
                     </div>
-                  </section>
+                  </StudioCollapsibleSection>
 
-                  <section className="offer-studio-theme-card">
-                    <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Rodape</span>
-                      <small>O template define fundo, areas de texto e posicao das logos. O conteudo vem do mercado.</small>
+                  <StudioCollapsibleSection
+                    title="Rodape"
+                    description="O template define fundo, areas de texto e posicao das logos. O conteudo vem do mercado."
+                    collapsed={Boolean(collapsedConfigSections.builderFooter)}
+                    onToggle={() => toggleConfigSection('builderFooter')}
+                  >
+                    <div className="offer-studio-card-toolbar">
+                      {renderCanvasEditButton('footer', 'Posicionar rodape')}
                     </div>
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
@@ -3110,13 +3548,15 @@ const OfferDesigner: React.FC = () => {
                         />
                       </div>
                     </div>
-                  </section>
+                  </StudioCollapsibleSection>
 
-                  <section className="offer-studio-theme-card md:col-span-2">
-                    <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Área de conteúdo</span>
-                      <small>Zona onde os produtos serão distribuídos automaticamente.</small>
-                    </div>
+                  <StudioCollapsibleSection
+                    title="Area de conteudo"
+                    description="Zona onde os produtos serao distribuidos automaticamente."
+                    collapsed={Boolean(collapsedConfigSections.builderContent)}
+                    onToggle={() => toggleConfigSection('builderContent')}
+                    className="md:col-span-2"
+                  >
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
                         <span>Layout</span>
@@ -3165,6 +3605,9 @@ const OfferDesigner: React.FC = () => {
                           <span className="section-kicker">Logo primaria</span>
                           <small>Area da logo do mercado</small>
                         </div>
+                        <div className="offer-studio-card-toolbar compact">
+                          {renderCanvasEditButton('footerLeftLogo', 'Posicionar logo')}
+                        </div>
                         <div className="offer-studio-check-row">
                           <label>
                             <input
@@ -3208,6 +3651,9 @@ const OfferDesigner: React.FC = () => {
                           <span className="section-kicker">Logo secundaria</span>
                           <small>Area opcional do rodape</small>
                         </div>
+                        <div className="offer-studio-card-toolbar compact">
+                          {renderCanvasEditButton('footerRightLogo', 'Posicionar logo')}
+                        </div>
                         <div className="offer-studio-check-row">
                           <label>
                             <input
@@ -3247,13 +3693,15 @@ const OfferDesigner: React.FC = () => {
                         />
                       </div>
                     </div>
-                  </section>
+                  </StudioCollapsibleSection>
                 </div>
-                <div className="rounded-[28px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,255,255,0.04)] p-5">
-                  <div className="offer-studio-panel-subhead">
-                    <span className="section-kicker">Estrutura ativa</span>
-                    <small>{validation?.valid ? 'Template válido' : 'Template em ajuste'}</small>
-                  </div>
+                <StudioCollapsibleSection
+                  title="Estrutura ativa"
+                  description={validation?.valid ? 'Template valido' : 'Template em ajuste'}
+                  collapsed={Boolean(collapsedConfigSections.structure)}
+                  onToggle={() => toggleConfigSection('structure')}
+                  containerClassName="rounded-[28px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,255,255,0.04)] p-5"
+                >
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <label className="offer-studio-text-field">
                       <span>Variante</span>
@@ -3297,11 +3745,12 @@ const OfferDesigner: React.FC = () => {
                     </ul>
                   ) : null}
                   <div className="offer-studio-theme-grid">
-                    <section className="offer-studio-theme-card">
-                      <div className="offer-studio-panel-subhead">
-                        <span className="section-kicker">Camadas</span>
-                        <small>{resolvedLayers.length} itens estruturados</small>
-                      </div>
+                    <StudioCollapsibleSection
+                      title="Camadas"
+                      description={`${resolvedLayers.length} itens estruturados`}
+                      collapsed={Boolean(collapsedConfigSections.layersPanel)}
+                      onToggle={() => toggleConfigSection('layersPanel')}
+                    >
                       <div className="offer-studio-structure-list">
                         {resolvedLayers.length ? (
                           resolvedLayers.map((layer, index) => (
@@ -3310,19 +3759,28 @@ const OfferDesigner: React.FC = () => {
                               layer={layer}
                               active={String(layer.id || '') === String(activeLayer?.id || '')}
                               onSelect={() => setSelectedLayerId(String(layer.id || ''))}
+                              draggableLayer={resolvedLayers.length > 1}
+                              dragging={draggingLayerId === String(layer.id || '')}
+                              dropTarget={dragOverLayerId === String(layer.id || '') && draggingLayerId !== String(layer.id || '')}
+                              onDragStart={(event) => handleLayerDragStart(String(layer.id || ''), event)}
+                              onDragOver={(event) => handleLayerDragOver(String(layer.id || ''), event)}
+                              onDrop={(event) => handleLayerDrop(String(layer.id || ''), event)}
+                              onDragEnd={handleLayerDragEnd}
+                              onToggleLock={() => handleToggleLayerLock(String(layer.id || ''))}
                             />
                           ))
                         ) : (
                           <div className="offer-studio-empty-card slim">A prévia ainda não expôs camadas para este template.</div>
                         )}
                       </div>
-                    </section>
+                    </StudioCollapsibleSection>
 
-                    <section className="offer-studio-theme-card">
-                      <div className="offer-studio-panel-subhead">
-                        <span className="section-kicker">Zonas de produto</span>
-                        <small>{resolvedZones.length} áreas configuradas</small>
-                      </div>
+                    <StudioCollapsibleSection
+                      title="Zonas de produto"
+                      description={`${resolvedZones.length} areas configuradas`}
+                      collapsed={Boolean(collapsedConfigSections.zonesPanel)}
+                      onToggle={() => toggleConfigSection('zonesPanel')}
+                    >
                       <div className="offer-studio-zone-list">
                         {resolvedZones.length ? (
                           resolvedZones.map((zone, index) => (
@@ -3337,14 +3795,15 @@ const OfferDesigner: React.FC = () => {
                           <div className="offer-studio-empty-card slim">Nenhuma zona foi resolvida nesta variação.</div>
                         )}
                       </div>
-                    </section>
+                    </StudioCollapsibleSection>
                   </div>
 
-                  <section className="offer-studio-theme-card">
-                    <div className="offer-studio-panel-subhead">
-                      <span className="section-kicker">Inspector</span>
-                      <small>{activeLayer ? 'Camada selecionada' : activeZone ? 'Zona selecionada' : 'Sem seleção'}</small>
-                    </div>
+                  <StudioCollapsibleSection
+                    title="Inspector"
+                    description={activeLayer ? 'Camada selecionada' : activeZone ? 'Zona selecionada' : 'Sem selecao'}
+                    collapsed={Boolean(collapsedConfigSections.inspectorPanel)}
+                    onToggle={() => toggleConfigSection('inspectorPanel')}
+                  >
                     <div className="offer-studio-property-grid">
                       <StudioPropertyRow label="Camada" value={String(activeLayer?.name || activeLayer?.id || '-')} />
                       <StudioPropertyRow label="Tipo" value={String(activeLayer?.type || '-')} />
@@ -3444,16 +3903,18 @@ const OfferDesigner: React.FC = () => {
                         ))}
                       </div>
                     ) : null}
-                  </section>
-                </div>
+                  </StudioCollapsibleSection>
+                </StudioCollapsibleSection>
                 </>
                 ) : (
                   <div className="offer-studio-theme-grid">
-                    <section className="offer-studio-theme-card md:col-span-2">
-                      <div className="offer-studio-panel-subhead">
-                        <span className="section-kicker">Template em uso</span>
-                        <small>O painel admin apenas escolhe templates prontos. A estrutura e mantida no super admin.</small>
-                      </div>
+                    <StudioCollapsibleSection
+                      title="Template em uso"
+                      description="O painel admin apenas escolhe templates prontos. A estrutura e mantida no super admin."
+                      collapsed={Boolean(collapsedConfigSections.readonlyTemplate)}
+                      onToggle={() => toggleConfigSection('readonlyTemplate')}
+                      className="md:col-span-2"
+                    >
                       <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-4 text-sm text-[color:var(--text-secondary)]">
                         <strong className="block text-base text-[color:var(--text-primary)]">{selectedTemplate?.name || 'Selecione um template'}</strong>
                         <p className="mt-2">{selectedTemplate?.description || 'Escolha um template para montar encartes com produtos reais, logo e rodape do mercado.'}</p>
@@ -3482,13 +3943,14 @@ const OfferDesigner: React.FC = () => {
                           Ver campanhas
                         </Button>
                       </div>
-                    </section>
+                    </StudioCollapsibleSection>
 
-                    <section className="offer-studio-theme-card">
-                      <div className="offer-studio-panel-subhead">
-                        <span className="section-kicker">Estrutura</span>
-                        <small>Resumo rapido da area de produtos e do rodape.</small>
-                      </div>
+                    <StudioCollapsibleSection
+                      title="Estrutura"
+                      description="Resumo rapido da area de produtos e do rodape."
+                      collapsed={Boolean(collapsedConfigSections.readonlyStructure)}
+                      onToggle={() => toggleConfigSection('readonlyStructure')}
+                    >
                       <div className="offer-studio-property-grid">
                         <StudioPropertyRow label="Layout" value={templateBuilderDraft.contentZone.layout} />
                         <StudioPropertyRow label="Colunas x linhas" value={`${templateBuilderDraft.contentZone.columns} x ${templateBuilderDraft.contentZone.rows}`} />
@@ -3497,13 +3959,14 @@ const OfferDesigner: React.FC = () => {
                         <StudioPropertyRow label="Logo primaria" value={templateBuilderDraft.footerLeftLogo.visible ? 'Sim' : 'Nao'} />
                         <StudioPropertyRow label="Logo secundaria" value={templateBuilderDraft.footerRightLogo.visible ? 'Sim' : 'Nao'} />
                       </div>
-                    </section>
+                    </StudioCollapsibleSection>
 
-                    <section className="offer-studio-theme-card">
-                      <div className="offer-studio-panel-subhead">
-                        <span className="section-kicker">Card do produto</span>
-                        <small>Receita visual usada para cada item da campanha.</small>
-                      </div>
+                    <StudioCollapsibleSection
+                      title="Card do produto"
+                      description="Receita visual usada para cada item da campanha."
+                      collapsed={Boolean(collapsedConfigSections.readonlyCard)}
+                      onToggle={() => toggleConfigSection('readonlyCard')}
+                    >
                       <div className="offer-studio-property-grid">
                         <StudioPropertyRow label="Raio do card" value={`${templateBuilderDraft.card.cardRadius}px`} />
                         <StudioPropertyRow label="Raio do preco" value={`${templateBuilderDraft.card.priceBoxRadius}px`} />
@@ -3512,19 +3975,22 @@ const OfferDesigner: React.FC = () => {
                         <StudioPropertyRow label="Preco anterior" value={templateBuilderDraft.card.showBaselinePrice ? 'Sim' : 'Nao'} />
                         <StudioPropertyRow label="Prefixo" value={templateBuilderDraft.card.priceLabel} />
                       </div>
-                    </section>
+                    </StudioCollapsibleSection>
 
-                    <section className="offer-studio-theme-card md:col-span-2">
-                      <div className="offer-studio-panel-subhead">
-                        <span className="section-kicker">Camadas e zonas</span>
-                        <small>Consulta somente leitura do template selecionado.</small>
-                      </div>
+                    <StudioCollapsibleSection
+                      title="Camadas e zonas"
+                      description="Consulta somente leitura do template selecionado."
+                      collapsed={Boolean(collapsedConfigSections.readonlyLayersZones)}
+                      onToggle={() => toggleConfigSection('readonlyLayersZones')}
+                      className="md:col-span-2"
+                    >
                       <div className="offer-studio-theme-grid">
-                        <section className="offer-studio-theme-card">
-                          <div className="offer-studio-panel-subhead">
-                            <span className="section-kicker">Camadas</span>
-                            <small>{resolvedLayers.length} itens</small>
-                          </div>
+                        <StudioCollapsibleSection
+                          title="Camadas"
+                          description={`${resolvedLayers.length} itens`}
+                          collapsed={Boolean(collapsedConfigSections.readonlyLayers)}
+                          onToggle={() => toggleConfigSection('readonlyLayers')}
+                        >
                           <div className="offer-studio-structure-list">
                             {resolvedLayers.length ? (
                               resolvedLayers.map((layer, index) => (
@@ -3539,12 +4005,13 @@ const OfferDesigner: React.FC = () => {
                               <div className="offer-studio-empty-card slim">Nenhuma camada resolvida para este template.</div>
                             )}
                           </div>
-                        </section>
-                        <section className="offer-studio-theme-card">
-                          <div className="offer-studio-panel-subhead">
-                            <span className="section-kicker">Zonas de produto</span>
-                            <small>{resolvedZones.length} areas</small>
-                          </div>
+                        </StudioCollapsibleSection>
+                        <StudioCollapsibleSection
+                          title="Zonas de produto"
+                          description={`${resolvedZones.length} areas`}
+                          collapsed={Boolean(collapsedConfigSections.readonlyZones)}
+                          onToggle={() => toggleConfigSection('readonlyZones')}
+                        >
                           <div className="offer-studio-zone-list">
                             {resolvedZones.length ? (
                               resolvedZones.map((zone, index) => (
@@ -3559,9 +4026,9 @@ const OfferDesigner: React.FC = () => {
                               <div className="offer-studio-empty-card slim">Nenhuma zona de produto foi resolvida.</div>
                             )}
                           </div>
-                        </section>
+                        </StudioCollapsibleSection>
                       </div>
-                    </section>
+                    </StudioCollapsibleSection>
                   </div>
                 )}
               </div>
@@ -3576,11 +4043,12 @@ const OfferDesigner: React.FC = () => {
                   </div>
                 </div>
 
-                <section className="offer-studio-theme-card">
-                  <div className="offer-studio-panel-subhead">
-                    <span className="section-kicker">Rodape da conta</span>
-                    <small>O template reserva a area. Aqui o mercado define textos e logos que vao preencher o rodape.</small>
-                  </div>
+                <StudioCollapsibleSection
+                  title="Rodape da conta"
+                  description="O template reserva a area. Aqui o mercado define textos e logos que vao preencher o rodape."
+                  collapsed={Boolean(collapsedConfigSections.marketFooter)}
+                  onToggle={() => toggleConfigSection('marketFooter')}
+                >
                   <div className="offer-studio-edit-grid">
                     <label className="offer-studio-text-field md:col-span-2">
                       <span>Conteudo principal do rodape</span>
@@ -3603,13 +4071,14 @@ const OfferDesigner: React.FC = () => {
                       />
                     </label>
                   </div>
-                </section>
+                </StudioCollapsibleSection>
 
-                <section className="offer-studio-theme-card">
-                  <div className="offer-studio-panel-subhead">
-                    <span className="section-kicker">Logos do rodape</span>
-                    <small>Essas imagens sao aplicadas nas areas reservadas pelo template.</small>
-                  </div>
+                <StudioCollapsibleSection
+                  title="Logos do rodape"
+                  description="Essas imagens sao aplicadas nas areas reservadas pelo template."
+                  collapsed={Boolean(collapsedConfigSections.marketLogos)}
+                  onToggle={() => toggleConfigSection('marketLogos')}
+                >
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
                       <div className="offer-studio-panel-subhead">
@@ -3665,7 +4134,7 @@ const OfferDesigner: React.FC = () => {
                       {savingMarketProfile ? 'Salvando...' : 'Salvar perfil do mercado'}
                     </Button>
                   </div>
-                </section>
+                </StudioCollapsibleSection>
               </div>
             ) : null}
 
@@ -3737,11 +4206,12 @@ const OfferDesigner: React.FC = () => {
                     {copying ? 'Copiando...' : 'Copiar texto'}
                   </Button>
                 </div>
-                <section className="offer-studio-theme-card">
-                  <div className="offer-studio-panel-subhead">
-                    <span className="section-kicker">Texto da arte</span>
-                    <small>Esses campos alimentam o topo do template sem alterar a estrutura.</small>
-                  </div>
+                <StudioCollapsibleSection
+                  title="Texto da arte"
+                  description="Esses campos alimentam o topo do template sem alterar a estrutura."
+                  collapsed={Boolean(collapsedConfigSections.copyText)}
+                  onToggle={() => toggleConfigSection('copyText')}
+                >
                   <div className="offer-studio-edit-grid">
                     <label className="offer-studio-text-field">
                       <span>Kicker</span>
@@ -3766,7 +4236,7 @@ const OfferDesigner: React.FC = () => {
                       />
                     </label>
                   </div>
-                </section>
+                </StudioCollapsibleSection>
                 <div className="offer-studio-copy-box">
                   <p>Gere um texto de apoio para redes sociais e comunicacao acessivel com base nos produtos selecionados e na campanha ativa.</p>
                   <textarea className="textarea" rows={18} value={socialCopy} readOnly />
@@ -3782,7 +4252,13 @@ const OfferDesigner: React.FC = () => {
                     <h2>{isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha'}</h2>
                   </div>
                 </div>
-                <div className="offer-studio-publish-box">
+                <StudioCollapsibleSection
+                  title="Configuracao de publicacao"
+                  description="Defina campanha, saida, qualidade e canais antes de salvar."
+                  collapsed={Boolean(collapsedConfigSections.publishConfig)}
+                  onToggle={() => toggleConfigSection('publishConfig')}
+                  containerClassName="offer-studio-publish-box"
+                >
                   <label className="offer-studio-text-field">
                     <span>Nome da campanha</span>
                     <input className="input" value={jobName} onChange={(event) => setJobName(event.target.value)} placeholder="Ex.: Encarte fim de semana" />
@@ -3839,7 +4315,7 @@ const OfferDesigner: React.FC = () => {
                       Ver campanhas
                     </Button>
                   </div>
-                </div>
+                </StudioCollapsibleSection>
               </div>
             ) : null}
           </aside>
@@ -3902,10 +4378,55 @@ const OfferDesigner: React.FC = () => {
                 </div>
               </div>
 
+              {isSuperAdminMode && activeTool === 'themes' && canvasEditTarget ? (
+                <div className="offer-studio-stage-edit-banner">
+                  <strong>Editando na arte: {activeCanvasEditLabel}</strong>
+                  <span>Arraste a area para mover e use o canto inferior direito para redimensionar.</span>
+                </div>
+              ) : null}
+
               <div ref={stageSurfaceRef} className="offer-studio-stage-surface">
                 <div className="offer-studio-stage-canvas" style={{ width: `${scaledStageWidth}px`, height: `${scaledStageHeight}px` }}>
-                  <div style={{ width: `${stageCanvasWidth}px`, height: `${stageCanvasHeight}px`, transform: `scale(${stageScale})`, transformOrigin: 'top left' }}>
+                  <div ref={stageArtboardRef} className="offer-studio-stage-artboard" style={{ width: `${stageCanvasWidth}px`, height: `${stageCanvasHeight}px`, transform: `scale(${stageScale})`, transformOrigin: 'top left' }}>
                     <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} footerText={activeTool === 'themes' ? null : footerText} respectCanvasDimensions className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
+                    {isSuperAdminMode && activeTool === 'themes' ? (
+                      <div className="offer-studio-stage-editor">
+                        {canvasEditableOverlays.map((item) => (
+                          <div
+                            key={item.key}
+                            className={`offer-studio-stage-guide ${item.active ? 'active' : ''} ${item.visible ? '' : 'is-hidden'}`}
+                            style={{
+                              left: `${item.bounds.x}px`,
+                              top: `${item.bounds.y}px`,
+                              width: `${item.bounds.w}px`,
+                              height: `${item.bounds.h}px`,
+                              color: item.accent,
+                              background: `${item.accent}1a`,
+                              zIndex: item.active ? 4 : item.key === 'footer' ? 1 : 2,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className="offer-studio-stage-guide-body"
+                              onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'move', event)}
+                              onClick={() => {
+                                setCanvasEditTarget(item.key);
+                                setSelectedLayerId(item.layerId);
+                              }}
+                            >
+                              <span className="offer-studio-stage-guide-label">{item.label}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="offer-studio-stage-guide-handle"
+                              onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'resize', event)}
+                              aria-label={`Redimensionar ${item.label}`}
+                              title={`Redimensionar ${item.label}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -4018,3 +4539,4 @@ const OfferDesigner: React.FC = () => {
 };
 
 export default OfferDesigner;
+
