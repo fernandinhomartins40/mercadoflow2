@@ -362,12 +362,16 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     const bounds = asMap(layer.bounds);
     const props = asMap(layer.props);
     const layerTextColor = String(props.textColor || textColor);
+    const explicitContent = String(props.content || '');
+    const explicitImageUrl = String(props.imageUrl || '');
     const style: React.CSSProperties = {
       ...boundsToStyle(bounds, canvasWidth, canvasHeight),
       color: layerTextColor,
     };
     const radius = Number(props.radius) || 24;
     const background = props.background ? String(props.background) : undefined;
+    const borderColor = String(props.borderColor || 'rgba(87,51,30,0.12)');
+    const borderWidth = Math.max(Number(props.borderWidth) || 0, 0);
     const fontSize = Number(props.fontSize);
     const fontWeight = Number(props.fontWeight) || 700;
 
@@ -381,7 +385,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
           : layerType === 'campaignbadge'
             ? String(getByPath(bindingContext, 'campaignAssets.badge3d.imageUrl') || '')
             : '';
-      const src = resolveAsset(layer.binding, fallbackImage);
+      const src = resolveAsset(explicitImageUrl || layer.binding, explicitImageUrl || fallbackImage);
       const hasFrame = props.frame !== false && layerType !== 'campaignbadge';
       const fitClass = String(props.fit || 'contain').toLowerCase() === 'cover' ? 'object-cover' : 'object-contain';
       const padding = hasFrame ? Number(props.padding) || 12 : Number(props.padding) || 0;
@@ -401,10 +405,17 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
       }
       return (
         <div
-          key={layerId}
-          className={hasFrame ? 'absolute overflow-hidden border border-[rgba(87,51,30,0.08)] shadow-[0_10px_30px_rgba(44,20,6,0.08)]' : 'absolute overflow-hidden'}
-          style={{ ...style, borderRadius: radius, background: background || (hasFrame ? 'rgba(255,255,255,0.88)' : 'transparent') }}
-        >
+            key={layerId}
+            className={hasFrame ? 'absolute overflow-hidden border border-[rgba(87,51,30,0.08)] shadow-[0_10px_30px_rgba(44,20,6,0.08)]' : 'absolute overflow-hidden'}
+            style={{
+              ...style,
+              borderRadius: radius,
+              background: background || (hasFrame ? 'rgba(255,255,255,0.88)' : 'transparent'),
+              borderColor,
+              borderWidth,
+              borderStyle: borderWidth > 0 ? 'solid' : undefined,
+            }}
+          >
           <OfferProductImage src={src} alt={layerType} className={`h-full w-full ${fitClass}`} />
           {padding > 0 ? <div className="pointer-events-none absolute inset-0" style={{ boxShadow: `inset 0 0 0 ${padding}px ${background || 'rgba(255,255,255,0.88)'}` }} /> : null}
         </div>
@@ -416,13 +427,37 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
         <div
           key={layerId}
           className="absolute flex flex-col items-center justify-center gap-2 rounded-[22px] border border-[rgba(87,51,30,0.1)] bg-white/90 p-3 text-center text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-secondary)]"
-          style={style}
+          style={{
+            ...style,
+            background: background || 'rgba(255,255,255,0.9)',
+            borderRadius: radius,
+            borderColor,
+            borderWidth: Math.max(borderWidth, 1),
+            borderStyle: 'solid',
+          }}
         >
           <div className="rounded-[18px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.95)] p-3 text-[color:var(--text-primary)]">
             <QrCode size={Math.max(20, Math.min(bounds.h || 80, bounds.w || 80) / 2)} strokeWidth={2.1} />
           </div>
-          <span>{resolveValue(String(layer.binding || ''), 'QR do produto')}</span>
+          <span>{resolveValue(String(layer.binding || ''), explicitContent || 'QR do produto')}</span>
         </div>
+      );
+    }
+
+    if (layerType === 'shape') {
+      return (
+        <div
+          key={layerId}
+          className="absolute overflow-hidden"
+          style={{
+            ...style,
+            background: background || '#ffede0',
+            borderRadius: radius,
+            borderColor,
+            borderWidth,
+            borderStyle: borderWidth > 0 ? 'solid' : undefined,
+          }}
+        />
       );
     }
 
@@ -458,7 +493,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
       );
     }
 
-    const content = resolveValue(String(layer.binding || ''), fallbackFooter);
+    const content = resolveValue(String(layer.binding || ''), explicitContent || (layerId.startsWith('footer-') ? fallbackFooter : ''));
     if (!content) return null;
 
     return (
@@ -467,8 +502,11 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
         className={`absolute ${layerType === 'tag' || layerType === 'badge' ? 'inline-flex items-center justify-center rounded-full border border-[rgba(87,51,30,0.08)] bg-white/85 px-3 py-1 text-center text-xs font-semibold uppercase tracking-[0.12em]' : 'flex items-start justify-start text-left'} overflow-hidden`}
         style={{
           ...style,
-          background,
+          background: background || (layerType === 'tag' || layerType === 'badge' ? 'rgba(255,255,255,0.85)' : undefined),
           borderRadius: layerType === 'tag' || layerType === 'badge' ? 9999 : radius,
+          borderColor,
+          borderWidth,
+          borderStyle: borderWidth > 0 ? 'solid' : undefined,
           fontSize: fontSize ? `${Math.max(fontSize / 26, 0.7)}rem` : undefined,
           fontWeight,
           lineHeight: layerId.startsWith('footer-') ? 1.35 : 1.08,

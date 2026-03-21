@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Copy,
   Eye,
+  EyeOff,
   Factory,
   FileText,
   ImageIcon,
@@ -26,6 +27,7 @@ import {
   RefreshCw,
   Scissors,
   SendHorizontal,
+  Square,
   Sparkles,
   Target,
   Tag,
@@ -95,6 +97,8 @@ const layerTypeIcon = (type?: string): LucideIcon => {
       return Type;
     case 'qrcode':
       return QrCode;
+    case 'shape':
+      return Square;
     case 'image':
       return ImageIcon;
     case 'productzone':
@@ -116,6 +120,7 @@ const TOOL_OPTIONS = [
 type StudioTool = (typeof TOOL_OPTIONS)[number]['key'];
 type ProductPanelMode = 'search' | 'selected';
 type LayerDraft = {
+  type: string;
   name: string;
   binding: string;
   x: string;
@@ -124,6 +129,17 @@ type LayerDraft = {
   h: string;
   locked: boolean;
   visible: boolean;
+  content: string;
+  imageUrl: string;
+  background: string;
+  textColor: string;
+  borderColor: string;
+  borderWidth: string;
+  radius: string;
+  fontSize: string;
+  fontWeight: string;
+  frame: boolean;
+  fit: string;
 };
 type ZoneDraft = {
   name: string;
@@ -183,6 +199,27 @@ type TemplateBuilderCardDraft = {
   showBaselinePrice: boolean;
 };
 
+type TemplateBuilderCustomLayerType = 'text' | 'image' | 'shape' | 'tag' | 'qrcode';
+
+type TemplateBuilderCustomLayerDraft = TemplateBuilderBoundsDraft & {
+  id: string;
+  name: string;
+  type: TemplateBuilderCustomLayerType;
+  binding: string;
+  visible: boolean;
+  content: string;
+  imageUrl: string;
+  background: string;
+  textColor: string;
+  borderColor: string;
+  borderWidth: string;
+  radius: string;
+  fontSize: string;
+  fontWeight: string;
+  fit: string;
+  frame: boolean;
+};
+
 type TemplateBuilderZoneDraft = TemplateBuilderBoundsDraft & {
   layout: string;
   columns: string;
@@ -214,19 +251,10 @@ type TemplateBuilderDraft = {
   card: TemplateBuilderCardDraft;
   layerOrder: string[];
   layerLocks: Record<string, boolean>;
+  customLayers: TemplateBuilderCustomLayerDraft[];
 };
 
-type CanvasEditableTarget =
-  | 'kicker'
-  | 'headline'
-  | 'subheadline'
-  | 'badge'
-  | 'footer'
-  | 'footerContent'
-  | 'footerLegal'
-  | 'footerLeftLogo'
-  | 'footerRightLogo'
-  | 'contentZone';
+type CanvasEditableTarget = string;
 
 type CanvasEditInteraction = {
   target: CanvasEditableTarget;
@@ -452,37 +480,76 @@ const TEMPLATE_BUILDER_LAYER_IDS = [
   'footer-logo-right',
 ] as const;
 const TEMPLATE_BUILDER_LAYER_ID_SET = new Set<string>(TEMPLATE_BUILDER_LAYER_IDS);
-const CANVAS_EDITABLE_TARGET_META: Record<
-  CanvasEditableTarget,
-  {
-    label: string;
-    selectionKind: 'layer' | 'zone';
-    selectionId: string;
-    minWidth: number;
-    minHeight: number;
-    accent: string;
-    overlayLevel: number;
-  }
-> = {
+const CUSTOM_LAYER_TYPE_OPTIONS: Array<{ value: TemplateBuilderCustomLayerType; label: string }> = [
+  { value: 'text', label: 'Texto' },
+  { value: 'shape', label: 'Forma' },
+  { value: 'image', label: 'Imagem' },
+  { value: 'tag', label: 'Faixa' },
+  { value: 'qrcode', label: 'QR code' },
+];
+
+const BUILTIN_LAYER_LABELS: Record<string, string> = {
+  kicker: 'Kicker',
+  headline: 'Titulo principal',
+  subheadline: 'Subtitulo',
+  'campaign-badge': 'Selo 3D',
+  footer: 'Rodape',
+  'footer-content': 'Conteudo principal do rodape',
+  'footer-legal': 'Aviso legal do rodape',
+  'footer-logo-left': 'Logo rodape esquerdo',
+  'footer-logo-right': 'Logo rodape direito',
+};
+
+type CanvasEditableMeta = {
+  label: string;
+  selectionKind: 'layer' | 'zone';
+  selectionId: string;
+  minWidth: number;
+  minHeight: number;
+  accent: string;
+  overlayLevel: number;
+};
+
+const BUILTIN_CANVAS_EDITABLE_META: Record<string, CanvasEditableMeta> = {
   kicker: { label: 'Kicker', selectionKind: 'layer', selectionId: 'kicker', minWidth: 140, minHeight: 32, accent: '#b6642b', overlayLevel: 5 },
   headline: { label: 'Titulo principal', selectionKind: 'layer', selectionId: 'headline', minWidth: 220, minHeight: 72, accent: '#d56d1c', overlayLevel: 5 },
   subheadline: { label: 'Subtitulo', selectionKind: 'layer', selectionId: 'subheadline', minWidth: 220, minHeight: 52, accent: '#c18651', overlayLevel: 5 },
-  badge: { label: 'Selo 3D', selectionKind: 'layer', selectionId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#ff7a12', overlayLevel: 6 },
+  'campaign-badge': { label: 'Selo 3D', selectionKind: 'layer', selectionId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#ff7a12', overlayLevel: 6 },
   footer: { label: 'Rodape', selectionKind: 'layer', selectionId: 'footer', minWidth: 260, minHeight: 48, accent: '#4f2a16', overlayLevel: 2 },
-  footerContent: { label: 'Conteudo principal', selectionKind: 'layer', selectionId: 'footer-content', minWidth: 180, minHeight: 32, accent: '#6d3d20', overlayLevel: 4 },
-  footerLegal: { label: 'Aviso legal', selectionKind: 'layer', selectionId: 'footer-legal', minWidth: 160, minHeight: 28, accent: '#946348', overlayLevel: 4 },
-  footerLeftLogo: { label: 'Logo primaria', selectionKind: 'layer', selectionId: 'footer-logo-left', minWidth: 84, minHeight: 42, accent: '#8f4618', overlayLevel: 4 },
-  footerRightLogo: { label: 'Logo secundaria', selectionKind: 'layer', selectionId: 'footer-logo-right', minWidth: 84, minHeight: 42, accent: '#b55e24', overlayLevel: 4 },
-  contentZone: { label: 'Area de conteudo', selectionKind: 'zone', selectionId: 'content-zone', minWidth: 240, minHeight: 180, accent: '#f0a15c', overlayLevel: 1 },
+  'footer-content': { label: 'Conteudo principal', selectionKind: 'layer', selectionId: 'footer-content', minWidth: 180, minHeight: 32, accent: '#6d3d20', overlayLevel: 4 },
+  'footer-legal': { label: 'Aviso legal', selectionKind: 'layer', selectionId: 'footer-legal', minWidth: 160, minHeight: 28, accent: '#946348', overlayLevel: 4 },
+  'footer-logo-left': { label: 'Logo primaria', selectionKind: 'layer', selectionId: 'footer-logo-left', minWidth: 84, minHeight: 42, accent: '#8f4618', overlayLevel: 4 },
+  'footer-logo-right': { label: 'Logo secundaria', selectionKind: 'layer', selectionId: 'footer-logo-right', minWidth: 84, minHeight: 42, accent: '#b55e24', overlayLevel: 4 },
+  'content-zone': { label: 'Area de conteudo', selectionKind: 'zone', selectionId: 'content-zone', minWidth: 240, minHeight: 180, accent: '#f0a15c', overlayLevel: 1 },
+};
+
+const customLayerTypeLabel = (type: TemplateBuilderCustomLayerType) => {
+  switch (type) {
+    case 'text':
+      return 'Texto';
+    case 'shape':
+      return 'Forma';
+    case 'image':
+      return 'Imagem';
+    case 'tag':
+      return 'Faixa';
+    case 'qrcode':
+      return 'QR code';
+    default:
+      return 'Camada';
+  }
 };
 
 const createDefaultLayerLocks = () =>
   Object.fromEntries(TEMPLATE_BUILDER_LAYER_IDS.map((layerId) => [layerId, true])) as Record<string, boolean>;
 
-const normalizeLayerOrder = (order: string[] | undefined, fallback = [...TEMPLATE_BUILDER_LAYER_IDS]) => {
-  const available = new Set(fallback);
+const sanitizeLayerOrder = (order: string[] | undefined, availableIds: string[], appendMissing = false) => {
+  const available = new Set(availableIds);
   const normalized = (order || []).filter((layerId, index, items) => available.has(layerId) && items.indexOf(layerId) === index);
-  return [...normalized, ...fallback.filter((layerId) => !normalized.includes(layerId))];
+  if (!normalized.length) {
+    return [...availableIds];
+  }
+  return appendMissing ? [...normalized, ...availableIds.filter((layerId) => !normalized.includes(layerId))] : normalized;
 };
 
 const reorderLayerOrder = (order: string[], sourceId: string, targetId: string) => {
@@ -504,66 +571,153 @@ const reorderLayerOrder = (order: string[], sourceId: string, targetId: string) 
 };
 
 const editableTargetFromLayerId = (layerId: string): CanvasEditableTarget | null => {
-  switch (layerId) {
-    case 'kicker':
-      return 'kicker';
-    case 'headline':
-      return 'headline';
-    case 'subheadline':
-      return 'subheadline';
-    case 'campaign-badge':
-      return 'badge';
-    case 'footer':
-      return 'footer';
-    case 'footer-content':
-      return 'footerContent';
-    case 'footer-legal':
-      return 'footerLegal';
-    case 'footer-logo-left':
-      return 'footerLeftLogo';
-    case 'footer-logo-right':
-      return 'footerRightLogo';
-    default:
-      return null;
-  }
+  return layerId || null;
 };
 
 const editableTargetFromZoneId = (zoneId: string): CanvasEditableTarget | null => {
-  if (zoneId === 'content-zone') {
-    return 'contentZone';
+  return zoneId || null;
+};
+
+const createCustomLayerDraft = (
+  type: TemplateBuilderCustomLayerType,
+  existingIds: string[],
+  canvasWidth: number,
+  canvasHeight: number,
+): TemplateBuilderCustomLayerDraft => {
+  let nextIndex = existingIds.filter((id) => id.startsWith(`custom-${type}-`)).length + 1;
+  let nextId = `custom-${type}-${nextIndex}`;
+  while (existingIds.includes(nextId)) {
+    nextIndex += 1;
+    nextId = `custom-${type}-${nextIndex}`;
   }
 
-  return null;
+  const defaults =
+    type === 'text'
+      ? { x: 96, y: 96, w: Math.round(canvasWidth * 0.34), h: 88, background: 'transparent', textColor: '#1f1613', radius: '0', fontSize: '42', fontWeight: '700', content: 'Novo texto' }
+      : type === 'shape'
+        ? { x: 96, y: 96, w: Math.round(canvasWidth * 0.28), h: 140, background: '#ffede0', textColor: '#1f1613', radius: '28', fontSize: '18', fontWeight: '600', content: '' }
+        : type === 'image'
+          ? { x: 96, y: 96, w: Math.round(canvasWidth * 0.24), h: Math.round(canvasHeight * 0.18), background: 'rgba(255,255,255,0.88)', textColor: '#1f1613', radius: '24', fontSize: '18', fontWeight: '600', content: '' }
+          : type === 'tag'
+            ? { x: 96, y: 96, w: 220, h: 48, background: '#ffffff', textColor: '#7b4318', radius: '999', fontSize: '22', fontWeight: '700', content: 'Nova faixa' }
+            : { x: 96, y: 96, w: 120, h: 120, background: '#ffffff', textColor: '#6c5443', radius: '22', fontSize: '18', fontWeight: '700', content: 'QR do produto' };
+
+  return {
+    id: nextId,
+    name: `${customLayerTypeLabel(type)} ${nextIndex}`,
+    type,
+    binding: '',
+    visible: true,
+    content: defaults.content,
+    imageUrl: '',
+    background: defaults.background,
+    textColor: defaults.textColor,
+    borderColor: '#ead9ca',
+    borderWidth: type === 'shape' ? '1' : '0',
+    radius: defaults.radius,
+    fontSize: defaults.fontSize,
+    fontWeight: defaults.fontWeight,
+    fit: type === 'image' ? 'contain' : 'contain',
+    frame: type === 'image',
+    ...boundsDraft(defaults.x, defaults.y, defaults.w, defaults.h),
+  };
+};
+
+const parseCustomLayerDraft = (layer: JsonMap, staticBindings: JsonMap): TemplateBuilderCustomLayerDraft => {
+  const layerId = String(layer.id || `custom-${String(layer.type || 'layer').toLowerCase()}`);
+  const layerTypeValue = String(layer.type || 'text').toLowerCase();
+  const layerType: TemplateBuilderCustomLayerType =
+    layerTypeValue === 'image' ? 'image' : layerTypeValue === 'shape' ? 'shape' : layerTypeValue === 'tag' || layerTypeValue === 'badge' ? 'tag' : layerTypeValue === 'qrcode' ? 'qrcode' : 'text';
+  const props = asMap(layer.props);
+  return {
+    id: layerId,
+    name: asText(layer.name, customLayerTypeLabel(layerType)),
+    type: layerType,
+    binding: asText(layer.binding),
+    visible: layer.visible !== false,
+    content: asText(props.content, layerType === 'text' || layerType === 'tag' || layerType === 'qrcode' ? resolveStaticBinding(layer.binding, staticBindings, '') : ''),
+    imageUrl: asText(props.imageUrl, layerType === 'image' ? resolveStaticBinding(layer.binding, staticBindings, '') : ''),
+    background: asText(props.background, layerType === 'shape' ? '#ffede0' : layerType === 'image' ? 'rgba(255,255,255,0.88)' : layerType === 'tag' ? '#ffffff' : 'transparent'),
+    textColor: asText(props.textColor, layerType === 'tag' ? '#7b4318' : '#1f1613'),
+    borderColor: asText(props.borderColor, '#ead9ca'),
+    borderWidth: asText(props.borderWidth, layerType === 'shape' ? '1' : '0'),
+    radius: asText(props.radius, layerType === 'tag' ? '999' : layerType === 'shape' ? '28' : layerType === 'image' ? '24' : '0'),
+    fontSize: asText(props.fontSize, layerType === 'text' ? '42' : layerType === 'tag' ? '22' : '18'),
+    fontWeight: asText(props.fontWeight, '700'),
+    fit: asText(props.fit, 'contain'),
+    frame: Boolean(props.frame ?? (layerType === 'image')),
+    ...parseLayerBoundsDraft(layer, { x: 96, y: 96, w: 220, h: 96 }),
+  };
+};
+
+const findCustomLayerDraft = (draft: TemplateBuilderDraft, target: string) => draft.customLayers.find((layer) => layer.id === target) || null;
+
+const getCanvasEditableMeta = (draft: TemplateBuilderDraft, target: CanvasEditableTarget): CanvasEditableMeta => {
+  const builtin = BUILTIN_CANVAS_EDITABLE_META[target];
+  if (builtin) {
+    return builtin;
+  }
+
+  const customLayer = findCustomLayerDraft(draft, target);
+  if (customLayer) {
+    const metaByType: Record<TemplateBuilderCustomLayerType, Omit<CanvasEditableMeta, 'label' | 'selectionId' | 'selectionKind'>> = {
+      text: { minWidth: 140, minHeight: 40, accent: '#d56d1c', overlayLevel: 5 },
+      shape: { minWidth: 80, minHeight: 48, accent: '#cc8c53', overlayLevel: 3 },
+      image: { minWidth: 72, minHeight: 72, accent: '#b86b29', overlayLevel: 4 },
+      tag: { minWidth: 120, minHeight: 32, accent: '#ff7a12', overlayLevel: 5 },
+      qrcode: { minWidth: 72, minHeight: 72, accent: '#8f6a55', overlayLevel: 4 },
+    };
+    return {
+      label: customLayer.name,
+      selectionKind: 'layer',
+      selectionId: customLayer.id,
+      ...metaByType[customLayer.type],
+    };
+  }
+
+  return {
+    label: target,
+    selectionKind: 'layer',
+    selectionId: target,
+    minWidth: 72,
+    minHeight: 32,
+    accent: '#b55e24',
+    overlayLevel: 4,
+  };
 };
 
 const editableBoundsDraftByTarget = (draft: TemplateBuilderDraft, target: CanvasEditableTarget): TemplateBuilderBoundsDraft => {
   switch (target) {
+    case 'content-zone':
+      return draft.contentZone;
     case 'kicker':
       return draft.kicker;
     case 'headline':
       return draft.headline;
     case 'subheadline':
       return draft.subheadline;
-    case 'badge':
+    case 'campaign-badge':
       return draft.badge;
     case 'footer':
       return draft.footer;
-    case 'footerContent':
+    case 'footer-content':
       return draft.footerContent;
-    case 'footerLegal':
+    case 'footer-legal':
       return draft.footerLegal;
-    case 'footerLeftLogo':
+    case 'footer-logo-left':
       return draft.footerLeftLogo;
-    case 'footerRightLogo':
+    case 'footer-logo-right':
       return draft.footerRightLogo;
-    case 'contentZone':
-      return draft.contentZone;
     default:
-      return draft.kicker;
+      return findCustomLayerDraft(draft, target) || draft.kicker;
   }
 };
 
 const editableVisibilityByTarget = (draft: TemplateBuilderDraft, target: CanvasEditableTarget) => {
+  if (target !== 'content-zone' && !draft.layerOrder.includes(target)) {
+    return false;
+  }
+
   switch (target) {
     case 'kicker':
       return draft.kicker.visible;
@@ -571,22 +725,22 @@ const editableVisibilityByTarget = (draft: TemplateBuilderDraft, target: CanvasE
       return draft.headline.visible;
     case 'subheadline':
       return draft.subheadline.visible;
-    case 'badge':
+    case 'campaign-badge':
       return draft.badge.visible;
     case 'footer':
       return draft.footer.visible;
-    case 'footerContent':
+    case 'footer-content':
       return draft.footerContent.visible;
-    case 'footerLegal':
+    case 'footer-legal':
       return draft.footerLegal.visible;
-    case 'footerLeftLogo':
+    case 'footer-logo-left':
       return draft.footerLeftLogo.visible;
-    case 'footerRightLogo':
+    case 'footer-logo-right':
       return draft.footerRightLogo.visible;
-    case 'contentZone':
+    case 'content-zone':
       return true;
     default:
-      return true;
+      return findCustomLayerDraft(draft, target)?.visible !== false;
   }
 };
 
@@ -596,38 +750,42 @@ const updateEditableBoundsByTarget = (
   next: TemplateBuilderBoundsDraft,
 ): TemplateBuilderDraft => {
   switch (target) {
+    case 'content-zone':
+      return { ...draft, contentZone: { ...draft.contentZone, ...next } };
     case 'kicker':
       return { ...draft, kicker: { ...draft.kicker, ...next } };
     case 'headline':
       return { ...draft, headline: { ...draft.headline, ...next } };
     case 'subheadline':
       return { ...draft, subheadline: { ...draft.subheadline, ...next } };
-    case 'badge':
+    case 'campaign-badge':
       return { ...draft, badge: { ...draft.badge, ...next } };
     case 'footer':
       return { ...draft, footer: { ...draft.footer, ...next } };
-    case 'footerContent':
+    case 'footer-content':
       return { ...draft, footerContent: { ...draft.footerContent, ...next } };
-    case 'footerLegal':
+    case 'footer-legal':
       return { ...draft, footerLegal: { ...draft.footerLegal, ...next } };
-    case 'footerLeftLogo':
+    case 'footer-logo-left':
       return { ...draft, footerLeftLogo: { ...draft.footerLeftLogo, ...next } };
-    case 'footerRightLogo':
+    case 'footer-logo-right':
       return { ...draft, footerRightLogo: { ...draft.footerRightLogo, ...next } };
-    case 'contentZone':
-      return { ...draft, contentZone: { ...draft.contentZone, ...next } };
     default:
-      return draft;
+      return {
+        ...draft,
+        customLayers: draft.customLayers.map((layer) => (layer.id === target ? { ...layer, ...next } : layer)),
+      };
   }
 };
 
 const clampEditableBounds = (
+  draft: TemplateBuilderDraft,
   target: CanvasEditableTarget,
   bounds: { x: number; y: number; w: number; h: number },
   canvasWidth: number,
   canvasHeight: number,
 ) => {
-  const meta = CANVAS_EDITABLE_TARGET_META[target];
+  const meta = getCanvasEditableMeta(draft, target);
   const width = Math.min(Math.max(Math.round(bounds.w), meta.minWidth), Math.max(canvasWidth, meta.minWidth));
   const height = Math.min(Math.max(Math.round(bounds.h), meta.minHeight), Math.max(canvasHeight, meta.minHeight));
   const x = Math.min(Math.max(Math.round(bounds.x), 0), Math.max(canvasWidth - width, 0));
@@ -754,6 +912,7 @@ const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | null, vari
     card: defaultCardDraft(),
     layerOrder: [...TEMPLATE_BUILDER_LAYER_IDS],
     layerLocks: createDefaultLayerLocks(),
+    customLayers: [],
   };
 };
 
@@ -777,14 +936,21 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
   const footerRightLogoLayer = findLayer(layers, ['footer-logo-right', 'logo-right']);
   const contentZone = zones.find((zone) => String(zone.id || '').toLowerCase().includes('content')) || zones[0] || null;
   const cardTemplate = asMap(contentZone?.cardTemplate);
-  const layerOrder = normalizeLayerOrder(
-    layers.map((layer) => String(layer.id || '')).filter((layerId) => TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)),
-    fallback.layerOrder,
-  );
+  const customLayers = layers
+    .filter((layer) => {
+      const layerId = String(layer.id || '');
+      return layerId && !TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId);
+    })
+    .map((layer) => parseCustomLayerDraft(layer, staticBindings));
+  const availableLayerIds = [...TEMPLATE_BUILDER_LAYER_IDS, ...customLayers.map((layer) => layer.id)];
+  const parsedLayerIds = layers.map((layer) => String(layer.id || '')).filter(Boolean);
+  const layerOrder = parsedLayerIds.length
+    ? sanitizeLayerOrder(parsedLayerIds, availableLayerIds, false)
+    : sanitizeLayerOrder(fallback.layerOrder, availableLayerIds, true);
   const layerLocks = layers.reduce<Record<string, boolean>>(
     (accumulator, layer) => {
       const layerId = String(layer.id || '');
-      if (!TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)) {
+      if (!layerId) {
         return accumulator;
       }
 
@@ -902,6 +1068,119 @@ const buildTemplateBuilderDraft = (template?: OfferTemplate | null, variant?: Of
     },
     layerOrder,
     layerLocks,
+    customLayers,
+  };
+};
+
+const buildCustomLayerFromDraft = (layer: TemplateBuilderCustomLayerDraft, layerLocks: Record<string, boolean>): JsonMap => {
+  const bounds = parseBoundsDraft(layer, { x: 96, y: 96, w: 220, h: 96 });
+  const common = {
+    id: layer.id,
+    name: layer.name.trim() || customLayerTypeLabel(layer.type),
+    type: layer.type,
+    binding: layer.binding.trim() || undefined,
+    locked: layerLocks[layer.id] ?? false,
+    visible: layer.visible,
+    bounds,
+  };
+
+  if (layer.type === 'image') {
+    return {
+      ...common,
+      props: {
+        imageUrl: layer.imageUrl.trim() || undefined,
+        background: layer.background.trim() || 'rgba(255,255,255,0.88)',
+        radius: clampNumber(layer.radius, 24, 0, 200),
+        frame: layer.frame,
+        fit: layer.fit === 'cover' ? 'cover' : 'contain',
+      },
+    };
+  }
+
+  if (layer.type === 'shape') {
+    return {
+      ...common,
+      props: {
+        background: layer.background.trim() || '#ffede0',
+        borderColor: layer.borderColor.trim() || '#ead9ca',
+        borderWidth: clampNumber(layer.borderWidth, 1, 0, 12),
+        radius: clampNumber(layer.radius, 28, 0, 200),
+      },
+    };
+  }
+
+  if (layer.type === 'qrcode') {
+    return {
+      ...common,
+      props: {
+        content: layer.content.trim() || 'QR do produto',
+        background: layer.background.trim() || '#ffffff',
+        textColor: layer.textColor.trim() || '#6c5443',
+        radius: clampNumber(layer.radius, 22, 0, 120),
+      },
+    };
+  }
+
+  return {
+    ...common,
+    props: {
+      content: layer.content.trim() || (layer.type === 'tag' ? 'Nova faixa' : 'Novo texto'),
+      background: layer.background.trim() || (layer.type === 'tag' ? '#ffffff' : 'transparent'),
+      textColor: layer.textColor.trim() || '#1f1613',
+      radius: clampNumber(layer.radius, layer.type === 'tag' ? 999 : 0, 0, 999),
+      fontSize: clampNumber(layer.fontSize, layer.type === 'tag' ? 22 : 42, 10, 180),
+      fontWeight: clampNumber(layer.fontWeight, 700, 300, 900),
+    },
+  };
+};
+
+const buildLayerPropsFromInspectorDraft = (layer: JsonMap, draft: LayerDraft, isCustomLayer: boolean) => {
+  const currentProps = asMap(layer.props);
+  if (!isCustomLayer) {
+    return currentProps;
+  }
+
+  const layerType = String(layer.type || draft.type || 'text').toLowerCase();
+
+  if (layerType === 'image') {
+    return {
+      ...currentProps,
+      imageUrl: draft.imageUrl.trim() || undefined,
+      background: draft.background.trim() || undefined,
+      radius: draft.radius ? Number(draft.radius) : currentProps.radius,
+      frame: draft.frame,
+      fit: draft.fit === 'cover' ? 'cover' : 'contain',
+    };
+  }
+
+  if (layerType === 'shape') {
+    return {
+      ...currentProps,
+      background: draft.background.trim() || undefined,
+      borderColor: draft.borderColor.trim() || undefined,
+      borderWidth: draft.borderWidth ? Number(draft.borderWidth) : currentProps.borderWidth,
+      radius: draft.radius ? Number(draft.radius) : currentProps.radius,
+    };
+  }
+
+  if (layerType === 'qrcode') {
+    return {
+      ...currentProps,
+      content: draft.content.trim() || undefined,
+      background: draft.background.trim() || undefined,
+      textColor: draft.textColor.trim() || undefined,
+      radius: draft.radius ? Number(draft.radius) : currentProps.radius,
+    };
+  }
+
+  return {
+    ...currentProps,
+    content: draft.content.trim() || undefined,
+    background: draft.background.trim() || undefined,
+    textColor: draft.textColor.trim() || undefined,
+    radius: draft.radius ? Number(draft.radius) : currentProps.radius,
+    fontSize: draft.fontSize ? Number(draft.fontSize) : currentProps.fontSize,
+    fontWeight: draft.fontWeight ? Number(draft.fontWeight) : currentProps.fontWeight,
   };
 };
 
@@ -1054,11 +1333,12 @@ const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonMap => {
     },
   ];
 
-  const orderedLayerIds = normalizeLayerOrder(
-    draft.layerOrder,
-    baseLayers.map((layer) => String(layer.id || '')).filter((layerId) => TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)),
-  );
-  const layersById = new Map(baseLayers.map((layer) => [String(layer.id || ''), layer]));
+  const customLayers = draft.customLayers.map((layer) => buildCustomLayerFromDraft(layer, draft.layerLocks));
+  const availableLayers = [...baseLayers, ...customLayers];
+  const availableLayerIds = availableLayers.map((layer) => String(layer.id || '')).filter(Boolean);
+
+  const orderedLayerIds = sanitizeLayerOrder(draft.layerOrder, availableLayerIds, false);
+  const layersById = new Map(availableLayers.map((layer) => [String(layer.id || ''), layer]));
   const layers = orderedLayerIds.map((layerId) => layersById.get(layerId)).filter((layer): layer is JsonMap => Boolean(layer));
 
   return {
@@ -1167,6 +1447,7 @@ const buildTemplateResolvedDesignFromDraft = (
 };
 
 const emptyLayerDraft: LayerDraft = {
+  type: '',
   name: '',
   binding: '',
   x: '',
@@ -1175,6 +1456,17 @@ const emptyLayerDraft: LayerDraft = {
   h: '',
   locked: false,
   visible: true,
+  content: '',
+  imageUrl: '',
+  background: '',
+  textColor: '',
+  borderColor: '',
+  borderWidth: '',
+  radius: '',
+  fontSize: '',
+  fontWeight: '',
+  frame: false,
+  fit: 'contain',
 };
 
 const emptyZoneDraft: ZoneDraft = {
@@ -1307,11 +1599,16 @@ const StudioLayerRow: React.FC<{
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
+  onToggleVisibility?: () => void;
   onToggleLock?: () => void;
-}> = ({ layer, active, onSelect, draggableLayer = false, dragging = false, dropTarget = false, onDragStart, onDragOver, onDrop, onDragEnd, onToggleLock }) => {
+  onDelete?: () => void;
+}> = ({ layer, active, onSelect, draggableLayer = false, dragging = false, dropTarget = false, onDragStart, onDragOver, onDrop, onDragEnd, onToggleVisibility, onToggleLock, onDelete }) => {
   const Icon = layerTypeIcon(String(layer.type || layer.kind || 'layer'));
+  const visibilityLabel = layer.visible === false ? 'Mostrar camada' : 'Ocultar camada';
   const lockLabel = layer.locked ? 'Desbloquear camada' : 'Bloquear camada';
+  const canToggleVisibility = Boolean(onToggleVisibility);
   const canToggleLock = Boolean(onToggleLock);
+  const canDelete = Boolean(onDelete);
   return (
     <div
       className={`offer-studio-structure-row ${active ? 'active' : ''} ${draggableLayer ? 'draggable' : ''} ${dragging ? 'dragging' : ''} ${dropTarget ? 'drop-target' : ''}`}
@@ -1336,22 +1633,54 @@ const StudioLayerRow: React.FC<{
         </span>
         <span className="offer-studio-structure-flags">
           {layer.locked && !canToggleLock ? <Lock size={14} strokeWidth={2.1} /> : null}
-          {layer.visible === false ? <Eye size={14} strokeWidth={2.1} className="opacity-45" /> : null}
+          {layer.visible === false && !canToggleVisibility ? <EyeOff size={14} strokeWidth={2.1} className="opacity-45" /> : null}
         </span>
       </button>
-      {canToggleLock ? (
-        <button
-          type="button"
-          className={`offer-studio-structure-lock ${layer.locked ? 'active' : ''}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleLock?.();
-          }}
-          title={lockLabel}
-          aria-label={lockLabel}
-        >
-          {layer.locked ? <Lock size={15} strokeWidth={2.1} /> : <Unlock size={15} strokeWidth={2.1} />}
-        </button>
+      {canToggleVisibility || canToggleLock || canDelete ? (
+        <div className="offer-studio-structure-actions">
+          {canToggleVisibility ? (
+            <button
+              type="button"
+              className={`offer-studio-structure-lock ${layer.visible === false ? 'muted' : 'visible'}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleVisibility?.();
+              }}
+              title={visibilityLabel}
+              aria-label={visibilityLabel}
+            >
+              {layer.visible === false ? <EyeOff size={15} strokeWidth={2.1} /> : <Eye size={15} strokeWidth={2.1} />}
+            </button>
+          ) : null}
+          {canDelete ? (
+            <button
+              type="button"
+              className="offer-studio-structure-lock danger"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete?.();
+              }}
+              title="Excluir camada"
+              aria-label="Excluir camada"
+            >
+              <Trash2 size={15} strokeWidth={2.1} />
+            </button>
+          ) : null}
+          {canToggleLock ? (
+            <button
+              type="button"
+              className={`offer-studio-structure-lock ${layer.locked ? 'active' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleLock?.();
+              }}
+              title={lockLabel}
+              aria-label={lockLabel}
+            >
+              {layer.locked ? <Lock size={15} strokeWidth={2.1} /> : <Unlock size={15} strokeWidth={2.1} />}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -1443,14 +1772,14 @@ const StudioCollapsibleSection: React.FC<{
   containerClassName?: string;
   children: React.ReactNode;
 }> = ({ title, description, collapsed, onToggle, className, containerClassName, children }) => (
-  <section className={[containerClassName || 'offer-studio-theme-card', className].filter(Boolean).join(' ')}>
-    <button type="button" className="offer-studio-panel-subhead offer-studio-panel-subhead-button" onClick={onToggle} aria-expanded={!collapsed}>
-      <span>
+  <section className={[containerClassName || 'offer-studio-theme-card', 'offer-studio-collapsible-section', collapsed ? 'is-collapsed' : '', className].filter(Boolean).join(' ')}>
+    <button type="button" className={`offer-studio-panel-subhead offer-studio-panel-subhead-button ${collapsed ? 'is-collapsed' : ''}`} onClick={onToggle} aria-expanded={!collapsed}>
+      <span className="offer-studio-collapsible-copy">
         <span className="section-kicker">{title}</span>
         {description ? <small>{description}</small> : null}
       </span>
-      <span className="offer-studio-panel-subhead-meta">
-        <small>{collapsed ? 'Expandir' : 'Recolher'}</small>
+      <span className="offer-studio-collapsible-toggle">
+        <span className="offer-studio-collapsible-toggle-label">{collapsed ? 'Expandir' : 'Recolher'}</span>
         {collapsed ? <ChevronDown size={16} strokeWidth={2.2} /> : <ChevronUp size={16} strokeWidth={2.2} />}
       </span>
     </button>
@@ -1520,6 +1849,7 @@ const OfferDesigner: React.FC = () => {
   const [layerDraft, setLayerDraft] = useState<LayerDraft>(emptyLayerDraft);
   const [zoneDraft, setZoneDraft] = useState<ZoneDraft>(emptyZoneDraft);
   const [templateBuilderDraft, setTemplateBuilderDraft] = useState<TemplateBuilderDraft>(() => createDefaultTemplateBuilderDraft());
+  const [newLayerOption, setNewLayerOption] = useState<string>('custom:text');
   const [loading, setLoading] = useState(true);
   const [marketsLoading, setMarketsLoading] = useState(isSuperAdminMode);
   const [searching, setSearching] = useState(false);
@@ -1686,6 +2016,15 @@ const OfferDesigner: React.FC = () => {
     () => resolvedLayers.find((layer) => String(layer.id || '') === selectedLayerId) || resolvedLayers[0] || null,
     [resolvedLayers, selectedLayerId],
   );
+  const activeCustomLayer = useMemo(
+    () => templateBuilderDraft.customLayers.find((layer) => layer.id === String(activeLayer?.id || '')) || null,
+    [activeLayer, templateBuilderDraft.customLayers],
+  );
+  const activeCustomLayerType = activeCustomLayer?.type || '';
+  const activeCustomLayerSupportsText = activeCustomLayerType === 'text' || activeCustomLayerType === 'tag' || activeCustomLayerType === 'qrcode';
+  const activeCustomLayerSupportsFont = activeCustomLayerType === 'text' || activeCustomLayerType === 'tag';
+  const activeCustomLayerSupportsImage = activeCustomLayerType === 'image';
+  const activeCustomLayerSupportsShape = activeCustomLayerType === 'shape';
   const activeZone = useMemo(
     () => resolvedZones.find((zone) => String(zone.id || '') === selectedZoneId) || resolvedZones[0] || null,
     [resolvedZones, selectedZoneId],
@@ -1698,28 +2037,43 @@ const OfferDesigner: React.FC = () => {
 
     return editableTargetFromZoneId(String(activeZone?.id || ''));
   }, [activeLayer, activeZone]);
+  const layerInsertOptions = useMemo(() => {
+    const missingBuiltins = TEMPLATE_BUILDER_LAYER_IDS
+      .filter((layerId) => !templateBuilderDraft.layerOrder.includes(layerId))
+      .map((layerId) => ({
+        value: `builtin:${layerId}`,
+        label: `Restaurar ${BUILTIN_LAYER_LABELS[layerId] || layerId}`,
+      }));
+
+    return [
+      ...CUSTOM_LAYER_TYPE_OPTIONS.map((option) => ({ value: `custom:${option.value}`, label: `Nova camada de ${option.label.toLowerCase()}` })),
+      ...missingBuiltins,
+    ];
+  }, [templateBuilderDraft.layerOrder]);
   const activeZoneBinding = useMemo(() => {
     const zoneBindings = asMap(resolvedDesign.zoneBindings);
     return activeZone ? asList(zoneBindings[String(activeZone.id || '')]) : [];
   }, [activeZone, resolvedDesign]);
   const canvasEditableOverlays = useMemo(
     () =>
-      (Object.keys(CANVAS_EDITABLE_TARGET_META) as CanvasEditableTarget[]).map((target) => {
+      ['content-zone', ...templateBuilderDraft.layerOrder].map((target) => {
+        const meta = getCanvasEditableMeta(templateBuilderDraft, target);
         const rawBounds = editableBoundsDraftByTarget(templateBuilderDraft, target);
         const bounds = clampEditableBounds(
+          templateBuilderDraft,
           target,
-          parseBoundsDraft(rawBounds, { x: 0, y: 0, w: CANVAS_EDITABLE_TARGET_META[target].minWidth, h: CANVAS_EDITABLE_TARGET_META[target].minHeight }),
+          parseBoundsDraft(rawBounds, { x: 0, y: 0, w: meta.minWidth, h: meta.minHeight }),
           stageCanvasWidth,
           stageCanvasHeight,
         );
 
         return {
           key: target,
-          label: CANVAS_EDITABLE_TARGET_META[target].label,
-          selectionKind: CANVAS_EDITABLE_TARGET_META[target].selectionKind,
-          selectionId: CANVAS_EDITABLE_TARGET_META[target].selectionId,
-          accent: CANVAS_EDITABLE_TARGET_META[target].accent,
-          overlayLevel: CANVAS_EDITABLE_TARGET_META[target].overlayLevel,
+          label: meta.label,
+          selectionKind: meta.selectionKind,
+          selectionId: meta.selectionId,
+          accent: meta.accent,
+          overlayLevel: meta.overlayLevel,
           bounds,
           visible: editableVisibilityByTarget(templateBuilderDraft, target),
           active: canvasEditTarget === target,
@@ -1727,7 +2081,7 @@ const OfferDesigner: React.FC = () => {
       }),
     [canvasEditTarget, stageCanvasHeight, stageCanvasWidth, templateBuilderDraft],
   );
-  const activeCanvasEditLabel = canvasEditTarget ? CANVAS_EDITABLE_TARGET_META[canvasEditTarget].label : '';
+  const activeCanvasEditLabel = canvasEditTarget ? getCanvasEditableMeta(templateBuilderDraft, canvasEditTarget).label : '';
 
   useEffect(() => {
     const node = stageSurfaceRef.current;
@@ -2196,11 +2550,13 @@ const OfferDesigner: React.FC = () => {
 
   useEffect(() => {
     const bounds = asMap(activeLayer?.bounds);
+    const props = asMap(activeLayer?.props);
     if (!activeLayer) {
       setLayerDraft(emptyLayerDraft);
       return;
     }
     setLayerDraft({
+      type: String(activeLayer.type || 'text'),
       name: String(activeLayer.name || activeLayer.id || ''),
       binding: String(activeLayer.binding || ''),
       x: String(bounds.x ?? ''),
@@ -2209,8 +2565,19 @@ const OfferDesigner: React.FC = () => {
       h: String(bounds.h ?? ''),
       locked: Boolean(activeLayer.locked),
       visible: activeLayer.visible !== false,
+      content: activeCustomLayer?.content || String(props.content || ''),
+      imageUrl: activeCustomLayer?.imageUrl || String(props.imageUrl || ''),
+      background: String(props.background || activeCustomLayer?.background || ''),
+      textColor: String(props.textColor || activeCustomLayer?.textColor || ''),
+      borderColor: String(props.borderColor || activeCustomLayer?.borderColor || ''),
+      borderWidth: String(props.borderWidth ?? activeCustomLayer?.borderWidth ?? ''),
+      radius: String(props.radius ?? activeCustomLayer?.radius ?? ''),
+      fontSize: String(props.fontSize ?? activeCustomLayer?.fontSize ?? ''),
+      fontWeight: String(props.fontWeight ?? activeCustomLayer?.fontWeight ?? ''),
+      frame: Boolean(props.frame ?? activeCustomLayer?.frame ?? false),
+      fit: String(props.fit || activeCustomLayer?.fit || 'contain'),
     });
-  }, [activeLayer]);
+  }, [activeCustomLayer, activeLayer]);
 
   useEffect(() => {
     const bounds = asMap(activeZone?.bounds);
@@ -2257,32 +2624,34 @@ const OfferDesigner: React.FC = () => {
       const localX = (event.clientX - rect.left) / Math.max(stageScale, MIN_STAGE_ZOOM);
       const localY = (event.clientY - rect.top) / Math.max(stageScale, MIN_STAGE_ZOOM);
 
-      const nextBounds =
-        canvasEditInteraction.mode === 'move'
-          ? clampEditableBounds(
-              canvasEditInteraction.target,
-              {
-                ...canvasEditInteraction.startBounds,
-                x: localX - canvasEditInteraction.anchorX,
-                y: localY - canvasEditInteraction.anchorY,
-              },
-              stageCanvasWidth,
-              stageCanvasHeight,
-            )
-          : clampEditableBounds(
-              canvasEditInteraction.target,
-              {
-                ...canvasEditInteraction.startBounds,
-                w: canvasEditInteraction.startBounds.w + (localX - canvasEditInteraction.anchorX),
-                h: canvasEditInteraction.startBounds.h + (localY - canvasEditInteraction.anchorY),
-              },
-              stageCanvasWidth,
-              stageCanvasHeight,
-            );
+      setTemplateBuilderDraft((current) => {
+        const nextBounds =
+          canvasEditInteraction.mode === 'move'
+            ? clampEditableBounds(
+                current,
+                canvasEditInteraction.target,
+                {
+                  ...canvasEditInteraction.startBounds,
+                  x: localX - canvasEditInteraction.anchorX,
+                  y: localY - canvasEditInteraction.anchorY,
+                },
+                stageCanvasWidth,
+                stageCanvasHeight,
+              )
+            : clampEditableBounds(
+                current,
+                canvasEditInteraction.target,
+                {
+                  ...canvasEditInteraction.startBounds,
+                  w: canvasEditInteraction.startBounds.w + (localX - canvasEditInteraction.anchorX),
+                  h: canvasEditInteraction.startBounds.h + (localY - canvasEditInteraction.anchorY),
+                },
+                stageCanvasWidth,
+                stageCanvasHeight,
+              );
 
-      setTemplateBuilderDraft((current) =>
-        updateEditableBoundsByTarget(current, canvasEditInteraction.target, boundsDraft(nextBounds.x, nextBounds.y, nextBounds.w, nextBounds.h)),
-      );
+        return updateEditableBoundsByTarget(current, canvasEditInteraction.target, boundsDraft(nextBounds.x, nextBounds.y, nextBounds.w, nextBounds.h));
+      });
     };
 
     const handlePointerUp = () => setCanvasEditInteraction(null);
@@ -2297,7 +2666,7 @@ const OfferDesigner: React.FC = () => {
   }, [canvasEditInteraction, stageCanvasHeight, stageCanvasWidth, stageScale]);
 
   const handleToggleLayerLock = (layerId: string) => {
-    if (!layerId || !TEMPLATE_BUILDER_LAYER_ID_SET.has(layerId)) {
+    if (!layerId) {
       return;
     }
 
@@ -2308,6 +2677,148 @@ const OfferDesigner: React.FC = () => {
         [layerId]: !(current.layerLocks[layerId] ?? true),
       },
     }));
+  };
+
+  const handleToggleLayerVisibility = (layerId: string) => {
+    if (!layerId) {
+      return;
+    }
+
+    setTemplateBuilderDraft((current) => {
+      switch (layerId) {
+        case 'kicker':
+          return { ...current, kicker: { ...current.kicker, visible: !current.kicker.visible } };
+        case 'headline':
+          return { ...current, headline: { ...current.headline, visible: !current.headline.visible } };
+        case 'subheadline':
+          return { ...current, subheadline: { ...current.subheadline, visible: !current.subheadline.visible } };
+        case 'campaign-badge':
+          return { ...current, badge: { ...current.badge, visible: !current.badge.visible } };
+        case 'footer':
+          return { ...current, footer: { ...current.footer, visible: !current.footer.visible } };
+        case 'footer-content':
+          return { ...current, footerContent: { ...current.footerContent, visible: !current.footerContent.visible } };
+        case 'footer-legal':
+          return { ...current, footerLegal: { ...current.footerLegal, visible: !current.footerLegal.visible } };
+        case 'footer-logo-left':
+          return { ...current, footerLeftLogo: { ...current.footerLeftLogo, visible: !current.footerLeftLogo.visible } };
+        case 'footer-logo-right':
+          return { ...current, footerRightLogo: { ...current.footerRightLogo, visible: !current.footerRightLogo.visible } };
+        default:
+          return {
+            ...current,
+            customLayers: current.customLayers.map((layer) =>
+              layer.id === layerId
+                ? {
+                    ...layer,
+                    visible: !layer.visible,
+                  }
+                : layer,
+            ),
+          };
+      }
+    });
+  };
+
+  const handleAddTemplateLayer = () => {
+    if (!newLayerOption) {
+      return;
+    }
+
+    let nextSelectedLayerId = '';
+    setTemplateBuilderDraft((current) => {
+      if (newLayerOption.startsWith('builtin:')) {
+        const layerId = newLayerOption.replace('builtin:', '');
+        if (!layerId || current.layerOrder.includes(layerId)) {
+          return current;
+        }
+        nextSelectedLayerId = layerId;
+
+        const nextDraft: TemplateBuilderDraft = {
+          ...current,
+          layerOrder: [...current.layerOrder, layerId],
+          layerLocks: {
+            ...current.layerLocks,
+            [layerId]: current.layerLocks[layerId] ?? true,
+          },
+        };
+
+        switch (layerId) {
+          case 'kicker':
+            nextDraft.kicker = { ...current.kicker, visible: true };
+            break;
+          case 'headline':
+            nextDraft.headline = { ...current.headline, visible: true };
+            break;
+          case 'subheadline':
+            nextDraft.subheadline = { ...current.subheadline, visible: true };
+            break;
+          case 'campaign-badge':
+            nextDraft.badge = { ...current.badge, visible: true };
+            break;
+          case 'footer':
+            nextDraft.footer = { ...current.footer, visible: true };
+            break;
+          case 'footer-content':
+            nextDraft.footerContent = { ...current.footerContent, visible: true };
+            break;
+          case 'footer-legal':
+            nextDraft.footerLegal = { ...current.footerLegal, visible: true };
+            break;
+          case 'footer-logo-left':
+            nextDraft.footerLeftLogo = { ...current.footerLeftLogo, visible: true };
+            break;
+          case 'footer-logo-right':
+            nextDraft.footerRightLogo = { ...current.footerRightLogo, visible: true };
+            break;
+          default:
+            break;
+        }
+
+        return nextDraft;
+      }
+
+      const nextType = newLayerOption.replace('custom:', '') as TemplateBuilderCustomLayerType;
+      const nextLayer = createCustomLayerDraft(nextType, [...current.layerOrder, ...current.customLayers.map((layer) => layer.id)], stageCanvasWidth, stageCanvasHeight);
+      nextSelectedLayerId = nextLayer.id;
+      return {
+        ...current,
+        customLayers: [...current.customLayers, nextLayer],
+        layerOrder: [...current.layerOrder, nextLayer.id],
+        layerLocks: {
+          ...current.layerLocks,
+          [nextLayer.id]: false,
+        },
+      };
+    });
+
+    if (nextSelectedLayerId) {
+      setSelectedLayerId(nextSelectedLayerId);
+      setCanvasEditTarget(nextSelectedLayerId);
+      setLookupNotice(newLayerOption.startsWith('builtin:') ? 'Camada restaurada na pilha do template.' : 'Nova camada adicionada. Ajuste no inspector e arraste na arte.');
+      return;
+    }
+
+    setLookupNotice('Nao foi possivel adicionar a camada selecionada.');
+  };
+
+  const handleDeleteTemplateLayer = (layerId: string) => {
+    if (!layerId) {
+      return;
+    }
+
+    setTemplateBuilderDraft((current) => ({
+      ...current,
+      layerOrder: current.layerOrder.filter((id) => id !== layerId),
+      customLayers: current.customLayers.filter((layer) => layer.id !== layerId),
+    }));
+
+    if (canvasEditTarget === layerId) {
+      setCanvasEditInteraction(null);
+      setCanvasEditTarget(null);
+    }
+
+    setLookupNotice('Camada removida da estrutura do template.');
   };
 
   const handleLayerDragStart = (layerId: string, event: React.DragEvent<HTMLDivElement>) => {
@@ -2346,7 +2857,7 @@ const OfferDesigner: React.FC = () => {
 
     setTemplateBuilderDraft((current) => ({
       ...current,
-      layerOrder: reorderLayerOrder(normalizeLayerOrder(current.layerOrder), sourceLayerId, targetLayerId),
+      layerOrder: reorderLayerOrder(current.layerOrder, sourceLayerId, targetLayerId),
     }));
     setSelectedLayerId(sourceLayerId);
     setDragOverLayerId('');
@@ -2363,7 +2874,7 @@ const OfferDesigner: React.FC = () => {
       return;
     }
 
-    const meta = CANVAS_EDITABLE_TARGET_META[target];
+    const meta = getCanvasEditableMeta(templateBuilderDraft, target);
     if (meta.selectionKind === 'zone') {
       setSelectedLayerId('');
       setSelectedZoneId(meta.selectionId);
@@ -2701,45 +3212,53 @@ const OfferDesigner: React.FC = () => {
     }
     if (!effectiveMarketId || !selectedTemplateId || !selectedTemplate) return;
     const parsedDesign = buildTemplateDesignFromDraft(templateBuilderDraft);
+    const activeLayerId = String(activeLayer?.id || '');
+    const activeZoneId = String(activeZone?.id || '');
     const nextDesign: JsonMap = {
       ...parsedDesign,
-      layers: asList(parsedDesign.layers).map((layer) =>
-        String(layer.id || '') !== String(activeLayer?.id || '')
-          ? layer
-          : {
-              ...layer,
-              name: layerDraft.name || layer.name || layer.id,
-              binding: layerDraft.binding || undefined,
-              locked: layerDraft.locked,
-              visible: layerDraft.visible,
-              bounds: {
-                ...asMap(layer.bounds),
-                x: Number(layerDraft.x || 0),
-                y: Number(layerDraft.y || 0),
-                w: Number(layerDraft.w || 0),
-                h: Number(layerDraft.h || 0),
-              },
-            },
-      ),
-      productZones: asList(parsedDesign.productZones).map((zone) =>
-        String(zone.id || '') !== String(activeZone?.id || '')
-          ? zone
-          : {
-              ...zone,
-              name: zoneDraft.name || zone.name || zone.id,
-              layout: zoneDraft.layout || zone.layout || 'grid',
-              slotCount: Number(zoneDraft.slotCount || 1),
-              columns: Number(zoneDraft.columns || 1),
-              rows: Number(zoneDraft.rows || 1),
-              bounds: {
-                ...asMap(zone.bounds),
-                x: Number(zoneDraft.x || 0),
-                y: Number(zoneDraft.y || 0),
-                w: Number(zoneDraft.w || 0),
-                h: Number(zoneDraft.h || 0),
-              },
-            },
-      ),
+      layers: asList(parsedDesign.layers).map((layer) => {
+        const layerId = String(layer.id || '');
+        if (layerId !== activeLayerId) {
+          return layer;
+        }
+
+        return {
+          ...layer,
+          name: layerDraft.name || layer.name || layer.id,
+          binding: layerDraft.binding || undefined,
+          locked: layerDraft.locked,
+          visible: layerDraft.visible,
+          props: buildLayerPropsFromInspectorDraft(layer, layerDraft, Boolean(activeCustomLayer && layerId === activeCustomLayer.id)),
+          bounds: {
+            ...asMap(layer.bounds),
+            x: Number(layerDraft.x || 0),
+            y: Number(layerDraft.y || 0),
+            w: Number(layerDraft.w || 0),
+            h: Number(layerDraft.h || 0),
+          },
+        };
+      }),
+      productZones: asList(parsedDesign.productZones).map((zone) => {
+        if (String(zone.id || '') !== activeZoneId) {
+          return zone;
+        }
+
+        return {
+          ...zone,
+          name: zoneDraft.name || zone.name || zone.id,
+          layout: zoneDraft.layout || zone.layout || 'grid',
+          slotCount: Number(zoneDraft.slotCount || 1),
+          columns: Number(zoneDraft.columns || 1),
+          rows: Number(zoneDraft.rows || 1),
+          bounds: {
+            ...asMap(zone.bounds),
+            x: Number(zoneDraft.x || 0),
+            y: Number(zoneDraft.y || 0),
+            w: Number(zoneDraft.w || 0),
+            h: Number(zoneDraft.h || 0),
+          },
+        };
+      }),
     };
 
     setSaving(true);
@@ -3262,7 +3781,7 @@ const OfferDesigner: React.FC = () => {
                     onToggle={() => toggleConfigSection('builderBadge')}
                   >
                     <div className="offer-studio-card-toolbar">
-                      {renderCanvasEditButton('badge', 'Posicionar selo')}
+                      {renderCanvasEditButton('campaign-badge', 'Posicionar selo')}
                     </div>
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field md:col-span-2">
@@ -3616,7 +4135,7 @@ const OfferDesigner: React.FC = () => {
                           <small>Area do texto principal do mercado</small>
                         </div>
                         <div className="offer-studio-card-toolbar compact">
-                          {renderCanvasEditButton('footerContent', 'Posicionar texto')}
+                          {renderCanvasEditButton('footer-content', 'Posicionar texto')}
                         </div>
                         <div className="offer-studio-edit-grid">
                           <label className="offer-studio-text-field">
@@ -3647,7 +4166,7 @@ const OfferDesigner: React.FC = () => {
                           <small>Area do texto secundario do mercado</small>
                         </div>
                         <div className="offer-studio-card-toolbar compact">
-                          {renderCanvasEditButton('footerLegal', 'Posicionar texto')}
+                          {renderCanvasEditButton('footer-legal', 'Posicionar texto')}
                         </div>
                         <div className="offer-studio-edit-grid">
                           <label className="offer-studio-text-field">
@@ -3683,7 +4202,7 @@ const OfferDesigner: React.FC = () => {
                     className="md:col-span-2"
                   >
                     <div className="offer-studio-card-toolbar">
-                      {renderCanvasEditButton('contentZone', 'Posicionar area')}
+                      {renderCanvasEditButton('content-zone', 'Posicionar area')}
                     </div>
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
@@ -3734,7 +4253,7 @@ const OfferDesigner: React.FC = () => {
                           <small>Area da logo do mercado</small>
                         </div>
                         <div className="offer-studio-card-toolbar compact">
-                          {renderCanvasEditButton('footerLeftLogo', 'Posicionar logo')}
+                          {renderCanvasEditButton('footer-logo-left', 'Posicionar logo')}
                         </div>
                         <div className="offer-studio-check-row">
                           <label>
@@ -3780,7 +4299,7 @@ const OfferDesigner: React.FC = () => {
                           <small>Area opcional do rodape</small>
                         </div>
                         <div className="offer-studio-card-toolbar compact">
-                          {renderCanvasEditButton('footerRightLogo', 'Posicionar logo')}
+                          {renderCanvasEditButton('footer-logo-right', 'Posicionar logo')}
                         </div>
                         <div className="offer-studio-check-row">
                           <label>
@@ -3879,6 +4398,22 @@ const OfferDesigner: React.FC = () => {
                       collapsed={Boolean(collapsedConfigSections.layersPanel)}
                       onToggle={() => toggleConfigSection('layersPanel')}
                     >
+                      <div className="offer-studio-inline-actions wrap">
+                        <label className="offer-studio-text-field">
+                          <span>Inserir camada</span>
+                          <select className="input" value={newLayerOption} onChange={(event) => setNewLayerOption(event.target.value)}>
+                            {layerInsertOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Button type="button" variant="secondary" onClick={handleAddTemplateLayer}>
+                          <Plus size={16} strokeWidth={2.1} />
+                          Adicionar camada
+                        </Button>
+                      </div>
                       <div className="offer-studio-structure-list">
                         {resolvedLayers.length ? (
                           resolvedLayers.map((layer, index) => (
@@ -3894,7 +4429,9 @@ const OfferDesigner: React.FC = () => {
                               onDragOver={(event) => handleLayerDragOver(String(layer.id || ''), event)}
                               onDrop={(event) => handleLayerDrop(String(layer.id || ''), event)}
                               onDragEnd={handleLayerDragEnd}
+                              onToggleVisibility={() => handleToggleLayerVisibility(String(layer.id || ''))}
                               onToggleLock={() => handleToggleLayerLock(String(layer.id || ''))}
+                              onDelete={() => handleDeleteTemplateLayer(String(layer.id || ''))}
                             />
                           ))
                         ) : (
@@ -3977,6 +4514,122 @@ const OfferDesigner: React.FC = () => {
                         <span>Altura</span>
                         <input className="input" value={layerDraft.h} onChange={(event) => setLayerDraft((current) => ({ ...current, h: event.target.value }))} />
                       </label>
+                      {activeCustomLayer ? (
+                        <>
+                          <label className="offer-studio-text-field">
+                            <span>Tipo da camada</span>
+                            <input className="input" value={customLayerTypeLabel(activeCustomLayer.type)} readOnly />
+                          </label>
+                          {activeCustomLayerSupportsText ? (
+                            <label className="offer-studio-text-field md:col-span-2">
+                              <span>{activeCustomLayerType === 'qrcode' ? 'Legenda fallback' : 'Conteudo fallback'}</span>
+                              <textarea
+                                className="textarea"
+                                rows={3}
+                                value={layerDraft.content}
+                                onChange={(event) => setLayerDraft((current) => ({ ...current, content: event.target.value }))}
+                                placeholder={activeCustomLayerType === 'qrcode' ? 'QR do produto' : 'Texto exibido quando o binding estiver vazio'}
+                              />
+                            </label>
+                          ) : null}
+                          {activeCustomLayerSupportsImage ? (
+                            <label className="offer-studio-text-field md:col-span-2">
+                              <span>URL da imagem</span>
+                              <input
+                                className="input"
+                                value={layerDraft.imageUrl}
+                                onChange={(event) => setLayerDraft((current) => ({ ...current, imageUrl: event.target.value }))}
+                                placeholder="https://..."
+                              />
+                            </label>
+                          ) : null}
+                          {activeCustomLayerSupportsText || activeCustomLayerSupportsShape || activeCustomLayerSupportsImage ? (
+                            <StudioColorField
+                              label={activeCustomLayerSupportsImage ? 'Fundo/moldura' : 'Fundo'}
+                              value={layerDraft.background}
+                              onChange={(value) => setLayerDraft((current) => ({ ...current, background: value }))}
+                              placeholder={activeCustomLayerSupportsShape ? '#ffede0' : '#ffffff'}
+                            />
+                          ) : null}
+                          {activeCustomLayerSupportsText || activeCustomLayerType === 'qrcode' ? (
+                            <StudioColorField
+                              label="Cor do texto"
+                              value={layerDraft.textColor}
+                              onChange={(value) => setLayerDraft((current) => ({ ...current, textColor: value }))}
+                              placeholder="#1f1613"
+                            />
+                          ) : null}
+                          {activeCustomLayerSupportsShape ? (
+                            <>
+                              <StudioColorField
+                                label="Cor da borda"
+                                value={layerDraft.borderColor}
+                                onChange={(value) => setLayerDraft((current) => ({ ...current, borderColor: value }))}
+                                placeholder="#ead9ca"
+                              />
+                              <label className="offer-studio-text-field">
+                                <span>Espessura da borda</span>
+                                <input
+                                  className="input"
+                                  inputMode="numeric"
+                                  value={layerDraft.borderWidth}
+                                  onChange={(event) => setLayerDraft((current) => ({ ...current, borderWidth: event.target.value }))}
+                                />
+                              </label>
+                            </>
+                          ) : null}
+                          {activeCustomLayerSupportsText || activeCustomLayerSupportsShape || activeCustomLayerSupportsImage || activeCustomLayerType === 'qrcode' ? (
+                            <label className="offer-studio-text-field">
+                              <span>Raio</span>
+                              <input
+                                className="input"
+                                inputMode="numeric"
+                                value={layerDraft.radius}
+                                onChange={(event) => setLayerDraft((current) => ({ ...current, radius: event.target.value }))}
+                              />
+                            </label>
+                          ) : null}
+                          {activeCustomLayerSupportsFont ? (
+                            <>
+                              <label className="offer-studio-text-field">
+                                <span>Tamanho da fonte</span>
+                                <input
+                                  className="input"
+                                  inputMode="numeric"
+                                  value={layerDraft.fontSize}
+                                  onChange={(event) => setLayerDraft((current) => ({ ...current, fontSize: event.target.value }))}
+                                />
+                              </label>
+                              <label className="offer-studio-text-field">
+                                <span>Peso da fonte</span>
+                                <input
+                                  className="input"
+                                  inputMode="numeric"
+                                  value={layerDraft.fontWeight}
+                                  onChange={(event) => setLayerDraft((current) => ({ ...current, fontWeight: event.target.value }))}
+                                />
+                              </label>
+                            </>
+                          ) : null}
+                          {activeCustomLayerSupportsImage ? (
+                            <>
+                              <label className="offer-studio-text-field">
+                                <span>Ajuste da imagem</span>
+                                <select className="input" value={layerDraft.fit} onChange={(event) => setLayerDraft((current) => ({ ...current, fit: event.target.value }))}>
+                                  <option value="contain">Conter</option>
+                                  <option value="cover">Cobrir</option>
+                                </select>
+                              </label>
+                              <div className="offer-studio-check-row md:col-span-2">
+                                <label>
+                                  <input type="checkbox" checked={layerDraft.frame} onChange={(event) => setLayerDraft((current) => ({ ...current, frame: event.target.checked }))} />
+                                  <span>Aplicar moldura</span>
+                                </label>
+                              </div>
+                            </>
+                          ) : null}
+                        </>
+                      ) : null}
                       <label className="offer-studio-text-field">
                         <span>Nome da zona</span>
                         <input className="input" value={zoneDraft.name} onChange={(event) => setZoneDraft((current) => ({ ...current, name: event.target.value }))} />

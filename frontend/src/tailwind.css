@@ -5000,6 +5000,64 @@
   cursor: pointer;
 }
 
+.offer-studio-collapsible-section {
+  gap: 12px;
+}
+
+.offer-studio-collapsible-section.is-collapsed {
+  gap: 0;
+}
+
+.offer-studio-panel-subhead-button {
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.offer-studio-collapsible-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 4px;
+}
+
+.offer-studio-collapsible-copy small {
+  min-width: 0;
+  line-height: 1.42;
+}
+
+.offer-studio-collapsible-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(87, 51, 30, 0.08);
+  background: rgba(255, 247, 240, 0.72);
+  color: var(--text-secondary);
+  align-self: center;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.offer-studio-panel-subhead-button:hover .offer-studio-collapsible-toggle {
+  border-color: rgba(255, 122, 18, 0.22);
+  background: rgba(255, 244, 236, 0.92);
+  color: var(--accent-primary);
+}
+
+.offer-studio-collapsible-toggle-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.offer-studio-panel-subhead-button.is-collapsed .offer-studio-collapsible-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
 .offer-studio-section-toggle > span {
   display: flex;
   min-width: 0;
@@ -5018,12 +5076,6 @@
 .offer-studio-section-toggle small {
   color: rgba(255, 235, 220, 0.68);
   line-height: 1.45;
-}
-
-.offer-studio-panel-subhead-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .offer-studio-card-actions {
@@ -5199,13 +5251,29 @@
   grid-template-columns: 1fr;
 }
 
-.offer-studio-shell.is-template-builder .offer-studio-panel-subhead {
+.offer-studio-shell.is-template-builder .offer-studio-panel-subhead:not(.offer-studio-panel-subhead-button) {
   flex-direction: column;
   align-items: flex-start;
 }
 
-.offer-studio-shell.is-template-builder .offer-studio-panel-subhead small {
+.offer-studio-shell.is-template-builder .offer-studio-panel-subhead:not(.offer-studio-panel-subhead-button) small,
+.offer-studio-shell.is-template-builder .offer-studio-collapsible-copy small {
   text-align: left;
+  color: rgba(122, 91, 73, 0.72);
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-panel-subhead-button {
+  align-items: center;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-collapsible-section.is-collapsed {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-collapsible-toggle {
+  background: rgba(255, 251, 247, 0.98);
+  color: #7a5b49;
 }
 
 .offer-studio-shell.is-template-builder .offer-studio-panel-stack {
@@ -5350,6 +5418,13 @@
   justify-content: flex-end;
 }
 
+.offer-studio-structure-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .offer-studio-structure-lock {
   display: inline-flex;
   align-items: center;
@@ -5373,6 +5448,27 @@
   border-color: rgba(87, 51, 30, 0.16);
   background: rgba(87, 51, 30, 0.08);
   color: #4f2a16;
+}
+
+.offer-studio-structure-lock.visible {
+  border-color: rgba(255, 122, 18, 0.16);
+  color: var(--accent-primary);
+}
+
+.offer-studio-structure-lock.muted {
+  color: rgba(122, 91, 73, 0.56);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.offer-studio-structure-lock.danger {
+  border-color: rgba(174, 66, 32, 0.12);
+  color: #b14d22;
+}
+
+.offer-studio-structure-lock.danger:hover {
+  border-color: rgba(174, 66, 32, 0.24);
+  background: rgba(255, 236, 228, 0.92);
+  color: #8f3613;
 }
 
 .offer-studio-zone-card {
@@ -6167,13 +6263,21 @@
   }
 
   .offer-studio-panel-header,
-  .offer-studio-panel-subhead,
+  .offer-studio-panel-subhead:not(.offer-studio-panel-subhead-button),
   .offer-studio-inline-actions,
   .offer-studio-card-actions,
   .offer-studio-result-card,
   .offer-studio-queue-card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .offer-studio-panel-subhead-button {
+    align-items: flex-start;
+  }
+
+  .offer-studio-collapsible-toggle {
+    align-self: flex-start;
   }
 
   .offer-studio-result-card,
