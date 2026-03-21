@@ -1211,7 +1211,14 @@ const OfferDesigner: React.FC = () => {
   const scaledStageWidth = Math.max(stageCanvasWidth * stageScale, 1);
   const scaledStageHeight = Math.max(stageCanvasHeight * stageScale, 1);
   const footerText = useMemo(() => footerPreviewLabel(footerMode), [footerMode]);
-  const templateOptions = useMemo(() => templates.map((template) => ({ value: template.id, label: template.name })), [templates]);
+  const templateOptions = useMemo(
+    () => (
+      isSuperAdminMode
+        ? [{ value: '', label: 'Novo template' }, ...templates.map((template) => ({ value: template.id, label: template.name }))]
+        : templates.map((template) => ({ value: template.id, label: template.name }))
+    ),
+    [isSuperAdminMode, templates],
+  );
   const variantOptions = useMemo(
     () => templateVariants.map((variant) => ({ value: variant.variantKey, label: `${variant.name} · ${variant.canvasWidth}x${variant.canvasHeight}` })),
     [templateVariants],
@@ -1660,6 +1667,23 @@ const OfferDesigner: React.FC = () => {
     setTemplateBuilderDraft(buildTemplateBuilderDraft(selectedTemplate, selectedVariant));
   }, [selectedTemplate, selectedVariant]);
 
+  const handleStartNewTemplate = () => {
+    if (!isSuperAdminMode) {
+      setError('A criação de templates fica disponível apenas no painel super admin.');
+      return;
+    }
+
+    const nextDraft = createDefaultTemplateBuilderDraft(selectedTemplate, selectedVariant);
+    setSelectedTemplateId('');
+    setTemplateVariants([]);
+    setSelectedVariantKey('');
+    setValidation(null);
+    setPreview(null);
+    setTemplateBuilderDraft(nextDraft);
+    setError(null);
+    setLookupNotice('Novo template iniciado. Ajuste a estrutura e salve como novo template.');
+  };
+
   useEffect(() => {
     if (!effectiveMarketId) return;
     const normalized = searchInput.trim();
@@ -1683,6 +1707,10 @@ const OfferDesigner: React.FC = () => {
   }, [effectiveMarketId, searchInput]);
 
   const handleTemplateChange = async (templateId: string) => {
+    if (!templateId && isSuperAdminMode) {
+      handleStartNewTemplate();
+      return;
+    }
     setSelectedTemplateId(templateId);
     await loadTemplateMeta(templateId, templates, brandKits, campaignKits);
   };
@@ -2262,10 +2290,16 @@ const OfferDesigner: React.FC = () => {
                     <h2>{isSuperAdminMode ? 'Template builder' : 'Modelos prontos'}</h2>
                   </div>
                   {isSuperAdminMode ? (
-                    <Button type="button" variant="secondary" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
-                      <LayoutTemplate size={16} strokeWidth={2.1} />
-                      {saving ? 'Salvando...' : 'Salvar template'}
-                    </Button>
+                    <div className="flex flex-wrap gap-3">
+                      <Button type="button" variant="secondary" onClick={handleStartNewTemplate} disabled={saving || !effectiveMarketId}>
+                        <Plus size={16} strokeWidth={2.1} />
+                        Novo template
+                      </Button>
+                      <Button type="button" onClick={() => void handleCreateTemplateFromCurrent()} disabled={saving || !effectiveMarketId}>
+                        <LayoutTemplate size={16} strokeWidth={2.1} />
+                        {saving ? 'Salvando...' : 'Salvar como novo'}
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
                 <div className="offer-studio-template-list">

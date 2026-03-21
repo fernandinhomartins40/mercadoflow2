@@ -5199,6 +5199,15 @@
   grid-template-columns: 1fr;
 }
 
+.offer-studio-shell.is-template-builder .offer-studio-panel-subhead {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-panel-subhead small {
+  text-align: left;
+}
+
 .offer-studio-theme-card {
   display: grid;
   gap: 14px;
@@ -5301,6 +5310,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.offer-studio-shell.is-template-builder .offer-studio-edit-grid,
+.offer-studio-shell.is-template-builder .offer-studio-property-grid,
+.offer-studio-shell.is-template-builder .md\:grid-cols-2,
+.offer-studio-shell.is-template-builder .md\:grid-cols-3 {
+  grid-template-columns: 1fr;
+}
+
 .offer-studio-property-row {
   display: grid;
   gap: 4px;
@@ -5353,11 +5369,23 @@
   border: 1px solid rgba(87, 51, 30, 0.08);
 }
 
+.offer-studio-shell.is-template-builder .offer-studio-check-row {
+  align-items: stretch;
+}
+
 .offer-studio-check-row label {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--text-primary);
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-check-row label {
+  width: 100%;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-inline-actions > * {
+  flex-basis: 100%;
 }
 
 .offer-studio-workspace {
