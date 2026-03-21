@@ -275,6 +275,7 @@ const PUBLISH_TARGET_OPTIONS = [
 ] as const;
 
 const gridPresetToCount = (value: string) => (value === '1x1' ? 1 : value === '2x2' ? 4 : value === '3x2' ? 6 : value === '3x3' ? 9 : 6);
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 const clampZoomScale = (value: number) => {
   if (!Number.isFinite(value)) {
@@ -344,6 +345,21 @@ const asText = (value: unknown, fallback = '') => {
   if (value == null) return fallback;
   const normalized = String(value).trim();
   return normalized || fallback;
+};
+
+const normalizeHexColor = (value: string, fallback = '#ffffff') => {
+  const normalized = String(value || '').trim();
+
+  if (HEX_COLOR_PATTERN.test(normalized)) {
+    if (normalized.length === 4) {
+      const [, r, g, b] = normalized;
+      return `#${r}${r}${g}${g}${b}${b}`;
+    }
+
+    return normalized.toLowerCase();
+  }
+
+  return fallback;
 };
 
 const getByPath = (source: JsonMap, path?: string) => {
@@ -1082,21 +1098,50 @@ const StudioBoundsFields: React.FC<{
   <div className="offer-studio-bounds-grid">
     <label className="offer-studio-text-field">
       <span>X</span>
-      <input className="input" value={value.x} onChange={(event) => onChange({ ...value, x: event.target.value })} />
+      <input className="input" inputMode="numeric" value={value.x} onChange={(event) => onChange({ ...value, x: event.target.value })} />
     </label>
     <label className="offer-studio-text-field">
       <span>Y</span>
-      <input className="input" value={value.y} onChange={(event) => onChange({ ...value, y: event.target.value })} />
+      <input className="input" inputMode="numeric" value={value.y} onChange={(event) => onChange({ ...value, y: event.target.value })} />
     </label>
     <label className="offer-studio-text-field">
       <span>Largura</span>
-      <input className="input" value={value.w} onChange={(event) => onChange({ ...value, w: event.target.value })} />
+      <input className="input" inputMode="numeric" value={value.w} onChange={(event) => onChange({ ...value, w: event.target.value })} />
     </label>
     <label className="offer-studio-text-field">
       <span>Altura</span>
-      <input className="input" value={value.h} onChange={(event) => onChange({ ...value, h: event.target.value })} />
+      <input className="input" inputMode="numeric" value={value.h} onChange={(event) => onChange({ ...value, h: event.target.value })} />
     </label>
   </div>
+);
+
+const StudioColorField: React.FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}> = ({ label, value, onChange, placeholder }) => (
+  <label className="offer-studio-text-field offer-studio-color-field">
+    <span>{label}</span>
+    <div className="offer-studio-color-control">
+      <input
+        className="offer-studio-color-picker"
+        type="color"
+        value={normalizeHexColor(value, placeholder || '#ffffff')}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label={label}
+      />
+      <input
+        className="input"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+      />
+    </div>
+  </label>
 );
 
 const OfferDesigner: React.FC = () => {
@@ -2602,32 +2647,53 @@ const OfferDesigner: React.FC = () => {
                           <option value="image">Imagem</option>
                         </select>
                       </label>
-                      <label className="offer-studio-text-field">
-                        <span>Cor base</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.backgroundColor}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: event.target.value }))}
-                          placeholder="#fff7ef"
-                        />
-                      </label>
+                      <StudioColorField
+                        label="Cor base"
+                        value={templateBuilderDraft.backgroundColor}
+                        onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
+                        placeholder="#fff7ef"
+                      />
                       <label className="offer-studio-text-field">
                         <span>Início do gradiente</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.backgroundStart}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: event.target.value }))}
-                          placeholder="#fff7ef"
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.backgroundStart, '#fff7ef')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: event.target.value }))}
+                              aria-label="InÃ­cio do gradiente"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.backgroundStart}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: event.target.value }))}
+                              placeholder="#fff7ef"
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Fim do gradiente</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.backgroundEnd}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: event.target.value }))}
-                          placeholder="#ffd4b4"
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.backgroundEnd, '#ffd4b4')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: event.target.value }))}
+                              aria-label="Fim do gradiente"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.backgroundEnd}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: event.target.value }))}
+                              placeholder="#ffd4b4"
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field md:col-span-2">
                         <span>Imagem de fundo</span>
@@ -2712,43 +2778,103 @@ const OfferDesigner: React.FC = () => {
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
                         <span>Fundo do card</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.card.background}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, background: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.card.background, '#ffffff')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, background: event.target.value } }))}
+                              aria-label="Fundo do card"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.card.background}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, background: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Borda do card</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.card.borderColor}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, borderColor: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.card.borderColor, '#ead9ca')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, borderColor: event.target.value } }))}
+                              aria-label="Borda do card"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.card.borderColor}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, borderColor: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Cor do texto</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.card.textColor}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, textColor: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.card.textColor, '#1f1613')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, textColor: event.target.value } }))}
+                              aria-label="Cor do texto"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.card.textColor}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, textColor: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Fundo do preco</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.card.priceBoxBackground}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.card.priceBoxBackground, '#ff3b1f')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: event.target.value } }))}
+                              aria-label="Fundo do preco"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.card.priceBoxBackground}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxBackground: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Texto do preco</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.card.priceBoxTextColor}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxTextColor: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.card.priceBoxTextColor, '#ffffff')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxTextColor: event.target.value } }))}
+                              aria-label="Texto do preco"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.card.priceBoxTextColor}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, card: { ...current.card, priceBoxTextColor: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Prefixo do preco</span>
@@ -2835,19 +2961,43 @@ const OfferDesigner: React.FC = () => {
                     <div className="offer-studio-edit-grid">
                       <label className="offer-studio-text-field">
                         <span>Cor do fundo</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.footer.background}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, background: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.footer.background, '#2c1d17')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, background: event.target.value } }))}
+                              aria-label="Cor do fundo"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footer.background}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, background: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Cor do texto</span>
-                        <input
-                          className="input"
-                          value={templateBuilderDraft.footer.textColor}
-                          onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, textColor: event.target.value } }))}
-                        />
+                          <div className="offer-studio-color-control">
+                            <input
+                              className="offer-studio-color-picker"
+                              type="color"
+                              value={normalizeHexColor(templateBuilderDraft.footer.textColor, '#fff4ee')}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, textColor: event.target.value } }))}
+                              aria-label="Cor do texto"
+                            />
+                            <input
+                              className="input"
+                              value={templateBuilderDraft.footer.textColor}
+                              onChange={(event) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, textColor: event.target.value } }))}
+                              spellCheck={false}
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                            />
+                          </div>
                       </label>
                       <label className="offer-studio-text-field">
                         <span>Raio do rodape</span>

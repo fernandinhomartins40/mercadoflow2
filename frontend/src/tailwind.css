@@ -5208,6 +5208,17 @@
   text-align: left;
 }
 
+.offer-studio-shell.is-template-builder .offer-studio-panel-stack {
+  gap: 14px;
+  padding: 14px 12px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-theme-card {
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
 .offer-studio-theme-card {
   display: grid;
   gap: 14px;
@@ -5323,7 +5334,11 @@
 
 .offer-studio-shell.is-template-builder .offer-studio-edit-grid,
 .offer-studio-shell.is-template-builder .offer-studio-property-grid,
-.offer-studio-shell.is-template-builder .offer-studio-bounds-grid,
+.offer-studio-shell.is-template-builder .offer-studio-bounds-grid {
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+}
+
 .offer-studio-shell.is-template-builder .sm\:grid-cols-2,
 .offer-studio-shell.is-template-builder .lg\:grid-cols-2,
 .offer-studio-shell.is-template-builder .md\:grid-cols-2,
@@ -5335,6 +5350,12 @@
 
 .offer-studio-shell.is-template-builder .md\:col-span-2 {
   grid-column: auto;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-edit-grid > .md\:col-span-2,
+.offer-studio-shell.is-template-builder .offer-studio-property-grid > .md\:col-span-2,
+.offer-studio-shell.is-template-builder .offer-studio-bounds-grid > .md\:col-span-2 {
+  grid-column: 1 / -1;
 }
 
 .offer-studio-shell.is-template-builder .offer-studio-panel-subhead,
@@ -5353,6 +5374,79 @@
 .offer-studio-shell.is-template-builder .offer-studio-binding-row strong,
 .offer-studio-shell.is-template-builder .offer-studio-binding-row small {
   overflow-wrap: anywhere;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-text-field {
+  gap: 4px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-text-field > span {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: rgba(122, 91, 73, 0.78);
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-text-field .input,
+.offer-studio-shell.is-template-builder .offer-studio-text-field .textarea {
+  height: 42px;
+  padding: 0 12px;
+  font-size: 0.92rem;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-text-field .textarea {
+  min-height: 88px;
+  padding-block: 10px;
+  line-height: 1.45;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-text-field input[type="file"].input {
+  height: auto;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-text-field input[type="file"].input::file-selector-button {
+  margin-right: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 122, 18, 0.14);
+  color: #8f4618;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.offer-studio-color-control {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.offer-studio-color-picker {
+  width: 44px;
+  height: 42px;
+  padding: 4px;
+  border: 1px solid rgba(87, 51, 30, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  cursor: pointer;
+}
+
+.offer-studio-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.offer-studio-color-picker::-webkit-color-swatch {
+  border: 0;
+  border-radius: 10px;
+}
+
+.offer-studio-color-picker::-moz-color-swatch {
+  border: 0;
+  border-radius: 10px;
 }
 
 .offer-studio-property-row {
@@ -5409,7 +5503,9 @@
 
 .offer-studio-shell.is-template-builder .offer-studio-check-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+  padding: 10px;
   align-items: stretch;
 }
 
@@ -5421,14 +5517,24 @@
 }
 
 .offer-studio-shell.is-template-builder .offer-studio-check-row label {
-  width: 100%;
-  align-items: flex-start;
+  width: auto;
+  min-width: 0;
+  align-items: center;
   justify-content: flex-start;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(87, 51, 30, 0.08);
   overflow-wrap: anywhere;
 }
 
 .offer-studio-shell.is-template-builder .offer-studio-inline-actions > * {
-  flex-basis: 100%;
+  flex: 1 1 160px;
+}
+
+.offer-studio-shell.is-template-builder .offer-studio-inline-actions > button,
+.offer-studio-shell.is-template-builder .offer-studio-inline-actions > a {
+  min-height: 44px;
 }
 
 .offer-studio-workspace {
