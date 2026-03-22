@@ -3062,21 +3062,26 @@ const OfferDesigner: React.FC = () => {
     setPendingStructureReveal({ kind, id });
   };
 
-  const syncCanvasEditSelection = (target: CanvasEditableTarget | null) => {
+  const syncCanvasEditSelection = (target: CanvasEditableTarget | null, options?: { reveal?: boolean }) => {
     if (!target) {
       return;
     }
 
+    const reveal = options?.reveal !== false;
     const meta = getCanvasEditableMeta(templateBuilderDraft, target);
     if (meta.selectionKind === 'zone') {
       setSelectedLayerId('');
       setSelectedZoneId(meta.selectionId);
-      revealStructureSelection('zone', meta.selectionId);
+      if (reveal) {
+        revealStructureSelection('zone', meta.selectionId);
+      }
       return;
     }
 
     setSelectedLayerId(meta.selectionId);
-    revealStructureSelection('layer', meta.selectionId);
+    if (reveal) {
+      revealStructureSelection('layer', meta.selectionId);
+    }
   };
 
   const handleCanvasEditToggle = (target: CanvasEditableTarget) => {
@@ -3109,7 +3114,7 @@ const OfferDesigner: React.FC = () => {
     const localY = (event.clientY - rect.top) / Math.max(stageScale, MIN_STAGE_ZOOM);
 
     setCanvasEditTarget(target);
-    syncCanvasEditSelection(target);
+    syncCanvasEditSelection(target, { reveal: false });
     setCanvasEditInteraction({
       target,
       mode,
@@ -5603,6 +5608,7 @@ const OfferDesigner: React.FC = () => {
                               type="button"
                               className="offer-studio-stage-guide-body"
                               onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'move', event)}
+                              onClick={() => syncCanvasEditSelection(item.key)}
                             >
                               <span className="offer-studio-stage-guide-label">{item.label}</span>
                             </button>
