@@ -2217,14 +2217,18 @@ const OfferDesigner: React.FC = () => {
           overlayLevel: meta.overlayLevel,
           bounds,
           visible: editableVisibilityByTarget(templateBuilderDraft, target),
-          active: canvasEditTarget === target,
+          editing: canvasEditTarget === target,
         };
       }),
     [canvasEditTarget, stageCanvasHeight, stageCanvasWidth, templateBuilderDraft],
   );
+  const canvasHighlightedTarget = useMemo(
+    () => canvasEditTarget || editableTargetFromLayerId(selectedLayerId) || editableTargetFromZoneId(selectedZoneId),
+    [canvasEditTarget, selectedLayerId, selectedZoneId],
+  );
   const activeCanvasSelection = useMemo(
-    () => (canvasEditTarget ? getCanvasEditableMeta(templateBuilderDraft, canvasEditTarget) : null),
-    [canvasEditTarget, templateBuilderDraft],
+    () => (canvasHighlightedTarget ? getCanvasEditableMeta(templateBuilderDraft, canvasHighlightedTarget) : null),
+    [canvasHighlightedTarget, templateBuilderDraft],
   );
   const canvasSelectedLayerId = activeCanvasSelection?.selectionKind === 'layer' ? activeCanvasSelection.selectionId : '';
   const canvasSelectedZoneId = activeCanvasSelection?.selectionKind === 'zone' ? activeCanvasSelection.selectionId : '';
@@ -5584,7 +5588,7 @@ const OfferDesigner: React.FC = () => {
                         {canvasEditableOverlays.map((item) => (
                           <div
                             key={item.key}
-                            className={`offer-studio-stage-guide ${item.active ? 'active' : ''} ${item.visible ? '' : 'is-hidden'}`}
+                            className={`offer-studio-stage-guide ${canvasHighlightedTarget === item.key ? 'active' : ''} ${item.editing ? 'editing' : ''} ${item.visible ? '' : 'is-hidden'}`}
                             style={{
                               left: `${item.bounds.x}px`,
                               top: `${item.bounds.y}px`,
@@ -5592,26 +5596,24 @@ const OfferDesigner: React.FC = () => {
                               height: `${item.bounds.h}px`,
                               color: item.accent,
                               background: `${item.accent}1a`,
-                              zIndex: item.active ? item.overlayLevel + 10 : item.overlayLevel,
+                              zIndex: item.editing ? item.overlayLevel + 10 : item.overlayLevel,
                             }}
                           >
                             <button
                               type="button"
                               className="offer-studio-stage-guide-body"
-                              onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'move', event)}
-                              onClick={() => {
-                                setCanvasEditTarget(item.key);
-                                syncCanvasEditSelection(item.key);
-                              }}
+                              onMouseDown={item.editing ? (event) => handleCanvasEditPointerStart(item.key, 'move', event) : undefined}
+                              onClick={() => syncCanvasEditSelection(item.key)}
                             >
                               <span className="offer-studio-stage-guide-label">{item.label}</span>
                             </button>
                             <button
                               type="button"
                               className="offer-studio-stage-guide-handle"
-                              onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'resize', event)}
+                              onMouseDown={item.editing ? (event) => handleCanvasEditPointerStart(item.key, 'resize', event) : undefined}
                               aria-label={`Redimensionar ${item.label}`}
                               title={`Redimensionar ${item.label}`}
+                              disabled={!item.editing}
                             />
                           </div>
                         ))}
