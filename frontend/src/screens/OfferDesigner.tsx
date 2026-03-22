@@ -1933,6 +1933,8 @@ const OfferDesigner: React.FC = () => {
   const stageSurfaceRef = useRef<HTMLDivElement | null>(null);
   const stageArtboardRef = useRef<HTMLDivElement | null>(null);
   const pendingStageViewportRef = useRef<{ anchorX: number; anchorY: number; nextScale: number } | null>(null);
+  const canvasPointerSessionRef = useRef<{ target: CanvasEditableTarget | null; startClientX: number; startClientY: number; didDrag: boolean } | null>(null);
+  const canvasSuppressClickTargetRef = useRef<CanvasEditableTarget | null>(null);
   const [searchParams] = useSearchParams();
   const requestedTemplateId = searchParams.get('templateId') || '';
   const requestedJobId = searchParams.get('jobId') || '';
@@ -2222,10 +2224,7 @@ const OfferDesigner: React.FC = () => {
       }),
     [canvasEditTarget, stageCanvasHeight, stageCanvasWidth, templateBuilderDraft],
   );
-  const canvasHighlightedTarget = useMemo(
-    () => canvasEditTarget || editableTargetFromLayerId(selectedLayerId) || editableTargetFromZoneId(selectedZoneId),
-    [canvasEditTarget, selectedLayerId, selectedZoneId],
-  );
+  const canvasHighlightedTarget = canvasEditTarget;
   const activeCanvasSelection = useMemo(
     () => (canvasHighlightedTarget ? getCanvasEditableMeta(templateBuilderDraft, canvasHighlightedTarget) : null),
     [canvasHighlightedTarget, templateBuilderDraft],
@@ -2785,6 +2784,8 @@ const OfferDesigner: React.FC = () => {
     if (!(isSuperAdminMode && activeTool === 'themes')) {
       setCanvasEditInteraction(null);
       setCanvasEditTarget(null);
+      canvasPointerSessionRef.current = null;
+      canvasSuppressClickTargetRef.current = null;
     }
   }, [activeTool, isSuperAdminMode]);
 
@@ -2797,6 +2798,15 @@ const OfferDesigner: React.FC = () => {
       const artboard = stageArtboardRef.current;
       if (!artboard) {
         return;
+      }
+
+      const pointerSession = canvasPointerSessionRef.current;
+      if (
+        pointerSession &&
+        !pointerSession.didDrag &&
+        (Math.abs(event.clientX - pointerSession.startClientX) > 2 || Math.abs(event.clientY - pointerSession.startClientY) > 2)
+      ) {
+        pointerSession.didDrag = true;
       }
 
       const rect = artboard.getBoundingClientRect();
@@ -2833,7 +2843,12 @@ const OfferDesigner: React.FC = () => {
       });
     };
 
-    const handlePointerUp = () => setCanvasEditInteraction(null);
+    const handlePointerUp = () => {
+      const pointerSession = canvasPointerSessionRef.current;
+      canvasSuppressClickTargetRef.current = pointerSession?.didDrag ? pointerSession.target : null;
+      canvasPointerSessionRef.current = null;
+      setCanvasEditInteraction(null);
+    };
 
     window.addEventListener('mousemove', handlePointerMove);
     window.addEventListener('mouseup', handlePointerUp);
@@ -3115,6 +3130,13 @@ const OfferDesigner: React.FC = () => {
 
     setCanvasEditTarget(target);
     syncCanvasEditSelection(target, { reveal: false });
+    canvasPointerSessionRef.current = {
+      target,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      didDrag: false,
+    };
+    canvasSuppressClickTargetRef.current = null;
     setCanvasEditInteraction({
       target,
       mode,
@@ -3122,6 +3144,16 @@ const OfferDesigner: React.FC = () => {
       anchorY: mode === 'move' ? localY - descriptor.bounds.y : localY,
       startBounds: descriptor.bounds,
     });
+  };
+
+  const handleCanvasGuideClick = (target: CanvasEditableTarget) => {
+    if (canvasSuppressClickTargetRef.current === target) {
+      canvasSuppressClickTargetRef.current = null;
+      return;
+    }
+
+    setCanvasEditTarget(target);
+    syncCanvasEditSelection(target);
   };
 
   const renderCanvasEditButton = (target: CanvasEditableTarget, label = 'Editar na arte') => (
@@ -5608,7 +5640,7 @@ const OfferDesigner: React.FC = () => {
                               type="button"
                               className="offer-studio-stage-guide-body"
                               onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'move', event)}
-                              onClick={() => syncCanvasEditSelection(item.key)}
+                              onClick={() => handleCanvasGuideClick(item.key)}
                             >
                               <span className="offer-studio-stage-guide-label">{item.label}</span>
                             </button>
