@@ -6111,10 +6111,6 @@
   border: 0;
   border-radius: inherit;
   background: transparent;
-  cursor: pointer;
-}
-
-.offer-studio-stage-guide.editing .offer-studio-stage-guide-body {
   cursor: move;
 }
 
@@ -6148,12 +6144,6 @@
   background: currentColor;
   box-shadow: 0 8px 18px rgba(44, 20, 6, 0.18);
   cursor: nwse-resize;
-}
-
-.offer-studio-stage-guide-handle:disabled {
-  opacity: 0.45;
-  cursor: default;
-  pointer-events: none;
 }
 
 .offer-studio-output-bar {

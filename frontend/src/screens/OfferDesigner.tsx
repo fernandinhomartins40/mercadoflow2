@@ -5596,24 +5596,22 @@ const OfferDesigner: React.FC = () => {
                               height: `${item.bounds.h}px`,
                               color: item.accent,
                               background: `${item.accent}1a`,
-                              zIndex: item.editing ? item.overlayLevel + 10 : item.overlayLevel,
+                              zIndex: item.overlayLevel,
                             }}
                           >
                             <button
                               type="button"
                               className="offer-studio-stage-guide-body"
-                              onMouseDown={item.editing ? (event) => handleCanvasEditPointerStart(item.key, 'move', event) : undefined}
-                              onClick={() => syncCanvasEditSelection(item.key)}
+                              onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'move', event)}
                             >
                               <span className="offer-studio-stage-guide-label">{item.label}</span>
                             </button>
                             <button
                               type="button"
                               className="offer-studio-stage-guide-handle"
-                              onMouseDown={item.editing ? (event) => handleCanvasEditPointerStart(item.key, 'resize', event) : undefined}
+                              onMouseDown={(event) => handleCanvasEditPointerStart(item.key, 'resize', event)}
                               aria-label={`Redimensionar ${item.label}`}
                               title={`Redimensionar ${item.label}`}
-                              disabled={!item.editing}
                             />
                           </div>
                         ))}
