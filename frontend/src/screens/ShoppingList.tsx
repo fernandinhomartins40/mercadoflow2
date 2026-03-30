@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
@@ -272,34 +272,14 @@ const ShoppingListPage: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page shopping-list-page">
-        <PageHero
-          className="sales-dashboard-hero-grid"
-          articleClassName="sales-command-card"
-          copyClassName="sales-dashboard-command-copy"
-          featureClassName="sales-dashboard-featured"
-          asideClassName="sales-hero-side"
-          badge="Lista de compras"
-          title="Monte a compra com base no que vende, no calendário e no risco de ruptura."
-          description="Esta página junta a lista ativa do mercado com sugestões automáticas de reposição, sazonalidade, promoção e venda combinada."
+        <PageHeader
+          title="Lista de compras"
+          subtitle="Monte a compra com base no que vende e no risco de ruptura."
           actions={
-            <div className="sales-dashboard-actions">
+            <>
               <ButtonLink to="/app/produtos">Buscar produtos</ButtonLink>
-              <ButtonLink variant="secondary" to="/app">
-                Voltar ao painel
-              </ButtonLink>
-            </div>
-          }
-          feature={
-            <div className="dashboard-glow-card">
-              <span className="section-kicker">Próxima pressão do calendário</span>
-              <strong>{seasonalLead?.title || 'Sem sazonalidade próxima'}</strong>
-              <p>{seasonalLead?.subtitle || 'Assim que surgirem vendas sazonais consistentes, o painel passa a recomendar os itens mais fortes aqui.'}</p>
-              <div className="hero-chip-row">
-                <span className="hero-chip">{overview.pendingItems} itens pendentes</span>
-                <span className="hero-chip">{overview.checkedItems} itens já fechados</span>
-                {seasonalLead ? <span className="hero-chip">{seasonalLead.title}</span> : null}
-              </div>
-            </div>
+              <ButtonLink variant="secondary" to="/app">Voltar ao painel</ButtonLink>
+            </>
           }
         />
 

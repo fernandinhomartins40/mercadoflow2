@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -224,114 +224,69 @@ const CatalogAdmin: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page catalog-admin-page admin-catalog-page">
-        <PageHero
-          badge="Admin"
-          title="Catálogo global em uma leitura mais direta para manutenção e consulta."
-          description="O foco desta página agora fica no que interessa para o operador: volume da base, cobertura de imagem, recorte atual e filtros funcionais por produto."
-          feature={
-            <>
-              <div className="dashboard-glow-card">
-                <span className="section-kicker">Recorte atual</span>
-                <h3>{IMAGE_STATUS_LABELS[filters.imageStatus]}</h3>
-                <strong>{rows.length}</strong>
-                <p>{activeFilterChips.length > 0 ?`${activeFilterChips.length} filtros ativos nesta consulta.` : 'Sem filtros adicionais aplicados.'}</p>
-              </div>
-
-              <div className="dashboard-command-mosaic">
-                <div className="dashboard-mini-tile">
-                  <span>Base total</span>
-                  <strong>{totalElements}</strong>
-                  <small>catálogo global</small>
-                </div>
-                <div className="dashboard-mini-tile">
-                  <span>Imagens nesta página</span>
-                  <strong>{withImageCount}</strong>
-                  <small>itens prontos</small>
-                </div>
-              </div>
-            </>
-          }
+        <PageHeader
+          title="Catálogo global"
+          subtitle="Consulta e manutenção da base enriquecida."
         />
+
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Total no banco" value={totalElements} icon="DB" caption="catálogo enriquecido" />
-          <MetricsCard title="Itens na página" value={rows.length} icon="PG" caption="retorno atual" />
-          <MetricsCard title="Com imagem" value={withImageCount} icon="IM" caption="prontos para exibição" />
-          <MetricsCard title="Marcas na página" value={brandCount} icon="BR" caption="variedade no recorte" />
+          <MetricsCard title="Total no banco" value={totalElements} icon="DB" />
+          <MetricsCard title="Na página" value={rows.length} icon="PG" />
+          <MetricsCard title="Com imagem" value={withImageCount} icon="IM" />
+          <MetricsCard title="Marcas" value={brandCount} icon="BR" />
         </div>
 
-        <div className="page-slab-grid">
-          <PanelSection className="dashboard-form-panel" kicker="Filtros" title="Refinar por informações do produto">
-            <div className="filter-bar-controls catalog-admin-filters-grid">
-              <input
-                className="input"
-                placeholder="Buscar por nome ou GTIN"
-                value={draftFilters.search}
-                onChange={(e) => setDraftFilters((current) => ({ ...current, search: e.target.value }))}
-                onKeyDown={handleFilterKeyDown}
-              />
-
-              <input
-                className="input"
-                placeholder="Filtrar por marca"
-                value={draftFilters.brand}
-                onChange={(e) => setDraftFilters((current) => ({ ...current, brand: e.target.value }))}
-                onKeyDown={handleFilterKeyDown}
-              />
-
-              <input
-                className="input"
-                placeholder="Filtrar por categoria"
-                value={draftFilters.category}
-                onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
-                onKeyDown={handleFilterKeyDown}
-              />
-
-              <select
-                className="input"
-                value={draftFilters.imageStatus}
-                onChange={(e) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    imageStatus: e.target.value as ImageStatus,
-                  }))
-                }
-              >
-                <option value="ALL">Todos os produtos</option>
-                <option value="WITH_IMAGE">Somente com imagem</option>
-                <option value="WITHOUT_IMAGE">Somente sem imagem</option>
-              </select>
-
-              <div className="catalog-admin-filter-actions">
-                <Button onClick={applyFilters}>Aplicar filtros</Button>
-                <Button variant="secondary" onClick={clearFilters}>
-                  Limpar
-                </Button>
-              </div>
-            </div>
-            {activeFilterChips.length > 0 ?(
-              <div className="catalog-admin-active-filters" aria-label="Filtros ativos">
-                {activeFilterChips.map((chip) => (
-                  <span key={chip} className="catalog-admin-active-filter-chip">
-                    {chip}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </PanelSection>
-
-          <PanelSection className="dashboard-note-card" kicker="Leitura rápida" title="Como usar este catálogo">
-            <div className="dashboard-quick-list">
-              <div className="dashboard-quick-item">
-                <strong>Busque por nome ou GTIN</strong>
-                <span>O filtro principal foi mantido centrado na consulta do produto, não na origem técnica.</span>
-              </div>
-              <div className="dashboard-quick-item">
-                <strong>Use imagem como critério de triagem</strong>
-                <span>O status de imagem ajuda a localizar itens prontos para exibição ou pendentes de tratamento.</span>
-              </div>
-            </div>
-          </PanelSection>
+        {/* Filtros */}
+        <div className="filter-bar-controls catalog-admin-filters-grid">
+          <input
+            className="input"
+            placeholder="Buscar por nome ou GTIN"
+            value={draftFilters.search}
+            onChange={(e) => setDraftFilters((current) => ({ ...current, search: e.target.value }))}
+            onKeyDown={handleFilterKeyDown}
+          />
+          <input
+            className="input"
+            placeholder="Filtrar por marca"
+            value={draftFilters.brand}
+            onChange={(e) => setDraftFilters((current) => ({ ...current, brand: e.target.value }))}
+            onKeyDown={handleFilterKeyDown}
+          />
+          <input
+            className="input"
+            placeholder="Filtrar por categoria"
+            value={draftFilters.category}
+            onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
+            onKeyDown={handleFilterKeyDown}
+          />
+          <select
+            className="input"
+            value={draftFilters.imageStatus}
+            onChange={(e) =>
+              setDraftFilters((current) => ({
+                ...current,
+                imageStatus: e.target.value as ImageStatus,
+              }))
+            }
+          >
+            <option value="ALL">Todos os produtos</option>
+            <option value="WITH_IMAGE">Somente com imagem</option>
+            <option value="WITHOUT_IMAGE">Somente sem imagem</option>
+          </select>
+          <div className="catalog-admin-filter-actions">
+            <Button onClick={applyFilters}>Aplicar filtros</Button>
+            <Button variant="secondary" onClick={clearFilters}>Limpar</Button>
+          </div>
         </div>
+        {activeFilterChips.length > 0 ?(
+          <div className="catalog-admin-active-filters" aria-label="Filtros ativos">
+            {activeFilterChips.map((chip) => (
+              <span key={chip} className="catalog-admin-active-filter-chip">
+                {chip}
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}
 

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import { buildOffersUrl } from '../lib/offersApp';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import SalesChart from '../components/dashboard/SalesChart';
 import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
@@ -429,39 +429,21 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page sales-dashboard-page">
-        <PageHero
-          className="sales-dashboard-hero-grid"
-          articleClassName="sales-command-card"
-          copyClassName="sales-dashboard-command-copy"
-          featureClassName="sales-dashboard-featured"
-          asideClassName="sales-hero-side"
-          visualFirst
-          badge="Painel geral de vendas"
-          title="Decisões de compra, exposição e promoção com foco no produto."
-          description="O painel prioriza os itens do catálogo, mostra o que vende melhor, o que precisa de reposição, o que pode entrar em promoção e o que merece ajuste de exposição."
-          feature={
-            <div className="sales-dashboard-hero-image-shell">
-              <div className="sales-dashboard-hero-image-frame">
-                <ProductImage
-                  src={featuredProduct?.imageUrl}
-                  alt={featuredProduct?.name || 'Produto destaque'}
-                  className="sales-dashboard-hero-image"
-                />
-              </div>
-            </div>
-          }
+        <PageHeader
+          title="Painel de vendas"
+          subtitle="Decisões de compra, exposição e promoção com foco no produto."
           actions={
-            <div className="sales-dashboard-actions">
-              <ButtonLink to="/app/produtos">Abrir análise por produto</ButtonLink>
+            <>
+              <ButtonLink to="/app/produtos">Análise por produto</ButtonLink>
               {featuredProduct ?(
                 <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin', `productId=${featuredProduct.productId}`)}>
-                  Criar oferta do líder
+                  Criar oferta
                 </ButtonLink>
               ) : null}
               <ButtonLink variant="secondary" to="/app/lista-compras">
-                Ir para lista de compras
+                Lista de compras
               </ButtonLink>
-            </div>
+            </>
           }
         />
 

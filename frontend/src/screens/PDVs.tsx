@@ -1,8 +1,8 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,7 +22,6 @@ const PDVs: React.FC = () => {
   const [serialNumber, setSerialNumber] = useState('');
 
   const withSerialCount = useMemo(() => items.filter((item) => Boolean(item.serialNumber)).length, [items]);
-  const latestItem = items[0];
 
   const load = async () => {
     if (!marketId) return;
@@ -58,54 +57,22 @@ const PDVs: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <PageHero
-          badge="Estrutura operacional"
-          title="Organize os PDVs como inventário operacional, não como lista solta."
-          description="A página separa cadastro, inventário e contexto de uso para facilitar manutenção dos pontos de venda e reduzir erro de identificação no dia a dia."
-          actions={<Button variant="secondary" onClick={load} disabled={loading}>Atualizar lista</Button>}
-          feature={
-            <>
-              <article className="dashboard-glow-card">
-                <span className="section-kicker">Último cadastro</span>
-                <strong>{latestItem?.name || 'Nenhum PDV cadastrado'}</strong>
-                <p>{latestItem?.createdAt ? `Criado em ${new Date(latestItem.createdAt).toLocaleString('pt-BR')}` : 'Assim que um PDV for criado, ele passa a aparecer aqui com mais destaque.'}</p>
-              </article>
-              <div className="dashboard-command-mosaic">
-                <article className="dashboard-mini-tile">
-                  <span>Serial</span>
-                  <strong>{latestItem?.serialNumber || '--'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Sem serial</span>
-                  <strong>{Math.max(items.length - withSerialCount, 0)}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Status</span>
-                  <strong>{loading ? 'Atualizando' : 'Pronta'}</strong>
-                </article>
-              </div>
-            </>
-          }
+        <PageHeader
+          title="Pontos de venda"
+          subtitle="Cadastre e gerencie os PDVs do mercado."
+          actions={<Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>}
         />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="PDVs" value={items.length} icon="PD" caption="pontos de venda cadastrados" />
-          <MetricsCard title="Com serial" value={withSerialCount} icon="SR" caption="equipamentos identificados" />
-          <MetricsCard title="Sem serial" value={Math.max(items.length - withSerialCount, 0)} icon="NS" caption="pedem complemento" />
-          <MetricsCard title="Status da página" value={loading ? 'Atualizando' : 'Pronta'} icon="OK" caption="situação atual do cadastro" />
+          <MetricsCard title="PDVs" value={items.length} icon="PD" />
+          <MetricsCard title="Com serial" value={withSerialCount} icon="SR" />
+          <MetricsCard title="Sem serial" value={Math.max(items.length - withSerialCount, 0)} icon="NS" />
         </div>
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
 
-        <div className="dashboard-page-grid">
-          <section className="analytics-panel reveal dashboard-table-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Inventário</span>
-                <h3>Lista de PDVs cadastrados</h3>
-              </div>
-            </div>
-
+        <div className="layout-split">
+          <div className="layout-main">
             {loading ? (
               <div className="panel-empty">Carregando PDVs...</div>
             ) : (
@@ -138,13 +105,13 @@ const PDVs: React.FC = () => {
                 </table>
               </div>
             )}
-          </section>
+          </div>
 
-          <div className="dashboard-side-stack">
-            <section className="analytics-panel reveal dashboard-form-panel">
+          <aside className="layout-aside">
+            <section className="analytics-panel reveal">
               <div className="analytics-panel-head compact">
                 <div>
-                  <span className="section-kicker">Cadastro rápido</span>
+                  <span className="section-kicker">Cadastrar</span>
                   <h3>Novo PDV</h3>
                 </div>
               </div>
@@ -154,26 +121,7 @@ const PDVs: React.FC = () => {
                 <Button onClick={create}>Criar PDV</Button>
               </div>
             </section>
-
-            <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Boas práticas</span>
-              <h3>Padrão de cadastro</h3>
-              <div className="dashboard-quick-list">
-                <div className="dashboard-quick-item">
-                  <strong>Use nomes reconheciveis</strong>
-                  <span>Facilita a leitura para gerentes, compradores e equipe de operação.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Preencha serial quando existir</strong>
-                  <span>Ajuda na identificação do equipamento e reduz erro operacional.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>Mantenha a lista enxuta</strong>
-                  <span>Evite duplicar PDVs com nomes parecidos ou abreviações diferentes.</span>
-                </div>
-              </div>
-            </section>
-          </div>
+          </aside>
         </div>
       </div>
     </Layout>

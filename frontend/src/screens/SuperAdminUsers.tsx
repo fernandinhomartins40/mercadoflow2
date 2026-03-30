@@ -3,7 +3,7 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 
@@ -511,64 +511,26 @@ const SuperAdminUsers: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="page super-admin-page">
-        <PageHero
-          badge="Contas e acesso"
-          title="Contas, usuários e acesso da operação."
-          description="Controle quem pode entrar, quantos usuários cada conta pode ter e o que precisa de ajuste manual sem espalhar a operação pela página."
-          articleClassName="super-admin-page-hero-card"
-          featureClassName="super-admin-page-hero-feature"
-          feature={
-            <div className="super-admin-hero-feature-grid">
-              <div className="dashboard-glow-card">
-                <span className="section-kicker">Licenças em uso</span>
-                <h3>{overview?.seatUsedTotal ?? 0} usuários ativos</h3>
-                <strong>{overview?.seatLimitTotal ?? 0}</strong>
-                <p>Limite total liberado nas contas cadastradas.</p>
-              </div>
-
-              <div className="super-admin-hero-metrics">
-                <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" caption={`${overview?.activeMarkets ?? 0} ativas`} />
-                <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" caption={`${overview?.blockedUsers ?? 0} bloqueados`} />
-                <MetricsCard className="super-admin-hero-metric-span" title="Vencimento próximo" value={overview?.expiringMarkets ?? 0} icon="VX" caption="contas que vencem nos próximos 7 dias" />
-              </div>
-            </div>
-          }
+        <PageHeader
+          title="Contas e acesso"
+          subtitle="Gerencie contas, usuários e permissões."
           actions={
             <>
+              <Button onClick={openCreateMarketModal}>Nova conta</Button>
+              <Button onClick={openCreateUserModal}>Novo usuário</Button>
               <ButtonLink to="/super-admin" variant="secondary">Voltar ao painel</ButtonLink>
-              <ButtonLink to="/super-admin/crawler" variant="secondary">Abrir crawler</ButtonLink>
             </>
           }
         />
 
-        {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}
-        {success ? <PanelSection reveal={false} className="text-[color:var(--success)]">{success}</PanelSection> : null}
+        {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
+        {success ? <p style={{ color: 'var(--success)' }}>{success}</p> : null}
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" />
-          <MetricsCard title="Ativas" value={overview?.activeMarkets ?? 0} icon="ON" />
-          <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" />
-          <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" />
-        </div>
-
-        <div className="page-card-grid">
-          <PanelSection
-            className="dashboard-note-card"
-            kicker="Conta"
-            title="Criar ou editar conta"
-            action={<Button onClick={openCreateMarketModal}>Nova conta</Button>}
-          >
-            <p className="super-admin-table-meta">Abra o modal para cadastrar ou ajustar uma conta sem tirar o foco da listagem.</p>
-          </PanelSection>
-
-          <PanelSection
-            className="dashboard-note-card"
-            kicker="Usuário"
-            title="Criar ou editar usuário"
-            action={<Button onClick={openCreateUserModal}>Novo usuário</Button>}
-          >
-            <p className="super-admin-table-meta">Cadastre usuários e ajuste acessos pelo modal, sem formulário fixo na página.</p>
-          </PanelSection>
+          <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" caption={`${overview?.activeMarkets ?? 0} ativas`} />
+          <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" variant="danger" />
+          <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" caption={`${overview?.blockedUsers ?? 0} bloqueados`} />
+          <MetricsCard title="Vencendo" value={overview?.expiringMarkets ?? 0} icon="VX" variant="warning" />
         </div>
 
         <PanelSection kicker="Contas" title="Plano, acesso e contato">

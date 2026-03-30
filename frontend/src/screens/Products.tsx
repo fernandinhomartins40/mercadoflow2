@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { buildOffersUrl } from '../lib/offersApp';
@@ -8,8 +8,7 @@ import { useShoppingList } from '../hooks/useShoppingList';
 import Button from '../components/common/Button';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
-import PanelSection from '../components/dashboard/PanelSection';
+import PageHeader from '../components/layout/PageHeader';
 import { ProductPerformance } from '../types/analytics.types';
 
 const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
@@ -33,17 +32,8 @@ const Products: React.FC = () => {
   const products = useMemo(() => pageData?.content || [], [pageData]);
   const totalPages = pageData?.totalPages ?? 0;
   const totalElements = pageData?.totalElements ?? 0;
-  const leadProduct = products[0];
-  const searchLead = querySearch ? products[0] : null;
-  const highlightProduct = searchLead || leadProduct;
   const avgVelocity = products.length ? products.reduce((sum, product) => sum + Number(product.salesVelocity || 0), 0) / products.length : 0;
   const avgPromoShare = products.length ? products.reduce((sum, product) => sum + Number(product.promoRevenueShare || 0), 0) / products.length : 0;
-  const metrics = [
-    { title: 'Produtos no recorte', value: totalElements, icon: 'PD', caption: 'universo conhecido desta consulta' },
-    { title: 'Giro médio', value: `${avgVelocity.toFixed(2)}/dia`, icon: 'GR', variant: 'warning' as const, caption: 'velocidade média da página' },
-    { title: 'Share promo', value: formatPercent(avgPromoShare * 100), icon: 'SP', variant: 'danger' as const, caption: 'participação média de promoção' },
-    { title: 'Ordenação ativa', value: sortBy, icon: 'OR', caption: 'critério que domina o ranking' },
-  ];
 
   useEffect(() => {
     setSearchInput(querySearch);
@@ -114,132 +104,79 @@ const Products: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page">
-        <PageHero
-          badge="Performance de produtos"
-          title="Decida por produto sem navegar em uma grade burocrática."
-          description="Este mapa coloca primeiro o item que gira, o que segura receita, o que depende de promoção e o que precisa de leitura por filial antes de consumir mais capital."
-          feature={
-            <>
-              <article className="dashboard-glow-card">
-                <span className="section-kicker">{querySearch ? 'Melhor correspondência' : 'Produto em destaque'}</span>
-                <strong>{highlightProduct?.name || 'Sem produto destacado'}</strong>
-                <p>
-                  {highlightProduct
-                    ? `${bandLabel(highlightProduct.turnoverBand)} | Tendência ${formatPercent(highlightProduct.revenueTrendPercentage)} | Share promo ${formatPercent((highlightProduct.promoRevenueShare || 0) * 100)}`
-                    : 'A ordenação escolhida passa a destacar aqui o item que merece a primeira leitura.'}
-                </p>
-                <div className="hero-inline-actions">
-                  {highlightProduct ? (
-                    <Button type="button" className="hero-inline-button" onClick={() => navigate(`/app/produtos/${highlightProduct.productId}`)}>
-                      Abrir dashboard do produto
-                    </Button>
-                  ) : null}
-                  {highlightProduct ? (
-                    <Button type="button" variant="secondary" onClick={() => navigate(buildOffersUrl('/ofertas', 'admin', `productId=${highlightProduct.productId}`))}>
-                      Criar oferta
-                    </Button>
-                  ) : null}
-                  {highlightProduct ? (
-                    <ShoppingListButton
-                      inList={productIds.has(highlightProduct.productId)}
-                      onAdd={() => handleAddProduct(highlightProduct)}
-                      stopPropagation={false}
-                    />
-                  ) : null}
-                </div>
-              </article>
-              <div className="dashboard-command-mosaic">
-                <article className="dashboard-mini-tile">
-                  <span>Receita do destaque</span>
-                  <strong>{highlightProduct ? formatMoney(highlightProduct.revenue) : 'R$ 0.00'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Última venda</span>
-                  <strong>{highlightProduct?.lastSoldAt ? new Date(highlightProduct.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Faixa de giro</span>
-                  <strong>{bandLabel(highlightProduct?.turnoverBand)}</strong>
-                </article>
-              </div>
-            </>
-          }
+        <PageHeader
+          title="Produtos"
+          subtitle="Performance, giro e tendência por item do catálogo."
         />
 
-        <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          {metrics.map((metric) => (
-            <MetricsCard
-              key={metric.title}
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              variant={metric.variant}
-              caption={metric.caption}
-            />
-          ))}
-        </section>
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+          <MetricsCard title="Total" value={totalElements} icon="PD" />
+          <MetricsCard title="Giro médio" value={`${avgVelocity.toFixed(2)}/dia`} icon="GR" variant="warning" />
+          <MetricsCard title="Share promo" value={formatPercent(avgPromoShare * 100)} icon="SP" variant="danger" />
+          <MetricsCard title="Ordenação" value={sortBy} icon="OR" />
+        </div>
 
-        <div className="dashboard-page-grid">
-          <PanelSection className="dashboard-form-panel" kicker="Filtro analítico" title="Procure o item e reorganize o ranking">
-            <div className="dashboard-form-stack">
-              <form className="product-search-form" onSubmit={handleSearchSubmit}>
-                <input
-                  className="input"
-                  placeholder="Buscar por nome ou GTIN"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                />
-                <Button type="submit">Buscar</Button>
-                {querySearch ? (
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    onClick={() => {
-                      setSearchInput('');
-                      setPage(0);
-                      const next = new URLSearchParams(searchParams);
-                      next.delete('search');
-                      setSearchParams(next);
-                    }}
-                  >
-                    Limpar
-                  </Button>
-                ) : null}
-              </form>
-              <input
-                className="input"
-                placeholder="Filtrar por categoria"
-                value={category}
-                onChange={(e) => {
+        {/* Filtros inline */}
+        <div className="filters-inline" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <form className="product-search-form" onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="input"
+              placeholder="Buscar por nome ou GTIN"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              style={{ maxWidth: 280 }}
+            />
+            <Button type="submit">Buscar</Button>
+            {querySearch ? (
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => {
+                  setSearchInput('');
                   setPage(0);
-                  setCategory(e.target.value);
-                }}
-              />
-              <select
-                className="input"
-                value={sortBy}
-                onChange={(e) => {
-                  setPage(0);
-                  setSortBy(e.target.value as any);
+                  const next = new URLSearchParams(searchParams);
+                  next.delete('search');
+                  setSearchParams(next);
                 }}
               >
-                <option value="REVENUE">Ordenar por receita</option>
-                <option value="QUANTITY">Ordenar por quantidade</option>
-                <option value="TRANSACTIONS">Ordenar por transações</option>
-                <option value="PRICE">Ordenar por preço médio</option>
-                <option value="TURNOVER">Ordenar por giro</option>
-                <option value="TREND">Ordenar por tendência</option>
-                <option value="PROMO">Ordenar por share promocional</option>
-                <option value="NAME">Ordenar por nome</option>
-              </select>
-            </div>
-          </PanelSection>
+                Limpar
+              </Button>
+            ) : null}
+          </form>
+          <input
+            className="input"
+            placeholder="Categoria"
+            value={category}
+            onChange={(e) => {
+              setPage(0);
+              setCategory(e.target.value);
+            }}
+            style={{ maxWidth: 200 }}
+          />
+          <select
+            className="input"
+            value={sortBy}
+            onChange={(e) => {
+              setPage(0);
+              setSortBy(e.target.value as any);
+            }}
+            style={{ maxWidth: 220 }}
+          >
+            <option value="REVENUE">Ordenar por receita</option>
+            <option value="QUANTITY">Ordenar por quantidade</option>
+            <option value="TRANSACTIONS">Ordenar por transações</option>
+            <option value="PRICE">Ordenar por preço médio</option>
+            <option value="TURNOVER">Ordenar por giro</option>
+            <option value="TREND">Ordenar por tendência</option>
+            <option value="PROMO">Ordenar por share promocional</option>
+            <option value="NAME">Ordenar por nome</option>
+          </select>
         </div>
 
         {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
 
         {loading ? (
-          <div className="card">Carregando...</div>
+          <div className="panel-empty">Carregando...</div>
         ) : (
           <div className="analytics-card-grid product-mosaic-grid">
             {products.length === 0 ? (
@@ -266,7 +203,7 @@ const Products: React.FC = () => {
                     </div>
                     <div>
                       <span>Quantidade</span>
-                      <strong>{Number(product.quantitySold || 0).toFixed(2)}</strong>
+                      <strong>{Number(product.quantitySold || 0).toFixed(0)}</strong>
                     </div>
                     <div>
                       <span>Preço médio</span>
@@ -288,7 +225,7 @@ const Products: React.FC = () => {
 
                   <div className="product-progress-block">
                     <div className="progress-row">
-                      <span>Share promocional</span>
+                      <span>Share promo</span>
                       <strong>{formatPercent((product.promoRevenueShare || 0) * 100)}</strong>
                     </div>
                     <div className="progress-track"><div className="progress-fill orange" style={{ width: `${Math.min(Number(product.promoRevenueShare || 0) * 100, 100)}%` }} /></div>
@@ -297,10 +234,9 @@ const Products: React.FC = () => {
                   <div className="product-card-foot">
                     <span>Tendência {formatPercent(product.revenueTrendPercentage)}</span>
                     <span>Última venda {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</span>
-                    <span>GTIN {product.ean || '--'}</span>
                   </div>
                   <div className="product-card-actions-row">
-                    <div className="product-card-link">Abrir dashboard do produto</div>
+                    <div className="product-card-link">Abrir dashboard</div>
                     <div className="product-card-actions-inline">
                       <Button
                         type="button"
@@ -322,19 +258,14 @@ const Products: React.FC = () => {
         )}
 
         {!loading && pageData && (
-          <div className="analytics-panel pager-panel reveal">
-            <div>
-              <span className="section-kicker">Navegação</span>
-              <h3>Página {pageData.number + 1} de {Math.max(totalPages, 1)}</h3>
-            </div>
-            <div className="pager-actions">
-              <Button variant="secondary" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>
-                Anterior
-              </Button>
-              <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={totalPages === 0 || page >= totalPages - 1}>
-                Próxima
-              </Button>
-            </div>
+          <div className="pager-actions admin-pager-actions">
+            <span className="section-kicker">Página {pageData.number + 1} de {Math.max(totalPages, 1)}</span>
+            <Button variant="secondary" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>
+              Anterior
+            </Button>
+            <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={totalPages === 0 || page >= totalPages - 1}>
+              Próxima
+            </Button>
           </div>
         )}
       </div>

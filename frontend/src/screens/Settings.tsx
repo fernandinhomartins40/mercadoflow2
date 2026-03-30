@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -125,7 +125,7 @@ const Settings: React.FC = () => {
       const response = await api.post('/v1/agent-keys', { marketId: resolvedMarketId, name: name.trim() });
       setGeneratedKey(response.data.apiKey);
       setName('');
-      setMessage('Chave criada com sucesso. Copie agora e guarde com seguranca.');
+      setMessage('Chave criada com sucesso. Copie agora — ela só aparece uma vez.');
       await loadKeys();
     } catch (err: any) {
       setMessage(err?.message || 'Falha ao criar chave.');
@@ -155,88 +155,115 @@ const Settings: React.FC = () => {
   return (
     <Layout>
       <div className="page analytics-page settings-page">
-        <PageHero
-          badge="Central de configurações"
-          title="Controle credenciais, instalador e contexto do mercado em uma única área."
-          description="Esta central concentra URL real da API, distribuição do instalador, identidade do mercado e ciclo completo das chaves do coletor desktop."
-          feature={
-            <>
-              <article className="dashboard-glow-card">
-                <span className="section-kicker">Conexão principal do agente</span>
-                <strong>{apiBaseUrl}</strong>
-                <p>{heartbeatFreshKeys.length} chaves com heartbeat recente nos últimos 10 minutos. Isso separa instalações vivas das esquecidas.</p>
-              </article>
-              <div className="dashboard-command-mosaic">
-                <article className="dashboard-mini-tile">
-                  <span>Versão do instalador</span>
-                  <strong>{installerInfo?.version || 'disponível'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Tamanho</span>
-                  <strong>{installerInfo?.sizeFormatted || '--'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Última atualização</span>
-                  <strong>{installerInfo?.lastModified || '--'}</strong>
-                </article>
-              </div>
-            </>
-          }
+        <PageHeader
+          title="Configurações"
+          subtitle="Credenciais do agente, endpoint e informações do mercado."
         />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" caption="credenciais prontas para uso" />
-          <MetricsCard title="Chaves revogadas" value={revokedKeys.length} icon="RV" variant="danger" caption="histórico desativado" />
-          <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" caption="atividade do agente" />
-          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponível'} icon="EXE" caption={installerInfo?.sizeFormatted || 'pacote do coletor'} />
+          <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" />
+          <MetricsCard title="Revogadas" value={revokedKeys.length} icon="RV" variant="danger" />
+          <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" />
+          <MetricsCard title="Instalador" value={installerInfo?.version || 'disponível'} icon="EXE" />
         </div>
 
-        <div className="dashboard-page-grid">
-          <section className="analytics-panel reveal dashboard-form-panel">
-            <div className="analytics-panel-head">
-              <div>
-                <span className="section-kicker">Contexto da aplicação</span>
-                <h3>Identidade, endpoint e download</h3>
-              </div>
-            </div>
-            <div className="settings-stack">
-              <div className="settings-line-card">
+        <div className="layout-split">
+          <div className="layout-main">
+            {/* Contexto da aplicação */}
+            <section className="analytics-panel reveal">
+              <div className="analytics-panel-head compact">
                 <div>
-                  <strong>URL base da API</strong>
-                  <span>{apiBaseUrl}</span>
+                  <span className="section-kicker">Contexto</span>
+                  <h3>Identidade e endpoint</h3>
                 </div>
-                <Button variant="secondary" onClick={() => copyText(apiBaseUrl, 'URL da API')}>{copied === 'URL da API' ? 'Copiado' : 'Copiar URL'}</Button>
               </div>
-              <div className="settings-line-card">
-                <div>
-                  <strong>ID do mercado</strong>
-                  <span>{resolvedMarketId || '--'}</span>
+              <div className="settings-stack">
+                <div className="settings-line-card">
+                  <div>
+                    <strong>URL base da API</strong>
+                    <span>{apiBaseUrl}</span>
+                  </div>
+                  <Button variant="secondary" onClick={() => copyText(apiBaseUrl, 'URL da API')}>{copied === 'URL da API' ? 'Copiado' : 'Copiar URL'}</Button>
                 </div>
-                <Button variant="secondary" onClick={() => resolvedMarketId && copyText(resolvedMarketId, 'ID do mercado')} disabled={!resolvedMarketId}>{copied === 'ID do mercado' ? 'Copiado' : 'Copiar ID'}</Button>
-              </div>
-              <div className="settings-line-card">
-                <div>
-                  <strong>Usuário logado</strong>
-                  <span>{userName || '--'} | {email || '--'}</span>
+                <div className="settings-line-card">
+                  <div>
+                    <strong>ID do mercado</strong>
+                    <span>{resolvedMarketId || '--'}</span>
+                  </div>
+                  <Button variant="secondary" onClick={() => resolvedMarketId && copyText(resolvedMarketId, 'ID do mercado')} disabled={!resolvedMarketId}>{copied === 'ID do mercado' ? 'Copiado' : 'Copiar ID'}</Button>
                 </div>
-                <span className="status-pill positive">{role || '--'}</span>
-              </div>
-              <div className="settings-line-card">
-                <div>
-                  <strong>Instalador do agente</strong>
-                  <span>{installerInfo?.version || 'Versão não informada'} | {installerInfo?.lastModified || 'sem timestamp'}</span>
+                <div className="settings-line-card">
+                  <div>
+                    <strong>Usuário logado</strong>
+                    <span>{userName || '--'} | {email || '--'}</span>
+                  </div>
+                  <span className="status-pill positive">{role || '--'}</span>
                 </div>
-                <ButtonLink to="/app/download-agente" variant="secondary">Abrir download</ButtonLink>
+                <div className="settings-line-card">
+                  <div>
+                    <strong>Instalador do agente</strong>
+                    <span>{installerInfo?.version || 'Versão não informada'} | {installerInfo?.sizeFormatted || '--'}</span>
+                  </div>
+                  <ButtonLink to="/app/download-agente" variant="secondary">Abrir download</ButtonLink>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <div className="dashboard-side-stack">
-            <section className="analytics-panel reveal dashboard-form-panel">
-              <div className="analytics-panel-head">
+            {/* Chaves */}
+            <section className="analytics-section reveal">
+              <div className="section-heading-row">
+                <div>
+                  <span className="section-kicker">Chaves do agente</span>
+                  <h2>Credenciais ativas e revogadas</h2>
+                </div>
+              </div>
+              <div className="analytics-card-grid settings-key-grid">
+                {keys.length === 0 ? (
+                  <div className="analytics-panel"><div className="panel-empty">{listError || 'Nenhuma chave encontrada para este mercado.'}</div></div>
+                ) : (
+                  keys.map((key) => (
+                    <article key={key.id} className={`settings-key-card ${key.isActive === false ? 'revoked' : 'active'} reveal`}>
+                      <div className="settings-key-head">
+                        <div>
+                          <h3>{key.name}</h3>
+                        </div>
+                        <span className={`status-pill ${key.isActive === false ? 'ended' : 'positive'}`}>{key.isActive === false ? 'Revogada' : 'Ativa'}</span>
+                      </div>
+                      <div className="settings-key-body">
+                        <div>
+                          <span>Prefixo</span>
+                          <strong>{key.keyPrefix}</strong>
+                        </div>
+                        <div>
+                          <span>Criada em</span>
+                          <strong>{formatDateTime(key.createdAt)}</strong>
+                        </div>
+                        <div>
+                          <span>Último uso</span>
+                          <strong>{formatDateTime(key.lastUsedAt)}</strong>
+                        </div>
+                        <div>
+                          <span>Último heartbeat</span>
+                          <strong>{formatDateTime(key.lastHeartbeatAt)}</strong>
+                        </div>
+                      </div>
+                      <div className="settings-key-actions">
+                        <Button variant="secondary" onClick={() => copyText(key.keyPrefix, `prefixo-${key.id}`)}>{copied === `prefixo-${key.id}` ? 'Copiado' : 'Copiar prefixo'}</Button>
+                        <Button variant="secondary" onClick={() => revokeKey(key)} disabled={busyKeyId === key.id || key.isActive === false}>{busyKeyId === key.id ? 'Excluindo...' : key.isActive === false ? 'Já revogada' : 'Excluir chave'}</Button>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+
+          <aside className="layout-aside">
+            <section className="analytics-panel reveal">
+              <div className="analytics-panel-head compact">
                 <div>
                   <span className="section-kicker">Nova credencial</span>
-                  <h3>Gerar chave da API do coletor</h3>
+                  <h3>Gerar chave</h3>
                 </div>
               </div>
               <div className="form-grid-analytics settings-form-grid">
@@ -256,7 +283,7 @@ const Settings: React.FC = () => {
               {message && <div className="settings-message">{message}</div>}
               {generatedKey && (
                 <div className="settings-secret-card">
-                  <strong>Copie esta chave agora. Ela so aparece uma vez.</strong>
+                  <strong>Copie esta chave agora. Ela só aparece uma vez.</strong>
                   <div className="code-box" style={{ marginTop: 10 }}>{generatedKey}</div>
                   <div className="panel-actions" style={{ marginTop: 10 }}>
                     <Button variant="secondary" onClick={() => copyText(generatedKey, 'chave gerada')}>{copied === 'chave gerada' ? 'Copiado' : 'Copiar chave'}</Button>
@@ -265,75 +292,8 @@ const Settings: React.FC = () => {
                 </div>
               )}
             </section>
-
-            <section className="analytics-panel reveal dashboard-note-card">
-              <span className="section-kicker">Checklist rápido</span>
-              <h3>Padrão mínimo de configuração</h3>
-              <div className="dashboard-quick-list">
-                <div className="dashboard-quick-item">
-                  <strong>1. Defina a URL correta</strong>
-                  <span>Use exatamente {apiBaseUrl} no desktop do coletor.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>2. Gere uma chave por máquina</strong>
-                  <span>Isso evita perda de rastreabilidade e simplifica revogação.</span>
-                </div>
-                <div className="dashboard-quick-item">
-                  <strong>3. Revogue chaves antigas</strong>
-                  <span>Troca de máquina sem revogação vira credencial esquecida em produção.</span>
-                </div>
-              </div>
-            </section>
-          </div>
+          </aside>
         </div>
-
-        <section className="analytics-section reveal">
-          <div className="section-heading-row">
-            <div>
-              <span className="section-kicker">Gerenciamento de chaves</span>
-              <h2>Excluir, auditar e identificar quais credenciais ainda estao vivas</h2>
-            </div>
-          </div>
-          <div className="analytics-card-grid settings-key-grid">
-            {keys.length === 0 ? (
-              <div className="analytics-panel"><div className="panel-empty">{listError || 'Nenhuma chave encontrada para este mercado.'}</div></div>
-            ) : (
-              keys.map((key) => (
-                <article key={key.id} className={`settings-key-card ${key.isActive === false ? 'revoked' : 'active'} reveal`}>
-                  <div className="settings-key-head">
-                    <div>
-                      <span className="section-kicker">Credencial do agente</span>
-                      <h3>{key.name}</h3>
-                    </div>
-                    <span className={`status-pill ${key.isActive === false ? 'ended' : 'positive'}`}>{key.isActive === false ? 'Revogada' : 'Ativa'}</span>
-                  </div>
-                  <div className="settings-key-body">
-                    <div>
-                      <span>Prefixo</span>
-                      <strong>{key.keyPrefix}</strong>
-                    </div>
-                    <div>
-                      <span>Criada em</span>
-                      <strong>{formatDateTime(key.createdAt)}</strong>
-                    </div>
-                    <div>
-                      <span>Ultimo uso</span>
-                      <strong>{formatDateTime(key.lastUsedAt)}</strong>
-                    </div>
-                    <div>
-                      <span>Ultimo heartbeat</span>
-                      <strong>{formatDateTime(key.lastHeartbeatAt)}</strong>
-                    </div>
-                  </div>
-                  <div className="settings-key-actions">
-                    <Button variant="secondary" onClick={() => copyText(key.keyPrefix, `prefixo-${key.id}`)}>{copied === `prefixo-${key.id}` ? 'Copiado' : 'Copiar prefixo'}</Button>
-                    <Button variant="secondary" onClick={() => revokeKey(key)} disabled={busyKeyId === key.id || key.isActive === false}>{busyKeyId === key.id ? 'Excluindo...' : key.isActive === false ? 'Ja revogada' : 'Excluir chave'}</Button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
       </div>
     </Layout>
   );

@@ -133,6 +133,98 @@
     @apply flex min-w-0 flex-col gap-5 xl:gap-6;
   }
 
+  /* ─── PageHeader compacto (substitui PageHero) ─── */
+  .page-header-compact {
+    @apply flex flex-wrap items-start justify-between gap-4 pb-1;
+  }
+
+  .page-header-copy {
+    @apply flex min-w-0 flex-col gap-1;
+  }
+
+  .page-header-title {
+    @apply text-[clamp(1.45rem,2.4vw,1.85rem)] font-semibold leading-tight tracking-[-0.03em];
+    color: var(--text-primary);
+    font-family: var(--font-display);
+  }
+
+  .page-header-subtitle {
+    @apply m-0 text-[0.9rem] leading-6;
+    color: var(--text-muted);
+  }
+
+  .page-header-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  /* ─── KPI strip moderna ─── */
+  .kpi-strip {
+    @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+
+  .kpi-card {
+    @apply flex flex-col gap-1.5 rounded-[16px] border px-4 py-3;
+    border-color: var(--border-soft);
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .kpi-card-label {
+    @apply text-[0.72rem] font-semibold uppercase tracking-[0.12em];
+    color: var(--text-muted);
+  }
+
+  .kpi-card-value {
+    @apply text-[1.35rem] font-semibold leading-none tracking-[-0.03em];
+    color: var(--text-primary);
+    font-family: var(--font-display);
+  }
+
+  .kpi-card-meta {
+    @apply text-xs leading-5;
+    color: var(--text-muted);
+  }
+
+  /* ─── Filtros inline (sem PanelSection wrapper) ─── */
+  .filters-inline {
+    @apply flex flex-wrap items-end gap-3;
+  }
+
+  .filters-inline .input {
+    @apply max-w-[240px];
+  }
+
+  .filters-inline select.input {
+    @apply max-w-[200px];
+  }
+
+  /* ─── Seção de conteúdo limpa ─── */
+  .content-section {
+    @apply flex flex-col gap-4;
+  }
+
+  .content-section-head {
+    @apply flex flex-wrap items-center justify-between gap-3;
+  }
+
+  .content-section-title {
+    @apply text-base font-semibold tracking-[-0.02em];
+    color: var(--text-primary);
+    font-family: var(--font-display);
+  }
+
+  /* ─── Layout moderno de 2 colunas ─── */
+  .layout-split {
+    @apply grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] xl:items-start;
+  }
+
+  .layout-main {
+    @apply flex min-w-0 flex-col gap-4;
+  }
+
+  .layout-aside {
+    @apply flex flex-col gap-4;
+  }
+
   .page-hero-grid {
     @apply grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.34fr)];
   }

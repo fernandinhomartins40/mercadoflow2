@@ -3,7 +3,7 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
+import PageHeader from '../components/layout/PageHeader';
 import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
 
@@ -284,42 +284,19 @@ const SuperAdminCrawlerConfig: React.FC = () => {
   return (
     <SuperAdminLayout>
       <div className="page super-admin-page super-admin-crawler-page">
-        <PageHero
-          badge="Crawler"
-          title="Coleta manual por mercado."
-          description="Aqui você acompanha o estado atual, o último resultado e dispara uma nova coleta quando precisar."
+        <PageHeader
+          title="Crawler"
+          subtitle="Coleta manual por mercado."
           actions={latestRun?.id ?<ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</ButtonLink> : null}
-          feature={
-            <div className="dashboard-glow-card">
-              <span className="section-kicker">Run mais recente</span>
-              <h3>{latestRun ?formatStatus(latestRun.status) : 'Sem histórico'}</h3>
-              <strong>{formatDate(latestRun?.finishedAt || latestRun?.startedAt || latestRun?.requestedAt)}</strong>
-              <p>{latestRun?.message || 'Nenhuma execução registrada até agora.'}</p>
-            </div>
-          }
         />
 
-        {error ? <PanelSection reveal={false} className="text-[color:var(--danger)]">{error}</PanelSection> : null}
-        {success ? <PanelSection reveal={false} className="text-[color:var(--success)]">{success}</PanelSection> : null}
+        {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
+        {success ? <p style={{ color: 'var(--success)' }}>{success}</p> : null}
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Mercados suportados" value={jobs.length} icon="MK" />
+          <MetricsCard title="Mercados" value={jobs.length} icon="MK" />
           <MetricsCard title="Em execução" value={activeJobs || monitor.runningRuns || 0} icon="RUN" />
           <MetricsCard title="Importados recentes" value={totalImportedRecent} icon="IMP" />
-        </div>
-        <div className="page-slab-grid">
-          <PanelSection className="dashboard-note-card" kicker="Fluxo" title="Executar, revisar e seguir">
-            <div className="dashboard-quick-list">
-              <div className="dashboard-quick-item">
-                <strong>1. Escolha um mercado</strong>
-                <span>Rode apenas o mercado necessário.</span>
-              </div>
-              <div className="dashboard-quick-item">
-                <strong>2. Revise o último resultado</strong>
-                <span>Confira importados, erros e detalhes antes de partir para o próximo mercado.</span>
-              </div>
-            </div>
-          </PanelSection>
         </div>
 
         {loading ?(

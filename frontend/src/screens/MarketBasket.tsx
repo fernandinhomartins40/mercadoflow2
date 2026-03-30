@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
-import PanelSection from '../components/dashboard/PanelSection';
+import PageHeader from '../components/layout/PageHeader';
 import { analyticsService } from '../services/analytics.service';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
@@ -56,97 +55,38 @@ const MarketBasket: React.FC = () => {
     () => rules.reduce((sum, rule) => sum + Number(rule.pairCount || 0), 0),
     [rules]
   );
-  const metrics = [
-    { title: 'Pares avaliados', value: rules.length, icon: 'PR', caption: 'regras retornadas no recorte' },
-    {
-      title: 'Confiança média',
-      value: formatPercent(averageConfidence * 100),
-      icon: 'CF',
-      variant: 'warning' as const,
-      caption: 'força média das relações',
-    },
-    {
-      title: 'Lift maximo',
-      value: strongestRule ? strongestRule.lift.toFixed(2) : '0.00',
-      icon: 'LF',
-      variant: 'danger' as const,
-      caption: 'maior impulso de combinação',
-    },
-    { title: 'Origem', value: useCached ? 'Cache' : 'Ao vivo', icon: 'FG', caption: 'modo atual da análise' },
-  ];
 
   const actionHint = (rule: BasketRule) => {
-    if (Number(rule.lift || 0) >= 2.2) return 'Expor lado a lado e testar kit leve.';
-    if (Number(rule.confidence || 0) >= 0.45) return 'Sinal claro para cross-sell no caixa.';
-    return 'Manter monitoramento para nova confirmação.';
+    if (Number(rule.lift || 0) >= 2.2) return 'Expor lado a lado';
+    if (Number(rule.confidence || 0) >= 0.45) return 'Cross-sell no caixa';
+    return 'Monitorar';
   };
 
   return (
     <Layout>
       <div className="page analytics-page">
-        <PageHero
-          badge="Compra casada"
-          title="Use pares reais de carrinho para vender melhor."
-          description="Em vez de adivinhar combinações, a tela destaca os pares que sustentam exposição, combo e sugestão de venda com confiança e lift medidos."
-          feature={
-            <>
-              <article className="dashboard-glow-card">
-                <span className="section-kicker">Par com maior lift</span>
-                <strong>
-                  {strongestRule
-                    ? `${(strongestRule.antecedentNames || strongestRule.antecedent || []).join(', ')} + ${(strongestRule.consequentNames || strongestRule.consequent || []).join(', ')}`
-                    : 'Sem par dominante'}
-                </strong>
-                <p>
-                  {strongestRule
-                    ? `${strongestRule.pairCount} compras em conjunto e confiança de ${formatPercent(strongestRule.confidence * 100)}.`
-                    : 'Assim que a cesta ganhar densidade, o par campeão aparece aqui com contexto de uso.'}
-                </p>
-              </article>
-              <div className="dashboard-command-mosaic">
-                <article className="dashboard-mini-tile">
-                  <span>Lift</span>
-                  <strong>{strongestRule ? strongestRule.lift.toFixed(2) : '0.00'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Confiança</span>
-                  <strong>{strongestRule ? formatPercent(strongestRule.confidence * 100) : '0.0%'}</strong>
-                </article>
-                <article className="dashboard-mini-tile">
-                  <span>Ação sugerida</span>
-                  <strong>{strongestRule ? actionHint(strongestRule) : '--'}</strong>
-                </article>
-              </div>
-            </>
+        <PageHeader
+          title="Compra casada"
+          subtitle="Pares de produtos que os clientes compram juntos."
+          actions={
+            <label className="toggle-inline">
+              <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} />
+              {useCached ? 'Cache noturno' : 'Análise ao vivo'}
+            </label>
           }
         />
 
-        <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          {metrics.map((metric) => (
-            <MetricsCard
-              key={metric.title}
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              variant={metric.variant}
-              caption={metric.caption}
-            />
-          ))}
-        </section>
-
-        <div className="dashboard-page-grid">
-          <PanelSection className="dashboard-form-panel" kicker="Origem" title="Escolha entre análise ao vivo e cache noturno">
-            <label className="toggle-row">
-              <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} />
-              <span>{useCached ? 'Usando cache noturno' : 'Usando análise ao vivo'}</span>
-            </label>
-          </PanelSection>
+        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+          <MetricsCard title="Pares" value={rules.length} icon="PR" />
+          <MetricsCard title="Confiança média" value={formatPercent(averageConfidence * 100)} icon="CF" variant="warning" />
+          <MetricsCard title="Lift máximo" value={strongestRule ? strongestRule.lift.toFixed(2) : '0.00'} icon="LF" variant="danger" />
+          <MetricsCard title="Ocorrências" value={totalOccurrences} icon="PX" />
         </div>
 
         {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
 
         {loading ? (
-          <div className="card">Carregando...</div>
+          <div className="panel-empty">Carregando...</div>
         ) : (
           <div className="analytics-card-grid pair-grid-dense">
             {rules.length === 0 ? (
@@ -162,10 +102,10 @@ const MarketBasket: React.FC = () => {
                   <div className="pair-arrow">combina com</div>
                   <h4>{(rule.consequentNames || rule.consequent || []).join(', ')}</h4>
                   <div className="mini-metric-grid dual">
-                    <div><span>Confianca</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
+                    <div><span>Confiança</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
                     <div><span>Suporte</span><strong>{formatPercent(Number(rule.support || 0) * 100)}</strong></div>
-                    <div><span>Ocorrencias</span><strong>{rule.pairCount || 0}</strong></div>
-                    <div><span>Acao</span><strong>{actionHint(rule)}</strong></div>
+                    <div><span>Cestas</span><strong>{rule.pairCount || 0}</strong></div>
+                    <div><span>Ação</span><strong>{actionHint(rule)}</strong></div>
                   </div>
                 </article>
               ))
