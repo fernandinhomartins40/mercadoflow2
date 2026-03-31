@@ -6,8 +6,10 @@ import html
 import json
 import re
 import sys
+import time
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
@@ -102,6 +104,17 @@ def empty_totals() -> Dict[str, int]:
     }
 
 
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def write_json_atomic(path: Path, payload: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(path.name + ".tmp")
+    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path.replace(path)
+
+
 @dataclass
 class ImportOptions:
     provider: str
@@ -120,6 +133,9 @@ class ImportOptions:
     max_image_bytes: int = 3_000_000
     output: str = ""
     run_id: str = ""
+    progress_path: str = ""
+    progress_interval_seconds: float = 2.0
+    progress_every_records: int = 25
     checkpoints_list_endpoint: str = "/v1/super-admin/catalog/crawler/checkpoints"
     checkpoints_batch_endpoint: str = "/v1/super-admin/catalog/crawler/checkpoints/batch"
     catalog_image_status_endpoint: str = "/v1/super-admin/catalog/crawler/catalog-image-status"
@@ -188,14 +204,83 @@ def normalize_record(record: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def is_retryable_http_status(status_code: int) -> bool:
+    return status_code in {408, 425, 429} or status_code >= 500
+
+
+def compute_retry_delay(
+    response: Optional[requests.Response],
+    attempt: int,
+    *,
+    base_delay: float = 1.5,
+    max_delay: float = 20.0,
+) -> float:
+    if response is not None:
+        retry_after = norm_text(response.headers.get("Retry-After"))
+        if retry_after:
+            try:
+                return max(0.0, min(max_delay, float(retry_after)))
+            except Exception:
+                pass
+    return min(max_delay, base_delay * attempt)
+
+
+def request_with_retry(
+    session: requests.Session,
+    method: str,
+    url: str,
+    *,
+    headers_builder: Optional[Callable[[], Dict[str, str]]] = None,
+    auth_refresh: Optional[Callable[[], None]] = None,
+    attempts: int = 6,
+    timeout: int = 60,
+    base_delay: float = 1.5,
+    max_delay: float = 20.0,
+    **kwargs: Any,
+) -> requests.Response:
+    total_attempts = max(1, int(attempts or 1))
+    last_error: Optional[BaseException] = None
+    for attempt in range(1, total_attempts + 1):
+        try:
+            headers = headers_builder() if headers_builder is not None else None
+            response = session.request(method, url, headers=headers, timeout=timeout, **kwargs)
+            if response.status_code == 401 and auth_refresh is not None and attempt < total_attempts:
+                auth_refresh()
+                time.sleep(compute_retry_delay(response, attempt, base_delay=0.5, max_delay=3.0))
+                continue
+            response.raise_for_status()
+            return response
+        except requests.HTTPError as exc:
+            response = exc.response
+            last_error = exc
+            status_code = response.status_code if response is not None else 0
+            if attempt >= total_attempts or not is_retryable_http_status(status_code):
+                raise
+            time.sleep(compute_retry_delay(response, attempt, base_delay=base_delay, max_delay=max_delay))
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt >= total_attempts:
+                raise
+            time.sleep(compute_retry_delay(None, attempt, base_delay=base_delay, max_delay=max_delay))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError(f"{method.upper()} {url} failed without an explicit error")
+
+
 def login_super_admin(api_base: str, endpoint: str, email: str, password: str) -> str:
     path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
-    response = requests.post(
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)"})
+    response = request_with_retry(
+        session,
+        "POST",
         f"{api_base.rstrip('/')}{path}",
         json={"email": email, "password": password, "keepConnected": True},
+        attempts=8,
         timeout=60,
+        base_delay=2.0,
+        max_delay=20.0,
     )
-    response.raise_for_status()
     token = response.json().get("token")
     if not token:
         raise RuntimeError("Super admin login succeeded without token")
@@ -228,6 +313,9 @@ class RemoteCheckpointStore:
             and self.options.checkpoints_batch_endpoint
         )
 
+    def reset_token(self) -> None:
+        self.token = ""
+
     def ensure_token(self) -> str:
         if self.token:
             return self.token
@@ -239,6 +327,12 @@ class RemoteCheckpointStore:
         )
         return self.token
 
+    def auth_headers(self, json_content: bool = False) -> Dict[str, str]:
+        headers = {"Authorization": f"Bearer {self.ensure_token()}"}
+        if json_content:
+            headers["Content-Type"] = "application/json"
+        return headers
+
     def list_completed(self, scope_type: str) -> Dict[str, Dict[str, Any]]:
         if not self.enabled():
             return {}
@@ -249,18 +343,21 @@ class RemoteCheckpointStore:
         try:
             endpoint = self.options.checkpoints_list_endpoint
             path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
-            response = self.session.get(
+            response = request_with_retry(
+                self.session,
+                "GET",
                 f"{self.options.api_base.rstrip('/')}{path}",
+                headers_builder=self.auth_headers,
+                auth_refresh=self.reset_token,
                 params={
                     "provider": self.options.provider,
                     "scopeType": cache_key[1],
                     "status": "COMPLETED",
                     "limit": 5000,
                 },
-                headers={"Authorization": f"Bearer {self.ensure_token()}"},
+                attempts=6,
                 timeout=60,
             )
-            response.raise_for_status()
             payload = response.json()
             items = payload if isinstance(payload, list) else []
             completed = {
@@ -281,17 +378,20 @@ class RemoteCheckpointStore:
         try:
             endpoint = self.options.checkpoints_batch_endpoint
             path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
-            response = self.session.post(
+            response = request_with_retry(
+                self.session,
+                "POST",
                 f"{self.options.api_base.rstrip('/')}{path}",
-                headers={"Authorization": f"Bearer {self.ensure_token()}", "Content-Type": "application/json"},
+                headers_builder=lambda: self.auth_headers(json_content=True),
+                auth_refresh=self.reset_token,
                 json={
                     "provider": self.options.provider,
                     "runId": self.options.run_id or None,
                     "items": items,
                 },
+                attempts=6,
                 timeout=90,
             )
-            response.raise_for_status()
             for item in items:
                 scope_type = norm_text(item.get("scopeType")).upper()
                 scope_key = norm_text(item.get("scopeKey"))
@@ -345,16 +445,19 @@ class RemoteCheckpointStore:
             try:
                 endpoint = self.options.catalog_image_status_endpoint
                 path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
-                response = self.session.post(
+                response = request_with_retry(
+                    self.session,
+                    "POST",
                     f"{self.options.api_base.rstrip('/')}{path}",
-                    headers={"Authorization": f"Bearer {self.ensure_token()}", "Content-Type": "application/json"},
+                    headers_builder=lambda: self.auth_headers(json_content=True),
+                    auth_refresh=self.reset_token,
                     json={
                         "provider": self.options.provider,
                         "codes": unresolved,
                     },
+                    attempts=6,
                     timeout=90,
                 )
-                response.raise_for_status()
                 payload = response.json()
                 for item in payload if isinstance(payload, list) else []:
                     if not isinstance(item, dict):
@@ -370,12 +473,19 @@ class RemoteCheckpointStore:
         return {code for code in normalized_codes if self.image_status_cache.get(code, True)}
 
 
-def import_records(options: ImportOptions, token: str, records: List[Dict[str, Any]]) -> Dict[str, int]:
+def import_records(
+    options: ImportOptions,
+    token: str,
+    records: List[Dict[str, Any]],
+    session: Optional[requests.Session] = None,
+) -> Dict[str, int]:
     path = options.import_endpoint if options.import_endpoint.startswith("/") else f"/{options.import_endpoint}"
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    response = requests.post(
+    request_session = session or requests.Session()
+    response = request_with_retry(
+        request_session,
+        "POST",
         f"{options.api_base.rstrip('/')}{path}",
-        headers=headers,
+        headers_builder=lambda: {"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         json={
             "provider": options.provider,
             "sourceLicense": options.source_license,
@@ -400,9 +510,9 @@ def import_records(options: ImportOptions, token: str, records: List[Dict[str, A
                 for item in records
             ],
         },
+        attempts=6,
         timeout=240,
     )
-    response.raise_for_status()
     payload = response.json()
     return {key: int(payload.get(key, 0)) for key in empty_totals()}
 
@@ -419,14 +529,86 @@ class MarketImportSession:
         self.captured = 0
         self.images_saved = 0
         self.token = ""
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)"})
         self.seen_gtins: Set[str] = set()
+        self.progress_path = Path(options.progress_path).resolve() if options.progress_path else None
+        self.progress_interval_seconds = max(0.5, float(options.progress_interval_seconds or 2.0))
+        self.progress_every_records = max(1, int(options.progress_every_records or 25))
+        self.progress_state: Dict[str, Any] = {
+            "stage": "INITIALIZING",
+            "status": "RUNNING",
+            "message": f"Sessao de importacao iniciada para {options.provider}.",
+        }
+        self.last_progress_write_at = 0.0
+        self.last_progress_captured = 0
+        self.last_error = ""
+        self.publish_progress(force=True)
 
     def is_cancelled(self) -> bool:
         return bool(self.cancel_check and self.cancel_check())
 
     def ensure_not_cancelled(self) -> None:
         if self.is_cancelled():
+            self.publish_progress(
+                force=True,
+                stage="CANCELLED",
+                status="CANCELLED",
+                message=f"Execucao cancelada para {self.options.provider}.",
+            )
             raise RunCancelled("run cancelled by super admin")
+
+    def build_progress_payload(self) -> Dict[str, Any]:
+        totals = {key: int(self.totals.get(key, 0)) for key in empty_totals()}
+        payload = {
+            "runId": self.options.run_id or "",
+            "provider": self.options.provider,
+            "sourceLicense": self.options.source_license,
+            "status": norm_text(self.progress_state.get("status")) or "RUNNING",
+            "stage": norm_text(self.progress_state.get("stage")) or "RUNNING",
+            "message": norm_text(self.progress_state.get("message"))
+            or (
+                f"{self.options.provider}: capturados={self.captured} "
+                f"importados={int(totals.get('importedProducts', 0))} "
+                f"pendentes={len(self.pending)}"
+            ),
+            "updatedAt": utc_now_iso(),
+            "capturedProducts": self.captured,
+            "scannedProducts": max(self.captured, int(totals.get("scannedProducts", 0))),
+            "importedProducts": int(totals.get("importedProducts", 0)),
+            "skippedInvalidGtin": int(totals.get("skippedInvalidGtin", 0)),
+            "skippedMissingName": int(totals.get("skippedMissingName", 0)),
+            "skippedMedication": int(totals.get("skippedMedication", 0)),
+            "skippedDuplicateGtin": int(totals.get("skippedDuplicateGtin", 0)),
+            "errors": int(totals.get("errors", 0)),
+            "pendingCount": len(self.pending),
+            "imagesSaved": self.images_saved,
+            "recordsFile": str(self.audit.records_path),
+            "manifestFile": str(self.audit.manifest_path),
+            "outputBase": str(self.output_base),
+        }
+        if self.last_error:
+            payload["lastError"] = self.last_error
+        return payload
+
+    def publish_progress(self, force: bool = False, **updates: Any) -> None:
+        for key, value in updates.items():
+            if value is not None:
+                self.progress_state[key] = value
+        if self.progress_path is None:
+            return
+        now = time.monotonic()
+        if not force:
+            enough_records = (self.captured - self.last_progress_captured) >= self.progress_every_records
+            enough_time = (now - self.last_progress_write_at) >= self.progress_interval_seconds
+            if not enough_records and not enough_time:
+                return
+        try:
+            write_json_atomic(self.progress_path, self.build_progress_payload())
+            self.last_progress_write_at = now
+            self.last_progress_captured = self.captured
+        except Exception:
+            pass
 
     def push(self, record: Dict[str, Any]) -> None:
         self.ensure_not_cancelled()
@@ -435,6 +617,7 @@ class MarketImportSession:
         if gtin:
             if gtin in self.seen_gtins:
                 self.totals["skippedDuplicateGtin"] += 1
+                self.publish_progress(stage="CAPTURING")
                 return
             self.seen_gtins.add(gtin)
         code = norm_text(normalized.get("code") or normalized.get("providerProductId"))
@@ -452,6 +635,14 @@ class MarketImportSession:
         self.audit.write(normalized)
         self.pending.append(normalized)
         self.captured += 1
+        self.publish_progress(
+            stage="CAPTURING",
+            message=(
+                f"{self.options.provider}: capturados={self.captured} "
+                f"importados={int(self.totals.get('importedProducts', 0))} "
+                f"pendentes={len(self.pending)}"
+            ),
+        )
 
         if len(self.pending) >= max(1, min(int(self.options.batch_size), 1500)):
             self.flush()
@@ -469,19 +660,91 @@ class MarketImportSession:
         )
         return self.token
 
+    def reset_token(self) -> None:
+        self.token = ""
+
     def flush(self) -> None:
         self.ensure_not_cancelled()
         if not self.pending:
             return
         batch = list(self.pending)
-        self.pending.clear()
+        self.publish_progress(
+            force=True,
+            stage="IMPORTING",
+            message=f"{self.options.provider}: importando lote com {len(batch)} registros pendentes.",
+        )
         if not self.options.do_import:
+            self.pending.clear()
             self.totals["scannedProducts"] += len(batch)
+            self.publish_progress(
+                force=True,
+                stage="CAPTURING",
+                message=f"{self.options.provider}: lote contabilizado localmente sem importacao remota.",
+            )
             return
-        token = self.ensure_token()
-        result = import_records(self.options, token, batch)
-        for key, value in result.items():
-            self.totals[key] += int(value)
+        total_attempts = 4
+        last_error: Optional[BaseException] = None
+        for attempt in range(1, total_attempts + 1):
+            token = self.ensure_token()
+            try:
+                result = import_records(self.options, token, batch, session=self.session)
+                self.pending.clear()
+                for key, value in result.items():
+                    self.totals[key] += int(value)
+                self.last_error = ""
+                self.publish_progress(
+                    force=True,
+                    stage="CAPTURING",
+                    message=(
+                        f"{self.options.provider}: lote importado. "
+                        f"capturados={self.captured} importados={int(self.totals.get('importedProducts', 0))}"
+                    ),
+                )
+                return
+            except requests.HTTPError as exc:
+                last_error = exc
+                self.last_error = str(exc)
+                response = exc.response
+                status_code = response.status_code if response is not None else 0
+                if status_code == 401:
+                    self.reset_token()
+                self.publish_progress(
+                    force=True,
+                    stage="IMPORT_RETRY",
+                    message=(
+                        f"{self.options.provider}: tentativa {attempt}/{total_attempts} falhou ao importar "
+                        f"lote de {len(batch)} registros."
+                    ),
+                )
+                if attempt >= total_attempts or (status_code != 401 and not is_retryable_http_status(status_code)):
+                    break
+                time.sleep(compute_retry_delay(response, attempt, base_delay=3.0, max_delay=30.0))
+                self.ensure_not_cancelled()
+            except requests.RequestException as exc:
+                last_error = exc
+                self.last_error = str(exc)
+                self.reset_token()
+                self.publish_progress(
+                    force=True,
+                    stage="IMPORT_RETRY",
+                    message=(
+                        f"{self.options.provider}: tentativa {attempt}/{total_attempts} falhou por rede durante "
+                        f"a importacao do lote."
+                    ),
+                )
+                if attempt >= total_attempts:
+                    break
+                time.sleep(compute_retry_delay(None, attempt, base_delay=3.0, max_delay=30.0))
+                self.ensure_not_cancelled()
+        if last_error is not None:
+            self.publish_progress(
+                force=True,
+                stage="FAILED",
+                status="RUNNING",
+                message=f"{self.options.provider}: falha persistente ao importar lote pendente.",
+            )
+            raise last_error
+        raise RuntimeError("catalog import flush failed without an explicit error")
 
     def finalize(self, manifest_extra: Dict[str, Any], flush_pending: bool = True) -> Tuple[Dict[str, int], Path]:
         if flush_pending:
@@ -497,5 +760,18 @@ class MarketImportSession:
                 "capturedProducts": self.captured,
                 "totals": self.totals,
             }
+        )
+        progress_status = norm_text(self.progress_state.get("status")).upper() or "RUNNING"
+        if progress_status not in {"FAILED", "CANCELLED"}:
+            progress_status = "RUNNING"
+        self.publish_progress(
+            force=True,
+            stage="FINALIZED",
+            status=progress_status,
+            message=(
+                f"{self.options.provider}: finalizado com capturados={self.captured} "
+                f"importados={int(self.totals.get('importedProducts', 0))} "
+                f"erros={int(self.totals.get('errors', 0))}"
+            ),
         )
         return self.totals, manifest

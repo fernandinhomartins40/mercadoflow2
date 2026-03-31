@@ -1600,6 +1600,7 @@ def run_vtex_category_tree_job(
     imported_products = int(totals.get("importedProducts", 0))
     softened_page_failures = (
         job.non_fatal_page_errors > 0
+        and not job.selected_categories
         and page_like_errors > 0
         and page_like_errors <= job.non_fatal_page_errors
         and fatal_harvest_errors == 0

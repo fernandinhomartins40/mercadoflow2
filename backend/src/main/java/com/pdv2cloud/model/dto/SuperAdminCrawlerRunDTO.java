@@ -22,6 +22,7 @@ public class SuperAdminCrawlerRunDTO {
     private Integer errors;
     private String message;
     private String triggeredBy;
+    private LocalDateTime updatedAt;
     private List<String> sources = new ArrayList<>();
     private List<String> selectedCategories = new ArrayList<>();
 }

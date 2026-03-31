@@ -896,6 +896,31 @@ public class SuperAdminService {
         return toCrawlerRunDTO(crawlerRunRepository.save(newRun));
     }
 
+    public SuperAdminCrawlerRunDTO resumeCrawlerRun(UUID runId, String triggeredBy) {
+        CatalogCrawlerRun sourceRun = crawlerRunRepository.findById(runId)
+            .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+        List<String> sourceProviders = parseJsonArray(sourceRun.getSourcesJson());
+        if (sourceProviders.size() != 1) {
+            throw new IllegalArgumentException("Retomada indisponivel para runs antigos com mais de um supermercado.");
+        }
+        ensureNoActiveCrawlerRun(runId);
+
+        if (!isFinalRunStatus(sourceRun.getStatus())) {
+            cancelCrawlerRun(runId, triggeredBy);
+            sourceRun = crawlerRunRepository.findById(runId)
+                .orElseThrow(() -> new IllegalArgumentException("Execucao do crawler nao encontrada"));
+        }
+
+        CatalogCrawlerRun newRun = new CatalogCrawlerRun();
+        newRun.setRequestedAt(LocalDateTime.now());
+        newRun.setStatus("QUEUED");
+        newRun.setTriggeredBy(cleanLabel(triggeredBy, "MANUAL_SUPER_ADMIN_RESUME"));
+        newRun.setSourcesJson(toJsonArray(sourceProviders));
+        newRun.setFiltersJson(sourceRun.getFiltersJson());
+        newRun.setMessage(cleanMessage("Retomada por checkpoint solicitada a partir do run " + sourceRun.getId()));
+        return toCrawlerRunDTO(crawlerRunRepository.save(newRun));
+    }
+
     public SuperAdminCrawlerRunDTO claimPendingCrawlerRun(SuperAdminCrawlerRunClaimRequestDTO request) {
         String workerName = request != null ? request.getWorkerName() : null;
         while (true) {
@@ -1292,6 +1317,7 @@ public class SuperAdminService {
         dto.setErrors(run.getErrors());
         dto.setMessage(run.getMessage());
         dto.setTriggeredBy(run.getTriggeredBy());
+        dto.setUpdatedAt(run.getUpdatedAt());
         dto.setSources(parseJsonArray(run.getSourcesJson()));
         dto.setSelectedCategories(parseSelectedCategories(run.getFiltersJson()));
         return dto;

@@ -39,6 +39,7 @@ def main() -> int:
         mode="category-tree",
         category_tree_url="https://www.bistek.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.bistek.com.br/sitemap.xml",
+        non_fatal_page_errors=1,
     )
     options = ImportOptions(
         provider=job.provider,

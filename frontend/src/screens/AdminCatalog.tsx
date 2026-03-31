@@ -293,7 +293,7 @@ const CatalogAdmin: React.FC = () => {
         {loading ?(
           <div className="card">Carregando catálogo...</div>
         ) : (
-          <PanelSection kicker="Resultados" title="Produtos enriquecidos">
+          <PanelSection kicker="Resultados" title={`Produtos enriquecidos (${totalElements})`}>
 
             {rows.length === 0 ?(
               <div className="panel-empty">Nenhum item para os filtros atuais.</div>

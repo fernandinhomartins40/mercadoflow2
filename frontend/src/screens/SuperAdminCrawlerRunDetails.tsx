@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
@@ -14,6 +14,7 @@ interface CrawlerRun {
   requestedAt?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;
+  updatedAt?: string | null;
   scannedProducts?: number | null;
   importedProducts?: number | null;
   skippedInvalidGtin?: number | null;
@@ -27,18 +28,44 @@ interface CrawlerRun {
   selectedCategories?: string[] | null;
 }
 
+interface CrawlerCheckpoint {
+  id: string;
+  provider?: string | null;
+  scopeType?: string | null;
+  scopeKey?: string | null;
+  status?: string | null;
+  itemCount?: number | null;
+  errorMessage?: string | null;
+  updatedAt?: string | null;
+  metadata?: Record<string, any> | null;
+}
+
 interface CrawlerRunDetails {
   run: CrawlerRun;
   active: boolean;
   logText?: string | null;
   logPath?: string | null;
   resultPath?: string | null;
+  progressPath?: string | null;
+  heartbeatAt?: string | null;
+  logUpdatedAt?: string | null;
+  logSizeBytes?: number | null;
+  durationSeconds?: number | null;
+  capturedPerMinute?: number | null;
+  importedPerMinute?: number | null;
+  canResumeFromCheckpoint?: boolean | null;
+  continueHint?: string | null;
   recordsOffset: number;
   recordsLimit: number;
   recordsTotal: number;
+  liveProgress?: Record<string, any> | null;
+  checkpointStatusCounts?: Record<string, number> | null;
   summary: Record<string, any>[];
   manifests: Record<string, any>[];
   records: Record<string, any>[];
+  errorHighlights: string[];
+  recentCheckpoints: CrawlerCheckpoint[];
+  recentFailedCheckpoints: CrawlerCheckpoint[];
 }
 
 const formatDate = (value?: string | null) => {
@@ -51,7 +78,7 @@ const formatStatus = (value?: string | null) => {
   const status = (value || '').toUpperCase();
   if (status === 'RUNNING') return 'Executando';
   if (status === 'QUEUED') return 'Na fila';
-  if (status === 'SUCCESS') return 'Concludo';
+  if (status === 'SUCCESS') return 'Concluido';
   if (status === 'FAILED') return 'Falhou';
   if (status === 'CANCELLED') return 'Cancelado';
   return status || '--';
@@ -63,7 +90,35 @@ const runStatusClass = (value?: string | null) => {
   if (status === 'FAILED') return 'negative';
   if (status === 'RUNNING') return 'running';
   if (status === 'QUEUED') return 'scheduled';
+  if (status === 'CANCELLED') return 'neutral';
   return 'neutral';
+};
+
+const formatNumber = (value?: number | null) => new Intl.NumberFormat('pt-BR').format(Number(value || 0));
+
+const formatRate = (value?: number | null) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '--';
+  return `${formatNumber(Math.round(numeric))}/min`;
+};
+
+const formatBytes = (value?: number | null) => {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return '--';
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+};
+
+const formatDuration = (value?: number | null) => {
+  const seconds = Math.max(0, Math.round(Number(value || 0)));
+  if (seconds <= 0) return '--';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  if (minutes > 0) return `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s`;
+  return `${remainingSeconds}s`;
 };
 
 const detailValue = (value: any) => {
@@ -73,17 +128,30 @@ const detailValue = (value: any) => {
   return String(value);
 };
 
+const statusCountEntries = (counts?: Record<string, number> | null) =>
+  Object.entries(counts || {}).filter(([, value]) => Number(value || 0) > 0);
+
 const SuperAdminCrawlerRunDetails: React.FC = () => {
   const { runId = '' } = useParams();
+  const navigate = useNavigate();
   const [details, setDetails] = useState<CrawlerRunDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [autoLive, setAutoLive] = useState(true);
+  const [resuming, setResuming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const limit = 50;
 
-  const load = async (currentOffset: number) => {
+  const load = async (currentOffset: number, background = false) => {
     if (!runId) return;
-    setLoading(true);
+    if (background) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const response = await api.get(`/v1/super-admin/catalog/crawler/runs/${runId}/details`, {
         params: { offset: currentOffset, limit },
@@ -91,27 +159,35 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
       setDetails(response.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar os detalhes da execução');
+      setError(err?.message || 'Falha ao carregar os detalhes da execucao');
     } finally {
-      setLoading(false);
+      if (background) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     setOffset(0);
+    setDetails(null);
+    setError(null);
+    setSuccess(null);
   }, [runId]);
 
   useEffect(() => {
-    load(offset);
+    load(offset).catch(() => null);
   }, [runId, offset]);
 
   useEffect(() => {
-    if (!details?.active) return;
+    if (!autoLive || !runId) return;
+    const intervalMs = details?.active ? 2500 : 7000;
     const handle = window.setInterval(() => {
-      load(offset).catch(() => null);
-    }, 10000);
+      load(offset, true).catch(() => null);
+    }, intervalMs);
     return () => window.clearInterval(handle);
-  }, [details?.active, offset, runId]);
+  }, [autoLive, details?.active, offset, runId]);
 
   const canGoPrev = offset > 0;
   const canGoNext = useMemo(() => {
@@ -119,68 +195,106 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
     return offset + limit < Number(details.recordsTotal || 0);
   }, [details, offset]);
 
+  const checkpointCounts = statusCountEntries(details?.checkpointStatusCounts);
+  const liveStage = detailValue(details?.liveProgress?.stage);
+  const livePending = Number(details?.liveProgress?.pendingCount || 0);
+  const liveCaptured = Number(details?.liveProgress?.capturedProducts || details?.run?.scannedProducts || 0);
+  const liveImported = Number(details?.liveProgress?.importedProducts || details?.run?.importedProducts || 0);
+  const liveErrors = Number(details?.liveProgress?.errors || details?.run?.errors || 0);
+  const canCancel = Boolean(details?.active);
+  const canResume = Boolean(details?.canResumeFromCheckpoint);
+
   const metrics = details
     ? [
-        { title: 'Captados', value: Number(details.run.scannedProducts || 0), icon: 'CP', caption: 'produtos analisados' },
-        {
-          title: 'Importados',
-          value: Number(details.run.importedProducts || 0),
-          icon: 'IM',
-          variant: 'warning' as const,
-          caption: 'itens enviados ao catálogo global',
-        },
-        {
-          title: 'Erros',
-          value: Number(details.run.errors || 0),
-          icon: 'ER',
-          variant: 'danger' as const,
-          caption: 'falhas registradas na rodada',
-        },
-        {
-          title: 'Escopo',
-          value:
-            details.run.selectedCategories && details.run.selectedCategories.length > 0
-              ? details.run.selectedCategories.length
-              : 'Completo',
-          icon: 'SC',
-          caption: 'categorias selecionadas ou varredura completa',
-        },
+        { title: 'Captados', value: formatNumber(details.run.scannedProducts), icon: 'PD', caption: 'itens ja varridos' },
+        { title: 'Importados', value: formatNumber(details.run.importedProducts), icon: 'EXE', variant: 'warning' as const, caption: 'enviados ao catalogo global' },
+        { title: 'Erros', value: formatNumber(details.run.errors), icon: 'AT', variant: 'danger' as const, caption: 'falhas acumuladas nesta rodada' },
+        { title: 'Ritmo', value: formatRate(details.importedPerMinute || details.capturedPerMinute), icon: 'PX', caption: 'throughput atual estimado' },
       ]
     : [];
+
+  const refreshLabel = loading ? 'Atualizando...' : refreshing ? 'Sincronizando...' : 'Atualizar';
+
+  const handleCancel = async () => {
+    if (!details?.run?.id) return;
+    setCancelling(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.post(`/v1/super-admin/catalog/crawler/runs/${details.run.id}/cancel?triggeredBy=MANUAL_SUPER_ADMIN_CANCEL`);
+      setSuccess('Execucao marcada para cancelamento. O dispatcher vai encerrar a rodada no proximo ponto seguro.');
+      await load(offset, true);
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao solicitar o cancelamento da execucao');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleResume = async () => {
+    if (!details?.run?.id) return;
+    if (!window.confirm('Criar uma nova rodada retomando os checkpoints completos deste run?')) return;
+    setResuming(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await api.post(`/v1/super-admin/catalog/crawler/runs/${details.run.id}/resume?triggeredBy=MANUAL_SUPER_ADMIN_RESUME`);
+      const nextRunId = response.data?.id;
+      if (nextRunId) {
+        navigate(`/super-admin/crawler/runs/${nextRunId}`);
+        return;
+      }
+      setSuccess('Nova rodada enfileirada para retomar os checkpoints completos.');
+      await load(offset, true);
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao retomar a execucao a partir do checkpoint');
+    } finally {
+      setResuming(false);
+    }
+  };
 
   return (
     <SuperAdminLayout>
       <div className="page super-admin-page">
         <PageHero
           badge="Detalhes da coleta"
-          title="Detalhes da execução."
-          description="Esta página concentra status, escopo, artefatos, amostra de produtos e logs de uma única rodada."
+          title="Painel operacional da execucao"
+          description="Acompanhe logs, throughput, checkpoints e artefatos deste run em tempo quase real. Quando houver falha, a retomada pode criar uma nova rodada aproveitando o progresso salvo."
           actions={
             <>
               <ButtonLink variant="secondary" to="/super-admin/crawler">Voltar ao crawler</ButtonLink>
-              <Button variant="secondary" onClick={() => load(offset)} disabled={loading}>
-                {loading ? 'Atualizando...' : 'Atualizar'}
+              <Button variant="secondary" onClick={() => setAutoLive((current) => !current)}>
+                {autoLive ? 'Ao vivo ligado' : 'Ao vivo pausado'}
+              </Button>
+              <Button variant="secondary" onClick={() => load(offset)} disabled={loading || resuming || cancelling}>
+                {refreshLabel}
+              </Button>
+              <Button variant="secondary" onClick={handleCancel} disabled={!canCancel || cancelling || resuming}>
+                {cancelling ? 'Cancelando...' : 'Parar execucao'}
+              </Button>
+              <Button onClick={handleResume} disabled={!canResume || resuming || cancelling || details?.active}>
+                {resuming ? 'Retomando...' : 'Continuar do erro'}
               </Button>
             </>
           }
           feature={
             <>
               <article className="dashboard-glow-card">
-                <span className="section-kicker">Resumo da rodada</span>
+                <span className="section-kicker">Status da rodada</span>
                 <strong>{details?.run ? formatStatus(details.run.status) : 'Carregando'}</strong>
-                <p>{details?.run?.message || 'Sem mensagem registrada.'}</p>
+                <p>{details?.run?.message || 'Sem mensagem operacional registrada no momento.'}</p>
               </article>
               <div className="dashboard-command-mosaic">
                 <article className="dashboard-mini-tile">
-                  <span>Solicitado em</span>
-                  <strong>{details?.run ? formatDate(details.run.requestedAt) : '--'}</strong>
+                  <span>Heartbeat</span>
+                  <strong>{formatDate(details?.heartbeatAt || details?.run?.updatedAt)}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Finalizado em</span>
-                  <strong>{details?.run ? formatDate(details.run.finishedAt || details.run.startedAt) : '--'}</strong>
+                  <span>Ritmo</span>
+                  <strong>{formatRate(details?.importedPerMinute || details?.capturedPerMinute)}</strong>
                 </article>
                 <article className="dashboard-mini-tile">
-                  <span>Disparado por</span>
+                  <span>Worker</span>
                   <strong>{details?.run?.triggeredBy || '--'}</strong>
                 </article>
               </div>
@@ -189,7 +303,8 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
         />
 
         {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
-        {loading && !details ? <div className="card">Carregando detalhes...</div> : null}
+        {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
+        {loading && !details ? <div className="card">Carregando detalhes do run...</div> : null}
 
         {details ? (
           <>
@@ -207,8 +322,12 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
             </section>
 
             <div className="dashboard-page-grid">
-              <PanelSection className="dashboard-note-card" kicker="Metadados da rodada" title="Contexto principal da execução">
+              <PanelSection className="dashboard-note-card" kicker="Contexto da rodada" title="Escopo e sincronizacao">
                 <div className="dashboard-stat-list">
+                  <div className="dashboard-stat-row">
+                    <span>Status</span>
+                    <strong><span className={`status-pill ${runStatusClass(details.run.status)}`}>{formatStatus(details.run.status)}</span></strong>
+                  </div>
                   <div className="dashboard-stat-row">
                     <span>Solicitado</span>
                     <strong>{formatDate(details.run.requestedAt)}</strong>
@@ -225,22 +344,105 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     <span>Mercado</span>
                     <strong>{(details.run.sources || []).join(', ') || '--'}</strong>
                   </div>
+                  <div className="dashboard-stat-row">
+                    <span>Categorias</span>
+                    <strong>{details.run.selectedCategories && details.run.selectedCategories.length > 0 ? details.run.selectedCategories.join(', ') : 'Catalogo completo'}</strong>
+                  </div>
                 </div>
               </PanelSection>
 
-              <PanelSection className="dashboard-note-card" kicker="Artefatos" title="Arquivos salvos para auditoria">
-                <div className="dashboard-quick-list">
-                  <div className="dashboard-quick-item">
-                    <strong>Log</strong>
-                    <span>{details.logPath || '--'}</span>
+              <PanelSection className="dashboard-note-card" kicker="Telemetria ao vivo" title="Progresso parcial do dispatcher">
+                <div className="dashboard-stat-list">
+                  <div className="dashboard-stat-row">
+                    <span>Etapa</span>
+                    <strong>{liveStage}</strong>
                   </div>
-                  <div className="dashboard-quick-item">
-                    <strong>Arquivo de resultado</strong>
-                    <span>{details.resultPath || '--'}</span>
+                  <div className="dashboard-stat-row">
+                    <span>Heartbeat</span>
+                    <strong>{formatDate(details.heartbeatAt || details.run.updatedAt)}</strong>
+                  </div>
+                  <div className="dashboard-stat-row">
+                    <span>Duracao</span>
+                    <strong>{formatDuration(details.durationSeconds)}</strong>
+                  </div>
+                  <div className="dashboard-stat-row">
+                    <span>Pendentes no lote</span>
+                    <strong>{formatNumber(livePending)}</strong>
+                  </div>
+                  <div className="dashboard-stat-row">
+                    <span>Arquivos ao vivo</span>
+                    <strong>{details.progressPath || '--'}</strong>
+                  </div>
+                  <div className="dashboard-stat-row">
+                    <span>Tail do log</span>
+                    <strong>{formatBytes(details.logSizeBytes)}</strong>
                   </div>
                 </div>
               </PanelSection>
             </div>
+
+            <PanelSection kicker="Retomada" title="Continuar a partir do erro">
+              <div className="crawler-run-action-grid">
+                <article className="card crawler-run-checkpoint-card">
+                  <span className="section-kicker">Continuar do erro</span>
+                  <h3>Nova rodada com checkpoint</h3>
+                  <p>{details.continueHint || 'Quando houver progresso salvo, a retomada cria um novo run e evita revarrer escopos concluidos.'}</p>
+                  <div className="crawler-run-actions">
+                    <Button onClick={handleResume} disabled={!canResume || resuming || details.active}>
+                      {resuming ? 'Retomando...' : 'Criar retomada'}
+                    </Button>
+                  </div>
+                </article>
+                <article className="card crawler-run-checkpoint-card">
+                  <span className="section-kicker">Recuperacao operacional</span>
+                  <h3>O que olhar antes de retomar</h3>
+                  <div className="crawler-run-checkpoint-list">
+                    <div className="crawler-run-checkpoint-item">
+                      <strong>Log vivo</strong>
+                      <span>Use os destaques de erro abaixo para identificar timeout, 5xx ou queda do backend.</span>
+                    </div>
+                    <div className="crawler-run-checkpoint-item">
+                      <strong>Checkpoints falhos</strong>
+                      <span>Os escopos com status FAILED indicam exatamente onde a coleta parou ou precisou repetir.</span>
+                    </div>
+                    <div className="crawler-run-checkpoint-item">
+                      <strong>Heartbeat</strong>
+                      <span>Se o heartbeat parar de evoluir, o worker travou ou o site externo deixou de responder.</span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </PanelSection>
+
+            <PanelSection kicker="Checkpoints" title="Cobertura, falhas e progresso reaproveitavel">
+              {checkpointCounts.length === 0 && details.recentCheckpoints.length === 0 ? (
+                <div className="panel-empty">Nenhum checkpoint persistido para este run ate agora.</div>
+              ) : (
+                <>
+                  <div className="crawler-run-checkpoint-grid">
+                    {checkpointCounts.map(([status, value]) => (
+                      <article className="card crawler-run-checkpoint-card" key={status}>
+                        <span className="section-kicker">{status}</span>
+                        <h3>{formatNumber(value)}</h3>
+                        <p>escopos com este estado no run atual</p>
+                      </article>
+                    ))}
+                  </div>
+
+                  {details.recentFailedCheckpoints.length > 0 ? (
+                    <div className="crawler-run-checkpoint-list">
+                      {details.recentFailedCheckpoints.map((checkpoint) => (
+                        <div className="crawler-run-checkpoint-item" key={checkpoint.id}>
+                          <strong>{checkpoint.scopeType || '--'}: {checkpoint.scopeKey || '--'}</strong>
+                          <span>{checkpoint.errorMessage || 'Falha sem mensagem detalhada.'}</span>
+                          <span className="table-subtext">Atualizado em {formatDate(checkpoint.updatedAt)} | itens {formatNumber(checkpoint.itemCount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </PanelSection>
 
             <PanelSection className="reveal" kicker="Manifestos" title="Arquivos gerados por mercado">
               <div className="crawler-run-manifest-grid">
@@ -251,9 +453,9 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     <div className="crawler-run-detail-meta">
                       <span><strong>Total:</strong> {detailValue(manifest.count)}</span>
                       <span><strong>Capturados:</strong> {detailValue(manifest.capturedProducts)}</span>
+                      <span><strong>Importados:</strong> {detailValue(manifest.importedProducts)}</span>
                       <span><strong>Imagens:</strong> {detailValue(manifest.imagesSaved)}</span>
-                      <span><strong>Páginas:</strong> {detailValue(manifest.pagesFetched)}</span>
-                      <span><strong>Únicos:</strong> {detailValue(manifest.productsUnique)}</span>
+                      <span><strong>Pendentes:</strong> {detailValue(manifest.pendingCount)}</span>
                     </div>
                     <p><strong>Manifesto:</strong> {detailValue(manifest.outputManifest)}</p>
                     <p><strong>Registros:</strong> {detailValue(manifest.recordsFile)}</p>
@@ -264,7 +466,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
 
             <PanelSection
               kicker="Produtos"
-              title="Itens captados nesta execução"
+              title="Itens captados nesta execucao"
               action={
                 <div className="crawler-run-pagination">
                   <span>
@@ -272,12 +474,12 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                     {Math.min(offset + limit, Number(details.recordsTotal || 0))} de {Number(details.recordsTotal || 0)}
                   </span>
                   <Button variant="secondary" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={!canGoPrev || loading}>Anterior</Button>
-                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Próximos</Button>
+                  <Button variant="secondary" onClick={() => setOffset(offset + limit)} disabled={!canGoNext || loading}>Proximos</Button>
                 </div>
               }
             >
               {details.records.length === 0 ? (
-                <div className="panel-empty">Nenhum produto registrado nos artefatos desta execução.</div>
+                <div className="panel-empty">Nenhum produto disponivel nos artefatos desta execucao ainda.</div>
               ) : (
                 <div className="catalog-admin-table-wrap">
                   <table className="table catalog-admin-table">
@@ -317,12 +519,33 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
               )}
             </PanelSection>
 
-            <PanelSection kicker="Logs" title="Saída do dispatcher">
+            <PanelSection kicker="Logs" title="Tail vivo do dispatcher">
               <div className="crawler-run-log-meta">
                 <span><strong>Log:</strong> {details.logPath || '--'}</span>
                 <span><strong>Resultado:</strong> {details.resultPath || '--'}</span>
+                <span><strong>Progresso:</strong> {details.progressPath || '--'}</span>
+                <span><strong>Atualizado:</strong> {formatDate(details.logUpdatedAt || details.heartbeatAt)}</span>
               </div>
-              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execução.'}</pre>
+
+              {details.errorHighlights.length > 0 ? (
+                <div className="crawler-run-checkpoint-list">
+                  {details.errorHighlights.map((line, index) => (
+                    <div className="crawler-run-checkpoint-item" key={`${line}-${index}`}>
+                      <strong>Erro destacado</strong>
+                      <span>{line}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <pre className="crawler-run-log-viewer">{details.logText || 'Nenhum log salvo para esta execucao.'}</pre>
+
+              <div className="crawler-run-checkpoint-list">
+                <div className="crawler-run-checkpoint-item">
+                  <strong>Progresso vivo</strong>
+                  <span>capturados={formatNumber(liveCaptured)} | importados={formatNumber(liveImported)} | erros={formatNumber(liveErrors)} | pendentes={formatNumber(livePending)}</span>
+                </div>
+              </div>
             </PanelSection>
           </>
         ) : null}

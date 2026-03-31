@@ -302,6 +302,14 @@ public class SuperAdminController {
         return ResponseEntity.ok(superAdminService.restartCrawlerRun(runId, triggeredBy));
     }
 
+    @PostMapping("/catalog/crawler/runs/{runId}/resume")
+    public ResponseEntity<SuperAdminCrawlerRunDTO> resumeCrawlerRun(
+        @PathVariable UUID runId,
+        @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN_RESUME") String triggeredBy
+    ) {
+        return ResponseEntity.ok(superAdminService.resumeCrawlerRun(runId, triggeredBy));
+    }
+
     @PostMapping("/catalog/crawler/runs/claim")
     public ResponseEntity<SuperAdminCrawlerRunDTO> claimCrawlerRun(
         @RequestBody(required = false) SuperAdminCrawlerRunClaimRequestDTO request

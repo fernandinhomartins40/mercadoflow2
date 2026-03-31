@@ -2529,7 +2529,19 @@
   margin-bottom: 20px;
 }
 
+.crawler-run-action-grid,
+.crawler-run-checkpoint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
 .crawler-run-detail-card {
+  display: grid;
+  gap: 10px;
+}
+
+.crawler-run-checkpoint-card {
   display: grid;
   gap: 10px;
 }
@@ -2538,10 +2550,38 @@
   margin: 0;
 }
 
+.crawler-run-checkpoint-card h3 {
+  margin: 0;
+}
+
 .crawler-run-detail-meta {
   display: grid;
   gap: 6px;
   color: var(--muted);
+}
+
+.crawler-run-checkpoint-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.crawler-run-checkpoint-item {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(26, 43, 64, 0.1);
+  background: rgba(244, 248, 251, 0.92);
+}
+
+.crawler-run-checkpoint-item strong {
+  color: var(--text-primary);
+}
+
+.crawler-run-checkpoint-item span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .crawler-run-pagination {
@@ -2607,6 +2647,11 @@
 
   .catalog-admin-table {
     min-width: 100%;
+  }
+
+  .crawler-run-action-grid,
+  .crawler-run-checkpoint-grid {
+    grid-template-columns: 1fr;
   }
 
   .responsive-data-table {

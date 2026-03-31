@@ -32,6 +32,7 @@ interface CatalogRow {
 interface PageResponse<T> {
   content: T[];
   totalPages: number;
+  totalElements: number;
   number: number;
 }
 
@@ -163,6 +164,7 @@ const SuperAdminCatalogManager: React.FC = () => {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const rows = rowsPage?.content || [];
+  const totalElements = rowsPage?.totalElements ?? 0;
   const editorImageUrl = form.imageUrl.trim();
   const editorProviderLabel = textValue(form.provider);
   const editorProviderProductIdLabel = textValue(form.providerProductId);
@@ -443,10 +445,10 @@ const SuperAdminCatalogManager: React.FC = () => {
           feature={
             <>
               <div className="dashboard-glow-card">
-                <span className="section-kicker">Itens nesta página</span>
-                <h3>{rows.length} produtos visíveis</h3>
-                <strong>{rowsPage?.number != null ? rowsPage.number + 1 : page + 1}</strong>
-                <p>{rowsPage ? `${rowsPage.totalPages} páginas disponíveis para navegação.` : 'Carregue a base para ver o recorte atual.'}</p>
+                <span className="section-kicker">Total no catálogo</span>
+                <h3>{totalElements} produtos</h3>
+                <strong>{rows.length} visíveis nesta página</strong>
+                <p>{rowsPage ? `Página ${rowsPage.number + 1} de ${Math.max(rowsPage.totalPages, 1)}.` : 'Carregue a base para ver o recorte atual.'}</p>
               </div>
 
               <div className="dashboard-command-mosaic">
@@ -490,7 +492,7 @@ const SuperAdminCatalogManager: React.FC = () => {
           ) : null}
         </PanelSection>
 
-        <PanelSection className="catalog-admin-list-panel" kicker="Listagem" title="Produtos do catálogo global">
+        <PanelSection className="catalog-admin-list-panel" kicker="Listagem" title={`Produtos do catálogo global (${totalElements})`}>
           {loading ? (
             <div className="panel-empty">Carregando catálogo...</div>
           ) : (

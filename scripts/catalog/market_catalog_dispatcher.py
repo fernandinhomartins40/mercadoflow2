@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text
+from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text, utc_now_iso, write_json_atomic
 from fixed_market_catalog_condor import CondorJobConfig, run_condor_catalog_job
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
 from fixed_market_catalog_guanabara import GuanabaraJobConfig, run_guanabara_catalog_job
@@ -231,6 +231,8 @@ def load_schedule(api_base: str, endpoint: str, token: str, fallback_minutes: in
 
 
 def build_options(args: argparse.Namespace, provider: str, source_license: str, output: str) -> ImportOptions:
+    run_id = norm_text(getattr(args, "_run_id", ""))
+    progress_path = str((Path(args.runs_dir).resolve() / run_id / "progress.json")) if run_id else ""
     return ImportOptions(
         provider=provider,
         source_license=source_license,
@@ -247,7 +249,8 @@ def build_options(args: argparse.Namespace, provider: str, source_license: str, 
         images_dir=args.images_dir,
         max_image_bytes=args.max_image_bytes,
         output=output,
-        run_id=norm_text(getattr(args, "_run_id", "")),
+        run_id=run_id,
+        progress_path=progress_path,
         checkpoints_list_endpoint=args.checkpoints_list_endpoint,
         checkpoints_batch_endpoint=args.checkpoints_batch_endpoint,
         catalog_image_status_endpoint=args.catalog_image_status_endpoint,
@@ -354,13 +357,19 @@ def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
         catalog_api_base="https://www.atacadao.com.br",
         mode="category-tree",
         category_tree_url="https://www.atacadao.com.br/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.atacadao.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "ATACADAO_WEB_BR"),
+        catalog_retry_attempts=6,
+        catalog_min_interval_seconds=0.2,
+        brand_resolve_workers=3,
+        non_fatal_page_errors=1,
     )
     return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
         page_size=max(10, min(50, args.atacadao_page_size)),
         max_pages_per_leaf=max(0, args.atacadao_max_pages),
+        residual_product_workers=4,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -469,12 +478,14 @@ def run_bistek(args: argparse.Namespace) -> Dict[str, Any]:
         category_tree_url="https://www.bistek.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.bistek.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "BISTEK_WEB_BR"),
+        non_fatal_page_errors=1,
     )
     return run_vtex_category_tree_job(
         job,
         build_options(args, job.provider, job.source_license, job.output),
         page_size=50,
         max_pages_per_leaf=0,
+        residual_product_workers=4,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -515,10 +526,12 @@ def run_festval(args: argparse.Namespace) -> Dict[str, Any]:
         catalog_api_base="https://www.festval.com",
         mode="category-tree",
         category_tree_url="https://www.festval.com/api/catalog_system/pub/category/tree/20",
+        sitemap_index_url="https://www.festval.com/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "FESTVAL_WEB_BR"),
         catalog_retry_attempts=6,
         catalog_min_interval_seconds=0.2,
         brand_resolve_workers=3,
+        non_fatal_page_errors=1,
     )
     return run_vtex_category_tree_job(
         job,
@@ -874,6 +887,40 @@ def write_run_result(runs_dir: str, run_id: str, result: Dict[str, Any]) -> None
     run_dir = Path(runs_dir).resolve() / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    progress_path = run_dir / "progress.json"
+    existing_progress: Dict[str, Any] = {}
+    if progress_path.is_file():
+        try:
+            payload = json.loads(progress_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                existing_progress = payload
+        except Exception:
+            existing_progress = {}
+    provider = ""
+    summary = result.get("summary")
+    if isinstance(summary, list):
+        for item in summary:
+            if isinstance(item, dict) and norm_text(item.get("provider")):
+                provider = norm_text(item.get("provider"))
+                break
+    final_progress = {
+        **existing_progress,
+        "runId": run_id,
+        "provider": provider or norm_text(existing_progress.get("provider")),
+        "status": norm_text(result.get("status")).upper() or norm_text(existing_progress.get("status")).upper() or "FAILED",
+        "stage": "FINALIZED",
+        "message": norm_text(result.get("message")) or norm_text(existing_progress.get("message")),
+        "updatedAt": utc_now_iso(),
+        "capturedProducts": int(result.get("scannedProducts", existing_progress.get("capturedProducts", 0)) or 0),
+        "scannedProducts": int(result.get("scannedProducts", existing_progress.get("scannedProducts", 0)) or 0),
+        "importedProducts": int(result.get("importedProducts", existing_progress.get("importedProducts", 0)) or 0),
+        "skippedInvalidGtin": int(result.get("skippedInvalidGtin", existing_progress.get("skippedInvalidGtin", 0)) or 0),
+        "skippedMissingName": int(result.get("skippedMissingName", existing_progress.get("skippedMissingName", 0)) or 0),
+        "skippedMedication": int(result.get("skippedMedication", existing_progress.get("skippedMedication", 0)) or 0),
+        "skippedDuplicateGtin": int(result.get("skippedDuplicateGtin", existing_progress.get("skippedDuplicateGtin", 0)) or 0),
+        "errors": int(result.get("errors", existing_progress.get("errors", 0)) or 0),
+    }
+    write_json_atomic(progress_path, final_progress)
 
 
 def main() -> int:
