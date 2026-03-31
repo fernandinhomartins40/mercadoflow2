@@ -126,7 +126,7 @@ public class CatalogCrawlerRunArtifactsService {
                 continue;
             }
 
-            String provider = firstNonBlank(
+            String manifestProvider = firstNonBlank(
                 asText(item.get("provider")),
                 asText(manifest.get("provider")),
                 (run.getSources() != null && !run.getSources().isEmpty()) ? run.getSources().get(0) : ""
@@ -134,11 +134,11 @@ public class CatalogCrawlerRunArtifactsService {
             String recordsPathRaw = asText(manifest.get("recordsFile"));
             Path recordsPath = resolveCatalogPath(recordsPathRaw);
             if (recordsPath != null) {
-                addRecordSource(recordSources, provider, recordsPath);
+                addRecordSource(recordSources, manifestProvider, recordsPath);
             }
 
             Map<String, Object> manifestView = new LinkedHashMap<>(manifest);
-            manifestView.put("provider", provider);
+            manifestView.put("provider", manifestProvider);
             manifestView.put("outputManifest", manifestPath.toString());
             if (recordsPath != null) {
                 manifestView.put("recordsFile", recordsPath.toString());
