@@ -445,10 +445,10 @@ const SuperAdminCatalogManager: React.FC = () => {
           feature={
             <>
               <div className="dashboard-glow-card">
-                <span className="section-kicker">Total no catálogo</span>
-                <h3>{totalElements} produtos</h3>
+                <span className="section-kicker">Total unico no catalogo</span>
+                <h3>{totalElements} GTINs unicos</h3>
                 <strong>{rows.length} visíveis nesta página</strong>
-                <p>{rowsPage ? `Página ${rowsPage.number + 1} de ${Math.max(rowsPage.totalPages, 1)}.` : 'Carregue a base para ver o recorte atual.'}</p>
+                <p>{rowsPage ? `Pagina ${rowsPage.number + 1} de ${Math.max(rowsPage.totalPages, 1)}. Reimportacoes atualizam GTINs existentes e nao aumentam este total.` : 'Carregue a base para ver o recorte atual.'}</p>
               </div>
 
               <div className="dashboard-command-mosaic">
@@ -492,7 +492,7 @@ const SuperAdminCatalogManager: React.FC = () => {
           ) : null}
         </PanelSection>
 
-        <PanelSection className="catalog-admin-list-panel" kicker="Listagem" title={`Produtos do catálogo global (${totalElements})`}>
+        <PanelSection className="catalog-admin-list-panel" kicker="Listagem" title={`Produtos unicos do catalogo global (${totalElements})`}>
           {loading ? (
             <div className="panel-empty">Carregando catálogo...</div>
           ) : (

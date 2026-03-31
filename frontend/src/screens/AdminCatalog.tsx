@@ -226,11 +226,11 @@ const CatalogAdmin: React.FC = () => {
       <div className="page analytics-page catalog-admin-page admin-catalog-page">
         <PageHeader
           title="Catálogo global"
-          subtitle="Consulta e manutenção da base enriquecida."
+          subtitle="Consulta e manutencao da base enriquecida por GTIN unico."
         />
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Total no banco" value={totalElements} icon="DB" />
+          <MetricsCard title="Total unico no banco" value={totalElements} icon="DB" />
           <MetricsCard title="Na página" value={rows.length} icon="PG" />
           <MetricsCard title="Com imagem" value={withImageCount} icon="IM" />
           <MetricsCard title="Marcas" value={brandCount} icon="BR" />
@@ -293,7 +293,7 @@ const CatalogAdmin: React.FC = () => {
         {loading ?(
           <div className="card">Carregando catálogo...</div>
         ) : (
-          <PanelSection kicker="Resultados" title={`Produtos enriquecidos (${totalElements})`}>
+          <PanelSection kicker="Resultados" title={`Produtos unicos enriquecidos (${totalElements})`}>
 
             {rows.length === 0 ?(
               <div className="panel-empty">Nenhum item para os filtros atuais.</div>
