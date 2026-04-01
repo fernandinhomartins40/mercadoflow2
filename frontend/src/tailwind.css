@@ -225,6 +225,102 @@
     @apply flex flex-col gap-4;
   }
 
+  .state-price-layout {
+    @apply grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)];
+  }
+
+  .state-price-main,
+  .state-price-aside {
+    @apply flex min-w-0 flex-col gap-5;
+  }
+
+  .state-price-hero-panel {
+    @apply flex flex-col gap-3;
+  }
+
+  .state-price-filters {
+    @apply grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.55fr)_minmax(180px,0.55fr)_auto] lg:items-end;
+  }
+
+  .state-price-filter-actions {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .state-price-active-filters {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .state-price-results-meta {
+    @apply mt-4 flex flex-wrap items-center justify-between gap-3 text-sm;
+    color: var(--text-muted);
+  }
+
+  .state-price-table-wrap {
+    @apply mt-3 overflow-x-auto rounded-[22px] border bg-white/80 p-2 shadow-[0_12px_26px_rgba(44,20,6,0.06)];
+    border-color: var(--border-soft);
+  }
+
+  .state-price-table {
+    @apply min-w-[920px];
+  }
+
+  .state-price-table tbody tr {
+    @apply cursor-pointer transition hover:bg-[rgba(255,106,0,0.05)];
+  }
+
+  .state-price-table tbody tr.is-selected {
+    background: rgba(255, 106, 0, 0.09);
+  }
+
+  .state-price-product-cell {
+    @apply flex flex-col gap-1;
+  }
+
+  .state-price-pagination {
+    @apply justify-end;
+  }
+
+  .state-price-detail-card {
+    @apply flex flex-col gap-4;
+  }
+
+  .state-price-detail-header {
+    @apply flex flex-col gap-1;
+  }
+
+  .state-price-best-worst {
+    @apply grid gap-3 md:grid-cols-2;
+  }
+
+  .state-price-note,
+  .state-price-source-card,
+  .state-price-observation-item {
+    @apply flex flex-col gap-1 rounded-[18px] border p-4;
+    border-color: var(--border-soft);
+    background: rgba(255, 255, 255, 0.78);
+  }
+
+  .state-price-source-grid {
+    @apply grid gap-3 sm:grid-cols-2;
+  }
+
+  .state-price-observation-list {
+    @apply grid gap-3;
+  }
+
+  .state-price-import-box {
+    @apply flex flex-col gap-3;
+  }
+
+  .state-price-import-help {
+    @apply m-0 text-sm leading-6;
+    color: var(--text-muted);
+  }
+
+  .state-price-import-textarea {
+    @apply min-h-[260px] font-mono text-[13px];
+  }
+
   .page-hero-grid {
     @apply grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.34fr)];
   }

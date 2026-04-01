@@ -1,0 +1,47 @@
+[
+  {
+    "provider": "MENOR_PRECO_PR",
+    "name": "Menor Preco Parana",
+    "stateCode": "PR",
+    "serviceName": "Menor Preco / Nota Parana",
+    "serviceUrl": "https://menorpreco.notaparana.pr.gov.br/",
+    "coverageStates": "PR",
+    "notes": "Portal oficial do Paraná. A página pública de pesquisa existe, mas a automação pode exigir browser ou sessão persistente."
+  },
+  {
+    "provider": "PRECO_DA_HORA_BA",
+    "name": "Preco da Hora Bahia",
+    "stateCode": "BA",
+    "serviceName": "Preco da Hora Bahia",
+    "serviceUrl": "https://precodahora.ba.gov.br/",
+    "coverageStates": "BA",
+    "notes": "Portal oficial da SEFAZ Bahia. A interface publica usa desafio anti-bot/recaptcha e pode exigir sessao valida."
+  },
+  {
+    "provider": "PRECO_DA_HORA_PB",
+    "name": "Preco da Hora Paraiba",
+    "stateCode": "PB",
+    "serviceName": "Preco da Hora Paraiba",
+    "serviceUrl": "https://precodahora.pb.gov.br/",
+    "coverageStates": "PB",
+    "notes": "Portal oficial da Paraiba."
+  },
+  {
+    "provider": "BUSCA_PRECO_AM",
+    "name": "Busca Preco Amazonas",
+    "stateCode": "AM",
+    "serviceName": "Busca Preco Amazonas",
+    "serviceUrl": "https://buscapreco.sefaz.am.gov.br/",
+    "coverageStates": "AM",
+    "notes": "Portal oficial da SEFAZ Amazonas."
+  },
+  {
+    "provider": "MENOR_PRECO_BRASIL",
+    "name": "Menor Preco Brasil",
+    "stateCode": "RS",
+    "serviceName": "Menor Preco Brasil",
+    "serviceUrl": "https://nfg.sefaz.rs.gov.br/site/MenorPreco.aspx",
+    "coverageStates": "AC,AL,AP,CE,DF,ES,PA,PE,PI,RJ,RN,RO,RR,RS,SE,TO",
+    "notes": "Portal nacional do RS com cobertura para multiplas UFs."
+  }
+]

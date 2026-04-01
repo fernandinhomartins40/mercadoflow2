@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, Database, Home, Sparkles, Users } from 'lucide-react';
+import { Bot, Database, Globe2, Home, Sparkles, Users } from 'lucide-react';
 import Button from '../common/Button';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 import WorkspaceTopbar from './WorkspaceTopbar';
@@ -11,6 +11,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/super-admin': { title: 'Visão geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
   '/super-admin/saas': { title: 'Contas e acesso', subtitle: 'Contas, usuários, vencimentos e liberações manuais', section: 'Controle' },
   '/super-admin/catalogo': { title: 'Catálogo global', subtitle: 'Base central de produtos, ajustes manuais e revisão da qualidade', section: 'Dados' },
+  '/super-admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação dos preços praticados entre estados e fontes oficiais', section: 'Dados' },
   '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualização de dados dos supermercados', section: 'Dados' },
   '/super-admin/ofertas': { title: 'Templates de ofertas', subtitle: 'Base visual compartilhada para as contas da plataforma', section: 'Dados' },
 };
@@ -45,6 +46,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       title: 'Dados',
       items: [
         { to: '/super-admin/catalogo', label: 'Catálogo global', hint: 'Base central de produtos', icon: Database },
+        { to: '/super-admin/precos-estaduais', label: 'Preços estaduais', hint: 'Comparação entre estados', icon: Globe2 },
         { to: '/ofertas?workspace=super-admin', label: 'Templates de ofertas', hint: 'Base visual por conta', icon: Sparkles },
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
       ],

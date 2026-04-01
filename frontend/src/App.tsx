@@ -28,6 +28,7 @@ const SuperAdminUsers = lazy(() => import('./screens/SuperAdminUsers'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
+const StatePriceComparison = lazy(() => import('./screens/StatePriceComparison'));
 
 const PageLoader = () => (
   <div className="card flex min-h-[220px] items-center justify-center text-base font-medium text-[color:var(--text-muted)]">
@@ -119,11 +120,14 @@ const App: React.FC = () => {
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
+        <Route path="/app/precos-estaduais" element={<Navigate to="/app/admin/precos-estaduais" replace />} />
+        <Route path="/app/admin/precos-estaduais" element={secure(<StatePriceComparison />)} />
 
         <Route path="/super-admin" element={secureSuperAdmin(<SuperAdminDashboard />)} />
         <Route path="/super-admin/saas" element={secureSuperAdmin(<SuperAdminUsers />)} />
         <Route path="/super-admin/usuarios" element={<Navigate to="/super-admin/saas" replace />} />
         <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
+        <Route path="/super-admin/precos-estaduais" element={secureSuperAdmin(<StatePriceComparison />)} />
         <Route path="/super-admin/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="super-admin" />} />
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />

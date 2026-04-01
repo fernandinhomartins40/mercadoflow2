@@ -20,6 +20,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/app/alertas': { title: 'Alertas', subtitle: 'Ocorrências e sinais que exigem ação imediata', section: 'Análise e operação' },
   '/app/pdvs': { title: 'PDVs', subtitle: 'Origem operacional das vendas e distribuição dos resultados', section: 'Análise e operação' },
   '/app/admin/catalogo': { title: 'Catálogo global', subtitle: 'Base unificada de produtos externos para administração', section: 'Configuração' },
+  '/app/admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação dos preços praticados entre estados e fontes oficiais', section: 'Configuração' },
   '/app/configuracoes': { title: 'Configurações', subtitle: 'Acessos, integrações e parâmetros da conta', section: 'Configuração' },
   '/app/download-agente': { title: 'Download do agente', subtitle: 'Instalação e distribuição do coletor local', section: 'Configuração' },
 };

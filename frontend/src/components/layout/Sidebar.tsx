@@ -3,6 +3,7 @@ import {
   Bell,
   Database,
   Download,
+  Globe2,
   Home,
   Link2,
   Megaphone,
@@ -60,6 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: 'Configuração',
       items: [
         ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Catálogo global', hint: 'Base consolidada de produtos', icon: Database }] : []),
+        ...(isAdmin ? [{ to: '/app/admin/precos-estaduais', label: 'Preços estaduais', hint: 'Comparação entre estados', icon: Globe2 }] : []),
         { to: '/app/download-agente', label: 'Download do agente', hint: 'Instalação do coletor local', icon: Download },
         { to: '/app/configuracoes', label: 'Configurações', hint: 'Acesso e integrações', icon: Settings },
       ],

@@ -568,7 +568,11 @@ public class ProductCatalogService {
         if (candidateName == null || candidateName.isBlank()) {
             return false;
         }
-        if (product.getSourceBest() == ProductDataSource.WEB || product.getSourceBest() == ProductDataSource.MANUAL) {
+        if (
+            product.getSourceBest() == ProductDataSource.WEB
+                || product.getSourceBest() == ProductDataSource.MANUAL
+                || product.getSourceBest() == ProductDataSource.STATE_PORTAL
+        ) {
             return product.getName() == null || product.getName().isBlank();
         }
         if (product.getName() == null || product.getName().isBlank()) {
@@ -701,7 +705,7 @@ public class ProductCatalogService {
 
     private BigDecimal computeConfidence(Product product) {
         BigDecimal base = baseConfidence(product.getIdentityType() != null ? product.getIdentityType() : ProductIdentityType.GTIN);
-        if (product.getSourceBest() == ProductDataSource.WEB) {
+        if (product.getSourceBest() == ProductDataSource.WEB || product.getSourceBest() == ProductDataSource.STATE_PORTAL) {
             base = base.max(BigDecimal.valueOf(0.85));
         } else if (product.getSourceBest() == ProductDataSource.MANUAL) {
             base = base.max(BigDecimal.valueOf(0.95));
