@@ -105,7 +105,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Carrefour Brasil",
             "CARREFOUR_WEB_BR",
-            false,
+            true,
             "Catalogo completo",
             "VTEX category tree + detail",
             "extract_and_import_carrefour.py",
@@ -362,20 +362,6 @@ public class SuperAdminService {
             List.of("www.lojaonline.nordestao.com.br", "lojaonline.nordestao.com.br")
         ),
         new FixedCrawlerJob(
-            "Assai Atacadista",
-            "ASSAI_WEB_BR",
-            false,
-            "Catalogo completo",
-            "Institutional / partner marketplaces",
-            "extract_and_import_assai.py",
-            "Documenta a fonte Assai no dominio oficial informado, mas mantem o job desabilitado porque o site direciona a compra online para parceiros e nao expoe uma fonte first-party publica e estavel de catalogo para este pipeline.",
-            "Public website/API data (respect provider terms and robots)",
-            false,
-            false,
-            List.of("https://www.assai.com.br/"),
-            List.of("www.assai.com.br", "assai.com.br")
-        ),
-        new FixedCrawlerJob(
             "Condor",
             "CONDOR_WEB_BR",
             true,
@@ -446,15 +432,18 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Drogaria Raia",
             "DROGARAIA_WEB_BR",
-            false,
+            true,
             "Catalogo completo",
-            "Blocked by edge",
+            "Next.js category pages",
             "extract_and_import_drogaraia.py",
-            "Documenta a fonte Drogaria Raia, mas mantem o job desabilitado porque o site responde HTTP 403 na home, sitemap, robots e paginas de produto neste ambiente.",
+            "Importa o catalogo publico da Drogaria Raia pelas categorias server-side expostas no HTML do site, recuperando GTIN, descricao, imagem e URL canonica do produto.",
             "Public website/API data (respect provider terms and robots)",
             true,
-            false,
-            List.of("https://www.drogaraia.com.br/"),
+            true,
+            List.of(
+                "https://www.drogaraia.com.br/",
+                "https://www.drogaraia.com.br/search?w=dorflex"
+            ),
             List.of("www.drogaraia.com.br", "drogaraia.com.br")
         )
     );

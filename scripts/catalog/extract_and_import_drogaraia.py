@@ -1,15 +1,67 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import sys
+import argparse
+import json
+
+from fixed_market_catalog_common import ImportOptions
+from fixed_market_catalog_drogaraia import DrogariaRaiaJobConfig, run_drogaraia_catalog_job
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Extract + import Drogaria Raia catalog")
+    parser.add_argument("--max-pages", type=int, default=0)
+    parser.add_argument("--output", default="data/catalog/drogaraia_web_br_catalog")
+    parser.add_argument("--do-import", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--api-base", default="https://mercadoflow.com/api")
+    parser.add_argument("--login-endpoint", default="/v1/super-admin/auth/login")
+    parser.add_argument("--import-endpoint", default="/v1/admin/catalog/import/records")
+    parser.add_argument("--email", required=True)
+    parser.add_argument("--password", required=True)
+    parser.add_argument("--confidence", type=float, default=0.96)
+    parser.add_argument("--batch-size", type=int, default=300)
+    parser.add_argument("--download-images", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--images-dir", default="data/catalog/images")
+    parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
+    parser.add_argument("--selected-category", action="append", default=[])
+    return parser.parse_args()
 
 
 def main() -> int:
-    sys.stderr.write(
-        "Drogaria Raia bloqueia acesso automatizado deste ambiente com HTTP 403 em home, sitemap e paginas de produto. "
-        "O job permanece documentado, mas desabilitado ate existir uma fonte publica viavel ou whitelist.\n"
+    args = parse_args()
+    job = DrogariaRaiaJobConfig(
+        name="Drogaria Raia",
+        provider="DROGARAIA_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output=args.output,
+        site_base="https://www.drogaraia.com.br",
+        home_url="https://www.drogaraia.com.br/",
+        selected_categories=tuple(value for value in args.selected_category if value),
     )
-    return 1
+    options = ImportOptions(
+        provider=job.provider,
+        source_license=job.source_license,
+        api_base=args.api_base,
+        login_endpoint=args.login_endpoint,
+        import_endpoint=args.import_endpoint,
+        email=args.email,
+        password=args.password,
+        confidence=args.confidence,
+        batch_size=args.batch_size,
+        skip_medication=False,
+        do_import=args.do_import,
+        download_images=args.download_images,
+        images_dir=args.images_dir,
+        max_image_bytes=args.max_image_bytes,
+        output=job.output,
+    )
+    result = run_drogaraia_catalog_job(
+        job,
+        options,
+        max_pages_per_category=max(0, args.max_pages),
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("status") != "FAILED" else 1
 
 
 if __name__ == "__main__":

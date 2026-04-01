@@ -14,6 +14,7 @@ import requests
 
 from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text, utc_now_iso, write_json_atomic
 from fixed_market_catalog_condor import CondorJobConfig, run_condor_catalog_job
+from fixed_market_catalog_drogaraia import DrogariaRaiaJobConfig, run_drogaraia_catalog_job
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
 from fixed_market_catalog_guanabara import GuanabaraJobConfig, run_guanabara_catalog_job
 from fixed_market_catalog_supermercados_online import (
@@ -73,6 +74,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--condor-max-products", type=int, default=0)
     parser.add_argument("--nissei-product-workers", type=int, default=12)
     parser.add_argument("--nissei-max-products", type=int, default=0)
+    parser.add_argument("--drogaraia-max-pages", type=int, default=0)
     return parser.parse_args()
 
 
@@ -322,6 +324,24 @@ def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
         build_options(args, job.provider, job.source_license, job.output),
         page_size=max(10, min(50, args.carrefour_page_size)),
         max_pages_per_leaf=max(0, args.carrefour_max_pages),
+        cancel_check=getattr(args, "_cancel_check", None),
+    )
+
+
+def run_drogaraia(args: argparse.Namespace) -> Dict[str, Any]:
+    job = DrogariaRaiaJobConfig(
+        name="Drogaria Raia",
+        provider="DROGARAIA_WEB_BR",
+        source_license="Public website/API data (respect provider terms and robots)",
+        output="data/catalog/drogaraia_web_br_catalog",
+        site_base="https://www.drogaraia.com.br",
+        home_url="https://www.drogaraia.com.br/",
+        selected_categories=selected_categories_for_provider(args, "DROGARAIA_WEB_BR"),
+    )
+    return run_drogaraia_catalog_job(
+        job,
+        build_options(args, job.provider, job.source_license, job.output),
+        max_pages_per_category=max(0, args.drogaraia_max_pages),
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -749,22 +769,10 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "EXTRAFARMA_WEB_BR": run_extrafarma,
     "PAGUEMENOS_WEB_BR": run_paguemenos,
     "FARMACIASNISSEI_WEB_BR": run_farmacias_nissei,
-    "ASSAI_WEB_BR": lambda args: {
-        "status": "FAILED",
-        "message": "Assai no dominio oficial informado nao expoe uma fonte first-party publica e estavel de catalogo para este pipeline.",
-        "summary": [{"provider": "ASSAI_WEB_BR", "source": "Assai", "error": "no-first-party-catalog-source"}],
-        **empty_totals(),
-        "errors": 1,
-    },
-    "DROGARAIA_WEB_BR": lambda args: {
-        "status": "FAILED",
-        "message": "Drogaria Raia bloqueia acesso automatizado deste ambiente com HTTP 403.",
-        "summary": [{"provider": "DROGARAIA_WEB_BR", "source": "Drogaria Raia", "error": "http-403-edge-block"}],
-        **empty_totals(),
-        "errors": 1,
-    },
+    "DROGARAIA_WEB_BR": run_drogaraia,
 }
-DISABLED_PROVIDERS = {"CARREFOUR_WEB_BR", "ASSAI_WEB_BR", "DROGARAIA_WEB_BR"}
+
+DISABLED_PROVIDERS: set[str] = set()
 
 
 def enabled_providers() -> List[str]:

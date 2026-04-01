@@ -34,6 +34,10 @@ public class CatalogCrawlerCategoryService {
         "href=\"(/categorias/[^\"]+)\"[^>]*>\\s*<div class=\"category-name\">(.*?)</div>",
         Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
+    private static final Pattern NEXT_DATA_PATTERN = Pattern.compile(
+        "<script id=\"__NEXT_DATA__\" type=\"application/json\">(.*?)</script>",
+        Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+    );
 
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(20))
@@ -113,6 +117,7 @@ public class CatalogCrawlerCategoryService {
                 "https://www.farmaciasnissei.com.br/sitemaps/categorias.xml",
                 "/categorias/"
             );
+            case "DROGARAIA_WEB_BR" -> fetchDrogariaRaiaCategories("https://www.drogaraia.com.br/");
             case "SUPERKOCH_WEB_BR" -> fetchKochCategories("https://www.superkoch.com.br/categorias/");
             default -> List.of();
         };
@@ -260,6 +265,53 @@ public class CatalogCrawlerCategoryService {
             }
         }
         return result;
+    }
+
+    private List<SuperAdminCrawlerCategoryOptionDTO> fetchDrogariaRaiaCategories(String homeUrl) {
+        String body = fetchText(homeUrl, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+        Matcher matcher = NEXT_DATA_PATTERN.matcher(body);
+        if (!matcher.find()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(matcher.group(1));
+            JsonNode menuItems = root.path("props").path("pageProps").path("data").path("menuItems");
+            if (!menuItems.isArray()) {
+                return List.of();
+            }
+            List<SuperAdminCrawlerCategoryOptionDTO> result = new ArrayList<>();
+            for (JsonNode item : menuItems) {
+                appendDrogariaRaiaNode(item, new ArrayList<>(), result);
+            }
+            return dedupeByValue(result);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Falha ao interpretar categorias da Drogaria Raia");
+        }
+    }
+
+    private void appendDrogariaRaiaNode(
+        JsonNode node,
+        List<String> parentTrail,
+        List<SuperAdminCrawlerCategoryOptionDTO> result
+    ) {
+        String name = clean(node.path("name").asText());
+        if (name.isBlank()) {
+            return;
+        }
+        List<String> trail = new ArrayList<>(parentTrail);
+        trail.add(name);
+        JsonNode children = node.path("children");
+        if (!children.isArray()) {
+            children = objectMapper.createArrayNode();
+        }
+        String urlPath = clean(node.path("url_path").asText());
+        if (!urlPath.isBlank()) {
+            String value = String.join(" > ", trail);
+            result.add(new SuperAdminCrawlerCategoryOptionDTO(value, value, children.size()));
+        }
+        for (JsonNode child : children) {
+            appendDrogariaRaiaNode(child, trail, result);
+        }
     }
 
     private JsonNode fetchJson(String url) {
