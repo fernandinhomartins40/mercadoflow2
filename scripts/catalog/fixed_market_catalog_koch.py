@@ -56,6 +56,21 @@ def build_headers(referer: str) -> Dict[str, str]:
     }
 
 
+def build_html_headers() -> Dict[str, str]:
+    return {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/135.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Upgrade-Insecure-Requests": "1",
+    }
+
+
 def extract_store_id(html: str) -> str:
     for pattern in (STORE_ID_RE, STORE_ID_FALLBACK_RE):
         match = pattern.search(html or "")
@@ -67,9 +82,9 @@ def extract_store_id(html: str) -> str:
 def fetch_default_store_id(job: KochJobConfig) -> str:
     candidate_urls: List[str] = []
     for candidate in (
-        job.categories_url,
         job.site_base,
         f"{job.site_base.rstrip('/')}/",
+        job.categories_url,
         f"{job.site_base.rstrip('/')}/categorias",
     ):
         normalized = norm_text(candidate)
@@ -77,11 +92,13 @@ def fetch_default_store_id(job: KochJobConfig) -> str:
             candidate_urls.append(normalized)
 
     errors: List[str] = []
+    session = requests.Session()
+    session.headers.update(build_html_headers())
     for url in candidate_urls:
         last_error: Optional[Exception] = None
         for attempt in range(1, 4):
             try:
-                response = requests.get(url, timeout=(12, 45), headers={"User-Agent": "Mozilla/5.0"})
+                response = session.get(url, timeout=(30, 60))
                 response.raise_for_status()
                 store_id = extract_store_id(response.text)
                 if store_id:
