@@ -6,7 +6,9 @@
     "serviceName": "Menor Preco / Nota Parana",
     "serviceUrl": "https://menorpreco.notaparana.pr.gov.br/",
     "coverageStates": "PR",
-    "notes": "Portal oficial do Paraná. A página pública de pesquisa existe, mas a automação pode exigir browser ou sessão persistente."
+    "crawlStrategy": "manual",
+    "crawlEnabled": false,
+    "notes": "Portal oficial do Parana. A pagina publica de pesquisa existe, mas a automacao pode exigir browser ou sessao persistente."
   },
   {
     "provider": "PRECO_DA_HORA_BA",
@@ -15,6 +17,12 @@
     "serviceName": "Preco da Hora Bahia",
     "serviceUrl": "https://precodahora.ba.gov.br/",
     "coverageStates": "BA",
+    "crawlStrategy": "bahia-json",
+    "crawlEnabled": true,
+    "searchLatitude": -12.977749,
+    "searchLongitude": -38.501629,
+    "searchRadius": 15,
+    "retryPauseSeconds": 12,
     "notes": "Portal oficial da SEFAZ Bahia. A interface publica usa desafio anti-bot/recaptcha e pode exigir sessao valida."
   },
   {
@@ -24,6 +32,8 @@
     "serviceName": "Preco da Hora Paraiba",
     "serviceUrl": "https://precodahora.pb.gov.br/",
     "coverageStates": "PB",
+    "crawlStrategy": "manual",
+    "crawlEnabled": false,
     "notes": "Portal oficial da Paraiba."
   },
   {
@@ -33,6 +43,12 @@
     "serviceName": "Busca Preco Amazonas",
     "serviceUrl": "https://buscapreco.sefaz.am.gov.br/",
     "coverageStates": "AM",
+    "crawlStrategy": "amazonas-html",
+    "crawlEnabled": true,
+    "searchLatitude": -3.10194,
+    "searchLongitude": -60.025,
+    "searchDistance": 9999,
+    "retryPauseSeconds": 2,
     "notes": "Portal oficial da SEFAZ Amazonas."
   },
   {
@@ -42,6 +58,8 @@
     "serviceName": "Menor Preco Brasil",
     "serviceUrl": "https://nfg.sefaz.rs.gov.br/site/MenorPreco.aspx",
     "coverageStates": "AC,AL,AP,CE,DF,ES,PA,PE,PI,RJ,RN,RO,RR,RS,SE,TO",
+    "crawlStrategy": "manual",
+    "crawlEnabled": false,
     "notes": "Portal nacional do RS com cobertura para multiplas UFs."
   }
 ]

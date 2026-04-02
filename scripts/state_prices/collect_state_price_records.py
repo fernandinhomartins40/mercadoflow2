@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -109,8 +110,54 @@ def normalize_price(value: Any) -> str:
         return ""
 
 
+def short_hash(value: str, length: int = 16) -> str:
+    digest = hashlib.sha256(norm_text(value).encode("utf-8")).hexdigest().upper()
+    return digest[: max(1, length)]
+
+
+def normalize_provider_product_id(raw_value: Any, product_name: str, normalized_name: str, normalized_gtin: str) -> str:
+    value = norm_text(raw_value)
+    if value:
+        return value
+    if norm_text(normalized_gtin):
+        return norm_text(normalized_gtin)
+    return f"PP-{short_hash('|'.join([norm_text(product_name), norm_text(normalized_name)]), 16)}"
+
+
+def normalize_store_id(raw_value: Any, provider_product_id: str, state: str, city: str, store: str) -> str:
+    value = norm_text(raw_value)
+    if value:
+        return value
+    fingerprint = "|".join([norm_text(provider_product_id), norm_text(state), norm_text(city), norm_text(store)])
+    return f"STORE-{short_hash(fingerprint, 18)}"
+
+
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now().replace(microsecond=0).isoformat(timespec="seconds")
+
+
+def normalize_local_datetime(value: Any) -> str:
+    text = norm_text(value)
+    if not text:
+        return utc_now_iso()
+
+    candidate = text.replace("Z", "+00:00").replace(" ", "T")
+    try:
+        parsed = datetime.fromisoformat(candidate)
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed.replace(microsecond=0).isoformat(timespec="seconds")
+    except Exception:
+        pass
+
+    for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            return parsed.replace(microsecond=0).isoformat(timespec="seconds")
+        except Exception:
+            continue
+
+    return utc_now_iso()
 
 
 def fetch_text(url: str, timeout: int) -> str:
@@ -178,7 +225,7 @@ def extract_jsonld_records(html: str, base_url: str, default_state: str, source_
                 sourceUrl=urljoin(base_url, source_url) if source_url else base_url,
                 price=price,
                 currency=currency,
-                observedAt=utc_now_iso(),
+                observedAt=normalize_local_datetime(utc_now_iso()),
                 rawPayload=json.dumps(node, ensure_ascii=False),
             )
             records.append(record)
@@ -217,7 +264,7 @@ def extract_data_card_records(html: str, base_url: str, default_state: str, sour
             sourceUrl=urljoin(base_url, source_url) if source_url else base_url,
             price=price,
             currency=attrs.get("currency", "BRL") or "BRL",
-            observedAt=attrs.get("observed-at", utc_now_iso()) or utc_now_iso(),
+            observedAt=normalize_local_datetime(attrs.get("observed-at")),
             rawPayload=tag,
         )
         records.append(record)

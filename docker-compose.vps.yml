@@ -134,6 +134,30 @@ services:
       mercadoflow-backend:
         condition: service_healthy
 
+  mercadoflow-state-price-sync:
+    container_name: mercadoflow-state-price-sync
+    image: python:3.11-slim
+    restart: unless-stopped
+    working_dir: /workspace
+    command: >
+      sh -c "pip install --no-cache-dir -r /workspace/scripts/state_prices/requirements.txt &&
+      python /workspace/scripts/state_prices/sync_state_price_portals.py
+      --watch
+      --import
+      --interval-minutes ${STATE_PRICE_SYNC_INTERVAL_MINUTES:-360}
+      --max-pages ${STATE_PRICE_SYNC_MAX_PAGES:-4}
+      --pause-seconds ${STATE_PRICE_SYNC_PAUSE_SECONDS:-0.5}
+      --api-base http://mercadoflow-backend:8080/api
+      --login-endpoint /v1/super-admin/auth/login
+      --import-endpoint /v1/state-prices/import
+      --email ${SUPER_ADMIN_EMAIL}
+      --password ${SUPER_ADMIN_PASSWORD}"
+    volumes:
+      - ./scripts/state_prices:/workspace/scripts/state_prices:ro
+    depends_on:
+      mercadoflow-backend:
+        condition: service_healthy
+
 volumes:
   mercadoflow_postgres_data:
     external: true
