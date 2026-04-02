@@ -2118,8 +2118,8 @@ const OfferDesigner: React.FC = () => {
     [superAdminMarkets],
   );
   const visibleToolOptions = useMemo(
-    () => (isSuperAdminMode ? TOOL_OPTIONS.filter((tool) => tool.key === 'themes') : TOOL_OPTIONS),
-    [isSuperAdminMode],
+    () => TOOL_OPTIONS,
+    [],
   );
   const stageProducts = useMemo(
     () => selectedProducts.slice(0, Math.max(itemsPerPage, clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24))),
@@ -3861,8 +3861,7 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}
                 </div>
-                {!isSuperAdminMode ? (
-                  <>
+                <>
                   <div className="offer-studio-panel-header-copy mt-6">
                     <span className="section-kicker">Customização Visual</span>
                     <h2>Estilos e Temas da Arte (Skins)</h2>
@@ -3877,8 +3876,7 @@ const OfferDesigner: React.FC = () => {
                     <StudioSelectField label="Estilo de Texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
                     <StudioSelectField label="Formato do Rodapé" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
                   </div>
-                  </>
-                ) : null}
+                </>
                 {isSuperAdminMode ? (
                 <>
                 <div className="offer-studio-theme-grid">
