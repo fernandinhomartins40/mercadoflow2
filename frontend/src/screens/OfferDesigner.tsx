@@ -20,6 +20,7 @@ import {
   Lock,
   GripVertical,
   PackageSearch,
+  Paintbrush,
   Palette,
   Minus,
   Plus,
@@ -2118,8 +2119,8 @@ const OfferDesigner: React.FC = () => {
     [superAdminMarkets],
   );
   const visibleToolOptions = useMemo(
-    () => TOOL_OPTIONS,
-    [],
+    () => (isSuperAdminMode ? [...TOOL_OPTIONS, { key: 'builder', icon: Paintbrush, label: 'Construtor' } as any] : TOOL_OPTIONS),
+    [isSuperAdminMode],
   );
   const stageProducts = useMemo(
     () => selectedProducts.slice(0, Math.max(itemsPerPage, clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24))),
@@ -2145,11 +2146,11 @@ const OfferDesigner: React.FC = () => {
     [campaignBadgeLabel, campaignHeadline, campaignKicker, campaignSubheadline, marketProfile, selectedBrandKit, selectedCampaignKit, stageProducts, templateBuilderDraft],
   );
   const stageGridLimit = useMemo(
-    () => (activeTool === 'themes' ? clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24) : generationMode === 'CATALOG' ? itemsPerPage : 1),
+    () => (activeTool === 'builder' ? clampNumber(templateBuilderDraft.contentZone.slotCount, itemsPerPage, 1, 24) : generationMode === 'CATALOG' ? itemsPerPage : 1),
     [activeTool, generationMode, itemsPerPage, templateBuilderDraft.contentZone.slotCount],
   );
   const effectiveResolvedDesignJson = useMemo(
-    () => (activeTool === 'themes' ? builderResolvedDesignJson : preview?.resolvedDesignJson || null),
+    () => (activeTool === 'builder' ? builderResolvedDesignJson : preview?.resolvedDesignJson || null),
     [activeTool, builderResolvedDesignJson, preview?.resolvedDesignJson],
   );
   const resolvedDesign = useMemo(() => parseJson<JsonMap>(effectiveResolvedDesignJson, {}) || {}, [effectiveResolvedDesignJson]);
@@ -2781,7 +2782,7 @@ const OfferDesigner: React.FC = () => {
   }, [selectedTemplate, selectedVariant]);
 
   useEffect(() => {
-    if (!(isSuperAdminMode && activeTool === 'themes')) {
+    if (!(isSuperAdminMode && activeTool === 'builder')) {
       setCanvasEditInteraction(null);
       setCanvasEditTarget(null);
       canvasPointerSessionRef.current = null;
@@ -3721,7 +3722,7 @@ const OfferDesigner: React.FC = () => {
           </div>
         ) : null}
 
-        <div className={`offer-studio-shell w-full ${isSuperAdminMode && activeTool === 'themes' ? 'is-template-builder' : ''} ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
+        <div className={`offer-studio-shell w-full ${activeTool === 'builder' ? 'is-template-builder' : ''} ${toolPanelCollapsed ? 'is-panel-collapsed' : ''}`}>
           <aside className="offer-studio-rail">
             <div className="offer-studio-rail-brand">
               <span className="offer-studio-rail-badge"><Sparkles className="offer-studio-rail-brand-icon" strokeWidth={2.1} /></span>
@@ -3838,14 +3839,14 @@ const OfferDesigner: React.FC = () => {
               </div>
             ) : null}
 
-            {activeTool === 'themes' ? (
+            {activeTool === 'themes' || activeTool === 'builder' ? (
               <div className="offer-studio-panel-stack">
-                <div className={`offer-studio-panel-header ${isSuperAdminMode ? 'offer-studio-panel-header-builder' : ''}`}>
+                <div className={`offer-studio-panel-header ${activeTool === 'builder' ? 'offer-studio-panel-header-builder' : ''}`}>
                   <div className="offer-studio-panel-header-copy">
-                    <span className="section-kicker">Temas</span>
-                    <h2>{isSuperAdminMode ? 'Template builder' : 'Modelos prontos'}</h2>
+                    <span className="section-kicker">{activeTool === 'builder' ? 'Builder' : 'Temas'}</span>
+                    <h2>{activeTool === 'builder' ? 'Template builder' : 'Modelos prontos'}</h2>
                   </div>
-                  {isSuperAdminMode ? (
+                  {activeTool === 'builder' ? (
                     <div className="offer-studio-panel-header-actions">
                       <Button type="button" variant="secondary" onClick={handleStartNewTemplate} disabled={saving || !effectiveMarketId}>
                         <Plus size={16} strokeWidth={2.1} />
@@ -3877,7 +3878,8 @@ const OfferDesigner: React.FC = () => {
                     <StudioSelectField label="Formato do Rodapé" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
                   </div>
                 </>
-                {isSuperAdminMode ? (
+                ) : null}
+                {activeTool === 'builder' && isSuperAdminMode ? (
                 <>
                 <div className="offer-studio-theme-grid">
                   <StudioCollapsibleSection
@@ -5591,7 +5593,7 @@ const OfferDesigner: React.FC = () => {
               <div className="offer-studio-stage-header">
                 <div>
                   <span className="section-kicker">Prévia da arte</span>
-                  <h2>{activeTool === 'themes' ? templateBuilderDraft.name || selectedTemplate?.name || 'Selecione um modelo' : selectedTemplate?.name || 'Selecione um modelo'}</h2>
+                  <h2>{activeTool === 'builder' ? templateBuilderDraft.name || selectedTemplate?.name || 'Selecione um modelo' : selectedTemplate?.name || 'Selecione um modelo'}</h2>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedVariant ? <span className="sales-pill soft">{selectedVariant.name}</span> : null}
                     {selectedBrandKit ? <span className="sales-pill soft"><Factory size={14} strokeWidth={2.1} /> {selectedBrandKit.name}</span> : null}
@@ -5615,7 +5617,7 @@ const OfferDesigner: React.FC = () => {
                 </div>
               </div>
 
-              {isSuperAdminMode && activeTool === 'themes' && canvasEditTarget ? (
+              {activeTool === 'builder' && canvasEditTarget ? (
                 <div className="offer-studio-stage-edit-banner">
                   <strong>Editando na arte: {activeCanvasEditLabel}</strong>
                   <span>Arraste a area para mover e use o canto inferior direito para redimensionar.</span>
@@ -5625,8 +5627,8 @@ const OfferDesigner: React.FC = () => {
               <div ref={stageSurfaceRef} className="offer-studio-stage-surface">
                 <div className="offer-studio-stage-canvas" style={{ width: `${scaledStageWidth}px`, height: `${scaledStageHeight}px` }}>
                   <div ref={stageArtboardRef} className="offer-studio-stage-artboard" style={{ width: `${stageCanvasWidth}px`, height: `${stageCanvasHeight}px`, transform: `scale(${stageScale})`, transformOrigin: 'top left' }}>
-                    <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} gridPreset={gridPreset} footerText={activeTool === 'themes' ? null : footerText} respectCanvasDimensions className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
-                    {isSuperAdminMode && activeTool === 'themes' ? (
+                    <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} gridPreset={gridPreset} footerText={activeTool === 'builder' ? null : footerText} respectCanvasDimensions className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
+                    {activeTool === 'builder' ? (
                       <div className="offer-studio-stage-editor">
                         {canvasEditableOverlays.map((item) => (
                           <div
