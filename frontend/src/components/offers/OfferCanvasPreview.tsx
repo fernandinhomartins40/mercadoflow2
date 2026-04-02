@@ -8,6 +8,7 @@ interface OfferCanvasPreviewProps {
   products?: OfferCatalogProduct[];
   className?: string;
   gridLimit?: number;
+  gridPreset?: string;
   footerText?: string | null;
   resolvedDesignJson?: string | null;
   respectCanvasDimensions?: boolean;
@@ -200,6 +201,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   products = [],
   className,
   gridLimit,
+  gridPreset,
   footerText,
   resolvedDesignJson,
   respectCanvasDimensions = false,
@@ -545,7 +547,12 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     const bounds = asMap(zone.bounds);
     const slotCount = Number(zone.slotCount) || 1;
     const zoneType = String(zone.zoneType || zone.layout || 'grid').toLowerCase();
-    const columns = zoneType === 'hero' || String(zone.layout || '').toLowerCase() === 'single' ? 1 : Math.max(Number(zone.columns) || 2, 1);
+    let columns = zoneType === 'hero' || String(zone.layout || '').toLowerCase() === 'single' ? 1 : Math.max(Number(zone.columns) || 2, 1);
+    if (gridPreset && gridPreset !== 'AUTO') {
+      if (gridPreset === '1x1') columns = 1;
+      else if (gridPreset === '2x2') columns = 2;
+      else if (gridPreset === '3x2' || gridPreset === '3x3') columns = 3;
+    }
     const cardTemplate = asMap(zone.cardTemplate);
     const boundProducts = (Array.isArray(zoneBindings[zoneId]) ? zoneBindings[zoneId] : []).map(normalizeProduct);
     const slots = (boundProducts.length ? boundProducts : Array.from({ length: Math.min(slotCount, gridLimit || slotCount) })).slice(0, gridLimit || slotCount);

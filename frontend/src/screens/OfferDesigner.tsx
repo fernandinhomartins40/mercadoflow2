@@ -3861,6 +3861,24 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}
                 </div>
+                {!isSuperAdminMode ? (
+                  <>
+                  <div className="offer-studio-panel-header-copy mt-6">
+                    <span className="section-kicker">Customização Visual</span>
+                    <h2>Estilos e Temas da Arte (Skins)</h2>
+                    <small>Configure rapidamente as cores e textos globais da arte para que o sistema alinhe todos os produtos.</small>
+                  </div>
+                  <div className="offer-studio-edit-grid p-4 rounded-xl border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.4)] relative">
+                    <StudioSelectField label="Variante (Formato)" value={selectedVariantKey} onChange={setSelectedVariantKey} options={variantOptions.length ? variantOptions : [{ value: '', label: 'Formato principal' }]} />
+                    <StudioSelectField label="Campanha Principal" value={selectedCampaignKitId} onChange={setSelectedCampaignKitId} options={campaignKitOptions.length ? campaignKitOptions : [{ value: '', label: 'Sem campanha' }]} />
+                    <StudioSelectField label="Identidade Visual (Brand)" value={selectedBrandKitId} onChange={setSelectedBrandKitId} options={brandKitOptions.length ? brandKitOptions : [{ value: '', label: 'Sem brand kit' }]} />
+                    <div className="col-span-full border-t border-[rgba(87,51,30,0.06)] my-2" />
+                    <StudioSelectField label="Paleta de Cores" value={colorMode} onChange={setColorMode} options={[...COLOR_MODE_OPTIONS]} />
+                    <StudioSelectField label="Estilo de Texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
+                    <StudioSelectField label="Formato do Rodapé" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
+                  </div>
+                  </>
+                ) : null}
                 {isSuperAdminMode ? (
                 <>
                 <div className="offer-studio-theme-grid">
@@ -5561,24 +5579,14 @@ const OfferDesigner: React.FC = () => {
 
             <div className="offer-studio-toolbar">
               <StudioSelectField label="Modelo" value={selectedTemplateId} onChange={(value) => void handleTemplateChange(value)} options={templateOptions.length ? templateOptions : [{ value: '', label: 'Sem modelo' }]} />
-              <StudioSelectField label="Variante" value={selectedVariantKey} onChange={setSelectedVariantKey} options={variantOptions.length ? variantOptions : [{ value: '', label: 'Formato principal' }]} />
-              <StudioSelectField label="Brand kit" value={selectedBrandKitId} onChange={setSelectedBrandKitId} options={brandKitOptions.length ? brandKitOptions : [{ value: '', label: 'Sem brand kit' }]} />
-              <StudioSelectField label="Campanha" value={selectedCampaignKitId} onChange={setSelectedCampaignKitId} options={campaignKitOptions.length ? campaignKitOptions : [{ value: '', label: 'Sem campanha' }]} />
-              {!isSuperAdminMode ? (
-                <>
-                  <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...GRID_PRESET_OPTIONS]} />
-                  <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
-                  <StudioSelectField label="Texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
-                  <StudioSelectField label="Cores" value={colorMode} onChange={setColorMode} options={[...COLOR_MODE_OPTIONS]} />
-                  <label className="offer-studio-toggle-field">
-                    <span>Gerar capa</span>
-                    <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
-                      <span />
-                    </button>
-                  </label>
-                  <StudioSelectField label="Rodape" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
-                </>
-              ) : null}
+              <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...GRID_PRESET_OPTIONS]} />
+              <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
+              <label className="offer-studio-toggle-field">
+                <span>Gerar capa</span>
+                <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
+                  <span />
+                </button>
+              </label>
             </div>
 
             <div className="offer-studio-stage-wrap">
@@ -5619,7 +5627,7 @@ const OfferDesigner: React.FC = () => {
               <div ref={stageSurfaceRef} className="offer-studio-stage-surface">
                 <div className="offer-studio-stage-canvas" style={{ width: `${scaledStageWidth}px`, height: `${scaledStageHeight}px` }}>
                   <div ref={stageArtboardRef} className="offer-studio-stage-artboard" style={{ width: `${stageCanvasWidth}px`, height: `${stageCanvasHeight}px`, transform: `scale(${stageScale})`, transformOrigin: 'top left' }}>
-                    <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} footerText={activeTool === 'themes' ? null : footerText} respectCanvasDimensions className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
+                    <OfferCanvasPreview template={selectedTemplate} resolvedDesignJson={effectiveResolvedDesignJson} products={stageProducts} gridLimit={stageGridLimit} gridPreset={gridPreset} footerText={activeTool === 'themes' ? null : footerText} respectCanvasDimensions className={`offer-studio-canvas-preview color-${colorMode.toLowerCase()} mode-${productBoxMode.toLowerCase()}`} />
                     {isSuperAdminMode && activeTool === 'themes' ? (
                       <div className="offer-studio-stage-editor">
                         {canvasEditableOverlays.map((item) => (
