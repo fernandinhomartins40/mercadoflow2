@@ -3862,7 +3862,6 @@ const OfferDesigner: React.FC = () => {
                 <div className="offer-studio-template-list">
                   {templates.map((template) => <StudioTemplateCard key={template.id} template={template} selected={selectedTemplateId === template.id} onUse={() => void handleTemplateChange(template.id)} />)}
                 </div>
-                <>
                   <div className="offer-studio-panel-header-copy mt-6">
                     <span className="section-kicker">Customização Visual</span>
                     <h2>Estilos e Temas da Arte (Skins)</h2>
@@ -3877,8 +3876,6 @@ const OfferDesigner: React.FC = () => {
                     <StudioSelectField label="Estilo de Texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
                     <StudioSelectField label="Formato do Rodapé" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
                   </div>
-                </>
-                ) : null}
                 {activeTool === 'builder' && isSuperAdminMode ? (
                 <>
                 <div className="offer-studio-theme-grid">
