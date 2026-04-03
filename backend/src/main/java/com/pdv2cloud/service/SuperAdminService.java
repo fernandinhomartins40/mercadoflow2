@@ -330,7 +330,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Redetop Online",
             "REDETOPONLINE_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "Sitemap + HTML detail (SPA)",
             "extract_and_import_redetop.py",
@@ -347,7 +347,7 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Nordestao Online",
             "NORDESTAO_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "Sitemap + HTML detail (SPA)",
             "extract_and_import_nordestao.py",

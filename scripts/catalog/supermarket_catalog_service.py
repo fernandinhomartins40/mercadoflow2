@@ -443,6 +443,15 @@ def pick_code(node: Dict[str, Any], page_url: str) -> Tuple[str, str]:
     return provider_id, provider_id
 
 
+def has_meaningful_fallback_signals(itemprops: Dict[str, str], gtin: str, price: Optional[float]) -> bool:
+    if gtin or price is not None:
+        return True
+    for key in ("brand", "image", "sku", "productid", "mpn", "price", "pricecurrency", "availability"):
+        if itemprops.get(key):
+            return True
+    return False
+
+
 def extract_record(source: Source, page_url: str, body: str) -> Optional[Record]:
     for script in JSONLD_RE.findall(body):
         payload = json_or_none(script.strip().strip(";"))
@@ -537,6 +546,9 @@ def extract_record(source: Source, page_url: str, body: str) -> Optional[Record]
         price = parse_price(item_price)
     else:
         price = parse_price(price_m.group(1))
+
+    if not has_meaningful_fallback_signals(itemprops, gtin, price):
+        return None
 
     image_match = re.search(r"""<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']""", body, re.I)
     image_url = canonical_url(norm_text(image_match.group(1))) if image_match else canonical_url(itemprops.get("image", ""))

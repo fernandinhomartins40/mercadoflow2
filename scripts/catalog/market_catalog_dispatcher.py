@@ -772,7 +772,10 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "DROGARAIA_WEB_BR": run_drogaraia,
 }
 
-DISABLED_PROVIDERS: set[str] = set()
+DISABLED_PROVIDERS: set[str] = {
+    "REDETOPONLINE_WEB_BR",
+    "NORDESTAO_WEB_BR",
+}
 
 
 def enabled_providers() -> List[str]:
