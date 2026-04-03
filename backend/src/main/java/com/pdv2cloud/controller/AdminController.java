@@ -88,16 +88,12 @@ public class AdminController {
     @PostMapping("/catalog/import/web")
     public ResponseEntity<CatalogWebImportResponseDTO> importCatalogFromWeb(
         @RequestParam(defaultValue = "25") int maxPagesPerSource,
-        @RequestParam(defaultValue = "100") int pageSize,
-        @RequestParam(defaultValue = "true") boolean includeBeautyFacts,
-        @RequestParam(defaultValue = "true") boolean includeOpenProductsFacts
+        @RequestParam(defaultValue = "100") int pageSize
     ) {
         return ResponseEntity.ok(
             webCatalogImportService.importFromPublicSources(
                 maxPagesPerSource,
-                pageSize,
-                includeBeautyFacts,
-                includeOpenProductsFacts
+                pageSize
             )
         );
     }

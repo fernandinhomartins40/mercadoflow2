@@ -67,22 +67,14 @@ public class WebCatalogImportService {
 
     public CatalogWebImportResponseDTO importFromPublicSources(
         int maxPagesPerSource,
-        int pageSize,
-        boolean includeBeautyFacts,
-        boolean includeOpenProductsFacts
+        int pageSize
     ) {
         int safePageSize = clamp(pageSize, MIN_PAGE_SIZE, MAX_PAGE_SIZE);
         int safeMaxPages = clamp(maxPagesPerSource, MIN_PAGES, MAX_PAGES);
         LocalDateTime startedAt = LocalDateTime.now();
 
         List<SourceSpec> sources = new ArrayList<>();
-        sources.add(new SourceSpec("OPEN_FOOD_FACTS_BR", "https://world.openfoodfacts.org"));
-        if (includeBeautyFacts) {
-            sources.add(new SourceSpec("OPEN_BEAUTY_FACTS_BR", "https://world.openbeautyfacts.org"));
-        }
-        if (includeOpenProductsFacts) {
-            sources.add(new SourceSpec("OPEN_PRODUCTS_FACTS_BR", "https://world.openproductsfacts.org"));
-        }
+        // Open Facts sources are intentionally excluded from the import pipeline.
 
         Set<String> importedGtins = new HashSet<>();
         List<CatalogImportSourceResultDTO> results = new ArrayList<>();

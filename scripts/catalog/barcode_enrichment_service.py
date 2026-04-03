@@ -270,42 +270,11 @@ def fetch_from_wireshape(gtin: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def fetch_from_open_facts(gtin: str, domain: str, provider: str, license_name: str) -> Optional[Dict[str, Any]]:
-    payload = read_json(f"https://{domain}/api/v2/product/{gtin}.json")
-    if not payload or payload.get("status") != 1:
-        return None
-    product = payload.get("product")
-    if not isinstance(product, dict):
-        return None
-    name = pick_first(product, "product_name_pt", "product_name", "generic_name_pt", "generic_name")
-    if not name:
-        return None
-    return {
-        "provider": provider,
-        "sourceLicense": license_name,
-        "code": gtin,
-        "name": name[:255],
-        "brand": pick_first(product, "brands")[:120].split(",")[0].strip(),
-        "category": pick_first(product, "categories")[:120],
-        "ncm": pick_first(product, "ncm", "ncm_code")[:32],
-        "unit": pick_first(product, "serving_size", "unit")[:32],
-        "description": pick_first(product, "generic_name_pt", "generic_name")[:1024],
-        "manufacturer": pick_first(product, "manufacturing_places", "brands")[:255],
-        "packageDescription": pick_first(product, "quantity")[:255],
-        "imageUrl": canonical_url(pick_first(product, "image_front_url", "image_url")),
-        "attributesJson": to_json(product.get("nutriments") or {}),
-        "rawPayload": to_json(payload),
-    }
-
-
 def merge_records(gtin: str, candidates: List[Dict[str, Any]]) -> Optional[EnrichedRecord]:
     if not candidates:
         return None
     provider_rank = {
         "WIRESHAPE_WEB": 1,
-        "OPEN_FOOD_FACTS_BR": 2,
-        "OPEN_BEAUTY_FACTS_BR": 3,
-        "OPEN_PRODUCTS_FACTS_BR": 4,
     }
     candidates.sort(key=lambda item: provider_rank.get(str(item.get("provider")), 99))
     base = dict(candidates[0])
@@ -438,14 +407,6 @@ def run_once(args: argparse.Namespace) -> int:
         wireshape = fetch_from_wireshape(gtin)
         if wireshape:
             candidates.append(wireshape)
-        for domain, provider, license_name in (
-            ("world.openfoodfacts.org", "OPEN_FOOD_FACTS_BR", "Open Food Facts (ODbL)"),
-            ("world.openbeautyfacts.org", "OPEN_BEAUTY_FACTS_BR", "Open Beauty Facts (ODbL)"),
-            ("world.openproductsfacts.org", "OPEN_PRODUCTS_FACTS_BR", "Open Products Facts (ODbL)"),
-        ):
-            item = fetch_from_open_facts(gtin, domain, provider, license_name)
-            if item:
-                candidates.append(item)
 
         merged = merge_records(gtin, candidates)
         if not merged or not merged.name:
