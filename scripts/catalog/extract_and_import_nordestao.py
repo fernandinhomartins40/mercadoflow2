@@ -5,14 +5,14 @@ import argparse
 import json
 
 from fixed_market_catalog_common import ImportOptions
-from fixed_market_catalog_supermercados_online import (
+from fixed_market_catalog_vipcommerce import (
     SupermercadosOnlineJobConfig,
     run_supermercados_online_catalog_job,
 )
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Extract + import Nordestao Online catalog")
+    parser = argparse.ArgumentParser(description="Extract + import Nordestao Online catalog via VIPCommerce API")
     parser.add_argument("--max-pages", type=int, default=0)
     parser.add_argument("--max-records", type=int, default=0)
     parser.add_argument("--output", default="data/catalog/nordestao_web_br_catalog")

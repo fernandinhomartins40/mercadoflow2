@@ -17,7 +17,7 @@ from fixed_market_catalog_condor import CondorJobConfig, run_condor_catalog_job
 from fixed_market_catalog_drogaraia import DrogariaRaiaJobConfig, run_drogaraia_catalog_job
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
 from fixed_market_catalog_guanabara import GuanabaraJobConfig, run_guanabara_catalog_job
-from fixed_market_catalog_supermercados_online import (
+from fixed_market_catalog_vipcommerce import (
     SupermercadosOnlineJobConfig,
     run_supermercados_online_catalog_job,
 )
@@ -772,10 +772,7 @@ RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "DROGARAIA_WEB_BR": run_drogaraia,
 }
 
-DISABLED_PROVIDERS: set[str] = {
-    "REDETOPONLINE_WEB_BR",
-    "NORDESTAO_WEB_BR",
-}
+DISABLED_PROVIDERS: set[str] = set()
 
 
 def enabled_providers() -> List[str]:
