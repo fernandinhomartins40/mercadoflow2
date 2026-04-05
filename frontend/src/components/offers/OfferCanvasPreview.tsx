@@ -218,6 +218,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   );
 
   const leadProduct = products[0];
+  const rootClassName = `offer-canvas-preview ${respectCanvasDimensions ? 'is-artboard' : 'is-preview-card'} ${className || ''}`.trim();
 
   if (!isSchemaV2) {
     const backgroundStyle =
@@ -232,7 +233,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
 
     return (
       <div
-        className={`offer-canvas-preview ${className || ''}`}
+        className={rootClassName}
         style={buildCanvasStyle(legacyCanvasWidth, legacyCanvasHeight, backgroundStyle, respectCanvasDimensions)}
       >
         {hasGrid ? (
@@ -735,7 +736,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   };
 
   return (
-    <div className={`offer-canvas-preview relative overflow-hidden rounded-[32px] border border-[rgba(87,51,30,0.08)] shadow-[0_20px_40px_rgba(44,20,6,0.08)] ${className || ''}`} style={canvasStyle}>
+    <div className={`${rootClassName} relative overflow-hidden`} style={canvasStyle}>
       <div className="absolute inset-0">
         {backgroundImageUrl ? (
           <OfferProductImage src={backgroundImageUrl} alt="Fundo do template" className={`absolute inset-0 h-full w-full ${backgroundFit}`} style={{ zIndex: 0 }} />

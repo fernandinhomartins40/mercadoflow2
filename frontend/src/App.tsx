@@ -15,9 +15,7 @@ const Campaigns = lazy(() => import('./screens/Campaigns'));
 const DemandForecast = lazy(() => import('./screens/DemandForecast'));
 const Settings = lazy(() => import('./screens/Settings'));
 const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
-const OffersCampaigns = lazy(() => import('./screens/OffersCampaigns'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
-const OfferJobs = lazy(() => import('./screens/OfferJobs'));
 const Landing = lazy(() => import('./screens/Landing'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
 const AgentDownload = lazy(() => import('./screens/AgentDownload'));
@@ -92,6 +90,14 @@ const OffersWorkspaceRedirect: React.FC<{ targetPath: string; workspace: 'admin'
   return <Navigate to={buildOffersUrl(targetPath, workspace, location.search)} replace />;
 };
 
+const OffersSheetRedirect: React.FC<{ sheet: 'campaigns' | 'media'; defaultWorkspace?: 'admin' | 'super-admin' }> = ({ sheet, defaultWorkspace = 'admin' }) => {
+  const location = useLocation();
+  const workspace = location.search ? resolveOffersWorkspace(location.search) : defaultWorkspace;
+  const params = new URLSearchParams(location.search);
+  params.set('sheet', sheet);
+  return <Navigate to={buildOffersUrl('/ofertas', workspace, params.toString())} replace />;
+};
+
 const App: React.FC = () => {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -109,11 +115,11 @@ const App: React.FC = () => {
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
         <Route path="/app/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
-        <Route path="/app/ofertas/campanhas" element={<OffersWorkspaceRedirect targetPath="/ofertas/campanhas" workspace="admin" />} />
-        <Route path="/app/ofertas/inicio" element={<OffersWorkspaceRedirect targetPath="/ofertas/campanhas" workspace="admin" />} />
+        <Route path="/app/ofertas/campanhas" element={<OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" />} />
+        <Route path="/app/ofertas/inicio" element={<OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" />} />
         <Route path="/app/ofertas/modelos" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
         <Route path="/app/ofertas/designer" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
-        <Route path="/app/ofertas/jobs" element={<OffersWorkspaceRedirect targetPath="/ofertas/jobs" workspace="admin" />} />
+        <Route path="/app/ofertas/jobs" element={<OffersSheetRedirect sheet="media" defaultWorkspace="admin" />} />
         <Route path="/app/pdvs" element={secure(<PDVs />)} />
         <Route path="/app/campanhas" element={secure(<Campaigns />)} />
         <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
@@ -133,8 +139,8 @@ const App: React.FC = () => {
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
 
         <Route path="/ofertas" element={secureOffers(<OfferDesigner />)} />
-        <Route path="/ofertas/campanhas" element={secureOffers(<OffersCampaigns />)} />
-        <Route path="/ofertas/jobs" element={secureOffers(<OfferJobs />)} />
+        <Route path="/ofertas/campanhas" element={secureOffers(<OffersSheetRedirect sheet="campaigns" />)} />
+        <Route path="/ofertas/jobs" element={secureOffers(<OffersSheetRedirect sheet="media" />)} />
 
         <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
         <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />

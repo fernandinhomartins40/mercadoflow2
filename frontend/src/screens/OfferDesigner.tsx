@@ -112,10 +112,12 @@ const layerTypeIcon = (type?: string): LucideIcon => {
 const TOOL_OPTIONS = [
   { key: 'products', icon: PackageSearch, label: 'Produtos' },
   { key: 'themes', icon: LayoutTemplate, label: 'Temas' },
-  { key: 'market', icon: Factory, label: 'Marca' },
-  { key: 'calendar', icon: CalendarDays, label: 'Datas' },
-  { key: 'copy', icon: FileText, label: 'Texto' },
-  { key: 'publish', icon: SendHorizontal, label: 'Publicar' },
+  { key: 'dates', icon: CalendarDays, label: 'Datas' },
+  { key: 'brand', icon: Factory, label: 'Marca' },
+  { key: 'fonts', icon: Type, label: 'Fontes' },
+  { key: 'publish', icon: SendHorizontal, label: 'Postar' },
+  { key: 'leaflet', icon: FileText, label: 'Encarte' },
+  { key: 'portal', icon: QrCode, label: 'Portal' },
 ] as const;
 
 type StudioTool = (typeof TOOL_OPTIONS)[number]['key'];
@@ -310,6 +312,23 @@ const GRID_PRESET_OPTIONS = [
   { value: '3x3', label: '9 produtos · 3x3' },
 ] as const;
 
+const QROFERTAS_GRID_PRESET_OPTIONS = [
+  { value: 'AUTO', label: 'Automatico' },
+  { value: 'COUNT:1', label: '1 produto - 1x1' },
+  { value: 'COUNT:2', label: '2 produtos - 2x1' },
+  { value: 'COUNT:3', label: '3 produtos - 3x1' },
+  { value: 'COUNT:4', label: '4 produtos - 2x2' },
+  { value: 'COUNT:5', label: '5 produtos - destaque lateral' },
+  { value: 'COUNT:6', label: '6 produtos - 3x2' },
+  { value: 'COUNT:8', label: '8 produtos - 4x2' },
+  { value: 'COUNT:9', label: '9 produtos - 3x3' },
+  { value: 'COUNT:10', label: '10 produtos - grade expandida' },
+  { value: 'COUNT:12', label: '12 produtos - 4x3' },
+  { value: 'COUNT:14', label: '14 produtos - encarte com destaque' },
+  { value: 'COUNT:18', label: '18 produtos - tabloide extenso' },
+  { value: 'COUNT:20', label: '20 produtos - tabela' },
+] as const;
+
 const PRODUCT_BOX_OPTIONS = [
   { value: 'SMART', label: 'Inteligente' },
   { value: 'COMPACT', label: 'Compacto' },
@@ -334,7 +353,7 @@ const FOOTER_OPTIONS = [
   { value: 'NONE', label: 'Sem rodapé' },
 ] as const;
 
-const ZOOM_PRESET_VALUES = [1, 2, 5, 10, 25, 50, 75, 100, 125, 150, 200, 300, 400] as const;
+const ZOOM_PRESET_VALUES = [30, 40, 50, 60, 70, 80, 90, 100] as const;
 const MIN_STAGE_ZOOM = 0.01;
 const MAX_STAGE_ZOOM = 4;
 
@@ -352,7 +371,20 @@ const PUBLISH_TARGET_OPTIONS = [
   { value: 'TV', label: 'TV da loja' },
 ] as const;
 
+const STUDIO_PUBLISH_TARGET_OPTIONS = [
+  ...PUBLISH_TARGET_OPTIONS,
+  { value: 'FACEBOOK', label: 'Facebook' },
+] as const;
+
 const gridPresetToCount = (value: string) => (value === '1x1' ? 1 : value === '2x2' ? 4 : value === '3x2' ? 6 : value === '3x3' ? 9 : 6);
+const resolveGridPresetCount = (value: string) => {
+  const explicitCount = /^COUNT:(\d+)$/i.exec(value || '');
+  if (explicitCount) {
+    return Math.max(Number(explicitCount[1]) || 1, 1);
+  }
+
+  return gridPresetToCount(value);
+};
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 const clampZoomScale = (value: number) => {
@@ -1928,6 +1960,77 @@ const StudioCollapsibleSection: React.FC<{
   </section>
 );
 
+const parseStringList = (value?: string | null, fallback: string[] = []) => {
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString('pt-BR') : 'Agora');
+
+const getCampaignState = (job: OfferGenerationJob) => {
+  const normalized = String(job.status || '').toUpperCase();
+  const readyOutputs = job.outputs?.filter((output) => String(output.status || '').toUpperCase() === 'READY').length || 0;
+  const failedOutputs = job.outputs?.filter((output) => String(output.status || '').toUpperCase() === 'FAILED').length || 0;
+
+  if (normalized === 'FAILED' || (failedOutputs > 0 && readyOutputs === 0)) {
+    return { key: 'failed', label: 'Falhou', pillClass: 'negative' };
+  }
+  if (normalized === 'READY' || normalized === 'PARTIAL' || readyOutputs > 0) {
+    return { key: 'published', label: normalized === 'PARTIAL' ? 'Publicado com alerta' : 'Publicado', pillClass: 'positive' };
+  }
+  if (normalized === 'PROCESSING' || normalized === 'QUEUED') {
+    return { key: 'processing', label: 'Publicando', pillClass: 'soft' };
+  }
+  return { key: 'draft', label: 'Rascunho', pillClass: 'soft' };
+};
+
+const StudioSideSheet: React.FC<{
+  open: boolean;
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}> = ({ open, title, subtitle, onClose, children }) => {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[90] flex justify-end">
+      <button
+        type="button"
+        className="absolute inset-0 bg-[rgba(20,12,8,0.44)] backdrop-blur-[2px]"
+        aria-label="Fechar painel lateral"
+        onClick={onClose}
+      />
+      <aside className="relative z-[91] flex h-full w-full max-w-[560px] flex-col border-l border-[rgba(87,51,30,0.1)] bg-[linear-gradient(180deg,#fffdf9_0%,#f7eee6_100%)] shadow-[-18px_0_42px_rgba(20,12,8,0.16)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[rgba(87,51,30,0.08)] px-5 py-5">
+          <div>
+            <span className="section-kicker">{title}</span>
+            <h2 className="mt-2 text-[1.7rem] font-semibold tracking-[-0.04em] text-[color:var(--text-primary)]">{subtitle}</h2>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(87,51,30,0.1)] bg-white text-[color:var(--text-primary)]"
+            aria-label="Fechar painel lateral"
+            onClick={onClose}
+          >
+            <EyeOff size={16} strokeWidth={2.2} />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <div className="flex flex-col gap-4">{children}</div>
+        </div>
+      </aside>
+    </div>
+  );
+};
+
 const OfferDesigner: React.FC = () => {
   const { buildUrl, isSuperAdminMode, marketId, userName } = useOffersAppSession();
   const navigate = useNavigate();
@@ -1941,8 +2044,12 @@ const OfferDesigner: React.FC = () => {
   const requestedJobId = searchParams.get('jobId') || '';
   const requestedProductId = searchParams.get('productId') || '';
   const requestedMarketId = searchParams.get('marketId') || '';
-  const adminCampaignsRoute = buildUrl('/ofertas/campanhas');
+  const requestedStudioSheet = searchParams.get('sheet') || '';
+  const studioSheet = requestedStudioSheet === 'campaigns' || requestedStudioSheet === 'media'
+    ? requestedStudioSheet
+    : '';
   const [overview, setOverview] = useState<OfferOverview | null>(null);
+  const [jobs, setJobs] = useState<OfferGenerationJob[]>([]);
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
   const [brandKits, setBrandKits] = useState<OfferBrandKit[]>([]);
   const [campaignKits, setCampaignKits] = useState<OfferCampaignKit[]>([]);
@@ -1977,7 +2084,7 @@ const OfferDesigner: React.FC = () => {
   const [renderQuality, setRenderQuality] = useState('high');
   const [publishTargets, setPublishTargets] = useState<string[]>(['DOWNLOAD']);
   const [coverEnabled, setCoverEnabled] = useState(false);
-  const [activeTool, setActiveTool] = useState<StudioTool>('products');
+  const [activeTool, setActiveTool] = useState<StudioTool>(isSuperAdminMode ? 'themes' : 'products');
   const [productPanelMode, setProductPanelMode] = useState<ProductPanelMode>('search');
   const [toolPanelCollapsed, setToolPanelCollapsed] = useState(false);
   const [searchBoxCollapsed, setSearchBoxCollapsed] = useState(false);
@@ -2020,12 +2127,33 @@ const OfferDesigner: React.FC = () => {
   const selectedBrandKit = useMemo(() => brandKits.find((kit) => kit.id === selectedBrandKitId) || null, [brandKits, selectedBrandKitId]);
   const selectedCampaignKit = useMemo(() => campaignKits.find((kit) => kit.id === selectedCampaignKitId) || null, [campaignKits, selectedCampaignKitId]);
   const selectedProductIds = useMemo(() => new Set(selectedProducts.map((product) => product.productId)), [selectedProducts]);
-  const itemsPerPage = useMemo(() => (generationMode === 'CATALOG' ? gridPresetToCount(gridPreset) : 1), [generationMode, gridPreset]);
+  const itemsPerPage = useMemo(() => (generationMode === 'CATALOG' ? resolveGridPresetCount(gridPreset) : 1), [generationMode, gridPreset]);
   const pageEstimate = useMemo(() => {
     if (generationMode === 'INDIVIDUAL') return Math.max(selectedProducts.length, 1);
     const basePages = Math.max(Math.ceil(selectedProducts.length / Math.max(itemsPerPage, 1)), 1);
     return coverEnabled ? basePages + 1 : basePages;
   }, [coverEnabled, generationMode, itemsPerPage, selectedProducts.length]);
+  const sortedJobs = useMemo(
+    () => [...jobs].sort((left, right) => new Date(right.updatedAt || right.createdAt || 0).getTime() - new Date(left.updatedAt || left.createdAt || 0).getTime()),
+    [jobs],
+  );
+  const mediaEntries = useMemo(
+    () =>
+      sortedJobs.flatMap((job) => (job.outputs || []).map((output) => ({
+        job,
+        output,
+      }))),
+    [sortedJobs],
+  );
+  const readyMediaCount = useMemo(
+    () => mediaEntries.filter(({ output }) => String(output.status || '').toUpperCase() === 'READY').length,
+    [mediaEntries],
+  );
+  const draftCampaignCount = useMemo(
+    () => sortedJobs.filter((job) => getCampaignState(job).key === 'draft').length,
+    [sortedJobs],
+  );
+  const portalEnabled = publishTargets.includes('PORTAL');
   const stageCanvasWidth = useMemo(
     () => (
       isSuperAdminMode
@@ -2088,7 +2216,7 @@ const OfferDesigner: React.FC = () => {
     }
 
     return [
-      { value: 'AUTO', label: `Ajustar (${formatZoomLabel(fitStageScale)})` },
+      { value: 'AUTO', label: 'Auto' },
       ...Array.from(manualValues)
         .sort((left, right) => left - right)
         .map((value) => ({ value: String(value), label: `${value}%` })),
@@ -2388,7 +2516,21 @@ const OfferDesigner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fitStageScale, stageScale]);
 
-  const buildDesignerRoute = (jobId: string) => buildUrl('/ofertas', new URLSearchParams({ jobId }).toString());
+  const buildStudioRoute = (overrides?: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(overrides || {}).forEach(([key, value]) => {
+      if (value == null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    return buildUrl('/ofertas', params.toString());
+  };
+
+  const buildDesignerRoute = (jobId: string) => buildStudioRoute({ jobId, sheet: null });
 
   const buildRenderOptionsPayload = () => ({
     quality: renderQuality,
@@ -2407,6 +2549,7 @@ const OfferDesigner: React.FC = () => {
       badgeLabel: campaignBadgeLabel,
     },
   });
+  const name = effectiveMarketName;
 
   const socialCopy = useMemo(() => {
     const previewHeadline = readHeadline(preview);
@@ -2594,6 +2737,7 @@ const OfferDesigner: React.FC = () => {
       if (!effectiveMarketId) {
         setTemplates([]);
         setOverview(null);
+        setJobs([]);
         setBrandKits([]);
         setCampaignKits([]);
         setMarketProfile(null);
@@ -2613,12 +2757,14 @@ const OfferDesigner: React.FC = () => {
       }
       try {
         setLoading(true);
-        const [templateData, overviewData] = await Promise.all([
+        const [templateData, overviewData, jobsData] = await Promise.all([
           offersService.getTemplates(effectiveMarketId),
           offersService.getOverview(effectiveMarketId),
+          offersService.getJobs(effectiveMarketId),
         ]);
         setTemplates(templateData);
         setOverview(overviewData);
+        setJobs(jobsData);
         setBrandKits(overviewData.brandKits || []);
         setCampaignKits(overviewData.campaignKits || []);
         setMarketProfile(overviewData.marketProfile || null);
@@ -2673,12 +2819,6 @@ const OfferDesigner: React.FC = () => {
     selectedVariantKey,
     textMode,
   ]);
-
-  useEffect(() => {
-    if (isSuperAdminMode && activeTool !== 'themes') {
-      setActiveTool('themes');
-    }
-  }, [activeTool, isSuperAdminMode]);
 
   useEffect(() => {
     if (!lookupNotice) return undefined;
@@ -3275,6 +3415,12 @@ const OfferDesigner: React.FC = () => {
     }
   };
 
+  const handleBulkInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter') {
+      event.stopPropagation();
+    }
+  };
+
   const handleBulkLookup = async () => {
     if (!effectiveMarketId) return;
     const terms = bulkInput.split(/\n|,|;/).map((item) => item.trim()).filter(Boolean).slice(0, 16);
@@ -3286,12 +3432,17 @@ const OfferDesigner: React.FC = () => {
     try {
       const responses = await Promise.all(terms.map((term) => offersService.searchCatalog(effectiveMarketId, term, 6)));
       const bestMatches = responses.map((items) => items[0]).filter(Boolean) as OfferCatalogProduct[];
-      setResults(bestMatches);
-      const mergedSelection = mergeUniqueProducts(selectedProducts, bestMatches);
-      setSelectedProducts(mergedSelection);
-      setProductPanelMode('selected');
-      await refreshPreview('autofill', mergedSelection.map((product) => product.productId));
-      setLookupNotice(`${bestMatches.length} produtos foram adicionados automaticamente a partir da lista colada.`);
+      const resolvedMatches = mergeUniqueProducts([], bestMatches);
+      setResults(resolvedMatches);
+      setProductPanelMode('search');
+      setResultsCollapsed(false);
+      if (!resolvedMatches.length) {
+        setLookupNotice('Nenhum produto foi encontrado a partir da lista colada.');
+      } else if (resolvedMatches.length === terms.length) {
+        setLookupNotice(`${resolvedMatches.length} produtos localizados. Revise abaixo e adicione um a um.`);
+      } else {
+        setLookupNotice(`${resolvedMatches.length} produtos localizados a partir de ${terms.length} linhas. Revise abaixo e adicione um a um.`);
+      }
     } catch (err: any) {
       setError(err?.message || 'Não foi possível processar a lista de produtos.');
     } finally {
@@ -3684,6 +3835,122 @@ const OfferDesigner: React.FC = () => {
     });
   };
 
+  const openStudioSheet = (nextSheet: 'campaigns' | 'media') => {
+    navigate(buildStudioRoute({ sheet: nextSheet }));
+  };
+
+  const closeStudioSheet = () => {
+    navigate(buildStudioRoute({ sheet: null }));
+  };
+
+  const handleEditSavedCampaign = (job: OfferGenerationJob) => {
+    setActiveTool('products');
+    navigate(buildDesignerRoute(job.id));
+  };
+
+  const reloadJobs = async () => {
+    if (!effectiveMarketId) {
+      return;
+    }
+
+    try {
+      const data = await offersService.getJobs(effectiveMarketId);
+      setJobs(data);
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel atualizar campanhas e midias.');
+    }
+  };
+
+  const handlePublishCurrentCampaign = async () => {
+    if (!effectiveMarketId) {
+      return;
+    }
+
+    if (!activeJobId) {
+      setActiveTool('leaflet');
+      setError('Salve a campanha antes de publicar nos canais.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await offersService.publishJob(effectiveMarketId, activeJobId, {
+        variantKeys: [selectedVariantKey || 'default'],
+        outputTypes: [outputType || 'PNG'],
+        publishTargets,
+        renderOptionsJson: JSON.stringify(buildRenderOptionsPayload()),
+      });
+      await reloadJobs();
+      openStudioSheet('media');
+      setLookupNotice('Campanha enviada para geracao e publicacao.');
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel publicar a campanha atual.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePublishSavedCampaign = async (job: OfferGenerationJob) => {
+    if (!effectiveMarketId) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await offersService.publishJob(effectiveMarketId, job.id, {
+        variantKeys: [job.variantKey || 'default'],
+        outputTypes: [job.outputType || 'PNG'],
+        publishTargets: parseStringList(job.publishTargetsJson, ['DOWNLOAD']),
+        renderOptionsJson: job.renderOptionsJson || undefined,
+      });
+      await reloadJobs();
+      setLookupNotice('Campanha enviada para geracao e publicacao.');
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel publicar a campanha.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCloneSavedCampaign = async (job: OfferGenerationJob) => {
+    if (!effectiveMarketId) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const cloned = await offersService.cloneJob(effectiveMarketId, job.id);
+      await reloadJobs();
+      setLookupNotice('Campanha clonada.');
+      navigate(buildDesignerRoute(cloned.id));
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel clonar a campanha.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSavedCampaign = async (job: OfferGenerationJob) => {
+    if (!effectiveMarketId) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await offersService.deleteJob(effectiveMarketId, job.id);
+      await reloadJobs();
+      if (activeJobId === job.id) {
+        setActiveJobId('');
+        navigate(buildStudioRoute({ jobId: null, sheet: 'campaigns' }), { replace: true });
+      }
+      setLookupNotice('Campanha removida.');
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel remover a campanha.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <OffersStudioLayout>
@@ -3761,7 +4028,7 @@ const OfferDesigner: React.FC = () => {
                       <button type="button" className="offer-studio-section-toggle" onClick={() => setSearchBoxCollapsed((current) => !current)} aria-expanded={!searchBoxCollapsed}>
                         <span>
                           <strong>Buscar no catálogo</strong>
-                          <small>Digite um produto ou cole uma lista para preenchimento automático.</small>
+                          <small>Digite um produto ou cole uma lista, um item por linha, para revisar os candidatos abaixo.</small>
                         </span>
                         {searchBoxCollapsed ? <ChevronDown size={16} strokeWidth={2.2} /> : <ChevronUp size={16} strokeWidth={2.2} />}
                       </button>
@@ -3773,7 +4040,14 @@ const OfferDesigner: React.FC = () => {
                           </label>
                           <label className="offer-studio-text-field">
                             <span>Cole a lista de produtos</span>
-                            <textarea className="textarea" rows={6} value={bulkInput} onChange={(event) => setBulkInput(event.target.value)} placeholder={'Ex.: coca cola 2l\narroz tio joao 5kg\ncerveja heineken 600ml'} />
+                            <textarea
+                              className="textarea"
+                              rows={6}
+                              value={bulkInput}
+                              onChange={(event) => setBulkInput(event.target.value)}
+                              onKeyDown={handleBulkInputKeyDown}
+                              placeholder={'Ex.: coca cola 2l\narroz tio joao 5kg\ncerveja heineken 600ml'}
+                            />
                           </label>
                           <div className="offer-studio-inline-actions">
                             <Button type="button" onClick={handleBulkLookup} disabled={bulkSearching}>
@@ -3799,7 +4073,7 @@ const OfferDesigner: React.FC = () => {
                       </button>
                       {!resultsCollapsed ? (
                         results.length === 0 ? (
-                          <div className="offer-studio-empty-card">Pesquise um item do catálogo ou cole uma lista para preencher a arte automaticamente.</div>
+                          <div className="offer-studio-empty-card">Pesquise um item do catálogo ou processe uma lista para revisar os produtos e adicionar um por vez.</div>
                         ) : (
                           results.map((product) => (
                             <StudioSearchResultCard
@@ -5168,7 +5442,7 @@ const OfferDesigner: React.FC = () => {
                           <RefreshCw size={16} strokeWidth={2.1} />
                           Atualizar previa
                         </Button>
-                        <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
+                        <Button type="button" variant="secondary" onClick={() => openStudioSheet('campaigns')}>
                           <Boxes size={16} strokeWidth={2.1} />
                           Ver campanhas
                         </Button>
@@ -5266,18 +5540,40 @@ const OfferDesigner: React.FC = () => {
               </div>
             ) : null}
 
-            {activeTool === 'market' ? (
+            {activeTool === 'brand' ? (
               <div className="offer-studio-panel-stack">
                 <div className="offer-studio-panel-header compact">
                   <div>
                     <span className="section-kicker">Marca</span>
-                    <h2>Perfil visual do mercado</h2>
+                    <h2>Identidade da campanha</h2>
                   </div>
                 </div>
 
                 <StudioCollapsibleSection
-                  title="Rodape da conta"
-                  description="O template reserva a area. Aqui o mercado define textos e logos que vao preencher o rodape."
+                  title="Identidade visual"
+                  description="Selecione a combinacao visual principal do encarte, como no fluxo de skins do qrofertas."
+                  collapsed={Boolean(collapsedConfigSections.brandIdentity)}
+                  onToggle={() => toggleConfigSection('brandIdentity')}
+                >
+                  <div className="offer-studio-edit-grid">
+                    <StudioSelectField
+                      label="Brand kit"
+                      value={selectedBrandKitId}
+                      onChange={setSelectedBrandKitId}
+                      options={brandKitOptions.length ? brandKitOptions : [{ value: '', label: 'Sem brand kit' }]}
+                    />
+                    <StudioSelectField
+                      label="Campanha principal"
+                      value={selectedCampaignKitId}
+                      onChange={setSelectedCampaignKitId}
+                      options={campaignKitOptions.length ? campaignKitOptions : [{ value: '', label: 'Sem campanha' }]}
+                    />
+                  </div>
+                </StudioCollapsibleSection>
+
+                <StudioCollapsibleSection
+                  title="Textos institucionais"
+                  description="Defina os textos fixos que acompanham a identidade visual do mercado."
                   collapsed={Boolean(collapsedConfigSections.marketFooter)}
                   onToggle={() => toggleConfigSection('marketFooter')}
                 >
@@ -5384,7 +5680,7 @@ const OfferDesigner: React.FC = () => {
               </div>
             ) : null}
 
-            {activeTool === 'calendar' ? (
+            {activeTool === 'dates' ? (
               <div className="offer-studio-panel-stack">
                 <div className="offer-studio-panel-header compact">
                   <div>
@@ -5392,6 +5688,26 @@ const OfferDesigner: React.FC = () => {
                     <h2>Sugestões inteligentes</h2>
                   </div>
                 </div>
+
+                <StudioCollapsibleSection
+                  title="Agenda da campanha"
+                  description="Escolha a campanha sazonal que orienta tema, selo e calendario comercial."
+                  collapsed={Boolean(collapsedConfigSections.calendarCampaign)}
+                  onToggle={() => toggleConfigSection('calendarCampaign')}
+                >
+                  <div className="offer-studio-edit-grid">
+                    <StudioSelectField
+                      label="Campanha sazonal"
+                      value={selectedCampaignKitId}
+                      onChange={setSelectedCampaignKitId}
+                      options={campaignKitOptions.length ? campaignKitOptions : [{ value: '', label: 'Sem campanha' }]}
+                    />
+                    <label className="offer-studio-text-field">
+                      <span>Foco atual</span>
+                      <input className="input" value={selectedCampaignKit?.seasonKey || 'Campanha livre'} readOnly />
+                    </label>
+                  </div>
+                </StudioCollapsibleSection>
 
                 <section className="offer-studio-insight-block">
                   <div className="offer-studio-panel-subhead">
@@ -5440,12 +5756,12 @@ const OfferDesigner: React.FC = () => {
               </div>
             ) : null}
 
-            {activeTool === 'copy' ? (
+            {activeTool === 'fonts' ? (
               <div className="offer-studio-panel-stack">
                 <div className="offer-studio-panel-header compact">
                   <div>
-                    <span className="section-kicker">Texto</span>
-                    <h2>Campanha e legenda</h2>
+                    <span className="section-kicker">Fontes</span>
+                    <h2>Tipografia e copy</h2>
                   </div>
                   <Button type="button" variant="secondary" onClick={handleCopyText} disabled={copying}>
                     <Copy size={16} strokeWidth={2.1} />
@@ -5453,8 +5769,20 @@ const OfferDesigner: React.FC = () => {
                   </Button>
                 </div>
                 <StudioCollapsibleSection
+                  title="Preset visual"
+                  description="Ajuste o comportamento do texto, da paleta e do rodape para a arte inteira."
+                  collapsed={Boolean(collapsedConfigSections.copyMode)}
+                  onToggle={() => toggleConfigSection('copyMode')}
+                >
+                  <div className="offer-studio-edit-grid">
+                    <StudioSelectField label="Estilo de texto" value={textMode} onChange={setTextMode} options={[...TEXT_MODE_OPTIONS]} />
+                    <StudioSelectField label="Paleta da arte" value={colorMode} onChange={setColorMode} options={[...COLOR_MODE_OPTIONS]} />
+                    <StudioSelectField label="Formato do rodape" value={footerMode} onChange={setFooterMode} options={[...FOOTER_OPTIONS]} />
+                  </div>
+                </StudioCollapsibleSection>
+                <StudioCollapsibleSection
                   title="Texto da arte"
-                  description="Esses campos alimentam o topo do template sem alterar a estrutura."
+                  description="Esses campos alimentam o topo do template e o tom geral da campanha."
                   collapsed={Boolean(collapsedConfigSections.copyText)}
                   onToggle={() => toggleConfigSection('copyText')}
                 >
@@ -5483,10 +5811,166 @@ const OfferDesigner: React.FC = () => {
                     </label>
                   </div>
                 </StudioCollapsibleSection>
-                <div className="offer-studio-copy-box">
-                  <p>Gere um texto de apoio para redes sociais e comunicacao acessivel com base nos produtos selecionados e na campanha ativa.</p>
-                  <textarea className="textarea" rows={18} value={socialCopy} readOnly />
+                <StudioCollapsibleSection
+                  title="Legenda sugerida"
+                  description="Texto pronto para postar, revisar e reutilizar nos canais da campanha."
+                  collapsed={Boolean(collapsedConfigSections.copySocial)}
+                  onToggle={() => toggleConfigSection('copySocial')}
+                >
+                  <div className="offer-studio-copy-box">
+                    <p>Gere um texto de apoio para redes sociais e comunicacao acessivel com base nos produtos selecionados e na campanha ativa.</p>
+                    <textarea className="textarea" rows={18} value={socialCopy} readOnly />
+                  </div>
+                </StudioCollapsibleSection>
+              </div>
+            ) : null}
+
+            {activeTool === 'leaflet' ? (
+              <div className="offer-studio-panel-stack">
+                <div className="offer-studio-panel-header compact">
+                  <div>
+                    <span className="section-kicker">Encarte</span>
+                    <h2>Montagem da campanha</h2>
+                  </div>
                 </div>
+                <StudioCollapsibleSection
+                  title="Configuracao do encarte"
+                  description="Defina o nome do job, o formato principal e a estrategia de geracao."
+                  collapsed={Boolean(collapsedConfigSections.publishConfig)}
+                  onToggle={() => toggleConfigSection('publishConfig')}
+                  containerClassName="offer-studio-publish-box"
+                >
+                  <div className="offer-studio-edit-grid">
+                    <label className="offer-studio-text-field md:col-span-2">
+                      <span>Nome da campanha</span>
+                      <input className="input" value={jobName} onChange={(event) => setJobName(event.target.value)} placeholder="Ex.: Encarte fim de semana" />
+                    </label>
+                    <label className="offer-studio-text-field">
+                      <span>Saida principal</span>
+                      <select className="input" value={outputType} onChange={(event) => setOutputType(event.target.value)}>
+                        <option value="PNG">PNG</option>
+                        <option value="PDF">PDF</option>
+                        <option value="MP4">MP4</option>
+                      </select>
+                    </label>
+                    <label className="offer-studio-text-field">
+                      <span>Modo de geracao</span>
+                      <select className="input" value={generationMode} onChange={(event) => setGenerationMode(event.target.value)}>
+                        <option value="CATALOG">Encarte multiproduto</option>
+                        <option value="INDIVIDUAL">Pecas individuais</option>
+                      </select>
+                    </label>
+                    <label className="offer-studio-text-field">
+                      <span>Qualidade</span>
+                      <select className="input" value={renderQuality} onChange={(event) => setRenderQuality(event.target.value)}>
+                        {QUALITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </label>
+                    <StudioSelectField label="Formato" value={selectedVariantKey} onChange={setSelectedVariantKey} options={variantOptions.length ? variantOptions : [{ value: '', label: 'Formato principal' }]} />
+                  </div>
+                </StudioCollapsibleSection>
+                <StudioCollapsibleSection
+                  title="Montagem da pagina"
+                  description="Controle a quantidade de produtos, a distribuicao dos boxes e a capa."
+                  collapsed={Boolean(collapsedConfigSections.publishChannels)}
+                  onToggle={() => toggleConfigSection('publishChannels')}
+                >
+                  <div className="offer-studio-edit-grid">
+                    <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...QROFERTAS_GRID_PRESET_OPTIONS]} />
+                    <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
+                    <label className="offer-studio-toggle-field">
+                      <span>Gerar capa</span>
+                      <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
+                        <span />
+                      </button>
+                    </label>
+                    <div className="offer-studio-summary-card">
+                      <strong>{selectedProducts.length} produtos</strong>
+                      <span>{pageEstimate} pagina(s) estimadas</span>
+                      <span>{selectedVariant?.name || 'Formato principal'} · {selectedTemplate?.name || 'Sem modelo'}</span>
+                    </div>
+                  </div>
+                  <div className="offer-studio-inline-actions wrap">
+                    <Button type="button" variant="secondary" onClick={() => void refreshPreview('autofill')}>
+                      <WandSparkles size={16} strokeWidth={2.1} />
+                      Auto-fill
+                    </Button>
+                    <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
+                      <FileText size={16} strokeWidth={2.1} />
+                      {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
+                    </Button>
+                  </div>
+                </StudioCollapsibleSection>
+              </div>
+            ) : null}
+
+            {activeTool === 'portal' ? (
+              <div className="offer-studio-panel-stack">
+                <div className="offer-studio-panel-header compact">
+                  <div>
+                    <span className="section-kicker">Portal</span>
+                    <h2>Destino online da oferta</h2>
+                  </div>
+                </div>
+                <StudioCollapsibleSection
+                  title="Publicacao no portal"
+                  description="Controle se esta campanha tambem sera publicada no portal do mercado."
+                  collapsed={Boolean(collapsedConfigSections.marketFooter)}
+                  onToggle={() => toggleConfigSection('marketFooter')}
+                >
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => togglePublishTarget('PORTAL')}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${portalEnabled ? 'border-transparent bg-[color:var(--accent-primary)] text-white shadow-[0_14px_24px_rgba(255,106,0,0.22)]' : 'border-[rgba(87,51,30,0.1)] bg-white text-[color:var(--text-primary)]'}`}
+                      >
+                        {portalEnabled ? <Check size={14} strokeWidth={2.1} /> : <Target size={14} strokeWidth={2.1} />}
+                        {portalEnabled ? 'Portal ativo' : 'Ativar portal'}
+                      </button>
+                    </div>
+                    <div className="offer-studio-summary-card">
+                      <strong>{portalEnabled ? 'Portal habilitado' : 'Portal desabilitado'}</strong>
+                      <span>{marketProfile?.footerContent || 'Configure o texto institucional na aba Marca.'}</span>
+                      <span>{marketProfile?.footerLegalText || 'Sem texto legal definido.'}</span>
+                    </div>
+                  </div>
+                </StudioCollapsibleSection>
+                <StudioCollapsibleSection
+                  title="Identidade publicada"
+                  description="Resumo rapido dos ativos que acompanham a campanha no portal."
+                  collapsed={Boolean(collapsedConfigSections.marketLogos)}
+                  onToggle={() => toggleConfigSection('marketLogos')}
+                >
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <span className="section-kicker">Logo principal</span>
+                      <div className="mt-3 flex h-24 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+                        {marketProfile?.primaryLogoUrl ? (
+                          <OfferProductImage src={marketProfile.primaryLogoUrl} alt="Logo principal" className="h-full w-full object-contain p-4" />
+                        ) : (
+                          <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <span className="section-kicker">Logo secundaria</span>
+                      <div className="mt-3 flex h-24 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+                        {marketProfile?.secondaryLogoUrl ? (
+                          <OfferProductImage src={marketProfile.secondaryLogoUrl} alt="Logo secundaria" className="h-full w-full object-contain p-4" />
+                        ) : (
+                          <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="offer-studio-inline-actions wrap">
+                    <Button type="button" variant="secondary" onClick={() => setActiveTool('brand')}>
+                      <Factory size={16} strokeWidth={2.1} />
+                      Ajustar identidade
+                    </Button>
+                  </div>
+                </StudioCollapsibleSection>
               </div>
             ) : null}
 
@@ -5494,51 +5978,26 @@ const OfferDesigner: React.FC = () => {
               <div className="offer-studio-panel-stack">
                 <div className="offer-studio-panel-header compact">
                   <div>
-                    <span className="section-kicker">Publicação</span>
-                    <h2>{isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha'}</h2>
+                    <span className="section-kicker">Postar</span>
+                    <h2>Distribuicao e disparo</h2>
                   </div>
                 </div>
                 <StudioCollapsibleSection
-                  title="Configuracao de publicacao"
-                  description="Defina campanha, saida, qualidade e canais antes de salvar."
-                  collapsed={Boolean(collapsedConfigSections.publishConfig)}
-                  onToggle={() => toggleConfigSection('publishConfig')}
+                  title="Canais de publicacao"
+                  description="Selecione os destinos da campanha e publique a partir do estagio atual."
+                  collapsed={Boolean(collapsedConfigSections.publishTargets)}
+                  onToggle={() => toggleConfigSection('publishTargets')}
                   containerClassName="offer-studio-publish-box"
                 >
-                  <label className="offer-studio-text-field">
-                    <span>Nome da campanha</span>
-                    <input className="input" value={jobName} onChange={(event) => setJobName(event.target.value)} placeholder="Ex.: Encarte fim de semana" />
-                  </label>
-                  <label className="offer-studio-text-field">
-                    <span>Saída principal</span>
-                    <select className="input" value={outputType} onChange={(event) => setOutputType(event.target.value)}>
-                      <option value="PNG">PNG</option>
-                      <option value="PDF">PDF</option>
-                      <option value="MP4">MP4</option>
-                    </select>
-                  </label>
-                  <label className="offer-studio-text-field">
-                    <span>Modo de geração</span>
-                    <select className="input" value={generationMode} onChange={(event) => setGenerationMode(event.target.value)}>
-                      <option value="CATALOG">Encarte multiproduto</option>
-                      <option value="INDIVIDUAL">Peças individuais</option>
-                    </select>
-                  </label>
-                  <label className="offer-studio-text-field">
-                    <span>Qualidade de render</span>
-                    <select className="input" value={renderQuality} onChange={(event) => setRenderQuality(event.target.value)}>
-                      {QUALITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </label>
                   <div className="offer-studio-summary-card">
-                    <strong>{selectedProducts.length} produtos</strong>
-                    <span>{pageEstimate} página(s) estimadas</span>
-                    <span>{selectedVariant?.name || 'Formato principal'} · {selectedTemplate?.name || 'Sem modelo'}</span>
+                    <strong>{jobName.trim() || 'Campanha sem nome'}</strong>
+                    <span>{draftCampaignCount} rascunho(s) salvo(s)</span>
+                    <span>{readyMediaCount} midia(s) pronta(s)</span>
                   </div>
                   <div className="space-y-3">
-                    <span className="section-kicker">Canais de publicação</span>
+                    <span className="section-kicker">Canais de publicacao</span>
                     <div className="flex flex-wrap gap-2">
-                      {PUBLISH_TARGET_OPTIONS.map((option) => (
+                      {STUDIO_PUBLISH_TARGET_OPTIONS.map((option) => (
                         <button
                           key={option.value}
                           type="button"
@@ -5556,9 +6015,17 @@ const OfferDesigner: React.FC = () => {
                       <WandSparkles size={16} strokeWidth={2.1} />
                       {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
                     </Button>
-                    <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
+                    <Button type="button" variant="secondary" onClick={handlePublishCurrentCampaign} disabled={saving || !activeJobId}>
+                      <SendHorizontal size={16} strokeWidth={2.1} />
+                      {saving ? 'Publicando...' : 'Publicar agora'}
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => openStudioSheet('campaigns')}>
                       <Boxes size={16} strokeWidth={2.1} />
-                      Ver campanhas
+                      Minhas campanhas
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => openStudioSheet('media')}>
+                      <ImageIcon size={16} strokeWidth={2.1} />
+                      Gerenciar midias
                     </Button>
                   </div>
                 </StudioCollapsibleSection>
@@ -5572,12 +6039,25 @@ const OfferDesigner: React.FC = () => {
                 {toolPanelCollapsed ? <ChevronRight size={16} strokeWidth={2.2} /> : <ChevronLeft size={16} strokeWidth={2.2} />}
                 <span>{toolPanelCollapsed ? 'Expandir ferramentas' : 'Recolher ferramentas'}</span>
               </button>
+              {!isSuperAdminMode ? (
+                <div className="offer-studio-inline-actions wrap">
+                  <Button type="button" variant={studioSheet === 'campaigns' ? 'primary' : 'secondary'} onClick={() => openStudioSheet('campaigns')}>
+                    <Boxes size={16} strokeWidth={2.1} />
+                    Minhas campanhas ({sortedJobs.length})
+                  </Button>
+                  <Button type="button" variant={studioSheet === 'media' ? 'primary' : 'secondary'} onClick={() => openStudioSheet('media')}>
+                    <ImageIcon size={16} strokeWidth={2.1} />
+                    Gerenciador de midias ({readyMediaCount})
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             <div className="offer-studio-toolbar">
               <StudioSelectField label="Modelo" value={selectedTemplateId} onChange={(value) => void handleTemplateChange(value)} options={templateOptions.length ? templateOptions : [{ value: '', label: 'Sem modelo' }]} />
-              <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...GRID_PRESET_OPTIONS]} />
+              <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...QROFERTAS_GRID_PRESET_OPTIONS]} />
               <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
+              <StudioSelectField label="Zoom" value={zoomMode} onChange={handleZoomSelect} options={zoomOptions} />
               <label className="offer-studio-toggle-field">
                 <span>Gerar capa</span>
                 <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
@@ -5677,55 +6157,23 @@ const OfferDesigner: React.FC = () => {
                       <strong>Página 1 de {pageEstimate}</strong>
                       <span>{selectedProducts.length} produtos selecionados</span>
                       <span>{validation?.layerCount || 0} camadas · {validation?.zoneCount || 0} zonas</span>
+                      <span>Zoom {zoomDisplayLabel}</span>
                     </>
                   )}
                 </div>
                 <div className="offer-studio-output-actions">
-                  <div className="offer-studio-zoom-control">
-                    <span>Zoom da arte</span>
-                    <div className="offer-studio-zoom-control-row">
-                      <button
-                        type="button"
-                        className="offer-studio-zoom-button"
-                        onClick={() => handleZoomStep('out')}
-                        aria-label="Diminuir zoom"
-                        title="Diminuir zoom (Ctrl/Cmd -)"
-                      >
-                        <Minus size={16} strokeWidth={2.2} />
-                      </button>
-                      <select
-                        className="input"
-                        value={zoomMode}
-                        onChange={(event) => handleZoomSelect(event.target.value)}
-                        aria-label="Selecionar zoom da arte"
-                        title="Zoom da arte"
-                      >
-                        {zoomOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        className="offer-studio-zoom-button"
-                        onClick={() => handleZoomStep('in')}
-                        aria-label="Aumentar zoom"
-                        title="Aumentar zoom (Ctrl/Cmd +)"
-                      >
-                        <Plus size={16} strokeWidth={2.2} />
-                      </button>
-                      <button
-                        type="button"
-                        className={`offer-studio-zoom-fit ${zoomMode === 'AUTO' ? 'active' : ''}`}
-                        onClick={() => handleZoomSelect('AUTO')}
-                        title="Ajustar ao palco (Ctrl/Cmd 0)"
-                      >
-                        Ajustar
-                      </button>
-                      <span className="offer-studio-zoom-indicator">{zoomDisplayLabel}</span>
-                    </div>
-                  </div>
+                  <Button type="button" variant="secondary" onClick={() => handleZoomStep('out')} title="Diminuir zoom (Ctrl/Cmd -)">
+                    <Minus size={16} strokeWidth={2.2} />
+                    Menos zoom
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => handleZoomSelect('AUTO')} title="Ajustar ao palco (Ctrl/Cmd 0)">
+                    <Target size={16} strokeWidth={2.2} />
+                    Auto
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => handleZoomStep('in')} title="Aumentar zoom (Ctrl/Cmd +)">
+                    <Plus size={16} strokeWidth={2.2} />
+                    Mais zoom
+                  </Button>
                   <Button type="button" variant="secondary" onClick={() => setActiveTool('themes')}>
                     <LayoutTemplate size={16} strokeWidth={2.1} />
                     Modelos
@@ -5747,13 +6195,21 @@ const OfferDesigner: React.FC = () => {
                         <WandSparkles size={16} strokeWidth={2.1} />
                         Auto-fill
                       </Button>
-                      <Button type="button" variant="secondary" onClick={() => navigate(adminCampaignsRoute)}>
+                      <Button type="button" variant="secondary" onClick={() => setActiveTool('leaflet')}>
+                        <FileText size={16} strokeWidth={2.1} />
+                        Encarte
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => openStudioSheet('campaigns')}>
                         <Boxes size={16} strokeWidth={2.1} />
                         Campanhas
                       </Button>
-                      <Button type="button" variant="secondary" onClick={() => navigate(buildUrl('/ofertas/jobs'))}>
-                        <FileText size={16} strokeWidth={2.1} />
-                        Arquivos
+                      <Button type="button" variant="secondary" onClick={() => openStudioSheet('media')}>
+                        <ImageIcon size={16} strokeWidth={2.1} />
+                        Midias
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={handlePublishCurrentCampaign} disabled={saving || !activeJobId}>
+                        <SendHorizontal size={16} strokeWidth={2.1} />
+                        {saving ? 'Publicando...' : 'Publicar'}
                       </Button>
                       <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
                         <WandSparkles size={16} strokeWidth={2.1} />
@@ -5767,6 +6223,130 @@ const OfferDesigner: React.FC = () => {
           </section>
         </div>
       </div>
+      {!isSuperAdminMode ? (
+        <>
+          <StudioSideSheet
+            open={studioSheet === 'campaigns'}
+            title="Campanhas"
+            subtitle="Minhas campanhas"
+            onClose={closeStudioSheet}
+          >
+            <div className="offer-studio-summary-card">
+              <strong>{sortedJobs.length} campanha(s)</strong>
+              <span>{draftCampaignCount} rascunho(s)</span>
+              <span>{readyMediaCount} midia(s) pronta(s)</span>
+            </div>
+            {sortedJobs.length ? (
+              sortedJobs.map((job) => {
+                const state = getCampaignState(job);
+                const targets = parseStringList(job.publishTargetsJson, ['DOWNLOAD']);
+                return (
+                  <div key={job.id} className="rounded-[24px] border border-[rgba(87,51,30,0.1)] bg-white/90 p-5 shadow-[0_16px_36px_rgba(44,20,6,0.08)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className={`sales-pill ${state.pillClass}`}>{state.label}</span>
+                        <h3 className="mt-3 text-lg font-semibold text-[color:var(--text-primary)]">{job.name || 'Campanha sem nome'}</h3>
+                        <p className="mt-1 text-sm text-[color:var(--text-secondary)]">{job.templateName || 'Sem template'} · {job.productCount || 0} produtos · {job.pageCount || 0} pagina(s)</p>
+                      </div>
+                      <div className="text-right text-xs text-[color:var(--text-secondary)]">
+                        <div>Atualizado em</div>
+                        <strong className="text-sm text-[color:var(--text-primary)]">{formatDateTime(job.updatedAt || job.createdAt)}</strong>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {targets.map((target) => (
+                        <span key={`${job.id}-${target}`} className="sales-pill soft">{target}</span>
+                      ))}
+                      <span className="sales-pill soft">{job.outputType || 'PNG'}</span>
+                      <span className="sales-pill soft">{job.generationMode || 'CATALOG'}</span>
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Button type="button" onClick={() => handleEditSavedCampaign(job)}>
+                        <Eye size={16} strokeWidth={2.1} />
+                        Abrir
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => void handlePublishSavedCampaign(job)} disabled={saving}>
+                        <SendHorizontal size={16} strokeWidth={2.1} />
+                        Publicar
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => void handleCloneSavedCampaign(job)} disabled={saving}>
+                        <Copy size={16} strokeWidth={2.1} />
+                        Clonar
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => void handleDeleteSavedCampaign(job)} disabled={saving}>
+                        <Trash2 size={16} strokeWidth={2.1} />
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="offer-studio-empty-card">Nenhuma campanha salva ainda. Monte o encarte e salve para aparecer aqui.</div>
+            )}
+          </StudioSideSheet>
+
+          <StudioSideSheet
+            open={studioSheet === 'media'}
+            title="Midias"
+            subtitle="Gerenciador de midias"
+            onClose={closeStudioSheet}
+          >
+            <div className="offer-studio-summary-card">
+              <strong>{mediaEntries.length} item(ns)</strong>
+              <span>{readyMediaCount} pronto(s)</span>
+              <span>{mediaEntries.filter(({ output }) => String(output.status || '').toUpperCase() === 'FAILED').length} falha(s)</span>
+            </div>
+            {mediaEntries.length ? (
+              mediaEntries.map(({ job, output }) => {
+                const outputReady = String(output.status || '').toUpperCase() === 'READY';
+                const previewUrl = output.previewImageUrl || output.fileUrl || '';
+                return (
+                  <div key={output.id} className="rounded-[24px] border border-[rgba(87,51,30,0.1)] bg-white/90 p-5 shadow-[0_16px_36px_rgba(44,20,6,0.08)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className={`sales-pill ${outputReady ? 'positive' : String(output.status || '').toUpperCase() === 'FAILED' ? 'negative' : 'soft'}`}>{output.status || 'PROCESSING'}</span>
+                        <h3 className="mt-3 text-lg font-semibold text-[color:var(--text-primary)]">{job.name || 'Campanha sem nome'}</h3>
+                        <p className="mt-1 text-sm text-[color:var(--text-secondary)]">{output.outputType || 'PNG'} · {output.publishTarget || 'DOWNLOAD'} · {formatDateTime(output.updatedAt || output.createdAt)}</p>
+                      </div>
+                      <Button type="button" variant="secondary" onClick={() => handleEditSavedCampaign(job)}>
+                        <Eye size={16} strokeWidth={2.1} />
+                        Abrir campanha
+                      </Button>
+                    </div>
+                    {previewUrl ? (
+                      <div className="mt-4 overflow-hidden rounded-[20px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.55)]">
+                        <OfferProductImage src={previewUrl} alt={job.name || 'Midia da campanha'} className="h-48 w-full object-contain p-3" />
+                      </div>
+                    ) : null}
+                    {output.errorMessage ? (
+                      <div className="mt-4 rounded-[18px] border border-[rgba(160,32,28,0.14)] bg-[rgba(255,240,238,0.9)] px-4 py-3 text-sm text-[color:#8f2b20]">
+                        {output.errorMessage}
+                      </div>
+                    ) : null}
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {output.fileUrl ? (
+                        <Button type="button" onClick={() => window.open(output.fileUrl || '', '_blank', 'noopener,noreferrer')}>
+                          <Eye size={16} strokeWidth={2.1} />
+                          Abrir arquivo
+                        </Button>
+                      ) : null}
+                      {output.previewImageUrl && output.previewImageUrl !== output.fileUrl ? (
+                        <Button type="button" variant="secondary" onClick={() => window.open(output.previewImageUrl || '', '_blank', 'noopener,noreferrer')}>
+                          <ImageIcon size={16} strokeWidth={2.1} />
+                          Abrir previa
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="offer-studio-empty-card">Nenhuma midia gerada ainda. Publique uma campanha para acompanhar os arquivos aqui.</div>
+            )}
+          </StudioSideSheet>
+        </>
+      ) : null}
     </OffersStudioLayout>
   );
 };

@@ -4244,11 +4244,22 @@
 .offer-canvas-preview {
   position: relative;
   width: 100%;
+  overflow: hidden;
+}
+
+.offer-canvas-preview.is-preview-card {
   min-height: 320px;
   border-radius: 2rem;
-  overflow: hidden;
   border: 1px solid rgba(111, 73, 36, 0.12);
   box-shadow: 0 24px 60px rgba(70, 36, 12, 0.12);
+}
+
+.offer-canvas-preview.is-artboard {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
 }
 
 .offer-canvas-slot {
@@ -6233,35 +6244,40 @@
 }
 
 .offer-studio-stage-surface {
-  display: grid;
-  place-items: center;
+  display: block;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 18px;
+  padding: 18px 20px 24px;
   border-radius: 22px;
+  border: 1px solid rgba(87, 51, 30, 0.1);
   background:
-    radial-gradient(circle at top left, rgba(255, 216, 184, 0.45) 0%, rgba(255, 244, 235, 0) 28%),
-    linear-gradient(180deg, #e9e4de 0%, #dad4cd 100%);
+    radial-gradient(circle at top left, rgba(255, 210, 168, 0.28) 0%, rgba(255, 246, 238, 0) 24%),
+    linear-gradient(180deg, #f5f0ea 0%, #ece5de 100%);
   overflow: auto;
 }
 
 .offer-studio-stage-canvas {
+  position: relative;
+  margin: 0 auto;
   transform-origin: top center;
 }
 
 .offer-studio-stage-artboard {
   position: relative;
-}
-
-.offer-studio-canvas-preview {
-  width: min(100%, 540px);
-  min-width: 320px;
-  box-shadow: 0 30px 80px rgba(25, 18, 13, 0.2);
-}
-
-.offer-studio-canvas-preview .offer-canvas-preview {
-  border-radius: 28px;
   overflow: hidden;
+  background: #fff;
+  box-shadow: 0 24px 56px rgba(44, 20, 6, 0.16);
+}
+
+.offer-canvas-preview.offer-studio-canvas-preview {
+  width: 100%;
+  min-width: 0;
+}
+
+.offer-canvas-preview.offer-studio-canvas-preview.is-artboard {
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 .offer-canvas-footer-bar {
@@ -6280,19 +6296,19 @@
   letter-spacing: 0.03em;
 }
 
-.offer-studio-canvas-preview.color-warm .offer-canvas-preview {
+.offer-canvas-preview.offer-studio-canvas-preview.is-preview-card.color-warm {
   background: linear-gradient(180deg, #fff3e2 0%, #ffd0ad 100%) !important;
 }
 
-.offer-studio-canvas-preview.color-neutral .offer-canvas-preview {
+.offer-canvas-preview.offer-studio-canvas-preview.is-preview-card.color-neutral {
   background: linear-gradient(180deg, #fff7ef 0%, #eee7de 100%) !important;
 }
 
-.offer-studio-canvas-preview.mode-compact .offer-mini-product-card {
+.offer-canvas-preview.offer-studio-canvas-preview.mode-compact .offer-mini-product-card {
   padding: 10px;
 }
 
-.offer-studio-canvas-preview.mode-featured .offer-canvas-grid-products {
+.offer-canvas-preview.offer-studio-canvas-preview.mode-featured .offer-canvas-grid-products {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
