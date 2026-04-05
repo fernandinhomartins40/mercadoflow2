@@ -65,6 +65,7 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -844,7 +845,12 @@ public class OfferDesignerService {
                 profile.setMarket(market);
                 profile.setFooterContent(normalizeText(market.getName(), "Sua loja") + " · ofertas atualizadas no portal da loja");
                 profile.setFooterLegalText("Ofertas validas enquanto durarem os estoques. Imagens meramente ilustrativas.");
-                return offerMarketProfileRepository.save(profile);
+                try {
+                    return offerMarketProfileRepository.saveAndFlush(profile);
+                } catch (DataIntegrityViolationException ex) {
+                    return offerMarketProfileRepository.findByMarket_Id(marketId)
+                        .orElseThrow(() -> ex);
+                }
             });
     }
 

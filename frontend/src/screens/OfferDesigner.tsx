@@ -2757,11 +2757,11 @@ const OfferDesigner: React.FC = () => {
       }
       try {
         setLoading(true);
-        const [templateData, overviewData, jobsData] = await Promise.all([
-          offersService.getTemplates(effectiveMarketId),
+        const [overviewData, jobsData] = await Promise.all([
           offersService.getOverview(effectiveMarketId),
           offersService.getJobs(effectiveMarketId),
         ]);
+        const templateData = overviewData.templates || [];
         setTemplates(templateData);
         setOverview(overviewData);
         setJobs(jobsData);
