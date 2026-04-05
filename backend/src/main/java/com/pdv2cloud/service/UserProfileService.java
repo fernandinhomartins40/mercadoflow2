@@ -14,7 +14,7 @@ public class UserProfileService {
     private UserRepository userRepository;
 
     public MeResponse getProfile(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow();
+        User user = userRepository.findForAuthenticationByEmail(email).orElseThrow();
         UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;
         return new MeResponse(user.getId(), user.getEmail(), user.getName(), user.getRole().name(), marketId);
     }

@@ -76,7 +76,7 @@ public class AgentApiKeyController {
     }
 
     private UUID resolveMarketId(Authentication authentication, UUID requestedMarketId) {
-        User user = userRepository.findByEmail(authentication.getName())
+        User user = userRepository.findForAuthenticationByEmail(authentication.getName())
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         boolean isAdmin = user.getRole() == UserRole.ADMIN;
         if (isAdmin && requestedMarketId != null) {

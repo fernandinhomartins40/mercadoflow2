@@ -4001,11 +4001,6 @@ const OfferDesigner: React.FC = () => {
             <div className="offer-studio-rail-nav">
               {visibleToolOptions.map((tool) => <StudioToolButton key={tool.key} icon={tool.icon} label={tool.label} active={activeTool === tool.key} onClick={() => setActiveTool(tool.key)} />)}
             </div>
-            <div className="offer-studio-rail-summary">
-              <span className="section-kicker">Resumo</span>
-              <strong>{selectedProducts.length} produtos na fila</strong>
-              <small>{pageEstimate} página(s) estimadas · {selectedVariant?.name || selectedTemplate?.defaultVariantKey || 'formato principal'}</small>
-            </div>
           </aside>
 
           <aside className="offer-studio-panel">

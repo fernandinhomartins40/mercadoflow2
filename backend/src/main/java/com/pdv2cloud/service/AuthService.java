@@ -42,7 +42,7 @@ public class AuthService {
 
     @Transactional
     public LoginResponse register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (userRepository.findForAuthenticationByEmail(request.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email ja cadastrado");
         }
         Market market = null;
@@ -81,7 +81,7 @@ public class AuthService {
             : Duration.ofDays(1).toMillis();
         String token = tokenProvider.generateToken(auth, tokenTtl);
 
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        User user = userRepository.findForAuthenticationByEmail(request.getEmail()).orElseThrow();
         if (user.getRole() == UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Use o login do painel Super Admin");
         }
@@ -98,7 +98,7 @@ public class AuthService {
             : Duration.ofDays(1).toMillis();
         String token = tokenProvider.generateToken(auth, tokenTtl);
 
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        User user = userRepository.findForAuthenticationByEmail(request.getEmail()).orElseThrow();
         if (user.getRole() != UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Credenciais sem permissao de Super Admin");
         }

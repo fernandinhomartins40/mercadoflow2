@@ -6,6 +6,7 @@ import com.pdv2cloud.repository.UserRepository;
 import java.util.UUID;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -47,7 +48,20 @@ public class MarketAccessService {
         if (authentication == null) {
             throw new AccessDeniedException("Authentication required");
         }
-        return userRepository.findByEmail(authentication.getName())
+        String email = resolveAuthenticationEmail(authentication);
+        return userRepository.findForAuthenticationByEmail(email)
             .orElseThrow(() -> new AccessDeniedException("User not found"));
+    }
+
+    private String resolveAuthenticationEmail(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            return userDetails.getUsername();
+        }
+        String name = authentication.getName();
+        if (name == null || name.isBlank()) {
+            throw new AccessDeniedException("Authentication principal missing");
+        }
+        return name;
     }
 }

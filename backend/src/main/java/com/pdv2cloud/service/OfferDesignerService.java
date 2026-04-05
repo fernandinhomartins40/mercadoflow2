@@ -63,7 +63,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -1781,12 +1780,18 @@ public class OfferDesignerService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object value) {
         if (value instanceof Map<?, ?> map) {
-            return map.entrySet().stream().collect(Collectors.toMap(
-                entry -> String.valueOf(entry.getKey()),
-                Map.Entry::getValue,
-                (left, right) -> right,
-                LinkedHashMap::new
-            ));
+            Map<String, Object> copy = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry == null) {
+                    continue;
+                }
+                Object rawKey = entry.getKey();
+                if (rawKey == null) {
+                    continue;
+                }
+                copy.put(String.valueOf(rawKey), entry.getValue());
+            }
+            return copy;
         }
         return new LinkedHashMap<>();
     }
