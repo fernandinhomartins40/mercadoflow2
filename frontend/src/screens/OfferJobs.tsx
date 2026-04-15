@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, RefreshCw, SendHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, RefreshCw, SendHorizontal } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import OffersStudioLayout from '../components/layout/OffersStudioLayout';
@@ -24,7 +24,6 @@ const parseJsonList = (value?: string | null, fallback: string[] = []) => {
   }
 };
 
-// ─── Status pill ─────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   READY: { label: 'Pronto', cls: 'positive' },
   PARTIAL: { label: 'Parcial', cls: 'soft' },
@@ -39,126 +38,124 @@ const StatusPill: React.FC<{ status?: string | null }> = ({ status }) => {
   return <span className={`sales-pill ${s.cls}`}>{s.label}</span>;
 };
 
-// ─── Output row ──────────────────────────────────────────────────────────────
+// ─── Linha de output ──────────────────────────────────────────────────────────
 const OutputRow: React.FC<{ output: OfferRenderOutput }> = ({ output }) => (
-  <div className="ojb-output-row">
-    <div className="min-w-0">
-      <strong className="ojb-output-title">
-        {output.outputType} · {output.publishTarget || 'DOWNLOAD'} · {output.variantKey || 'default'}
-      </strong>
-      <small className="ojb-output-meta">
-        <StatusPill status={output.status} />
-        {formatDate(output.createdAt)}
-      </small>
-    </div>
+  <div className="jb-output-row">
+    <StatusPill status={output.status} />
+    <span className="jb-output-info">
+      {output.outputType} · {output.publishTarget || 'DOWNLOAD'} · {output.variantKey || 'default'}
+    </span>
+    <span className="jb-output-date">{formatDate(output.createdAt)}</span>
     {output.fileUrl ? (
-      <a
-        className="ojb-output-link"
-        href={output.fileUrl}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <ExternalLink size={13} strokeWidth={2.2} />
-        Abrir arquivo
+      <a className="jb-output-link" href={output.fileUrl} target="_blank" rel="noreferrer">
+        <ExternalLink size={13} />
+        Baixar
       </a>
     ) : (
-      <span className="sales-pill soft">Sem URL</span>
+      <span className="jb-output-pending">Sem arquivo</span>
     )}
   </div>
 );
 
-// ─── Product item row ────────────────────────────────────────────────────────
-const ProductItem: React.FC<{ item: OfferGenerationJob['items'][0] }> = ({ item }) => (
-  <div className="ojb-product-item">
-    <div className="ojb-product-thumb">
-      <OfferProductImage src={item.productImageUrl} alt={item.productName} className="ojb-product-img" />
-    </div>
-    <div className="min-w-0 flex-1">
-      <strong className="ojb-product-name">{item.productName}</strong>
-      <small className="ojb-product-meta">
-        {item.productUnit || 'Unidade'} · zona {item.zoneId || 'principal'} · slot {item.slotIndex ?? item.positionIndex}
-      </small>
-    </div>
-    <strong className="ojb-product-price">{formatMoney(item.currentPrice)}</strong>
-  </div>
-);
-
-// ─── Job card completo ────────────────────────────────────────────────────────
-const JobCard: React.FC<{
+// ─── Accordion de job ─────────────────────────────────────────────────────────
+const JobAccordion: React.FC<{
   job: OfferGenerationJob;
   publishing: boolean;
   onPublish: () => void;
   onRefresh: () => void;
 }> = ({ job, publishing, onPublish, onRefresh }) => {
+  const [open, setOpen] = useState(false);
   const readyOutputs = job.outputs?.filter((o) => String(o.status || '').toUpperCase() === 'READY').length || 0;
 
   return (
-    <article className="ojb-card">
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="ojb-card-head">
-        <div className="min-w-0">
-          <span className="section-kicker">{job.templateName}</span>
-          <h2 className="ojb-card-title">{job.name}</h2>
-        </div>
-        <StatusPill status={job.status} />
-      </div>
-
-      {/* ── Meta chips ───────────────────────────────────────────── */}
-      <div className="ojb-card-meta">
-        <span>Saída {job.outputType}</span>
-        <span>{job.generationMode === 'CATALOG' ? 'Encarte' : 'Individual'}</span>
-        <span>Variante: {job.variantKey || 'default'}</span>
-        <span>{job.productCount} produtos</span>
-        <span>{job.pageCount} peças</span>
-      </div>
-
-      {/* ── Corpo: produtos + outputs ─────────────────────────────── */}
-      <div className="ojb-card-body">
-        {/* Produtos */}
-        <div className="ojb-products-panel">
-          <span className="section-kicker">Produtos ({job.items.length})</span>
-          <div className="ojb-products-list">
-            {job.items.map((item) => (
-              <ProductItem key={item.id} item={item} />
-            ))}
-          </div>
+    <div className={`jb-accordion ${open ? 'open' : ''}`}>
+      {/* Cabeçalho clicável */}
+      <button type="button" className="jb-accordion-head" onClick={() => setOpen((v) => !v)}>
+        {/* Miniaturas */}
+        <div className="jb-acc-thumbs">
+          {job.items.slice(0, 3).map((item) => (
+            <div key={item.id} className="jb-acc-thumb">
+              <OfferProductImage src={item.productImageUrl} alt={item.productName} className="jb-acc-img" />
+            </div>
+          ))}
         </div>
 
-        {/* Outputs */}
-        <div className="ojb-outputs-panel">
-          <div className="ojb-outputs-head">
-            <div>
-              <span className="section-kicker">Arquivos gerados</span>
-              <strong className="ojb-outputs-count">{readyOutputs} prontos</strong>
-            </div>
-            <div className="ojb-outputs-actions">
-              <Button type="button" variant="secondary" onClick={onRefresh}>
-                <RefreshCw size={14} strokeWidth={2.2} />
-                Atualizar fila
-              </Button>
-              <Button type="button" onClick={onPublish} disabled={publishing}>
-                <SendHorizontal size={14} strokeWidth={2.2} />
-                {publishing ? 'Publicando…' : 'Publicar / gerar'}
-              </Button>
+        {/* Nome e info */}
+        <div className="jb-acc-info">
+          <strong className="jb-acc-name">{job.name}</strong>
+          <span className="jb-acc-meta">
+            {job.templateName} · {job.productCount} produto{job.productCount !== 1 ? 's' : ''} · {job.outputType}
+          </span>
+        </div>
+
+        {/* Status e arquivos */}
+        <div className="jb-acc-status">
+          <StatusPill status={job.status} />
+          {readyOutputs > 0 && (
+            <span className="jb-acc-files">{readyOutputs} arquivo{readyOutputs !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+
+        {/* Expandir/colapsar */}
+        <span className="jb-acc-chevron">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </span>
+      </button>
+
+      {/* Corpo expandido */}
+      {open && (
+        <div className="jb-accordion-body">
+          {/* Ações */}
+          <div className="jb-acc-actions">
+            <Button type="button" variant="secondary" onClick={onRefresh}>
+              <RefreshCw size={14} />
+              Atualizar fila
+            </Button>
+            <Button type="button" onClick={onPublish} disabled={publishing}>
+              <SendHorizontal size={14} />
+              {publishing ? 'Publicando…' : readyOutputs ? 'Republicar' : 'Publicar / gerar'}
+            </Button>
+          </div>
+
+          {/* Produtos */}
+          <div className="jb-products-section">
+            <h4 className="jb-sub-title">Produtos ({job.items.length})</h4>
+            <div className="jb-products-list">
+              {job.items.map((item) => (
+                <div key={item.id} className="jb-product-row">
+                  <div className="jb-product-thumb">
+                    <OfferProductImage src={item.productImageUrl} alt={item.productName} className="jb-product-img" />
+                  </div>
+                  <div className="jb-product-info">
+                    <strong>{item.productName}</strong>
+                    <span>{item.productUnit || 'Unidade'} · slot {item.slotIndex ?? item.positionIndex}</span>
+                  </div>
+                  <strong className="jb-product-price">{formatMoney(item.currentPrice)}</strong>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="ojb-outputs-list">
+          {/* Arquivos */}
+          <div className="jb-outputs-section">
+            <h4 className="jb-sub-title">Arquivos gerados ({readyOutputs} prontos)</h4>
             {job.outputs?.length ? (
-              job.outputs.map((output) => (
-                <OutputRow key={output.id} output={output} />
-              ))
+              <div className="jb-outputs-list">
+                {job.outputs.map((output) => (
+                  <OutputRow key={output.id} output={output} />
+                ))}
+              </div>
             ) : (
-              <div className="ofd-empty">Nenhum arquivo gerado para esta campanha.</div>
+              <p className="jb-outputs-empty">Publique para gerar os arquivos.</p>
             )}
           </div>
         </div>
-      </div>
-    </article>
+      )}
+    </div>
   );
 };
 
-// ─── Screen principal ────────────────────────────────────────────────────────
+// ─── Screen principal ─────────────────────────────────────────────────────────
 const OfferJobs: React.FC = () => {
   const { buildUrl, isSuperAdminMode, marketId } = useOffersAppSession();
   const offersService = useOffersService();
@@ -173,18 +170,13 @@ const OfferJobs: React.FC = () => {
   }
 
   const loadJobs = async () => {
-    if (!marketId) {
-      setLoading(false);
-      setError('Mercado não encontrado.');
-      return;
-    }
+    if (!marketId) { setLoading(false); setError('Mercado não encontrado.'); return; }
     setLoading(true);
     try {
-      const data = await offersService.getJobs(marketId);
-      setJobs(data);
+      setJobs(await offersService.getJobs(marketId));
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível carregar os arquivos das campanhas.');
+      setError(err?.message || 'Não foi possível carregar os arquivos.');
     } finally {
       setLoading(false);
     }
@@ -204,77 +196,62 @@ const OfferJobs: React.FC = () => {
       });
       await loadJobs();
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível publicar a campanha.');
+      setError(err?.message || 'Não foi possível publicar.');
     } finally {
       setPublishingId(null);
     }
   };
 
-  // Stats rápidos
   const readyCount = jobs.filter((j) => String(j.status || '').toUpperCase() === 'READY').length;
-  const totalOutputs = jobs.reduce((acc, j) => acc + (j.outputs?.length || 0), 0);
 
   return (
     <OffersStudioLayout>
       <div className="page offers-page">
 
-        {/* ── Header ───────────────────────────────────────────────── */}
-        <header className="ofd-hero reveal">
-          <div className="ofd-hero-copy">
-            <span className="ofd-hero-kicker">Arquivos e publicações</span>
-            <h1 className="ofd-hero-title">Revise os arquivos gerados e a fila de publicação.</h1>
-            <p className="ofd-hero-desc">
-              Cada campanha carrega variante, canais, opções de render e outputs — separados da listagem operacional para uma revisão mais focada.
+        {/* ── Cabeçalho ─────────────────────────────────────────────── */}
+        <div className="dash-page-head">
+          <div>
+            <h1 className="dash-page-title">Arquivos e publicações</h1>
+            <p className="dash-page-sub">
+              {jobs.length} campanha{jobs.length !== 1 ? 's' : ''} · {readyCount} publicada{readyCount !== 1 ? 's' : ''}
             </p>
-            <div className="ofd-hero-actions">
-              <Button type="button" onClick={() => navigate(buildUrl('/ofertas/campanhas'))}>
-                Campanhas
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
-                <RefreshCw size={15} strokeWidth={2.2} />
-                Atualizar
-              </Button>
-            </div>
           </div>
-          <div className="ocm-hero-summary">
-            <div className="ocm-summary-stat">
-              <strong>{jobs.length}</strong>
-              <span>Campanhas</span>
-            </div>
-            <div className="ocm-summary-divider" />
-            <div className="ocm-summary-stat">
-              <strong>{readyCount}</strong>
-              <span>Publicadas</span>
-            </div>
-            <div className="ocm-summary-divider" />
-            <div className="ocm-summary-stat">
-              <strong>{totalOutputs}</strong>
-              <span>Arquivos totais</span>
-            </div>
+          <div className="cm-head-actions">
+            <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
+              <RefreshCw size={14} />
+              Atualizar
+            </Button>
+            <Button type="button" onClick={() => navigate(buildUrl('/ofertas/campanhas'))}>
+              Campanhas
+            </Button>
           </div>
-        </header>
+        </div>
 
-        {/* ── Feedback ─────────────────────────────────────────────── */}
+        {/* ── Feedback ──────────────────────────────────────────────── */}
         {error && <div className="ocm-banner ocm-banner-error">{error}</div>}
         {loading && <div className="ofd-feedback">Carregando arquivos…</div>}
 
-        {/* ── Lista de jobs ─────────────────────────────────────────── */}
+        {/* ── Lista accordion ────────────────────────────────────────── */}
         {!loading && !error && (
-          <div className="ojb-list">
+          <section className="dash-section">
             {jobs.length === 0 ? (
-              <div className="ofd-empty">Nenhuma campanha publicada ainda. Publique uma campanha para ver os arquivos aqui.</div>
+              <div className="ofd-empty">
+                Nenhuma campanha publicada ainda. Publique uma campanha para ver os arquivos aqui.
+              </div>
             ) : (
-              jobs.map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  publishing={publishingId === job.id}
-                  onPublish={() => void handlePublish(job)}
-                  onRefresh={() => void loadJobs()}
-                />
-              ))
+              <div className="jb-list">
+                {jobs.map((job) => (
+                  <JobAccordion
+                    key={job.id}
+                    job={job}
+                    publishing={publishingId === job.id}
+                    onPublish={() => void handlePublish(job)}
+                    onRefresh={() => void loadJobs()}
+                  />
+                ))}
+              </div>
             )}
-          </div>
+          </section>
         )}
       </div>
     </OffersStudioLayout>
