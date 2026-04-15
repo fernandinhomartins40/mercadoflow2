@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, ExternalLink, RefreshCw, SendHorizontal } from 'lucide-react';
+import { ExternalLink, RefreshCw, SendHorizontal } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
-import PageHero from '../components/dashboard/PageHero';
 import OffersStudioLayout from '../components/layout/OffersStudioLayout';
 import OfferProductImage from '../components/offers/OfferProductImage';
 import { useOffersAppSession } from '../hooks/useOffersAppSession';
-import { offersService } from '../services/offers.service';
-import { OfferGenerationJob } from '../types/offers.types';
+import { useOffersService } from '../hooks/useOffersService';
+import { OfferGenerationJob, OfferRenderOutput } from '../types/offers.types';
 
 const formatMoney = (value?: number | null) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+
+const formatDate = (value?: string | null) =>
+  value ? new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Agora';
 
 const parseJsonList = (value?: string | null, fallback: string[] = []) => {
   if (!value) return fallback;
@@ -22,8 +24,144 @@ const parseJsonList = (value?: string | null, fallback: string[] = []) => {
   }
 };
 
+// ─── Status pill ─────────────────────────────────────────────────────────────
+const STATUS_MAP: Record<string, { label: string; cls: string }> = {
+  READY: { label: 'Pronto', cls: 'positive' },
+  PARTIAL: { label: 'Parcial', cls: 'soft' },
+  PROCESSING: { label: 'Processando', cls: 'soft' },
+  QUEUED: { label: 'Na fila', cls: 'soft' },
+  FAILED: { label: 'Falhou', cls: 'negative' },
+  DRAFT: { label: 'Rascunho', cls: 'soft' },
+};
+
+const StatusPill: React.FC<{ status?: string | null }> = ({ status }) => {
+  const s = STATUS_MAP[String(status || '').toUpperCase()] || { label: status || '—', cls: 'soft' };
+  return <span className={`sales-pill ${s.cls}`}>{s.label}</span>;
+};
+
+// ─── Output row ──────────────────────────────────────────────────────────────
+const OutputRow: React.FC<{ output: OfferRenderOutput }> = ({ output }) => (
+  <div className="ojb-output-row">
+    <div className="min-w-0">
+      <strong className="ojb-output-title">
+        {output.outputType} · {output.publishTarget || 'DOWNLOAD'} · {output.variantKey || 'default'}
+      </strong>
+      <small className="ojb-output-meta">
+        <StatusPill status={output.status} />
+        {formatDate(output.createdAt)}
+      </small>
+    </div>
+    {output.fileUrl ? (
+      <a
+        className="ojb-output-link"
+        href={output.fileUrl}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <ExternalLink size={13} strokeWidth={2.2} />
+        Abrir arquivo
+      </a>
+    ) : (
+      <span className="sales-pill soft">Sem URL</span>
+    )}
+  </div>
+);
+
+// ─── Product item row ────────────────────────────────────────────────────────
+const ProductItem: React.FC<{ item: OfferGenerationJob['items'][0] }> = ({ item }) => (
+  <div className="ojb-product-item">
+    <div className="ojb-product-thumb">
+      <OfferProductImage src={item.productImageUrl} alt={item.productName} className="ojb-product-img" />
+    </div>
+    <div className="min-w-0 flex-1">
+      <strong className="ojb-product-name">{item.productName}</strong>
+      <small className="ojb-product-meta">
+        {item.productUnit || 'Unidade'} · zona {item.zoneId || 'principal'} · slot {item.slotIndex ?? item.positionIndex}
+      </small>
+    </div>
+    <strong className="ojb-product-price">{formatMoney(item.currentPrice)}</strong>
+  </div>
+);
+
+// ─── Job card completo ────────────────────────────────────────────────────────
+const JobCard: React.FC<{
+  job: OfferGenerationJob;
+  publishing: boolean;
+  onPublish: () => void;
+  onRefresh: () => void;
+}> = ({ job, publishing, onPublish, onRefresh }) => {
+  const readyOutputs = job.outputs?.filter((o) => String(o.status || '').toUpperCase() === 'READY').length || 0;
+
+  return (
+    <article className="ojb-card">
+      {/* ── Header ───────────────────────────────────────────────── */}
+      <div className="ojb-card-head">
+        <div className="min-w-0">
+          <span className="section-kicker">{job.templateName}</span>
+          <h2 className="ojb-card-title">{job.name}</h2>
+        </div>
+        <StatusPill status={job.status} />
+      </div>
+
+      {/* ── Meta chips ───────────────────────────────────────────── */}
+      <div className="ojb-card-meta">
+        <span>Saída {job.outputType}</span>
+        <span>{job.generationMode === 'CATALOG' ? 'Encarte' : 'Individual'}</span>
+        <span>Variante: {job.variantKey || 'default'}</span>
+        <span>{job.productCount} produtos</span>
+        <span>{job.pageCount} peças</span>
+      </div>
+
+      {/* ── Corpo: produtos + outputs ─────────────────────────────── */}
+      <div className="ojb-card-body">
+        {/* Produtos */}
+        <div className="ojb-products-panel">
+          <span className="section-kicker">Produtos ({job.items.length})</span>
+          <div className="ojb-products-list">
+            {job.items.map((item) => (
+              <ProductItem key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+
+        {/* Outputs */}
+        <div className="ojb-outputs-panel">
+          <div className="ojb-outputs-head">
+            <div>
+              <span className="section-kicker">Arquivos gerados</span>
+              <strong className="ojb-outputs-count">{readyOutputs} prontos</strong>
+            </div>
+            <div className="ojb-outputs-actions">
+              <Button type="button" variant="secondary" onClick={onRefresh}>
+                <RefreshCw size={14} strokeWidth={2.2} />
+                Atualizar fila
+              </Button>
+              <Button type="button" onClick={onPublish} disabled={publishing}>
+                <SendHorizontal size={14} strokeWidth={2.2} />
+                {publishing ? 'Publicando…' : 'Publicar / gerar'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="ojb-outputs-list">
+            {job.outputs?.length ? (
+              job.outputs.map((output) => (
+                <OutputRow key={output.id} output={output} />
+              ))
+            ) : (
+              <div className="ofd-empty">Nenhum arquivo gerado para esta campanha.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+};
+
+// ─── Screen principal ────────────────────────────────────────────────────────
 const OfferJobs: React.FC = () => {
   const { buildUrl, isSuperAdminMode, marketId } = useOffersAppSession();
+  const offersService = useOffersService();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<OfferGenerationJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,9 +190,7 @@ const OfferJobs: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    void loadJobs();
-  }, [marketId]);
+  useEffect(() => { void loadJobs(); }, [marketId]);
 
   const handlePublish = async (job: OfferGenerationJob) => {
     if (!marketId) return;
@@ -74,113 +210,72 @@ const OfferJobs: React.FC = () => {
     }
   };
 
+  // Stats rápidos
+  const readyCount = jobs.filter((j) => String(j.status || '').toUpperCase() === 'READY').length;
+  const totalOutputs = jobs.reduce((acc, j) => acc + (j.outputs?.length || 0), 0);
+
   return (
     <OffersStudioLayout>
-      <div className="page analytics-page offers-page">
-        <PageHero
-          badge="Arquivos e publicações"
-          title="Revise os arquivos gerados e a fila de publicação."
-          description="Cada campanha salva carrega variante, canais, render options e outputs, para que a revisão final fique separada da listagem operacional."
-          actions={
-            <>
-              <Button type="button" onClick={() => navigate(buildUrl('/ofertas/campanhas'))}>Campanhas</Button>
+      <div className="page offers-page">
+
+        {/* ── Header ───────────────────────────────────────────────── */}
+        <header className="ofd-hero reveal">
+          <div className="ofd-hero-copy">
+            <span className="ofd-hero-kicker">Arquivos e publicações</span>
+            <h1 className="ofd-hero-title">Revise os arquivos gerados e a fila de publicação.</h1>
+            <p className="ofd-hero-desc">
+              Cada campanha carrega variante, canais, opções de render e outputs — separados da listagem operacional para uma revisão mais focada.
+            </p>
+            <div className="ofd-hero-actions">
+              <Button type="button" onClick={() => navigate(buildUrl('/ofertas/campanhas'))}>
+                Campanhas
+              </Button>
               <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
-                <RefreshCw size={16} strokeWidth={2.1} />
+                <RefreshCw size={15} strokeWidth={2.2} />
                 Atualizar
               </Button>
-            </>
-          }
-          feature={
-            <article className="dashboard-glow-card">
-              <span className="section-kicker">Campanha mais recente</span>
-              <strong>{jobs[0]?.name || 'Nenhuma campanha salva'}</strong>
-              <p>{jobs[0] ? `${jobs[0].variantKey || 'default'} · ${jobs[0].outputType} · ${jobs[0].outputs?.length || 0} arquivos` : 'Assim que a primeira campanha for publicada, ela aparece aqui com o resumo principal.'}</p>
-            </article>
-          }
-        />
-
-        {loading ? <div className="sales-empty-card">Carregando arquivos...</div> : null}
-        {error ? <div className="sales-empty-card">{error}</div> : null}
-
-        {!loading && !error ? (
-          <div className="offer-jobs-page-grid">
-            {jobs.length === 0 ? <div className="sales-empty-card">Nenhuma campanha foi publicada ainda.</div> : null}
-            {jobs.map((job) => (
-              <article key={job.id} className="offer-job-detail-card">
-                <div className="offer-job-detail-head">
-                  <div>
-                    <span className="section-kicker">{job.templateName}</span>
-                    <h2>{job.name}</h2>
-                  </div>
-                  <span className={`status-pill ${String(job.status || '').toLowerCase()}`}>{job.status}</span>
-                </div>
-                <div className="offer-job-detail-meta">
-                  <span>Saída {job.outputType}</span>
-                  <span>Modo {job.generationMode === 'CATALOG' ? 'Encarte' : 'Individual'}</span>
-                  <span>Variante {job.variantKey || 'default'}</span>
-                  <span>{job.productCount} produtos</span>
-                  <span>{job.pageCount} páginas/peças</span>
-                </div>
-                <div className="offer-job-detail-items">
-                  {job.items.map((item) => (
-                    <article key={item.id} className="offer-job-detail-item">
-                      <div className="offer-job-detail-item-frame">
-                        <OfferProductImage src={item.productImageUrl} alt={item.productName} className="offer-job-detail-item-image" />
-                      </div>
-                      <div className="offer-job-detail-item-body">
-                        <h3>{item.productName}</h3>
-                        <p>{item.productUnit || 'Unidade'} · zona {item.zoneId || 'principal'} · slot {item.slotIndex ?? item.positionIndex}</p>
-                        <strong>{formatMoney(item.currentPrice)}</strong>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="mt-6 rounded-[24px] border border-[rgba(87,51,30,0.08)] bg-white/80 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <span className="section-kicker">Outputs</span>
-                      <h3 className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{job.outputs?.length || 0} arquivos gerados</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <Button type="button" variant="secondary" onClick={() => void loadJobs()}>
-                        <Eye size={16} strokeWidth={2.1} />
-                        Atualizar fila
-                      </Button>
-                      <Button type="button" onClick={() => void handlePublish(job)} disabled={publishingId === job.id}>
-                        <SendHorizontal size={16} strokeWidth={2.1} />
-                        {publishingId === job.id ? 'Publicando...' : 'Publicar / gerar outputs'}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-3">
-                    {job.outputs?.length ? (
-                      job.outputs.map((output) => (
-                        <div key={output.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.7)] px-4 py-3">
-                          <div className="min-w-0">
-                            <strong className="block truncate text-[color:var(--text-primary)]">{output.outputType} · {output.publishTarget || 'DOWNLOAD'} · {output.variantKey || 'default'}</strong>
-                            <small className="text-[color:var(--text-secondary)]">{output.status} · {output.createdAt ? new Date(output.createdAt).toLocaleString('pt-BR') : 'agora'}</small>
-                          </div>
-                          {output.fileUrl ? (
-                            <a className="inline-flex items-center gap-2 rounded-full border border-[rgba(87,51,30,0.1)] bg-white px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)]" href={output.fileUrl} target="_blank" rel="noreferrer">
-                              <ExternalLink size={14} strokeWidth={2.1} />
-                              Abrir arquivo
-                            </a>
-                          ) : (
-                            <span className="sales-pill soft">Sem URL final</span>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="sales-empty-card">Nenhum output gerado para esta campanha ainda.</div>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ))}
+            </div>
           </div>
-        ) : null}
+          <div className="ocm-hero-summary">
+            <div className="ocm-summary-stat">
+              <strong>{jobs.length}</strong>
+              <span>Campanhas</span>
+            </div>
+            <div className="ocm-summary-divider" />
+            <div className="ocm-summary-stat">
+              <strong>{readyCount}</strong>
+              <span>Publicadas</span>
+            </div>
+            <div className="ocm-summary-divider" />
+            <div className="ocm-summary-stat">
+              <strong>{totalOutputs}</strong>
+              <span>Arquivos totais</span>
+            </div>
+          </div>
+        </header>
+
+        {/* ── Feedback ─────────────────────────────────────────────── */}
+        {error && <div className="ocm-banner ocm-banner-error">{error}</div>}
+        {loading && <div className="ofd-feedback">Carregando arquivos…</div>}
+
+        {/* ── Lista de jobs ─────────────────────────────────────────── */}
+        {!loading && !error && (
+          <div className="ojb-list">
+            {jobs.length === 0 ? (
+              <div className="ofd-empty">Nenhuma campanha publicada ainda. Publique uma campanha para ver os arquivos aqui.</div>
+            ) : (
+              jobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  publishing={publishingId === job.id}
+                  onPublish={() => void handlePublish(job)}
+                  onRefresh={() => void loadJobs()}
+                />
+              ))
+            )}
+          </div>
+        )}
       </div>
     </OffersStudioLayout>
   );

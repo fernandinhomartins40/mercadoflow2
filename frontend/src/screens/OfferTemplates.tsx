@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Layers3, Palette, RefreshCw, Save, Sparkles, Target } from 'lucide-react';
+import { Layers3, Palette, Plus, RefreshCw, Save, Sparkles } from 'lucide-react';
 import Button from '../components/common/Button';
-import PageHero from '../components/dashboard/PageHero';
 import Layout from '../components/layout/Layout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import { useAuth } from '../context/AuthContext';
-import { offersService } from '../services/offers.service';
+import { useOffersService } from '../hooks/useOffersService';
 import {
   OfferBrandKit,
   OfferCampaignKit,
@@ -14,6 +13,7 @@ import {
   OfferTemplateVariant,
 } from '../types/offers.types';
 
+// ─── Valores padrão dos formulários ─────────────────────────────────────────
 const emptyTemplateForm = {
   name: '',
   description: '',
@@ -62,35 +62,125 @@ const emptyCampaignKitForm = {
 
 const prettyJson = (value?: string | null) => {
   if (!value) return '';
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2);
-  } catch {
-    return value;
-  }
+  try { return JSON.stringify(JSON.parse(value), null, 2); } catch { return value; }
 };
 
 const isoInputValue = (value?: string | null) => (value ? value.slice(0, 16) : '');
 
+type TabId = 'templates' | 'variants' | 'brand' | 'campaign';
+
+// ─── Field primitivos ────────────────────────────────────────────────────────
+const Field: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
+  <label className={`otm-field ${full ? 'full' : ''}`}>
+    <span className="otm-field-label">{label}</span>
+    {children}
+  </label>
+);
+
+const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
+  <input className="input otm-input" {...props} />
+);
+
+const SelectInput: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { children: React.ReactNode }> = ({ children, ...props }) => (
+  <select className="input otm-input" {...props}>{children}</select>
+);
+
+const TextareaInput: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { mono?: boolean }> = ({ mono, ...props }) => (
+  <textarea className={`input otm-input ${mono ? 'otm-json' : ''}`} {...props} />
+);
+
+// ─── Navigation tab ──────────────────────────────────────────────────────────
+const NavTab: React.FC<{ id: TabId; active: boolean; icon: React.ReactNode; label: string; count: number; onClick: () => void }> = ({
+  active, icon, label, count, onClick,
+}) => (
+  <button type="button" onClick={onClick} className={`otm-nav-tab ${active ? 'active' : ''}`}>
+    <span className="otm-nav-tab-icon">{icon}</span>
+    <span className="otm-nav-tab-label">{label}</span>
+    <span className="otm-nav-tab-count">{count}</span>
+  </button>
+);
+
+// ─── Item de lista selecionável ──────────────────────────────────────────────
+const ListItem: React.FC<{
+  selected: boolean;
+  title: string;
+  subtitle?: string;
+  onClick: () => void;
+}> = ({ selected, title, subtitle, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`otm-list-item ${selected ? 'selected' : ''}`}
+  >
+    <strong className="otm-list-item-title">{title}</strong>
+    {subtitle && <small className="otm-list-item-sub">{subtitle}</small>}
+  </button>
+);
+
+// ─── Template list item com preview ─────────────────────────────────────────
+const TemplateListItem: React.FC<{
+  template: OfferTemplate;
+  selected: boolean;
+  onClick: () => void;
+}> = ({ template, selected, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`otm-template-item ${selected ? 'selected' : ''}`}
+  >
+    <div className="otm-template-item-preview">
+      <OfferCanvasPreview template={template} className="otm-template-item-canvas" />
+    </div>
+    <div className="otm-template-item-body">
+      <span className="section-kicker">{template.channel}</span>
+      <strong className="otm-template-item-name">{template.name}</strong>
+      <small className="otm-template-item-meta">{template.canvasWidth}×{template.canvasHeight}</small>
+    </div>
+  </button>
+);
+
+// ─── Painel de validação ─────────────────────────────────────────────────────
+const ValidationBadge: React.FC<{ validation: OfferTemplateValidation | null }> = ({ validation }) => {
+  if (!validation) return null;
+  const ok = validation.valid;
+  return (
+    <div className={`otm-validation ${ok ? 'valid' : 'invalid'}`}>
+      <span>{ok ? '✓ Template válido' : `⚠ ${validation.messages?.length || 0} erro(s) de validação`}</span>
+    </div>
+  );
+};
+
+// ─── Screen principal ────────────────────────────────────────────────────────
 const OfferTemplates: React.FC = () => {
   const { marketId } = useAuth();
+  const offersService = useOffersService();
+  const [activeTab, setActiveTab] = useState<TabId>('templates');
+
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
   const [variants, setVariants] = useState<OfferTemplateVariant[]>([]);
   const [brandKits, setBrandKits] = useState<OfferBrandKit[]>([]);
   const [campaignKits, setCampaignKits] = useState<OfferCampaignKit[]>([]);
   const [validation, setValidation] = useState<OfferTemplateValidation | null>(null);
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedBrandKitId, setSelectedBrandKitId] = useState<string | null>(null);
   const [selectedCampaignKitId, setSelectedCampaignKitId] = useState<string | null>(null);
+
   const [templateForm, setTemplateForm] = useState(emptyTemplateForm);
   const [variantForm, setVariantForm] = useState(emptyVariantForm);
   const [brandKitForm, setBrandKitForm] = useState(emptyBrandKitForm);
   const [campaignKitForm, setCampaignKitForm] = useState(emptyCampaignKitForm);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
-  const selectedTemplate = useMemo(() => templates.find((template) => template.id === selectedTemplateId) || null, [templates, selectedTemplateId]);
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === selectedTemplateId) || null,
+    [templates, selectedTemplateId],
+  );
 
   const loadTemplateMeta = async (templateId?: string | null, templateList = templates) => {
     if (!marketId || !templateId) {
@@ -105,7 +195,7 @@ const OfferTemplates: React.FC = () => {
       ]);
       setVariants(variantData);
       setValidation(validationData);
-      const currentTemplate = templateList.find((template) => template.id === templateId) || null;
+      const currentTemplate = templateList.find((t) => t.id === templateId) || null;
       setTemplateForm({
         name: currentTemplate?.name || '',
         description: currentTemplate?.description || '',
@@ -136,7 +226,7 @@ const OfferTemplates: React.FC = () => {
         setVariantForm(emptyVariantForm);
       }
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível carregar variantes e validação do template.');
+      setError(err?.message || 'Não foi possível carregar as variantes.');
     }
   };
 
@@ -190,9 +280,12 @@ const OfferTemplates: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    void loadAll();
-  }, [marketId]);
+  useEffect(() => { void loadAll(); }, [marketId]);
+
+  const showNotice = (msg: string) => {
+    setSaveNotice(msg);
+    setTimeout(() => setSaveNotice(null), 3000);
+  };
 
   const selectTemplate = async (template: OfferTemplate) => {
     setSelectedTemplateId(template.id);
@@ -250,6 +343,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createTemplate(marketId, payload);
       }
       await loadAll();
+      showNotice('Template salvo com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar o template.');
     } finally {
@@ -268,6 +362,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createTemplateVariant(marketId, selectedTemplateId, payload);
       }
       await loadTemplateMeta(selectedTemplateId);
+      showNotice('Variante salva com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar a variante.');
     } finally {
@@ -286,6 +381,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createBrandKit(marketId, payload);
       }
       await loadAll();
+      showNotice('Brand kit salvo com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar o brand kit.');
     } finally {
@@ -310,6 +406,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createCampaignKit(marketId, payload);
       }
       await loadAll();
+      showNotice('Campaign kit salvo com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar o campaign kit.');
     } finally {
@@ -319,159 +416,336 @@ const OfferTemplates: React.FC = () => {
 
   return (
     <Layout>
-      <div className="page analytics-page offers-page">
-        <PageHero
-          badge="Template engine"
-          title="Controle master template, variantes, kits e schema v2."
-          description="A biblioteca agora é o centro do módulo: template, variante, brand kit e campaign kit convivem no mesmo fluxo de configuração."
-          actions={
-            <>
-              <Button type="button" onClick={() => { setSelectedTemplateId(null); setTemplateForm(emptyTemplateForm); }}>Novo template</Button>
-              <Button type="button" variant="secondary" onClick={() => void loadAll()}>
-                <RefreshCw size={16} strokeWidth={2.1} />
-                Atualizar
-              </Button>
-            </>
-          }
-          feature={<OfferCanvasPreview template={selectedTemplate || templates[0] || null} className="offer-dashboard-canvas" />}
-        />
+      <div className="page offers-page">
 
-        {error ? <div className="sales-empty-card">{error}</div> : null}
-        {loading ? <div className="sales-empty-card">Carregando biblioteca de ofertas...</div> : null}
+        {/* ── Header da página ──────────────────────────────────────── */}
+        <header className="otm-page-header reveal">
+          <div>
+            <span className="section-kicker">Template engine</span>
+            <h1 className="otm-page-title">Biblioteca de ofertas</h1>
+            <p className="otm-page-desc">Configure templates, variantes, brand kits e campaign kits em um só lugar.</p>
+          </div>
+          <div className="otm-page-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => { setSelectedTemplateId(null); setTemplateForm(emptyTemplateForm); setActiveTab('templates'); }}
+            >
+              <Plus size={15} strokeWidth={2.2} />
+              Novo template
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => void loadAll()}>
+              <RefreshCw size={15} strokeWidth={2.2} />
+              Atualizar
+            </Button>
+          </div>
+        </header>
 
-        {!loading ? (
+        {/* ── Notificações ─────────────────────────────────────────── */}
+        {error && <div className="ocm-banner ocm-banner-error">{error}</div>}
+        {saveNotice && <div className="ocm-banner ocm-banner-success">{saveNotice}</div>}
+        {loading && <div className="ofd-feedback">Carregando biblioteca…</div>}
+
+        {!loading && (
           <>
-            <div className="offer-template-page-grid">
-              <section className="sales-section reveal">
-                <div className="sales-section-head">
-                  <div>
-                    <span className="section-kicker">Templates</span>
-                    <h2>Base de modelos</h2>
-                  </div>
-                  <p>{templates.length} templates cadastrados.</p>
-                </div>
-                <div className="offer-template-rail stacked">
-                  {templates.map((template) => (
-                    <article key={template.id} className={`offer-template-card compact ${selectedTemplateId === template.id ? 'selected' : ''}`} onClick={() => void selectTemplate(template)}>
-                      <OfferCanvasPreview template={template} className="offer-template-card-preview compact" />
-                      <div className="offer-template-card-body compact">
-                        <span className="section-kicker">{template.channel}</span>
-                        <h3>{template.name}</h3>
-                        <p>{template.description || 'Sem descrição.'}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
+            {/* ── Navigation tabs ───────────────────────────────────── */}
+            <nav className="otm-nav reveal">
+              <NavTab id="templates" active={activeTab === 'templates'} icon={<Layers3 size={15} />} label="Templates" count={templates.length} onClick={() => setActiveTab('templates')} />
+              <NavTab id="variants" active={activeTab === 'variants'} icon={<Layers3 size={15} />} label="Variantes" count={variants.length} onClick={() => setActiveTab('variants')} />
+              <NavTab id="brand" active={activeTab === 'brand'} icon={<Palette size={15} />} label="Brand kits" count={brandKits.length} onClick={() => setActiveTab('brand')} />
+              <NavTab id="campaign" active={activeTab === 'campaign'} icon={<Sparkles size={15} />} label="Campaign kits" count={campaignKits.length} onClick={() => setActiveTab('campaign')} />
+            </nav>
 
-              <section className="analytics-panel reveal offer-template-editor-panel">
-                <div className="sales-section-head">
-                  <div>
-                    <span className="section-kicker">Template</span>
-                    <h2>{selectedTemplateId ? 'Editar template' : 'Criar template'}</h2>
+            {/* ══ Tab: Templates ════════════════════════════════════ */}
+            {activeTab === 'templates' && (
+              <div className="otm-layout reveal">
+                {/* Lista de templates */}
+                <aside className="otm-list-panel">
+                  <div className="otm-list-panel-head">
+                    <h2 className="otm-list-panel-title">Templates</h2>
+                    <span className="otm-list-panel-count">{templates.length}</span>
+                  </div>
+                  <div className="otm-template-list">
+                    {templates.map((template) => (
+                      <TemplateListItem
+                        key={template.id}
+                        template={template}
+                        selected={selectedTemplateId === template.id}
+                        onClick={() => void selectTemplate(template)}
+                      />
+                    ))}
+                    {templates.length === 0 && (
+                      <p className="otm-list-empty">Nenhum template cadastrado.</p>
+                    )}
+                  </div>
+                </aside>
+
+                {/* Editor de template */}
+                <div className="otm-editor-panel">
+                  <div className="otm-editor-header">
+                    <div>
+                      <span className="section-kicker">Template</span>
+                      <h2 className="otm-editor-title">{selectedTemplateId ? 'Editar template' : 'Criar novo template'}</h2>
+                    </div>
+                    <div className="otm-editor-header-aside">
+                      <ValidationBadge validation={validation} />
+                      {selectedTemplate && (
+                        <div className="otm-template-preview-thumb">
+                          <OfferCanvasPreview template={selectedTemplate} className="otm-editor-canvas" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="otm-form-grid">
+                    <Field label="Nome">
+                      <TextInput value={templateForm.name} onChange={(e) => setTemplateForm((c) => ({ ...c, name: e.target.value }))} />
+                    </Field>
+                    <Field label="Canal">
+                      <TextInput value={templateForm.channel} onChange={(e) => setTemplateForm((c) => ({ ...c, channel: e.target.value }))} />
+                    </Field>
+                    <Field label="Largura (px)">
+                      <TextInput type="number" value={templateForm.canvasWidth} onChange={(e) => setTemplateForm((c) => ({ ...c, canvasWidth: Number(e.target.value || 1080) }))} />
+                    </Field>
+                    <Field label="Altura (px)">
+                      <TextInput type="number" value={templateForm.canvasHeight} onChange={(e) => setTemplateForm((c) => ({ ...c, canvasHeight: Number(e.target.value || 1350) }))} />
+                    </Field>
+                    <Field label="Schema version">
+                      <TextInput type="number" value={templateForm.schemaVersion} onChange={(e) => setTemplateForm((c) => ({ ...c, schemaVersion: Number(e.target.value || 2) }))} />
+                    </Field>
+                    <Field label="Master key">
+                      <TextInput value={templateForm.masterTemplateKey} onChange={(e) => setTemplateForm((c) => ({ ...c, masterTemplateKey: e.target.value }))} />
+                    </Field>
+                    <Field label="Variante padrão">
+                      <SelectInput value={templateForm.defaultVariantKey} onChange={(e) => setTemplateForm((c) => ({ ...c, defaultVariantKey: e.target.value }))}>
+                        {variants.length
+                          ? variants.map((v) => <option key={v.id} value={v.variantKey}>{v.name}</option>)
+                          : <option value="">Sem variante</option>}
+                      </SelectInput>
+                    </Field>
+                    <Field label="Brand kit">
+                      <SelectInput value={templateForm.brandKitId} onChange={(e) => setTemplateForm((c) => ({ ...c, brandKitId: e.target.value }))}>
+                        {brandKits.length
+                          ? brandKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)
+                          : <option value="">Sem brand kit</option>}
+                      </SelectInput>
+                    </Field>
+                    <Field label="Campaign kit">
+                      <SelectInput value={templateForm.campaignKitId} onChange={(e) => setTemplateForm((c) => ({ ...c, campaignKitId: e.target.value }))}>
+                        {campaignKits.length
+                          ? campaignKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)
+                          : <option value="">Sem campaign kit</option>}
+                      </SelectInput>
+                    </Field>
+                    <Field label="Descrição" full>
+                      <TextareaInput rows={3} value={templateForm.description} onChange={(e) => setTemplateForm((c) => ({ ...c, description: e.target.value }))} />
+                    </Field>
+                    <Field label="Design JSON" full>
+                      <TextareaInput mono rows={18} value={templateForm.designJson} onChange={(e) => setTemplateForm((c) => ({ ...c, designJson: e.target.value }))} />
+                    </Field>
+                  </div>
+
+                  <div className="otm-form-actions">
+                    <Button type="button" onClick={handleTemplateSave} disabled={saving}>
+                      <Save size={15} strokeWidth={2.2} />
+                      {saving ? 'Salvando…' : 'Salvar template'}
+                    </Button>
                   </div>
                 </div>
-                <div className="offer-template-form-grid">
-                  <label><span>Nome</span><input className="input" value={templateForm.name} onChange={(event) => setTemplateForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                  <label><span>Canal</span><input className="input" value={templateForm.channel} onChange={(event) => setTemplateForm((current) => ({ ...current, channel: event.target.value }))} /></label>
-                  <label><span>Largura</span><input className="input" type="number" value={templateForm.canvasWidth} onChange={(event) => setTemplateForm((current) => ({ ...current, canvasWidth: Number(event.target.value || 1080) }))} /></label>
-                  <label><span>Altura</span><input className="input" type="number" value={templateForm.canvasHeight} onChange={(event) => setTemplateForm((current) => ({ ...current, canvasHeight: Number(event.target.value || 1350) }))} /></label>
-                  <label><span>Schema version</span><input className="input" type="number" value={templateForm.schemaVersion} onChange={(event) => setTemplateForm((current) => ({ ...current, schemaVersion: Number(event.target.value || 2) }))} /></label>
-                  <label><span>Master key</span><input className="input" value={templateForm.masterTemplateKey} onChange={(event) => setTemplateForm((current) => ({ ...current, masterTemplateKey: event.target.value }))} /></label>
-                  <label><span>Default variant</span><select className="input" value={templateForm.defaultVariantKey} onChange={(event) => setTemplateForm((current) => ({ ...current, defaultVariantKey: event.target.value }))}>{variants.length ? variants.map((variant) => <option key={variant.id} value={variant.variantKey}>{variant.name}</option>) : <option value="">Sem variante</option>}</select></label>
-                  <label><span>Brand kit</span><select className="input" value={templateForm.brandKitId} onChange={(event) => setTemplateForm((current) => ({ ...current, brandKitId: event.target.value }))}>{brandKits.length ? brandKits.map((kit) => <option key={kit.id} value={kit.id}>{kit.name}</option>) : <option value="">Sem brand kit</option>}</select></label>
-                  <label><span>Campaign kit</span><select className="input" value={templateForm.campaignKitId} onChange={(event) => setTemplateForm((current) => ({ ...current, campaignKitId: event.target.value }))}>{campaignKits.length ? campaignKits.map((kit) => <option key={kit.id} value={kit.id}>{kit.name}</option>) : <option value="">Sem campaign kit</option>}</select></label>
-                  <label className="full"><span>Descrição</span><textarea className="input" rows={3} value={templateForm.description} onChange={(event) => setTemplateForm((current) => ({ ...current, description: event.target.value }))} /></label>
-                  <label className="full"><span>Design JSON</span><textarea className="input offer-json-editor" rows={16} value={templateForm.designJson} onChange={(event) => setTemplateForm((current) => ({ ...current, designJson: event.target.value }))} /></label>
-                </div>
-                <div className="offer-template-editor-actions">
-                  <Button type="button" onClick={handleTemplateSave} disabled={saving}>
-                    <Save size={16} strokeWidth={2.1} />
-                    {saving ? 'Salvando...' : 'Salvar template'}
-                  </Button>
-                </div>
-              </section>
-            </div>
+              </div>
+            )}
 
-            <div className="mt-8 grid gap-6 xl:grid-cols-3">
-              <section className="analytics-panel reveal">
-                <div className="sales-section-head"><div><span className="section-kicker">Variantes</span><h2>Formatos</h2></div><p>{variants.length} variantes.</p></div>
-                <div className="space-y-3">
-                  {variants.map((variant) => (
-                    <button key={variant.id} type="button" onClick={() => selectVariant(variant)} className={`w-full rounded-[20px] border px-4 py-4 text-left ${selectedVariantId === variant.id ? 'border-[color:var(--accent-primary)] bg-[rgba(255,106,0,0.08)]' : 'border-[rgba(87,51,30,0.08)] bg-white'}`}>
-                      <strong className="block">{variant.name}</strong>
-                      <small className="text-[color:var(--text-secondary)]">{variant.canvasWidth}x{variant.canvasHeight}</small>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-5 space-y-3">
-                  <label><span>Nome</span><input className="input" value={variantForm.name} onChange={(event) => setVariantForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                  <label><span>Key</span><input className="input" value={variantForm.variantKey} onChange={(event) => setVariantForm((current) => ({ ...current, variantKey: event.target.value }))} /></label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label><span>Largura</span><input className="input" type="number" value={variantForm.canvasWidth} onChange={(event) => setVariantForm((current) => ({ ...current, canvasWidth: Number(event.target.value || 1080) }))} /></label>
-                    <label><span>Altura</span><input className="input" type="number" value={variantForm.canvasHeight} onChange={(event) => setVariantForm((current) => ({ ...current, canvasHeight: Number(event.target.value || 1350) }))} /></label>
+            {/* ══ Tab: Variantes ════════════════════════════════════ */}
+            {activeTab === 'variants' && (
+              <div className="otm-layout reveal">
+                <aside className="otm-list-panel">
+                  <div className="otm-list-panel-head">
+                    <h2 className="otm-list-panel-title">Variantes</h2>
+                    <span className="otm-list-panel-count">{variants.length}</span>
                   </div>
-                  <label><span>Variant JSON</span><textarea className="input offer-json-editor" rows={8} value={variantForm.variantJson} onChange={(event) => setVariantForm((current) => ({ ...current, variantJson: event.target.value }))} /></label>
-                  <Button type="button" onClick={handleVariantSave} disabled={saving}>
-                    <Layers3 size={16} strokeWidth={2.1} />
-                    Salvar variante
-                  </Button>
-                </div>
-              </section>
-
-              <section className="analytics-panel reveal">
-                <div className="sales-section-head"><div><span className="section-kicker">Brand kits</span><h2>Marca</h2></div><p>{brandKits.length} kits.</p></div>
-                <div className="space-y-3">
-                  {brandKits.map((kit) => (
-                    <button key={kit.id} type="button" onClick={() => selectBrandKit(kit)} className={`w-full rounded-[20px] border px-4 py-4 text-left ${selectedBrandKitId === kit.id ? 'border-[color:var(--accent-primary)] bg-[rgba(255,106,0,0.08)]' : 'border-[rgba(87,51,30,0.08)] bg-white'}`}>
-                      <strong className="block">{kit.name}</strong>
-                      <small className="text-[color:var(--text-secondary)]">{kit.systemKit ? 'Kit base' : 'Kit do mercado'}</small>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-5 space-y-3">
-                  <label><span>Nome</span><input className="input" value={brandKitForm.name} onChange={(event) => setBrandKitForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                  <label><span>Key</span><input className="input" value={brandKitForm.kitKey} onChange={(event) => setBrandKitForm((current) => ({ ...current, kitKey: event.target.value }))} /></label>
-                  <label><span>Descrição</span><textarea className="input" rows={3} value={brandKitForm.description} onChange={(event) => setBrandKitForm((current) => ({ ...current, description: event.target.value }))} /></label>
-                  <label><span>Tokens JSON</span><textarea className="input offer-json-editor" rows={8} value={brandKitForm.tokensJson} onChange={(event) => setBrandKitForm((current) => ({ ...current, tokensJson: event.target.value }))} /></label>
-                  <label><span>Assets JSON</span><textarea className="input offer-json-editor" rows={8} value={brandKitForm.assetsJson} onChange={(event) => setBrandKitForm((current) => ({ ...current, assetsJson: event.target.value }))} /></label>
-                  <Button type="button" onClick={handleBrandKitSave} disabled={saving}>
-                    <Palette size={16} strokeWidth={2.1} />
-                    Salvar brand kit
-                  </Button>
-                </div>
-              </section>
-
-              <section className="analytics-panel reveal">
-                <div className="sales-section-head"><div><span className="section-kicker">Campaign kits</span><h2>Campanhas</h2></div><p>{campaignKits.length} kits.</p></div>
-                <div className="space-y-3">
-                  {campaignKits.map((kit) => (
-                    <button key={kit.id} type="button" onClick={() => selectCampaignKit(kit)} className={`w-full rounded-[20px] border px-4 py-4 text-left ${selectedCampaignKitId === kit.id ? 'border-[color:var(--accent-primary)] bg-[rgba(255,106,0,0.08)]' : 'border-[rgba(87,51,30,0.08)] bg-white'}`}>
-                      <strong className="block">{kit.name}</strong>
-                      <small className="text-[color:var(--text-secondary)]">{kit.seasonKey || 'Campanha livre'}</small>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-5 space-y-3">
-                  <label><span>Nome</span><input className="input" value={campaignKitForm.name} onChange={(event) => setCampaignKitForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                  <label><span>Key</span><input className="input" value={campaignKitForm.kitKey} onChange={(event) => setCampaignKitForm((current) => ({ ...current, kitKey: event.target.value }))} /></label>
-                  <label><span>Sazonalidade</span><input className="input" value={campaignKitForm.seasonKey} onChange={(event) => setCampaignKitForm((current) => ({ ...current, seasonKey: event.target.value }))} /></label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label><span>Início</span><input className="input" type="datetime-local" value={campaignKitForm.startsAt} onChange={(event) => setCampaignKitForm((current) => ({ ...current, startsAt: event.target.value }))} /></label>
-                    <label><span>Fim</span><input className="input" type="datetime-local" value={campaignKitForm.endsAt} onChange={(event) => setCampaignKitForm((current) => ({ ...current, endsAt: event.target.value }))} /></label>
+                  {selectedTemplate && (
+                    <p className="otm-list-panel-context">Template: <strong>{selectedTemplate.name}</strong></p>
+                  )}
+                  <div className="otm-list">
+                    {variants.map((variant) => (
+                      <ListItem
+                        key={variant.id}
+                        selected={selectedVariantId === variant.id}
+                        title={variant.name}
+                        subtitle={`${variant.canvasWidth}×${variant.canvasHeight} · ${variant.variantKey}`}
+                        onClick={() => selectVariant(variant)}
+                      />
+                    ))}
+                    {variants.length === 0 && (
+                      <p className="otm-list-empty">
+                        {selectedTemplateId ? 'Nenhuma variante neste template.' : 'Selecione um template na aba Templates.'}
+                      </p>
+                    )}
                   </div>
-                  <label><span>Descrição</span><textarea className="input" rows={3} value={campaignKitForm.description} onChange={(event) => setCampaignKitForm((current) => ({ ...current, description: event.target.value }))} /></label>
-                  <label><span>Tokens JSON</span><textarea className="input offer-json-editor" rows={8} value={campaignKitForm.tokensJson} onChange={(event) => setCampaignKitForm((current) => ({ ...current, tokensJson: event.target.value }))} /></label>
-                  <label><span>Assets JSON</span><textarea className="input offer-json-editor" rows={8} value={campaignKitForm.assetsJson} onChange={(event) => setCampaignKitForm((current) => ({ ...current, assetsJson: event.target.value }))} /></label>
-                  <Button type="button" onClick={handleCampaignKitSave} disabled={saving}>
-                    <Sparkles size={16} strokeWidth={2.1} />
-                    Salvar campaign kit
-                  </Button>
+                </aside>
+
+                <div className="otm-editor-panel">
+                  <div className="otm-editor-header">
+                    <div>
+                      <span className="section-kicker">Variante</span>
+                      <h2 className="otm-editor-title">{selectedVariantId ? 'Editar variante' : 'Nova variante'}</h2>
+                    </div>
+                  </div>
+                  <div className="otm-form-grid">
+                    <Field label="Nome">
+                      <TextInput value={variantForm.name} onChange={(e) => setVariantForm((c) => ({ ...c, name: e.target.value }))} />
+                    </Field>
+                    <Field label="Chave (key)">
+                      <TextInput value={variantForm.variantKey} onChange={(e) => setVariantForm((c) => ({ ...c, variantKey: e.target.value }))} />
+                    </Field>
+                    <Field label="Largura (px)">
+                      <TextInput type="number" value={variantForm.canvasWidth} onChange={(e) => setVariantForm((c) => ({ ...c, canvasWidth: Number(e.target.value || 1080) }))} />
+                    </Field>
+                    <Field label="Altura (px)">
+                      <TextInput type="number" value={variantForm.canvasHeight} onChange={(e) => setVariantForm((c) => ({ ...c, canvasHeight: Number(e.target.value || 1350) }))} />
+                    </Field>
+                    <Field label="URL de preview" full>
+                      <TextInput value={variantForm.previewImageUrl} onChange={(e) => setVariantForm((c) => ({ ...c, previewImageUrl: e.target.value }))} />
+                    </Field>
+                    <Field label="Variant JSON" full>
+                      <TextareaInput mono rows={16} value={variantForm.variantJson} onChange={(e) => setVariantForm((c) => ({ ...c, variantJson: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div className="otm-form-actions">
+                    <Button type="button" onClick={handleVariantSave} disabled={saving || !selectedTemplateId}>
+                      <Layers3 size={15} strokeWidth={2.2} />
+                      {saving ? 'Salvando…' : 'Salvar variante'}
+                    </Button>
+                    {!selectedTemplateId && (
+                      <p className="otm-form-hint">Selecione um template na aba Templates antes de salvar.</p>
+                    )}
+                  </div>
                 </div>
-              </section>
-            </div>
+              </div>
+            )}
+
+            {/* ══ Tab: Brand kits ═══════════════════════════════════ */}
+            {activeTab === 'brand' && (
+              <div className="otm-layout reveal">
+                <aside className="otm-list-panel">
+                  <div className="otm-list-panel-head">
+                    <h2 className="otm-list-panel-title">Brand kits</h2>
+                    <span className="otm-list-panel-count">{brandKits.length}</span>
+                  </div>
+                  <div className="otm-list">
+                    {brandKits.map((kit) => (
+                      <ListItem
+                        key={kit.id}
+                        selected={selectedBrandKitId === kit.id}
+                        title={kit.name}
+                        subtitle={kit.systemKit ? 'Kit base do sistema' : 'Kit do mercado'}
+                        onClick={() => selectBrandKit(kit)}
+                      />
+                    ))}
+                    {brandKits.length === 0 && <p className="otm-list-empty">Nenhum brand kit cadastrado.</p>}
+                  </div>
+                </aside>
+
+                <div className="otm-editor-panel">
+                  <div className="otm-editor-header">
+                    <div>
+                      <span className="section-kicker">Brand kit</span>
+                      <h2 className="otm-editor-title">{selectedBrandKitId ? 'Editar brand kit' : 'Novo brand kit'}</h2>
+                    </div>
+                  </div>
+                  <div className="otm-form-grid">
+                    <Field label="Nome">
+                      <TextInput value={brandKitForm.name} onChange={(e) => setBrandKitForm((c) => ({ ...c, name: e.target.value }))} />
+                    </Field>
+                    <Field label="Chave (key)">
+                      <TextInput value={brandKitForm.kitKey} onChange={(e) => setBrandKitForm((c) => ({ ...c, kitKey: e.target.value }))} />
+                    </Field>
+                    <Field label="Descrição" full>
+                      <TextareaInput rows={3} value={brandKitForm.description} onChange={(e) => setBrandKitForm((c) => ({ ...c, description: e.target.value }))} />
+                    </Field>
+                    <Field label="Tokens JSON" full>
+                      <TextareaInput mono rows={12} value={brandKitForm.tokensJson} onChange={(e) => setBrandKitForm((c) => ({ ...c, tokensJson: e.target.value }))} />
+                    </Field>
+                    <Field label="Assets JSON" full>
+                      <TextareaInput mono rows={10} value={brandKitForm.assetsJson} onChange={(e) => setBrandKitForm((c) => ({ ...c, assetsJson: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div className="otm-form-actions">
+                    <Button type="button" onClick={handleBrandKitSave} disabled={saving}>
+                      <Palette size={15} strokeWidth={2.2} />
+                      {saving ? 'Salvando…' : 'Salvar brand kit'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ══ Tab: Campaign kits ════════════════════════════════ */}
+            {activeTab === 'campaign' && (
+              <div className="otm-layout reveal">
+                <aside className="otm-list-panel">
+                  <div className="otm-list-panel-head">
+                    <h2 className="otm-list-panel-title">Campaign kits</h2>
+                    <span className="otm-list-panel-count">{campaignKits.length}</span>
+                  </div>
+                  <div className="otm-list">
+                    {campaignKits.map((kit) => (
+                      <ListItem
+                        key={kit.id}
+                        selected={selectedCampaignKitId === kit.id}
+                        title={kit.name}
+                        subtitle={kit.seasonKey || 'Campanha livre'}
+                        onClick={() => selectCampaignKit(kit)}
+                      />
+                    ))}
+                    {campaignKits.length === 0 && <p className="otm-list-empty">Nenhum campaign kit cadastrado.</p>}
+                  </div>
+                </aside>
+
+                <div className="otm-editor-panel">
+                  <div className="otm-editor-header">
+                    <div>
+                      <span className="section-kicker">Campaign kit</span>
+                      <h2 className="otm-editor-title">{selectedCampaignKitId ? 'Editar campaign kit' : 'Novo campaign kit'}</h2>
+                    </div>
+                  </div>
+                  <div className="otm-form-grid">
+                    <Field label="Nome">
+                      <TextInput value={campaignKitForm.name} onChange={(e) => setCampaignKitForm((c) => ({ ...c, name: e.target.value }))} />
+                    </Field>
+                    <Field label="Chave (key)">
+                      <TextInput value={campaignKitForm.kitKey} onChange={(e) => setCampaignKitForm((c) => ({ ...c, kitKey: e.target.value }))} />
+                    </Field>
+                    <Field label="Sazonalidade">
+                      <TextInput value={campaignKitForm.seasonKey} onChange={(e) => setCampaignKitForm((c) => ({ ...c, seasonKey: e.target.value }))} />
+                    </Field>
+                    <Field label="Início">
+                      <TextInput type="datetime-local" value={campaignKitForm.startsAt} onChange={(e) => setCampaignKitForm((c) => ({ ...c, startsAt: e.target.value }))} />
+                    </Field>
+                    <Field label="Fim">
+                      <TextInput type="datetime-local" value={campaignKitForm.endsAt} onChange={(e) => setCampaignKitForm((c) => ({ ...c, endsAt: e.target.value }))} />
+                    </Field>
+                    <Field label="Descrição" full>
+                      <TextareaInput rows={3} value={campaignKitForm.description} onChange={(e) => setCampaignKitForm((c) => ({ ...c, description: e.target.value }))} />
+                    </Field>
+                    <Field label="Tokens JSON" full>
+                      <TextareaInput mono rows={10} value={campaignKitForm.tokensJson} onChange={(e) => setCampaignKitForm((c) => ({ ...c, tokensJson: e.target.value }))} />
+                    </Field>
+                    <Field label="Assets JSON" full>
+                      <TextareaInput mono rows={10} value={campaignKitForm.assetsJson} onChange={(e) => setCampaignKitForm((c) => ({ ...c, assetsJson: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div className="otm-form-actions">
+                    <Button type="button" onClick={handleCampaignKitSave} disabled={saving}>
+                      <Sparkles size={15} strokeWidth={2.2} />
+                      {saving ? 'Salvando…' : 'Salvar campaign kit'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
-        ) : null}
+        )}
       </div>
     </Layout>
   );

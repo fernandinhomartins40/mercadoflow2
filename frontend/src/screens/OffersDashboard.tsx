@@ -1,15 +1,14 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, BarChart2, Clock, Layers, Lightbulb, Sparkles, TrendingUp, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { buildOffersUrl } from '../lib/offersApp';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
-import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHero from '../components/dashboard/PageHero';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
 import OfferProductImage from '../components/offers/OfferProductImage';
-import { offersService } from '../services/offers.service';
 import { useAuth } from '../context/AuthContext';
+import { useOffersService } from '../hooks/useOffersService';
 import { OfferGenerationJob, OfferOverview, OfferTemplate } from '../types/offers.types';
 import { ProductPairInsight, ProductPerformance, PromotionImpact } from '../types/analytics.types';
 
@@ -18,48 +17,65 @@ const formatMoney = (value?: number | null) =>
 
 const compactCategory = (value?: string | null) => {
   if (!value) return 'Sem categoria';
-  return value.length > 72 ? `${value.slice(0, 69)}...` : value;
+  return value.length > 60 ? `${value.slice(0, 57)}...` : value;
 };
 
-const OfferJobCard: React.FC<{ job: OfferGenerationJob }> = ({ job }) => (
-  <article className="offer-job-card">
-    <div className="offer-job-card-head">
-      <div>
-        <span className="section-kicker">{job.outputType} · {job.generationMode === 'CATALOG' ? 'Encarte' : 'Peças individuais'}</span>
-        <h3>{job.name}</h3>
-      </div>
-      <span className={`status-pill ${String(job.status || '').toLowerCase()}`}>{job.status}</span>
-    </div>
-    <div className="offer-job-card-meta">
-      <span>{job.productCount} produtos</span>
-      <span>{job.pageCount} páginas/peças</span>
-      <span>{job.createdAt ? new Date(job.createdAt).toLocaleString('pt-BR') : 'Agora'}</span>
-    </div>
-    <div className="offer-job-card-items">
-      {job.items.slice(0, 4).map((item) => (
-        <div key={item.id} className="offer-job-item-pill">
-          <OfferProductImage src={item.productImageUrl} alt={item.productName} className="offer-job-item-thumb" />
-          <span>{item.productName}</span>
-        </div>
-      ))}
-    </div>
-  </article>
-);
+// ─── Job card compacto ───────────────────────────────────────────────────────
+const OfferJobCard: React.FC<{ job: OfferGenerationJob }> = ({ job }) => {
+  const statusMap: Record<string, { label: string; cls: string }> = {
+    READY: { label: 'Pronto', cls: 'positive' },
+    PARTIAL: { label: 'Parcial', cls: 'soft' },
+    PROCESSING: { label: 'Processando', cls: 'soft' },
+    QUEUED: { label: 'Na fila', cls: 'soft' },
+    FAILED: { label: 'Falhou', cls: 'negative' },
+    DRAFT: { label: 'Rascunho', cls: 'soft' },
+  };
+  const s = statusMap[String(job.status || '').toUpperCase()] || { label: job.status || '—', cls: 'soft' };
 
+  return (
+    <article className="ofd-job-card">
+      <div className="ofd-job-card-top">
+        <div className="min-w-0">
+          <span className="section-kicker">{job.outputType} · {job.generationMode === 'CATALOG' ? 'Encarte' : 'Individual'}</span>
+          <h3 className="ofd-job-card-title">{job.name}</h3>
+        </div>
+        <span className={`sales-pill ${s.cls}`}>{s.label}</span>
+      </div>
+      <div className="ofd-job-card-meta">
+        <span>{job.productCount} produtos</span>
+        <span>{job.pageCount} peças</span>
+        <span>{job.createdAt ? new Date(job.createdAt).toLocaleDateString('pt-BR') : 'Agora'}</span>
+      </div>
+      <div className="ofd-job-card-thumbs">
+        {job.items.slice(0, 5).map((item) => (
+          <div key={item.id} className="ofd-job-thumb">
+            <OfferProductImage src={item.productImageUrl} alt={item.productName} className="ofd-job-thumb-img" />
+          </div>
+        ))}
+        {job.items.length > 5 && (
+          <div className="ofd-job-thumb ofd-job-thumb-more">+{job.items.length - 5}</div>
+        )}
+      </div>
+    </article>
+  );
+};
+
+// ─── Card de produto sugerido ────────────────────────────────────────────────
 const SuggestionProductCard: React.FC<{
   product: ProductPerformance;
   label: string;
+  labelCls?: string;
   onUse: () => void;
-}> = ({ product, label, onUse }) => (
-  <article className="offer-product-suggestion-card">
-    <div className="offer-product-suggestion-frame">
-      <OfferProductImage src={product.imageUrl} alt={product.name} className="offer-product-suggestion-image" />
+}> = ({ product, label, labelCls = 'soft', onUse }) => (
+  <article className="ofd-suggestion-card">
+    <div className="ofd-suggestion-media">
+      <OfferProductImage src={product.imageUrl} alt={product.name} className="ofd-suggestion-img" />
     </div>
-    <div className="offer-product-suggestion-body">
-      <span className="sales-pill soft">{label}</span>
-      <h3>{product.name}</h3>
-      <p>{compactCategory(product.category)}</p>
-      <div className="offer-product-suggestion-metrics">
+    <div className="ofd-suggestion-body">
+      <span className={`sales-pill ${labelCls}`}>{label}</span>
+      <h3 className="ofd-suggestion-name">{product.name}</h3>
+      <p className="ofd-suggestion-category">{compactCategory(product.category)}</p>
+      <div className="ofd-suggestion-metrics">
         <div>
           <span>Receita</span>
           <strong>{formatMoney(product.revenue)}</strong>
@@ -69,7 +85,10 @@ const SuggestionProductCard: React.FC<{
           <strong>{Number(product.salesVelocity || 0).toFixed(1)}/dia</strong>
         </div>
       </div>
-      <Button type="button" onClick={onUse}>Usar na arte</Button>
+      <button type="button" className="ofd-use-btn" onClick={onUse}>
+        Usar na arte
+        <ArrowRight size={14} strokeWidth={2.2} />
+      </button>
     </div>
   </article>
 );
@@ -78,15 +97,15 @@ const PromotionSuggestionCard: React.FC<{
   product: PromotionImpact;
   onUse: () => void;
 }> = ({ product, onUse }) => (
-  <article className="offer-product-suggestion-card">
-    <div className="offer-product-suggestion-frame">
-      <OfferProductImage src={product.imageUrl} alt={product.name} className="offer-product-suggestion-image" />
+  <article className="ofd-suggestion-card">
+    <div className="ofd-suggestion-media">
+      <OfferProductImage src={product.imageUrl} alt={product.name} className="ofd-suggestion-img" />
     </div>
-    <div className="offer-product-suggestion-body">
+    <div className="ofd-suggestion-body">
       <span className="sales-pill positive">Promoção</span>
-      <h3>{product.name}</h3>
-      <p>{compactCategory(product.category)}</p>
-      <div className="offer-product-suggestion-metrics">
+      <h3 className="ofd-suggestion-name">{product.name}</h3>
+      <p className="ofd-suggestion-category">{compactCategory(product.category)}</p>
+      <div className="ofd-suggestion-metrics">
         <div>
           <span>Lift volume</span>
           <strong>{Number(product.quantityLiftPercent || 0).toFixed(0)}%</strong>
@@ -96,40 +115,101 @@ const PromotionSuggestionCard: React.FC<{
           <strong>{formatMoney(product.promoAveragePrice)}</strong>
         </div>
       </div>
-      <Button type="button" onClick={onUse}>Usar na arte</Button>
+      <button type="button" className="ofd-use-btn" onClick={onUse}>
+        Usar na arte
+        <ArrowRight size={14} strokeWidth={2.2} />
+      </button>
     </div>
   </article>
 );
 
+// ─── Card de par de produtos ─────────────────────────────────────────────────
 const PairSuggestionCard: React.FC<{
   pair: ProductPairInsight;
   onUse: () => void;
 }> = ({ pair, onUse }) => (
-  <article className="offer-pair-suggestion-card">
-    <div className="offer-pair-suggestion-media">
-      <div className="offer-pair-suggestion-frame">
-        <OfferProductImage src={pair.antecedentImageUrl} alt={pair.antecedentName || 'Produto'} className="offer-pair-suggestion-image" />
+  <article className="ofd-pair-card">
+    <div className="ofd-pair-images">
+      <div className="ofd-pair-img-wrap">
+        <OfferProductImage src={pair.antecedentImageUrl} alt={pair.antecedentName || 'Produto'} className="ofd-pair-img" />
       </div>
-      <div className="offer-pair-suggestion-plus">+</div>
-      <div className="offer-pair-suggestion-frame">
-        <OfferProductImage src={pair.consequentImageUrl} alt={pair.consequentName || 'Produto'} className="offer-pair-suggestion-image" />
+      <div className="ofd-pair-plus">+</div>
+      <div className="ofd-pair-img-wrap">
+        <OfferProductImage src={pair.consequentImageUrl} alt={pair.consequentName || 'Produto'} className="ofd-pair-img" />
       </div>
     </div>
-    <div className="offer-pair-suggestion-body">
+    <div className="ofd-pair-body">
       <span className="sales-pill soft">Compra casada</span>
-      <h3>{pair.antecedentName || 'Produto principal'}</h3>
-      <p>{pair.consequentName || 'Produto complementar'}</p>
-      <div className="offer-pair-suggestion-stats">
+      <h3 className="ofd-suggestion-name">{pair.antecedentName || 'Produto principal'}</h3>
+      <p className="ofd-suggestion-category">{pair.consequentName || 'Produto complementar'}</p>
+      <div className="ofd-pair-stats">
         <span>{pair.pairCount || 0} cestas</span>
         <span>Lift {Number(pair.lift || 0).toFixed(2)}</span>
       </div>
-      <Button type="button" variant="secondary" onClick={onUse}>Montar peça combinada</Button>
+      <button type="button" className="ofd-use-btn ofd-use-btn-secondary" onClick={onUse}>
+        Montar peça combinada
+        <ArrowRight size={14} strokeWidth={2.2} />
+      </button>
     </div>
   </article>
 );
 
+// ─── Stat chip inline ────────────────────────────────────────────────────────
+const StatChip: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
+  <div className="ofd-stat-chip">
+    <span className="ofd-stat-chip-icon">{icon}</span>
+    <span className="ofd-stat-chip-label">{label}</span>
+    <strong className="ofd-stat-chip-value">{value}</strong>
+  </div>
+);
+
+// ─── Template card ───────────────────────────────────────────────────────────
+const TemplateCard: React.FC<{ template: OfferTemplate; onUse: () => void }> = ({ template, onUse }) => (
+  <article className="ofd-template-card">
+    <div className="ofd-template-preview">
+      <OfferCanvasPreview template={template} className="ofd-template-canvas" />
+    </div>
+    <div className="ofd-template-body">
+      <span className="section-kicker">{template.channel}</span>
+      <h3 className="ofd-template-name">{template.name}</h3>
+      <p className="ofd-template-desc">{template.description || 'Template pronto para personalização.'}</p>
+      <div className="ofd-template-footer">
+        <span className="ofd-template-dim">{template.canvasWidth}×{template.canvasHeight}</span>
+        <Button type="button" onClick={onUse}>Usar no designer</Button>
+      </div>
+    </div>
+  </article>
+);
+
+// ─── Seção com cabeçalho ─────────────────────────────────────────────────────
+const PageSection: React.FC<{
+  kicker: string;
+  title: string;
+  description?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}> = ({ kicker, title, description, icon, children, action }) => (
+  <section className="ofd-section reveal">
+    <div className="ofd-section-head">
+      <div className="ofd-section-label">
+        {icon && <span className="ofd-section-icon">{icon}</span>}
+        <div>
+          <span className="section-kicker">{kicker}</span>
+          <h2 className="ofd-section-title">{title}</h2>
+          {description && <p className="ofd-section-desc">{description}</p>}
+        </div>
+      </div>
+      {action && <div className="ofd-section-action">{action}</div>}
+    </div>
+    {children}
+  </section>
+);
+
+// ─── Screen principal ────────────────────────────────────────────────────────
 const OffersDashboard: React.FC = () => {
   const { marketId } = useAuth();
+  const offersService = useOffersService();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<OfferOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -166,160 +246,182 @@ const OffersDashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="page analytics-page offers-page">
-        <PageHero
-          badge="Designer de ofertas"
-          title="Crie peças de oferta a partir do catálogo e das vendas reais do mercado."
-          description="Modelos em JSON, binding automático com nome, preço, unidade e imagem, preview em tempo real e geração de lotes já ligada ao motor de render."
-          actions={
-            <>
-              <Button type="button" onClick={() => openDesigner(leadTemplate?.id)}>Abrir designer</Button>
+      <div className="page offers-page">
+
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <header className="ofd-hero reveal">
+          <div className="ofd-hero-copy">
+            <span className="ofd-hero-kicker">Designer de ofertas</span>
+            <h1 className="ofd-hero-title">Crie peças de oferta a partir do catálogo e das vendas reais.</h1>
+            <p className="ofd-hero-desc">
+              Modelos em JSON, binding automático com nome, preço e imagem, preview em tempo real e geração de lotes integrada ao motor de render.
+            </p>
+            <div className="ofd-hero-actions">
+              <Button type="button" onClick={() => openDesigner(leadTemplate?.id)}>
+                Abrir designer
+              </Button>
               <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin')}>Gerenciar modelos</ButtonLink>
               <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas/jobs', 'admin')}>Ver lotes</ButtonLink>
-            </>
-          }
-          feature={<OfferCanvasPreview template={leadTemplate} className="offer-dashboard-canvas" />}
-          featureClassName="offers-command-showcase"
-        />
+            </div>
+          </div>
+          {leadTemplate && (
+            <div className="ofd-hero-preview">
+              <OfferCanvasPreview template={leadTemplate} className="ofd-hero-canvas" />
+            </div>
+          )}
+        </header>
 
-        {loading ? <div className="sales-empty-card">Carregando módulo de ofertas...</div> : null}
-        {error ? <div className="sales-empty-card">{error}</div> : null}
+        {/* ── Loading / error ───────────────────────────────────────────── */}
+        {loading && <div className="ofd-feedback">Carregando módulo de ofertas…</div>}
+        {error && <div className="ofd-feedback ofd-feedback-error">{error}</div>}
 
-        {overview ? (
+        {overview && (
           <>
-            <div className="metrics-grid analytics-metrics-grid sales-metric-strip">
-              <MetricsCard title="Modelos" value={String(overview.templatesCount)} icon="MD" />
-              <MetricsCard title="Lotes" value={String(overview.jobsCount)} icon="LT" />
-              <MetricsCard title="Na fila" value={String(overview.queuedJobs)} icon="Q" />
-              <MetricsCard title="Sugestões" value={String((overview.replenishmentSuggestions?.length || 0) + (overview.promotionSuggestions?.length || 0))} icon="SG" />
+            {/* ── KPI strip ────────────────────────────────────────────── */}
+            <div className="ofd-kpi-strip reveal">
+              <StatChip icon={<Layers size={16} />} label="Modelos" value={overview.templatesCount} />
+              <StatChip icon={<Clock size={16} />} label="Lotes" value={overview.jobsCount} />
+              <StatChip icon={<BarChart2 size={16} />} label="Na fila" value={overview.queuedJobs} />
+              <StatChip
+                icon={<Lightbulb size={16} />}
+                label="Sugestões"
+                value={(overview.replenishmentSuggestions?.length || 0) + (overview.promotionSuggestions?.length || 0)}
+              />
             </div>
 
-            <section className="sales-section reveal">
-              <div className="sales-section-head">
-                <div>
-                  <span className="section-kicker">Modelos</span>
-                  <h2>Base nativa para cartaz e encarte</h2>
+            {/* ── Templates ────────────────────────────────────────────── */}
+            {overview.templates.length > 0 && (
+              <PageSection
+                kicker="Modelos disponíveis"
+                title="Templates prontos para uso"
+                description="Selecione um modelo e abra o designer para montar sua campanha visual."
+                icon={<Layers size={16} />}
+                action={
+                  <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin')}>
+                    Ver todos
+                    <ArrowRight size={14} strokeWidth={2.2} />
+                  </ButtonLink>
+                }
+              >
+                <div className="ofd-template-rail">
+                  {overview.templates.map((template) => (
+                    <TemplateCard
+                      key={template.id}
+                      template={template}
+                      onUse={() => openDesigner(template.id)}
+                    />
+                  ))}
                 </div>
-                <p>Os modelos ficam no banco, em JSON, e já abastecem o estúdio visual usado para montagem, preview e publicação.</p>
-              </div>
-              <div className="offer-template-rail">
-                {overview.templates.map((template) => (
-                  <article key={template.id} className="offer-template-card">
-                    <OfferCanvasPreview template={template} className="offer-template-card-preview" />
-                    <div className="offer-template-card-body">
-                      <span className="section-kicker">{template.channel}</span>
-                      <h3>{template.name}</h3>
-                      <p>{template.description || 'Modelo pronto para personalização.'}</p>
-                      <div className="offer-template-card-meta">
-                        <span>{template.canvasWidth}x{template.canvasHeight}</span>
-                        <span>{template.systemTemplate ? 'Template base' : 'Template do mercado'}</span>
-                      </div>
-                      <div className="offer-template-card-actions">
-                        <Button type="button" onClick={() => openDesigner(template.id)}>Usar no designer</Button>
-                        <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin')}>Editar</ButtonLink>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
+              </PageSection>
+            )}
 
-            <section className="sales-section reveal">
-              <div className="sales-section-head">
-                <div>
-                  <span className="section-kicker">Fila de geração</span>
-                  <h2>Lotes já preparados</h2>
-                </div>
-                <p>Os lotes já são gravados com template, produtos e saídas renderizadas pelo motor server-side do módulo.</p>
-              </div>
+            {/* ── Fila de geração ──────────────────────────────────────── */}
+            <PageSection
+              kicker="Fila de geração"
+              title="Lotes preparados"
+              description="Acompanhe o status dos lotes gerados pelo motor server-side."
+              icon={<Clock size={16} />}
+              action={
+                <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas/jobs', 'admin')}>
+                  Ver todos
+                  <ArrowRight size={14} strokeWidth={2.2} />
+                </ButtonLink>
+              }
+            >
               {overview.recentJobs.length === 0 ? (
-                <div className="sales-empty-card">Nenhum lote foi criado ainda.</div>
+                <div className="ofd-empty">Nenhum lote criado ainda. Crie uma campanha para começar.</div>
               ) : (
-                <div className="offer-job-grid">
+                <div className="ofd-job-grid">
                   {overview.recentJobs.map((job) => <OfferJobCard key={job.id} job={job} />)}
                 </div>
               )}
-            </section>
+            </PageSection>
 
-            <section className="sales-section reveal">
-              <div className="sales-section-head">
-                <div>
-                  <span className="section-kicker">Recomendados pelas vendas</span>
-                  <h2>Itens com maior urgência para virar arte</h2>
+            {/* ── Sugestões de reposição ────────────────────────────────── */}
+            {overview.replenishmentSuggestions.length > 0 && (
+              <PageSection
+                kicker="Recomendados pelas vendas"
+                title="Itens com urgência para virar arte"
+                description="Produtos com giro forte, sazonalidade próxima e alta performance promocional."
+                icon={<TrendingUp size={16} />}
+              >
+                <div className="ofd-suggestion-rail">
+                  {overview.replenishmentSuggestions.map((product) => (
+                    <SuggestionProductCard
+                      key={product.productId}
+                      product={product}
+                      label="Reposição"
+                      labelCls="soft"
+                      onUse={() => openDesigner(leadTemplate?.id, product.productId)}
+                    />
+                  ))}
                 </div>
-                <p>Use este trilho para transformar itens de giro forte, sazonalidade próxima e performance promocional em campanha visual rapidamente.</p>
-              </div>
-              <div className="offer-suggestion-rail">
-                {overview.replenishmentSuggestions.map((product) => (
-                  <SuggestionProductCard
-                    key={product.productId}
-                    product={product}
-                    label="Reposição"
-                    onUse={() => openDesigner(leadTemplate?.id, product.productId)}
-                  />
-                ))}
-              </div>
-            </section>
+              </PageSection>
+            )}
 
-            <section className="sales-section reveal">
-              <div className="sales-section-head">
-                <div>
-                  <span className="section-kicker">Calendário comercial</span>
-                  <h2>Sazonalidade mais próxima</h2>
+            {/* ── Sazonalidade ─────────────────────────────────────────── */}
+            {overview.seasonalSuggestions.length > 0 && (
+              <PageSection
+                kicker="Calendário comercial"
+                title="Sazonalidade mais próxima"
+                description="Prepare campanhas baseadas no período sazonal mais próximo no calendário."
+                icon={<Sparkles size={16} />}
+              >
+                <div className="ofd-suggestion-rail">
+                  {overview.seasonalSuggestions.map((product) => (
+                    <SuggestionProductCard
+                      key={product.productId}
+                      product={product}
+                      label="Sazonalidade"
+                      labelCls="soft"
+                      onUse={() => openDesigner(leadTemplate?.id, product.productId)}
+                    />
+                  ))}
                 </div>
-                <p>Os produtos abaixo vêm do período sazonal mais próximo no calendário e ajudam a preparar campanhas sem hardcode manual.</p>
-              </div>
-              <div className="offer-suggestion-rail">
-                {overview.seasonalSuggestions.map((product) => (
-                  <SuggestionProductCard
-                    key={product.productId}
-                    product={product}
-                    label="Sazonalidade"
-                    onUse={() => openDesigner(leadTemplate?.id, product.productId)}
-                  />
-                ))}
-              </div>
-            </section>
+              </PageSection>
+            )}
 
-            <section className="sales-section reveal">
-              <div className="sales-section-head">
-                <div>
-                  <span className="section-kicker">Performance promocional</span>
-                  <h2>Itens com maior resposta a desconto</h2>
+            {/* ── Performance promocional ───────────────────────────────── */}
+            {overview.promotionSuggestions.length > 0 && (
+              <PageSection
+                kicker="Performance promocional"
+                title="Maior resposta a desconto"
+                description="Produtos que comprovadamente reagem bem a ação comercial — candidatos naturais para cartaz e tabloide."
+                icon={<BarChart2 size={16} />}
+              >
+                <div className="ofd-suggestion-rail">
+                  {overview.promotionSuggestions.map((product) => (
+                    <PromotionSuggestionCard
+                      key={product.productId}
+                      product={product}
+                      onUse={() => openDesigner(leadTemplate?.id, product.productId)}
+                    />
+                  ))}
                 </div>
-                <p>Esses produtos já provaram nas notas que reagem bem a ação comercial e são candidatos naturais para cartaz e tabloide.</p>
-              </div>
-              <div className="offer-suggestion-rail">
-                {overview.promotionSuggestions.map((product) => (
-                  <PromotionSuggestionCard
-                    key={product.productId}
-                    product={product}
-                    onUse={() => openDesigner(leadTemplate?.id, product.productId)}
-                  />
-                ))}
-              </div>
-            </section>
+              </PageSection>
+            )}
 
-            <section className="sales-section reveal">
-              <div className="sales-section-head">
-                <div>
-                  <span className="section-kicker">Venda combinada</span>
-                  <h2>Pares que merecem peça conjunta</h2>
+            {/* ── Pares ────────────────────────────────────────────────── */}
+            {overview.pairSuggestions.length > 0 && (
+              <PageSection
+                kicker="Venda combinada"
+                title="Pares que merecem peça conjunta"
+                description="Use pares fortes para encarte, ponta e comunicação cruzada."
+                icon={<Users size={16} />}
+              >
+                <div className="ofd-pair-rail">
+                  {overview.pairSuggestions.map((pair) => (
+                    <PairSuggestionCard
+                      key={`${pair.antecedentId}-${pair.consequentId}`}
+                      pair={pair}
+                      onUse={() => openDesigner(leadTemplate?.id, pair.antecedentId || pair.consequentId || undefined)}
+                    />
+                  ))}
                 </div>
-                <p>Use pares fortes para encarte, ponta e comunicação cruzada de exposição.</p>
-              </div>
-              <div className="offer-pair-rail">
-                {overview.pairSuggestions.map((pair) => (
-                  <PairSuggestionCard
-                    key={`${pair.antecedentId}-${pair.consequentId}`}
-                    pair={pair}
-                    onUse={() => openDesigner(leadTemplate?.id, pair.antecedentId || pair.consequentId || undefined)}
-                  />
-                ))}
-              </div>
-            </section>
+              </PageSection>
+            )}
           </>
-        ) : null}
+        )}
       </div>
     </Layout>
   );
