@@ -401,8 +401,8 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
 
         {isEditingCampaign ? (
           <div className="mb-5 rounded-[22px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.82)] px-4 py-3 text-sm text-[color:var(--text-secondary)]">
-            <strong className="block text-[color:var(--text-primary)]">Campanha em ediÃ§Ã£o</strong>
-            <span>As alteraÃ§Ãµes feitas no estÃºdio atualizam a campanha salva, sem criar um registro novo.</span>
+            <strong className="block text-[color:var(--text-primary)]">Campanha em edição</strong>
+            <span>As alterações feitas no estúdio atualizam a campanha salva, sem criar um registro novo.</span>
           </div>
         ) : null}
 
@@ -497,7 +497,6 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
     canvasSelectedLayerId,
     canvasSelectedZoneId,
     collapsedConfigSections,
-    customLayerTypeLabel,
     dragOverLayerId,
     draggingLayerId,
     effectiveMarketId,

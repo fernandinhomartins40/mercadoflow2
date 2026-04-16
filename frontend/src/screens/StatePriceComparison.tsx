@@ -239,7 +239,7 @@ const StatePriceComparisonContent: React.FC = () => {
           <MetricsCard title="Produtos únicos" value={stats?.totalProducts ?? 0} icon="PR" />
           <MetricsCard title="Observações" value={stats?.totalObservations ?? 0} icon="OB" variant="warning" />
           <MetricsCard title="Fontes ativas" value={stats?.totalSources ?? 0} icon="SF" />
-          <MetricsCard title="Estados cobertos" value={stats?.totalStates ?? 0} icon="UF" variant="success" />
+          <MetricsCard title="Estados cobertos" value={stats?.totalStates ?? 0} icon="UF" />
         </section>
 
         <div className="state-price-layout">

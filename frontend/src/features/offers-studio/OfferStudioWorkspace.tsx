@@ -30,8 +30,8 @@ type OfferStudioWorkspaceProps = {
   stageMeta?: React.ReactNode;
   showEditBanner?: boolean;
   editBannerLabel?: string;
-  stageSurfaceRef: React.RefObject<HTMLDivElement | null>;
-  stageArtboardRef: React.RefObject<HTMLDivElement | null>;
+  stageSurfaceRef: React.RefObject<HTMLDivElement>;
+  stageArtboardRef: React.RefObject<HTMLDivElement>;
   scaledStageWidth: number;
   scaledStageHeight: number;
   stageCanvasWidth: number;

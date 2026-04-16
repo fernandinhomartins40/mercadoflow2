@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/cn';
 
-const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' }> = ({
+const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' }> = ({
   variant = 'primary',
   children,
   className,
@@ -12,6 +12,8 @@ const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant
   const variantClassName =
     variant === 'secondary'
       ? 'border border-[rgba(87,51,30,0.12)] bg-white text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.06)] hover:-translate-y-px hover:bg-[rgba(255,247,240,0.92)]'
+      : variant === 'ghost'
+      ? 'border border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[rgba(87,51,30,0.06)] hover:text-[color:var(--text-primary)]'
       : 'border border-transparent bg-[color:var(--accent-primary)] text-white shadow-[0_16px_30px_rgba(255,106,0,0.24)] hover:-translate-y-px hover:bg-[color:var(--accent-strong)]';
 
   return (

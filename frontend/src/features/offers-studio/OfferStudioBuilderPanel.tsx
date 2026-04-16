@@ -2,6 +2,7 @@ import React from 'react';
 import { BoxSelect, LayoutTemplate, Layers3, Plus, RefreshCw, Target } from 'lucide-react';
 import Button from '../../components/common/Button';
 import OfferProductImage from '../../components/offers/OfferProductImage';
+import { buildTemplateBuilderDraft, customLayerTypeLabel } from './model';
 import {
   StudioAssetStatus,
   StudioBoundsFields,
@@ -48,7 +49,6 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
     canvasSelectedLayerId,
     canvasSelectedZoneId,
     collapsedConfigSections,
-    customLayerTypeLabel,
     dragOverLayerId,
     draggingLayerId,
     effectiveMarketId,

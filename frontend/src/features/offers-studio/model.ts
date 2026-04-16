@@ -1,17 +1,25 @@
 import {
   BoxSelect,
+  CalendarDays,
   Factory,
+  FileText,
   ImageIcon,
+  LayoutTemplate,
   Layers3,
+  PackageSearch,
   Palette,
   QrCode,
+  SendHorizontal,
   Square,
   Tag,
   Type,
   type LucideIcon,
 } from 'lucide-react';
 import type {
+  OfferBrandKit,
+  OfferCampaignKit,
   OfferCatalogProduct,
+  OfferMarketProfile,
   OfferTemplate,
   OfferTemplatePreview,
   OfferTemplateVariant,
@@ -78,7 +86,7 @@ export const TOOL_OPTIONS = [
   { key: 'portal', icon: QrCode, label: 'Portal' },
 ] as const;
 
-export type StudioTool = (typeof TOOL_OPTIONS)[number]['key'];
+export type StudioTool = (typeof TOOL_OPTIONS)[number]['key'] | 'builder';
 export type ProductPanelMode = 'search' | 'selected';
 export type LayerDraft = {
   type: string;
@@ -1341,7 +1349,7 @@ export const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonM
       props: {
         radius: clampNumber(draft.footer.radius, 18, 0, 160),
         background: draft.footer.background.trim() || '#2c1d17',
-        textColor: draft.footer.textColor.trim() || '#fff4ee',
+        textColor: (draft.footer.textColor ?? '').trim() || '#fff4ee',
         fontSize: clampNumber(draft.footer.fontSize, 15, 10, 48),
         containerOnly: true,
       },
@@ -1357,7 +1365,7 @@ export const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonM
       props: {
         fontSize: clampNumber(draft.footerContent.fontSize, 15, 10, 48),
         fontWeight: clampNumber(draft.footerContent.fontWeight, 600, 300, 900),
-        textColor: draft.footer.textColor.trim() || '#fff4ee',
+        textColor: (draft.footer.textColor ?? '').trim() || '#fff4ee',
       },
     },
     {
@@ -1371,7 +1379,7 @@ export const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonM
       props: {
         fontSize: clampNumber(draft.footerLegal.fontSize, 12, 10, 48),
         fontWeight: clampNumber(draft.footerLegal.fontWeight, 500, 300, 900),
-        textColor: draft.footer.textColor.trim() || '#fff4ee',
+        textColor: (draft.footer.textColor ?? '').trim() || '#fff4ee',
       },
     },
     {

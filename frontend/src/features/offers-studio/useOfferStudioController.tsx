@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { BoxSelect, Paintbrush } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { loadOfferStudioBootstrap } from './bootstrap';
 import {
@@ -1699,7 +1700,7 @@ export const useOfferStudioController = () => {
       await loadTemplateMeta(updated.id, nextTemplates, brandKits, campaignKits);
       await refreshPreview('preview');
     } catch (err: any) {
-      setError(err?.message || 'NÃ£o foi possÃ­vel salvar a composiÃ§Ã£o do template.');
+      setError(err?.message || 'Não foi possível salvar a composição do template.');
     } finally {
       setSaving(false);
     }
@@ -2287,6 +2288,6 @@ export const useOfferStudioController = () => {
     handlePublishCurrentCampaign,
     handlePublishSavedCampaign,
     handleCloneSavedCampaign,
-    handleDeleteSavedCampaign
+    handleDeleteSavedCampaign,
   };
 };

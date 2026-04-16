@@ -31,10 +31,16 @@ interface CanvasSlot {
   fit?: string;
 }
 
-const defaultLegacyTemplate = {
+const defaultLegacyTemplate: {
+  background: { type: string; color: string; start?: string; end?: string };
+  static: Record<string, string>;
+  slots: CanvasSlot[];
+  schemaVersion?: number;
+  layers?: JsonMap[];
+} = {
   background: { type: 'solid', color: '#fff7ef' },
   static: { kicker: 'Oferta', headline: 'Selecione um modelo para começar.' },
-  slots: [] as CanvasSlot[],
+  slots: [],
 };
 
 const formatMoney = (value?: number | null) =>

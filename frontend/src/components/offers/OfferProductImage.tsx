@@ -14,12 +14,13 @@ interface OfferProductImageProps {
   src?: string | null;
   alt: string;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-const OfferProductImage: React.FC<OfferProductImageProps> = ({ src, alt, className }) => {
+const OfferProductImage: React.FC<OfferProductImageProps> = ({ src, alt, className, style }) => {
   const [broken, setBroken] = useState(false);
   const imageSrc = useMemo(() => (!broken && src ? src : FALLBACK_IMAGE), [broken, src]);
-  return <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
+  return <img className={className} style={style} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
 };
 
 export default OfferProductImage;

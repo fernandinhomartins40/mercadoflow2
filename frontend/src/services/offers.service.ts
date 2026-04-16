@@ -1,5 +1,5 @@
 import api from './api';
-import { isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
+import { isOffersAppPath, resolveOffersWorkspace, type OffersWorkspaceMode } from '../lib/offersApp';
 import {
   OfferAssetUploadResult,
   OfferBackgroundRemovalResult,
@@ -102,30 +102,41 @@ export interface OfferBackgroundRemovalPayload {
   imageStorageKey?: string | null;
 }
 
-const isSuperAdminOffersWorkspace = () => {
+const inferOffersWorkspace = (): OffersWorkspaceMode => {
   if (typeof window === 'undefined') {
-    return false;
+    return 'admin';
   }
 
   return (
     isOffersAppPath(window.location.pathname) &&
     resolveOffersWorkspace(window.location.search) === 'super-admin'
-  );
+  )
+    ? 'super-admin'
+    : 'admin';
 };
 
-const offersBasePath = (marketId: string) =>
-  isSuperAdminOffersWorkspace()
+const resolveWorkspaceMode = (
+  workspace: OffersWorkspaceMode | (() => OffersWorkspaceMode),
+) => (typeof workspace === 'function' ? workspace() : workspace);
+
+const offersBasePath = (
+  marketId: string,
+  workspace: OffersWorkspaceMode | (() => OffersWorkspaceMode),
+) =>
+  resolveWorkspaceMode(workspace) === 'super-admin'
     ? `/v1/super-admin/markets/${marketId}/offers`
     : `/v1/markets/${marketId}/offers`;
 
-export const offersService = {
+export const createOffersService = (
+  workspace: OffersWorkspaceMode | (() => OffersWorkspaceMode) = inferOffersWorkspace,
+) => ({
   async getOverview(marketId: string) {
-    const response = await api.get<OfferOverview>(`${offersBasePath(marketId)}/overview`);
+    const response = await api.get<OfferOverview>(`${offersBasePath(marketId, workspace)}/overview`);
     return response.data;
   },
 
   async searchCatalog(marketId: string, query?: string, limit = 20) {
-    const response = await api.get<OfferCatalogProduct[]>(`${offersBasePath(marketId)}/catalog-search`, {
+    const response = await api.get<OfferCatalogProduct[]>(`${offersBasePath(marketId, workspace)}/catalog-search`, {
       params: { q: query?.trim() || undefined, limit },
     });
     return response.data;
@@ -134,31 +145,31 @@ export const offersService = {
   async getCatalogSelection(marketId: string, ids: string[]) {
     const params = new URLSearchParams();
     ids.forEach((id) => params.append('ids', id));
-    const response = await api.get<OfferCatalogProduct[]>(`${offersBasePath(marketId)}/catalog-selection`, {
+    const response = await api.get<OfferCatalogProduct[]>(`${offersBasePath(marketId, workspace)}/catalog-selection`, {
       params,
     });
     return response.data;
   },
 
   async getTemplates(marketId: string) {
-    const response = await api.get<OfferTemplate[]>(`${offersBasePath(marketId)}/templates`);
+    const response = await api.get<OfferTemplate[]>(`${offersBasePath(marketId, workspace)}/templates`);
     return response.data;
   },
 
   async getMarketProfile(marketId: string) {
-    const response = await api.get<OfferMarketProfile>(`${offersBasePath(marketId)}/profile`);
+    const response = await api.get<OfferMarketProfile>(`${offersBasePath(marketId, workspace)}/profile`);
     return response.data;
   },
 
   async updateMarketProfile(marketId: string, payload: OfferMarketProfilePayload) {
-    const response = await api.put<OfferMarketProfile>(`${offersBasePath(marketId)}/profile`, payload);
+    const response = await api.put<OfferMarketProfile>(`${offersBasePath(marketId, workspace)}/profile`, payload);
     return response.data;
   },
 
   async uploadMarketProfileLogo(marketId: string, slot: 'PRIMARY' | 'SECONDARY', file: File) {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post<OfferAssetUploadResult>(`${offersBasePath(marketId)}/profile/logo`, formData, {
+    const response = await api.post<OfferAssetUploadResult>(`${offersBasePath(marketId, workspace)}/profile/logo`, formData, {
       params: { slot },
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -168,7 +179,7 @@ export const offersService = {
   async uploadTemplateAsset(marketId: string, purpose: string, file: File) {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post<OfferAssetUploadResult>(`${offersBasePath(marketId)}/assets`, formData, {
+    const response = await api.post<OfferAssetUploadResult>(`${offersBasePath(marketId, workspace)}/assets`, formData, {
       params: { purpose },
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -176,121 +187,125 @@ export const offersService = {
   },
 
   async getTemplate(marketId: string, templateId: string) {
-    const response = await api.get<OfferTemplate>(`${offersBasePath(marketId)}/templates/${templateId}`);
+    const response = await api.get<OfferTemplate>(`${offersBasePath(marketId, workspace)}/templates/${templateId}`);
     return response.data;
   },
 
   async createTemplate(marketId: string, payload: OfferTemplatePayload) {
-    const response = await api.post<OfferTemplate>(`${offersBasePath(marketId)}/templates`, payload);
+    const response = await api.post<OfferTemplate>(`${offersBasePath(marketId, workspace)}/templates`, payload);
     return response.data;
   },
 
   async updateTemplate(marketId: string, templateId: string, payload: OfferTemplatePayload) {
-    const response = await api.patch<OfferTemplate>(`${offersBasePath(marketId)}/templates/${templateId}`, payload);
+    const response = await api.patch<OfferTemplate>(`${offersBasePath(marketId, workspace)}/templates/${templateId}`, payload);
     return response.data;
   },
 
   async getTemplateVariants(marketId: string, templateId: string) {
-    const response = await api.get<OfferTemplateVariant[]>(`${offersBasePath(marketId)}/templates/${templateId}/variants`);
+    const response = await api.get<OfferTemplateVariant[]>(`${offersBasePath(marketId, workspace)}/templates/${templateId}/variants`);
     return response.data;
   },
 
   async createTemplateVariant(marketId: string, templateId: string, payload: OfferTemplateVariantPayload) {
-    const response = await api.post<OfferTemplateVariant>(`${offersBasePath(marketId)}/templates/${templateId}/variants`, payload);
+    const response = await api.post<OfferTemplateVariant>(`${offersBasePath(marketId, workspace)}/templates/${templateId}/variants`, payload);
     return response.data;
   },
 
   async updateTemplateVariant(marketId: string, variantId: string, payload: OfferTemplateVariantPayload) {
-    const response = await api.patch<OfferTemplateVariant>(`${offersBasePath(marketId)}/variants/${variantId}`, payload);
+    const response = await api.patch<OfferTemplateVariant>(`${offersBasePath(marketId, workspace)}/variants/${variantId}`, payload);
     return response.data;
   },
 
   async validateTemplate(marketId: string, templateId: string) {
-    const response = await api.get<OfferTemplateValidation>(`${offersBasePath(marketId)}/templates/${templateId}/validate`);
+    const response = await api.get<OfferTemplateValidation>(`${offersBasePath(marketId, workspace)}/templates/${templateId}/validate`);
     return response.data;
   },
 
   async previewTemplate(marketId: string, payload: OfferPreviewPayload) {
-    const response = await api.post<OfferTemplatePreview>(`${offersBasePath(marketId)}/preview`, payload);
+    const response = await api.post<OfferTemplatePreview>(`${offersBasePath(marketId, workspace)}/preview`, payload);
     return response.data;
   },
 
   async autoFillTemplate(marketId: string, payload: OfferPreviewPayload) {
-    const response = await api.post<OfferTemplatePreview>(`${offersBasePath(marketId)}/auto-fill`, payload);
+    const response = await api.post<OfferTemplatePreview>(`${offersBasePath(marketId, workspace)}/auto-fill`, payload);
     return response.data;
   },
 
   async removeBackground(marketId: string, payload: OfferBackgroundRemovalPayload) {
-    const response = await api.post<OfferBackgroundRemovalResult>(`${offersBasePath(marketId)}/remove-background`, payload);
+    const response = await api.post<OfferBackgroundRemovalResult>(`${offersBasePath(marketId, workspace)}/remove-background`, payload);
     return response.data;
   },
 
   async getBrandKits(marketId: string) {
-    const response = await api.get<OfferBrandKit[]>(`${offersBasePath(marketId)}/brand-kits`);
+    const response = await api.get<OfferBrandKit[]>(`${offersBasePath(marketId, workspace)}/brand-kits`);
     return response.data;
   },
 
   async createBrandKit(marketId: string, payload: OfferBrandKitPayload) {
-    const response = await api.post<OfferBrandKit>(`${offersBasePath(marketId)}/brand-kits`, payload);
+    const response = await api.post<OfferBrandKit>(`${offersBasePath(marketId, workspace)}/brand-kits`, payload);
     return response.data;
   },
 
   async updateBrandKit(marketId: string, kitId: string, payload: OfferBrandKitPayload) {
-    const response = await api.patch<OfferBrandKit>(`${offersBasePath(marketId)}/brand-kits/${kitId}`, payload);
+    const response = await api.patch<OfferBrandKit>(`${offersBasePath(marketId, workspace)}/brand-kits/${kitId}`, payload);
     return response.data;
   },
 
   async getCampaignKits(marketId: string) {
-    const response = await api.get<OfferCampaignKit[]>(`${offersBasePath(marketId)}/campaign-kits`);
+    const response = await api.get<OfferCampaignKit[]>(`${offersBasePath(marketId, workspace)}/campaign-kits`);
     return response.data;
   },
 
   async createCampaignKit(marketId: string, payload: OfferCampaignKitPayload) {
-    const response = await api.post<OfferCampaignKit>(`${offersBasePath(marketId)}/campaign-kits`, payload);
+    const response = await api.post<OfferCampaignKit>(`${offersBasePath(marketId, workspace)}/campaign-kits`, payload);
     return response.data;
   },
 
   async updateCampaignKit(marketId: string, kitId: string, payload: OfferCampaignKitPayload) {
-    const response = await api.patch<OfferCampaignKit>(`${offersBasePath(marketId)}/campaign-kits/${kitId}`, payload);
+    const response = await api.patch<OfferCampaignKit>(`${offersBasePath(marketId, workspace)}/campaign-kits/${kitId}`, payload);
     return response.data;
   },
 
   async getJobs(marketId: string) {
-    const response = await api.get<OfferGenerationJob[]>(`${offersBasePath(marketId)}/jobs`);
+    const response = await api.get<OfferGenerationJob[]>(`${offersBasePath(marketId, workspace)}/jobs`);
     return response.data;
   },
 
   async createJob(marketId: string, payload: OfferCreateJobPayload) {
-    const response = await api.post<OfferGenerationJob>(`${offersBasePath(marketId)}/jobs`, payload);
+    const response = await api.post<OfferGenerationJob>(`${offersBasePath(marketId, workspace)}/jobs`, payload);
     return response.data;
   },
 
   async getJob(marketId: string, jobId: string) {
-    const response = await api.get<OfferGenerationJob>(`${offersBasePath(marketId)}/jobs/${jobId}`);
+    const response = await api.get<OfferGenerationJob>(`${offersBasePath(marketId, workspace)}/jobs/${jobId}`);
     return response.data;
   },
 
   async updateJob(marketId: string, jobId: string, payload: OfferCreateJobPayload) {
-    const response = await api.patch<OfferGenerationJob>(`${offersBasePath(marketId)}/jobs/${jobId}`, payload);
+    const response = await api.patch<OfferGenerationJob>(`${offersBasePath(marketId, workspace)}/jobs/${jobId}`, payload);
     return response.data;
   },
 
   async cloneJob(marketId: string, jobId: string) {
-    const response = await api.post<OfferGenerationJob>(`${offersBasePath(marketId)}/jobs/${jobId}/clone`);
+    const response = await api.post<OfferGenerationJob>(`${offersBasePath(marketId, workspace)}/jobs/${jobId}/clone`);
     return response.data;
   },
 
   async deleteJob(marketId: string, jobId: string) {
-    await api.delete(`${offersBasePath(marketId)}/jobs/${jobId}`);
+    await api.delete(`${offersBasePath(marketId, workspace)}/jobs/${jobId}`);
   },
 
   async getJobOutputs(marketId: string, jobId: string) {
-    const response = await api.get<OfferRenderOutput[]>(`${offersBasePath(marketId)}/jobs/${jobId}/outputs`);
+    const response = await api.get<OfferRenderOutput[]>(`${offersBasePath(marketId, workspace)}/jobs/${jobId}/outputs`);
     return response.data;
   },
 
   async publishJob(marketId: string, jobId: string, payload: OfferPublishPayload) {
-    const response = await api.post<OfferRenderOutput[]>(`${offersBasePath(marketId)}/jobs/${jobId}/publish`, payload);
+    const response = await api.post<OfferRenderOutput[]>(`${offersBasePath(marketId, workspace)}/jobs/${jobId}/publish`, payload);
     return response.data;
   },
-};
+});
+
+export type OffersServiceClient = ReturnType<typeof createOffersService>;
+
+export const offersService = createOffersService();
