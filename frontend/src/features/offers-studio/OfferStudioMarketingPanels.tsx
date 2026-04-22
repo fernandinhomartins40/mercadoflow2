@@ -169,16 +169,16 @@ const OfferStudioMarketingPanels: React.FC<OfferStudioMarketingPanelsProps> = ({
           onToggle={() => toggleConfigSection('marketLogos')}
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <div className="offer-studio-panel-subhead">
                 <span className="section-kicker">Logo principal</span>
                 <small>Slot esquerdo</small>
               </div>
-              <div className="mb-4 flex h-28 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+              <div className="mb-4 flex h-28 items-center justify-center rounded-xl border border-gray-200 bg-white">
                 {marketProfile?.primaryLogoUrl ? (
                   <OfferProductImage src={marketProfile.primaryLogoUrl} alt="Logo principal" className="h-full w-full object-contain p-4" />
                 ) : (
-                  <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                  <span className="text-sm text-gray-500">Nenhuma logo enviada</span>
                 )}
               </div>
               <div className="mb-4">
@@ -200,16 +200,16 @@ const OfferStudioMarketingPanels: React.FC<OfferStudioMarketingPanelsProps> = ({
               </label>
             </div>
 
-            <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <div className="offer-studio-panel-subhead">
                 <span className="section-kicker">Logo secundaria</span>
                 <small>Slot direito</small>
               </div>
-              <div className="mb-4 flex h-28 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+              <div className="mb-4 flex h-28 items-center justify-center rounded-xl border border-gray-200 bg-white">
                 {marketProfile?.secondaryLogoUrl ? (
                   <OfferProductImage src={marketProfile.secondaryLogoUrl} alt="Logo secundaria" className="h-full w-full object-contain p-4" />
                 ) : (
-                  <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                  <span className="text-sm text-gray-500">Nenhuma logo enviada</span>
                 )}
               </div>
               <div className="mb-4">
@@ -275,8 +275,8 @@ const OfferStudioMarketingPanels: React.FC<OfferStudioMarketingPanelsProps> = ({
             <span className="section-kicker">Campaign kit ativo</span>
             <small>{selectedCampaignKit?.seasonKey || 'Campanha livre'}</small>
           </div>
-          <div className="rounded-[20px] border border-[rgba(87,51,30,0.08)] bg-white/85 px-4 py-4 text-sm text-[color:var(--text-secondary)]">
-            <strong className="block text-base text-[color:var(--text-primary)]">{selectedCampaignKit?.name || 'Sem campanha selecionada'}</strong>
+          <div className="rounded-xl border border-gray-200 bg-white/85 px-4 py-4 text-sm text-gray-500">
+            <strong className="block text-base text-gray-900">{selectedCampaignKit?.name || 'Sem campanha selecionada'}</strong>
             <p className="mt-2">{selectedCampaignKit?.description || 'Escolha uma campanha para aplicar headline, selo e tokens sazonais ao template.'}</p>
           </div>
         </section>

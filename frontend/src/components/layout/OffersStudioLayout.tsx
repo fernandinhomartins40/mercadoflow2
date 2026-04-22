@@ -37,9 +37,9 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           { to: buildUrl('/ofertas'), label: 'Templates', icon: LayoutTemplate, exact: true },
         ]
       : [
-          { to: buildUrl('/ofertas'), label: 'Editor', icon: Sparkles, exact: true },
-          { to: buildUrl('/ofertas/campanhas'), label: 'Campanhas', icon: Boxes },
-          { to: buildUrl('/ofertas/jobs'), label: 'Arquivos', icon: FileImage },
+          { to: buildUrl('/ofertas'), label: 'Criar encarte', icon: Sparkles, exact: true },
+          { to: buildUrl('/ofertas/campanhas'), label: 'Meus encartes', icon: Boxes },
+          { to: buildUrl('/ofertas/jobs'), label: 'Arquivos prontos', icon: FileImage },
         ]),
     [buildUrl, isSuperAdminMode],
   );
@@ -70,12 +70,12 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [location.pathname, location.search]);
 
   return (
-    <div className="workspace-root offers-studio-layout h-[100dvh] box-border overflow-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]">
+    <div className="workspace-root offers-studio-layout h-[100dvh] box-border overflow-hidden bg-gray-50">
       {!navPinned && showAppRail ? (
         <button
           type="button"
           className={cn(
-            'fixed inset-0 z-40 bg-[rgba(20,12,8,0.32)] backdrop-blur-[2px] transition duration-200',
+            'fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] transition duration-200',
             navOpen ? 'visible opacity-100' : 'pointer-events-none opacity-0',
           )}
           onClick={() => setNavOpen(false)}
@@ -140,7 +140,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         {!navPinned && showAppRail ? (
           <button
             type="button"
-            className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-[rgba(87,51,30,0.12)] bg-white text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(44,20,6,0.08)] transition hover:-translate-y-px hover:bg-[rgba(255,247,240,0.92)]"
+            className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-900 shadow-sm transition hover:-translate-y-px hover:bg-gray-50"
             onClick={() => setNavOpen(true)}
             aria-label="Abrir menu do modulo"
           >
@@ -152,7 +152,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           'flex h-full min-h-0 w-full flex-col overflow-hidden',
           showAppRail ? (navPinned ? 'p-3 lg:p-4' : 'px-4 pb-4 sm:px-5') : 'p-0',
         )}>
-          <div className={cn('offers-app-body w-full', showAppRail ? 'rounded-[28px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,252,248,0.6)]' : '')}>
+          <div className={cn('offers-app-body w-full', showAppRail ? 'rounded-2xl border border-gray-200 bg-white/80' : '')}>
             {showAppRail ? (
               <div className="offers-app-floating-session">
                 <span className="offers-app-session-role">{isSuperAdminMode ? 'Super admin' : 'Admin'}</span>

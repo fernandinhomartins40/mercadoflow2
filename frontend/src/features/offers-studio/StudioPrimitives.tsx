@@ -477,19 +477,19 @@ export const StudioSideSheet: React.FC<{
     <div className="fixed inset-0 z-[90] flex justify-end">
       <button
         type="button"
-        className="absolute inset-0 bg-[rgba(20,12,8,0.44)] backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         aria-label="Fechar painel lateral"
         onClick={onClose}
       />
-      <aside className="relative z-[91] flex h-full w-full max-w-[560px] flex-col border-l border-[rgba(87,51,30,0.1)] bg-[linear-gradient(180deg,#fffdf9_0%,#f7eee6_100%)] shadow-[-18px_0_42px_rgba(20,12,8,0.16)]">
-        <div className="flex items-start justify-between gap-4 border-b border-[rgba(87,51,30,0.08)] px-5 py-5">
+      <aside className="relative z-[91] flex h-full w-full max-w-[560px] flex-col border-l border-gray-200 bg-white shadow-[-18px_0_42px_rgba(0,0,0,0.08)]">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-5">
           <div>
             <span className="section-kicker">{title}</span>
-            <h2 className="mt-2 text-[1.7rem] font-semibold tracking-[-0.04em] text-[color:var(--text-primary)]">{subtitle}</h2>
+            <h2 className="mt-2 text-[1.7rem] font-semibold tracking-[-0.04em] text-gray-900">{subtitle}</h2>
           </div>
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(87,51,30,0.1)] bg-white text-[color:var(--text-primary)]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-900"
             aria-label="Fechar painel lateral"
             onClick={onClose}
           >

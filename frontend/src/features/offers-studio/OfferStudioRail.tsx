@@ -19,8 +19,8 @@ const OfferStudioRail: React.FC<OfferStudioRailProps> = ({
         <Sparkles className="offer-studio-rail-brand-icon" strokeWidth={2.1} />
       </span>
       <div>
-        <strong>Designer de ofertas</strong>
-        <small>Automacao visual nativa do MercadoFlow</small>
+        <strong>Criar encarte</strong>
+        <small>Monte seu encarte de ofertas</small>
       </div>
     </div>
     <div className="offer-studio-rail-nav">

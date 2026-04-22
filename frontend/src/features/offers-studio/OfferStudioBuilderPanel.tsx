@@ -136,8 +136,8 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                               )}
                             </select>
                           </label>
-                          <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-3 text-sm text-[color:var(--text-secondary)] md:col-span-2">
-                            <strong className="block text-[color:var(--text-primary)]">Templates salvos aqui aparecem no painel admin da conta.</strong>
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 md:col-span-2">
+                            <strong className="block text-gray-900">Templates salvos aqui aparecem no painel admin da conta.</strong>
                             <span>{selectedSuperAdminMarket ? `Conta ativa: ${selectedSuperAdminMarket.name}` : 'Selecione uma conta para abrir os dados.'}</span>
                           </div>
                         </>
@@ -239,7 +239,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                           label="Cor base"
                           value={templateBuilderDraft.backgroundColor}
                           onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
-                          placeholder="#fff7ef"
+                          placeholder="#f9fafb"
                         />
                       ) : null}
                       {templateBuilderDraft.backgroundMode === 'gradient' ? (
@@ -248,13 +248,13 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                             label="Inicio do gradiente"
                             value={templateBuilderDraft.backgroundStart}
                             onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundStart: value }))}
-                            placeholder="#fff7ef"
+                            placeholder="#f9fafb"
                           />
                           <StudioColorField
                             label="Fim do gradiente"
                             value={templateBuilderDraft.backgroundEnd}
                             onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundEnd: value }))}
-                            placeholder="#ffd4b4"
+                            placeholder="#d1fae5"
                           />
                         </>
                       ) : null}
@@ -264,7 +264,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                             label="Cor de apoio"
                             value={templateBuilderDraft.backgroundColor}
                             onChange={(value) => setTemplateBuilderDraft((current) => ({ ...current, backgroundColor: value }))}
-                            placeholder="#fff7ef"
+                            placeholder="#f9fafb"
                           />
                           <div className="md:col-span-2">
                             <StudioAssetStatus
@@ -788,7 +788,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                       onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footer: { ...current.footer, ...next } }))}
                     />
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         <div className="offer-studio-panel-subhead">
                           <span className="section-kicker">Conteudo principal</span>
                           <small>Area do texto principal do mercado</small>
@@ -819,7 +819,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                           onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footerContent: { ...current.footerContent, ...next } }))}
                         />
                       </div>
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         <div className="offer-studio-panel-subhead">
                           <span className="section-kicker">Aviso legal</span>
                           <small>Area do texto secundario do mercado</small>
@@ -906,7 +906,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                       onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, contentZone: { ...current.contentZone, ...next } }))}
                     />
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         <div className="offer-studio-panel-subhead">
                           <span className="section-kicker">Logo primaria</span>
                           <small>Area da logo do mercado</small>
@@ -952,7 +952,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                           onChange={(next) => setTemplateBuilderDraft((current) => ({ ...current, footerLeftLogo: { ...current.footerLeftLogo, ...next } }))}
                         />
                       </div>
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         <div className="offer-studio-panel-subhead">
                           <span className="section-kicker">Logo secundaria</span>
                           <small>Area opcional do rodape</small>
@@ -1006,7 +1006,7 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                   description={validation?.valid ? 'Template valido' : 'Template em ajuste'}
                   collapsed={Boolean(collapsedConfigSections.structure)}
                   onToggle={() => toggleConfigSection('structure')}
-                  containerClassName="rounded-[28px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,255,255,0.04)] p-5"
+                  containerClassName="rounded-2xl border border-gray-200 bg-[rgba(255,255,255,0.04)] p-5"
                 >
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <label className="offer-studio-text-field">
@@ -1040,14 +1040,14 @@ export default function OfferStudioBuilderPanel({ context }: OfferStudioBuilderP
                   </div>
                   {validation ? (
                     <div className="mt-4 grid gap-3 md:grid-cols-3">
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3"><span className="section-kicker">Camadas</span><strong className="mt-1 block text-2xl">{validation.layerCount}</strong></div>
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3"><span className="section-kicker">Zonas</span><strong className="mt-1 block text-2xl">{validation.zoneCount}</strong></div>
-                      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3"><span className="section-kicker">Variantes</span><strong className="mt-1 block text-2xl">{validation.variantCount}</strong></div>
+                      <div className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3"><span className="section-kicker">Camadas</span><strong className="mt-1 block text-2xl">{validation.layerCount}</strong></div>
+                      <div className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3"><span className="section-kicker">Zonas</span><strong className="mt-1 block text-2xl">{validation.zoneCount}</strong></div>
+                      <div className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3"><span className="section-kicker">Variantes</span><strong className="mt-1 block text-2xl">{validation.variantCount}</strong></div>
                     </div>
                   ) : null}
                   {validation?.messages?.length ? (
-                    <ul className="mt-4 space-y-2 text-sm text-[color:var(--text-secondary)]">
-                      {validation.messages.map((message) => <li key={message} className="rounded-[16px] border border-[rgba(87,51,30,0.08)] bg-white/85 px-4 py-3">{message}</li>)}
+                    <ul className="mt-4 space-y-2 text-sm text-gray-500">
+                      {validation.messages.map((message) => <li key={message} className="rounded-lg border border-gray-200 bg-white/85 px-4 py-3">{message}</li>)}
                     </ul>
                   ) : null}
                   <div className="offer-studio-theme-grid">

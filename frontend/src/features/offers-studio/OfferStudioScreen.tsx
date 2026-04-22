@@ -400,9 +400,9 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
         ) : null}
 
         {isEditingCampaign ? (
-          <div className="mb-5 rounded-[22px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.82)] px-4 py-3 text-sm text-[color:var(--text-secondary)]">
-            <strong className="block text-[color:var(--text-primary)]">Campanha em edição</strong>
-            <span>As alterações feitas no estúdio atualizam a campanha salva, sem criar um registro novo.</span>
+          <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+            <strong className="block text-gray-900">Editando encarte salvo</strong>
+            <span>Suas alterações atualizam este encarte. Para criar um novo, use "Salvar como novo".</span>
           </div>
         ) : null}
 
@@ -692,19 +692,19 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
                 <div className="offer-studio-inline-actions wrap">
                   <Button type="button" variant={studioSheet === 'campaigns' ? 'primary' : 'secondary'} onClick={() => openStudioSheet('campaigns')}>
                     <Boxes size={16} strokeWidth={2.1} />
-                    Minhas campanhas ({sortedJobs.length})
+                    Meus encartes ({sortedJobs.length})
                   </Button>
                   <Button type="button" variant={studioSheet === 'media' ? 'primary' : 'secondary'} onClick={() => openStudioSheet('media')}>
                     <ImageIcon size={16} strokeWidth={2.1} />
-                    Gerenciador de midias ({readyMediaCount})
+                    Arquivos prontos ({readyMediaCount})
                   </Button>
                 </div>
               ) : null}
               toolbar={(
                 <>
                   <StudioSelectField label="Modelo" value={selectedTemplateId} onChange={(value) => void handleTemplateChange(value)} options={templateOptions.length ? templateOptions : [{ value: '', label: 'Sem modelo' }]} />
-                  <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={[...QROFERTAS_GRID_PRESET_OPTIONS]} />
-                  <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
+                  <StudioSelectField label="Layout" value={gridPreset} onChange={setGridPreset} options={[...QROFERTAS_GRID_PRESET_OPTIONS]} />
+                  <StudioSelectField label="Estilo dos produtos" value={productBoxMode} onChange={setProductBoxMode} options={[...PRODUCT_BOX_OPTIONS]} />
                   <StudioSelectField label="Zoom" value={zoomMode} onChange={handleZoomSelect} options={zoomOptions} />
                   <label className="offer-studio-toggle-field">
                     <span>Gerar capa</span>
@@ -730,9 +730,9 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
                 </>
               ) : (
                 <>
-                  <span>{generationMode === 'CATALOG' ? 'Encarte automatico' : 'Pecas individuais'}</span>
-                  {isEditingCampaign ? <span>Campanha em edicao</span> : null}
-                  <span>{stageGridLimit} slots</span>
+                  <span>{generationMode === 'CATALOG' ? 'Encarte completo' : 'Um produto por página'}</span>
+                  {isEditingCampaign ? <span>Editando encarte</span> : null}
+                  <span>{stageGridLimit} {stageGridLimit === 1 ? 'produto' : 'produtos'} por página</span>
                 </>
               )}
               showEditBanner={activeTool === 'builder' && Boolean(canvasEditTarget)}
@@ -767,7 +767,7 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
                 <>
                   <strong>Pagina 1 de {pageEstimate}</strong>
                   <span>{selectedProducts.length} produtos selecionados</span>
-                  <span>{validation?.layerCount || 0} camadas / {validation?.zoneCount || 0} zonas</span>
+                  <span>{validation?.layerCount || 0} elementos</span>
                   <span>Zoom {zoomDisplayLabel}</span>
                 </>
               )}
@@ -804,27 +804,27 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
                     <>
                       <Button type="button" variant="secondary" onClick={() => void refreshPreview('autofill')}>
                         <WandSparkles size={16} strokeWidth={2.1} />
-                        Auto-fill
+                        Preencher automático
                       </Button>
                       <Button type="button" variant="secondary" onClick={() => setActiveTool('leaflet')}>
                         <FileText size={16} strokeWidth={2.1} />
-                        Encarte
+                        Configurar formato
                       </Button>
                       <Button type="button" variant="secondary" onClick={() => openStudioSheet('campaigns')}>
                         <Boxes size={16} strokeWidth={2.1} />
-                        Campanhas
+                        Meus encartes
                       </Button>
                       <Button type="button" variant="secondary" onClick={() => openStudioSheet('media')}>
                         <ImageIcon size={16} strokeWidth={2.1} />
-                        Midias
+                        Arquivos
                       </Button>
                       <Button type="button" variant="secondary" onClick={handlePublishCurrentCampaign} disabled={saving || !activeJobId}>
                         <SendHorizontal size={16} strokeWidth={2.1} />
-                        {saving ? 'Publicando...' : 'Publicar'}
+                        {saving ? 'Gerando...' : 'Gerar encarte'}
                       </Button>
                       <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
                         <WandSparkles size={16} strokeWidth={2.1} />
-                        {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
+                        {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar encarte' : 'Salvar encarte')}
                       </Button>
                     </>
                   )}

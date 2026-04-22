@@ -102,11 +102,11 @@ const OfferStudioThemesHeader: React.FC<OfferStudioThemesHeaderProps> = ({
       <h2>Estilos e Temas da Arte (Skins)</h2>
       <small>Configure rapidamente as cores e textos globais da arte para que o sistema alinhe todos os produtos.</small>
     </div>
-    <div className="offer-studio-edit-grid p-4 rounded-xl border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.4)] relative">
+    <div className="offer-studio-edit-grid p-4 rounded-xl border border-gray-200 bg-gray-50 relative">
       <StudioSelectField label="Variante (Formato)" value={selectedVariantKey} onChange={setSelectedVariantKey} options={variantOptions.length ? variantOptions : [{ value: '', label: 'Formato principal' }]} />
       <StudioSelectField label="Campanha Principal" value={selectedCampaignKitId} onChange={setSelectedCampaignKitId} options={campaignKitOptions.length ? campaignKitOptions : [{ value: '', label: 'Sem campanha' }]} />
       <StudioSelectField label="Identidade Visual (Brand)" value={selectedBrandKitId} onChange={setSelectedBrandKitId} options={brandKitOptions.length ? brandKitOptions : [{ value: '', label: 'Sem brand kit' }]} />
-      <div className="col-span-full border-t border-[rgba(87,51,30,0.06)] my-2" />
+      <div className="col-span-full border-t border-gray-100 my-2" />
       <StudioSelectField label="Paleta de Cores" value={colorMode} onChange={setColorMode} options={colorModeOptions} />
       <StudioSelectField label="Estilo de Texto" value={textMode} onChange={setTextMode} options={textModeOptions} />
       <StudioSelectField label="Formato do Rodape" value={footerMode} onChange={setFooterMode} options={footerOptions} />

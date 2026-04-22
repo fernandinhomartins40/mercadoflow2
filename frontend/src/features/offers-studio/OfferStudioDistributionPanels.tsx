@@ -120,24 +120,24 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
       <div className="offer-studio-panel-stack">
         <div className="offer-studio-panel-header compact">
           <div>
-            <span className="section-kicker">Encarte</span>
-            <h2>Montagem da campanha</h2>
+            <span className="section-kicker">Formato</span>
+            <h2>Configure seu encarte</h2>
           </div>
         </div>
         <StudioCollapsibleSection
-          title="Configuracao do encarte"
-          description="Defina o nome do job, o formato principal e a estrategia de geracao."
+          title="Dados do encarte"
+          description="Dê um nome ao encarte, escolha o formato e como os produtos serão organizados."
           collapsed={Boolean(collapsedConfigSections.publishConfig)}
           onToggle={() => toggleConfigSection('publishConfig')}
           containerClassName="offer-studio-publish-box"
         >
           <div className="offer-studio-edit-grid">
             <label className="offer-studio-text-field md:col-span-2">
-              <span>Nome da campanha</span>
-              <input className="input" value={jobName} onChange={(event) => setJobName(event.target.value)} placeholder="Ex.: Encarte fim de semana" />
+              <span>Nome do encarte</span>
+              <input className="input" value={jobName} onChange={(event) => setJobName(event.target.value)} placeholder="Ex.: Ofertas da semana" />
             </label>
             <label className="offer-studio-text-field">
-              <span>Saida principal</span>
+              <span>Tipo de arquivo</span>
               <select className="input" value={outputType} onChange={(event) => setOutputType(event.target.value)}>
                 <option value="PNG">PNG</option>
                 <option value="PDF">PDF</option>
@@ -145,10 +145,10 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
               </select>
             </label>
             <label className="offer-studio-text-field">
-              <span>Modo de geracao</span>
+              <span>Tipo de encarte</span>
               <select className="input" value={generationMode} onChange={(event) => setGenerationMode(event.target.value)}>
-                <option value="CATALOG">Encarte multiproduto</option>
-                <option value="INDIVIDUAL">Pecas individuais</option>
+                <option value="CATALOG">Vários produtos por página</option>
+                <option value="INDIVIDUAL">Um produto por página</option>
               </select>
             </label>
             <label className="offer-studio-text-field">
@@ -161,14 +161,14 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
           </div>
         </StudioCollapsibleSection>
         <StudioCollapsibleSection
-          title="Montagem da pagina"
-          description="Controle a quantidade de produtos, a distribuicao dos boxes e a capa."
+          title="Layout da página"
+          description="Defina quantos produtos aparecem por página e o estilo de exibição."
           collapsed={Boolean(collapsedConfigSections.publishChannels)}
           onToggle={() => toggleConfigSection('publishChannels')}
         >
           <div className="offer-studio-edit-grid">
-            <StudioSelectField label="Grade" value={gridPreset} onChange={setGridPreset} options={gridPresetOptions} />
-            <StudioSelectField label="Boxes de produtos" value={productBoxMode} onChange={setProductBoxMode} options={productBoxOptions} />
+            <StudioSelectField label="Produtos por página" value={gridPreset} onChange={setGridPreset} options={gridPresetOptions} />
+            <StudioSelectField label="Estilo dos produtos" value={productBoxMode} onChange={setProductBoxMode} options={productBoxOptions} />
             <label className="offer-studio-toggle-field">
               <span>Gerar capa</span>
               <button type="button" className={`offer-studio-toggle ${coverEnabled ? 'active' : ''}`} onClick={() => setCoverEnabled((current) => !current)}>
@@ -177,18 +177,18 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
             </label>
             <div className="offer-studio-summary-card">
               <strong>{selectedProducts.length} produtos</strong>
-              <span>{pageEstimate} pagina(s) estimadas</span>
+              <span>{pageEstimate} {pageEstimate === 1 ? 'página' : 'páginas'}</span>
               <span>{selectedVariant?.name || 'Formato principal'} · {selectedTemplate?.name || 'Sem modelo'}</span>
             </div>
           </div>
           <div className="offer-studio-inline-actions wrap">
             <Button type="button" variant="secondary" onClick={() => refreshPreview('autofill')}>
               <WandSparkles size={16} strokeWidth={2.1} />
-              Auto-fill
+              Preencher automático
             </Button>
             <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
               <FileText size={16} strokeWidth={2.1} />
-              {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
+              {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar encarte' : 'Salvar encarte')}
             </Button>
           </div>
         </StudioCollapsibleSection>
@@ -199,13 +199,13 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
       <div className="offer-studio-panel-stack">
         <div className="offer-studio-panel-header compact">
           <div>
-            <span className="section-kicker">Portal</span>
-            <h2>Destino online da oferta</h2>
+            <span className="section-kicker">QR Code</span>
+            <h2>Publicar online</h2>
           </div>
         </div>
         <StudioCollapsibleSection
-          title="Publicacao no portal"
-          description="Controle se esta campanha tambem sera publicada no portal do mercado."
+          title="Portal de ofertas"
+          description="Publique este encarte online com QR Code para seus clientes acessarem pelo celular."
           collapsed={Boolean(collapsedConfigSections.marketFooter)}
           onToggle={() => toggleConfigSection('marketFooter')}
         >
@@ -214,7 +214,7 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
               <button
                 type="button"
                 onClick={() => togglePublishTarget('PORTAL')}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${portalEnabled ? 'border-transparent bg-[color:var(--accent-primary)] text-white shadow-[0_14px_24px_rgba(255,106,0,0.22)]' : 'border-[rgba(87,51,30,0.1)] bg-white text-[color:var(--text-primary)]'}`}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${portalEnabled ? 'border-transparent bg-emerald-600 text-white shadow-[0_14px_24px_rgba(5,150,105,0.22)]' : 'border-gray-200 bg-white text-gray-900'}`}
               >
                 {portalEnabled ? <Check size={14} strokeWidth={2.1} /> : <Target size={14} strokeWidth={2.1} />}
                 {portalEnabled ? 'Portal ativo' : 'Ativar portal'}
@@ -228,29 +228,29 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
           </div>
         </StudioCollapsibleSection>
         <StudioCollapsibleSection
-          title="Identidade publicada"
-          description="Resumo rapido dos ativos que acompanham a campanha no portal."
+          title="Logo do seu mercado"
+          description="Essas logos aparecem no encarte e no portal online."
           collapsed={Boolean(collapsedConfigSections.marketLogos)}
           onToggle={() => toggleConfigSection('marketLogos')}
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <span className="section-kicker">Logo principal</span>
-              <div className="mt-3 flex h-24 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+              <div className="mt-3 flex h-24 items-center justify-center rounded-xl border border-gray-200 bg-white">
                 {marketProfile?.primaryLogoUrl ? (
                   <OfferProductImage src={marketProfile.primaryLogoUrl} alt="Logo principal" className="h-full w-full object-contain p-4" />
                 ) : (
-                  <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                  <span className="text-sm text-gray-500">Nenhuma logo enviada</span>
                 )}
               </div>
             </div>
-            <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.62)] p-4">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <span className="section-kicker">Logo secundaria</span>
-              <div className="mt-3 flex h-24 items-center justify-center rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white">
+              <div className="mt-3 flex h-24 items-center justify-center rounded-xl border border-gray-200 bg-white">
                 {marketProfile?.secondaryLogoUrl ? (
                   <OfferProductImage src={marketProfile.secondaryLogoUrl} alt="Logo secundaria" className="h-full w-full object-contain p-4" />
                 ) : (
-                  <span className="text-sm text-[color:var(--text-secondary)]">Nenhuma logo enviada</span>
+                  <span className="text-sm text-gray-500">Nenhuma logo enviada</span>
                 )}
               </div>
             </div>
@@ -269,31 +269,31 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
       <div className="offer-studio-panel-stack">
         <div className="offer-studio-panel-header compact">
           <div>
-            <span className="section-kicker">Postar</span>
-            <h2>Distribuicao e disparo</h2>
+            <span className="section-kicker">Publicar</span>
+            <h2>Gerar e compartilhar</h2>
           </div>
         </div>
         <StudioCollapsibleSection
-          title="Canais de publicacao"
-          description="Selecione os destinos da campanha e publique a partir do estagio atual."
+          title="Onde compartilhar"
+          description="Escolha onde seu encarte será publicado e gere os arquivos."
           collapsed={Boolean(collapsedConfigSections.publishTargets)}
           onToggle={() => toggleConfigSection('publishTargets')}
           containerClassName="offer-studio-publish-box"
         >
           <div className="offer-studio-summary-card">
-            <strong>{jobName.trim() || 'Campanha sem nome'}</strong>
-            <span>{draftCampaignCount} rascunho(s) salvo(s)</span>
-            <span>{readyMediaCount} midia(s) pronta(s)</span>
+            <strong>{jobName.trim() || 'Encarte sem nome'}</strong>
+            <span>{draftCampaignCount} {draftCampaignCount === 1 ? 'rascunho salvo' : 'rascunhos salvos'}</span>
+            <span>{readyMediaCount} {readyMediaCount === 1 ? 'arquivo pronto' : 'arquivos prontos'}</span>
           </div>
           <div className="space-y-3">
-            <span className="section-kicker">Canais de publicacao</span>
+            <span className="section-kicker">Onde compartilhar</span>
             <div className="flex flex-wrap gap-2">
               {publishTargetOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => togglePublishTarget(option.value)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${publishTargets.includes(option.value) ? 'border-transparent bg-[color:var(--accent-primary)] text-white shadow-[0_14px_24px_rgba(255,106,0,0.22)]' : 'border-[rgba(87,51,30,0.1)] bg-white text-[color:var(--text-primary)]'}`}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${publishTargets.includes(option.value) ? 'border-transparent bg-emerald-600 text-white shadow-[0_14px_24px_rgba(5,150,105,0.22)]' : 'border-gray-200 bg-white text-gray-900'}`}
                 >
                   {publishTargets.includes(option.value) ? <Check size={14} strokeWidth={2.1} /> : <Target size={14} strokeWidth={2.1} />}
                   {option.label}
@@ -304,19 +304,19 @@ const OfferStudioDistributionPanels: React.FC<OfferStudioDistributionPanelsProps
           <div className="offer-studio-inline-actions wrap">
             <Button type="button" onClick={handleSaveCampaign} disabled={saving || !selectedProducts.length || !selectedTemplateId}>
               <WandSparkles size={16} strokeWidth={2.1} />
-              {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar campanha' : 'Salvar campanha')}
+              {saving ? (isEditingCampaign ? 'Atualizando...' : 'Salvando...') : (isEditingCampaign ? 'Atualizar encarte' : 'Salvar encarte')}
             </Button>
             <Button type="button" variant="secondary" onClick={handlePublishCurrentCampaign} disabled={saving || !activeJobId}>
               <SendHorizontal size={16} strokeWidth={2.1} />
-              {saving ? 'Publicando...' : 'Publicar agora'}
+              {saving ? 'Gerando...' : 'Gerar agora'}
             </Button>
             <Button type="button" variant="secondary" onClick={() => openStudioSheet('campaigns')}>
               <Boxes size={16} strokeWidth={2.1} />
-              Minhas campanhas
+              Meus encartes
             </Button>
             <Button type="button" variant="secondary" onClick={() => openStudioSheet('media')}>
               <ImageIcon size={16} strokeWidth={2.1} />
-              Gerenciar midias
+              Arquivos prontos
             </Button>
           </div>
         </StudioCollapsibleSection>

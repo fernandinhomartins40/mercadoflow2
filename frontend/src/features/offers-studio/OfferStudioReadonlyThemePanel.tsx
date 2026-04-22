@@ -87,20 +87,20 @@ const OfferStudioReadonlyThemePanel: React.FC<OfferStudioReadonlyThemePanelProps
       onToggle={() => toggleConfigSection('readonlyTemplate')}
       className="md:col-span-2"
     >
-      <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.86)] px-4 py-4 text-sm text-[color:var(--text-secondary)]">
-        <strong className="block text-base text-[color:var(--text-primary)]">{selectedTemplate?.name || 'Selecione um template'}</strong>
+      <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+        <strong className="block text-base text-gray-900">{selectedTemplate?.name || 'Selecione um template'}</strong>
         <p className="mt-2">{selectedTemplate?.description || 'Escolha um template para montar encartes com produtos reais, logo e rodape do mercado.'}</p>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3">
+        <div className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3">
           <span className="section-kicker">Canvas</span>
           <strong className="mt-1 block text-2xl">{selectedVariant?.canvasWidth || selectedTemplate?.canvasWidth || templateCanvasWidth} x {selectedVariant?.canvasHeight || selectedTemplate?.canvasHeight || templateCanvasHeight}</strong>
         </div>
-        <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3">
+        <div className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3">
           <span className="section-kicker">Slots</span>
           <strong className="mt-1 block text-2xl">{slotCount}</strong>
         </div>
-        <div className="rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-white/90 px-4 py-3">
+        <div className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3">
           <span className="section-kicker">Rodape</span>
           <strong className="mt-1 block text-2xl">{footerVisible ? 'Ativo' : 'Oculto'}</strong>
         </div>

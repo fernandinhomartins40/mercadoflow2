@@ -38,7 +38,7 @@ const defaultLegacyTemplate: {
   schemaVersion?: number;
   layers?: JsonMap[];
 } = {
-  background: { type: 'solid', color: '#fff7ef' },
+  background: { type: 'solid', color: '#f9fafb' },
   static: { kicker: 'Oferta', headline: 'Selecione um modelo para começar.' },
   slots: [],
 };
@@ -184,7 +184,7 @@ const backgroundFromCanvas = (canvas: JsonMap, brandTokens: JsonMap, campaignAss
   const background = asMap(canvas.background);
   const colors = asMap(brandTokens.colors);
   const backgroundArt = asMap(campaignAssets.backgroundArt);
-  const surface = String(colors.surface || '#fff7ef');
+  const surface = String(colors.surface || '#f9fafb');
   const surfaceAlt = String(colors.surfaceAlt || '#ffffff');
 
   if (String(background.type || '').toLowerCase() === 'gradient') {
@@ -229,8 +229,8 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
   if (!isSchemaV2) {
     const backgroundStyle =
       parsedTemplate.background?.type === 'gradient'
-        ? { background: `linear-gradient(180deg, ${parsedTemplate.background.start || '#fff7ef'} 0%, ${parsedTemplate.background.end || '#ffd4b4'} 100%)` }
-        : { background: parsedTemplate.background?.color || '#fff7ef' };
+        ? { background: `linear-gradient(180deg, ${parsedTemplate.background.start || '#f9fafb'} 0%, ${parsedTemplate.background.end || '#d1fae5'} 100%)` }
+        : { background: parsedTemplate.background?.color || '#f9fafb' };
 
     const legacyCanvasWidth = template?.canvasWidth || 1080;
     const legacyCanvasHeight = template?.canvasHeight || 1350;
@@ -401,7 +401,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     };
     const radius = Number(props.radius) || 24;
     const background = props.background ? String(props.background) : undefined;
-    const borderColor = String(props.borderColor || 'rgba(87,51,30,0.12)');
+    const borderColor = String(props.borderColor || 'rgba(0,0,0,0.08)');
     const borderWidth = Math.max(Number(props.borderWidth) || 0, 0);
     const fontSize = Number(props.fontSize);
     const fontWeight = Number(props.fontWeight) || 700;
@@ -425,7 +425,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
           return (
             <div
               key={layerId}
-              className="absolute flex items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,#ff8b2a_0%,#ff6a00_100%)] px-4 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white shadow-[0_16px_36px_rgba(255,106,0,0.24)]"
+              className="absolute flex items-center justify-center rounded-[24px] bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white shadow-[0_16px_36px_rgba(5,150,105,0.24)]"
               style={{ ...style, borderRadius: radius || 24 }}
             >
               {resolveValue('campaign.badgeLabel', 'Oferta')}
@@ -437,7 +437,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
       return (
         <div
             key={layerId}
-            className={hasFrame ? 'absolute overflow-hidden border border-[rgba(87,51,30,0.08)] shadow-[0_10px_30px_rgba(44,20,6,0.08)]' : 'absolute overflow-hidden'}
+            className={hasFrame ? 'absolute overflow-hidden border border-[rgba(0,0,0,0.06)] shadow-[0_10px_30px_rgba(0,0,0,0.06)]' : 'absolute overflow-hidden'}
             style={{
               ...style,
               borderRadius: radius,
@@ -457,7 +457,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
       return (
         <div
           key={layerId}
-          className="absolute flex flex-col items-center justify-center gap-2 rounded-[22px] border border-[rgba(87,51,30,0.1)] bg-white/90 p-3 text-center text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-secondary)]"
+          className="absolute flex flex-col items-center justify-center gap-2 rounded-[22px] border border-[rgba(0,0,0,0.08)] bg-white/90 p-3 text-center text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-gray-500"
           style={{
             ...style,
             background: background || 'rgba(255,255,255,0.9)',
@@ -467,7 +467,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
             borderStyle: 'solid',
           }}
         >
-          <div className="rounded-[18px] border border-[rgba(87,51,30,0.1)] bg-[rgba(255,247,240,0.95)] p-3 text-[color:var(--text-primary)]">
+          <div className="rounded-[18px] border border-[rgba(0,0,0,0.08)] bg-[rgba(249,250,251,0.95)] p-3 text-gray-900">
             <QrCode size={Math.max(20, Math.min(bounds.h || 80, bounds.w || 80) / 2)} strokeWidth={2.1} />
           </div>
           <span>{resolveValue(String(layer.binding || ''), explicitContent || 'QR do produto')}</span>
@@ -496,7 +496,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
       return (
         <div
           key={layerId}
-          className="absolute flex flex-col justify-center rounded-[24px] border border-transparent bg-[linear-gradient(180deg,#ff8b2a_0%,#ff6a00_100%)] p-4 text-white shadow-[0_16px_36px_rgba(255,106,0,0.28)]"
+          className="absolute flex flex-col justify-center rounded-[24px] border border-transparent bg-gradient-to-b from-emerald-500 to-emerald-600 p-4 text-white shadow-[0_16px_36px_rgba(5,150,105,0.28)]"
           style={style}
         >
           <span className="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-white/70">Oferta</span>
@@ -530,7 +530,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     return (
       <div
         key={layerId}
-        className={`absolute ${layerType === 'tag' || layerType === 'badge' ? 'inline-flex items-center justify-center rounded-full border border-[rgba(87,51,30,0.08)] bg-white/85 px-3 py-1 text-center text-xs font-semibold uppercase tracking-[0.12em]' : 'flex items-start justify-start text-left'} overflow-hidden`}
+        className={`absolute ${layerType === 'tag' || layerType === 'badge' ? 'inline-flex items-center justify-center rounded-full border border-[rgba(0,0,0,0.06)] bg-white/85 px-3 py-1 text-center text-xs font-semibold uppercase tracking-[0.12em]' : 'flex items-start justify-start text-left'} overflow-hidden`}
         style={{
           ...style,
           background: background || (layerType === 'tag' || layerType === 'badge' ? 'rgba(255,255,255,0.85)' : undefined),
@@ -574,7 +574,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
     const priceBoxTextColor = String(cardTemplate.priceBoxTextColor || '#ffffff');
     const textColorValue = String(cardTemplate.textColor || '#1f1613');
     const cardBackground = String(cardTemplate.background || 'rgba(255,255,255,0.92)');
-    const borderColor = String(cardTemplate.borderColor || 'rgba(87,51,30,0.08)');
+    const borderColor = String(cardTemplate.borderColor || 'rgba(0,0,0,0.06)');
     const nameFontSize = Number(cardTemplate.nameFontSize) || (zoneType === 'hero' ? 32 : 22);
     const descriptionFontSize = Number(cardTemplate.descriptionFontSize) || (zoneType === 'hero' ? 18 : 14);
     const priceFontSize = Number(cardTemplate.priceFontSize) || (zoneType === 'hero' ? 64 : 46);
@@ -627,7 +627,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
               style={{ borderRadius: `${cardRadius}px`, background: cardBackground, borderColor }}
             >
               <div className={`min-w-0 ${zoneType === 'hero' ? 'order-2 flex flex-col justify-center' : ''}`}>
-                <div className="mb-3 flex aspect-square items-center justify-center rounded-[20px] border border-[rgba(87,51,30,0.08)] bg-[rgba(255,247,240,0.92)]">
+                <div className="mb-3 flex aspect-square items-center justify-center rounded-[20px] border border-[rgba(0,0,0,0.06)] bg-gray-50">
                   <OfferProductImage src={String(item.imageUrl || '')} alt={String(item.name || 'Produto')} className="h-full w-full object-contain p-4" />
                 </div>
               </div>
@@ -643,7 +643,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
                   {String(item.name || 'Produto do encarte')}
                 </strong>
                 {showUnit ? (
-                  <p className="mt-2 text-[color:var(--text-secondary)]" style={{ fontSize: `${Math.max(unitFontSize / 16, 0.72)}rem` }}>
+                  <p className="mt-2 text-gray-500" style={{ fontSize: `${Math.max(unitFontSize / 16, 0.72)}rem` }}>
                     {String(item.unit || 'Unidade')}
                   </p>
                 ) : null}
@@ -751,7 +751,7 @@ const OfferCanvasPreview: React.FC<OfferCanvasPreviewProps> = ({
         {layers.map(renderLayer)}
       </div>
       {fallbackFooter && !hasFooterLayer && !footerHidden ? (
-        <div className="absolute inset-x-4 bottom-4 rounded-[18px] border border-[rgba(87,51,30,0.08)] bg-[rgba(44,20,6,0.86)] px-4 py-3 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-white/82" style={{ zIndex: layerBaseZIndex + layers.length + 1 }}>
+        <div className="absolute inset-x-4 bottom-4 rounded-[18px] border border-[rgba(0,0,0,0.06)] bg-[rgba(44,20,6,0.86)] px-4 py-3 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-white/82" style={{ zIndex: layerBaseZIndex + layers.length + 1 }}>
           {fallbackFooter}
         </div>
       ) : null}

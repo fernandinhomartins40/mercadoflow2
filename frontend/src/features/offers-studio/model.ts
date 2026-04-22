@@ -77,13 +77,13 @@ export const layerTypeIcon = (type?: string): LucideIcon => {
 
 export const TOOL_OPTIONS = [
   { key: 'products', icon: PackageSearch, label: 'Produtos' },
-  { key: 'themes', icon: LayoutTemplate, label: 'Temas' },
-  { key: 'dates', icon: CalendarDays, label: 'Datas' },
-  { key: 'brand', icon: Factory, label: 'Marca' },
-  { key: 'fonts', icon: Type, label: 'Fontes' },
-  { key: 'publish', icon: SendHorizontal, label: 'Postar' },
-  { key: 'leaflet', icon: FileText, label: 'Encarte' },
-  { key: 'portal', icon: QrCode, label: 'Portal' },
+  { key: 'themes', icon: LayoutTemplate, label: 'Modelo' },
+  { key: 'dates', icon: CalendarDays, label: 'Campanha' },
+  { key: 'brand', icon: Factory, label: 'Sua marca' },
+  { key: 'fonts', icon: Type, label: 'Textos' },
+  { key: 'publish', icon: SendHorizontal, label: 'Publicar' },
+  { key: 'leaflet', icon: FileText, label: 'Formato' },
+  { key: 'portal', icon: QrCode, label: 'QR Code' },
 ] as const;
 
 export type StudioTool = (typeof TOOL_OPTIONS)[number]['key'] | 'builder';
@@ -538,7 +538,7 @@ export const BUILTIN_CANVAS_EDITABLE_META: Record<string, CanvasEditableMeta> = 
   kicker: { label: 'Kicker', selectionKind: 'layer', selectionId: 'kicker', minWidth: 140, minHeight: 32, accent: '#b6642b', overlayLevel: 5 },
   headline: { label: 'Titulo principal', selectionKind: 'layer', selectionId: 'headline', minWidth: 220, minHeight: 72, accent: '#d56d1c', overlayLevel: 5 },
   subheadline: { label: 'Subtitulo', selectionKind: 'layer', selectionId: 'subheadline', minWidth: 220, minHeight: 52, accent: '#c18651', overlayLevel: 5 },
-  'campaign-badge': { label: 'Selo 3D', selectionKind: 'layer', selectionId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#ff7a12', overlayLevel: 6 },
+  'campaign-badge': { label: 'Selo 3D', selectionKind: 'layer', selectionId: 'campaign-badge', minWidth: 96, minHeight: 96, accent: '#059669', overlayLevel: 6 },
   footer: { label: 'Rodape', selectionKind: 'layer', selectionId: 'footer', minWidth: 260, minHeight: 48, accent: '#4f2a16', overlayLevel: 2 },
   'footer-content': { label: 'Conteudo principal', selectionKind: 'layer', selectionId: 'footer-content', minWidth: 180, minHeight: 32, accent: '#6d3d20', overlayLevel: 4 },
   'footer-legal': { label: 'Aviso legal', selectionKind: 'layer', selectionId: 'footer-legal', minWidth: 160, minHeight: 28, accent: '#946348', overlayLevel: 4 },
@@ -690,7 +690,7 @@ export const getCanvasEditableMeta = (draft: TemplateBuilderDraft, target: Canva
       text: { minWidth: 140, minHeight: 40, accent: '#d56d1c', overlayLevel: 5 },
       shape: { minWidth: 80, minHeight: 48, accent: '#cc8c53', overlayLevel: 3 },
       image: { minWidth: 72, minHeight: 72, accent: '#b86b29', overlayLevel: 4 },
-      tag: { minWidth: 120, minHeight: 32, accent: '#ff7a12', overlayLevel: 5 },
+      tag: { minWidth: 120, minHeight: 32, accent: '#059669', overlayLevel: 5 },
       qrcode: { minWidth: 72, minHeight: 72, accent: '#8f6a55', overlayLevel: 4 },
     };
     return {
@@ -881,9 +881,9 @@ export const createDefaultTemplateBuilderDraft = (template?: OfferTemplate | nul
     canvasWidth: String(width),
     canvasHeight: String(height),
     backgroundMode: 'gradient',
-    backgroundColor: '#fff7ef',
-    backgroundStart: '#fff7ef',
-    backgroundEnd: '#ffd4b4',
+    backgroundColor: '#f9fafb',
+    backgroundStart: '#f9fafb',
+    backgroundEnd: '#d1fae5',
     backgroundImageUrl: '',
     backgroundImageStorageKey: '',
     kicker: {
@@ -1431,18 +1431,18 @@ export const buildTemplateDesignFromDraft = (draft: TemplateBuilderDraft): JsonM
           ? {
               type: 'image',
               imageUrl: 'static.assets.backgroundImageUrl',
-              color: draft.backgroundColor.trim() || '#fff7ef',
+              color: draft.backgroundColor.trim() || '#f9fafb',
               fit: 'cover',
             }
           : draft.backgroundMode === 'gradient'
             ? {
                 type: 'gradient',
-                start: draft.backgroundStart.trim() || '#fff7ef',
-                end: draft.backgroundEnd.trim() || '#ffd4b4',
+                start: draft.backgroundStart.trim() || '#f9fafb',
+                end: draft.backgroundEnd.trim() || '#d1fae5',
               }
             : {
                 type: 'solid',
-                color: draft.backgroundColor.trim() || '#fff7ef',
+                color: draft.backgroundColor.trim() || '#f9fafb',
               },
     },
     layers,
