@@ -5,24 +5,25 @@ import WorkspaceTopbar from './WorkspaceTopbar';
 import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/app': { title: 'Painel geral', subtitle: 'Resumo diário das vendas, giro e prioridades da operação', section: 'Visão do negócio' },
-  '/app/produtos': { title: 'Produtos', subtitle: 'Consulta de itens, performance e comportamento por produto', section: 'Visão do negócio' },
-  '/app/lista-compras': { title: 'Lista de compras', subtitle: 'Compra orientada por giro, sazonalidade e reposição', section: 'Análise e operação' },
-  '/app/ofertas': { title: 'Estúdio de ofertas', subtitle: 'Criação de encartes e peças promocionais com base no catálogo real', section: 'Análise e operação' },
-  '/app/ofertas/campanhas': { title: 'Campanhas de ofertas', subtitle: 'Lista operacional para criar, editar, publicar e reaproveitar campanhas', section: 'Análise e operação' },
-  '/app/ofertas/inicio': { title: 'Campanhas de ofertas', subtitle: 'Lista operacional para criar, editar, publicar e reaproveitar campanhas', section: 'Análise e operação' },
-  '/app/ofertas/designer': { title: 'Estúdio de ofertas', subtitle: 'Criação de encartes e peças promocionais com base no catálogo real', section: 'Análise e operação' },
-  '/app/ofertas/modelos': { title: 'Estúdio de ofertas', subtitle: 'Criação de encartes e peças promocionais com base no catálogo real', section: 'Análise e operação' },
-  '/app/ofertas/jobs': { title: 'Arquivos de ofertas', subtitle: 'Fila detalhada de saídas, publicações e histórico do módulo', section: 'Análise e operação' },
-  '/app/cesta': { title: 'Compra casada', subtitle: 'Itens que se fortalecem juntos no caixa e na exposição', section: 'Análise e operação' },
-  '/app/previsao-demanda': { title: 'Previsão', subtitle: 'Demanda futura para orientar compra e abastecimento', section: 'Análise e operação' },
-  '/app/campanhas': { title: 'Campanhas', subtitle: 'Acompanhamento de impacto promocional com base real', section: 'Análise e operação' },
-  '/app/alertas': { title: 'Alertas', subtitle: 'Ocorrências e sinais que exigem ação imediata', section: 'Análise e operação' },
-  '/app/pdvs': { title: 'PDVs', subtitle: 'Origem operacional das vendas e distribuição dos resultados', section: 'Análise e operação' },
-  '/app/admin/catalogo': { title: 'Catálogo global', subtitle: 'Base unificada de produtos externos para administração', section: 'Configuração' },
-  '/app/admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação dos preços praticados entre estados e fontes oficiais', section: 'Configuração' },
-  '/app/configuracoes': { title: 'Configurações', subtitle: 'Acessos, integrações e parâmetros da conta', section: 'Configuração' },
-  '/app/download-agente': { title: 'Download do agente', subtitle: 'Instalação e distribuição do coletor local', section: 'Configuração' },
+  '/app': { title: 'Hoje no mercado', subtitle: 'O que precisa da sua atenção agora', section: 'Visão do negócio' },
+  '/app/produtos': { title: 'Produtos', subtitle: 'Como seus produtos estão vendendo', section: 'Visão do negócio' },
+  '/app/lista-compras': { title: 'Pedido inteligente', subtitle: 'Compra guiada por vendas reais', section: 'Análise e operação' },
+  '/app/ofertas': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },
+  '/app/ofertas/campanhas': { title: 'Campanhas de ofertas', subtitle: 'Gerencie suas campanhas promocionais', section: 'Análise e operação' },
+  '/app/ofertas/inicio': { title: 'Campanhas de ofertas', subtitle: 'Gerencie suas campanhas promocionais', section: 'Análise e operação' },
+  '/app/ofertas/designer': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },
+  '/app/ofertas/modelos': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },
+  '/app/ofertas/jobs': { title: 'Arquivos de ofertas', subtitle: 'Histórico de publicações e saídas', section: 'Análise e operação' },
+  '/app/cesta': { title: 'Combos', subtitle: 'Produtos que vendem juntos', section: 'Análise e operação' },
+  '/app/previsao-demanda': { title: 'Previsão de vendas', subtitle: 'Antecipe a demanda dos próximos dias', section: 'Análise e operação' },
+  '/app/campanhas': { title: 'Promoções', subtitle: 'Acompanhe o resultado das suas ações', section: 'Análise e operação' },
+  '/app/alertas': { title: 'Alertas', subtitle: 'O que precisa de ação imediata', section: 'Análise e operação' },
+  '/app/pdvs': { title: 'Pontos de venda', subtitle: 'Resultado por caixa e filial', section: 'Análise e operação' },
+  '/app/mapa-loja': { title: 'Mapa da loja', subtitle: 'Organize seus produtos para vender mais', section: 'Análise e operação' },
+  '/app/admin/catalogo': { title: 'Catálogo global', subtitle: 'Base unificada de produtos', section: 'Configuração' },
+  '/app/admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação de preços entre estados', section: 'Configuração' },
+  '/app/configuracoes': { title: 'Configurações', subtitle: 'Acessos e integrações da conta', section: 'Configuração' },
+  '/app/download-agente': { title: 'Download do agente', subtitle: 'Instalação do coletor local', section: 'Configuração' },
 };
 
 interface NavbarProps {
@@ -39,7 +40,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
       return {
         section: 'Visão do negócio',
         title: 'Painel do produto',
-        subtitle: 'Leitura completa do item com comparação por PDV, preço e tendência',
+        subtitle: 'Visão completa do item com comparação por PDV e tendência',
       };
     }
     return TITLES[location.pathname] || TITLES['/app'];

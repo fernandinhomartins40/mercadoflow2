@@ -2,15 +2,14 @@ import React from 'react';
 import {
   Bell,
   Database,
-  Download,
   Globe2,
   Home,
   Link2,
+  Map,
   Megaphone,
   PackageSearch,
   Settings,
   ShoppingCart,
-  Sparkles,
   Store,
   TrendingUp,
 } from 'lucide-react';
@@ -39,22 +38,26 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const sections: WorkspaceNavSection[] = [
     {
-      title: 'Visão do negócio',
+      title: 'Hoje',
       items: [
-        { to: '/app', label: 'Painel geral', hint: 'Resumo diário e prioridades', icon: Home, exact: true },
-        { to: '/app/produtos', label: 'Produtos', hint: 'Giro, tendência e elasticidade', icon: PackageSearch },
+        { to: '/app', label: 'Painel do dia', hint: 'O que precisa da sua atenção agora', icon: Home, exact: true },
         { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem ação imediata', icon: Bell },
       ],
     },
     {
-      title: 'Análise e operação',
+      title: 'Produtos',
       items: [
-        { to: '/app/cesta', label: 'Compra casada', hint: 'Combos e afinidade de itens', icon: Link2 },
-        { to: '/app/lista-compras', label: 'Lista de compras', hint: 'Compra guiada por venda e sazonalidade', icon: ShoppingCart },
-        { to: '/ofertas?workspace=admin', label: 'Estúdio de ofertas', hint: 'Criar encartes e peças promocionais', icon: Sparkles },
-        { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Planejamento de demanda', icon: TrendingUp },
-        { to: '/app/campanhas', label: 'Campanhas', hint: 'Impacto antes, durante e depois', icon: Megaphone },
-        { to: '/app/pdvs', label: 'PDVs', hint: 'Origem operacional das vendas', icon: Store },
+        { to: '/app/produtos', label: 'Catálogo', hint: 'Como seus produtos estão vendendo', icon: PackageSearch },
+        { to: '/app/cesta', label: 'Combos', hint: 'Produtos que vendem juntos', icon: Link2 },
+        { to: '/app/lista-compras', label: 'Pedido inteligente', hint: 'Compra guiada por vendas reais', icon: ShoppingCart },
+      ],
+    },
+    {
+      title: 'Estratégia',
+      items: [
+        { to: '/app/campanhas', label: 'Promoções', hint: 'Resultado das suas ações promocionais', icon: Megaphone },
+        { to: '/app/mapa-loja', label: 'Mapa da loja', hint: 'Organize produtos para vender mais', icon: Map },
+        { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Antecipe a demanda dos próximos dias', icon: TrendingUp },
       ],
     },
     {
@@ -62,8 +65,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Catálogo global', hint: 'Base consolidada de produtos', icon: Database }] : []),
         ...(isAdmin ? [{ to: '/app/admin/precos-estaduais', label: 'Preços estaduais', hint: 'Comparação entre estados', icon: Globe2 }] : []),
-        { to: '/app/download-agente', label: 'Download do agente', hint: 'Instalação do coletor local', icon: Download },
-        { to: '/app/configuracoes', label: 'Configurações', hint: 'Acesso e integrações', icon: Settings },
+        { to: '/app/pdvs', label: 'PDVs e agente', hint: 'Caixas, filiais e coletor local', icon: Store },
+        { to: '/app/configuracoes', label: 'Conta', hint: 'Acessos e integrações', icon: Settings },
       ],
     },
   ];
@@ -77,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       desktopWidthClassName={desktopWidthClassName}
       brandMark="MF"
       brandTitle="MercadoFlow"
-      brandSubtitle="Painel operacional para decisão no varejo"
+      brandSubtitle="Inteligência para seu mercado"
       userKicker="Workspace atual"
       userName={name || 'Usuário logado'}
       userEmail={email || 'Conta sem e-mail visível'}
@@ -87,8 +90,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]}
       sections={sections}
       supportKicker="Fluxo recomendado"
-      supportTitle="Comece em Produtos e feche em Alertas"
-      supportText="O caminho mais simples para ler o negócio é analisar o item, validar a compra e só depois agir no operacional."
+      supportTitle="Comece pelo Painel do dia"
+      supportText="Veja o que precisa de atenção, analise seus produtos e tome decisões com dados reais."
       footer={footer}
     />
   );

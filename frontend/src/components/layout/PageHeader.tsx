@@ -3,7 +3,7 @@ import { cn } from '../../lib/cn';
 
 /**
  * Cabeçalho de página compacto e moderno.
- * Substitui o PageHero inflado por um header limpo estilo Linear/Vercel.
+ * Estilo Linear/Vercel com tons neutros.
  *
  * Uso: toda página de painel admin e super admin.
  */
@@ -25,12 +25,12 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
   className,
 }) => (
-  <header className={cn('page-header-compact', className)}>
-    <div className="page-header-copy">
-      <h1 className="page-header-title">{title}</h1>
-      {subtitle ? <p className="page-header-subtitle">{subtitle}</p> : null}
+  <header className={cn('flex flex-wrap items-center justify-between gap-4 pb-6', className)}>
+    <div>
+      <h1 className="text-xl font-semibold tracking-tight text-gray-900">{title}</h1>
+      {subtitle ? <p className="mt-1 text-sm text-gray-500">{subtitle}</p> : null}
     </div>
-    {actions ? <div className="page-header-actions">{actions}</div> : null}
+    {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
   </header>
 );
 

@@ -1,411 +1,250 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
-import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHeader from '../components/layout/PageHeader';
 import Button from '../components/common/Button';
-import ButtonLink from '../components/common/ButtonLink';
-import ShoppingListButton from '../components/common/ShoppingListButton';
 import ProductImage from '../components/product/ProductImage';
-import ProductShowcaseCard from '../components/product/ProductShowcaseCard';
 import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
 import { ProductPairInsight, ProductPerformance, ShoppingListItem } from '../types/analytics.types';
+import { AlertCircle, CheckCircle2, Clock, Trash2, ArrowRight, Download } from 'lucide-react';
 
-const formatMoney = (value?: number | null) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
-
-const formatQuantity = (value?: number | null) => Number(value || 0).toFixed(0);
-
-const compactLabel = (value?: string | null) => {
-  if (!value) return 'Sem categoria';
-  const normalized = value.replace(/\s*>\s*/g, ' > ').trim();
-  return normalized.length > 68 ?`${normalized.slice(0, 65)}...` : normalized;
-};
-
+const formatMoney = (v?: number | null) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
 
 const suggestedQuantity = (product: ProductPerformance) => {
-  const velocity = Number(product.salesVelocity || 0);
-  if (velocity >= 8) return 24;
-  if (velocity >= 4) return 12;
-  if (velocity >= 2) return 6;
+  const v = Number(product.salesVelocity || 0);
+  if (v >= 8) return 24;
+  if (v >= 4) return 12;
+  if (v >= 2) return 6;
   return 3;
 };
 
-const ShoppingListItemCard: React.FC<{
+const ListItem: React.FC<{
   item: ShoppingListItem;
   onToggle: (checked: boolean) => Promise<unknown>;
-  onUpdate: (payload: { quantityTarget?: number; note?: string }) => Promise<unknown>;
+  onUpdate: (p: { quantityTarget?: number; note?: string }) => Promise<unknown>;
   onRemove: () => Promise<unknown>;
 }> = ({ item, onToggle, onUpdate, onRemove }) => {
-  const [quantity, setQuantity] = useState(String(item.quantityTarget || 1));
-  const [note, setNote] = useState(item.note || '');
-
+  const [qty, setQty] = useState(String(item.quantityTarget || 1));
   return (
-    <article className={`shopping-list-item-card ${item.checked ?'is-checked' : ''}`}>
-      <div className="shopping-list-item-media">
-        <div className="shopping-list-item-frame">
-          <ProductImage src={item.imageUrl} alt={item.name} className="shopping-list-item-image" />
-        </div>
+    <div className={`flex items-start gap-4 rounded-xl border bg-white p-4 transition ${item.checked ? 'border-gray-100 opacity-60' : 'border-gray-200'}`}>
+      <button
+        type="button"
+        onClick={() => void onToggle(!item.checked)}
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-400'}`}
+      >
+        {item.checked && <CheckCircle2 className="h-4 w-4" />}
+      </button>
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+        <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" />
       </div>
-
-      <div className="shopping-list-item-body">
-        <div className="shopping-list-item-head">
-          <div>
-            <span className="section-kicker">{item.sourceTag.replace(/_/g, ' ')}</span>
-            <h3>{item.name}</h3>
-            <p>{compactLabel(item.category)}</p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className={`text-sm font-semibold ${item.checked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.name}</p>
+            <p className="text-xs text-gray-400">{item.category || 'Sem categoria'}</p>
           </div>
-          <label className="shopping-list-check">
-            <input
-              type="checkbox"
-              checked={item.checked}
-              onChange={(event) => void onToggle(event.target.checked)}
-            />
-            <span>{item.checked ?'Comprado' : 'Pendente'}</span>
-          </label>
+          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+            {item.sourceTag.replace(/_/g, ' ')}
+          </span>
         </div>
-
-        {item.reasonSummary ?<div className="shopping-list-reason">{item.reasonSummary}</div> : null}
-
-        <div className="shopping-list-item-controls">
-          <label>
-            <span>Quantidade alvo</span>
+        {item.reasonSummary && <p className="mt-1 text-xs text-gray-500">{item.reasonSummary}</p>}
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-gray-500">
+            Qtd:
             <input
-              className="input"
               type="number"
               min="1"
-              step="1"
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              onBlur={() => void onUpdate({ quantityTarget: Math.max(1, Number(quantity || 1)) })}
+              className="h-7 w-16 rounded border border-gray-200 px-2 text-center text-xs text-gray-900 outline-none focus:border-emerald-500"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              onBlur={() => void onUpdate({ quantityTarget: Math.max(1, Number(qty || 1)) })}
             />
           </label>
-          <label className="shopping-list-note-field">
-            <span>Observação</span>
-            <textarea
-              className="input shopping-list-note-input"
-              rows={2}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              onBlur={() => void onUpdate({ note })}
-              placeholder="Ex.: reforçar compra antes do fim de semana"
-            />
-          </label>
-        </div>
-
-        <div className="shopping-list-item-actions">
-          <ButtonLink variant="secondary" to={`/app/produtos/${item.productId}`}>Abrir produto</ButtonLink>
-          <Button type="button" variant="secondary" onClick={() => void onRemove()}>Remover</Button>
+          <Link to={`/app/produtos/${item.productId}`} className="text-xs font-medium text-emerald-600 no-underline hover:text-emerald-700">
+            Ver produto <ArrowRight className="inline h-3 w-3" />
+          </Link>
+          <button type="button" onClick={() => void onRemove()} className="text-xs text-red-400 hover:text-red-600">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
-    </article>
+    </div>
   );
 };
 
-const SuggestionCard: React.FC<{
-  product: ProductPerformance;
-  inList: boolean;
-  label: string;
-  meta: string;
-  reasonSummary: string;
-  onAdd: () => Promise<void>;
-}> = ({ product, inList, label, meta, reasonSummary, onAdd }) => (
-  <ProductShowcaseCard
-    className="shopping-suggestion-card"
-    title={product.name}
-    subtitle={compactLabel(product.category)}
-    imageUrl={product.imageUrl}
-    imageAlt={product.name}
-    href={`/app/produtos/${product.productId}`}
-    badges={<span className="sales-pill soft">{label}</span>}
-    metrics={[
-      { label: 'Receita', value: formatMoney(product.revenue) },
-      { label: 'Giro', value: `${Number(product.salesVelocity || 0).toFixed(1)}/dia` },
-    ]}
-    footer={meta}
-    actions={<ShoppingListButton inList={inList} onAdd={onAdd} />}
-  />
-);
-
-const PairSuggestionCard: React.FC<{
-  pair: ProductPairInsight;
-  onAddPair: () => Promise<void>;
-}> = ({ pair, onAddPair }) => (
-  <article className="shopping-pair-card">
-    <div className="shopping-pair-media">
-      <div className="shopping-pair-frame">
-        <ProductImage src={pair.antecedentImageUrl} alt={pair.antecedentName || 'Produto'} className="shopping-pair-image" />
-      </div>
-      <div className="shopping-pair-plus">+</div>
-      <div className="shopping-pair-frame">
-        <ProductImage src={pair.consequentImageUrl} alt={pair.consequentName || 'Produto'} className="shopping-pair-image" />
-      </div>
+const SuggestionRow: React.FC<{ product: ProductPerformance; label: string; onAdd: () => Promise<void>; inList: boolean }> = ({ product, label, onAdd, inList }) => (
+  <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 transition hover:bg-gray-50">
+    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+      <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
     </div>
-    <div className="shopping-pair-body">
-      <span className="sales-pill positive">Lift {Number(pair.lift || 0).toFixed(2)}</span>
-      <h3>{pair.antecedentName || 'Produto principal'}</h3>
-      <p>{pair.consequentName || 'Produto complementar'}</p>
-      <div className="shopping-pair-stats">
-        <span>{pair.pairCount || 0} cestas</span>
-        <span>Confiança {Number((pair.confidence || 0) * 100).toFixed(0)}%</span>
-      </div>
-      <Button type="button" onClick={() => void onAddPair()}>
-        Adicionar os dois
-      </Button>
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
+      <p className="text-xs text-gray-400">{label} · {formatMoney(product.revenue)}</p>
     </div>
-  </article>
-);
-
-const ShoppingSuggestionsSection: React.FC<{
-  title: string;
-  subtitle: string;
-  products: ProductPerformance[];
-  productIds: Set<string>;
-  onAdd: (product: ProductPerformance, sourceTag: string, reasonSummary: string) => Promise<void>;
-  sourceTag: string;
-  buildMeta: (product: ProductPerformance) => string;
-  buildReason: (product: ProductPerformance) => string;
-}> = ({ title, subtitle, products, productIds, onAdd, sourceTag, buildMeta, buildReason }) => (
-  <section className="sales-section reveal">
-    <div className="sales-section-head">
-      <div>
-        <span className="section-kicker">Sugestões inteligentes</span>
-        <h2>{title}</h2>
-      </div>
-      <p>{subtitle}</p>
-    </div>
-    {products.length === 0 ?(
-      <div className="sales-empty-card">Nenhum produto novo para sugerir nesta leitura.</div>
+    {inList ? (
+      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">Na lista</span>
     ) : (
-      <div className="shopping-suggestion-rail">
-        {products.map((product) => (
-          <SuggestionCard
-            key={product.productId}
-            product={product}
-            inList={productIds.has(product.productId)}
-            label={sourceTag.replace(/_/g, ' ')}
-            meta={buildMeta(product)}
-            reasonSummary={buildReason(product)}
-            onAdd={() => onAdd(product, sourceTag, buildReason(product))}
-          />
-        ))}
-      </div>
+      <button type="button" onClick={() => void onAdd()} className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+        + Adicionar
+      </button>
     )}
-  </section>
+  </div>
 );
 
 const ShoppingListPage: React.FC = () => {
-  const { dashboard, loading: dashboardLoading, error: dashboardError } = useMarketData();
+  const { dashboard, loading: dLoading, error: dError } = useMarketData();
   const { overview, items, productIds, loading, error, addItem, updateItem, removeItem } = useShoppingList();
 
-  const seasonalLead = dashboard?.seasonalCollections?.[0] || null;
   const restockSuggestions = useMemo(
-    () => (dashboard?.replenishmentCandidates || []).filter((product) => !productIds.has(product.productId)).slice(0, 10),
+    () => (dashboard?.replenishmentCandidates || []).filter((p) => !productIds.has(p.productId)).slice(0, 8),
     [dashboard?.replenishmentCandidates, productIds]
   );
-  const seasonalSuggestions = useMemo(
-    () => (seasonalLead?.products || []).filter((product) => !productIds.has(product.productId)).slice(0, 10),
-    [seasonalLead, productIds]
-  );
-  const promotionSuggestions = useMemo(
-    () => (dashboard?.promotionCandidates || []).filter((product) => !productIds.has(product.productId)).slice(0, 10),
-    [dashboard?.promotionCandidates, productIds]
-  );
-  const cautiousProducts = useMemo(
+  const lowProducts = useMemo(
     () => (dashboard?.lowTurnoverProducts || []).slice(0, 6),
     [dashboard?.lowTurnoverProducts]
   );
-  const pairSuggestions = useMemo(
-    () => (dashboard?.topPairs || []).slice(0, 6),
-    [dashboard?.topPairs]
-  );
 
-  const handleAddProduct = async (product: ProductPerformance, sourceTag: string, reasonSummary: string) => {
-    await addItem({
-      productId: product.productId,
-      quantityTarget: suggestedQuantity(product),
-      sourceTag,
-      reasonSummary,
-    });
+  const handleAdd = async (product: ProductPerformance, sourceTag: string, reason: string) => {
+    await addItem({ productId: product.productId, quantityTarget: suggestedQuantity(product), sourceTag, reasonSummary: reason });
   };
 
-  const handleAddPair = async (pair: ProductPairInsight) => {
-    if (pair.antecedentId) {
-      await addItem({
-        productId: pair.antecedentId,
-        quantityTarget: 3,
-        sourceTag: 'COMPRA_CASADA',
-        reasonSummary: `Adicionar perto de ${pair.consequentName || 'item complementar'} para capturar venda conjunta.`,
-      });
-    }
-    if (pair.consequentId) {
-      await addItem({
-        productId: pair.consequentId,
-        quantityTarget: 3,
-        sourceTag: 'COMPRA_CASADA',
-        reasonSummary: `Item complementar de ${pair.antecedentName || 'produto principal'} em ${pair.pairCount || 0} cestas.`,
-      });
-    }
-  };
+  const urgentItems = items.filter((i) => !i.checked && Number(i.quantityTarget || 0) >= 10);
+  const reinforceItems = items.filter((i) => !i.checked && Number(i.quantityTarget || 0) >= 3 && Number(i.quantityTarget || 0) < 10);
+  const regularItems = items.filter((i) => !i.checked && Number(i.quantityTarget || 0) < 3);
+  const checkedItems = items.filter((i) => i.checked);
 
-  if (loading || dashboardLoading) {
+  if (loading || dLoading) {
     return (
       <Layout>
-        <div className="page analytics-page">
-          <div className="sales-empty-card">Carregando lista de compras...</div>
+        <div className="flex min-h-[300px] items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
         </div>
       </Layout>
     );
   }
 
-  if (error || dashboardError || !dashboard) {
+  if (error || dError) {
     return (
       <Layout>
-        <div className="page analytics-page">
-          <div className="sales-empty-card">{error || dashboardError || 'Não foi possível carregar a lista de compras.'}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-sm text-red-600">{error || dError}</p>
         </div>
       </Layout>
     );
   }
+
+  const renderGroup = (title: string, icon: React.ReactNode, color: string, groupItems: ShoppingListItem[]) => {
+    if (groupItems.length === 0) return null;
+    return (
+      <div>
+        <div className={`mb-3 flex items-center gap-2 rounded-lg px-3 py-2 ${color}`}>
+          {icon}
+          <span className="text-sm font-semibold">{title} ({groupItems.length})</span>
+        </div>
+        <div className="flex flex-col gap-3">
+          {groupItems.map((item) => (
+            <ListItem
+              key={item.id}
+              item={item}
+              onToggle={(c) => updateItem(item.id, { checked: c })}
+              onUpdate={(p) => updateItem(item.id, p)}
+              onRemove={() => removeItem(item.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Layout>
-      <div className="page analytics-page shopping-list-page">
-        <PageHeader
-          title="Lista de compras"
-          subtitle="Monte a compra com base no que vende e no risco de ruptura."
-          actions={
-            <>
-              <ButtonLink to="/app/produtos">Buscar produtos</ButtonLink>
-              <ButtonLink variant="secondary" to="/app">Voltar ao painel</ButtonLink>
-            </>
-          }
-        />
-
-        <div className="metrics-grid analytics-metrics-grid sales-metric-strip">
-          <MetricsCard title="Na lista" value={String(overview.totalItems)} icon="LC" />
-          <MetricsCard title="Pendentes" value={String(overview.pendingItems)} icon="PD" />
-          <MetricsCard title="Fechados" value={String(overview.checkedItems)} icon="OK" />
-          <MetricsCard title="Reposição sugerida" value={String(restockSuggestions.length)} icon="RP" />
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Pedido inteligente</h1>
+            <p className="text-sm text-gray-500">Compra guiada por vendas reais</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { console.log('Export:', items); alert('Lista exportada no console!'); }}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4" /> Exportar lista
+          </button>
         </div>
 
-        <section className="sales-section reveal">
-          <div className="sales-section-head">
-            <div>
-              <span className="section-kicker">Lista ativa</span>
-              <h2>Itens já separados para compra</h2>
+        {/* KPI summary */}
+        <div className="grid gap-3 sm:grid-cols-4">
+          {[
+            { label: 'Na lista', value: overview.totalItems, color: 'text-gray-900' },
+            { label: 'Pendentes', value: overview.pendingItems, color: 'text-amber-600' },
+            { label: 'Comprados', value: overview.checkedItems, color: 'text-emerald-600' },
+            { label: 'Sugestões', value: restockSuggestions.length, color: 'text-blue-600' },
+          ].map((kpi) => (
+            <div key={kpi.label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+              <span className="text-xs font-medium uppercase tracking-wider text-gray-500">{kpi.label}</span>
+              <p className={`mt-1 text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
             </div>
-            <p>Atualize quantidade, marque o que já foi comprado e remova o que perdeu prioridade.</p>
-          </div>
-          {items.length === 0 ?(
-            <div className="sales-empty-card">
-              A lista ainda está vazia. Use os botões de produto ao longo do painel ou comece pelas sugestões abaixo.
+          ))}
+        </div>
+
+        {/* Grouped list */}
+        <div className="flex flex-col gap-6">
+          {items.length === 0 ? (
+            <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+              <p className="text-gray-500">A lista está vazia. Use as sugestões abaixo para começar.</p>
             </div>
           ) : (
-            <div className="shopping-list-grid">
-              {items.map((item) => (
-                <ShoppingListItemCard
-                  key={item.id}
-                  item={item}
-                  onToggle={(checked) => updateItem(item.id, { checked })}
-                  onUpdate={(payload) => updateItem(item.id, payload)}
-                  onRemove={() => removeItem(item.id)}
+            <>
+              {renderGroup('Urgente — quantidade alta', <AlertCircle className="h-4 w-4 text-red-600" />, 'bg-red-50 text-red-700', urgentItems)}
+              {renderGroup('Reforçar — giro acelerando', <Clock className="h-4 w-4 text-amber-600" />, 'bg-amber-50 text-amber-700', reinforceItems)}
+              {renderGroup('Manter — compra regular', <CheckCircle2 className="h-4 w-4 text-emerald-600" />, 'bg-emerald-50 text-emerald-700', regularItems)}
+              {renderGroup('Comprados', <CheckCircle2 className="h-4 w-4 text-gray-400" />, 'bg-gray-50 text-gray-500', checkedItems)}
+            </>
+          )}
+        </div>
+
+        {/* Restock suggestions */}
+        {restockSuggestions.length > 0 && (
+          <div>
+            <h2 className="mb-3 text-base font-semibold text-gray-900">Sugestões de reposição</h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {restockSuggestions.map((p) => (
+                <SuggestionRow
+                  key={p.productId}
+                  product={p}
+                  label={`Giro ${Number(p.salesVelocity || 0).toFixed(1)}/dia`}
+                  inList={productIds.has(p.productId)}
+                  onAdd={() => handleAdd(p, 'REPOSIÇÃO', `Repor ${p.name}. Giro: ${Number(p.salesVelocity || 0).toFixed(1)}/dia.`)}
                 />
               ))}
             </div>
-          )}
-        </section>
-
-        <ShoppingSuggestionsSection
-          title="Reposição imediata"
-          subtitle="Itens com giro forte e risco maior de faltar na área de vendas se a compra não acompanhar."
-          products={restockSuggestions}
-          productIds={productIds}
-          sourceTag="REPOSIÇÃO"
-          onAdd={handleAddProduct}
-          buildMeta={(product) => `${formatMoney(product.revenue)} e ${Number(product.salesVelocity || 0).toFixed(1)}/dia`}
-          buildReason={(product) => `Repor ${product.name} com prioridade. Giro atual de ${Number(product.salesVelocity || 0).toFixed(1)}/dia.`}
-        />
-
-        <ShoppingSuggestionsSection
-          title={seasonalLead ?`Preparar ${seasonalLead.title}` : 'Preparar calendário'}
-          subtitle={seasonalLead?.subtitle || 'Itens ligados à sazonalidade mais próxima do calendário comercial.'}
-          products={seasonalSuggestions}
-          productIds={productIds}
-          sourceTag="SAZONALIDADE"
-          onAdd={handleAddProduct}
-          buildMeta={(product) => `${formatMoney(product.revenue)} no ciclo comparável`}
-          buildReason={(product) => `Produto forte em ${seasonalLead?.title || 'sazonalidade próxima'} com base nas vendas do período comparável.`}
-        />
-
-        <ShoppingSuggestionsSection
-          title="Produtos para puxar faturamento com promoção"
-          subtitle="Itens que têm espaço para ação comercial e podem ganhar volume sem depender de desconto eterno."
-          products={promotionSuggestions}
-          productIds={productIds}
-          sourceTag="PROMOÇÃO"
-          onAdd={handleAddProduct}
-          buildMeta={(product) => `Share promo ${Number((product.promoRevenueShare || 0) * 100).toFixed(0)}%`}
-          buildReason={(product) => `Avaliar compra para ação promocional. Receita ${formatMoney(product.revenue)} com share promo controlado.`}
-        />
-
-        <section className="sales-section reveal">
-          <div className="sales-section-head">
-            <div>
-              <span className="section-kicker">Venda combinada</span>
-              <h2>Itens para comprar e expor juntos</h2>
-            </div>
-            <p>Pares com boa afinidade ajudam a puxar venda adicional quando entram juntos em loja, ponta ou exposição cruzada.</p>
           </div>
-          {pairSuggestions.length === 0 ?(
-            <div className="sales-empty-card">Ainda não há pares fortes suficientes para sugerir compra casada.</div>
-          ) : (
-            <div className="shopping-pair-rail">
-              {pairSuggestions.map((pair) => (
-                <PairSuggestionCard
-                  key={`${pair.antecedentId}-${pair.consequentId}`}
-                  pair={pair}
-                  onAddPair={() => handleAddPair(pair)}
-                />
+        )}
+
+        {/* Caution products */}
+        {lowProducts.length > 0 && (
+          <div>
+            <h2 className="mb-3 text-base font-semibold text-gray-900">Compra com cautela</h2>
+            <p className="mb-2 text-xs text-gray-500">Produtos com baixa tração. Reduza pedido ou revise posicionamento.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {lowProducts.map((p) => (
+                <div key={p.productId} className="flex items-center gap-3 rounded-lg border border-red-100 bg-red-50/50 p-3">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white">
+                    <ProductImage src={p.imageUrl} alt={p.name} className="h-full w-full object-contain" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">{p.name}</p>
+                    <p className="text-xs text-red-500">Giro {Number(p.salesVelocity || 0).toFixed(1)}/dia · {formatMoney(p.revenue)}</p>
+                  </div>
+                  <Link to={`/app/produtos/${p.productId}`} className="text-xs font-medium text-red-500 no-underline hover:text-red-700">Analisar</Link>
+                </div>
               ))}
             </div>
-          )}
-        </section>
-
-        <section className="sales-section reveal">
-          <div className="sales-section-head">
-            <div>
-              <span className="section-kicker">Compra com cautela</span>
-              <h2>Itens que pedem revisão antes do próximo pedido</h2>
-            </div>
-            <p>Estes produtos têm baixa tração recente. Use esta faixa para não aumentar estoque parado sem necessidade.</p>
           </div>
-          {cautiousProducts.length === 0 ?(
-            <div className="sales-empty-card">Sem itens de baixa tração neste recorte.</div>
-          ) : (
-            <div className="shopping-suggestion-rail">
-              {cautiousProducts.map((product) => (
-                <ProductShowcaseCard
-                  key={product.productId}
-                  className="shopping-suggestion-card caution"
-                  title={product.name}
-                  subtitle={compactLabel(product.category)}
-                  imageUrl={product.imageUrl}
-                  imageAlt={product.name}
-                  href={`/app/produtos/${product.productId}`}
-                  badges={<span className="sales-pill soft">Revisar antes de comprar</span>}
-                  metrics={[
-                    { label: 'Receita', value: formatMoney(product.revenue) },
-                    { label: 'Quantidade', value: formatQuantity(product.quantitySold) },
-                  ]}
-                  footer={`Giro ${Number(product.salesVelocity || 0).toFixed(1)}/dia • ${formatQuantity(product.salesDays)} dias com venda`}
-                  actions={<ButtonLink variant="secondary" to={`/app/produtos/${product.productId}`}>Analisar produto</ButtonLink>}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        )}
       </div>
     </Layout>
   );

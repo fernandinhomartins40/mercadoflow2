@@ -1,18 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
-import { buildOffersUrl } from '../lib/offersApp';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
 import Button from '../components/common/Button';
 import ShoppingListButton from '../components/common/ShoppingListButton';
-import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHeader from '../components/layout/PageHeader';
+import ProductImage from '../components/product/ProductImage';
 import { ProductPerformance } from '../types/analytics.types';
+import { Search, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
-const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1)}%`;
+const formatMoney = (v?: number | null) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
 
 const Products: React.FC = () => {
   const { marketId } = useAuth();
@@ -32,63 +31,45 @@ const Products: React.FC = () => {
   const products = useMemo(() => pageData?.content || [], [pageData]);
   const totalPages = pageData?.totalPages ?? 0;
   const totalElements = pageData?.totalElements ?? 0;
-  const avgVelocity = products.length ? products.reduce((sum, product) => sum + Number(product.salesVelocity || 0), 0) / products.length : 0;
-  const avgPromoShare = products.length ? products.reduce((sum, product) => sum + Number(product.promoRevenueShare || 0), 0) / products.length : 0;
 
-  useEffect(() => {
-    setSearchInput(querySearch);
-  }, [querySearch]);
-
-  useEffect(() => {
-    setPage(0);
-  }, [querySearch]);
+  useEffect(() => { setSearchInput(querySearch); }, [querySearch]);
+  useEffect(() => { setPage(0); }, [querySearch]);
 
   useEffect(() => {
     const load = async () => {
-      if (!marketId) {
-        setLoading(false);
-        return;
-      }
+      if (!marketId) { setLoading(false); return; }
       setLoading(true);
       try {
-        const data = await marketService.getProductPerformance(
-          marketId,
-          page,
-          size,
-          category || undefined,
-          querySearch || undefined,
-          sortBy
-        );
+        const data = await marketService.getProductPerformance(marketId, page, size, category || undefined, querySearch || undefined, sortBy);
         setPageData(data);
         setError(null);
       } catch (err: any) {
         setError(err?.message || 'Erro ao carregar produtos');
         setPageData(null);
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
     load();
   }, [marketId, page, size, category, querySearch, sortBy]);
 
-  const bandLabel = (value?: string | null) => {
-    switch (value) {
-      case 'HIGH': return 'Giro alto';
-      case 'MEDIUM': return 'Giro médio';
-      default: return 'Giro baixo';
+  const statusLabel = (band?: string | null) => {
+    switch ((band || '').toUpperCase()) {
+      case 'HIGH': return { text: 'Vende muito', color: 'bg-emerald-50 text-emerald-700' };
+      case 'MEDIUM': return { text: 'Vende bem', color: 'bg-amber-50 text-amber-700' };
+      default: return { text: 'Vende pouco', color: 'bg-red-50 text-red-700' };
     }
   };
 
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
+  const TrendIcon: React.FC<{ value: number }> = ({ value }) => {
+    if (value > 1) return <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />;
+    if (value < -1) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
+    return <Minus className="h-3.5 w-3.5 text-gray-400" />;
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     const next = new URLSearchParams(searchParams);
-    const normalized = searchInput.trim();
     setPage(0);
-    if (normalized) {
-      next.set('search', normalized);
-    } else {
-      next.delete('search');
-    }
+    searchInput.trim() ? next.set('search', searchInput.trim()) : next.delete('search');
     setSearchParams(next);
   };
 
@@ -97,175 +78,158 @@ const Products: React.FC = () => {
       productId: product.productId,
       quantityTarget: Math.max(1, Math.round(Number(product.salesVelocity || 0) || 1)),
       sourceTag: 'PRODUTOS',
-      reasonSummary: `Adicionar ${product.name} à lista a partir da consulta de produtos.`,
+      reasonSummary: `Adicionar ${product.name} à lista.`,
     });
   };
 
+  const sortOptions = [
+    { key: 'REVENUE', label: 'Receita' },
+    { key: 'QUANTITY', label: 'Quantidade' },
+    { key: 'TURNOVER', label: 'Giro' },
+    { key: 'TREND', label: 'Tendência' },
+    { key: 'NAME', label: 'Nome' },
+  ] as const;
+
   return (
     <Layout>
-      <div className="page analytics-page">
-        <PageHeader
-          title="Produtos"
-          subtitle="Performance, giro e tendência por item do catálogo."
-        />
-
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Total" value={totalElements} icon="PD" />
-          <MetricsCard title="Giro médio" value={`${avgVelocity.toFixed(2)}/dia`} icon="GR" variant="warning" />
-          <MetricsCard title="Share promo" value={formatPercent(avgPromoShare * 100)} icon="SP" variant="danger" />
-          <MetricsCard title="Ordenação" value={sortBy} icon="OR" />
+      <div className="flex flex-col gap-5">
+        {/* Header */}
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Produtos</h1>
+          <p className="text-sm text-gray-500">Como seus produtos estão vendendo — {totalElements} produtos encontrados</p>
         </div>
 
-        {/* Filtros inline */}
-        <div className="filters-inline" style={{ flexWrap: 'wrap', gap: 12 }}>
-          <form className="product-search-form" onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 8 }}>
-            <input
-              className="input"
-              placeholder="Buscar por nome ou GTIN"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              style={{ maxWidth: 280 }}
-            />
+        {/* Search & Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <form onSubmit={handleSearchSubmit} className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                className="h-10 rounded-lg border border-gray-200 bg-white pl-9 pr-4 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                placeholder="Buscar produto..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                style={{ width: 240 }}
+              />
+            </div>
             <Button type="submit">Buscar</Button>
-            {querySearch ? (
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => {
-                  setSearchInput('');
-                  setPage(0);
-                  const next = new URLSearchParams(searchParams);
-                  next.delete('search');
-                  setSearchParams(next);
-                }}
-              >
+            {querySearch && (
+              <Button variant="ghost" type="button" onClick={() => { setSearchInput(''); setPage(0); const n = new URLSearchParams(searchParams); n.delete('search'); setSearchParams(n); }}>
                 Limpar
               </Button>
-            ) : null}
+            )}
           </form>
           <input
-            className="input"
-            placeholder="Categoria"
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            placeholder="Filtrar categoria"
             value={category}
-            onChange={(e) => {
-              setPage(0);
-              setCategory(e.target.value);
-            }}
-            style={{ maxWidth: 200 }}
+            onChange={(e) => { setPage(0); setCategory(e.target.value); }}
+            style={{ width: 180 }}
           />
-          <select
-            className="input"
-            value={sortBy}
-            onChange={(e) => {
-              setPage(0);
-              setSortBy(e.target.value as any);
-            }}
-            style={{ maxWidth: 220 }}
-          >
-            <option value="REVENUE">Ordenar por receita</option>
-            <option value="QUANTITY">Ordenar por quantidade</option>
-            <option value="TRANSACTIONS">Ordenar por transações</option>
-            <option value="PRICE">Ordenar por preço médio</option>
-            <option value="TURNOVER">Ordenar por giro</option>
-            <option value="TREND">Ordenar por tendência</option>
-            <option value="PROMO">Ordenar por share promocional</option>
-            <option value="NAME">Ordenar por nome</option>
-          </select>
         </div>
 
-        {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
+        {/* Sort pills */}
+        <div className="flex flex-wrap gap-2">
+          {sortOptions.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => { setPage(0); setSortBy(opt.key as any); }}
+              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                sortBy === opt.key
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
+        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+
+        {/* Product grid */}
         {loading ? (
-          <div className="panel-empty">Carregando...</div>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          </div>
+        ) : products.length === 0 ? (
+          <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+            <p className="text-gray-500">Nenhum produto encontrado.</p>
+          </div>
         ) : (
-          <div className="analytics-card-grid product-mosaic-grid">
-            {products.length === 0 ? (
-              <div className="analytics-panel"><div className="panel-empty">Nenhum produto encontrado neste recorte.</div></div>
-            ) : (
-              products.map((product) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product) => {
+              const status = statusLabel(product.turnoverBand);
+              const trend = Number(product.revenueTrendPercentage || 0);
+              return (
                 <article
                   key={product.productId}
-                  className={`product-mosaic-card ${String(product.turnoverBand || '').toLowerCase()} reveal is-clickable`}
                   onClick={() => navigate(`/app/produtos/${product.productId}`)}
+                  className="flex cursor-pointer flex-col rounded-xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <div className="product-mosaic-head">
-                    <div>
-                      <span className="section-kicker">{product.category || 'Sem categoria'}</span>
-                      <h3>{product.name}</h3>
-                    </div>
-                    <span className={`status-pill ${String(product.turnoverBand || '').toLowerCase()}`}>{bandLabel(product.turnoverBand)}</span>
+                  {/* Image */}
+                  <div className="flex h-40 items-center justify-center bg-gray-50 p-4">
+                    <ProductImage src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain" />
                   </div>
-
-                  <div className="product-mosaic-metrics">
-                    <div>
-                      <span>Receita</span>
-                      <strong>{formatMoney(product.revenue)}</strong>
+                  {/* Body */}
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${status.color}`}>
+                        {status.text}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <TrendIcon value={trend} />
+                        <span className={`text-xs font-medium ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span>Quantidade</span>
-                      <strong>{Number(product.quantitySold || 0).toFixed(0)}</strong>
+                    <h3 className="line-clamp-2 text-sm font-semibold text-gray-900">{product.name}</h3>
+                    <p className="line-clamp-1 text-xs text-gray-400">{product.category || 'Sem categoria'}</p>
+                    <div className="mt-auto grid grid-cols-2 gap-2 border-t border-gray-50 pt-2">
+                      <div>
+                        <span className="text-[10px] text-gray-400">Receita</span>
+                        <p className="text-sm font-semibold text-gray-900">{formatMoney(product.revenue)}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-400">Giro</span>
+                        <p className="text-sm font-semibold text-gray-900">{Number(product.salesVelocity || 0).toFixed(1)}/dia</p>
+                      </div>
                     </div>
-                    <div>
-                      <span>Preço médio</span>
-                      <strong>{formatMoney(product.averagePrice)}</strong>
-                    </div>
-                    <div>
-                      <span>Transações</span>
-                      <strong>{product.transactionCount || 0}</strong>
-                    </div>
-                  </div>
-
-                  <div className="product-progress-block">
-                    <div className="progress-row">
-                      <span>Giro</span>
-                      <strong>{Number(product.salesVelocity || 0).toFixed(2)}/dia</strong>
-                    </div>
-                    <div className="progress-track"><div className="progress-fill mint" style={{ width: `${Math.min(Number(product.salesVelocity || 0) * 8, 100)}%` }} /></div>
-                  </div>
-
-                  <div className="product-progress-block">
-                    <div className="progress-row">
-                      <span>Share promo</span>
-                      <strong>{formatPercent((product.promoRevenueShare || 0) * 100)}</strong>
-                    </div>
-                    <div className="progress-track"><div className="progress-fill orange" style={{ width: `${Math.min(Number(product.promoRevenueShare || 0) * 100, 100)}%` }} /></div>
-                  </div>
-
-                  <div className="product-card-foot">
-                    <span>Tendência {formatPercent(product.revenueTrendPercentage)}</span>
-                    <span>Última venda {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '--'}</span>
-                  </div>
-                  <div className="product-card-actions-row">
-                    <div className="product-card-link">Abrir dashboard</div>
-                    <div className="product-card-actions-inline">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          navigate(buildOffersUrl('/ofertas', 'admin', `productId=${product.productId}`));
-                        }}
-                      >
-                        Criar oferta
-                      </Button>
+                    {/* Actions */}
+                    <div className="mt-1 flex justify-end" onClick={(e) => e.stopPropagation()}>
                       <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
                     </div>
                   </div>
                 </article>
-              ))
-            )}
+              );
+            })}
           </div>
         )}
 
-        {!loading && pageData && (
-          <div className="pager-actions admin-pager-actions">
-            <span className="section-kicker">Página {pageData.number + 1} de {Math.max(totalPages, 1)}</span>
-            <Button variant="secondary" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>
-              Anterior
-            </Button>
-            <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={totalPages === 0 || page >= totalPages - 1}>
-              Próxima
-            </Button>
+        {/* Pagination */}
+        {!loading && pageData && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              disabled={page <= 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm text-gray-600">
+              Página <strong>{pageData.number + 1}</strong> de <strong>{totalPages}</strong>
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => p + 1)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         )}
       </div>

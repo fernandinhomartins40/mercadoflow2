@@ -65,33 +65,33 @@ const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="catalog-admin-modal-backdrop"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       role="presentation"
       onClick={() => { if (!preventClose) onClose(); }}
     >
       <div
-        className={cn('catalog-admin-modal card', className)}
+        className={cn('mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.15)]', className)}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="catalog-admin-modal-head">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4">
           <div>
-            {kicker ? <span className="section-kicker">{kicker}</span> : null}
+            {kicker ? <span className="text-xs font-medium uppercase tracking-wider text-gray-400">{kicker}</span> : null}
             {typeof title === 'string' ? (
-              <h3 id={titleId}>{title}</h3>
+              <h3 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h3>
             ) : (
               title
             )}
           </div>
           {headerActions ? (
-            <div className="catalog-admin-modal-head-actions">
+            <div className="flex items-center gap-2">
               {headerActions}
             </div>
           ) : null}
         </div>
-        <div className={cn('catalog-admin-modal-body', bodyClassName)}>
+        <div className={cn('flex-1 overflow-y-auto px-6 py-4', bodyClassName)}>
           {children}
         </div>
       </div>

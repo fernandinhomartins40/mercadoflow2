@@ -29,7 +29,7 @@ const Pagination: React.FC<PaginationProps> = ({
   onPageChange,
   previousLabel = 'Anterior',
   nextLabel = 'Próxima',
-  className = 'pager-actions admin-pager-actions mt-3',
+  className = 'flex items-center justify-center gap-3 mt-3',
 }) => (
   <div className={className}>
     <Button
@@ -39,6 +39,9 @@ const Pagination: React.FC<PaginationProps> = ({
     >
       {previousLabel}
     </Button>
+    <span className="text-sm text-gray-500">
+      {totalPages > 0 ? `${page + 1} / ${totalPages}` : '—'}
+    </span>
     <Button
       variant="secondary"
       onClick={() => onPageChange(page + 1)}

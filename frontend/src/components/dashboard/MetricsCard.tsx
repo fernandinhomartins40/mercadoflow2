@@ -1,30 +1,4 @@
 import React from 'react';
-import {
-  Activity,
-  Bell,
-  Building2,
-  CalendarDays,
-  Check,
-  Database,
-  Download,
-  FileText,
-  Filter,
-  Image,
-  KeyRound,
-  LayoutTemplate,
-  PackageSearch,
-  Receipt,
-  ShoppingCart,
-  Sparkles,
-  Store,
-  Tags,
-  TriangleAlert,
-  TrendingUp,
-  Users,
-  Boxes,
-  Link2,
-} from 'lucide-react';
-import Card from '../common/Card';
 import { cn } from '../../lib/cn';
 
 interface MetricsCardProps {
@@ -37,84 +11,46 @@ interface MetricsCardProps {
   className?: string;
 }
 
-const iconMap = {
-  'R$': TrendingUp,
-  TM: Receipt,
-  NF: FileText,
-  PD: PackageSearch,
-  CT: Building2,
-  US: Users,
-  VX: CalendarDays,
-  ON: Check,
-  AT: TriangleAlert,
-  MD: LayoutTemplate,
-  LT: Boxes,
-  Q: Boxes,
-  SG: Sparkles,
-  AK: KeyRound,
-  RV: TriangleAlert,
-  HB: Activity,
-  EXE: Download,
-  MK: Store,
-  RUN: Activity,
-  IMP: Download,
-  LC: ShoppingCart,
-  OK: Check,
-  RP: ShoppingCart,
-  SR: Link2,
-  NS: TriangleAlert,
-  DB: Database,
-  PG: FileText,
-  IM: Image,
-  BR: Tags,
-  AL: Bell,
-  NV: Bell,
-  HP: TriangleAlert,
-  FL: Filter,
-  PR: Link2,
-  PX: TrendingUp,
-} as const;
-
-const renderIcon = (icon?: React.ReactNode) => {
-  if (!icon) return null;
-  if (typeof icon === 'string') {
-    const Icon = iconMap[icon as keyof typeof iconMap];
-    if (Icon) {
-      return <Icon className="h-4 w-4" strokeWidth={2.15} />;
-    }
-    return <span>{icon}</span>;
-  }
-  return icon;
+const variantBorder: Record<string, string> = {
+  default: 'border-l-emerald-500',
+  warning: 'border-l-amber-400',
+  danger: 'border-l-red-500',
 };
 
 const MetricsCard: React.FC<MetricsCardProps> = ({ title, value, icon, variant = 'default', caption, className }) => {
-  const tone = variant === 'warning' ? 'warning' : variant === 'danger' ? 'danger' : 'default';
-  const toneClassName =
-    tone === 'warning'
-      ? 'bg-[linear-gradient(180deg,rgba(255,250,246,0.98)_0%,rgba(255,243,232,0.95)_100%)]'
-      : tone === 'danger'
-        ? 'bg-[linear-gradient(180deg,rgba(255,247,243,0.98)_0%,rgba(255,236,231,0.95)_100%)]'
-        : 'bg-[linear-gradient(180deg,rgba(255,252,248,0.98)_0%,rgba(255,249,244,0.95)_100%)]';
+  const hasTrendUp = caption && caption.includes('+');
+  const hasTrendDown = caption && caption.includes('-');
 
   return (
-    <Card className={cn('metric-card reveal relative min-h-[132px] overflow-hidden p-4 sm:p-5', `metric-card-${tone}`, toneClassName, className)}>
+    <div
+      className={cn(
+        'metric-card reveal relative min-h-[132px] overflow-hidden rounded-xl border border-gray-200 border-l-4 bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.04)] sm:p-5',
+        variantBorder[variant] || variantBorder.default,
+        className,
+      )}
+    >
       <div className="metric-card-top flex items-start justify-between gap-3">
-        <span className="metric-card-title text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">{title}</span>
+        <span className="metric-card-title text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-gray-400">{title}</span>
         {icon ? (
-          <span className="metric-card-icon inline-flex min-h-8 min-w-8 items-center justify-center rounded-full bg-[rgba(255,106,0,0.08)] px-2 text-[0.72rem] font-bold text-[color:var(--accent-strong)] [&_svg]:h-4 [&_svg]:w-4">
-            {renderIcon(icon)}
+          <span className="metric-card-icon inline-flex min-h-8 min-w-8 items-center justify-center rounded-full bg-emerald-50 px-2 text-[0.72rem] font-bold text-emerald-600 [&_svg]:h-4 [&_svg]:w-4">
+            {icon}
           </span>
         ) : null}
       </div>
-      <strong className="metric-card-value mt-4 text-[clamp(1.45rem,2.5vw,2.05rem)] font-semibold leading-none tracking-[-0.04em] text-[color:var(--text-primary)]">
+      <strong className="metric-card-value mt-4 block text-[clamp(1.45rem,2.5vw,2.05rem)] font-semibold leading-none tracking-[-0.04em] text-gray-900">
         {value}
       </strong>
       {caption ? (
-        <div className="metric-card-bottom mt-2">
-          <span className="metric-card-meta text-[0.82rem] leading-5 text-[color:var(--text-muted)]">{caption}</span>
+        <div className="metric-card-bottom mt-2 flex items-center gap-1">
+          {hasTrendUp ? (
+            <svg className="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12 7a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 11-2 0V9.414l-4.293 4.293a1 1 0 01-1.414 0L8 11.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 11.586 14.586 8H13a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+          ) : hasTrendDown ? (
+            <svg className="h-4 w-4 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12 13a1 1 0 011 1v1.586l-4.293-4.293a1 1 0 00-1.414 0L5 13.586l-4.293-4.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L8 13.414l3.293 3.293H13a1 1 0 001-1v-4a1 1 0 10-2 0v1.586L7.707 8.293a1 1 0 00-1.414 0L3 11.586.707 9.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L8 13.414 12 17.586V14a1 1 0 011-1z" clipRule="evenodd" /></svg>
+          ) : null}
+          <span className="metric-card-meta text-[0.82rem] leading-5 text-gray-400">{caption}</span>
         </div>
       ) : null}
-    </Card>
+    </div>
   );
 };
 

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
-import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHeader from '../components/layout/PageHeader';
 import { analyticsService } from '../services/analytics.service';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
+import { ArrowRight, Sparkles, Map } from 'lucide-react';
 
 interface BasketRule {
   antecedent?: string[];
@@ -16,8 +16,6 @@ interface BasketRule {
   lift: number;
   pairCount: number;
 }
-
-const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1)}%`;
 
 const MarketBasket: React.FC = () => {
   const { marketId } = useAuth();
@@ -38,78 +36,116 @@ const MarketBasket: React.FC = () => {
         setError(null);
       } catch (err: any) {
         setRules([]);
-        setError(err?.message || 'Erro ao carregar compra casada');
-      } finally {
-        setLoading(false);
-      }
+        setError(err?.message || 'Erro ao carregar combos');
+      } finally { setLoading(false); }
     };
     load();
   }, [marketId, useCached]);
 
-  const strongestRule = rules[0];
-  const averageConfidence = useMemo(
-    () => (rules.length ? rules.reduce((sum, rule) => sum + Number(rule.confidence || 0), 0) / rules.length : 0),
-    [rules]
-  );
-  const totalOccurrences = useMemo(
-    () => rules.reduce((sum, rule) => sum + Number(rule.pairCount || 0), 0),
-    [rules]
-  );
+  const totalOccurrences = useMemo(() => rules.reduce((s, r) => s + Number(r.pairCount || 0), 0), [rules]);
 
   const actionHint = (rule: BasketRule) => {
-    if (Number(rule.lift || 0) >= 2.2) return 'Expor lado a lado';
-    if (Number(rule.confidence || 0) >= 0.45) return 'Cross-sell no caixa';
-    return 'Monitorar';
+    if (Number(rule.lift || 0) >= 2.2) return 'Coloque próximos na loja';
+    if (Number(rule.confidence || 0) >= 0.45) return 'Monte promoção combo';
+    return 'Acompanhar';
+  };
+
+  const actionColor = (rule: BasketRule) => {
+    if (Number(rule.lift || 0) >= 2.2) return 'bg-emerald-50 text-emerald-700';
+    if (Number(rule.confidence || 0) >= 0.45) return 'bg-amber-50 text-amber-700';
+    return 'bg-gray-50 text-gray-600';
   };
 
   return (
     <Layout>
-      <div className="page analytics-page">
-        <PageHeader
-          title="Compra casada"
-          subtitle="Pares de produtos que os clientes compram juntos."
-          actions={
-            <label className="toggle-inline">
-              <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} />
-              {useCached ? 'Cache noturno' : 'Análise ao vivo'}
-            </label>
-          }
-        />
-
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Pares" value={rules.length} icon="PR" />
-          <MetricsCard title="Confiança média" value={formatPercent(averageConfidence * 100)} icon="CF" variant="warning" />
-          <MetricsCard title="Lift máximo" value={strongestRule ? strongestRule.lift.toFixed(2) : '0.00'} icon="LF" variant="danger" />
-          <MetricsCard title="Ocorrências" value={totalOccurrences} icon="PX" />
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Combos que vendem juntos</h1>
+            <p className="text-sm text-gray-500">Descubra quais produtos seus clientes levam juntos</p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm">
+            <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} className="accent-emerald-600" />
+            <span className="text-gray-700">{useCached ? 'Cache noturno' : 'Análise ao vivo'}</span>
+          </label>
         </div>
 
-        {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
+        {/* KPIs */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Combos encontrados</span>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{rules.length}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Cestas analisadas</span>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{totalOccurrences}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Melhor combo</span>
+            <p className="mt-1 text-2xl font-bold text-emerald-600">{rules[0] ? `${(rules[0].confidence * 100).toFixed(0)}% juntos` : '—'}</p>
+          </div>
+        </div>
 
+        {/* AI Insight */}
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <p className="text-sm text-emerald-800">
+            {rules.length > 0
+              ? `Encontramos ${rules.length} combos. O mais forte tem ${(rules[0].confidence * 100).toFixed(0)}% de chance de compra conjunta em ${rules[0].pairCount} cestas. Coloque esses produtos próximos na loja para aumentar vendas.`
+              : 'Ainda não temos combos suficientes. Continue vendendo para gerar mais dados de cesta.'}
+          </p>
+        </div>
+
+        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+
+        {/* Combo cards */}
         {loading ? (
-          <div className="panel-empty">Carregando...</div>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          </div>
+        ) : rules.length === 0 ? (
+          <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+            <p className="text-gray-500">Nenhum combo encontrado.</p>
+          </div>
         ) : (
-          <div className="analytics-card-grid pair-grid-dense">
-            {rules.length === 0 ? (
-              <div className="analytics-panel"><div className="panel-empty">Nenhuma regra encontrada.</div></div>
-            ) : (
-              rules.map((rule, idx) => (
-                <article key={`${idx}-${rule.lift}`} className="pair-spotlight-card reveal">
-                  <div className="pair-spotlight-top">
-                    <span className="rank-pill">#{idx + 1}</span>
-                    <span className="status-pill positive">Lift {Number(rule.lift || 0).toFixed(2)}</span>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {rules.map((rule, idx) => {
+              const nameA = (rule.antecedentNames || rule.antecedent || []).join(', ');
+              const nameB = (rule.consequentNames || rule.consequent || []).join(', ');
+              const confPct = (rule.confidence * 100).toFixed(0);
+              return (
+                <article key={idx} className="flex flex-col rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-500">#{idx + 1}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColor(rule)}`}>
+                      {actionHint(rule)}
+                    </span>
                   </div>
-                  <h3>{(rule.antecedentNames || rule.antecedent || []).join(', ')}</h3>
-                  <div className="pair-arrow">combina com</div>
-                  <h4>{(rule.consequentNames || rule.consequent || []).join(', ')}</h4>
-                  <div className="mini-metric-grid dual">
-                    <div><span>Confiança</span><strong>{formatPercent(Number(rule.confidence || 0) * 100)}</strong></div>
-                    <div><span>Suporte</span><strong>{formatPercent(Number(rule.support || 0) * 100)}</strong></div>
-                    <div><span>Cestas</span><strong>{rule.pairCount || 0}</strong></div>
-                    <div><span>Ação</span><strong>{actionHint(rule)}</strong></div>
+                  <div className="mt-3 flex flex-col gap-1">
+                    <h3 className="text-sm font-semibold text-gray-900">{nameA}</h3>
+                    <span className="text-xs font-medium text-emerald-600">combina com</span>
+                    <h4 className="text-sm font-semibold text-gray-900">{nameB}</h4>
+                  </div>
+                  <div className="mt-4 rounded-lg bg-gray-50 p-3">
+                    <p className="text-sm text-gray-700">
+                      <strong>{confPct}%</strong> das vezes compram juntos
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Apareceu em {rule.pairCount} cestas · Afinidade {rule.lift.toFixed(2)}x
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link to="/app/mapa-loja" className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 no-underline transition hover:bg-emerald-100">
+                      <Map className="h-3 w-3" /> Ver no mapa
+                    </Link>
+                    <Link to="/app/campanhas" className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 no-underline transition hover:bg-gray-100">
+                      Criar promoção combo <ArrowRight className="h-3 w-3" />
+                    </Link>
                   </div>
                 </article>
-              ))
-            )}
+              );
+            })}
           </div>
         )}
       </div>

@@ -5,7 +5,7 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
   return (
     <div
       className={cn(
-        'card rounded-[28px] border border-[rgba(87,51,30,0.12)] bg-[rgba(255,252,248,0.92)] shadow-[0_20px_50px_rgba(44,20,6,0.08)]',
+        'card rounded-xl border border-gray-200 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.06)]',
         className,
       )}
     >

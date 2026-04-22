@@ -27,6 +27,7 @@ const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogM
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
 const StatePriceComparison = lazy(() => import('./screens/StatePriceComparison'));
+const StoreMap = lazy(() => import('./screens/StoreMap'));
 
 const PageLoader = () => (
   <div className="card flex min-h-[220px] items-center justify-center text-base font-medium text-[color:var(--text-muted)]">
@@ -114,6 +115,7 @@ const App: React.FC = () => {
         <Route path="/app/cesta" element={secure(<MarketBasket />)} />
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
+        <Route path="/app/mapa-loja" element={secure(<StoreMap />)} />
         <Route path="/app/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
         <Route path="/app/ofertas/campanhas" element={<OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" />} />
         <Route path="/app/ofertas/inicio" element={<OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" />} />

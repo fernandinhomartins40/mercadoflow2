@@ -21,7 +21,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   const menuButton = showMenuToggle ? (
     <button
       type="button"
-      className="inline-flex h-10 shrink-0 items-center justify-center rounded-[12px] border border-[rgba(87,51,30,0.12)] bg-white px-3 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_8px_18px_rgba(44,20,6,0.06)] transition hover:bg-[rgba(255,247,240,0.92)]"
+      className="inline-flex h-10 shrink-0 items-center justify-center rounded-[12px] border border-[rgba(0,0,0,0.12)] bg-white px-3 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_8px_18px_rgba(0,0,0,0.06)] transition hover:bg-gray-50"
       onClick={onToggleSidebar}
       aria-label="Abrir menu lateral"
     >
@@ -32,7 +32,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   return (
     <header
       className={cn(
-        'sticky top-0 z-20 border-b border-[rgba(87,51,30,0.08)] bg-[rgba(252,248,243,0.94)] backdrop-blur-xl',
+        'sticky top-0 z-20 border-b border-[rgba(0,0,0,0.08)] bg-[rgba(249,250,251,0.94)] backdrop-blur-xl',
         className,
       )}
     >

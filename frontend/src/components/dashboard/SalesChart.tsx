@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import Card from '../common/Card';
 import Chart from '../common/Chart';
 
@@ -24,21 +24,21 @@ const SalesChart: React.FC<SalesChartProps> = ({
   className = '',
 }) => {
   const lastPoint = data[data.length - 1];
-  const mergedClassName = ['analytics-panel', 'chart-panel', 'reveal', 'stagger-1', className].filter(Boolean).join(' ');
+  const mergedClassName = ['reveal', 'stagger-1', className].filter(Boolean).join(' ');
 
   return (
     <Card className={mergedClassName}>
-      <div className="analytics-panel-head">
+      <div className="flex items-start justify-between gap-4 p-5 pb-0">
         <div>
-          <span className="section-kicker">{kicker}</span>
-          <h3>{title}</h3>
+          <span className="text-xs font-medium uppercase tracking-wider text-gray-400">{kicker}</span>
+          <h3 className="mt-1 text-lg font-semibold text-gray-900">{title}</h3>
         </div>
-        <div className="chart-callout">
-          <span>{calloutLabel}</span>
-          <strong>{lastPoint ? formatter(lastPoint.revenue) : formatter(0)}</strong>
+        <div className="text-right">
+          <span className="text-xs text-gray-400">{calloutLabel}</span>
+          <strong className="mt-0.5 block text-lg font-semibold text-gray-900">{lastPoint ? formatter(lastPoint.revenue) : formatter(0)}</strong>
         </div>
       </div>
-      <p className="panel-copy">{panelCopy}</p>
+      <p className="px-5 pt-2 text-sm leading-relaxed text-gray-500">{panelCopy}</p>
       <Chart data={data} />
     </Card>
   );

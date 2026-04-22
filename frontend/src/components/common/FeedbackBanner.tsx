@@ -1,10 +1,8 @@
 import React from 'react';
 import { cn } from '../../lib/cn';
-import PanelSection from '../dashboard/PanelSection';
 
 /**
  * Banner de feedback reutilizável para mensagens de erro e sucesso.
- * Substitui o padrão repetido de PanelSection com text-color inline.
  *
  * Mensagens devem estar em pt-BR.
  */
@@ -30,14 +28,14 @@ const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
   return (
     <div className={cn('grid gap-2', className)}>
       {error ? (
-        <PanelSection reveal={false} className="text-[color:var(--danger)]">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
-        </PanelSection>
+        </div>
       ) : null}
       {success ? (
-        <PanelSection reveal={false} className="text-[color:var(--success)]">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           {success}
-        </PanelSection>
+        </div>
       ) : null}
     </div>
   );

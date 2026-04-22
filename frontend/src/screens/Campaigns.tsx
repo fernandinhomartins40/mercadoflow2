@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
-import MetricsCard from '../components/dashboard/MetricsCard';
-import PageHeader from '../components/layout/PageHeader';
-import PanelSection from '../components/dashboard/PanelSection';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import { CampaignImpact } from '../types/analytics.types';
+import { Plus, Calendar, TrendingUp, RefreshCw } from 'lucide-react';
 
 interface CampaignItem {
   id: string;
@@ -17,9 +15,9 @@ interface CampaignItem {
   createdAt?: string | null;
 }
 
-const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
-const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString('pt-BR') : '-');
-const formatPercent = (value?: number | null) => `${Number(value || 0).toFixed(1)}%`;
+const formatMoney = (v?: number | null) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
+const formatDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') : '—');
 
 const Campaigns: React.FC = () => {
   const { marketId } = useAuth();
@@ -27,7 +25,7 @@ const Campaigns: React.FC = () => {
   const [impacts, setImpacts] = useState<CampaignImpact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -39,135 +37,151 @@ const Campaigns: React.FC = () => {
     if (!marketId) return;
     setLoading(true);
     try {
-      const [campaigns, impactRows] = await Promise.all([
-        marketService.getCampaigns(marketId),
-        marketService.getCampaignImpact(marketId),
-      ]);
+      const [campaigns, impactRows] = await Promise.all([marketService.getCampaigns(marketId), marketService.getCampaignImpact(marketId)]);
       setItems(campaigns || []);
       setImpacts(impactRows || []);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Erro ao carregar campanhas');
+      setError(err?.message || 'Erro ao carregar promoções');
       setItems([]);
       setImpacts([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    load();
-  }, [marketId]);
+  useEffect(() => { load(); }, [marketId]);
 
   const create = async () => {
-    if (!marketId) return;
-    if (!name.trim()) {
-      setError('Informe o nome da campanha');
-      return;
-    }
+    if (!marketId || !name.trim()) { setError('Informe o nome da promoção'); return; }
     await marketService.createCampaign(marketId, {
       name: name.trim(),
       description: description.trim() || undefined,
-      startDate: startDate.trim() || undefined,
-      endDate: endDate.trim() || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
     });
-    setName('');
-    setDescription('');
-    setStartDate('');
-    setEndDate('');
+    setName(''); setDescription(''); setStartDate(''); setEndDate(''); setShowForm(false);
     await load();
   };
 
   return (
     <Layout>
-      <div className="page analytics-page">
-        <PageHeader
-          title="Campanhas"
-          subtitle="Cadastre janelas e meça o impacto real em receita."
-          actions={<Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>}
-        />
-
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
-          <MetricsCard title="Campanhas" value={items.length} icon="CP" />
-          <MetricsCard title="Com comparação" value={impacts.length} icon="CM" variant="warning" />
-          <MetricsCard title="Melhor lift" value={bestImpact ? formatPercent(bestImpact.revenueLiftPercent) : '0.0%'} icon="LF" variant="danger" />
-        </div>
-
-        {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
-
-        <div className="layout-split">
-          <div className="layout-main">
-            {/* Campanhas existentes */}
-            {items.length === 0 ? (
-              <div className="panel-empty">Nenhuma campanha cadastrada.</div>
-            ) : (
-              <div className="campaign-stack">
-                {items.map((campaign) => (
-                  <div key={campaign.id} className="campaign-stack-card">
-                    <div>
-                      <strong>{campaign.name}</strong>
-                      <span>{campaign.description || 'Sem descrição'}</span>
-                    </div>
-                    <div className="campaign-stack-side">
-                      <strong>{formatDateTime(campaign.startDate)} até {formatDateTime(campaign.endDate)}</strong>
-                      <span>Criada em {formatDateTime(campaign.createdAt)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Impacto das campanhas */}
-            {loading ? (
-              <div className="panel-empty">Carregando...</div>
-            ) : impacts.length > 0 ? (
-              <div className="analytics-card-grid three-cols">
-                {impacts.map((impact) => (
-                  <div key={impact.campaignId} className="analytics-panel campaign-card reveal">
-                    <div className="analytics-panel-head compact">
-                      <div>
-                        <span className="section-kicker">Campanha</span>
-                        <h3>{impact.name}</h3>
-                      </div>
-                      <span className={`status-pill ${String(impact.status || '').toLowerCase()}`}>{impact.status}</span>
-                    </div>
-                    <div className="mini-metric-grid">
-                      <div><span>Antes</span><strong>{formatMoney(impact.beforeRevenue)}</strong></div>
-                      <div><span>Durante</span><strong>{formatMoney(impact.duringRevenue)}</strong></div>
-                      <div><span>Depois</span><strong>{formatMoney(impact.afterRevenue)}</strong></div>
-                    </div>
-                    <div className="campaign-lift-row">
-                      <span>Lift receita</span>
-                      <strong>{formatPercent(impact.revenueLiftPercent)}</strong>
-                    </div>
-                    <div className="campaign-lift-row subtle">
-                      <span>Lift transações</span>
-                      <strong>{formatPercent(impact.transactionLiftPercent)}</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Promoções</h1>
+            <p className="text-sm text-gray-500">Crie ações e veja o resultado real</p>
           </div>
-
-          <aside className="layout-aside">
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head compact">
-                <div>
-                  <span className="section-kicker">Nova campanha</span>
-                  <h3>Cadastrar</h3>
-                </div>
-              </div>
-              <div className="dashboard-form-stack">
-                <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
-                <input className="input" placeholder="Início (ISO)" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                <input className="input" placeholder="Fim (ISO)" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                <input className="input" placeholder="Descrição" value={description} onChange={(e) => setDescription(e.target.value)} />
-                <Button onClick={create}>Criar campanha</Button>
-              </div>
-            </section>
-          </aside>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={load} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button onClick={() => setShowForm(!showForm)}>
+              <Plus className="h-4 w-4" /> Nova promoção
+            </Button>
+          </div>
         </div>
+
+        {/* KPIs */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Promoções</span>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{items.length}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Com resultado</span>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{impacts.length}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Melhor resultado</span>
+            <p className="mt-1 text-2xl font-bold text-emerald-600">
+              {bestImpact ? `+${Number(bestImpact.revenueLiftPercent || 0).toFixed(1)}%` : '—'}
+            </p>
+          </div>
+        </div>
+
+        {/* Create form */}
+        {showForm && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">Nova promoção</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-emerald-500" placeholder="Nome da promoção" value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-emerald-500" placeholder="Descrição (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">Data início</label>
+                <input type="date" className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-emerald-500" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">Data fim</label>
+                <input type="date" className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-emerald-500" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button onClick={create}>Criar promoção</Button>
+              <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+
+        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+
+        {/* Campaign list */}
+        {loading ? (
+          <div className="flex min-h-[200px] items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {items.length === 0 ? (
+              <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+                <p className="text-gray-500">Nenhuma promoção cadastrada. Crie a primeira!</p>
+              </div>
+            ) : (
+              items.map((campaign) => {
+                const impact = impacts.find((i) => i.campaignId === campaign.id);
+                const lift = Number(impact?.revenueLiftPercent || 0);
+                return (
+                  <article key={campaign.id} className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">{campaign.name}</h3>
+                        {campaign.description && <p className="mt-0.5 text-sm text-gray-500">{campaign.description}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="text-xs text-gray-500">{formatDate(campaign.startDate)} — {formatDate(campaign.endDate)}</span>
+                      </div>
+                    </div>
+                    {impact && (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                        <div className="rounded-lg bg-gray-50 p-3">
+                          <span className="text-xs text-gray-500">Antes</span>
+                          <p className="text-sm font-semibold text-gray-900">{formatMoney(impact.beforeRevenue)}</p>
+                        </div>
+                        <div className="rounded-lg bg-emerald-50 p-3">
+                          <span className="text-xs text-gray-500">Durante</span>
+                          <p className="text-sm font-semibold text-emerald-700">{formatMoney(impact.duringRevenue)}</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-3">
+                          <span className="text-xs text-gray-500">Depois</span>
+                          <p className="text-sm font-semibold text-gray-900">{formatMoney(impact.afterRevenue)}</p>
+                        </div>
+                        <div className={`rounded-lg p-3 ${lift > 0 ? 'bg-emerald-50' : lift < 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                          <span className="text-xs text-gray-500">Resultado</span>
+                          <div className="flex items-center gap-1">
+                            <TrendingUp className={`h-4 w-4 ${lift > 0 ? 'text-emerald-600' : 'text-red-500'}`} />
+                            <p className={`text-sm font-bold ${lift > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                              {lift > 0 ? '+' : ''}{lift.toFixed(1)}% vendas
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </article>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   );
