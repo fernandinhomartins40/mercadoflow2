@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Layers3, Palette, Plus, RefreshCw, Save, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers3, Palette, Plus, RefreshCw, Save, Sparkles } from 'lucide-react';
 import Button from '../components/common/Button';
 import Layout from '../components/layout/Layout';
 import OfferCanvasPreview from '../components/offers/OfferCanvasPreview';
@@ -88,6 +88,23 @@ const SelectInput: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { ch
 const TextareaInput: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { mono?: boolean }> = ({ mono, ...props }) => (
   <textarea className={`input otm-input ${mono ? 'otm-json' : ''}`} {...props} />
 );
+
+// ─── JSON colapsável (avançado) ──────────────────────────────────────────────
+const CollapsibleJson: React.FC<{ label: string; value: string; onChange: (value: string) => void; rows?: number }> = ({ label, value, onChange, rows = 12 }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="otm-field full">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm font-medium text-gray-600 transition hover:bg-gray-100">
+        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        {label}
+        {value && <span className="ml-auto text-xs text-emerald-600">Configurado</span>}
+      </button>
+      {open && (
+        <TextareaInput mono rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
+      )}
+    </div>
+  );
+};
 
 // ─── Navigation tab ──────────────────────────────────────────────────────────
 const NavTab: React.FC<{ id: TabId; active: boolean; icon: React.ReactNode; label: string; count: number; onClick: () => void }> = ({
@@ -343,7 +360,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createTemplate(marketId, payload);
       }
       await loadAll();
-      showNotice('Template salvo com sucesso.');
+      showNotice('Modelo salvo com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar o template.');
     } finally {
@@ -362,7 +379,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createTemplateVariant(marketId, selectedTemplateId, payload);
       }
       await loadTemplateMeta(selectedTemplateId);
-      showNotice('Variante salva com sucesso.');
+      showNotice('Formato salvo com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar a variante.');
     } finally {
@@ -381,7 +398,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createBrandKit(marketId, payload);
       }
       await loadAll();
-      showNotice('Brand kit salvo com sucesso.');
+      showNotice('Identidade visual salva com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar o brand kit.');
     } finally {
@@ -406,7 +423,7 @@ const OfferTemplates: React.FC = () => {
         await offersService.createCampaignKit(marketId, payload);
       }
       await loadAll();
-      showNotice('Campaign kit salvo com sucesso.');
+      showNotice('Tema sazonal salvo com sucesso.');
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar o campaign kit.');
     } finally {
@@ -421,9 +438,9 @@ const OfferTemplates: React.FC = () => {
         {/* ── Header da página ──────────────────────────────────────── */}
         <header className="otm-page-header reveal">
           <div>
-            <span className="section-kicker">Template engine</span>
-            <h1 className="otm-page-title">Biblioteca de ofertas</h1>
-            <p className="otm-page-desc">Configure templates, variantes, brand kits e campaign kits em um só lugar.</p>
+            <span className="section-kicker">Gerenciador de modelos</span>
+            <h1 className="otm-page-title">Modelos de encarte</h1>
+            <p className="otm-page-desc">Crie e gerencie modelos, formatos, estilos visuais e temas sazonais.</p>
           </div>
           <div className="otm-page-actions">
             <Button
@@ -432,7 +449,7 @@ const OfferTemplates: React.FC = () => {
               onClick={() => { setSelectedTemplateId(null); setTemplateForm(emptyTemplateForm); setActiveTab('templates'); }}
             >
               <Plus size={15} strokeWidth={2.2} />
-              Novo template
+              Novo modelo
             </Button>
             <Button type="button" variant="secondary" onClick={() => void loadAll()}>
               <RefreshCw size={15} strokeWidth={2.2} />
@@ -450,10 +467,10 @@ const OfferTemplates: React.FC = () => {
           <>
             {/* ── Navigation tabs ───────────────────────────────────── */}
             <nav className="otm-nav reveal">
-              <NavTab id="templates" active={activeTab === 'templates'} icon={<Layers3 size={15} />} label="Templates" count={templates.length} onClick={() => setActiveTab('templates')} />
-              <NavTab id="variants" active={activeTab === 'variants'} icon={<Layers3 size={15} />} label="Variantes" count={variants.length} onClick={() => setActiveTab('variants')} />
-              <NavTab id="brand" active={activeTab === 'brand'} icon={<Palette size={15} />} label="Brand kits" count={brandKits.length} onClick={() => setActiveTab('brand')} />
-              <NavTab id="campaign" active={activeTab === 'campaign'} icon={<Sparkles size={15} />} label="Campaign kits" count={campaignKits.length} onClick={() => setActiveTab('campaign')} />
+              <NavTab id="templates" active={activeTab === 'templates'} icon={<Layers3 size={15} />} label="Modelos" count={templates.length} onClick={() => setActiveTab('templates')} />
+              <NavTab id="variants" active={activeTab === 'variants'} icon={<Layers3 size={15} />} label="Formatos" count={variants.length} onClick={() => setActiveTab('variants')} />
+              <NavTab id="brand" active={activeTab === 'brand'} icon={<Palette size={15} />} label="Identidade visual" count={brandKits.length} onClick={() => setActiveTab('brand')} />
+              <NavTab id="campaign" active={activeTab === 'campaign'} icon={<Sparkles size={15} />} label="Temas sazonais" count={campaignKits.length} onClick={() => setActiveTab('campaign')} />
             </nav>
 
             {/* ══ Tab: Templates ════════════════════════════════════ */}
@@ -462,7 +479,7 @@ const OfferTemplates: React.FC = () => {
                 {/* Lista de templates */}
                 <aside className="otm-list-panel">
                   <div className="otm-list-panel-head">
-                    <h2 className="otm-list-panel-title">Templates</h2>
+                    <h2 className="otm-list-panel-title">Modelos</h2>
                     <span className="otm-list-panel-count">{templates.length}</span>
                   </div>
                   <div className="otm-template-list">
@@ -475,7 +492,7 @@ const OfferTemplates: React.FC = () => {
                       />
                     ))}
                     {templates.length === 0 && (
-                      <p className="otm-list-empty">Nenhum template cadastrado.</p>
+                      <p className="otm-list-empty">Nenhum modelo cadastrado.</p>
                     )}
                   </div>
                 </aside>
@@ -484,8 +501,8 @@ const OfferTemplates: React.FC = () => {
                 <div className="otm-editor-panel">
                   <div className="otm-editor-header">
                     <div>
-                      <span className="section-kicker">Template</span>
-                      <h2 className="otm-editor-title">{selectedTemplateId ? 'Editar template' : 'Criar novo template'}</h2>
+                      <span className="section-kicker">Modelo</span>
+                      <h2 className="otm-editor-title">{selectedTemplateId ? 'Editar modelo' : 'Criar novo modelo'}</h2>
                     </div>
                     <div className="otm-editor-header-aside">
                       <ValidationBadge validation={validation} />
@@ -498,11 +515,16 @@ const OfferTemplates: React.FC = () => {
                   </div>
 
                   <div className="otm-form-grid">
-                    <Field label="Nome">
-                      <TextInput value={templateForm.name} onChange={(e) => setTemplateForm((c) => ({ ...c, name: e.target.value }))} />
+                    <Field label="Nome do modelo">
+                      <TextInput value={templateForm.name} onChange={(e) => setTemplateForm((c) => ({ ...c, name: e.target.value }))} placeholder="Ex.: Encarte semanal A4" />
                     </Field>
-                    <Field label="Canal">
-                      <TextInput value={templateForm.channel} onChange={(e) => setTemplateForm((c) => ({ ...c, channel: e.target.value }))} />
+                    <Field label="Tipo de mídia">
+                      <SelectInput value={templateForm.channel} onChange={(e) => setTemplateForm((c) => ({ ...c, channel: e.target.value }))}>
+                        <option value="PRINT">Impresso (folheto, cartaz)</option>
+                        <option value="SOCIAL">Rede social (Instagram, WhatsApp)</option>
+                        <option value="PORTAL">Portal online</option>
+                        <option value="TV">TV / Display digital</option>
+                      </SelectInput>
                     </Field>
                     <Field label="Largura (px)">
                       <TextInput type="number" value={templateForm.canvasWidth} onChange={(e) => setTemplateForm((c) => ({ ...c, canvasWidth: Number(e.target.value || 1080) }))} />
@@ -510,45 +532,46 @@ const OfferTemplates: React.FC = () => {
                     <Field label="Altura (px)">
                       <TextInput type="number" value={templateForm.canvasHeight} onChange={(e) => setTemplateForm((c) => ({ ...c, canvasHeight: Number(e.target.value || 1350) }))} />
                     </Field>
-                    <Field label="Schema version">
-                      <TextInput type="number" value={templateForm.schemaVersion} onChange={(e) => setTemplateForm((c) => ({ ...c, schemaVersion: Number(e.target.value || 2) }))} />
-                    </Field>
-                    <Field label="Master key">
-                      <TextInput value={templateForm.masterTemplateKey} onChange={(e) => setTemplateForm((c) => ({ ...c, masterTemplateKey: e.target.value }))} />
-                    </Field>
-                    <Field label="Variante padrão">
+                    <Field label="Formato padrão">
                       <SelectInput value={templateForm.defaultVariantKey} onChange={(e) => setTemplateForm((c) => ({ ...c, defaultVariantKey: e.target.value }))}>
                         {variants.length
                           ? variants.map((v) => <option key={v.id} value={v.variantKey}>{v.name}</option>)
-                          : <option value="">Sem variante</option>}
+                          : <option value="">Sem formato</option>}
                       </SelectInput>
                     </Field>
-                    <Field label="Brand kit">
+                    <Field label="Identidade visual">
                       <SelectInput value={templateForm.brandKitId} onChange={(e) => setTemplateForm((c) => ({ ...c, brandKitId: e.target.value }))}>
-                        {brandKits.length
-                          ? brandKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)
-                          : <option value="">Sem brand kit</option>}
+                        <option value="">Padrão do sistema</option>
+                        {brandKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
                       </SelectInput>
                     </Field>
-                    <Field label="Campaign kit">
+                    <Field label="Tema sazonal">
                       <SelectInput value={templateForm.campaignKitId} onChange={(e) => setTemplateForm((c) => ({ ...c, campaignKitId: e.target.value }))}>
-                        {campaignKits.length
-                          ? campaignKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)
-                          : <option value="">Sem campaign kit</option>}
+                        <option value="">Sem tema</option>
+                        {campaignKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
                       </SelectInput>
                     </Field>
                     <Field label="Descrição" full>
                       <TextareaInput rows={3} value={templateForm.description} onChange={(e) => setTemplateForm((c) => ({ ...c, description: e.target.value }))} />
                     </Field>
-                    <Field label="Design JSON" full>
-                      <TextareaInput mono rows={18} value={templateForm.designJson} onChange={(e) => setTemplateForm((c) => ({ ...c, designJson: e.target.value }))} />
+                    <Field label="Chave do modelo">
+                      <TextInput value={templateForm.masterTemplateKey} onChange={(e) => setTemplateForm((c) => ({ ...c, masterTemplateKey: e.target.value }))} placeholder="Identificador único (opcional)" />
                     </Field>
+                    <Field label="Versão do formato">
+                      <TextInput type="number" value={templateForm.schemaVersion} onChange={(e) => setTemplateForm((c) => ({ ...c, schemaVersion: Number(e.target.value || 2) }))} />
+                    </Field>
+                    <CollapsibleJson
+                      label="JSON avançado — Estrutura do modelo"
+                      value={templateForm.designJson}
+                      onChange={(v) => setTemplateForm((c) => ({ ...c, designJson: v }))}
+                      rows={18}
+                    />
                   </div>
 
                   <div className="otm-form-actions">
                     <Button type="button" onClick={handleTemplateSave} disabled={saving}>
                       <Save size={15} strokeWidth={2.2} />
-                      {saving ? 'Salvando…' : 'Salvar template'}
+                      {saving ? 'Salvando…' : 'Salvar modelo'}
                     </Button>
                   </div>
                 </div>
@@ -560,11 +583,11 @@ const OfferTemplates: React.FC = () => {
               <div className="otm-layout reveal">
                 <aside className="otm-list-panel">
                   <div className="otm-list-panel-head">
-                    <h2 className="otm-list-panel-title">Variantes</h2>
+                    <h2 className="otm-list-panel-title">Formatos</h2>
                     <span className="otm-list-panel-count">{variants.length}</span>
                   </div>
                   {selectedTemplate && (
-                    <p className="otm-list-panel-context">Template: <strong>{selectedTemplate.name}</strong></p>
+                    <p className="otm-list-panel-context">Modelo: <strong>{selectedTemplate.name}</strong></p>
                   )}
                   <div className="otm-list">
                     {variants.map((variant) => (
@@ -578,7 +601,7 @@ const OfferTemplates: React.FC = () => {
                     ))}
                     {variants.length === 0 && (
                       <p className="otm-list-empty">
-                        {selectedTemplateId ? 'Nenhuma variante neste template.' : 'Selecione um template na aba Templates.'}
+                        {selectedTemplateId ? 'Nenhum formato neste modelo.' : 'Selecione um modelo na aba Modelos.'}
                       </p>
                     )}
                   </div>
@@ -587,8 +610,8 @@ const OfferTemplates: React.FC = () => {
                 <div className="otm-editor-panel">
                   <div className="otm-editor-header">
                     <div>
-                      <span className="section-kicker">Variante</span>
-                      <h2 className="otm-editor-title">{selectedVariantId ? 'Editar variante' : 'Nova variante'}</h2>
+                      <span className="section-kicker">Formato</span>
+                      <h2 className="otm-editor-title">{selectedVariantId ? 'Editar formato' : 'Novo formato'}</h2>
                     </div>
                   </div>
                   <div className="otm-form-grid">
@@ -607,17 +630,20 @@ const OfferTemplates: React.FC = () => {
                     <Field label="URL de preview" full>
                       <TextInput value={variantForm.previewImageUrl} onChange={(e) => setVariantForm((c) => ({ ...c, previewImageUrl: e.target.value }))} />
                     </Field>
-                    <Field label="Variant JSON" full>
-                      <TextareaInput mono rows={16} value={variantForm.variantJson} onChange={(e) => setVariantForm((c) => ({ ...c, variantJson: e.target.value }))} />
-                    </Field>
+                    <CollapsibleJson
+                      label="JSON avançado — Configuração do formato"
+                      value={variantForm.variantJson}
+                      onChange={(v) => setVariantForm((c) => ({ ...c, variantJson: v }))}
+                      rows={16}
+                    />
                   </div>
                   <div className="otm-form-actions">
                     <Button type="button" onClick={handleVariantSave} disabled={saving || !selectedTemplateId}>
                       <Layers3 size={15} strokeWidth={2.2} />
-                      {saving ? 'Salvando…' : 'Salvar variante'}
+                      {saving ? 'Salvando…' : 'Salvar formato'}
                     </Button>
                     {!selectedTemplateId && (
-                      <p className="otm-form-hint">Selecione um template na aba Templates antes de salvar.</p>
+                      <p className="otm-form-hint">Selecione um modelo na aba Modelos antes de salvar.</p>
                     )}
                   </div>
                 </div>
@@ -629,7 +655,7 @@ const OfferTemplates: React.FC = () => {
               <div className="otm-layout reveal">
                 <aside className="otm-list-panel">
                   <div className="otm-list-panel-head">
-                    <h2 className="otm-list-panel-title">Brand kits</h2>
+                    <h2 className="otm-list-panel-title">Identidade visual</h2>
                     <span className="otm-list-panel-count">{brandKits.length}</span>
                   </div>
                   <div className="otm-list">
@@ -642,15 +668,15 @@ const OfferTemplates: React.FC = () => {
                         onClick={() => selectBrandKit(kit)}
                       />
                     ))}
-                    {brandKits.length === 0 && <p className="otm-list-empty">Nenhum brand kit cadastrado.</p>}
+                    {brandKits.length === 0 && <p className="otm-list-empty">Nenhum estilo visual cadastrado.</p>}
                   </div>
                 </aside>
 
                 <div className="otm-editor-panel">
                   <div className="otm-editor-header">
                     <div>
-                      <span className="section-kicker">Brand kit</span>
-                      <h2 className="otm-editor-title">{selectedBrandKitId ? 'Editar brand kit' : 'Novo brand kit'}</h2>
+                      <span className="section-kicker">Identidade visual</span>
+                      <h2 className="otm-editor-title">{selectedBrandKitId ? 'Editar estilo' : 'Novo estilo visual'}</h2>
                     </div>
                   </div>
                   <div className="otm-form-grid">
@@ -663,17 +689,23 @@ const OfferTemplates: React.FC = () => {
                     <Field label="Descrição" full>
                       <TextareaInput rows={3} value={brandKitForm.description} onChange={(e) => setBrandKitForm((c) => ({ ...c, description: e.target.value }))} />
                     </Field>
-                    <Field label="Tokens JSON" full>
-                      <TextareaInput mono rows={12} value={brandKitForm.tokensJson} onChange={(e) => setBrandKitForm((c) => ({ ...c, tokensJson: e.target.value }))} />
-                    </Field>
-                    <Field label="Assets JSON" full>
-                      <TextareaInput mono rows={10} value={brandKitForm.assetsJson} onChange={(e) => setBrandKitForm((c) => ({ ...c, assetsJson: e.target.value }))} />
-                    </Field>
+                    <CollapsibleJson
+                      label="JSON avançado — Cores e tokens"
+                      value={brandKitForm.tokensJson}
+                      onChange={(v) => setBrandKitForm((c) => ({ ...c, tokensJson: v }))}
+                      rows={12}
+                    />
+                    <CollapsibleJson
+                      label="JSON avançado — Logos e assets"
+                      value={brandKitForm.assetsJson}
+                      onChange={(v) => setBrandKitForm((c) => ({ ...c, assetsJson: v }))}
+                      rows={10}
+                    />
                   </div>
                   <div className="otm-form-actions">
                     <Button type="button" onClick={handleBrandKitSave} disabled={saving}>
                       <Palette size={15} strokeWidth={2.2} />
-                      {saving ? 'Salvando…' : 'Salvar brand kit'}
+                      {saving ? 'Salvando…' : 'Salvar identidade visual'}
                     </Button>
                   </div>
                 </div>
@@ -685,7 +717,7 @@ const OfferTemplates: React.FC = () => {
               <div className="otm-layout reveal">
                 <aside className="otm-list-panel">
                   <div className="otm-list-panel-head">
-                    <h2 className="otm-list-panel-title">Campaign kits</h2>
+                    <h2 className="otm-list-panel-title">Temas sazonais</h2>
                     <span className="otm-list-panel-count">{campaignKits.length}</span>
                   </div>
                   <div className="otm-list">
@@ -698,15 +730,15 @@ const OfferTemplates: React.FC = () => {
                         onClick={() => selectCampaignKit(kit)}
                       />
                     ))}
-                    {campaignKits.length === 0 && <p className="otm-list-empty">Nenhum campaign kit cadastrado.</p>}
+                    {campaignKits.length === 0 && <p className="otm-list-empty">Nenhum tema sazonal cadastrado.</p>}
                   </div>
                 </aside>
 
                 <div className="otm-editor-panel">
                   <div className="otm-editor-header">
                     <div>
-                      <span className="section-kicker">Campaign kit</span>
-                      <h2 className="otm-editor-title">{selectedCampaignKitId ? 'Editar campaign kit' : 'Novo campaign kit'}</h2>
+                      <span className="section-kicker">Tema sazonal</span>
+                      <h2 className="otm-editor-title">{selectedCampaignKitId ? 'Editar tema' : 'Novo tema sazonal'}</h2>
                     </div>
                   </div>
                   <div className="otm-form-grid">
@@ -716,8 +748,8 @@ const OfferTemplates: React.FC = () => {
                     <Field label="Chave (key)">
                       <TextInput value={campaignKitForm.kitKey} onChange={(e) => setCampaignKitForm((c) => ({ ...c, kitKey: e.target.value }))} />
                     </Field>
-                    <Field label="Sazonalidade">
-                      <TextInput value={campaignKitForm.seasonKey} onChange={(e) => setCampaignKitForm((c) => ({ ...c, seasonKey: e.target.value }))} />
+                    <Field label="Tipo de temporada">
+                      <TextInput value={campaignKitForm.seasonKey} onChange={(e) => setCampaignKitForm((c) => ({ ...c, seasonKey: e.target.value }))} placeholder="Ex.: natal, pascoa, volta-aulas" />
                     </Field>
                     <Field label="Início">
                       <TextInput type="datetime-local" value={campaignKitForm.startsAt} onChange={(e) => setCampaignKitForm((c) => ({ ...c, startsAt: e.target.value }))} />
@@ -728,17 +760,23 @@ const OfferTemplates: React.FC = () => {
                     <Field label="Descrição" full>
                       <TextareaInput rows={3} value={campaignKitForm.description} onChange={(e) => setCampaignKitForm((c) => ({ ...c, description: e.target.value }))} />
                     </Field>
-                    <Field label="Tokens JSON" full>
-                      <TextareaInput mono rows={10} value={campaignKitForm.tokensJson} onChange={(e) => setCampaignKitForm((c) => ({ ...c, tokensJson: e.target.value }))} />
-                    </Field>
-                    <Field label="Assets JSON" full>
-                      <TextareaInput mono rows={10} value={campaignKitForm.assetsJson} onChange={(e) => setCampaignKitForm((c) => ({ ...c, assetsJson: e.target.value }))} />
-                    </Field>
+                    <CollapsibleJson
+                      label="JSON avançado — Cores e tokens do tema"
+                      value={campaignKitForm.tokensJson}
+                      onChange={(v) => setCampaignKitForm((c) => ({ ...c, tokensJson: v }))}
+                      rows={10}
+                    />
+                    <CollapsibleJson
+                      label="JSON avançado — Assets do tema"
+                      value={campaignKitForm.assetsJson}
+                      onChange={(v) => setCampaignKitForm((c) => ({ ...c, assetsJson: v }))}
+                      rows={10}
+                    />
                   </div>
                   <div className="otm-form-actions">
                     <Button type="button" onClick={handleCampaignKitSave} disabled={saving}>
                       <Sparkles size={15} strokeWidth={2.2} />
-                      {saving ? 'Salvando…' : 'Salvar campaign kit'}
+                      {saving ? 'Salvando…' : 'Salvar tema sazonal'}
                     </Button>
                   </div>
                 </div>

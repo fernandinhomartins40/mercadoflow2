@@ -78,12 +78,8 @@ export const layerTypeIcon = (type?: string): LucideIcon => {
 export const TOOL_OPTIONS = [
   { key: 'products', icon: PackageSearch, label: 'Produtos' },
   { key: 'themes', icon: LayoutTemplate, label: 'Modelo' },
-  { key: 'dates', icon: CalendarDays, label: 'Campanha' },
-  { key: 'brand', icon: Factory, label: 'Sua marca' },
-  { key: 'fonts', icon: Type, label: 'Textos' },
-  { key: 'publish', icon: SendHorizontal, label: 'Publicar' },
-  { key: 'leaflet', icon: FileText, label: 'Formato' },
-  { key: 'portal', icon: QrCode, label: 'QR Code' },
+  { key: 'customize', icon: Palette, label: 'Personalizar' },
+  { key: 'generate', icon: FileText, label: 'Gerar encarte' },
 ] as const;
 
 export type StudioTool = (typeof TOOL_OPTIONS)[number]['key'] | 'builder';

@@ -1943,8 +1943,8 @@ export const useOfferStudioController = () => {
     }
 
     if (!activeJobId) {
-      setActiveTool('leaflet');
-      setError('Salve a campanha antes de publicar nos canais.');
+      setActiveTool('generate');
+      setError('Salve o encarte antes de gerar.');
       return;
     }
 

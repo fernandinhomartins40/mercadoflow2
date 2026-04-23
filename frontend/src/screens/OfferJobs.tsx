@@ -113,7 +113,7 @@ const JobAccordion: React.FC<{
             </Button>
             <Button type="button" onClick={onPublish} disabled={publishing}>
               <SendHorizontal size={14} />
-              {publishing ? 'Publicando…' : readyOutputs ? 'Republicar' : 'Publicar / gerar'}
+              {publishing ? 'Gerando…' : readyOutputs ? 'Gerar novamente' : 'Gerar encarte'}
             </Button>
           </div>
 
@@ -146,7 +146,7 @@ const JobAccordion: React.FC<{
                 ))}
               </div>
             ) : (
-              <p className="jb-outputs-empty">Publique para gerar os arquivos.</p>
+              <p className="jb-outputs-empty">Clique em "Gerar encarte" para criar os arquivos.</p>
             )}
           </div>
         </div>
@@ -196,7 +196,7 @@ const OfferJobs: React.FC = () => {
       });
       await loadJobs();
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível publicar.');
+      setError(err?.message || 'Não foi possível gerar o encarte.');
     } finally {
       setPublishingId(null);
     }
@@ -211,9 +211,9 @@ const OfferJobs: React.FC = () => {
         {/* ── Cabeçalho ─────────────────────────────────────────────── */}
         <div className="dash-page-head">
           <div>
-            <h1 className="dash-page-title">Arquivos e publicações</h1>
+            <h1 className="dash-page-title">Arquivos gerados</h1>
             <p className="dash-page-sub">
-              {jobs.length} campanha{jobs.length !== 1 ? 's' : ''} · {readyCount} publicada{readyCount !== 1 ? 's' : ''}
+              {jobs.length} encarte{jobs.length !== 1 ? 's' : ''} · {readyCount} pronto{readyCount !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="cm-head-actions">
@@ -222,7 +222,7 @@ const OfferJobs: React.FC = () => {
               Atualizar
             </Button>
             <Button type="button" onClick={() => navigate(buildUrl('/ofertas/campanhas'))}>
-              Campanhas
+              Meus encartes
             </Button>
           </div>
         </div>
@@ -236,7 +236,7 @@ const OfferJobs: React.FC = () => {
           <section className="dash-section">
             {jobs.length === 0 ? (
               <div className="ofd-empty">
-                Nenhuma campanha publicada ainda. Publique uma campanha para ver os arquivos aqui.
+                Nenhum encarte gerado ainda. Crie e gere um encarte para ver os arquivos aqui.
               </div>
             ) : (
               <div className="jb-list">

@@ -190,8 +190,8 @@ const OffersDashboard: React.FC = () => {
         {/* ── Título da página ───────────────────────────────────────────── */}
         <div className="dash-page-head">
           <div>
-            <h1 className="dash-page-title">Designer de ofertas</h1>
-            <p className="dash-page-sub">Crie peças, gerencie campanhas e veja sugestões do catálogo.</p>
+            <h1 className="dash-page-title">Encartes de ofertas</h1>
+            <p className="dash-page-sub">Crie encartes, acompanhe seus pedidos e veja sugestões do catálogo.</p>
           </div>
         </div>
 
@@ -212,20 +212,20 @@ const OffersDashboard: React.FC = () => {
                   <QuickAction
                     primary
                     icon={<ImagePlus size={22} />}
-                    title="Criar nova arte"
-                    desc="Abrir o designer e montar uma peça do zero"
+                    title="Criar novo encarte"
+                    desc="Escolher um modelo e montar seu encarte de ofertas"
                     onClick={() => openDesigner(leadTemplate?.id)}
                   />
                   <QuickAction
                     icon={<Layers size={22} />}
-                    title="Gerenciar modelos"
-                    desc="Ver e editar os templates disponíveis"
+                    title="Ver modelos disponíveis"
+                    desc="Escolher entre os modelos de encarte prontos"
                     onClick={() => navigate(buildOffersUrl('/ofertas', 'admin'))}
                   />
                   <QuickAction
                     icon={<FileImage size={22} />}
                     title="Ver arquivos gerados"
-                    desc="Baixar e revisar as peças publicadas"
+                    desc="Baixar e revisar seus encartes prontos"
                     onClick={() => navigate(buildOffersUrl('/ofertas/jobs', 'admin'))}
                   />
                 </div>
@@ -250,7 +250,7 @@ const OffersDashboard: React.FC = () => {
               {overview && overview.recentJobs.length === 0 && (
                 <section className="dash-section">
                   <div className="ofd-empty">
-                    Nenhuma campanha ainda. Clique em "Criar nova arte" para começar.
+                    Nenhum encarte ainda. Clique em "Criar novo encarte" para começar.
                   </div>
                 </section>
               )}

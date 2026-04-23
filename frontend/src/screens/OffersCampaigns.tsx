@@ -44,10 +44,10 @@ const getCampaignState = (job: OfferGenerationJob): { key: CampaignStateKey; lab
     return { key: 'failed', label: 'Falhou', pillClass: 'negative' };
   }
   if (normalized === 'READY' || normalized === 'PARTIAL' || readyOutputs > 0) {
-    return { key: 'published', label: normalized === 'PARTIAL' ? 'Publicado c/ alerta' : 'Publicado', pillClass: 'positive' };
+    return { key: 'published', label: normalized === 'PARTIAL' ? 'Pronto c/ alerta' : 'Pronto', pillClass: 'positive' };
   }
   if (normalized === 'PROCESSING' || normalized === 'QUEUED') {
-    return { key: 'processing', label: 'Publicando…', pillClass: 'soft' };
+    return { key: 'processing', label: 'Gerando…', pillClass: 'soft' };
   }
   return { key: 'draft', label: 'Rascunho', pillClass: 'soft' };
 };
@@ -124,7 +124,7 @@ const CampaignRow: React.FC<{
         <button
           type="button"
           className="cm-icon-btn"
-          title="Clonar"
+          title="Duplicar"
           onClick={onClone}
           disabled={busyAction === `clone:${job.id}`}
         >
@@ -133,7 +133,7 @@ const CampaignRow: React.FC<{
         <button
           type="button"
           className="cm-icon-btn cm-icon-btn-primary"
-          title={readyOutputs ? 'Republicar' : 'Publicar'}
+          title={readyOutputs ? 'Gerar novamente' : 'Gerar'}
           onClick={onPublish}
           disabled={busyAction === `publish:${job.id}`}
         >
@@ -183,7 +183,7 @@ const OffersCampaigns: React.FC = () => {
       setJobs(jobsData);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível carregar as campanhas.');
+      setError(err?.message || 'Não foi possível carregar os encartes.');
     } finally {
       setLoading(false);
     }
@@ -232,10 +232,10 @@ const OffersCampaigns: React.FC = () => {
         publishTargets: parseJsonList(job.publishTargetsJson, ['DOWNLOAD']),
         renderOptionsJson: job.renderOptionsJson || undefined,
       });
-      setNotice('Campanha publicada.');
+      setNotice('Encarte gerado.');
       await loadData();
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível publicar.');
+      setError(err?.message || 'Não foi possível gerar o encarte.');
     } finally {
       setBusyAction(null);
     }
@@ -246,11 +246,11 @@ const OffersCampaigns: React.FC = () => {
     setBusyAction(`clone:${job.id}`);
     try {
       const cloned = await offersService.cloneJob(marketId, job.id);
-      setNotice('Campanha clonada.');
+      setNotice('Encarte duplicado.');
       await loadData();
       openDesigner({ jobId: cloned.id });
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível clonar.');
+      setError(err?.message || 'Não foi possível duplicar o encarte.');
     } finally {
       setBusyAction(null);
     }
@@ -258,11 +258,11 @@ const OffersCampaigns: React.FC = () => {
 
   const handleDelete = async (job: OfferGenerationJob) => {
     if (!marketId) return;
-    if (!window.confirm(`Excluir "${job.name}"?`)) return;
+    if (!window.confirm(`Excluir o encarte "${job.name}"?`)) return;
     setBusyAction(`delete:${job.id}`);
     try {
       await offersService.deleteJob(marketId, job.id);
-      setNotice('Campanha removida.');
+      setNotice('Encarte removido.');
       await loadData();
     } catch (err: any) {
       setError(err?.message || 'Não foi possível excluir.');
@@ -282,8 +282,8 @@ const OffersCampaigns: React.FC = () => {
         {/* ── Cabeçalho da página ────────────────────────────────────── */}
         <div className="dash-page-head">
           <div>
-            <h1 className="dash-page-title">Campanhas</h1>
-            <p className="dash-page-sub">Crie, edite e publique suas campanhas de oferta.</p>
+            <h1 className="dash-page-title">Meus encartes</h1>
+            <p className="dash-page-sub">Crie, edite e gere seus encartes de ofertas.</p>
           </div>
           <div className="cm-head-actions">
             <Button type="button" variant="secondary" onClick={() => void loadData()}>
@@ -292,12 +292,12 @@ const OffersCampaigns: React.FC = () => {
             </Button>
             <Button type="button" onClick={() => openDesigner({ templateId: leadTemplate?.id })}>
               <Plus size={15} />
-              Nova campanha
+              Novo encarte
             </Button>
           </div>
         </div>
 
-        {loading && <div className="ofd-feedback">Carregando campanhas…</div>}
+        {loading && <div className="ofd-feedback">Carregando encartes…</div>}
 
         {!loading && overview && (
           <>
@@ -328,15 +328,15 @@ const OffersCampaigns: React.FC = () => {
                       className="cm-search-input"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Buscar campanha…"
+                      placeholder="Buscar encarte…"
                     />
                   </div>
                   <div className="cm-filters">
                     {([
-                      { key: 'all', label: 'Todas', count: jobs.length },
-                      { key: 'published', label: 'Publicadas', count: counts.published },
+                      { key: 'all', label: 'Todos', count: jobs.length },
+                      { key: 'published', label: 'Gerados', count: counts.published },
                       { key: 'draft', label: 'Rascunho', count: counts.draft },
-                      ...(counts.failed > 0 ? [{ key: 'failed', label: 'Falhas', count: counts.failed }] : []),
+                      ...(counts.failed > 0 ? [{ key: 'failed', label: 'Com falha', count: counts.failed }] : []),
                     ] as const).map((f) => (
                       <button
                         key={f.key}
@@ -354,7 +354,7 @@ const OffersCampaigns: React.FC = () => {
                 {/* Lista */}
                 <div className="cm-list">
                   {filteredJobs.length === 0 ? (
-                    <div className="ofd-empty">Nenhuma campanha encontrada.</div>
+                    <div className="ofd-empty">Nenhum encarte encontrado.</div>
                   ) : (
                     filteredJobs.map((job) => (
                       <CampaignRow

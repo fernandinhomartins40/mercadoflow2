@@ -591,7 +591,7 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
               </div>
             ) : null}
 
-            {activeTool === 'brand' || activeTool === 'dates' || activeTool === 'fonts' ? (
+            {activeTool === 'customize' ? (
               <OfferStudioMarketingPanels
                 activeTool={activeTool}
                 collapsedConfigSections={collapsedConfigSections}
@@ -635,7 +635,7 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
               />
             ) : null}
 
-            {activeTool === 'leaflet' || activeTool === 'portal' || activeTool === 'publish' ? (
+            {activeTool === 'generate' ? (
               <OfferStudioDistributionPanels
                 activeTool={activeTool}
                 collapsedConfigSections={collapsedConfigSections}
@@ -806,9 +806,9 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
                         <WandSparkles size={16} strokeWidth={2.1} />
                         Preencher automático
                       </Button>
-                      <Button type="button" variant="secondary" onClick={() => setActiveTool('leaflet')}>
+                      <Button type="button" variant="secondary" onClick={() => setActiveTool('generate')}>
                         <FileText size={16} strokeWidth={2.1} />
-                        Configurar formato
+                        Gerar encarte
                       </Button>
                       <Button type="button" variant="secondary" onClick={() => openStudioSheet('campaigns')}>
                         <Boxes size={16} strokeWidth={2.1} />
