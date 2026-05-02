@@ -58,6 +58,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: "${VITE_API_URL}"
+        VITE_SHOW_TEST_LOGINS: "${VITE_SHOW_TEST_LOGINS:-false}"
     depends_on:
       mercadoflow-backend:
         condition: service_healthy
