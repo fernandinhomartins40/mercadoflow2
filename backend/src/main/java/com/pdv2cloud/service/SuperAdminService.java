@@ -502,6 +502,7 @@ public class SuperAdminService {
         long totalMarkets = marketRepository.count();
         long activeMarkets = marketRepository.countByIsActive(true);
         List<Market> markets = marketRepository.findAll();
+        long pendingMarkets = markets.stream().filter(market -> market.getBillingStatus() == MarketBillingStatus.PENDING).count();
         long trialMarkets = markets.stream().filter(market -> market.getBillingStatus() == MarketBillingStatus.TRIAL).count();
         long pastDueMarkets = markets.stream().filter(market -> market.getBillingStatus() == MarketBillingStatus.PAST_DUE).count();
         long suspendedMarkets = markets.stream().filter(this::isMarketAccessBlocked).count();
@@ -523,6 +524,7 @@ public class SuperAdminService {
             orphanUsers,
             totalMarkets,
             activeMarkets,
+            pendingMarkets,
             trialMarkets,
             pastDueMarkets,
             suspendedMarkets,
@@ -1183,7 +1185,13 @@ public class SuperAdminService {
 
     private AccessDescriptor describeMarketAccess(Market market) {
         if (!Boolean.TRUE.equals(market.getIsActive())) {
+            if (market.getBillingStatus() == MarketBillingStatus.PENDING) {
+                return new AccessDescriptor("PENDING", "Cadastro aguardando aprovacao da assinatura", true);
+            }
             return new AccessDescriptor("BLOCKED", "Conta bloqueada manualmente", true);
+        }
+        if (market.getBillingStatus() == MarketBillingStatus.PENDING) {
+            return new AccessDescriptor("PENDING", "Cadastro aguardando aprovacao da assinatura", true);
         }
         if (market.getBillingStatus() == MarketBillingStatus.SUSPENDED) {
             return new AccessDescriptor("SUSPENDED", "Conta suspensa manualmente", true);

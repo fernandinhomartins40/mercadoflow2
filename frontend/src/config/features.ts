@@ -1,0 +1,2 @@
+export const FEATURE_STATE_PRICES_ENABLED = false;
+export const FEATURE_OFFER_TEMPLATES_ENABLED = false;

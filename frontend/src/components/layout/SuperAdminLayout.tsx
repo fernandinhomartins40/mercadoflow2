@@ -6,6 +6,7 @@ import WorkspaceTopbar from './WorkspaceTopbar';
 import { useLocation } from 'react-router-dom';
 import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
 import { useDesktopSidebarMode } from '../../hooks/useDesktopSidebarMode';
+import { FEATURE_OFFER_TEMPLATES_ENABLED, FEATURE_STATE_PRICES_ENABLED } from '../../config/features';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
   '/super-admin': { title: 'Visão geral', subtitle: 'Resumo da plataforma, das contas e da base de dados', section: 'Controle' },
@@ -39,7 +40,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       title: 'Controle',
       items: [
         { to: '/super-admin', label: 'Visão geral', hint: 'Saúde da plataforma', icon: Home, exact: true },
-        { to: '/super-admin/saas', label: 'Contas e acesso', hint: 'Contas, usuários e vencimentos', icon: Users },
+        { to: '/super-admin/saas', label: 'Assinaturas', hint: 'Planos, liberacoes e usuarios', icon: Users },
       ],
     },
     {
@@ -51,7 +52,18 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
       ],
     },
-  ];
+  ].map((section) => ({
+    ...section,
+    items: section.items.filter((item) => {
+      if (item.to === '/super-admin/precos-estaduais') {
+        return FEATURE_STATE_PRICES_ENABLED;
+      }
+      if (item.to === '/ofertas?workspace=super-admin') {
+        return FEATURE_OFFER_TEMPLATES_ENABLED;
+      }
+      return true;
+    }),
+  }));
 
   return (
     <div

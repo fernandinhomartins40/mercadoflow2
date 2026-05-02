@@ -12,6 +12,7 @@ public class SuperAdminOverviewDTO {
     private long orphanUsers;
     private long totalMarkets;
     private long activeMarkets;
+    private long pendingMarkets;
     private long trialMarkets;
     private long pastDueMarkets;
     private long suspendedMarkets;

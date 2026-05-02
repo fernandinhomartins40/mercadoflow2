@@ -3,6 +3,7 @@ package com.pdv2cloud.controller;
 import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.RegisterRequest;
+import com.pdv2cloud.model.dto.RegisterResponse;
 import com.pdv2cloud.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -35,11 +36,9 @@ public class AuthController {
     private String sameSite;
 
     @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
-        LoginResponse response = authService.register(request);
-        // Register uses the default session duration.
-        ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), false);
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        RegisterResponse response = authService.register(request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @PostMapping("/login")

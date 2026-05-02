@@ -49,7 +49,7 @@ api.interceptors.response.use(
       if (requestUrl.includes('/v1/auth/me') || requestUrl.includes('/v1/super-admin/auth/me')) {
         return Promise.reject(error);
       }
-      const publicPaths = ['/', '/login', '/download-agente', '/super-admin/login'];
+      const publicPaths = ['/', '/login', '/register', '/download-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
         if (isOffersAppPath(window.location.pathname)) {

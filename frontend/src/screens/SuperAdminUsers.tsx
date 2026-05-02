@@ -14,6 +14,7 @@ interface SuperAdminOverview {
   orphanUsers: number;
   totalMarkets: number;
   activeMarkets: number;
+  pendingMarkets: number;
   trialMarkets: number;
   pastDueMarkets: number;
   suspendedMarkets: number;
@@ -79,7 +80,7 @@ const USER_ROLE_OPTIONS = [
 ] as const;
 
 const PLAN_OPTIONS = ['BASIC', 'INTERMEDIATE', 'ADVANCED'] as const;
-const BILLING_STATUS_OPTIONS = ['ACTIVE', 'TRIAL', 'PAST_DUE', 'SUSPENDED', 'CANCELLED'] as const;
+const BILLING_STATUS_OPTIONS = ['PENDING', 'ACTIVE', 'TRIAL', 'PAST_DUE', 'SUSPENDED', 'CANCELLED'] as const;
 
 const ROLE_LABELS: Record<string, string> = {
   MARKET_OWNER: 'Responsável da conta',
@@ -96,6 +97,7 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const BILLING_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pendente',
   ACTIVE: 'Ativa',
   TRIAL: 'Em teste',
   PAST_DUE: 'Em atraso',
@@ -104,6 +106,7 @@ const BILLING_STATUS_LABELS: Record<string, string> = {
 };
 
 const ACCESS_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pendente',
   ACTIVE: 'Ativa',
   TRIAL: 'Em teste',
   EXPIRING_SOON: 'Vence em breve',
@@ -175,6 +178,7 @@ const statusTone = (status?: string | null) => {
   switch ((status || '').toUpperCase()) {
     case 'ACTIVE':
       return 'success';
+    case 'PENDING':
     case 'TRIAL':
     case 'EXPIRING_SOON':
       return 'warning';
@@ -484,23 +488,60 @@ const SuperAdminUsers: React.FC = () => {
     }
   };
 
+  const buildMarketUpdatePayload = (market: SuperAdminMarket, overrides: Partial<{
+    billingStatus: string;
+    active: boolean;
+    accessExpiresAt: string | null;
+    trialEndsAt: string | null;
+  }> = {}) => ({
+    name: market.name,
+    cnpj: market.cnpj || null,
+    planType: market.planType,
+    billingStatus: overrides.billingStatus ?? market.billingStatus,
+    active: overrides.active ?? market.isActive,
+    userSeatLimit: market.userSeatLimit,
+    accessExpiresAt: overrides.accessExpiresAt !== undefined ? overrides.accessExpiresAt : market.accessExpiresAt || null,
+    trialEndsAt: overrides.trialEndsAt !== undefined ? overrides.trialEndsAt : market.trialEndsAt || null,
+    contactName: market.contactName || null,
+    contactEmail: market.contactEmail || null,
+    contactPhone: market.contactPhone || null,
+    notes: market.notes || null,
+  });
+
+  const activateTrial = async (market: SuperAdminMarket) => {
+    resetFeedback();
+    try {
+      await api.patch(`/v1/super-admin/markets/${market.id}`, buildMarketUpdatePayload(market, {
+        billingStatus: 'TRIAL',
+        active: true,
+        accessExpiresAt: null,
+        trialEndsAt: null,
+      }));
+      setSuccess('Teste liberado para a conta.');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao liberar teste');
+    }
+  };
+
+  const activateSubscription = async (market: SuperAdminMarket) => {
+    resetFeedback();
+    try {
+      await api.patch(`/v1/super-admin/markets/${market.id}`, buildMarketUpdatePayload(market, {
+        billingStatus: 'ACTIVE',
+        active: true,
+      }));
+      setSuccess('Assinatura ativada para a conta.');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao ativar assinatura');
+    }
+  };
+
   const toggleMarketStatus = async (market: SuperAdminMarket) => {
     resetFeedback();
     try {
-      await api.patch(`/v1/super-admin/markets/${market.id}`, {
-        name: market.name,
-        cnpj: market.cnpj || null,
-        planType: market.planType,
-        billingStatus: market.billingStatus,
-        active: !market.isActive,
-        userSeatLimit: market.userSeatLimit,
-        accessExpiresAt: market.accessExpiresAt || null,
-        trialEndsAt: market.trialEndsAt || null,
-        contactName: market.contactName || null,
-        contactEmail: market.contactEmail || null,
-        contactPhone: market.contactPhone || null,
-        notes: market.notes || null,
-      });
+      await api.patch(`/v1/super-admin/markets/${market.id}`, buildMarketUpdatePayload(market, { active: !market.isActive }));
       setSuccess(market.isActive ?'Conta bloqueada.' : 'Conta liberada.');
       await load();
     } catch (err: any) {
@@ -512,7 +553,7 @@ const SuperAdminUsers: React.FC = () => {
     <SuperAdminLayout>
       <div className="page super-admin-page">
         <PageHeader
-          title="Contas e acesso"
+          title="Assinaturas e acesso"
           subtitle="Gerencie contas, usuários e permissões."
           actions={
             <>
@@ -528,12 +569,13 @@ const SuperAdminUsers: React.FC = () => {
 
         <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
           <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" caption={`${overview?.activeMarkets ?? 0} ativas`} />
+          <MetricsCard title="Pendentes" value={overview?.pendingMarkets ?? 0} icon="PN" variant="warning" />
           <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" variant="danger" />
           <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" caption={`${overview?.blockedUsers ?? 0} bloqueados`} />
           <MetricsCard title="Vencendo" value={overview?.expiringMarkets ?? 0} icon="VX" variant="warning" />
         </div>
 
-        <PanelSection kicker="Contas" title="Plano, acesso e contato">
+        <PanelSection kicker="Assinaturas" title="Plano, acesso e contato">
           <div className="filter-bar-controls page-data-grid super-admin-filters-grid">
             <input className="input" placeholder="Buscar por nome ou CNPJ" value={marketDraftFilters.search} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, search: e.target.value })} />
             <select className="input" value={marketDraftFilters.planType} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, planType: e.target.value })}>
@@ -600,6 +642,12 @@ const SuperAdminUsers: React.FC = () => {
                       <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
                           <Button variant="secondary" onClick={() => startEditMarket(market)}>Editar</Button>
+                          {market.billingStatus === 'PENDING' ? (
+                            <Button variant="secondary" onClick={() => activateTrial(market)}>Liberar teste</Button>
+                          ) : null}
+                          {market.billingStatus !== 'ACTIVE' ? (
+                            <Button variant="secondary" onClick={() => activateSubscription(market)}>Ativar assinatura</Button>
+                          ) : null}
                           <Button variant="secondary" onClick={() => toggleMarketStatus(market)}>
                             {market.isActive ? 'Bloquear' : 'Liberar'}
                           </Button>

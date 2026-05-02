@@ -135,6 +135,8 @@ services:
         condition: service_healthy
 
   mercadoflow-state-price-sync:
+    profiles:
+      - state-price-sync
     container_name: mercadoflow-state-price-sync
     image: python:3.11-slim
     restart: unless-stopped

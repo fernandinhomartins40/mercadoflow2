@@ -3,8 +3,10 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useSuperAdminAuth } from './context/SuperAdminAuthContext';
 import { buildOffersUrl, resolveOffersWorkspace } from './lib/offersApp';
+import { FEATURE_OFFER_TEMPLATES_ENABLED, FEATURE_STATE_PRICES_ENABLED } from './config/features';
 
 const Login = lazy(() => import('./screens/Login'));
+const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
 const Products = lazy(() => import('./screens/Products'));
 const ProductDetail = lazy(() => import('./screens/ProductDetail'));
@@ -86,6 +88,9 @@ const OffersAppProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ chil
 
 const secureOffers = (element: React.ReactNode) => <OffersAppProtectedRoute>{element}</OffersAppProtectedRoute>;
 
+const disabledModuleRedirect = <Navigate to="/app" replace />;
+const disabledSuperAdminModuleRedirect = <Navigate to="/super-admin" replace />;
+
 const OffersWorkspaceRedirect: React.FC<{ targetPath: string; workspace: 'admin' | 'super-admin' }> = ({ targetPath, workspace }) => {
   const location = useLocation();
   return <Navigate to={buildOffersUrl(targetPath, workspace, location.search)} replace />;
@@ -104,6 +109,7 @@ const App: React.FC = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />
         <Route path="/" element={<Landing />} />
         <Route path="/download-agente" element={<PublicAgentDownload />} />
@@ -116,33 +122,34 @@ const App: React.FC = () => {
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
         <Route path="/app/mapa-loja" element={secure(<StoreMap />)} />
-        <Route path="/app/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
-        <Route path="/app/ofertas/campanhas" element={<OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" />} />
-        <Route path="/app/ofertas/inicio" element={<OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" />} />
-        <Route path="/app/ofertas/modelos" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
-        <Route path="/app/ofertas/designer" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" />} />
-        <Route path="/app/ofertas/jobs" element={<OffersSheetRedirect sheet="media" defaultWorkspace="admin" />} />
+        <Route path="/app/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" /> : disabledModuleRedirect} />
+        <Route path="/app/ofertas/campanhas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" /> : disabledModuleRedirect} />
+        <Route path="/app/ofertas/inicio" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" /> : disabledModuleRedirect} />
+        <Route path="/app/ofertas/modelos" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" /> : disabledModuleRedirect} />
+        <Route path="/app/ofertas/designer" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" /> : disabledModuleRedirect} />
+        <Route path="/app/ofertas/jobs" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="media" defaultWorkspace="admin" /> : disabledModuleRedirect} />
         <Route path="/app/pdvs" element={secure(<PDVs />)} />
         <Route path="/app/campanhas" element={secure(<Campaigns />)} />
         <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
-        <Route path="/app/precos-estaduais" element={<Navigate to="/app/admin/precos-estaduais" replace />} />
-        <Route path="/app/admin/precos-estaduais" element={secure(<StatePriceComparison />)} />
+        <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />
+        <Route path="/app/admin/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? secure(<StatePriceComparison />) : disabledModuleRedirect} />
 
         <Route path="/super-admin" element={secureSuperAdmin(<SuperAdminDashboard />)} />
         <Route path="/super-admin/saas" element={secureSuperAdmin(<SuperAdminUsers />)} />
+        <Route path="/super-admin/assinaturas" element={<Navigate to="/super-admin/saas" replace />} />
         <Route path="/super-admin/usuarios" element={<Navigate to="/super-admin/saas" replace />} />
         <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
-        <Route path="/super-admin/precos-estaduais" element={secureSuperAdmin(<StatePriceComparison />)} />
-        <Route path="/super-admin/ofertas" element={<OffersWorkspaceRedirect targetPath="/ofertas" workspace="super-admin" />} />
+        <Route path="/super-admin/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? secureSuperAdmin(<StatePriceComparison />) : disabledSuperAdminModuleRedirect} />
+        <Route path="/super-admin/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="super-admin" /> : disabledSuperAdminModuleRedirect} />
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
 
-        <Route path="/ofertas" element={secureOffers(<OfferDesigner />)} />
-        <Route path="/ofertas/campanhas" element={secureOffers(<OffersSheetRedirect sheet="campaigns" />)} />
-        <Route path="/ofertas/jobs" element={secureOffers(<OffersSheetRedirect sheet="media" />)} />
+        <Route path="/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? secureOffers(<OfferDesigner />) : disabledModuleRedirect} />
+        <Route path="/ofertas/campanhas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? secureOffers(<OffersSheetRedirect sheet="campaigns" />) : disabledModuleRedirect} />
+        <Route path="/ofertas/jobs" element={FEATURE_OFFER_TEMPLATES_ENABLED ? secureOffers(<OffersSheetRedirect sheet="media" />) : disabledModuleRedirect} />
 
         <Route path="/produtos" element={<Navigate to="/app/produtos" replace />} />
         <Route path="/cesta" element={<Navigate to="/app/cesta" replace />} />

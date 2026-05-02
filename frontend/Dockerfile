@@ -4,7 +4,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 ARG VITE_API_URL=/api
+ARG VITE_SHOW_TEST_LOGINS=false
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SHOW_TEST_LOGINS=$VITE_SHOW_TEST_LOGINS
 RUN npm run build
 
 FROM nginx:alpine AS runner

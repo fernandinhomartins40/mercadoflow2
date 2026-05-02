@@ -52,7 +52,11 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (!Boolean.TRUE.equals(market.getIsActive())) {
             return false;
         }
-        if (market.getBillingStatus() == MarketBillingStatus.SUSPENDED || market.getBillingStatus() == MarketBillingStatus.CANCELLED) {
+        if (
+            market.getBillingStatus() == MarketBillingStatus.PENDING
+            || market.getBillingStatus() == MarketBillingStatus.SUSPENDED
+            || market.getBillingStatus() == MarketBillingStatus.CANCELLED
+        ) {
             return false;
         }
         return market.getAccessExpiresAt() == null || market.getAccessExpiresAt().isAfter(LocalDateTime.now());

@@ -6988,6 +6988,52 @@
   gap: 14px;
 }
 
+.test-login-shortcuts {
+  display: grid;
+  gap: 10px;
+  border-radius: 14px;
+  border: 1px dashed rgba(5, 150, 105, 0.35);
+  background: rgba(5, 150, 105, 0.06);
+  padding: 12px;
+}
+
+.test-login-shortcuts > span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.test-login-shortcuts > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.test-login-button {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  border-radius: 10px;
+  padding-inline: 14px;
+}
+
+.login-switch {
+  margin: 16px 0 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.login-switch a {
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.login-switch a:hover {
+  text-decoration: underline;
+}
+
 .form-group {
   display: grid;
   gap: 8px;
@@ -8816,4 +8862,3 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    END OFFER PANELS v2
    ═══════════════════════════════════════════════════════════════════════════ */
-

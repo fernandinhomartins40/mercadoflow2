@@ -13,3 +13,5 @@
 ## Observacao
 - Essas credenciais sao de seed inicial para testes.
 - Em producao, troque a senha apos o primeiro acesso.
+- O frontend mostra botoes de autofill locais em `npm run dev`.
+- Para expor tambem os botoes de seed da VPS em um build especifico, compile com `VITE_SHOW_TEST_LOGINS=true`.

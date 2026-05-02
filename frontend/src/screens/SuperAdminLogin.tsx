@@ -7,6 +7,7 @@ import {
   loadRememberedLogin,
   persistRememberedLogin,
 } from '../utils/rememberedLogin';
+import { SUPER_ADMIN_TEST_LOGINS, type TestLoginCredentials } from '../config/testLogins';
 
 const SUPER_ADMIN_LOGIN_STORAGE_KEY = 'mf_super_admin_login';
 
@@ -39,6 +40,12 @@ const SuperAdminLogin: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
   const [keepConnected, setKeepConnected] = useState(rememberedLogin.keepConnected);
   const [error, setError] = useState<string | null>(null);
+
+  const fillTestLogin = (credentials: TestLoginCredentials) => {
+    setEmail(credentials.email);
+    setPassword(credentials.password);
+    setError(null);
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -101,6 +108,24 @@ const SuperAdminLogin: React.FC = () => {
               </button>
             </div>
           </div>
+          {SUPER_ADMIN_TEST_LOGINS.length > 0 ? (
+            <div className="test-login-shortcuts" aria-label="Credenciais de teste">
+              <span>Acesso rápido para teste</span>
+              <div>
+                {SUPER_ADMIN_TEST_LOGINS.map((credentials) => (
+                  <Button
+                    key={credentials.email}
+                    type="button"
+                    variant="secondary"
+                    className="test-login-button"
+                    onClick={() => fillTestLogin(credentials)}
+                  >
+                    {credentials.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="login-options">
             <label className="checkbox">
               <input

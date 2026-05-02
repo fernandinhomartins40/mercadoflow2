@@ -3,6 +3,7 @@ package com.pdv2cloud.service;
 import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.RegisterRequest;
+import com.pdv2cloud.model.dto.RegisterResponse;
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.model.entity.MarketBillingStatus;
 import com.pdv2cloud.model.entity.PlanType;
@@ -41,36 +42,40 @@ public class AuthService {
     private JwtTokenProvider tokenProvider;
 
     @Transactional
-    public LoginResponse register(RegisterRequest request) {
-        if (userRepository.findForAuthenticationByEmail(request.getEmail()).isPresent()) {
+    public RegisterResponse register(RegisterRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (userRepository.findForAuthenticationByEmail(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email ja cadastrado");
         }
-        Market market = null;
-        if (request.getMarketName() != null && !request.getMarketName().isBlank()) {
-            market = new Market();
-            market.setName(request.getMarketName());
-            market.setCnpj(request.getMarketCnpj());
-            market.setPlanType(PlanType.BASIC);
-            market.setBillingStatus(MarketBillingStatus.ACTIVE);
-            market.setUserSeatLimit(3);
-            market = marketRepository.save(market);
-        }
+        Market market = new Market();
+        market.setName(request.getMarketName() != null && !request.getMarketName().isBlank() ? request.getMarketName().trim() : request.getName().trim());
+        market.setCnpj(request.getMarketCnpj() == null || request.getMarketCnpj().isBlank() ? null : request.getMarketCnpj().trim());
+        market.setPlanType(PlanType.BASIC);
+        market.setBillingStatus(MarketBillingStatus.PENDING);
+        market.setIsActive(false);
+        market.setUserSeatLimit(3);
+        market.setContactName(request.getName().trim());
+        market.setContactEmail(normalizedEmail);
+        market.setNotes("Cadastro publico aguardando liberacao no painel Super Admin.");
+        market = marketRepository.save(market);
 
         User user = new User();
-        user.setEmail(request.getEmail());
-        user.setName(request.getName());
+        user.setEmail(normalizedEmail);
+        user.setName(request.getName().trim());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.MARKET_OWNER);
         user.setMarket(market);
-        user.setLastLoginAt(LocalDateTime.now());
-        userRepository.save(user);
+        user.setIsActive(true);
+        user = userRepository.save(user);
+        market.setOwner(user);
+        marketRepository.save(market);
 
-        Authentication auth = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-        String token = tokenProvider.generateToken(auth);
-
-        return new LoginResponse(token, user.getId(), user.getRole().name(),
-            market != null ? market.getId() : null);
+        return new RegisterResponse(
+            user.getId(),
+            market.getId(),
+            MarketBillingStatus.PENDING.name(),
+            "Cadastro recebido. O acesso sera liberado apos aprovacao da assinatura."
+        );
     }
 
     public LoginResponse login(LoginRequest request) {

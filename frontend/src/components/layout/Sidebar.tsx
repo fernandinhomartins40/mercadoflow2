@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
+import { FEATURE_STATE_PRICES_ENABLED } from '../../config/features';
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -69,7 +70,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         { to: '/app/configuracoes', label: 'Conta', hint: 'Acessos e integrações', icon: Settings },
       ],
     },
-  ];
+  ].map((section) => ({
+    ...section,
+    items: section.items.filter((item) => FEATURE_STATE_PRICES_ENABLED || item.to !== '/app/admin/precos-estaduais'),
+  }));
 
   return (
     <WorkspaceSidebar

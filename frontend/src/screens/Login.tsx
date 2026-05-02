@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/common/Button';
 import {
@@ -7,6 +7,7 @@ import {
   loadRememberedLogin,
   persistRememberedLogin,
 } from '../utils/rememberedLogin';
+import { ADMIN_TEST_LOGINS, type TestLoginCredentials } from '../config/testLogins';
 
 const ADMIN_LOGIN_STORAGE_KEY = 'mf_admin_login';
 const ADMIN_LEGACY_EMAIL_KEY = 'mf_remember_email';
@@ -40,6 +41,12 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
   const [keepConnected, setKeepConnected] = useState(rememberedLogin.keepConnected);
+
+  const fillTestLogin = (credentials: TestLoginCredentials) => {
+    setEmail(credentials.email);
+    setPassword(credentials.password);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +105,24 @@ const Login: React.FC = () => {
               </button>
             </div>
           </div>
+          {ADMIN_TEST_LOGINS.length > 0 ? (
+            <div className="test-login-shortcuts" aria-label="Credenciais de teste">
+              <span>Acesso rápido para teste</span>
+              <div>
+                {ADMIN_TEST_LOGINS.map((credentials) => (
+                  <Button
+                    key={credentials.email}
+                    type="button"
+                    variant="secondary"
+                    className="test-login-button"
+                    onClick={() => fillTestLogin(credentials)}
+                  >
+                    {credentials.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="login-options">
             <label className="checkbox">
               <input
@@ -121,6 +146,9 @@ const Login: React.FC = () => {
           {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
           <Button type="submit">Entrar</Button>
         </form>
+        <p className="login-switch">
+          Ainda nao tem conta? <Link to="/register">Solicitar acesso</Link>
+        </p>
       </div>
     </div>
   );

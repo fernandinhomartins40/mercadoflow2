@@ -225,7 +225,7 @@ const Landing: React.FC = () => {
             <Link to="/login" className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 no-underline transition hover:bg-gray-50 sm:inline-flex">
               Entrar
             </Link>
-            <ButtonLink to="/login" className="!h-10 !min-h-0 !max-h-none !text-sm !px-5">
+            <ButtonLink to="/register" className="!h-10 !min-h-0 !max-h-none !text-sm !px-5">
               Teste grátis
             </ButtonLink>
           </div>
@@ -254,7 +254,7 @@ const Landing: React.FC = () => {
             </p>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <ButtonLink to="/login" className="!h-14 !min-h-0 !max-h-none !px-8 !text-base">
+              <ButtonLink to="/register" className="!h-14 !min-h-0 !max-h-none !px-8 !text-base">
                 Começar grátis por 14 dias <ArrowRight className="h-4 w-4" />
               </ButtonLink>
               <a href="#como-funciona" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 no-underline transition hover:text-gray-900">
@@ -476,7 +476,7 @@ const Landing: React.FC = () => {
                 </ul>
                 <div className="mt-auto pt-6">
                   <ButtonLink
-                    to="/login"
+                    to="/register"
                     variant={p.highlight ? 'primary' : 'secondary'}
                     className="!h-12 !min-h-0 !max-h-none w-full"
                   >
@@ -500,7 +500,7 @@ const Landing: React.FC = () => {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ButtonLink
-              to="/login"
+              to="/register"
               variant="secondary"
               className="!h-14 !min-h-0 !max-h-none !px-8 !text-base"
             >
