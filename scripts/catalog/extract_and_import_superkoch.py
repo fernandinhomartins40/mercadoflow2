@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--download-images", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--images-dir", default="data/catalog/images")
     parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
+    parser.add_argument("--store-id", default="", help="StoreId do Super Koch para pular a descoberta via HTML.")
     return parser.parse_args()
 
 
@@ -38,6 +39,7 @@ def main() -> int:
         sitemap_url="https://www.superkoch.com.br/sitemap.xml",
         graphql_url="https://api.superkoch.com.br:443/graphql",
         categories_url="https://www.superkoch.com.br/categorias/",
+        default_store_id=args.store_id,
     )
     options = ImportOptions(
         provider=job.provider,

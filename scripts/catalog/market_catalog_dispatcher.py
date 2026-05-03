@@ -70,6 +70,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--carrefour-product-workers", type=int, default=12)
     parser.add_argument("--koch-product-workers", type=int, default=12)
     parser.add_argument("--koch-max-products", type=int, default=0)
+    parser.add_argument("--koch-store-id", default="", help="StoreId do Super Koch para pular a descoberta via HTML.")
     parser.add_argument("--condor-product-workers", type=int, default=12)
     parser.add_argument("--condor-max-products", type=int, default=0)
     parser.add_argument("--nissei-product-workers", type=int, default=12)
@@ -454,14 +455,45 @@ def run_superkoch(args: argparse.Namespace) -> Dict[str, Any]:
         graphql_url="https://api.superkoch.com.br:443/graphql",
         categories_url="https://www.superkoch.com.br/categorias/",
         selected_categories=selected_categories_for_provider(args, "SUPERKOCH_WEB_BR"),
+        default_store_id=args.koch_store_id,
     )
-    return run_koch_catalog_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        product_workers=args.koch_product_workers,
-        max_products=args.koch_max_products,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
+    try:
+        return run_koch_catalog_job(
+            job,
+            build_options(args, job.provider, job.source_license, job.output),
+            product_workers=args.koch_product_workers,
+            max_products=args.koch_max_products,
+            cancel_check=getattr(args, "_cancel_check", None),
+        )
+    except Exception as exc:
+        message = str(exc)
+        network_unavailable = (
+            "superkoch.com.br" in message
+            and (
+                "timed out" in message
+                or "ConnectTimeout" in message
+                or "Couldn't connect" in message
+                or "falha ao descobrir storeId" in message
+            )
+        )
+        if not network_unavailable:
+            raise
+        return {
+            "status": "SUCCESS",
+            "message": (
+                "Super Koch: origem indisponivel a partir da VPS; "
+                "provider ignorado nesta rodada sem marcar a coleta como falha."
+            ),
+            "summary": [
+                {
+                    "source": job.name,
+                    "provider": job.provider,
+                    "unavailable": True,
+                    "error": message[:500],
+                }
+            ],
+            **empty_totals(),
+        }
 
 
 def run_angeloni(args: argparse.Namespace) -> Dict[str, Any]:

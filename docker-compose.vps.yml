@@ -101,6 +101,7 @@ services:
       python /workspace/scripts/catalog/market_catalog_dispatcher.py
       --watch
       --interval-minutes ${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}
+      --koch-store-id \"${SUPERKOCH_STORE_ID:-}\"
       --api-base http://mercadoflow-backend:8080/api
       --login-endpoint /v1/super-admin/auth/login
       --config-endpoint /v1/super-admin/catalog/crawler/config

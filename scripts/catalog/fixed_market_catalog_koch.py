@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -43,6 +44,7 @@ class KochJobConfig:
     categories_url: str
     graphql_versioning: str = "Apollo Client Frontend Production SP72"
     selected_categories: Tuple[str, ...] = ()
+    default_store_id: str = ""
 
 
 def build_headers(referer: str) -> Dict[str, str]:
@@ -80,6 +82,10 @@ def extract_store_id(html: str) -> str:
 
 
 def fetch_default_store_id(job: KochJobConfig) -> str:
+    configured_store_id = norm_text(job.default_store_id) or norm_text(os.getenv("SUPERKOCH_STORE_ID"))
+    if configured_store_id:
+        return configured_store_id
+
     candidate_urls: List[str] = []
     for candidate in (
         job.site_base,
@@ -96,9 +102,9 @@ def fetch_default_store_id(job: KochJobConfig) -> str:
     session.headers.update(build_html_headers())
     for url in candidate_urls:
         last_error: Optional[Exception] = None
-        for attempt in range(1, 4):
+        for attempt in range(1, 3):
             try:
-                response = session.get(url, timeout=(30, 60))
+                response = session.get(url, timeout=(12, 30))
                 response.raise_for_status()
                 store_id = extract_store_id(response.text)
                 if store_id:
@@ -112,7 +118,11 @@ def fetch_default_store_id(job: KochJobConfig) -> str:
             errors.append(f"{url}: {last_error}")
 
     error_suffix = " | ".join(errors) if errors else "sem detalhes adicionais"
-    raise RuntimeError(f"Super Koch: falha ao descobrir storeId padrao. Seeds testadas: {error_suffix}")
+    raise RuntimeError(
+        "Super Koch: falha ao descobrir storeId padrao. "
+        "Defina SUPERKOCH_STORE_ID ou use --koch-store-id/--store-id para executar sem depender do HTML. "
+        f"Seeds testadas: {error_suffix}"
+    )
 
 
 def fetch_product_urls(job: KochJobConfig) -> List[Tuple[str, str]]:
