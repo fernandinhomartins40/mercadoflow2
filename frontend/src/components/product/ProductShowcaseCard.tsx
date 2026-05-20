@@ -35,10 +35,8 @@ const ProductShowcaseCard: React.FC<ProductShowcaseCardProps> = ({
 }) => {
   const content = (
     <>
-      <div className="bg-gray-50 px-[14px] pt-[14px]">
-        <div className="flex h-[178px] items-center justify-center rounded-xl border border-gray-100 bg-white p-3">
-          <ProductImage src={imageUrl} alt={imageAlt} className="sales-product-media" />
-        </div>
+      <div className="flex h-[178px] items-center justify-center overflow-hidden rounded-t-xl p-4">
+        <ProductImage src={imageUrl} alt={imageAlt} className="sales-product-media" />
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-[14px]">

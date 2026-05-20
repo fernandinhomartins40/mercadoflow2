@@ -169,7 +169,7 @@ const Products: React.FC = () => {
                   className="flex cursor-pointer flex-col rounded-xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                   {/* Image */}
-                  <div className="flex h-40 items-center justify-center bg-gray-50 p-4">
+                  <div className="flex h-40 items-center justify-center overflow-hidden rounded-t-xl p-4">
                     <ProductImage src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain" />
                   </div>
                   {/* Body */}

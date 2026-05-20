@@ -35,7 +35,7 @@ const ListItem: React.FC<{
       >
         {item.checked && <CheckCircle2 className="h-4 w-4" />}
       </button>
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
         <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" />
       </div>
       <div className="min-w-0 flex-1">
@@ -75,7 +75,7 @@ const ListItem: React.FC<{
 
 const SuggestionRow: React.FC<{ product: ProductPerformance; label: string; onAdd: () => Promise<void>; inList: boolean }> = ({ product, label, onAdd, inList }) => (
   <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 transition hover:bg-gray-50">
-    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg">
       <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
     </div>
     <div className="min-w-0 flex-1">
