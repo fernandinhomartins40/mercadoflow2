@@ -97,10 +97,13 @@ class ServiceApp:
             logger.warning("API key not configured. Service running in standby mode.")
 
         self.queue_manager = QueueManager()
+        # Evento disparado pelo watcher ao detectar arquivo novo — acorda o loop imediatamente
+        self._new_file_event = threading.Event()
         self.file_watcher = FileWatcher(
             self.config.get("watch_paths", []),
             self.queue_manager,
             self.config.get("xsd_paths", []),
+            on_new_file=self._on_new_file_detected,
         )
         self.transmitter = APITransmitter(
             self.config.get("api_url", ""),
@@ -114,13 +117,19 @@ class ServiceApp:
         configured_api_url = self.config.get("api_url") or None
         self.update_checker = UpdateChecker(base_url=configured_api_url)
 
+    def _on_new_file_detected(self):
+        """Chamado pelo watcher ao detectar novo arquivo. Acorda o loop principal."""
+        self._new_file_event.set()
+
     def start(self):
         logger.info("Starting PDV2Cloud service")
 
         # Wrap entire startup in try-catch to prevent Windows Service Control Manager timeout
         try:
             try:
-                recovered = self.queue_manager.reset_stuck_processing(max_age_minutes=60)
+                # Itens que ficaram em PROCESSING durante um desligamento abrupto
+                # são recuperados imediatamente (sem aguardar 1 hora).
+                recovered = self.queue_manager.reset_stuck_processing(max_age_minutes=5)
                 if recovered:
                     logger.info("Recovered %s stuck items back to PENDING", recovered)
                 deleted = self.queue_manager.cleanup_sent(max_age_days=30)
@@ -168,12 +177,29 @@ class ServiceApp:
             logger.warning("Service running in degraded mode - check logs for errors")
 
     def _main_loop(self):
-        """Main processing loop - runs in background thread"""
+        """Loop principal de processamento.
+
+        Acorda de duas formas:
+        1. Imediatamente quando o watcher detecta um arquivo novo (_new_file_event).
+        2. Pelo poll_interval_seconds como fallback (garante retry e heartbeat periódicos).
+        Isso elimina a latência de até 10s entre a nota chegar e ser enviada.
+        """
+        poll_interval = self.config.get("poll_interval_seconds", 10)
         while not self.stop_event.is_set():
+            # Aguarda sinal de nova nota OU timeout do poll interval
+            self._new_file_event.wait(timeout=poll_interval)
+            self._new_file_event.clear()
+
+            if self.stop_event.is_set():
+                break
+
+            # Aguarda o debounce do watcher antes de processar
+            # (o watcher aguarda 2s após o último evento para garantir que o arquivo fechou)
+            time.sleep(2)
+
             self.process_queue()
             schedule.run_pending()
             update_status(self.queue_manager, self.online, self.last_processed, self.last_error)
-            time.sleep(self.config.get("poll_interval_seconds", 10))
 
     def stop(self):
         self.stop_event.set()

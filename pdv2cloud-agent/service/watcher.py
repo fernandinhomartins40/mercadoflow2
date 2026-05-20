@@ -22,9 +22,10 @@ def _is_valid_file(path: Path) -> bool:
 
 
 class WatchHandler(FileSystemEventHandler):
-    def __init__(self, process_file, debounce_seconds: int = 5):
+    def __init__(self, process_file, debounce_seconds: int = 2, on_new_file=None):
         self.process_file = process_file
         self.debounce_seconds = debounce_seconds
+        self.on_new_file = on_new_file  # chamado imediatamente ao detectar arquivo novo
         self._pending = {}
         self._lock = threading.Lock()
 
@@ -52,6 +53,12 @@ class WatchHandler(FileSystemEventHandler):
         with self._lock:
             self._pending[path] = time.time()
         logger.info("Detected file event for processing: %s", path)
+        # Notifica o loop principal para processar a fila sem esperar o próximo ciclo
+        if self.on_new_file:
+            try:
+                self.on_new_file()
+            except Exception:
+                pass
 
     def flush(self):
         now = time.time()
@@ -66,12 +73,12 @@ class WatchHandler(FileSystemEventHandler):
 
 
 class FileWatcher:
-    def __init__(self, watch_paths, queue_manager: QueueManager, xsd_paths=None):
+    def __init__(self, watch_paths, queue_manager: QueueManager, xsd_paths=None, on_new_file=None):
         self.watch_paths = [Path(p) for p in watch_paths]
         self.queue_manager = queue_manager
         self.xsd_paths = [Path(p) for p in (xsd_paths or [])]
         self.observer = Observer()
-        self.handler = WatchHandler(self._process_file)
+        self.handler = WatchHandler(self._process_file, on_new_file=on_new_file)
         self._scheduled_paths = 0
         self._started = False
 
@@ -84,7 +91,7 @@ class FileWatcher:
         for path in self.watch_paths:
             try:
                 path.mkdir(parents=True, exist_ok=True)
-                self.observer.schedule(self.handler, str(path), recursive=False)
+                self.observer.schedule(self.handler, str(path), recursive=True)
                 self._scheduled_paths += 1
                 logger.info("Watching path: %s", path)
             except Exception as exc:
@@ -93,17 +100,23 @@ class FileWatcher:
         if self._scheduled_paths > 0:
             self.observer.start()
             self._started = True
-            logger.info("File watcher started with %d paths", self._scheduled_paths)
+            logger.info("File watcher started with %d paths (recursive)", self._scheduled_paths)
         else:
             logger.warning("File watcher not started - no valid paths")
 
     def scan_existing(self, limit: int = 5000):
+        """Varre recursivamente todas as pastas monitoradas ao iniciar.
+
+        Garante que XMLs chegados enquanto o PDV estava desligado sejam
+        enfileirados imediatamente ao religar a máquina.
+        """
         processed = 0
         for root in self.watch_paths:
             if not root.exists():
                 continue
-            for path in sorted(root.iterdir()):
+            for path in sorted(root.rglob("*")):
                 if processed >= limit:
+                    logger.warning("scan_existing reached limit of %d files", limit)
                     return processed
                 if path.is_file() and _is_valid_file(path):
                     self._process_file(path)
