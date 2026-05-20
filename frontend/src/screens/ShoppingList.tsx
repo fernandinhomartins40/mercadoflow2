@@ -225,7 +225,7 @@ const ShoppingListPage: React.FC = () => {
         {restockSuggestions.length > 0 && (
           <div>
             <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Sugestões de reposição</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {restockSuggestions.map((p) => (
                 <SuggestionRow
                   key={p.productId}
@@ -244,7 +244,7 @@ const ShoppingListPage: React.FC = () => {
           <div>
             <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Compra com cautela</h2>
             <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>Produtos com baixa tração. Reduza pedido ou revise posicionamento.</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {lowProducts.map((p) => (
                 <div
                   key={p.productId}

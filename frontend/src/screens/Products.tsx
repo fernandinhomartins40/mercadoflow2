@@ -137,7 +137,7 @@ const Products: React.FC = () => {
         </div>
 
         {/* Sort pills */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {sortOptions.map((opt) => (
             <button
               key={opt.key}

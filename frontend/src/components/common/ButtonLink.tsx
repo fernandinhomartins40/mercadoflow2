@@ -9,7 +9,7 @@ interface ButtonLinkProps extends LinkProps {
 
 const ButtonLink: React.FC<ButtonLinkProps> = ({ variant = 'primary', className, children, ...props }) => {
   const baseClassName =
-    'inline-flex h-9 min-h-9 items-center justify-center gap-1.5 rounded-lg px-4 text-center text-sm font-semibold leading-none no-underline whitespace-nowrap transition-colors duration-150';
+    'inline-flex h-10 min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-semibold leading-none no-underline whitespace-nowrap transition-colors duration-150';
   const variantClassName =
     variant === 'secondary'
       ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'

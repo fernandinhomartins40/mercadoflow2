@@ -40,7 +40,7 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ title, value, icon, variant =
   return (
     <div
       className={cn(
-        'metric-card reveal flex flex-col gap-3 rounded-xl border p-4',
+        'metric-card reveal flex flex-col gap-4 rounded-xl border p-5',
         styles.bg,
         className,
       )}

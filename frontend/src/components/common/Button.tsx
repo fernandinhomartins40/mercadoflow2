@@ -8,7 +8,7 @@ const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant
   ...props
 }) => {
   const baseClassName =
-    'inline-flex h-9 min-h-9 items-center justify-center gap-1.5 rounded-lg px-4 text-center text-sm font-semibold leading-none whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex h-10 min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-semibold leading-none whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50';
   const variantClassName =
     variant === 'secondary'
       ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'

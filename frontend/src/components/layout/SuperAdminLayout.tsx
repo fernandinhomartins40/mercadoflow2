@@ -104,7 +104,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           actionSlot={<Button className="min-w-[104px]" variant="secondary" onClick={() => logout()}>Sair</Button>}
         />
 
-        <div className="workspace-shell-content flex min-h-0 flex-1 overflow-x-hidden px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+        <div className="workspace-shell-content flex min-h-0 flex-1 overflow-x-hidden px-4 pb-8 pt-4 sm:px-6 sm:pt-6 lg:px-8">
           <div className="workspace-stage flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden">{children}</div>
         </div>
       </main>

@@ -133,7 +133,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                   </h3>
                 ) : null}
 
-                <nav className="space-y-0.5">
+                <nav className="space-y-1">
                   {section.items.map((item) => (
                     <NavLink
                       key={item.to}

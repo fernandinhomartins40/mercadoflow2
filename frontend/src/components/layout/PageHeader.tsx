@@ -14,7 +14,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
   className,
 }) => (
-  <header className={cn('flex flex-wrap items-center justify-between gap-3 pb-4', className)}>
+  <header className={cn('flex flex-wrap items-center justify-between gap-4 pb-5', className)}>
     <div>
       <h1 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h1>
       {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}

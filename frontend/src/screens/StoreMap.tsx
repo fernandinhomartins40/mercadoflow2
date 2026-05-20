@@ -135,7 +135,7 @@ const StoreMap: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[220px_1fr_240px]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px_1fr_240px]">
           {/* Element Library */}
           <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Elementos</h3>

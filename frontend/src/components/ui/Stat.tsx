@@ -24,7 +24,7 @@ const Stat: React.FC<StatProps> = ({ label, value, sub, variant = 'default', cla
   const v = variantMap[variant];
   return (
     <article
-      className={cn('flex flex-col gap-1.5 rounded-xl p-4', className)}
+      className={cn('flex flex-col gap-2 rounded-xl p-5', className)}
       style={{ background: v.bg, border: `1px solid ${v.border}` }}
     >
       <span className="text-[0.68rem] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>

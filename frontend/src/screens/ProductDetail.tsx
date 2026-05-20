@@ -386,7 +386,7 @@ const ProductDetail: React.FC = () => {
           {branchPerformance.length === 0
             ? <Empty>Sem distribuição por PDV neste período.</Empty>
             : (
-              <div className="flex gap-4 overflow-x-auto pb-2">
+              <div className="flex gap-4 overflow-x-auto pb-4">
                 {branchPerformance.map((b) => (
                   <BranchCard key={b.branchId || b.branchName} branch={b} maxRevenue={maxBranchRev} />
                 ))}
@@ -399,7 +399,7 @@ const ProductDetail: React.FC = () => {
           {weekdaySeasonality.length === 0
             ? <Empty>Sem sazonalidade suficiente neste período.</Empty>
             : (
-              <div className="flex gap-4 overflow-x-auto pb-2">
+              <div className="flex gap-4 overflow-x-auto pb-4">
                 {weekdaySeasonality.map((p) => (
                   <SeasonalityCard key={p.key} point={p} maxRevenue={maxSeasonalityRev} />
                 ))}
@@ -444,7 +444,7 @@ const ProductDetail: React.FC = () => {
           {relatedPairs.length === 0
             ? <Empty>Nenhuma associação forte encontrada para este item.</Empty>
             : (
-              <div className="flex gap-4 overflow-x-auto pb-2">
+              <div className="flex gap-4 overflow-x-auto pb-4">
                 {relatedPairs.map((pair) => (
                   <PairCard key={`${pair.antecedentId || 'a'}-${pair.consequentId || 'b'}`} pair={pair} />
                 ))}

@@ -22,7 +22,7 @@ const Chip: React.FC<ChipProps> = ({ children, variant = 'default', className })
   const v = variantMap[variant];
   return (
     <span
-      className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', className)}
+      className={cn('inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold', className)}
       style={{ background: v.bg, color: v.color, border: `1px solid ${v.border}` }}
     >
       {children}

@@ -48,7 +48,7 @@ const Alerts: React.FC = () => {
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Alertas</h1>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>O que precisa da sua atenção agora</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => setOnlyUnread(!onlyUnread)}

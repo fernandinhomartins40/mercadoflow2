@@ -12,11 +12,11 @@ interface DataRowProps {
  */
 const DataRow: React.FC<DataRowProps> = ({ label, value, className }) => (
   <div
-    className={cn('flex items-center justify-between gap-4 rounded-lg px-4 py-2.5', className)}
+    className={cn('flex min-w-0 items-center justify-between gap-4 rounded-lg px-4 py-3', className)}
     style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}
   >
-    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{label}</span>
-    <strong className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</strong>
+    <span className="min-w-0 text-sm" style={{ color: 'var(--text-muted)' }}>{label}</span>
+    <strong className="shrink-0 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</strong>
   </div>
 );
 

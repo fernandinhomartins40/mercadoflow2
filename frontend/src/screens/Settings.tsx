@@ -160,7 +160,7 @@ const Settings: React.FC = () => {
           subtitle="Credenciais do agente, endpoint e informações do mercado."
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" />
           <MetricsCard title="Revogadas" value={revokedKeys.length} icon="RV" variant="danger" />
           <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" />
