@@ -19,6 +19,7 @@ import {
   Sparkles,
   CheckCircle2,
   Map,
+  Activity,
 } from 'lucide-react';
 
 const formatMoney = (value?: number | null) =>
@@ -43,31 +44,33 @@ const getDayOfWeek = () =>
   new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 const ragColor = (value: number, good: number, bad: number) => {
-  if (value >= good) return 'emerald';
+  if (value >= good) return 'green';
   if (value >= bad) return 'amber';
   return 'red';
 };
 
 const TrendIcon: React.FC<{ value: number }> = ({ value }) => {
-  if (value > 1) return <TrendingUp className="h-4 w-4 text-emerald-600" />;
-  if (value < -1) return <TrendingDown className="h-4 w-4 text-red-500" />;
-  return <Minus className="h-4 w-4 text-gray-400" />;
+  if (value > 1) return <TrendingUp className="h-3.5 w-3.5 text-green-500" />;
+  if (value < -1) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
+  return <Minus className="h-3.5 w-3.5 text-slate-400" />;
 };
 
-const KPICard: React.FC<{ label: string; value: string; change?: number; rag: 'emerald' | 'amber' | 'red' }> = ({ label, value, change, rag }) => {
-  const border = rag === 'emerald' ? 'border-l-emerald-500' : rag === 'amber' ? 'border-l-amber-500' : 'border-l-red-500';
-  const dot = rag === 'emerald' ? 'bg-emerald-500' : rag === 'amber' ? 'bg-amber-500' : 'bg-red-500';
+const KPICard: React.FC<{ label: string; value: string; change?: number; color: 'green' | 'amber' | 'red' | 'blue' | 'purple' }> = ({ label, value, change, color }) => {
+  const colorMap = {
+    green:  { bg: 'bg-green-500',  text: 'text-white',      sub: 'text-green-100',   badge: 'bg-green-400' },
+    amber:  { bg: 'bg-amber-500',  text: 'text-white',      sub: 'text-amber-100',   badge: 'bg-amber-400' },
+    red:    { bg: 'bg-red-500',    text: 'text-white',      sub: 'text-red-100',     badge: 'bg-red-400' },
+    blue:   { bg: 'bg-blue-500',   text: 'text-white',      sub: 'text-blue-100',    badge: 'bg-blue-400' },
+    purple: { bg: 'bg-violet-500', text: 'text-white',      sub: 'text-violet-100',  badge: 'bg-violet-400' },
+  };
+  const c = colorMap[color];
   return (
-    <div className={`rounded-xl border border-gray-100 bg-white p-4 shadow-sm border-l-4 ${border}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</span>
-        <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-      </div>
-      <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
+    <div className={`flex flex-col gap-2 rounded-xl p-4 ${c.bg}`}>
+      <span className={`text-[0.65rem] font-semibold uppercase tracking-widest ${c.sub}`}>{label}</span>
+      <p className={`text-2xl font-bold tracking-tight ${c.text}`}>{value}</p>
       {change !== undefined && (
-        <div className="mt-1 flex items-center gap-1">
-          <TrendIcon value={change} />
-          <span className={`text-sm font-medium ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+        <div className="flex items-center gap-1">
+          <span className={`text-xs font-medium ${c.sub}`}>
             {formatSignedPercent(change)} vs semana passada
           </span>
         </div>
@@ -82,18 +85,24 @@ const ActionCard: React.FC<{
   description: string;
   actions: { label: string; to: string }[];
 }> = ({ severity, title, description, actions }) => {
-  const border = severity === 'critical' ? 'border-l-red-500' : severity === 'warning' ? 'border-l-amber-500' : 'border-l-emerald-500';
-  const iconColor = severity === 'critical' ? 'text-red-500' : severity === 'warning' ? 'text-amber-500' : 'text-emerald-500';
+  const styleMap = {
+    critical: { border: 'border-red-200 bg-red-50',   icon: 'text-red-500',   iconBg: 'bg-red-100' },
+    warning:  { border: 'border-amber-200 bg-amber-50', icon: 'text-amber-600', iconBg: 'bg-amber-100' },
+    positive: { border: 'border-green-200 bg-green-50', icon: 'text-green-600', iconBg: 'bg-green-100' },
+  };
+  const s = styleMap[severity];
   const Icon = severity === 'positive' ? CheckCircle2 : AlertTriangle;
   return (
-    <div className={`flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm border-l-4 ${border}`}>
-      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconColor}`} />
+    <div className={`flex items-start gap-3 rounded-xl border p-4 ${s.border}`}>
+      <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${s.iconBg}`}>
+        <Icon className={`h-4 w-4 ${s.icon}`} />
+      </span>
       <div className="min-w-0 flex-1">
-        <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
-        <p className="mt-0.5 text-sm text-gray-500">{description}</p>
+        <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
+        <p className="mt-0.5 text-sm text-slate-500">{description}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {actions.map((a) => (
-            <Link key={a.to} to={a.to} className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 no-underline transition hover:bg-gray-100">
+            <Link key={a.to} to={a.to} className="inline-flex items-center gap-1 rounded-lg bg-white/80 border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 no-underline transition hover:bg-white">
               {a.label} <ArrowRight className="h-3 w-3" />
             </Link>
           ))}
@@ -106,18 +115,18 @@ const ActionCard: React.FC<{
 const ProductRow: React.FC<{ product: ProductPerformance; rank: number }> = ({ product, rank }) => {
   const trend = Number(product.revenueTrendPercentage || 0);
   return (
-    <Link to={`/app/produtos/${product.productId}`} className="flex items-center gap-3 rounded-lg p-2 no-underline transition hover:bg-gray-50">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{rank}</span>
-      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+    <Link to={`/app/produtos/${product.productId}`} className="flex items-center gap-3 rounded-lg p-2 no-underline transition hover:bg-slate-50">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">{rank}</span>
+      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-50">
         <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
-        <p className="text-xs text-gray-500">{formatMoney(product.revenue)}</p>
+        <p className="truncate text-sm font-medium text-slate-900">{product.name}</p>
+        <p className="text-xs text-slate-400">{formatMoney(product.revenue)}</p>
       </div>
       <div className="flex items-center gap-1">
         <TrendIcon value={trend} />
-        <span className={`text-xs font-medium ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+        <span className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-500' : 'text-slate-400'}`}>
           {formatSignedPercent(trend)}
         </span>
       </div>
@@ -129,10 +138,10 @@ const WeekBar: React.FC<{ label: string; value: number; maxValue: number }> = ({
   const pct = maxValue > 0 ? (value / maxValue) * 100 : 0;
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative flex h-28 w-full items-end justify-center">
-        <div className="w-4 rounded-t bg-emerald-500 transition-all" style={{ height: `${Math.max(pct, 4)}%` }} />
+      <div className="relative flex h-24 w-full items-end justify-center">
+        <div className="w-5 rounded-t-sm bg-green-500 transition-all" style={{ height: `${Math.max(pct, 4)}%` }} />
       </div>
-      <span className="text-[10px] font-medium text-gray-500">{label}</span>
+      <span className="text-[10px] font-medium text-slate-400">{label}</span>
     </div>
   );
 };
@@ -184,24 +193,13 @@ const Dashboard: React.FC = () => {
     return { days, maxRevenue };
   }, [dashboard?.weekdaySeasonality]);
 
-  const summaryText = useMemo(() => {
-    if (!dashboard) return '';
-    const parts: string[] = [];
-    parts.push(`Seu mercado faturou ${formatMoney(dashboard.totalRevenue)} no período`);
-    if (growth > 0) parts.push(`com crescimento de ${growth.toFixed(1)}%`);
-    else if (growth < 0) parts.push(`com queda de ${Math.abs(growth).toFixed(1)}%`);
-    parts.push(`em ${formatCompact(dashboard.totalTransactions)} transações.`);
-    if (actions.length > 0) parts.push(`${actions.length} item${actions.length > 1 ? 's' : ''} precisa${actions.length > 1 ? 'm' : ''} da sua atenção.`);
-    return parts.join(' ');
-  }, [dashboard, growth, actions.length]);
-
   if (loading) {
     return (
       <Layout>
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-            <p className="mt-3 text-sm text-gray-500">Carregando seu painel...</p>
+            <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+            <p className="mt-3 text-sm text-slate-400">Carregando painel...</p>
           </div>
         </div>
       </Layout>
@@ -213,7 +211,7 @@ const Dashboard: React.FC = () => {
       <Layout>
         <div className="flex min-h-[300px] items-center justify-center">
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-            <AlertTriangle className="mx-auto h-8 w-8 text-red-400" />
+            <AlertTriangle className="mx-auto h-7 w-7 text-red-400" />
             <p className="mt-2 text-sm text-red-600">{error || 'Não foi possível carregar o painel.'}</p>
           </div>
         </div>
@@ -223,95 +221,96 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         {/* Greeting */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {name || 'gestor'}!</h1>
-          <p className="mt-1 text-sm capitalize text-gray-500">{getDayOfWeek()}</p>
-          <div className="mt-3 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-            <p className="text-sm text-emerald-800">{summaryText}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{getGreeting()}, {name || 'gestor'}!</h1>
+            <p className="mt-0.5 text-sm capitalize text-slate-400">{getDayOfWeek()}</p>
           </div>
+          {actions.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {actions.length} iten{actions.length > 1 ? 's' : ''} para atenção
+            </span>
+          )}
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KPICard label="Faturamento" value={formatMoney(dashboard.totalRevenue)} change={growth} rag={ragColor(growth, 0, -5)} />
-          <KPICard label="Ticket médio" value={formatMoney(dashboard.averageTicket)} rag="emerald" />
-          <KPICard label="Transações" value={formatCompact(dashboard.totalTransactions)} rag="emerald" />
-          <KPICard label="Produtos ativos" value={formatCompact(dashboard.activeProducts)} rag={Number(dashboard.activeProducts || 0) > 50 ? 'emerald' : 'amber'} />
+        {/* KPI strip colorida */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <KPICard label="Faturamento" value={formatMoney(dashboard.totalRevenue)} change={growth} color={ragColor(growth, 0, -5) as any} />
+          <KPICard label="Ticket médio" value={formatMoney(dashboard.averageTicket)} color="blue" />
+          <KPICard label="Transações" value={formatCompact(dashboard.totalTransactions)} color="purple" />
+          <KPICard label="Produtos ativos" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
         </div>
 
         {/* Actions */}
         {actions.length > 0 && (
-          <div>
-            <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Ações do dia ({actions.length})
-            </h2>
-            <div className="flex flex-col gap-3">
-              {actions.map((a, i) => <ActionCard key={i} {...a} />)}
-            </div>
+          <div className="flex flex-col gap-2">
+            {actions.map((a, i) => <ActionCard key={i} {...a} />)}
           </div>
         )}
 
         {/* Two columns */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900">Vendas da semana</h3>
-            <p className="text-xs text-gray-500">Faturamento por dia</p>
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-green-500" />
+              <h3 className="text-sm font-semibold text-slate-900">Vendas da semana</h3>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-400">Faturamento por dia</p>
             {weekData.days.length > 0 ? (
-              <div className="mt-4 grid grid-cols-7 gap-2">
+              <div className="mt-4 grid grid-cols-7 gap-1.5">
                 {weekData.days.map((day) => (
                   <WeekBar key={day.label} label={day.label?.slice(0, 3) || ''} value={Number(day.revenue || 0)} maxValue={weekData.maxRevenue} />
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-gray-400">Sem dados de sazonalidade semanal.</p>
+              <p className="py-8 text-center text-sm text-slate-400">Sem dados de sazonalidade semanal.</p>
             )}
           </div>
 
-          <div className="flex flex-col gap-5">
-            <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Mais vendidos</h3>
-                <Link to="/app/produtos" className="text-xs font-medium text-emerald-600 no-underline hover:text-emerald-700">
+                <h3 className="text-sm font-semibold text-slate-900">Mais vendidos</h3>
+                <Link to="/app/produtos" className="text-xs font-medium text-green-600 no-underline hover:text-green-700">
                   Ver todos <ArrowRight className="inline h-3 w-3" />
                 </Link>
               </div>
-              <div className="mt-3 flex flex-col">
+              <div className="mt-2 flex flex-col">
                 {topProducts.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-                {topProducts.length === 0 && <p className="py-4 text-center text-sm text-gray-400">Sem dados.</p>}
+                {topProducts.length === 0 && <p className="py-4 text-center text-sm text-slate-400">Sem dados.</p>}
               </div>
             </div>
-            <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Precisam de atenção</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Precisam de atenção</h3>
                 <Link to="/app/alertas" className="text-xs font-medium text-red-500 no-underline hover:text-red-600">
                   Ver alertas <ArrowRight className="inline h-3 w-3" />
                 </Link>
               </div>
-              <div className="mt-3 flex flex-col">
+              <div className="mt-2 flex flex-col">
                 {slowMovers.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-                {slowMovers.length === 0 && <p className="py-4 text-center text-sm text-gray-400">Todos os produtos em dia!</p>}
+                {slowMovers.length === 0 && <p className="py-4 text-center text-sm text-slate-400">Todos os produtos em dia!</p>}
               </div>
             </div>
           </div>
         </div>
 
         {/* Quick links */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { to: '/app/lista-compras', icon: ShoppingCart, title: 'Pedido inteligente', sub: 'Compra guiada por dados' },
-            { to: '/app/cesta', icon: Sparkles, title: 'Combos', sub: 'Produtos que vendem juntos' },
-            { to: '/app/campanhas', icon: TrendingUp, title: 'Promoções', sub: 'Crie e meça campanhas' },
-            { to: '/app/mapa-loja', icon: Map, title: 'Mapa da loja', sub: 'Organize para vender mais' },
+            { to: '/app/lista-compras', icon: ShoppingCart, title: 'Pedido inteligente', sub: 'Compra guiada por dados', color: 'bg-blue-50 border-blue-200 text-blue-600' },
+            { to: '/app/cesta', icon: Sparkles, title: 'Combos', sub: 'Produtos que vendem juntos', color: 'bg-violet-50 border-violet-200 text-violet-600' },
+            { to: '/app/campanhas', icon: TrendingUp, title: 'Promoções', sub: 'Crie e meça campanhas', color: 'bg-green-50 border-green-200 text-green-600' },
+            { to: '/app/mapa-loja', icon: Map, title: 'Mapa da loja', sub: 'Organize para vender mais', color: 'bg-amber-50 border-amber-200 text-amber-600' },
           ].map((link) => (
-            <Link key={link.to} to={link.to} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm no-underline transition hover:border-emerald-200 hover:shadow-md">
-              <link.icon className="h-5 w-5 text-emerald-600" />
+            <Link key={link.to} to={link.to} className={`flex items-center gap-3 rounded-xl border p-3.5 no-underline transition hover:opacity-80 ${link.color}`}>
+              <link.icon className="h-5 w-5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-gray-900">{link.title}</p>
-                <p className="text-xs text-gray-500">{link.sub}</p>
+                <p className="text-sm font-semibold text-slate-900">{link.title}</p>
+                <p className="text-xs text-slate-500">{link.sub}</p>
               </div>
             </Link>
           ))}

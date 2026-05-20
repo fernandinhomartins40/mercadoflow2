@@ -1,4 +1,5 @@
 import React from 'react';
+import { Menu } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
 interface WorkspaceTopbarProps {
@@ -21,34 +22,34 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   const menuButton = showMenuToggle ? (
     <button
       type="button"
-      className="inline-flex h-10 shrink-0 items-center justify-center rounded-[12px] border border-[rgba(0,0,0,0.12)] bg-white px-3 text-sm font-semibold text-[color:var(--text-primary)] shadow-[0_8px_18px_rgba(0,0,0,0.06)] transition hover:bg-gray-50"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
       onClick={onToggleSidebar}
       aria-label="Abrir menu lateral"
     >
-      Menu
+      <Menu className="h-4 w-4" strokeWidth={2} />
     </button>
   ) : null;
 
   return (
     <header
       className={cn(
-        'sticky top-0 z-20 border-b border-[rgba(0,0,0,0.08)] bg-[rgba(249,250,251,0.94)] backdrop-blur-xl',
+        'sticky top-0 z-20 border-b border-slate-200 bg-white',
         className,
       )}
     >
-      <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-2 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           {menuButton}
 
           <div className="min-w-0">
-            <span className="block text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
+            <span className="block text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">
               {section}
             </span>
-            <h2 className="truncate text-[1.1rem] font-semibold tracking-[-0.03em] text-[color:var(--text-primary)]">{title}</h2>
+            <h2 className="truncate text-[1rem] font-semibold tracking-tight text-slate-900">{title}</h2>
           </div>
         </div>
 
-        {actionSlot ? <div className="flex shrink-0 items-center gap-3">{actionSlot}</div> : null}
+        {actionSlot ? <div className="flex shrink-0 items-center gap-2">{actionSlot}</div> : null}
       </div>
     </header>
   );

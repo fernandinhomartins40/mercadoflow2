@@ -68,8 +68,8 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   return (
     <div
       className={desktopPinned
-        ? 'workspace-root super-admin-workspace min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'
-        : 'workspace-root super-admin-workspace flex min-h-screen flex-col overflow-x-hidden bg-[linear-gradient(180deg,#fcf8f3_0%,#f3ebe3_100%)]'}
+        ? 'workspace-root super-admin-workspace min-h-screen overflow-x-hidden bg-slate-50'
+        : 'workspace-root super-admin-workspace flex min-h-screen flex-col overflow-x-hidden bg-slate-50'}
     >
       <WorkspaceSidebar
         mobileOpen={sidebarOpen}

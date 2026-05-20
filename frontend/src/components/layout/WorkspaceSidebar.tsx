@@ -42,7 +42,6 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   desktopPinned,
   brandMark,
   brandTitle,
-  brandSubtitle,
   userName,
   userEmail,
   sections,
@@ -60,7 +59,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         <button
           type="button"
           className={cn(
-            'fixed inset-0 z-40 bg-[rgba(20,12,8,0.32)] backdrop-blur-[2px] transition duration-200',
+            'fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm transition duration-200',
             mobileOpen ? 'visible opacity-100' : 'pointer-events-none opacity-0',
           )}
           onClick={onClose}
@@ -70,29 +69,29 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
       <aside
         className={cn(
-          'flex min-w-0 flex-col bg-white text-[color:var(--text-primary)] transition duration-300',
+          'flex min-w-0 flex-col bg-slate-900 text-white transition duration-300',
           desktopPinned
             ? cn(
-                'fixed inset-y-0 left-0 z-30 h-screen border-r border-[rgba(0,0,0,0.08)] shadow-[8px_0_24px_rgba(0,0,0,0.05)]',
-                desktopWidthClassName || (iconOnlyDesktop ? 'w-24' : 'w-64'),
+                'fixed inset-y-0 left-0 z-30 h-screen border-r border-slate-800',
+                desktopWidthClassName || (iconOnlyDesktop ? 'w-16' : 'w-60'),
               )
             : cn(
-                'fixed inset-y-3 left-3 z-50 w-[min(320px,calc(100vw-24px))] max-w-[calc(100vw-24px)] rounded-[24px] border border-[rgba(0,0,0,0.12)] shadow-[0_24px_60px_rgba(0,0,0,0.18)]',
+                'fixed inset-y-2 left-2 z-50 w-[min(280px,calc(100vw-16px))] max-w-[calc(100vw-16px)] rounded-2xl border border-slate-700/60 shadow-2xl',
                 mobileOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[110%] opacity-0',
               ),
         )}
       >
         <div className="flex h-full min-h-0 flex-col">
-          <div className={cn('flex h-16 items-center justify-between border-b border-[rgba(0,0,0,0.08)]', iconOnlyDesktop ? 'px-3' : 'px-4')}>
-            <div className={cn('flex min-w-0 items-center gap-3', iconOnlyDesktop ? 'justify-center' : '')}>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(180deg,#10B981_0%,#059669_100%)] text-sm font-semibold text-white shadow-[0_12px_24px_rgba(5,150,105,0.2)]">
+          {/* Brand header */}
+          <div className={cn('flex h-14 items-center justify-between border-b border-slate-800', iconOnlyDesktop ? 'px-3' : 'px-4')}>
+            <div className={cn('flex min-w-0 items-center gap-2.5', iconOnlyDesktop ? 'justify-center' : '')}>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">
                 {brandMark}
               </div>
 
               {!iconOnlyDesktop ? (
                 <div className="min-w-0">
-                  <p className="truncate text-[1.02rem] font-semibold tracking-[-0.03em] text-[color:var(--text-primary)]">{brandTitle}</p>
-                  <p className="truncate text-xs text-[color:var(--text-muted)]">{brandSubtitle}</p>
+                  <p className="truncate text-[0.95rem] font-semibold tracking-tight text-white">{brandTitle}</p>
                 </div>
               ) : null}
             </div>
@@ -100,76 +99,65 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             {!desktopPinned ? (
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(0,0,0,0.12)] bg-white text-[color:var(--text-primary)] shadow-[0_10px_24px_rgba(0,0,0,0.08)] transition hover:bg-gray-50"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-slate-400 transition hover:bg-slate-700 hover:text-white"
                 onClick={onClose}
                 aria-label="Fechar menu"
               >
-                <X className="h-4 w-4" strokeWidth={2.2} />
+                <X className="h-4 w-4" strokeWidth={2} />
               </button>
             ) : null}
           </div>
 
+          {/* User info (mobile drawer) */}
           {!desktopPinned && !iconOnlyDesktop ? (
-            <div className="border-b border-[rgba(0,0,0,0.08)] px-4 py-4">
-              <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-3">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-                    {userInitial}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">{userName}</p>
-                    <p className="truncate text-xs text-[color:var(--text-muted)]">{userEmail}</p>
-                  </div>
+            <div className="border-b border-slate-800 px-3 py-3">
+              <div className="flex items-center gap-2.5 rounded-lg bg-slate-800 px-3 py-2.5">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">
+                  {userInitial}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{userName}</p>
+                  <p className="truncate text-xs text-slate-400">{userEmail}</p>
                 </div>
               </div>
             </div>
           ) : null}
 
-          <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden', iconOnlyDesktop ? 'px-2' : 'px-3')}>
+          {/* Nav */}
+          <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto py-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden', iconOnlyDesktop ? 'px-2' : 'px-2')}>
             {sections.map((section) => (
-              <section key={section.title} className="mb-5">
+              <section key={section.title} className="mb-4">
                 {!iconOnlyDesktop ? (
-                  <h3 className="mb-2 px-3 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
+                  <h3 className="mb-1 px-3 text-[0.65rem] font-semibold uppercase tracking-widest text-slate-500">
                     {section.title}
                   </h3>
                 ) : null}
 
-                <nav className="space-y-1">
+                <nav className="space-y-0.5">
                   {section.items.map((item) => (
                     <NavLink
                       key={item.to}
                       end={item.exact}
                       to={item.to}
-                      title={iconOnlyDesktop ? item.label : `${item.label} - ${item.hint}`}
+                      title={iconOnlyDesktop ? item.label : `${item.label} — ${item.hint}`}
                       onClick={onClose}
                       className={({ isActive }) =>
                         cn(
-                          'group flex items-center rounded-[14px] text-sm font-medium transition-colors',
-                          iconOnlyDesktop ? 'justify-center px-0 py-3' : 'justify-between px-3 py-2.5',
+                          'group flex items-center rounded-lg text-sm font-medium transition-colors',
+                          iconOnlyDesktop ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
                           isActive
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'text-[color:var(--text-muted)] hover:bg-gray-50 hover:text-[color:var(--text-primary)]',
+                            ? 'bg-green-500 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white',
                         )
                       }
                     >
                       {({ isActive }) => (
                         <>
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span
-                              className={cn(
-                                'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] transition-colors',
-                                isActive
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-[rgba(0,0,0,0.05)] text-[color:var(--text-muted)] group-hover:bg-emerald-50 group-hover:text-emerald-600',
-                              )}
-                            >
-                              <item.icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
-                            </span>
-
-                            {!iconOnlyDesktop ? <span className="truncate">{item.label}</span> : null}
-                          </div>
-
-                          {!iconOnlyDesktop && isActive ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
+                          <item.icon
+                            className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300')}
+                            strokeWidth={2}
+                          />
+                          {!iconOnlyDesktop ? <span className="truncate">{item.label}</span> : null}
                         </>
                       )}
                     </NavLink>
@@ -180,7 +168,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           </div>
 
           {footer ? (
-            <div className={cn('border-t border-[rgba(0,0,0,0.08)]', iconOnlyDesktop ? 'p-3' : 'p-4')}>
+            <div className={cn('border-t border-slate-800', iconOnlyDesktop ? 'p-2' : 'p-3')}>
               {footer}
             </div>
           ) : null}
