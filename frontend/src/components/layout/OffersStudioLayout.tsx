@@ -70,7 +70,7 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [location.pathname, location.search]);
 
   return (
-    <div className="workspace-root offers-studio-layout h-[100dvh] box-border overflow-hidden bg-gray-50">
+    <div className="workspace-root offers-studio-layout h-[100dvh] box-border overflow-hidden" style={{ background: 'var(--surface-soft)' }}>
       {!navPinned && showAppRail ? (
         <button
           type="button"
@@ -140,7 +140,8 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         {!navPinned && showAppRail ? (
           <button
             type="button"
-            className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-900 shadow-sm transition hover:-translate-y-px hover:bg-gray-50"
+            className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-xl transition hover:-translate-y-px"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
             onClick={() => setNavOpen(true)}
             aria-label="Abrir menu do modulo"
           >
@@ -152,7 +153,10 @@ const OffersStudioLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           'flex h-full min-h-0 w-full flex-col overflow-hidden',
           showAppRail ? (navPinned ? 'p-3 lg:p-4' : 'px-4 pb-4 sm:px-5') : 'p-0',
         )}>
-          <div className={cn('offers-app-body w-full', showAppRail ? 'rounded-2xl border border-gray-200 bg-white/80' : '')}>
+          <div
+            className={cn('offers-app-body w-full', showAppRail ? 'rounded-2xl' : '')}
+            style={showAppRail ? { border: '1px solid var(--border-soft)', background: 'var(--surface-base)' } : {}}
+          >
             {showAppRail ? (
               <div className="offers-app-floating-session">
                 <span className="offers-app-session-role">{isSuperAdminMode ? 'Super admin' : 'Admin'}</span>
