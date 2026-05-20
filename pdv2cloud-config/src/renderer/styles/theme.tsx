@@ -1,22 +1,25 @@
-// PDV2Cloud Design System
+// Design tokens alinhados ao painel admin/superadmin do MercadoFlow
+// Referência: WorkspaceSidebar.tsx, WorkspaceTopbar.tsx, tailwind.css (:root)
+
+import React from 'react';
 
 export const colors = {
-  // Primary brand colors
+  // Cor de marca — verde, igual ao painel web (brand-500/600/700)
   primary: {
-    50: '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6',
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8a',
+    50:  '#f0fdf4',  // surface-success
+    100: '#dcfce7',  // brand-100
+    200: '#bbf7d0',  // brand-200
+    300: '#86efac',
+    400: '#4ade80',
+    500: '#22c55e',  // brand-500 — bg-green-500 (sidebar item ativo, logo mark)
+    600: '#16a34a',  // brand-600 — hover do botão primário
+    700: '#15803d',  // brand-700 — texto sobre fundo success
+    800: '#166534',
+    900: '#14532d',
   },
-  // Success/Online
+  // Sucesso — mesmo que primary (verde)
   success: {
-    50: '#f0fdf4',
+    50:  '#f0fdf4',
     100: '#dcfce7',
     200: '#bbf7d0',
     300: '#86efac',
@@ -26,9 +29,9 @@ export const colors = {
     700: '#15803d',
     800: '#166534',
   },
-  // Warning/Pending
+  // Alerta
   warning: {
-    50: '#fffbeb',
+    50:  '#fffbeb',
     100: '#fef3c7',
     200: '#fde68a',
     300: '#fcd34d',
@@ -36,10 +39,11 @@ export const colors = {
     500: '#f59e0b',
     600: '#d97706',
     700: '#b45309',
+    800: '#92400e',
   },
-  // Error/Critical
+  // Erro/crítico
   error: {
-    50: '#fef2f2',
+    50:  '#fef2f2',
     100: '#fee2e2',
     200: '#fecaca',
     300: '#fca5a5',
@@ -47,89 +51,105 @@ export const colors = {
     500: '#ef4444',
     600: '#dc2626',
     700: '#b91c1c',
+    800: '#991b1b',
+    900: '#7f1d1d',
   },
-  // Neutral/Gray
+  // Info (azul — apenas para status info, não cor de marca)
+  info: {
+    50:  '#eff6ff',
+    100: '#dbeafe',
+    200: '#bfdbfe',
+    300: '#93c5fd',
+    400: '#60a5fa',
+    500: '#3b82f6',
+    600: '#2563eb',
+    700: '#1d4ed8',
+    800: '#1e40af',
+  },
+  // Neutros slate — painel usa escala slate (cool), não gray (warm)
   neutral: {
-    50: '#fafafa',
-    100: '#f5f5f5',
-    200: '#e5e5e5',
-    300: '#d4d4d4',
-    400: '#a3a3a3',
-    500: '#737373',
-    600: '#525252',
-    700: '#404040',
-    800: '#262626',
-    900: '#171717',
+    50:  '#f8fafc',  // surface-soft — fundo da página
+    100: '#f1f5f9',  // surface-muted
+    200: '#e2e8f0',  // border-soft
+    300: '#cbd5e1',  // border-strong
+    400: '#94a3b8',  // text-soft — sidebar texto inativo
+    500: '#64748b',  // text-muted — sidebar ícones inativos
+    600: '#475569',
+    700: '#334155',
+    800: '#1e293b',  // slate-800 — sidebar borda interna
+    900: '#0f172a',  // slate-900 — sidebar fundo
   },
-  // Background
+  // Surfaces — espelham as variáveis CSS do web
   background: {
-    primary: '#ffffff',
-    secondary: '#f9fafb',
-    tertiary: '#f3f4f6',
+    primary:   '#ffffff',  // surface-base — cards, topbar
+    secondary: '#f8fafc',  // surface-soft — fundo da página
+    tertiary:  '#f1f5f9',  // surface-muted
+    sidebar:   '#0f172a',  // slate-900 — sidebar fundo
   },
-  // Text
+  // Texto — espelham text-primary / text-muted / text-soft
   text: {
-    primary: '#111827',
-    secondary: '#4b5563',
-    tertiary: '#6b7280',
-    inverse: '#ffffff',
-  }
+    primary:   '#0f172a',  // slate-900
+    secondary: '#64748b',  // slate-500
+    tertiary:  '#94a3b8',  // slate-400
+    inverse:   '#ffffff',
+    sidebar:   '#94a3b8',  // texto inativo na sidebar
+  },
 };
 
 export const typography = {
   fontFamily: {
-    sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    mono: '"Courier New", Courier, monospace',
+    sans: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    mono: '"JetBrains Mono", "IBM Plex Mono", Consolas, "Courier New", monospace',
   },
   fontSize: {
-    xs: '12px',
-    sm: '14px',
+    xs:   '12px',
+    sm:   '14px',
     base: '16px',
-    lg: '18px',
-    xl: '20px',
+    lg:   '18px',
+    xl:   '20px',
     '2xl': '24px',
     '3xl': '30px',
     '4xl': '36px',
   },
   fontWeight: {
-    normal: 400,
-    medium: 500,
+    normal:   400,
+    medium:   500,
     semibold: 600,
-    bold: 700,
+    bold:     700,
   },
   lineHeight: {
-    tight: 1.25,
-    normal: 1.5,
+    tight:   1.25,
+    normal:  1.5,
     relaxed: 1.75,
-  }
+  },
 };
 
 export const spacing = {
-  xs: '4px',
-  sm: '8px',
-  md: '12px',
-  lg: '16px',
-  xl: '24px',
+  xs:  '4px',
+  sm:  '8px',
+  md:  '12px',
+  lg:  '16px',
+  xl:  '24px',
   '2xl': '32px',
   '3xl': '48px',
 };
 
 export const borderRadius = {
-  sm: '4px',
-  md: '8px',
-  lg: '12px',
-  xl: '16px',
+  sm:   '6px',   // radius-sm
+  md:   '10px',  // radius-md
+  lg:   '12px',  // radius-lg
+  xl:   '16px',  // radius-xl
+  '2xl': '20px',
   full: '9999px',
 };
 
 export const shadows = {
-  sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-  lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-  xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+  sm: '0 1px 2px 0 rgba(0,0,0,0.05)',
+  md: '0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04)',
+  lg: '0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04)',
 };
 
-// SVG Icons as components
+// Ícones SVG (lucide-compatible stroke style)
 export const Icons = {
   Check: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -152,7 +172,7 @@ export const Icons = {
   Settings: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"></circle>
-      <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
     </svg>
   ),
   Play: () => (
@@ -225,110 +245,118 @@ export const Icons = {
   ),
 };
 
-// Reusable component styles
+// Estilos de componentes reutilizáveis
 export const components = {
   button: {
     primary: {
-      backgroundColor: colors.primary[600],
+      backgroundColor: colors.primary[500],
       color: colors.text.inverse,
       padding: `${spacing.md} ${spacing.xl}`,
       borderRadius: borderRadius.md,
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.semibold,
       border: 'none',
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
+      transition: 'background-color 0.15s',
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.sm,
       fontFamily: typography.fontFamily.sans,
+      minHeight: '40px',
     },
     secondary: {
-      backgroundColor: colors.neutral[100],
+      backgroundColor: colors.background.primary,
       color: colors.text.primary,
       padding: `${spacing.md} ${spacing.xl}`,
       borderRadius: borderRadius.md,
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.medium,
-      border: `1px solid ${colors.neutral[300]}`,
+      border: `1px solid ${colors.neutral[200]}`,
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
+      transition: 'background-color 0.15s',
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.sm,
       fontFamily: typography.fontFamily.sans,
+      minHeight: '40px',
     },
+    // success é alias de primary (verde = marca)
     success: {
-      backgroundColor: colors.success[600],
+      backgroundColor: colors.primary[500],
       color: colors.text.inverse,
       padding: `${spacing.md} ${spacing.xl}`,
       borderRadius: borderRadius.md,
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.semibold,
       border: 'none',
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
+      transition: 'background-color 0.15s',
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.sm,
       fontFamily: typography.fontFamily.sans,
+      minHeight: '40px',
     },
     danger: {
       backgroundColor: colors.error[600],
       color: colors.text.inverse,
       padding: `${spacing.md} ${spacing.xl}`,
       borderRadius: borderRadius.md,
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.semibold,
       border: 'none',
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
+      transition: 'background-color 0.15s',
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.sm,
       fontFamily: typography.fontFamily.sans,
+      minHeight: '40px',
     },
   },
   card: {
     backgroundColor: colors.background.primary,
     borderRadius: borderRadius.lg,
     padding: spacing['2xl'],
-    boxShadow: shadows.md,
     border: `1px solid ${colors.neutral[200]}`,
+    boxShadow: shadows.sm,
   },
   badge: {
     online: {
-      backgroundColor: colors.success[100],
-      color: colors.success[800],
+      backgroundColor: colors.primary[50],
+      color: colors.primary[700],
       padding: `${spacing.xs} ${spacing.md}`,
       borderRadius: borderRadius.full,
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.semibold,
+      border: `1px solid ${colors.primary[200]}`,
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.xs,
     },
     offline: {
-      backgroundColor: colors.error[100],
-      color: colors.error[800],
+      backgroundColor: colors.error[50],
+      color: colors.error[700],
       padding: `${spacing.xs} ${spacing.md}`,
       borderRadius: borderRadius.full,
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.semibold,
+      border: `1px solid ${colors.error[200]}`,
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.xs,
     },
     warning: {
-      backgroundColor: colors.warning[100],
-      color: colors.warning[800],
+      backgroundColor: colors.warning[50],
+      color: colors.warning[700],
       padding: `${spacing.xs} ${spacing.md}`,
       borderRadius: borderRadius.full,
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.semibold,
+      border: `1px solid ${colors.warning[200]}`,
       display: 'inline-flex',
       alignItems: 'center',
       gap: spacing.xs,
     },
-  }
+  },
 };
