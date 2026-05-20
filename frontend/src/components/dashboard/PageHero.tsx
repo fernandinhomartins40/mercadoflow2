@@ -33,19 +33,21 @@ const PageHero: React.FC<PageHeroProps> = ({
   const hasAside = Boolean(aside);
 
   const copyBlock = (
-    <div className={cn('page-hero-copy', copyClassName)}>
-      <div className="page-hero-kicker">{badge}</div>
-      {typeof title === 'string' ? <h1 className="page-hero-title">{title}</h1> : title}
-      {typeof description === 'string' ? <p className="page-hero-text">{description}</p> : description}
-      {actions ? <div className="page-hero-actions">{actions}</div> : null}
+    <div className={cn('flex min-w-0 flex-col gap-3', copyClassName)}>
+      <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">{badge}</p>
+      {typeof title === 'string' ? <h1 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h1> : title}
+      {typeof description === 'string' ? <p className="text-sm leading-6 text-slate-500">{description}</p> : description}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 
-  const featureBlock = feature ? <div className={cn('page-hero-feature', featureClassName)}>{feature}</div> : null;
+  const featureBlock = feature ? (
+    <div className={cn('flex min-w-0 flex-col gap-3', featureClassName)}>{feature}</div>
+  ) : null;
 
   return (
-    <section className={cn('page-hero-grid reveal', !hasAside && 'page-hero-grid-single', className)}>
-      <article className={cn('page-hero-card', articleClassName)}>
+    <section className={cn('flex flex-col gap-5', className)}>
+      <article className={cn('grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start', articleClassName)}>
         {visualFirst ? (
           <>
             {featureBlock}
@@ -59,7 +61,7 @@ const PageHero: React.FC<PageHeroProps> = ({
         )}
       </article>
 
-      {hasAside ? <aside className={cn('page-hero-aside', asideClassName)}>{aside}</aside> : null}
+      {hasAside ? <aside className={cn('flex flex-col gap-3', asideClassName)}>{aside}</aside> : null}
     </section>
   );
 };

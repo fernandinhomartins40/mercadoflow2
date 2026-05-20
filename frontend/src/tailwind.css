@@ -161,9 +161,7 @@
   }
 
   .kpi-card {
-    @apply flex flex-col gap-1.5 rounded-[16px] border px-4 py-3;
-    border-color: var(--border-soft);
-    background: rgba(255, 255, 255, 0.72);
+    @apply flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3;
   }
 
   .kpi-card-label {
@@ -174,7 +172,6 @@
   .kpi-card-value {
     @apply text-[1.35rem] font-semibold leading-none tracking-[-0.03em];
     color: var(--text-primary);
-    font-family: var(--font-display);
   }
 
   .kpi-card-meta {
@@ -254,8 +251,7 @@
   }
 
   .state-price-table-wrap {
-    @apply mt-3 overflow-x-auto rounded-[22px] border bg-white/80 p-2 shadow-[0_12px_26px_rgba(0,0,0,0.06)];
-    border-color: var(--border-soft);
+    @apply mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white p-0;
   }
 
   .state-price-table {
@@ -293,9 +289,7 @@
   .state-price-note,
   .state-price-source-card,
   .state-price-observation-item {
-    @apply flex flex-col gap-1 rounded-[18px] border p-4;
-    border-color: var(--border-soft);
-    background: rgba(255, 255, 255, 0.78);
+    @apply flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4;
   }
 
   .state-price-source-grid {
@@ -339,9 +333,7 @@
   }
 
   .page-hero-card {
-    @apply grid gap-4 rounded-[28px] border p-5 shadow-[0_14px_32px_rgba(0,0,0,0.07)] xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start xl:p-6;
-    border-color: var(--border-soft);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 243, 0.9) 100%);
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start;
   }
 
   .page-hero-copy {
@@ -413,10 +405,7 @@
   .dashboard-command-card,
   .super-admin-command-card,
   .sales-command-card {
-    @apply grid gap-4 rounded-[28px] p-5 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start xl:p-6;
-    border: 1px solid var(--border-soft);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 243, 0.9) 100%);
-    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.07);
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.68fr)] xl:items-start;
   }
 
   .dashboard-command-copy,
@@ -511,16 +500,12 @@
   }
 
   .dashboard-glow-card {
-    @apply flex min-h-[156px] flex-col justify-between gap-3 rounded-[24px] p-4 sm:p-5;
-    border: 1px solid rgba(132, 66, 30, 0.14);
-    background:
-      radial-gradient(circle at top right, rgba(255, 202, 153, 0.92) 0%, rgba(242, 148, 75, 0.82) 20%, rgba(140, 65, 25, 0.96) 54%, rgba(88, 37, 14, 0.98) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 28px rgba(0, 0, 0, 0.14);
-    color: white;
+    @apply flex min-h-[120px] flex-col justify-between gap-3 rounded-xl border border-green-200 bg-green-50 p-4 sm:p-5;
+    color: #15803d;
   }
 
   .dashboard-glow-card .section-kicker {
-    color: rgba(255, 225, 205, 0.76);
+    color: #16a34a;
   }
 
   .dashboard-priority-card.dark .section-kicker {
@@ -539,12 +524,11 @@
 
   .dashboard-glow-card strong {
     @apply text-[clamp(1.85rem,3vw,2.7rem)] font-semibold leading-none tracking-[-0.05em];
-    font-family: var(--font-display);
   }
 
   .dashboard-glow-card p {
     @apply m-0 max-w-[32ch] text-sm leading-5;
-    color: rgba(255, 235, 220, 0.78);
+    color: #15803d;
   }
 
   .dashboard-command-mosaic {
@@ -590,14 +574,11 @@
   }
 
   .dashboard-mini-tile {
-    @apply flex min-h-[84px] flex-col justify-between gap-1.5 rounded-[18px] p-3.5;
-    border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.86);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    @apply flex min-h-[84px] flex-col justify-between gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5;
   }
 
   .dashboard-mini-tile.accent {
-    background: linear-gradient(180deg, rgba(243, 244, 246, 0.96) 0%, rgba(255, 237, 226, 0.94) 100%);
+    @apply border-slate-200 bg-slate-50;
   }
 
   .dashboard-mini-tile span,
@@ -612,15 +593,11 @@
   }
 
   .dashboard-priority-card {
-    @apply flex flex-col gap-2.5 rounded-[22px] p-4;
-    border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    @apply flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-4;
   }
 
   .dashboard-priority-card.dark {
-    border-color: rgba(5, 150, 105, 0.14);
-    background: linear-gradient(180deg, rgba(255, 248, 242, 0.98) 0%, rgba(255, 240, 228, 0.92) 100%);
+    @apply border-green-200 bg-green-50;
     color: var(--text-primary);
   }
 
@@ -898,9 +875,7 @@
   }
 
   .card {
-    @apply rounded-[18px] border px-4 py-3 text-sm leading-6;
-    border-color: rgba(0, 0, 0, 0.12);
-    background: rgba(255, 255, 255, 0.72);
+    @apply rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6;
     color: var(--text-primary);
   }
 
@@ -1578,14 +1553,13 @@
 
 .hero-focus-card,
 .hero-mini-card,
-.analytics-panel,
 .product-mosaic-card,
 .pair-spotlight-card,
 .forecast-card,
 .analytics-footer-callout {
-  border-radius: 24px;
-  border: 1px solid rgba(26, 26, 26, 0.06);
-  box-shadow: 0 24px 48px rgba(14, 28, 22, 0.08);
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
 }
 
 .metric-card-top,
@@ -2998,16 +2972,13 @@
 }
 
 .analytics-hero,
-.analytics-panel,
-.metric-card,
-.card,
 .executive-card,
 .action-lab-card,
 .super-admin-crawler-job-card,
 .super-admin-source-card {
-  border-radius: 24px;
-  border: 1px solid rgba(20, 24, 38, 0.08);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
 }
 
 .hero-chip-row {
@@ -3051,9 +3022,6 @@
 }
 
 .analytics-hero,
-.analytics-panel,
-.metric-card,
-.card,
 .executive-card,
 .action-lab-card,
 .super-admin-crawler-job-card,
@@ -3061,9 +3029,9 @@
 .dashboard-form-panel,
 .dashboard-note-card,
 .dashboard-table-panel {
-  border-radius: 30px;
-  border: 1px solid rgba(33, 21, 19, 0.08);
-  box-shadow: 0 22px 40px rgba(33, 21, 19, 0.08);
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
 }
 
 .hero-chip {

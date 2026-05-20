@@ -302,13 +302,13 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
           }
         />
 
-        {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
-        {success ? <div className="card" style={{ color: 'var(--success)' }}>{success}</div> : null}
-        {loading && !details ? <div className="card">Carregando detalhes do run...</div> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {success ? <p className="text-sm text-green-600">{success}</p> : null}
+        {loading && !details ? <p className="text-sm text-slate-400">Carregando detalhes do run...</p> : null}
 
         {details ? (
           <>
-            <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {metrics.map((metric) => (
                 <MetricsCard
                   key={metric.title}
@@ -319,63 +319,63 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
                   caption={metric.caption}
                 />
               ))}
-            </section>
+            </div>
 
-            <div className="dashboard-page-grid">
-              <PanelSection className="dashboard-note-card" kicker="Contexto da rodada" title="Escopo e sincronizacao">
-                <div className="dashboard-stat-list">
-                  <div className="dashboard-stat-row">
-                    <span>Status</span>
+            <div className="grid gap-5 xl:grid-cols-2">
+              <PanelSection kicker="Contexto da rodada" title="Escopo e sincronizacao">
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Status</span>
                     <strong><span className={`status-pill ${runStatusClass(details.run.status)}`}>{formatStatus(details.run.status)}</span></strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Solicitado</span>
-                    <strong>{formatDate(details.run.requestedAt)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Solicitado</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatDate(details.run.requestedAt)}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Iniciado</span>
-                    <strong>{formatDate(details.run.startedAt)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Iniciado</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatDate(details.run.startedAt)}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Finalizado</span>
-                    <strong>{formatDate(details.run.finishedAt)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Finalizado</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatDate(details.run.finishedAt)}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Mercado</span>
-                    <strong>{(details.run.sources || []).join(', ') || '--'}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Mercado</span>
+                    <strong className="text-sm font-semibold text-slate-900">{(details.run.sources || []).join(', ') || '--'}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Categorias</span>
-                    <strong>{details.run.selectedCategories && details.run.selectedCategories.length > 0 ? details.run.selectedCategories.join(', ') : 'Catalogo completo'}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Categorias</span>
+                    <strong className="text-sm font-semibold text-slate-900">{details.run.selectedCategories && details.run.selectedCategories.length > 0 ? details.run.selectedCategories.join(', ') : 'Catalogo completo'}</strong>
                   </div>
                 </div>
               </PanelSection>
 
-              <PanelSection className="dashboard-note-card" kicker="Telemetria ao vivo" title="Progresso parcial do dispatcher">
-                <div className="dashboard-stat-list">
-                  <div className="dashboard-stat-row">
-                    <span>Etapa</span>
-                    <strong>{liveStage}</strong>
+              <PanelSection kicker="Telemetria ao vivo" title="Progresso parcial do dispatcher">
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Etapa</span>
+                    <strong className="text-sm font-semibold text-slate-900">{liveStage}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Heartbeat</span>
-                    <strong>{formatDate(details.heartbeatAt || details.run.updatedAt)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Heartbeat</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatDate(details.heartbeatAt || details.run.updatedAt)}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Duracao</span>
-                    <strong>{formatDuration(details.durationSeconds)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Duracao</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatDuration(details.durationSeconds)}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Pendentes no lote</span>
-                    <strong>{formatNumber(livePending)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Pendentes no lote</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatNumber(livePending)}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Arquivos ao vivo</span>
-                    <strong>{details.progressPath || '--'}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Arquivos ao vivo</span>
+                    <strong className="text-sm font-semibold text-slate-900">{details.progressPath || '--'}</strong>
                   </div>
-                  <div className="dashboard-stat-row">
-                    <span>Tail do log</span>
-                    <strong>{formatBytes(details.logSizeBytes)}</strong>
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                    <span className="text-sm text-slate-500">Tail do log</span>
+                    <strong className="text-sm font-semibold text-slate-900">{formatBytes(details.logSizeBytes)}</strong>
                   </div>
                 </div>
               </PanelSection>

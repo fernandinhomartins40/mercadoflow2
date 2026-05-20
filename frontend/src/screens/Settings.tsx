@@ -160,22 +160,20 @@ const Settings: React.FC = () => {
           subtitle="Credenciais do agente, endpoint e informações do mercado."
         />
 
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricsCard title="Chaves ativas" value={activeKeys.length} icon="AK" />
           <MetricsCard title="Revogadas" value={revokedKeys.length} icon="RV" variant="danger" />
           <MetricsCard title="Heartbeat recente" value={heartbeatFreshKeys.length} icon="HB" variant="warning" />
           <MetricsCard title="Instalador" value={installerInfo?.version || 'disponível'} icon="EXE" />
         </div>
 
-        <div className="layout-split">
-          <div className="layout-main">
-            {/* Contexto da aplicação */}
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head compact">
-                <div>
-                  <span className="section-kicker">Contexto</span>
-                  <h3>Identidade e endpoint</h3>
-                </div>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+          <div className="flex min-w-0 flex-col gap-5">
+            {/* Contexto */}
+            <div className="flex flex-col gap-3">
+              <div className="border-b border-slate-100 pb-2">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Contexto</p>
+                <h3 className="text-sm font-semibold text-slate-900">Identidade e endpoint</h3>
               </div>
               <div className="settings-stack">
                 <div className="settings-line-card">
@@ -207,19 +205,17 @@ const Settings: React.FC = () => {
                   <ButtonLink to="/app/download-agente" variant="secondary">Abrir download</ButtonLink>
                 </div>
               </div>
-            </section>
+            </div>
 
             {/* Chaves */}
-            <section className="analytics-section reveal">
-              <div className="section-heading-row">
-                <div>
-                  <span className="section-kicker">Chaves do agente</span>
-                  <h2>Credenciais ativas e revogadas</h2>
-                </div>
+            <div className="flex flex-col gap-3">
+              <div className="border-b border-slate-100 pb-2">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Chaves do agente</p>
+                <h3 className="text-sm font-semibold text-slate-900">Credenciais ativas e revogadas</h3>
               </div>
               <div className="analytics-card-grid settings-key-grid">
                 {keys.length === 0 ? (
-                  <div className="analytics-panel"><div className="panel-empty">{listError || 'Nenhuma chave encontrada para este mercado.'}</div></div>
+                  <div className="panel-empty">{listError || 'Nenhuma chave encontrada para este mercado.'}</div>
                 ) : (
                   keys.map((key) => (
                     <article key={key.id} className={`settings-key-card ${key.isActive === false ? 'revoked' : 'active'} reveal`}>
@@ -255,43 +251,37 @@ const Settings: React.FC = () => {
                   ))
                 )}
               </div>
-            </section>
+            </div>
           </div>
 
-          <aside className="layout-aside">
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head compact">
-                <div>
-                  <span className="section-kicker">Nova credencial</span>
-                  <h3>Gerar chave</h3>
-                </div>
-              </div>
-              <div className="form-grid-analytics settings-form-grid">
-                {role === 'ADMIN' && !marketId && (
-                  <select className="input full" value={manualMarketId} onChange={(e) => setManualMarketId(e.target.value)}>
-                    <option value="">Selecione o supermercado</option>
-                    {markets.map((market) => (
-                      <option key={market.id} value={market.id}>{market.name}</option>
-                    ))}
-                  </select>
-                )}
-                <input className="input full" placeholder="Nome da chave. Ex: Caixa Loja Centro" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div className="panel-actions">
-                <Button onClick={createKey}>Gerar chave</Button>
-              </div>
-              {message && <div className="settings-message">{message}</div>}
-              {generatedKey && (
-                <div className="settings-secret-card">
-                  <strong>Copie esta chave agora. Ela só aparece uma vez.</strong>
-                  <div className="code-box" style={{ marginTop: 10 }}>{generatedKey}</div>
-                  <div className="panel-actions" style={{ marginTop: 10 }}>
-                    <Button variant="secondary" onClick={() => copyText(generatedKey, 'chave gerada')}>{copied === 'chave gerada' ? 'Copiado' : 'Copiar chave'}</Button>
-                    <Button variant="secondary" onClick={() => setGeneratedKey(null)}>Ocultar</Button>
-                  </div>
-                </div>
+          <aside className="flex flex-col gap-3">
+            <div className="border-b border-slate-100 pb-2">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Nova credencial</p>
+              <h3 className="text-sm font-semibold text-slate-900">Gerar chave</h3>
+            </div>
+            <div className="grid gap-3">
+              {role === 'ADMIN' && !marketId && (
+                <select className="input full" value={manualMarketId} onChange={(e) => setManualMarketId(e.target.value)}>
+                  <option value="">Selecione o supermercado</option>
+                  {markets.map((market) => (
+                    <option key={market.id} value={market.id}>{market.name}</option>
+                  ))}
+                </select>
               )}
-            </section>
+              <input className="input full" placeholder="Nome da chave. Ex: Caixa Loja Centro" value={name} onChange={(e) => setName(e.target.value)} />
+              <Button onClick={createKey}>Gerar chave</Button>
+            </div>
+            {message && <div className="settings-message">{message}</div>}
+            {generatedKey && (
+              <div className="settings-secret-card">
+                <strong>Copie esta chave agora. Ela só aparece uma vez.</strong>
+                <div className="code-box" style={{ marginTop: 10 }}>{generatedKey}</div>
+                <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
+                  <Button variant="secondary" onClick={() => copyText(generatedKey, 'chave gerada')}>{copied === 'chave gerada' ? 'Copiado' : 'Copiar chave'}</Button>
+                  <Button variant="secondary" onClick={() => setGeneratedKey(null)}>Ocultar</Button>
+                </div>
+              </div>
+            )}
           </aside>
         </div>
       </div>

@@ -63,16 +63,16 @@ const PDVs: React.FC = () => {
           actions={<Button variant="secondary" onClick={load} disabled={loading}>Atualizar</Button>}
         />
 
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <div className="grid gap-3 sm:grid-cols-3">
           <MetricsCard title="PDVs" value={items.length} icon="PD" />
           <MetricsCard title="Com serial" value={withSerialCount} icon="SR" />
           <MetricsCard title="Sem serial" value={Math.max(items.length - withSerialCount, 0)} icon="NS" />
         </div>
 
-        {error ? <div className="card" style={{ color: 'var(--danger)' }}>{error}</div> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-        <div className="layout-split">
-          <div className="layout-main">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+          <div className="min-w-0">
             {loading ? (
               <div className="panel-empty">Carregando PDVs...</div>
             ) : (
@@ -107,20 +107,16 @@ const PDVs: React.FC = () => {
             )}
           </div>
 
-          <aside className="layout-aside">
-            <section className="analytics-panel reveal">
-              <div className="analytics-panel-head compact">
-                <div>
-                  <span className="section-kicker">Cadastrar</span>
-                  <h3>Novo PDV</h3>
-                </div>
-              </div>
-              <div className="dashboard-form-stack">
-                <input className="input" placeholder="Nome do PDV" value={name} onChange={(e) => setName(e.target.value)} />
-                <input className="input" placeholder="Serial (opcional)" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} />
-                <Button onClick={create}>Criar PDV</Button>
-              </div>
-            </section>
+          <aside className="flex flex-col gap-3">
+            <div className="border-b border-slate-100 pb-2">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Cadastrar</p>
+              <h3 className="text-sm font-semibold text-slate-900">Novo PDV</h3>
+            </div>
+            <div className="grid gap-3">
+              <input className="input" placeholder="Nome do PDV" value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="input" placeholder="Serial (opcional)" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} />
+              <Button onClick={create}>Criar PDV</Button>
+            </div>
           </aside>
         </div>
       </div>

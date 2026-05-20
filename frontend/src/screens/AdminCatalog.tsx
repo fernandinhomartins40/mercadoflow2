@@ -229,7 +229,7 @@ const CatalogAdmin: React.FC = () => {
           subtitle="Consulta e manutencao da base enriquecida por GTIN unico."
         />
 
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricsCard title="Total unico no banco" value={totalElements} icon="DB" />
           <MetricsCard title="Na página" value={rows.length} icon="PG" />
           <MetricsCard title="Com imagem" value={withImageCount} icon="IM" />

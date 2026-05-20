@@ -434,7 +434,7 @@ const ProductDetail: React.FC = () => {
           </aside>
         </section>
 
-        <div className="metrics-grid analytics-metrics-grid sales-metric-strip">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricsCard title="Receita" value={formatMoney(overview.revenue)} icon="R$" />
           <MetricsCard title="Preço médio" value={formatMoney(overview.averagePrice)} icon="PM" />
           <MetricsCard title="Transações" value={formatQuantity(overview.transactionCount)} icon="NF" />

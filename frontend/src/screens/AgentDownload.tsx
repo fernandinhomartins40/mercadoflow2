@@ -75,27 +75,23 @@ const AgentDownload: React.FC = () => {
         {loading ? (
           <div className="panel-empty">Carregando informações...</div>
         ) : error ? (
-          <div className="analytics-panel">
-            <div className="panel-empty" style={{ color: 'var(--danger)' }}>{error}</div>
-            <div className="panel-actions" style={{ marginTop: 12 }}>
-              <Button variant="secondary" onClick={fetchInstallerInfo}>Tentar novamente</Button>
-            </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-red-600">{error}</p>
+            <Button variant="secondary" onClick={fetchInstallerInfo}>Tentar novamente</Button>
           </div>
         ) : installerInfo ? (
-          <div className="layout-split">
-            <div className="layout-main">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+            <div className="flex min-w-0 flex-col gap-5">
               {/* Info do instalador */}
-              <section className="analytics-panel reveal">
-                <div className="analytics-panel-head compact">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-2">
                   <div>
-                    <span className="section-kicker">PDV2Cloud Agent</span>
-                    <h3>Instalador oficial</h3>
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">PDV2Cloud Agent</p>
+                    <h3 className="text-sm font-semibold text-slate-900">Instalador oficial</h3>
                   </div>
-                  <div className="page-header-actions">
-                    <Button onClick={handleDownload} disabled={downloading}>
-                      {downloading ? 'Baixando...' : 'Baixar instalador'}
-                    </Button>
-                  </div>
+                  <Button onClick={handleDownload} disabled={downloading}>
+                    {downloading ? 'Baixando...' : 'Baixar instalador'}
+                  </Button>
                 </div>
 
                 <div className="settings-stack">
@@ -120,17 +116,17 @@ const AgentDownload: React.FC = () => {
                 </div>
 
                 {installerInfo.sha256 && (
-                  <div style={{ marginTop: 16 }}>
-                    <span className="section-kicker">SHA256</span>
-                    <div className="code-box" style={{ marginTop: 6 }}>{installerInfo.sha256}</div>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">SHA256</p>
+                    <div className="code-box">{installerInfo.sha256}</div>
                   </div>
                 )}
-              </section>
+              </div>
 
               {/* Requisitos */}
-              <section className="analytics-panel reveal">
-                <div className="analytics-panel-head compact">
-                  <h3>Requisitos do sistema</h3>
+              <div className="flex flex-col gap-3">
+                <div className="border-b border-slate-100 pb-2">
+                  <h3 className="text-sm font-semibold text-slate-900">Requisitos do sistema</h3>
                 </div>
                 <div className="settings-stack">
                   <div className="settings-line-card"><strong>✓ Windows 10/11 ou Windows Server 2016+</strong></div>
@@ -138,21 +134,19 @@ const AgentDownload: React.FC = () => {
                   <div className="settings-line-card"><strong>✓ Conexão estável com a internet</strong></div>
                   <div className="settings-line-card"><strong>✓ Permissões de administrador</strong></div>
                 </div>
-              </section>
+              </div>
             </div>
 
-            <aside className="layout-aside">
-              <section className="analytics-panel reveal">
-                <div className="analytics-panel-head compact">
-                  <h3>Instruções</h3>
-                </div>
-                <div className="dashboard-form-stack" style={{ gap: 12 }}>
-                  <div><strong>1.</strong> Baixe o instalador e salve no servidor local.</div>
-                  <div><strong>2.</strong> Execute como administrador.</div>
-                  <div><strong>3.</strong> Informe a chave da API gerada em Configurações.</div>
-                  <div><strong>4.</strong> Valide o status de sincronização.</div>
-                </div>
-              </section>
+            <aside className="flex flex-col gap-3">
+              <div className="border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-semibold text-slate-900">Instruções</h3>
+              </div>
+              <div className="grid gap-3">
+                <div><strong>1.</strong> Baixe o instalador e salve no servidor local.</div>
+                <div><strong>2.</strong> Execute como administrador.</div>
+                <div><strong>3.</strong> Informe a chave da API gerada em Configurações.</div>
+                <div><strong>4.</strong> Valide o status de sincronização.</div>
+              </div>
             </aside>
           </div>
         ) : null}

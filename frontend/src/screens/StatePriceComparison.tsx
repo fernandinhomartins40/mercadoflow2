@@ -232,10 +232,10 @@ const StatePriceComparisonContent: React.FC = () => {
           }
         />
 
-        {error ? <div className="card text-[color:var(--danger)]">{error}</div> : null}
-        {success ? <div className="card text-[color:var(--success)]">{success}</div> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {success ? <p className="text-sm text-green-600">{success}</p> : null}
 
-        <section className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricsCard title="Produtos únicos" value={stats?.totalProducts ?? 0} icon="PR" />
           <MetricsCard title="Observações" value={stats?.totalObservations ?? 0} icon="OB" variant="warning" />
           <MetricsCard title="Fontes ativas" value={stats?.totalSources ?? 0} icon="SF" />
