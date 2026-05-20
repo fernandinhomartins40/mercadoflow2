@@ -30,15 +30,15 @@ const SalesChart: React.FC<SalesChartProps> = ({
     <Card className={mergedClassName}>
       <div className="flex items-start justify-between gap-4 p-5 pb-0">
         <div>
-          <span className="text-xs font-medium uppercase tracking-wider text-gray-400">{kicker}</span>
-          <h3 className="mt-1 text-lg font-semibold text-gray-900">{title}</h3>
+          <span className="text-xs font-medium uppercase tracking-wider text-slate-400">{kicker}</span>
+          <h3 className="mt-1 text-lg font-semibold text-slate-900">{title}</h3>
         </div>
         <div className="text-right">
-          <span className="text-xs text-gray-400">{calloutLabel}</span>
-          <strong className="mt-0.5 block text-lg font-semibold text-gray-900">{lastPoint ? formatter(lastPoint.revenue) : formatter(0)}</strong>
+          <span className="text-xs text-slate-400">{calloutLabel}</span>
+          <strong className="mt-0.5 block text-lg font-semibold text-slate-900">{lastPoint ? formatter(lastPoint.revenue) : formatter(0)}</strong>
         </div>
       </div>
-      <p className="px-5 pt-2 text-sm leading-relaxed text-gray-500">{panelCopy}</p>
+      <p className="px-5 pt-2 text-sm leading-relaxed text-slate-500">{panelCopy}</p>
       <Chart data={data} />
     </Card>
   );

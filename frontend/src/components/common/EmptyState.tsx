@@ -25,9 +25,12 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   action,
   className,
 }) => (
-  <div className={cn('flex min-h-[200px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500', className)}>
+  <div
+    className={cn('flex min-h-[200px] items-center justify-center rounded-xl border border-dashed p-8 text-center text-sm', className)}
+    style={{ borderColor: 'var(--border-strong)', background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
+  >
     <div className="flex flex-col items-center gap-3">
-      {icon ? <div className="text-gray-400 opacity-60">{icon}</div> : null}
+      {icon ? <div className="opacity-60" style={{ color: 'var(--text-soft)' }}>{icon}</div> : null}
       <span>{message}</span>
       {action ? <div className="mt-2">{action}</div> : null}
     </div>

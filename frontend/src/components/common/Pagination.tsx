@@ -39,7 +39,7 @@ const Pagination: React.FC<PaginationProps> = ({
     >
       {previousLabel}
     </Button>
-    <span className="text-sm text-gray-500">
+    <span className="text-sm text-slate-500">
       {totalPages > 0 ? `${page + 1} / ${totalPages}` : '—'}
     </span>
     <Button

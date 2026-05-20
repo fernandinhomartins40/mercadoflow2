@@ -12,9 +12,24 @@ const Alerts: React.FC = () => {
 
   const priorityConfig = (p: string) => {
     switch (p) {
-      case 'HIGH': return { border: 'border-l-red-500', icon: <AlertTriangle className="h-5 w-5 text-red-500" />, bg: 'bg-red-50', label: 'Urgente', labelColor: 'bg-red-100 text-red-700' };
-      case 'MEDIUM': return { border: 'border-l-amber-500', icon: <Clock className="h-5 w-5 text-amber-500" />, bg: 'bg-amber-50', label: 'Atenção', labelColor: 'bg-amber-100 text-amber-700' };
-      default: return { border: 'border-l-gray-300', icon: <Bell className="h-5 w-5 text-gray-400" />, bg: 'bg-gray-50', label: 'Info', labelColor: 'bg-gray-100 text-gray-600' };
+      case 'HIGH': return {
+        border: 'border-l-red-500',
+        icon: <AlertTriangle className="h-5 w-5 text-red-500" />,
+        label: 'Urgente',
+        labelStyle: { background: '#fee2e2', color: '#991b1b' } as React.CSSProperties,
+      };
+      case 'MEDIUM': return {
+        border: 'border-l-amber-500',
+        icon: <Clock className="h-5 w-5 text-amber-500" />,
+        label: 'Atenção',
+        labelStyle: { background: '#fef3c7', color: '#92400e' } as React.CSSProperties,
+      };
+      default: return {
+        border: 'border-l-slate-300',
+        icon: <Bell className="h-5 w-5" style={{ color: 'var(--text-soft)' }} />,
+        label: 'Info',
+        labelStyle: { background: 'var(--surface-muted)', color: 'var(--text-muted)' } as React.CSSProperties,
+      };
     }
   };
 
@@ -30,14 +45,19 @@ const Alerts: React.FC = () => {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Alertas</h1>
-            <p className="text-sm text-gray-500">O que precisa da sua atenção agora</p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Alertas</h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>O que precisa da sua atenção agora</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setOnlyUnread(!onlyUnread)}
-              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${onlyUnread ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-600'}`}
+              className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
+              style={
+                onlyUnread
+                  ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
+                  : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }
+              }
             >
               {onlyUnread ? 'Somente não lidos' : 'Todos'}
             </button>
@@ -48,18 +68,16 @@ const Alerts: React.FC = () => {
 
         {/* KPIs */}
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Alertas</span>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{alerts.length}</p>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Não lidos</span>
-            <p className="mt-1 text-2xl font-bold text-amber-600">{unreadCount}</p>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Urgentes</span>
-            <p className="mt-1 text-2xl font-bold text-red-600">{highCount}</p>
-          </div>
+          {[
+            { label: 'Alertas', value: alerts.length, color: 'var(--text-primary)' },
+            { label: 'Não lidos', value: unreadCount, color: '#d97706' },
+            { label: 'Urgentes', value: highCount, color: '#dc2626' },
+          ].map((kpi) => (
+            <div key={kpi.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{kpi.label}</span>
+              <p className="mt-1 text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+            </div>
+          ))}
         </div>
 
         {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
@@ -67,12 +85,12 @@ const Alerts: React.FC = () => {
         {/* Alert cards */}
         {loading ? (
           <div className="flex min-h-[200px] items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
           </div>
         ) : sorted.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400" />
-            <p className="mt-2 text-gray-500">Nenhum alerta pendente. Tudo em ordem!</p>
+          <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+            <CheckCircle2 className="mx-auto h-10 w-10 text-green-400" />
+            <p className="mt-2" style={{ color: 'var(--text-muted)' }}>Nenhum alerta pendente. Tudo em ordem!</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -81,17 +99,18 @@ const Alerts: React.FC = () => {
               return (
                 <div
                   key={alert.id}
-                  className={`flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm border-l-4 ${cfg.border} ${alert.isRead ? 'opacity-50' : ''}`}
+                  className={`flex items-start gap-4 rounded-xl border-l-4 p-4 transition ${cfg.border} ${alert.isRead ? 'opacity-50' : ''}`}
+                  style={{ border: '1px solid var(--border-soft)', borderLeftWidth: 4, background: 'var(--surface-base)' }}
                 >
                   {cfg.icon}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-semibold text-gray-900">{alert.title}</h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.labelColor}`}>{cfg.label}</span>
-                      {!alert.isRead && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                      <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{alert.title}</h4>
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={cfg.labelStyle}>{cfg.label}</span>
+                      {!alert.isRead && <span className="h-2 w-2 rounded-full bg-green-500" />}
                     </div>
-                    <p className="mt-0.5 text-sm text-gray-500">{alert.message}</p>
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-0.5 text-sm" style={{ color: 'var(--text-muted)' }}>{alert.message}</p>
+                    <p className="mt-1 text-xs" style={{ color: 'var(--text-soft)' }}>
                       {alert.createdAt ? new Date(alert.createdAt).toLocaleString('pt-BR') : ''}
                     </p>
                   </div>
@@ -99,7 +118,8 @@ const Alerts: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => markRead(alert.id)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
+                      style={{ background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
                     >
                       <Eye className="h-3.5 w-3.5" /> Marcar lido
                     </button>

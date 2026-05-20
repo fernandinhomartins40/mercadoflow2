@@ -70,17 +70,17 @@ const Modal: React.FC<ModalProps> = ({
       onClick={() => { if (!preventClose) onClose(); }}
     >
       <div
-        className={cn('mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.15)]', className)}
+        className={cn('mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.15)]', className)}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
           <div>
-            {kicker ? <span className="text-xs font-medium uppercase tracking-wider text-gray-400">{kicker}</span> : null}
+            {kicker ? <span className="text-xs font-medium uppercase tracking-wider text-slate-400">{kicker}</span> : null}
             {typeof title === 'string' ? (
-              <h3 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h3>
+              <h3 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h3>
             ) : (
               title
             )}

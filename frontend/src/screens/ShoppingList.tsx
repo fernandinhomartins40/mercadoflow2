@@ -27,11 +27,14 @@ const ListItem: React.FC<{
 }> = ({ item, onToggle, onUpdate, onRemove }) => {
   const [qty, setQty] = useState(String(item.quantityTarget || 1));
   return (
-    <div className={`flex items-start gap-4 rounded-xl border bg-white p-4 transition ${item.checked ? 'border-gray-100 opacity-60' : 'border-gray-200'}`}>
+    <div
+      className={`flex items-start gap-4 rounded-xl p-4 transition ${item.checked ? 'opacity-60' : ''}`}
+      style={{ border: `1px solid ${item.checked ? 'var(--border-soft)' : 'var(--border-strong)'}`, background: 'var(--surface-base)' }}
+    >
       <button
         type="button"
         onClick={() => void onToggle(!item.checked)}
-        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-400'}`}
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-green-500 bg-green-500 text-white' : 'border-slate-300 hover:border-green-400'}`}
       >
         {item.checked && <CheckCircle2 className="h-4 w-4" />}
       </button>
@@ -41,27 +44,33 @@ const ListItem: React.FC<{
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className={`text-sm font-semibold ${item.checked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.name}</p>
-            <p className="text-xs text-gray-400">{item.category || 'Sem categoria'}</p>
+            <p className={`text-sm font-semibold ${item.checked ? 'line-through' : ''}`} style={{ color: item.checked ? 'var(--text-soft)' : 'var(--text-primary)' }}>
+              {item.name}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{item.category || 'Sem categoria'}</p>
           </div>
-          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+          <span
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}
+          >
             {item.sourceTag.replace(/_/g, ' ')}
           </span>
         </div>
-        {item.reasonSummary && <p className="mt-1 text-xs text-gray-500">{item.reasonSummary}</p>}
+        {item.reasonSummary && <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>{item.reasonSummary}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500">
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
             Qtd:
             <input
               type="number"
               min="1"
-              className="h-7 w-16 rounded border border-gray-200 px-2 text-center text-xs text-gray-900 outline-none focus:border-emerald-500"
+              className="h-7 w-16 rounded px-2 text-center text-xs outline-none"
+              style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               onBlur={() => void onUpdate({ quantityTarget: Math.max(1, Number(qty || 1)) })}
             />
           </label>
-          <Link to={`/app/produtos/${item.productId}`} className="text-xs font-medium text-emerald-600 no-underline hover:text-emerald-700">
+          <Link to={`/app/produtos/${item.productId}`} className="text-xs font-medium text-green-600 no-underline hover:text-green-700">
             Ver produto <ArrowRight className="inline h-3 w-3" />
           </Link>
           <button type="button" onClick={() => void onRemove()} className="text-xs text-red-400 hover:text-red-600">
@@ -74,18 +83,26 @@ const ListItem: React.FC<{
 };
 
 const SuggestionRow: React.FC<{ product: ProductPerformance; label: string; onAdd: () => Promise<void>; inList: boolean }> = ({ product, label, onAdd, inList }) => (
-  <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 transition hover:bg-gray-50">
+  <div
+    className="flex items-center gap-3 rounded-lg p-3 transition"
+    style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
+  >
     <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg">
       <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
     </div>
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
-      <p className="text-xs text-gray-400">{label} · {formatMoney(product.revenue)}</p>
+      <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
+      <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{label} · {formatMoney(product.revenue)}</p>
     </div>
     {inList ? (
-      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">Na lista</span>
+      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Na lista</span>
     ) : (
-      <button type="button" onClick={() => void onAdd()} className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+      <button
+        type="button"
+        onClick={() => void onAdd()}
+        className="rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
+        style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}
+      >
         + Adicionar
       </button>
     )}
@@ -100,10 +117,7 @@ const ShoppingListPage: React.FC = () => {
     () => (dashboard?.replenishmentCandidates || []).filter((p) => !productIds.has(p.productId)).slice(0, 8),
     [dashboard?.replenishmentCandidates, productIds]
   );
-  const lowProducts = useMemo(
-    () => (dashboard?.lowTurnoverProducts || []).slice(0, 6),
-    [dashboard?.lowTurnoverProducts]
-  );
+  const lowProducts = useMemo(() => (dashboard?.lowTurnoverProducts || []).slice(0, 6), [dashboard?.lowTurnoverProducts]);
 
   const handleAdd = async (product: ProductPerformance, sourceTag: string, reason: string) => {
     await addItem({ productId: product.productId, quantityTarget: suggestedQuantity(product), sourceTag, reasonSummary: reason });
@@ -118,7 +132,7 @@ const ShoppingListPage: React.FC = () => {
     return (
       <Layout>
         <div className="flex min-h-[300px] items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
         </div>
       </Layout>
     );
@@ -134,11 +148,11 @@ const ShoppingListPage: React.FC = () => {
     );
   }
 
-  const renderGroup = (title: string, icon: React.ReactNode, color: string, groupItems: ShoppingListItem[]) => {
+  const renderGroup = (title: string, icon: React.ReactNode, groupStyle: React.CSSProperties, groupItems: ShoppingListItem[]) => {
     if (groupItems.length === 0) return null;
     return (
       <div>
-        <div className={`mb-3 flex items-center gap-2 rounded-lg px-3 py-2 ${color}`}>
+        <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2" style={groupStyle}>
           {icon}
           <span className="text-sm font-semibold">{title} ({groupItems.length})</span>
         </div>
@@ -163,13 +177,14 @@ const ShoppingListPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Pedido inteligente</h1>
-            <p className="text-sm text-gray-500">Compra guiada por vendas reais</p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pedido inteligente</h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Compra guiada por vendas reais</p>
           </div>
           <button
             type="button"
             onClick={() => { console.log('Export:', items); alert('Lista exportada no console!'); }}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
           >
             <Download className="h-4 w-4" /> Exportar lista
           </button>
@@ -178,14 +193,14 @@ const ShoppingListPage: React.FC = () => {
         {/* KPI summary */}
         <div className="grid gap-3 sm:grid-cols-4">
           {[
-            { label: 'Na lista', value: overview.totalItems, color: 'text-gray-900' },
-            { label: 'Pendentes', value: overview.pendingItems, color: 'text-amber-600' },
-            { label: 'Comprados', value: overview.checkedItems, color: 'text-emerald-600' },
-            { label: 'Sugestões', value: restockSuggestions.length, color: 'text-blue-600' },
+            { label: 'Na lista', value: overview.totalItems, color: 'var(--text-primary)' },
+            { label: 'Pendentes', value: overview.pendingItems, color: '#d97706' },
+            { label: 'Comprados', value: overview.checkedItems, color: 'var(--brand-700)' },
+            { label: 'Sugestões', value: restockSuggestions.length, color: '#1d4ed8' },
           ].map((kpi) => (
-            <div key={kpi.label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-              <span className="text-xs font-medium uppercase tracking-wider text-gray-500">{kpi.label}</span>
-              <p className={`mt-1 text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
+            <div key={kpi.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{kpi.label}</span>
+              <p className="mt-1 text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
             </div>
           ))}
         </div>
@@ -193,15 +208,15 @@ const ShoppingListPage: React.FC = () => {
         {/* Grouped list */}
         <div className="flex flex-col gap-6">
           {items.length === 0 ? (
-            <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-              <p className="text-gray-500">A lista está vazia. Use as sugestões abaixo para começar.</p>
+            <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+              <p style={{ color: 'var(--text-muted)' }}>A lista está vazia. Use as sugestões abaixo para começar.</p>
             </div>
           ) : (
             <>
-              {renderGroup('Urgente — quantidade alta', <AlertCircle className="h-4 w-4 text-red-600" />, 'bg-red-50 text-red-700', urgentItems)}
-              {renderGroup('Reforçar — giro acelerando', <Clock className="h-4 w-4 text-amber-600" />, 'bg-amber-50 text-amber-700', reinforceItems)}
-              {renderGroup('Manter — compra regular', <CheckCircle2 className="h-4 w-4 text-emerald-600" />, 'bg-emerald-50 text-emerald-700', regularItems)}
-              {renderGroup('Comprados', <CheckCircle2 className="h-4 w-4 text-gray-400" />, 'bg-gray-50 text-gray-500', checkedItems)}
+              {renderGroup('Urgente — quantidade alta', <AlertCircle className="h-4 w-4 text-red-600" />, { background: '#fef2f2', color: '#991b1b' }, urgentItems)}
+              {renderGroup('Reforçar — giro acelerando', <Clock className="h-4 w-4 text-amber-600" />, { background: '#fffbeb', color: '#92400e' }, reinforceItems)}
+              {renderGroup('Manter — compra regular', <CheckCircle2 className="h-4 w-4 text-green-600" />, { background: 'var(--surface-success)', color: 'var(--brand-700)' }, regularItems)}
+              {renderGroup('Comprados', <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--text-soft)' }} />, { background: 'var(--surface-soft)', color: 'var(--text-muted)' }, checkedItems)}
             </>
           )}
         </div>
@@ -209,7 +224,7 @@ const ShoppingListPage: React.FC = () => {
         {/* Restock suggestions */}
         {restockSuggestions.length > 0 && (
           <div>
-            <h2 className="mb-3 text-base font-semibold text-gray-900">Sugestões de reposição</h2>
+            <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Sugestões de reposição</h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {restockSuggestions.map((p) => (
                 <SuggestionRow
@@ -227,16 +242,20 @@ const ShoppingListPage: React.FC = () => {
         {/* Caution products */}
         {lowProducts.length > 0 && (
           <div>
-            <h2 className="mb-3 text-base font-semibold text-gray-900">Compra com cautela</h2>
-            <p className="mb-2 text-xs text-gray-500">Produtos com baixa tração. Reduza pedido ou revise posicionamento.</p>
+            <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Compra com cautela</h2>
+            <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>Produtos com baixa tração. Reduza pedido ou revise posicionamento.</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {lowProducts.map((p) => (
-                <div key={p.productId} className="flex items-center gap-3 rounded-lg border border-red-100 bg-red-50/50 p-3">
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white">
+                <div
+                  key={p.productId}
+                  className="flex items-center gap-3 rounded-lg p-3"
+                  style={{ border: '1px solid var(--border-danger)', background: 'var(--surface-danger)' }}
+                >
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-base)' }}>
                     <ProductImage src={p.imageUrl} alt={p.name} className="h-full w-full object-contain" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{p.name}</p>
+                    <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
                     <p className="text-xs text-red-500">Giro {Number(p.salesVelocity || 0).toFixed(1)}/dia · {formatMoney(p.revenue)}</p>
                   </div>
                   <Link to={`/app/produtos/${p.productId}`} className="text-xs font-medium text-red-500 no-underline hover:text-red-700">Analisar</Link>

@@ -50,10 +50,10 @@ const MarketBasket: React.FC = () => {
     return 'Acompanhar';
   };
 
-  const actionColor = (rule: BasketRule) => {
-    if (Number(rule.lift || 0) >= 2.2) return 'bg-emerald-50 text-emerald-700';
-    if (Number(rule.confidence || 0) >= 0.45) return 'bg-amber-50 text-amber-700';
-    return 'bg-gray-50 text-gray-600';
+  const actionStyle = (rule: BasketRule): React.CSSProperties => {
+    if (Number(rule.lift || 0) >= 2.2) return { background: 'var(--surface-success)', color: 'var(--brand-700)' };
+    if (Number(rule.confidence || 0) >= 0.45) return { background: 'var(--surface-warning)', color: '#92400e' };
+    return { background: 'var(--surface-soft)', color: 'var(--text-muted)' };
   };
 
   return (
@@ -62,35 +62,36 @@ const MarketBasket: React.FC = () => {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Combos que vendem juntos</h1>
-            <p className="text-sm text-gray-500">Descubra quais produtos seus clientes levam juntos</p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Combos que vendem juntos</h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Descubra quais produtos seus clientes levam juntos</p>
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm">
-            <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} className="accent-emerald-600" />
-            <span className="text-gray-700">{useCached ? 'Cache noturno' : 'Análise ao vivo'}</span>
+          <label
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}
+          >
+            <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} className="accent-green-600" />
+            <span style={{ color: 'var(--text-primary)' }}>{useCached ? 'Cache noturno' : 'Análise ao vivo'}</span>
           </label>
         </div>
 
         {/* KPIs */}
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Combos encontrados</span>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{rules.length}</p>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Cestas analisadas</span>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{totalOccurrences}</p>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Melhor combo</span>
-            <p className="mt-1 text-2xl font-bold text-emerald-600">{rules[0] ? `${(rules[0].confidence * 100).toFixed(0)}% juntos` : '—'}</p>
-          </div>
+          {[
+            { label: 'Combos encontrados', value: rules.length, color: 'var(--text-primary)' },
+            { label: 'Cestas analisadas', value: totalOccurrences, color: 'var(--text-primary)' },
+            { label: 'Melhor combo', value: rules[0] ? `${(rules[0].confidence * 100).toFixed(0)}% juntos` : '—', color: 'var(--brand-700)' },
+          ].map((kpi) => (
+            <div key={kpi.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{kpi.label}</span>
+              <p className="mt-1 text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+            </div>
+          ))}
         </div>
 
         {/* AI Insight */}
-        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-          <p className="text-sm text-emerald-800">
+        <div className="flex items-start gap-3 rounded-xl p-4" style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}>
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--brand-600)' }} />
+          <p className="text-sm" style={{ color: 'var(--brand-700)' }}>
             {rules.length > 0
               ? `Encontramos ${rules.length} combos. O mais forte tem ${(rules[0].confidence * 100).toFixed(0)}% de chance de compra conjunta em ${rules[0].pairCount} cestas. Coloque esses produtos próximos na loja para aumentar vendas.`
               : 'Ainda não temos combos suficientes. Continue vendendo para gerar mais dados de cesta.'}
@@ -102,11 +103,11 @@ const MarketBasket: React.FC = () => {
         {/* Combo cards */}
         {loading ? (
           <div className="flex min-h-[200px] items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
           </div>
         ) : rules.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-            <p className="text-gray-500">Nenhum combo encontrado.</p>
+          <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+            <p style={{ color: 'var(--text-muted)' }}>Nenhum combo encontrado.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -115,31 +116,44 @@ const MarketBasket: React.FC = () => {
               const nameB = (rule.consequentNames || rule.consequent || []).join(', ');
               const confPct = (rule.confidence * 100).toFixed(0);
               return (
-                <article key={idx} className="flex flex-col rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+                <article key={idx} className="flex flex-col rounded-xl p-5" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-500">#{idx + 1}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColor(rule)}`}>
+                    <span
+                      className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                      style={{ background: 'var(--surface-muted)', color: 'var(--text-soft)' }}
+                    >
+                      #{idx + 1}
+                    </span>
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={actionStyle(rule)}>
                       {actionHint(rule)}
                     </span>
                   </div>
                   <div className="mt-3 flex flex-col gap-1">
-                    <h3 className="text-sm font-semibold text-gray-900">{nameA}</h3>
-                    <span className="text-xs font-medium text-emerald-600">combina com</span>
-                    <h4 className="text-sm font-semibold text-gray-900">{nameB}</h4>
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{nameA}</h3>
+                    <span className="text-xs font-medium" style={{ color: 'var(--brand-600)' }}>combina com</span>
+                    <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{nameB}</h4>
                   </div>
-                  <div className="mt-4 rounded-lg bg-gray-50 p-3">
-                    <p className="text-sm text-gray-700">
+                  <div className="mt-4 rounded-lg p-3" style={{ background: 'var(--surface-soft)' }}>
+                    <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
                       <strong>{confPct}%</strong> das vezes compram juntos
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                       Apareceu em {rule.pairCount} cestas · Afinidade {rule.lift.toFixed(2)}x
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Link to="/app/mapa-loja" className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 no-underline transition hover:bg-emerald-100">
+                    <Link
+                      to="/app/mapa-loja"
+                      className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
+                      style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}
+                    >
                       <Map className="h-3 w-3" /> Ver no mapa
                     </Link>
-                    <Link to="/app/campanhas" className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 no-underline transition hover:bg-gray-100">
+                    <Link
+                      to="/app/campanhas"
+                      className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
+                      style={{ background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
+                    >
                       Criar promoção combo <ArrowRight className="h-3 w-3" />
                     </Link>
                   </div>

@@ -53,16 +53,16 @@ const Products: React.FC = () => {
 
   const statusLabel = (band?: string | null) => {
     switch ((band || '').toUpperCase()) {
-      case 'HIGH': return { text: 'Vende muito', color: 'bg-emerald-50 text-emerald-700' };
-      case 'MEDIUM': return { text: 'Vende bem', color: 'bg-amber-50 text-amber-700' };
-      default: return { text: 'Vende pouco', color: 'bg-red-50 text-red-700' };
+      case 'HIGH': return { text: 'Vende muito', style: { background: 'var(--surface-success)', color: 'var(--brand-700)' } };
+      case 'MEDIUM': return { text: 'Vende bem', style: { background: 'var(--surface-warning)', color: '#92400e' } };
+      default: return { text: 'Vende pouco', style: { background: 'var(--surface-danger)', color: '#991b1b' } };
     }
   };
 
   const TrendIcon: React.FC<{ value: number }> = ({ value }) => {
-    if (value > 1) return <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />;
+    if (value > 1) return <TrendingUp className="h-3.5 w-3.5 text-green-600" />;
     if (value < -1) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
-    return <Minus className="h-3.5 w-3.5 text-gray-400" />;
+    return <Minus className="h-3.5 w-3.5" style={{ color: 'var(--text-soft)' }} />;
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -90,26 +90,34 @@ const Products: React.FC = () => {
     { key: 'NAME', label: 'Nome' },
   ] as const;
 
+  const inputStyle: React.CSSProperties = {
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface-base)',
+    color: 'var(--text-primary)',
+  };
+
   return (
     <Layout>
       <div className="flex flex-col gap-5">
         {/* Header */}
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Produtos</h1>
-          <p className="text-sm text-gray-500">Como seus produtos estão vendendo — {totalElements} produtos encontrados</p>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Produtos</h1>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Como seus produtos estão vendendo — {totalElements} produtos encontrados
+          </p>
         </div>
 
         {/* Search & Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-soft)' }} />
               <input
-                className="h-10 rounded-lg border border-gray-200 bg-white pl-9 pr-4 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                className="h-10 rounded-lg pl-9 pr-4 text-sm outline-none transition focus:ring-2 focus:ring-green-500/20"
+                style={{ ...inputStyle, width: 240 }}
                 placeholder="Buscar produto..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                style={{ width: 240 }}
               />
             </div>
             <Button type="submit">Buscar</Button>
@@ -120,11 +128,11 @@ const Products: React.FC = () => {
             )}
           </form>
           <input
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            className="h-10 rounded-lg px-3 text-sm outline-none transition focus:ring-2 focus:ring-green-500/20"
+            style={{ ...inputStyle, width: 180 }}
             placeholder="Filtrar categoria"
             value={category}
             onChange={(e) => { setPage(0); setCategory(e.target.value); }}
-            style={{ width: 180 }}
           />
         </div>
 
@@ -135,11 +143,12 @@ const Products: React.FC = () => {
               key={opt.key}
               type="button"
               onClick={() => { setPage(0); setSortBy(opt.key as any); }}
-              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+              className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
+              style={
                 sortBy === opt.key
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-              }`}
+                  ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
+                  : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }
+              }
             >
               {opt.label}
             </button>
@@ -151,11 +160,11 @@ const Products: React.FC = () => {
         {/* Product grid */}
         {loading ? (
           <div className="flex min-h-[200px] items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
           </div>
         ) : products.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-            <p className="text-gray-500">Nenhum produto encontrado.</p>
+          <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+            <p style={{ color: 'var(--text-muted)' }}>Nenhum produto encontrado.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -166,38 +175,41 @@ const Products: React.FC = () => {
                 <article
                   key={product.productId}
                   onClick={() => navigate(`/app/produtos/${product.productId}`)}
-                  className="flex cursor-pointer flex-col rounded-xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="flex cursor-pointer flex-col rounded-xl transition hover:-translate-y-0.5"
+                  style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
                 >
-                  {/* Image */}
+                  {/* Image — transparent, no fill */}
                   <div className="flex h-40 items-center justify-center overflow-hidden rounded-t-xl p-4">
                     <ProductImage src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain" />
                   </div>
                   {/* Body */}
                   <div className="flex flex-1 flex-col gap-2 p-4">
                     <div className="flex items-start justify-between gap-2">
-                      <span className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${status.color}`}>
+                      <span className="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={status.style}>
                         {status.text}
                       </span>
                       <div className="flex items-center gap-1">
                         <TrendIcon value={trend} />
-                        <span className={`text-xs font-medium ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        <span
+                          className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-500' : ''}`}
+                          style={!trend ? { color: 'var(--text-soft)' } : {}}
+                        >
                           {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
                         </span>
                       </div>
                     </div>
-                    <h3 className="line-clamp-2 text-sm font-semibold text-gray-900">{product.name}</h3>
-                    <p className="line-clamp-1 text-xs text-gray-400">{product.category || 'Sem categoria'}</p>
-                    <div className="mt-auto grid grid-cols-2 gap-2 border-t border-gray-50 pt-2">
+                    <h3 className="line-clamp-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{product.name}</h3>
+                    <p className="line-clamp-1 text-xs" style={{ color: 'var(--text-soft)' }}>{product.category || 'Sem categoria'}</p>
+                    <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-2" style={{ borderColor: 'var(--border-soft)' }}>
                       <div>
-                        <span className="text-[10px] text-gray-400">Receita</span>
-                        <p className="text-sm font-semibold text-gray-900">{formatMoney(product.revenue)}</p>
+                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Receita</span>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatMoney(product.revenue)}</p>
                       </div>
                       <div>
-                        <span className="text-[10px] text-gray-400">Giro</span>
-                        <p className="text-sm font-semibold text-gray-900">{Number(product.salesVelocity || 0).toFixed(1)}/dia</p>
+                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Giro</span>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(product.salesVelocity || 0).toFixed(1)}/dia</p>
                       </div>
                     </div>
-                    {/* Actions */}
                     <div className="mt-1 flex justify-end" onClick={(e) => e.stopPropagation()}>
                       <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
                     </div>
@@ -215,18 +227,20 @@ const Products: React.FC = () => {
               type="button"
               disabled={page <= 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition disabled:opacity-40"
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Página <strong>{pageData.number + 1}</strong> de <strong>{totalPages}</strong>
             </span>
             <button
               type="button"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition disabled:opacity-40"
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
