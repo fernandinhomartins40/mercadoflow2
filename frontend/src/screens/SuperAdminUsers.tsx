@@ -567,7 +567,7 @@ const SuperAdminUsers: React.FC = () => {
         {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
         {success ? <p style={{ color: 'var(--success)' }}>{success}</p> : null}
 
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" caption={`${overview?.activeMarkets ?? 0} ativas`} />
           <MetricsCard title="Pendentes" value={overview?.pendingMarkets ?? 0} icon="PN" variant="warning" />
           <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" variant="danger" />

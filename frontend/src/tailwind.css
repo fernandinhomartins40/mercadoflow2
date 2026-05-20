@@ -377,14 +377,11 @@
   }
 
   .app-panel {
-    @apply rounded-xl border p-5 sm:p-6;
-    border-color: var(--border-soft);
-    background: var(--surface-base);
-    box-shadow: none;
+    @apply flex flex-col gap-4;
   }
 
   .app-panel-head {
-    @apply mb-4 flex flex-wrap items-start justify-between gap-3;
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3;
   }
 
   .app-panel-head.compact {
@@ -396,7 +393,7 @@
   }
 
   .app-panel-title {
-    @apply mt-1 text-base font-semibold tracking-tight;
+    @apply text-sm font-semibold tracking-tight;
     color: var(--text-primary);
     font-family: var(--font-display);
   }
@@ -490,10 +487,7 @@
   }
 
   .analytics-panel {
-    @apply rounded-xl p-5 sm:p-6;
-    border: 1px solid var(--border-soft);
-    background: var(--surface-base);
-    box-shadow: none;
+    @apply flex flex-col gap-4;
   }
 
   .analytics-panel-head {
@@ -2011,10 +2005,6 @@
   }
 }
 
-.analytics-hero,
-.analytics-panel,
-.metric-card,
-.card,
 .product-mosaic-card,
 .pair-spotlight-card,
 .forecast-card,

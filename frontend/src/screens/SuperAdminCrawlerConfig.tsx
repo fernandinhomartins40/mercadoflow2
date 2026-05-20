@@ -293,7 +293,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
         {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
         {success ? <p style={{ color: 'var(--success)' }}>{success}</p> : null}
 
-        <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+        <div className="grid gap-3 sm:grid-cols-3">
           <MetricsCard title="Mercados" value={jobs.length} icon="MK" />
           <MetricsCard title="Em execução" value={activeJobs || monitor.runningRuns || 0} icon="RUN" />
           <MetricsCard title="Importados recentes" value={totalImportedRecent} icon="IMP" />
@@ -303,57 +303,53 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           <PanelSection reveal={false}>Carregando painel...</PanelSection>
         ) : (
           <>
-            <section className="super-admin-crawler-job-grid">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {jobs.map((job) => (
-                <article className="card super-admin-crawler-job-card" key={job.provider}>
-                  <div className="super-admin-crawler-job-head">
+                <article key={job.provider} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
                     <div>
-                      <span className="section-kicker">{job.scopeLabel || 'Catálogo completo'}</span>
-                      <h3>{job.name}</h3>
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">{job.scopeLabel || 'Catálogo completo'}</p>
+                      <h3 className="mt-0.5 text-sm font-semibold text-slate-900">{job.name}</h3>
                     </div>
-                    <span className={`status-pill ${job.enabled === false ?'neutral' : runStatusClass(job.lastRun?.status)}`}>
-                      {job.enabled === false ?'Desabilitado' : formatStatus(job.lastRun?.status)}
+                    <span className={`status-pill ${job.enabled === false ? 'neutral' : runStatusClass(job.lastRun?.status)}`}>
+                      {job.enabled === false ? 'Desabilitado' : formatStatus(job.lastRun?.status)}
                     </span>
                   </div>
 
-                  <div className="super-admin-crawler-job-meta">
-                    <span className="pill secondary">{job.provider}</span>
-                    {Number(job.runningRuns || 0) > 0 || Number(job.queuedRuns || 0) > 0 ?(
-                      <span className="pill secondary">{formatJobLoad(job)}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{job.provider}</span>
+                    {Number(job.runningRuns || 0) > 0 || Number(job.queuedRuns || 0) > 0 ? (
+                      <span className="inline-flex items-center rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">{formatJobLoad(job)}</span>
                     ) : null}
                   </div>
 
-                  {job.enabled === false ?(
-                    <div className="panel-empty" style={{ textAlign: 'left' }}>
-                      Execução temporariamente desabilitada.
-                    </div>
+                  {job.enabled === false ? (
+                    <p className="text-xs text-slate-400">Execução temporariamente desabilitada.</p>
                   ) : null}
 
-                  <div className="super-admin-crawler-job-stats">
-                    <div>
-                      <span className="section-kicker">Última rodada</span>
-                      <strong>{formatDate(job.lastRun?.finishedAt || job.lastRun?.startedAt || job.lastRun?.requestedAt)}</strong>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[0.62rem] font-semibold uppercase tracking-widest text-slate-400">Última rodada</p>
+                      <strong className="mt-0.5 block text-xs font-semibold text-slate-900">{formatDate(job.lastRun?.finishedAt || job.lastRun?.startedAt || job.lastRun?.requestedAt)}</strong>
                     </div>
-                    <div>
-                      <span className="section-kicker">Resultado</span>
-                      <strong>{formatJobResult(job.lastRun)}</strong>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[0.62rem] font-semibold uppercase tracking-widest text-slate-400">Resultado</p>
+                      <strong className="mt-0.5 block text-xs font-semibold text-slate-900">{formatJobResult(job.lastRun)}</strong>
                     </div>
                   </div>
 
-                  <div className="super-admin-crawler-job-footer">
-                    <div className="crawler-run-actions">
-                      {job.lastRun?.id ?(
-                        <ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
-                          Ver detalhes
-                        </ButtonLink>
-                      ) : null}
-                      <Button
-                        onClick={() => prepareProviderTrigger(job)}
-                        disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}
-                      >
-                        {triggeringProvider === job.provider ?'Enfileirando...' : hasActiveRun ?'Aguarde a execução atual' : `Executar ${job.name}`}
-                      </Button>
-                    </div>
+                  <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                    {job.lastRun?.id ? (
+                      <ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${job.lastRun.id}`}>
+                        Ver detalhes
+                      </ButtonLink>
+                    ) : null}
+                    <Button
+                      onClick={() => prepareProviderTrigger(job)}
+                      disabled={job.enabled === false || triggeringProvider === job.provider || hasActiveRun}
+                    >
+                      {triggeringProvider === job.provider ? 'Enfileirando...' : hasActiveRun ? 'Aguarde execução atual' : `Executar ${job.name}`}
+                    </Button>
                   </div>
                 </article>
               ))}

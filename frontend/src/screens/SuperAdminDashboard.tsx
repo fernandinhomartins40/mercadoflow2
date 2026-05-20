@@ -41,17 +41,16 @@ const SuperAdminDashboard: React.FC = () => {
         setLoading(false);
       }
     };
-
     void load();
   }, []);
 
   return (
     <SuperAdminLayout>
-      <div className="page super-admin-page super-admin-home-page">
-        {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
+      <div className="flex flex-col gap-6">
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
         {loading ? (
-          <div className="panel-empty">Carregando indicadores...</div>
+          <div className="flex min-h-[200px] items-center justify-center text-sm text-slate-400">Carregando indicadores...</div>
         ) : (
           <>
             <PageHeader
@@ -65,62 +64,56 @@ const SuperAdminDashboard: React.FC = () => {
               }
             />
 
-            <div className="metrics-grid analytics-metrics-grid dashboard-kpi-ribbon">
+            {/* KPIs */}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricsCard title="Contas" value={overview?.totalMarkets ?? 0} icon="CT" caption={`${overview?.activeMarkets ?? 0} ativas`} />
               <MetricsCard title="Usuários ativos" value={overview?.activeUsers ?? 0} icon="US" caption={`${overview?.seatUsedTotal ?? 0} assentos usados`} />
               <MetricsCard title="Em atraso" value={overview?.pastDueMarkets ?? 0} icon="AT" variant="danger" />
               <MetricsCard title="Vencimento próximo" value={overview?.expiringMarkets ?? 0} icon="VX" variant="warning" caption="próximos 7 dias" />
             </div>
 
-            <div className="layout-split">
-              <div className="layout-main">
-                {/* Resumo de contas */}
-                <section className="analytics-panel reveal">
-                  <div className="analytics-panel-head compact">
-                    <div>
-                      <span className="section-kicker">Contas e acesso</span>
-                      <h3>Resumo</h3>
-                    </div>
-                    <ButtonLink to="/super-admin/saas" variant="secondary">Abrir contas</ButtonLink>
+            {/* Resumo + Atalhos */}
+            <div className="grid gap-5 xl:grid-cols-[1fr_280px] xl:items-start">
+              {/* Resumo */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
+                  <div>
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Contas e acesso</p>
+                    <h3 className="text-sm font-semibold text-slate-900">Resumo</h3>
                   </div>
-                  <div className="dashboard-stat-list">
-                    <div className="dashboard-stat-row">
-                      <span>Assentos usados</span>
-                      <strong>{overview?.seatUsedTotal ?? 0} / {overview?.seatLimitTotal ?? 0}</strong>
+                  <ButtonLink to="/super-admin/saas" variant="secondary">Abrir contas</ButtonLink>
+                </div>
+                <div className="grid gap-2">
+                  {[
+                    { label: 'Assentos usados', value: `${overview?.seatUsedTotal ?? 0} / ${overview?.seatLimitTotal ?? 0}` },
+                    { label: 'Usuários sem conta vinculada', value: overview?.orphanUsers ?? 0 },
+                    { label: 'Contas em teste', value: overview?.trialMarkets ?? 0 },
+                    { label: 'Catálogo global', value: overview?.totalCatalogProducts ?? 0 },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+                      <span className="text-sm text-slate-500">{row.label}</span>
+                      <strong className="text-sm font-semibold text-slate-900">{row.value}</strong>
                     </div>
-                    <div className="dashboard-stat-row">
-                      <span>Usuários sem conta vinculada</span>
-                      <strong>{overview?.orphanUsers ?? 0}</strong>
-                    </div>
-                    <div className="dashboard-stat-row">
-                      <span>Contas em teste</span>
-                      <strong>{overview?.trialMarkets ?? 0}</strong>
-                    </div>
-                    <div className="dashboard-stat-row">
-                      <span>Catálogo global</span>
-                      <strong>{overview?.totalCatalogProducts ?? 0}</strong>
-                    </div>
-                  </div>
-                </section>
+                  ))}
+                </div>
               </div>
 
-              <aside className="layout-aside">
-                <section className="analytics-panel reveal">
-                  <div className="analytics-panel-head compact">
-                    <span className="section-kicker">Atalhos</span>
-                  </div>
-                  <div className="dashboard-quick-list">
-                    <Link to="/super-admin/catalogo" className="dashboard-quick-item">
-                      <strong>Catálogo global</strong>
-                      <span>{overview?.totalCatalogProducts ?? 0} produtos consolidados</span>
-                    </Link>
-                    <Link to="/super-admin/crawler" className="dashboard-quick-item">
-                      <strong>Crawler</strong>
-                      <span>Execuções e fontes web</span>
-                    </Link>
-                  </div>
-                </section>
-              </aside>
+              {/* Atalhos */}
+              <div className="flex flex-col gap-3">
+                <div className="border-b border-slate-100 pb-2">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Atalhos</p>
+                </div>
+                <div className="grid gap-2">
+                  <Link to="/super-admin/catalogo" className="flex flex-col gap-0.5 rounded-lg border border-slate-200 bg-white px-4 py-3 no-underline transition hover:border-green-300 hover:bg-green-50">
+                    <strong className="text-sm font-semibold text-slate-900">Catálogo global</strong>
+                    <span className="text-xs text-slate-400">{overview?.totalCatalogProducts ?? 0} produtos consolidados</span>
+                  </Link>
+                  <Link to="/super-admin/crawler" className="flex flex-col gap-0.5 rounded-lg border border-slate-200 bg-white px-4 py-3 no-underline transition hover:border-green-300 hover:bg-green-50">
+                    <strong className="text-sm font-semibold text-slate-900">Crawler</strong>
+                    <span className="text-xs text-slate-400">Execuções e fontes web</span>
+                  </Link>
+                </div>
+              </div>
             </div>
           </>
         )}

@@ -23,25 +23,15 @@ const PanelSection: React.FC<PanelSectionProps> = ({
   reveal = true,
 }) => {
   const Tag = as;
-  const classes = cn(
-    'app-panel',
-    reveal ? 'reveal' : '',
-    className,
-  );
   const hasHead = kicker || title || action;
 
   return (
-    <Tag className={classes}>
+    <Tag className={cn('flex flex-col gap-3', reveal ? 'reveal' : '', className)}>
       {hasHead ? (
-        <div
-          className={cn(
-            'app-panel-head',
-            compactHead ? 'compact' : '',
-          )}
-        >
-          <div className="app-panel-copy">
-            {kicker ? <span className="section-kicker">{kicker}</span> : null}
-            {title ? (typeof title === 'string' ? <h3 className="app-panel-title">{title}</h3> : title) : null}
+        <div className={cn('flex flex-wrap items-center justify-between gap-3', compactHead ? '' : 'pb-2 border-b border-slate-100')}>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            {kicker ? <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">{kicker}</span> : null}
+            {title ? (typeof title === 'string' ? <h3 className="text-sm font-semibold text-slate-900">{title}</h3> : title) : null}
           </div>
           {action}
         </div>
