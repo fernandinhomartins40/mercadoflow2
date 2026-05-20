@@ -104,11 +104,11 @@ const SuperAdminDashboard: React.FC = () => {
                   <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Atalhos</p>
                 </div>
                 <div className="grid gap-2">
-                  <Link to="/super-admin/catalogo" className="flex flex-col gap-0.5 rounded-lg border border-slate-200 bg-white px-4 py-3 no-underline transition hover:border-green-300 hover:bg-green-50">
+                  <Link to="/super-admin/catalogo" className="flex flex-col gap-0.5 rounded-lg px-4 py-3 no-underline transition hover:border-green-300 hover:bg-green-50" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                     <strong className="text-sm font-semibold text-slate-900">Catálogo global</strong>
                     <span className="text-xs text-slate-400">{overview?.totalCatalogProducts ?? 0} produtos consolidados</span>
                   </Link>
-                  <Link to="/super-admin/crawler" className="flex flex-col gap-0.5 rounded-lg border border-slate-200 bg-white px-4 py-3 no-underline transition hover:border-green-300 hover:bg-green-50">
+                  <Link to="/super-admin/crawler" className="flex flex-col gap-0.5 rounded-lg px-4 py-3 no-underline transition hover:border-green-300 hover:bg-green-50" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                     <strong className="text-sm font-semibold text-slate-900">Crawler</strong>
                     <span className="text-xs text-slate-400">Execuções e fontes web</span>
                   </Link>

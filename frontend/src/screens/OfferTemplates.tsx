@@ -94,7 +94,7 @@ const CollapsibleJson: React.FC<{ label: string; value: string; onChange: (value
   const [open, setOpen] = useState(false);
   return (
     <div className="otm-field full">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm font-medium text-gray-600 transition hover:bg-gray-100">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-soft)', color: 'var(--text-muted)' }}>
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         {label}
         {value && <span className="ml-auto text-xs text-emerald-600">Configurado</span>}
