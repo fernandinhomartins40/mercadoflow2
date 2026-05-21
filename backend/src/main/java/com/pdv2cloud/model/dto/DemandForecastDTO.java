@@ -13,5 +13,8 @@ public class DemandForecastDTO {
     private UUID productId;
     private String productName;
     private BigDecimal predictedQuantity;
+    private BigDecimal confidenceLow;
+    private BigDecimal confidenceHigh;
+    private String trendDirection; // UP, DOWN, STABLE
 }
 

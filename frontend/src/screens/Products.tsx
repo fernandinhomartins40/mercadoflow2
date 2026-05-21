@@ -210,6 +210,25 @@ const Products: React.FC = () => {
                         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(product.salesVelocity || 0).toFixed(1)}/dia</p>
                       </div>
                     </div>
+                    {product.healthScore != null && (
+                      <div className="mt-1">
+                        <div className="mb-0.5 flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Saúde</span>
+                          <span className="text-[10px] font-semibold" style={{ color: Number(product.healthScore) >= 60 ? 'var(--brand-700)' : Number(product.healthScore) >= 35 ? '#92400e' : '#991b1b' }}>
+                            {Number(product.healthScore).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, Number(product.healthScore))}%`,
+                              background: Number(product.healthScore) >= 60 ? 'var(--brand-500)' : Number(product.healthScore) >= 35 ? '#f59e0b' : '#ef4444',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="mt-1 flex justify-end" onClick={(e) => e.stopPropagation()}>
                       <ShoppingListButton inList={productIds.has(product.productId)} onAdd={() => handleAddProduct(product)} />
                     </div>

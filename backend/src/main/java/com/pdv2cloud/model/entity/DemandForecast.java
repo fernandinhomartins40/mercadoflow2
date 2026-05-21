@@ -43,6 +43,15 @@ public class DemandForecast {
     @Column(name = "predicted_quantity", precision = 10, scale = 3)
     private BigDecimal predictedQuantity;
 
+    @Column(name = "confidence_low", precision = 10, scale = 3)
+    private BigDecimal confidenceLow;
+
+    @Column(name = "confidence_high", precision = 10, scale = 3)
+    private BigDecimal confidenceHigh;
+
+    @Column(name = "trend_direction", length = 10)
+    private String trendDirection;
+
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;

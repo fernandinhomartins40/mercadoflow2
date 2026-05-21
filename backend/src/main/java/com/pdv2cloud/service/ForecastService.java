@@ -49,7 +49,10 @@ public class ForecastService {
                 row.getForecastDate(),
                 row.getProduct().getId(),
                 names.get(row.getProduct().getId()),
-                row.getPredictedQuantity()
+                row.getPredictedQuantity(),
+                row.getConfidenceLow(),
+                row.getConfidenceHigh(),
+                row.getTrendDirection()
             ))
             .toList();
     }

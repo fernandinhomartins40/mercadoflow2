@@ -38,6 +38,9 @@ public class InvoiceProcessingService {
     @Autowired
     private PriceIntelligenceService priceIntelligenceService;
 
+    @Autowired
+    private MarketBasketService marketBasketService;
+
     public IngestResponse processInvoice(InvoiceDTO dto, UUID marketId) {
         try {
             if (invoiceRepository.existsByChaveNFe(dto.getChaveNFe())) {
@@ -60,6 +63,8 @@ public class InvoiceProcessingService {
             } catch (Exception ignored) {
                 log.warn("Price intelligence update failed for invoice {}", dto.getChaveNFe());
             }
+            // Invalidate market basket cache so next request recomputes with fresh data
+            marketBasketService.invalidate(marketId);
             return IngestResponse.success(savedInvoice.getId(), dto.getChaveNFe());
         } catch (Exception e) {
             log.error("Error processing invoice: {}", dto.getChaveNFe(), e);

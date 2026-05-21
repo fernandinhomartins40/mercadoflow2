@@ -34,4 +34,6 @@ public class ProductPerformanceDTO {
     private Double revenueTrendPercentage;
     private LocalDateTime lastSoldAt;
     private String turnoverBand;
+    private Double momentumScore;  // EMA(7)/SMA(28) ratio — >1 accelerating, <1 decelerating
+    private Double healthScore;    // composite 0-100: revenue trend + velocity + consistency
 }

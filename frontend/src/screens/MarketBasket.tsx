@@ -14,6 +14,7 @@ interface BasketRule {
   support: number;
   confidence: number;
   lift: number;
+  leverage?: number | null;
   pairCount: number;
 }
 
@@ -138,7 +139,12 @@ const MarketBasket: React.FC = () => {
                       <strong>{confPct}%</strong> das vezes compram juntos
                     </p>
                     <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                      Apareceu em {rule.pairCount} cestas · Afinidade {rule.lift.toFixed(2)}x
+                      {rule.pairCount} cestas · Lift {rule.lift.toFixed(2)}x
+                      {rule.leverage != null && rule.leverage > 0 && (
+                        <span className="ml-1" style={{ color: 'var(--brand-600)' }}>
+                          · Alavancagem +{(rule.leverage * 100).toFixed(1)}%
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">

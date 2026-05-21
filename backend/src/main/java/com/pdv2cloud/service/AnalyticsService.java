@@ -150,6 +150,7 @@ public class AnalyticsService {
             dto.setSupport(r.getSupport() != null ? r.getSupport().doubleValue() : 0);
             dto.setConfidence(r.getConfidence() != null ? r.getConfidence().doubleValue() : 0);
             dto.setLift(r.getLift() != null ? r.getLift().doubleValue() : 0);
+            dto.setLeverage(r.getLeverage() != null ? r.getLeverage().doubleValue() : 0);
             dto.setPairCount(r.getPairCount() != null ? r.getPairCount() : 0);
             return dto;
         }).toList();

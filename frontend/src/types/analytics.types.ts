@@ -22,6 +22,8 @@ export interface ProductPerformance {
   revenueTrendPercentage?: number | null;
   lastSoldAt?: string | null;
   turnoverBand: string;
+  momentumScore?: number | null;  // EMA(7)/SMA(28) ratio — >1 accelerating
+  healthScore?: number | null;    // composite 0-100
 }
 
 export interface ProductBranchPerformance {
@@ -45,6 +47,7 @@ export interface ProductPairInsight {
   support: number;
   confidence: number;
   lift: number;
+  leverage?: number | null;
   pairCount: number;
 }
 

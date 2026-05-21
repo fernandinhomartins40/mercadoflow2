@@ -3,14 +3,23 @@ import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
-import { Minus, Plus, RefreshCw } from 'lucide-react';
+import { Minus, Plus, RefreshCw, TrendingUp, TrendingDown, Minus as Minus2 } from 'lucide-react';
 
 interface ForecastRow {
   forecastDate: string;
   productId: string;
   productName: string;
   predictedQuantity: number;
+  confidenceLow?: number;
+  confidenceHigh?: number;
+  trendDirection?: 'UP' | 'DOWN' | 'STABLE';
 }
+
+const TrendIcon: React.FC<{ direction?: string }> = ({ direction }) => {
+  if (direction === 'UP') return <TrendingUp className="h-3.5 w-3.5 text-green-500" />;
+  if (direction === 'DOWN') return <TrendingDown className="h-3.5 w-3.5 text-red-400" />;
+  return <Minus2 className="h-3.5 w-3.5" style={{ color: 'var(--text-soft)' }} />;
+};
 
 const DemandForecast: React.FC = () => {
   const { marketId } = useAuth();
@@ -145,10 +154,18 @@ const DemandForecast: React.FC = () => {
                           {idx + 1}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{row.productName || row.productId}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{row.productName || row.productId}</p>
+                            <TrendIcon direction={row.trendDirection} />
+                          </div>
                           <div className="mt-1 h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
                             <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
                           </div>
+                          {row.confidenceLow != null && row.confidenceHigh != null && (
+                            <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-soft)' }}>
+                              Intervalo: {Number(row.confidenceLow).toFixed(0)}–{Number(row.confidenceHigh).toFixed(0)} un
+                            </p>
+                          )}
                         </div>
                         <span className="shrink-0 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                           {Number(row.predictedQuantity || 0).toFixed(0)} un

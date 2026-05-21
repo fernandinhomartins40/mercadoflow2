@@ -291,7 +291,9 @@ public class AdvancedAnalyticsService {
                 defaultBigDecimal(rs.getBigDecimal("price_index")),
                 rs.getDouble("revenue_trend_percentage"),
                 localDateTime(rs, "last_sold_at"),
-                rs.getString("turnover_band")
+                rs.getString("turnover_band"),
+                null, // momentumScore — not computed in paginated path for performance
+                null  // healthScore
             )
         );
     }
@@ -325,6 +327,7 @@ public class AdvancedAnalyticsService {
         Map<UUID, BigDecimal> previousRevenues = loadPreviousRevenues(params);
         Map<UUID, LocalDateTime> lastSales = loadLastSales(params);
         Map<UUID, CurrentAggregate> currentAggregates = loadCurrentAggregates(params);
+        Map<UUID, double[]> momentumScores = loadMomentumScores(marketId, window, productId);
 
         List<ProductPerformanceDTO> rows = new ArrayList<>();
         for (ProductSnapshot product : products.values()) {
@@ -359,6 +362,11 @@ public class AdvancedAnalyticsService {
                 ? averagePrice.divide(baselinePrice, 4, RoundingMode.HALF_UP)
                 : BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP);
 
+            double trendPct = calculateGrowth(revenue, previousRevenues.get(product.productId()));
+            double[] ms = momentumScores.get(product.productId());
+            Double momentumScore = ms != null ? ms[0] : null;
+            Double healthScore = computeHealthScore(trendPct, salesVelocity, salesDays, window, ms);
+
             rows.add(new ProductPerformanceDTO(
                 product.productId(),
                 product.ean(),
@@ -380,9 +388,11 @@ public class AdvancedAnalyticsService {
                 normalAveragePrice,
                 promoRevenueShare,
                 priceIndex,
-                calculateGrowth(revenue, previousRevenues.get(product.productId())),
+                trendPct,
                 lastSales.get(product.productId()),
-                resolveTurnoverBand(salesVelocity)
+                resolveTurnoverBand(salesVelocity),
+                momentumScore,
+                healthScore
             ));
         }
         return rows;
@@ -1226,6 +1236,99 @@ public class AdvancedAnalyticsService {
     private LocalDateTime localDateTime(ResultSet rs, String column) throws SQLException {
         Timestamp timestamp = rs.getTimestamp(column);
         return timestamp != null ? timestamp.toLocalDateTime() : null;
+    }
+
+    /**
+     * Loads per-product daily revenue for the window and computes:
+     *   [0] = momentumScore — EMA(7) / SMA(28), capped to [0, 3]
+     *
+     * Returns a map: productId → double[] { momentumScore }
+     */
+    private Map<UUID, double[]> loadMomentumScores(UUID marketId, Window window, UUID singleProductId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("marketId", marketId)
+            .addValue("startDate", window.start().atStartOfDay())
+            .addValue("endExclusive", window.end().plusDays(1).atStartOfDay());
+        if (singleProductId != null) {
+            params.addValue("productId", singleProductId, java.sql.Types.OTHER);
+        }
+
+        StringBuilder sql = new StringBuilder(
+            "select it.product_id, cast(i.data_emissao as date) as sale_date, " +
+            "coalesce(sum(it.valor_total), 0) as daily_revenue " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :marketId " +
+            "and i.data_emissao >= :startDate and i.data_emissao < :endExclusive"
+        );
+        if (singleProductId != null) sql.append(" and it.product_id = :productId");
+        sql.append(" group by it.product_id, cast(i.data_emissao as date) order by it.product_id, sale_date");
+
+        // Accumulate daily values per product
+        Map<UUID, java.util.TreeMap<LocalDate, Double>> byProduct = new java.util.LinkedHashMap<>();
+        jdbcTemplate.query(sql.toString(), params, rs -> {
+            UUID pid;
+            Object raw = rs.getObject("product_id");
+            pid = raw instanceof UUID u ? u : UUID.fromString(raw.toString());
+            LocalDate date = rs.getDate("sale_date").toLocalDate();
+            double rev = rs.getDouble("daily_revenue");
+            byProduct.computeIfAbsent(pid, k -> new java.util.TreeMap<>()).put(date, rev);
+        });
+
+        Map<UUID, double[]> result = new java.util.LinkedHashMap<>();
+        for (Map.Entry<UUID, java.util.TreeMap<LocalDate, Double>> entry : byProduct.entrySet()) {
+            List<Double> series = new java.util.ArrayList<>(entry.getValue().values());
+            if (series.isEmpty()) continue;
+            double ema7 = computeEma(series, 7);
+            double sma28 = computeSma(series, 28);
+            double momentum = sma28 > 0 ? Math.min(3.0, ema7 / sma28) : 1.0;
+            result.put(entry.getKey(), new double[]{ momentum });
+        }
+        return result;
+    }
+
+    private double computeEma(List<Double> series, int period) {
+        if (series.isEmpty()) return 0;
+        double k = 2.0 / (period + 1);
+        double ema = series.get(0);
+        int start = Math.max(0, series.size() - period * 3); // look-back window
+        for (int i = start; i < series.size(); i++) {
+            ema = series.get(i) * k + ema * (1 - k);
+        }
+        return ema;
+    }
+
+    private double computeSma(List<Double> series, int period) {
+        if (series.isEmpty()) return 0;
+        int from = Math.max(0, series.size() - period);
+        double sum = 0;
+        int count = 0;
+        for (int i = from; i < series.size(); i++) {
+            sum += series.get(i);
+            count++;
+        }
+        return count > 0 ? sum / count : 0;
+    }
+
+    /**
+     * Composite health score 0–100:
+     *  - 40 pts: revenue trend capped to [-50%, +50%] → mapped to [0, 40]
+     *  - 30 pts: sales velocity relative to window length → days active / window length * 30
+     *  - 20 pts: momentum (EMA/SMA ratio) → capped at 2.0 * 10
+     *  - 10 pts: trend direction bonus (positive trend)
+     */
+    private Double computeHealthScore(double trendPct, BigDecimal velocity, int salesDays, Window window, double[] ms) {
+        if (velocity == null || velocity.compareTo(BigDecimal.ZERO) == 0) return null;
+
+        double trendComponent = Math.min(40, Math.max(0, (trendPct + 50) / 100.0 * 40));
+        double consistencyComponent = window.lengthDays() > 0
+            ? Math.min(30, (double) salesDays / window.lengthDays() * 30)
+            : 0;
+        double momentumComponent = ms != null ? Math.min(20, ms[0] * 10) : 10;
+        double bonusComponent = trendPct > 0 ? 10 : 0;
+
+        double raw = trendComponent + consistencyComponent + momentumComponent + bonusComponent;
+        return Math.min(100, Math.max(0, raw));
     }
 
     private String resolveTurnoverBand(BigDecimal salesVelocity) {

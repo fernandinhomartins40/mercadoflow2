@@ -13,5 +13,6 @@ public class MarketBasketDTO {
     private double support;
     private double confidence;
     private double lift;
+    private double leverage; // P(A∩B) - P(A)·P(B) — positive = above-chance co-occurrence
     private long pairCount;
 }
