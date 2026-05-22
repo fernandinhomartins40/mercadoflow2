@@ -128,7 +128,7 @@ if (-not (Test-Path $RequirementsFile)) {
         "--python-version", ($PythonVersion -replace '(\d+\.\d+)\.\d+','$1'),
         "--platform", $pipPlatform,
         "--implementation", "cp",
-        "--only-binary", ":all:"
+        "--prefer-binary"   # usa wheel se disponível; compila do source apenas se necessário
     )
     Write-Host "  Instalando para platform=$pipPlatform..." -ForegroundColor Gray
     & $PythonExe @pipArgs
@@ -144,16 +144,19 @@ $SourceServiceDir = Join-Path $RootDir "service"
 Copy-Item -Path (Join-Path $SourceServiceDir "*") -Destination $ServiceDir -Recurse -Force
 Write-Host "  ✓ Arquivos do serviço copiados" -ForegroundColor Gray
 
-# Config UI (Electron — sempre x64, funciona via WOW64 em x86 OS de 64 bits;
-# para OS nativo 32-bit é necessário build separado do Electron)
-$ConfigUISource = Join-Path $RootDir "..\pdv2cloud-config\dist"
+# Config UI (Electron — target=dir gera win-unpacked; x64 funciona via WOW64 em x86 OS 64-bit)
+# Tenta win-unpacked primeiro; fallback para dist raiz (builds alternativos)
+$ConfigUIBase   = Join-Path $RootDir "..\pdv2cloud-config\dist"
+$ConfigUISource = Join-Path $ConfigUIBase "win-unpacked"
+if (-not (Test-Path $ConfigUISource)) { $ConfigUISource = $ConfigUIBase }
 $ConfigUITarget = Join-Path $DistDir "config-ui"
 if (Test-Path $ConfigUISource) {
-    Write-Host "[8/8] Copiando Config UI..." -ForegroundColor Green
+    Write-Host "[8/8] Copiando Config UI de $ConfigUISource..." -ForegroundColor Green
     Copy-Item -Path $ConfigUISource -Destination $ConfigUITarget -Recurse -Force
     Write-Host "  ✓ Config UI copiada" -ForegroundColor Gray
 } else {
-    Write-Host "[8/8] Config UI não encontrada — pulando" -ForegroundColor Yellow
+    Write-Host "[8/8] ERRO: Config UI não encontrada em $ConfigUIBase" -ForegroundColor Red
+    exit 1
 }
 
 # ── Gerar bundle-info.json ─────────────────────────────────────────────────

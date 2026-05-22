@@ -38,6 +38,21 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y
 
+      - name: Build Electron Config UI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-Location pdv2cloud-config
+          npm ci
+          npm run build
+          npm run package
+          # electron-builder gera dist/win-unpacked por padrão
+          if (-not (Test-Path "dist")) {
+            Write-Host "ERRO: pdv2cloud-config/dist não encontrado após build" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Config UI buildada em $(Resolve-Path dist)" -ForegroundColor Green
+
       - name: Build Installer (${{ matrix.arch }})
         shell: pwsh
         env:
