@@ -186,7 +186,7 @@ public class MarketBasketService {
 
         // Ordena pela regra mais forte: pair_count desc, depois lift desc
         rules.sort(Comparator
-            .comparingInt(MarketBasketDTO::getPairCount).reversed()
+            .comparingLong(MarketBasketDTO::getPairCount).reversed()
             .thenComparingDouble(MarketBasketDTO::getLift).reversed()
             .thenComparingDouble(MarketBasketDTO::getConfidence).reversed()
         );

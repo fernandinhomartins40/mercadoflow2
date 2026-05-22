@@ -1444,29 +1444,28 @@ public class AdvancedAnalyticsService {
     ) {
     }
 
-    // ── Seasonal windows definition ───────────────────────────────────────────
+    // ── Product seasonal windows definition ──────────────────────────────────
 
-    private record SeasonalWindow(
+    private record ProductSeasonalWindowDef(
         String key,
         String title,
         int monthStart, int dayStart,
         int monthEnd, int dayEnd
     ) {
-        /** Returns the window dates relative to a given reference year, handling year rollover. */
         LocalDate start(int year) { return LocalDate.of(year, monthStart, dayStart); }
         LocalDate end(int year)   { return LocalDate.of(year, monthEnd, dayEnd); }
     }
 
-    private static final List<SeasonalWindow> SEASONAL_WINDOWS = List.of(
-        new SeasonalWindow("natal",        "Natal",          12,  1, 12, 31),
-        new SeasonalWindow("pascoa",       "Páscoa",          3,  1,  4, 30),
-        new SeasonalWindow("carnaval",     "Carnaval",        2,  1,  2, 28),
-        new SeasonalWindow("dia_maes",     "Dia das Mães",    5,  1,  5, 31),
-        new SeasonalWindow("dia_pais",     "Dia dos Pais",    8,  1,  8, 31),
-        new SeasonalWindow("dia_criancas", "Dia das Crianças",10, 1, 10, 31),
-        new SeasonalWindow("black_friday", "Black Friday",   11, 20, 11, 30),
-        new SeasonalWindow("ferias_jul",   "Férias Julho",    7,  1,  7, 31),
-        new SeasonalWindow("ferias_jan",   "Férias Janeiro",  1,  1,  1, 31)
+    private static final List<ProductSeasonalWindowDef> SEASONAL_WINDOWS = List.of(
+        new ProductSeasonalWindowDef("natal",        "Natal",          12,  1, 12, 31),
+        new ProductSeasonalWindowDef("pascoa",       "Páscoa",          3,  1,  4, 30),
+        new ProductSeasonalWindowDef("carnaval",     "Carnaval",        2,  1,  2, 28),
+        new ProductSeasonalWindowDef("dia_maes",     "Dia das Mães",    5,  1,  5, 31),
+        new ProductSeasonalWindowDef("dia_pais",     "Dia dos Pais",    8,  1,  8, 31),
+        new ProductSeasonalWindowDef("dia_criancas", "Dia das Crianças",10, 1, 10, 31),
+        new ProductSeasonalWindowDef("black_friday", "Black Friday",   11, 20, 11, 30),
+        new ProductSeasonalWindowDef("ferias_jul",   "Férias Julho",    7,  1,  7, 31),
+        new ProductSeasonalWindowDef("ferias_jan",   "Férias Janeiro",  1,  1,  1, 31)
     );
 
     private List<ProductSeasonalPerformanceDTO> fetchProductSeasonalPerformance(
@@ -1497,7 +1496,7 @@ public class AdvancedAnalyticsService {
         DateTimeFormatter ptBR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         List<ProductSeasonalPerformanceDTO> results = new ArrayList<>();
 
-        for (SeasonalWindow sw : SEASONAL_WINDOWS) {
+        for (ProductSeasonalWindowDef sw : SEASONAL_WINDOWS) {
             // Try current year first, then previous year if window is in the future
             int year = referenceDate.getYear();
             LocalDate windowStart = sw.start(year);
