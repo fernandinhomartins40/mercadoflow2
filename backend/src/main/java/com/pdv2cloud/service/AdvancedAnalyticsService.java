@@ -8,6 +8,8 @@ import com.pdv2cloud.model.dto.ProductPairInsightDTO;
 import com.pdv2cloud.model.dto.ProductBranchPerformanceDTO;
 import com.pdv2cloud.model.dto.ProductDashboardDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
+import com.pdv2cloud.model.dto.ProductPurchaseSignalDTO;
+import com.pdv2cloud.model.dto.ProductSeasonalPerformanceDTO;
 import com.pdv2cloud.model.dto.PromotionImpactDTO;
 import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 import com.pdv2cloud.model.dto.SeasonalProductCollectionDTO;
@@ -28,6 +30,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -143,6 +146,9 @@ public class AdvancedAnalyticsService {
         dashboard.setPriceTimeline(priceIntelligenceService.getProductPriceTimeline(marketId, productId, window.start(), window.end()));
         dashboard.setPriceEvents(priceIntelligenceService.getProductPriceEvents(marketId, productId, window.start(), window.end()));
         dashboard.setPromotionWindows(priceIntelligenceService.getProductPromotionWindows(marketId, productId, window.start(), window.end()));
+        List<ProductSeasonalPerformanceDTO> seasonal = fetchProductSeasonalPerformance(marketId, productId, window.end());
+        dashboard.setSeasonalPerformance(seasonal);
+        dashboard.setPurchaseSignal(buildPurchaseSignal(overview, seasonal, window.end()));
         return dashboard;
     }
 
@@ -1436,6 +1442,263 @@ public class AdvancedAnalyticsService {
         int priority,
         long distanceDays
     ) {
+    }
+
+    // ── Seasonal windows definition ───────────────────────────────────────────
+
+    private record SeasonalWindow(
+        String key,
+        String title,
+        int monthStart, int dayStart,
+        int monthEnd, int dayEnd
+    ) {
+        /** Returns the window dates relative to a given reference year, handling year rollover. */
+        LocalDate start(int year) { return LocalDate.of(year, monthStart, dayStart); }
+        LocalDate end(int year)   { return LocalDate.of(year, monthEnd, dayEnd); }
+    }
+
+    private static final List<SeasonalWindow> SEASONAL_WINDOWS = List.of(
+        new SeasonalWindow("natal",        "Natal",          12,  1, 12, 31),
+        new SeasonalWindow("pascoa",       "Páscoa",          3,  1,  4, 30),
+        new SeasonalWindow("carnaval",     "Carnaval",        2,  1,  2, 28),
+        new SeasonalWindow("dia_maes",     "Dia das Mães",    5,  1,  5, 31),
+        new SeasonalWindow("dia_pais",     "Dia dos Pais",    8,  1,  8, 31),
+        new SeasonalWindow("dia_criancas", "Dia das Crianças",10, 1, 10, 31),
+        new SeasonalWindow("black_friday", "Black Friday",   11, 20, 11, 30),
+        new SeasonalWindow("ferias_jul",   "Férias Julho",    7,  1,  7, 31),
+        new SeasonalWindow("ferias_jan",   "Férias Janeiro",  1,  1,  1, 31)
+    );
+
+    private List<ProductSeasonalPerformanceDTO> fetchProductSeasonalPerformance(
+        UUID marketId, UUID productId, LocalDate referenceDate
+    ) {
+        // Compute baseline: average daily revenue for this product in the 90-day window (excluding current seasonal windows)
+        MapSqlParameterSource baseParams = new MapSqlParameterSource()
+            .addValue("marketId", marketId)
+            .addValue("productId", productId)
+            .addValue("since", referenceDate.minusDays(365));
+
+        String baselineSql =
+            "select coalesce(sum(it.valor_total), 0) as total_revenue, " +
+            "       count(distinct cast(i.data_emissao as date)) as sales_days " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :marketId " +
+            "  and it.product_id = :productId " +
+            "  and i.data_emissao >= :since";
+
+        double[] base = new double[]{0.0, 0.0};
+        jdbcTemplate.query(baselineSql, baseParams, rs -> {
+            base[0] = rs.getDouble("total_revenue");
+            base[1] = rs.getDouble("sales_days");
+        });
+        double dailyBaseline = base[1] > 0 ? base[0] / base[1] : 0.0;
+
+        DateTimeFormatter ptBR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        List<ProductSeasonalPerformanceDTO> results = new ArrayList<>();
+
+        for (SeasonalWindow sw : SEASONAL_WINDOWS) {
+            // Try current year first, then previous year if window is in the future
+            int year = referenceDate.getYear();
+            LocalDate windowStart = sw.start(year);
+            LocalDate windowEnd   = sw.end(year);
+
+            // If the window starts after reference date by more than 365 days, skip to previous year
+            if (windowStart.isAfter(referenceDate.plusDays(365))) {
+                year--;
+                windowStart = sw.start(year);
+                windowEnd   = sw.end(year);
+            }
+
+            // Determine status
+            String status;
+            long daysUntilStart = ChronoUnit.DAYS.between(referenceDate, windowStart);
+            long daysUntilEnd   = ChronoUnit.DAYS.between(referenceDate, windowEnd);
+            if (daysUntilEnd < 0) {
+                status = "RECENT";
+            } else if (daysUntilStart <= 0) {
+                status = "CURRENT";
+            } else {
+                status = "UPCOMING";
+            }
+
+            // Only show RECENT within 180 days past, UPCOMING within 180 days ahead
+            long daysSinceEnd = -daysUntilEnd;
+            if (status.equals("RECENT") && daysSinceEnd > 180) continue;
+            if (status.equals("UPCOMING") && daysUntilStart > 180) continue;
+
+            String proximityLabel = switch (status) {
+                case "CURRENT"  -> "Em andamento";
+                case "UPCOMING" -> "Começa em " + daysUntilStart + " dias";
+                case "RECENT"   -> "Encerrou há " + daysSinceEnd + " dias";
+                default -> "";
+            };
+
+            MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("marketId", marketId)
+                .addValue("productId", productId)
+                .addValue("windowStart", windowStart.atStartOfDay())
+                .addValue("windowEnd", windowEnd.plusDays(1).atStartOfDay());
+
+            String sql =
+                "select coalesce(sum(it.valor_total), 0) as revenue, " +
+                "       coalesce(sum(it.quantidade), 0) as quantity, " +
+                "       count(distinct i.id) as transactions " +
+                "from invoice_items it " +
+                "join invoices i on i.id = it.invoice_id " +
+                "where i.market_id = :marketId " +
+                "  and it.product_id = :productId " +
+                "  and i.data_emissao >= :windowStart " +
+                "  and i.data_emissao < :windowEnd";
+
+            double[] row = {0, 0, 0};
+            jdbcTemplate.query(sql, p, rs -> {
+                row[0] = rs.getDouble("revenue");
+                row[1] = rs.getDouble("quantity");
+                row[2] = rs.getDouble("transactions");
+            });
+
+            long windowDays = Math.max(1, ChronoUnit.DAYS.between(windowStart, windowEnd) + 1);
+            double dailyRevInWindow = row[0] / windowDays;
+            double index = dailyBaseline > 0 ? dailyRevInWindow / dailyBaseline : (row[0] > 0 ? 1.5 : 0.0);
+
+            String signal;
+            if (index >= 1.3) signal = "HIGH_SEASON";
+            else if (index <= 0.7 && row[0] > 0) signal = "LOW_SEASON";
+            else signal = "NEUTRAL";
+
+            // Only emit NEUTRAL if there were actual sales
+            if (signal.equals("NEUTRAL") && row[0] == 0 && status.equals("RECENT")) signal = "LOW_SEASON";
+
+            results.add(new ProductSeasonalPerformanceDTO(
+                sw.key(),
+                sw.title(),
+                status,
+                proximityLabel,
+                windowStart.format(ptBR) + " a " + windowEnd.format(ptBR),
+                BigDecimal.valueOf(row[0]).setScale(2, RoundingMode.HALF_UP),
+                BigDecimal.valueOf(row[1]).setScale(3, RoundingMode.HALF_UP),
+                (long) row[2],
+                Math.round(index * 100.0) / 100.0,
+                signal
+            ));
+        }
+
+        // Sort: CURRENT first, then UPCOMING by proximity, then RECENT
+        results.sort(Comparator
+            .comparingInt((ProductSeasonalPerformanceDTO d) -> switch (d.getStatus()) {
+                case "CURRENT"  -> 0;
+                case "UPCOMING" -> 1;
+                case "RECENT"   -> 2;
+                default -> 3;
+            })
+            .thenComparing(d -> {
+                // within UPCOMING: sort by proximity (ascending days until)
+                if ("UPCOMING".equals(d.getStatus())) {
+                    return d.getProximityLabel();
+                }
+                return d.getTitle();
+            })
+        );
+
+        return results;
+    }
+
+    private ProductPurchaseSignalDTO buildPurchaseSignal(
+        ProductPerformanceDTO overview,
+        List<ProductSeasonalPerformanceDTO> seasonal,
+        LocalDate referenceDate
+    ) {
+        double velocity = overview.getSalesVelocity() != null ? overview.getSalesVelocity().doubleValue() : 0;
+        double trendPct = overview.getRevenueTrendPercentage() != null ? overview.getRevenueTrendPercentage() : 0;
+
+        // Dormancy: days since last sale
+        long daysWithoutSale = 0;
+        if (overview.getLastSoldAt() != null) {
+            daysWithoutSale = ChronoUnit.DAYS.between(
+                overview.getLastSoldAt().toLocalDate(), referenceDate
+            );
+        } else {
+            daysWithoutSale = 90; // unknown → treat as dormant
+        }
+
+        // Current or upcoming high-season windows
+        List<ProductSeasonalPerformanceDTO> highSeasonUpcoming = seasonal.stream()
+            .filter(s -> ("UPCOMING".equals(s.getStatus()) || "CURRENT".equals(s.getStatus()))
+                      && "HIGH_SEASON".equals(s.getSignal()))
+            .toList();
+
+        // Determine decision
+        String decision;
+        String decisionLabel;
+        String decisionReason;
+
+        if (daysWithoutSale >= 30) {
+            decision = "CAUTION";
+            decisionLabel = "Atenção: produto parado";
+            decisionReason = String.format(
+                "Este produto está sem venda há %d dias. Avalie se ainda tem demanda antes de repor estoque.",
+                daysWithoutSale
+            );
+        } else if (velocity <= 0.05 && trendPct < -20) {
+            decision = "REDUCE";
+            decisionLabel = "Reduzir pedido";
+            decisionReason = "Velocidade de venda muito baixa e tendência de queda. Reduza o pedido até o produto ganhar tração novamente.";
+        } else if (!highSeasonUpcoming.isEmpty() || (velocity >= 1.0 && trendPct >= 0)) {
+            decision = "BUY";
+            decisionLabel = "Comprar agora";
+            String seasonHint = highSeasonUpcoming.isEmpty() ? "" :
+                " " + highSeasonUpcoming.get(0).getTitle() + " se aproxima — reforce o estoque.";
+            decisionReason = String.format(
+                "Velocidade atual de %.1f un/dia com tendência de %+.0f%%.%s",
+                velocity, trendPct, seasonHint
+            );
+        } else {
+            decision = "HOLD";
+            decisionLabel = "Manter reposição normal";
+            decisionReason = String.format(
+                "Giro de %.1f un/dia dentro do esperado. Mantenha o ciclo de reposição habitual.",
+                velocity
+            );
+        }
+
+        // Suggested order quantity (cover 14 days + seasonal uplift)
+        double coverDays = 14.0;
+        double upliftMultiplier = 1.0;
+        if (!highSeasonUpcoming.isEmpty()) {
+            double maxUplift = highSeasonUpcoming.stream()
+                .mapToDouble(s -> s.getIndexVsBaseline())
+                .max().orElse(1.0);
+            upliftMultiplier = Math.min(maxUplift, 3.0);
+            coverDays = 21.0; // extend coverage for season
+        }
+        double suggestedQty = Math.max(0, velocity * coverDays * upliftMultiplier);
+
+        // Stock projection periods (upcoming high-season windows only)
+        List<ProductPurchaseSignalDTO.StockProjectionPeriod> projections = new ArrayList<>();
+        for (ProductSeasonalPerformanceDTO s : seasonal) {
+            if (!"UPCOMING".equals(s.getStatus()) && !"CURRENT".equals(s.getStatus())) continue;
+            if (!"HIGH_SEASON".equals(s.getSignal())) continue;
+            int weeksToRestock = (int) Math.max(1, Math.round(s.getIndexVsBaseline() * 0.8));
+            projections.add(new ProductPurchaseSignalDTO.StockProjectionPeriod(
+                s.getTitle() + " (" + s.getPeriodLabel() + ")",
+                s.getKey(),
+                s.getIndexVsBaseline(),
+                "Reforce o estoque " + weeksToRestock + " semana(s) antes",
+                s.getProximityLabel()
+            ));
+        }
+
+        return new ProductPurchaseSignalDTO(
+            decision,
+            decisionLabel,
+            decisionReason,
+            BigDecimal.valueOf(velocity).setScale(2, RoundingMode.HALF_UP),
+            BigDecimal.valueOf(coverDays).setScale(0, RoundingMode.HALF_UP),
+            BigDecimal.valueOf(suggestedQty).setScale(0, RoundingMode.HALF_UP),
+            BigDecimal.valueOf(daysWithoutSale),
+            projections
+        );
     }
 
     private enum SeasonalityGranularity {

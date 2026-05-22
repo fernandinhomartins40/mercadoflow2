@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.dto.MarketCockpitDTO;
+import com.pdv2cloud.model.dto.ProductPromoEffectivenessDTO;
 import com.pdv2cloud.model.dto.MarketDashboardDTO;
 import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
@@ -12,6 +13,8 @@ import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.ProductPromotionWindowDTO;
 import com.pdv2cloud.model.dto.CampaignImpactDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
+import com.pdv2cloud.model.dto.PurchasePriceHistoryDTO;
+import com.pdv2cloud.model.dto.RecordPurchaseRequest;
 import com.pdv2cloud.model.dto.ShoppingListItemDTO;
 import com.pdv2cloud.model.dto.ShoppingListItemUpsertRequest;
 import com.pdv2cloud.model.dto.ShoppingListOverviewDTO;
@@ -27,6 +30,8 @@ import com.pdv2cloud.service.AnalyticsService;
 import com.pdv2cloud.service.ForecastService;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PriceIntelligenceService;
+import com.pdv2cloud.service.PromoEffectivenessService;
+import com.pdv2cloud.service.PurchasePriceService;
 import com.pdv2cloud.service.ShoppingListService;
 import java.time.LocalDate;
 import java.util.List;
@@ -71,6 +76,12 @@ public class MarketController {
 
     @Autowired
     private ShoppingListService shoppingListService;
+
+    @Autowired
+    private PurchasePriceService purchasePriceService;
+
+    @Autowired
+    private PromoEffectivenessService promoEffectivenessService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -308,6 +319,26 @@ public class MarketController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/purchase-history")
+    public ResponseEntity<PurchasePriceHistoryDTO> recordPurchase(
+        @PathVariable("id") UUID id,
+        @RequestBody RecordPurchaseRequest request,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(purchasePriceService.recordPurchase(id, request));
+    }
+
+    @GetMapping("/{id}/purchase-history/{productId}")
+    public ResponseEntity<List<PurchasePriceHistoryDTO>> getPurchaseHistory(
+        @PathVariable("id") UUID id,
+        @PathVariable("productId") UUID productId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(purchasePriceService.getHistory(id, productId));
+    }
+
     @GetMapping("/{id}/analytics/demand-forecast")
     public ResponseEntity<List<DemandForecastDTO>> getDemandForecast(
         @PathVariable("id") UUID id,
@@ -336,5 +367,26 @@ public class MarketController {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
         return ResponseEntity.ok(advancedAnalyticsService.getWeekdaySeasonality(id, startDate, endDate));
+    }
+
+    @GetMapping("/{id}/analytics/promo-effectiveness")
+    public ResponseEntity<List<ProductPromoEffectivenessDTO>> getPromoEffectiveness(
+        @PathVariable("id") UUID id,
+        @RequestParam(defaultValue = "180") int days,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(promoEffectivenessService.analyzeMarket(id, days));
+    }
+
+    @GetMapping("/{id}/analytics/promo-effectiveness/{productId}")
+    public ResponseEntity<ProductPromoEffectivenessDTO> getProductPromoEffectiveness(
+        @PathVariable("id") UUID id,
+        @PathVariable("productId") UUID productId,
+        @RequestParam(defaultValue = "180") int days,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(promoEffectivenessService.analyzeProduct(id, productId, days));
     }
 }

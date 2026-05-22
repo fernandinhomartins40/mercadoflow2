@@ -8,6 +8,7 @@ import {
   Map,
   Megaphone,
   PackageSearch,
+  Tag,
   Settings,
   ShoppingCart,
   Store,
@@ -57,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: 'Estratégia',
       items: [
         { to: '/app/campanhas', label: 'Promoções', hint: 'Resultado das suas ações promocionais', icon: Megaphone },
+        { to: '/app/promocoes', label: 'Efetividade promo', hint: 'Quais promoções realmente vendem mais', icon: Tag },
         { to: '/app/mapa-loja', label: 'Mapa da loja', hint: 'Organize produtos para vender mais', icon: Map },
         { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Antecipe a demanda dos próximos dias', icon: TrendingUp },
       ],

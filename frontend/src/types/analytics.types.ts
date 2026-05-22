@@ -162,6 +162,38 @@ export interface MarketCockpit {
   recentAlerts: AlertItem[];
 }
 
+export interface ProductSeasonalPerformance {
+  key: string;
+  title: string;
+  status: 'CURRENT' | 'UPCOMING' | 'RECENT' | string;
+  proximityLabel: string;
+  periodLabel: string;
+  revenue: number;
+  quantity: number;
+  transactions: number;
+  indexVsBaseline: number;
+  signal: 'HIGH_SEASON' | 'LOW_SEASON' | 'NEUTRAL' | string;
+}
+
+export interface StockProjectionPeriod {
+  label: string;
+  key: string;
+  upliftFactor: number;
+  action: string;
+  daysUntil: string;
+}
+
+export interface ProductPurchaseSignal {
+  decision: 'BUY' | 'HOLD' | 'REDUCE' | 'CAUTION' | string;
+  decisionLabel: string;
+  decisionReason: string;
+  salesVelocity: number;
+  suggestedOrderDays: number;
+  suggestedQuantity: number;
+  daysWithoutSale: number;
+  projections: StockProjectionPeriod[];
+}
+
 export interface ProductDashboard {
   overview: ProductPerformance;
   salesTrend: SalesTrendPoint[];
@@ -171,6 +203,8 @@ export interface ProductDashboard {
   priceTimeline?: ProductPriceTimeline | null;
   priceEvents?: ProductPriceEvent[];
   promotionWindows?: ProductPromotionWindow[];
+  seasonalPerformance?: ProductSeasonalPerformance[];
+  purchaseSignal?: ProductPurchaseSignal | null;
 }
 
 export interface ProductPriceTimelinePoint {
@@ -224,6 +258,64 @@ export interface ProductPromotionWindow {
   dynamicThresholdPercent: number;
   confidenceScore: number;
   status: 'SUSPECTED' | 'CONFIRMED' | 'CLOSED' | string;
+}
+
+export interface PromoWindowSummary {
+  startAt?: string | null;
+  endAt?: string | null;
+  durationDays: number;
+  discountPercent: number;
+  qtyLiftPercent: number;
+  revenueLiftPercent: number;
+  promoRevenue: number;
+  normalRevenueEquivalent: number;
+  outcome: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL' | string;
+}
+
+export interface ProductPromoEffectiveness {
+  productId: string;
+  name: string;
+  category?: string | null;
+  imageUrl?: string | null;
+  baselinePrice?: number | null;
+  avgPromoPrice?: number | null;
+  avgDiscountPercent?: number | null;
+  normalDailyQty?: number | null;
+  promoDailyQty?: number | null;
+  normalDailyRevenue?: number | null;
+  promoDailyRevenue?: number | null;
+  qtyLiftPercent?: number | null;
+  revenueLiftPercent?: number | null;
+  priceElasticity?: number | null;
+  totalPromoRevenue?: number | null;
+  totalNormalRevenue?: number | null;
+  totalPromoQty?: number | null;
+  totalNormalQty?: number | null;
+  promoDays: number;
+  normalDays: number;
+  promoWindowCount: number;
+  effectivenessScore: number;
+  classification: 'BOOSTER' | 'REVENUE_LOSS' | 'BACKFIRE' | 'NEUTRAL' | 'INSUFFICIENT_DATA' | string;
+  classificationLabel: string;
+  insight: string;
+  windows: PromoWindowSummary[];
+}
+
+export interface PurchasePriceHistory {
+  id: string;
+  productId: string;
+  productName: string;
+  shoppingListItemId?: string | null;
+  quantityPurchased: number;
+  unitCost: number;
+  unitSalePrice?: number | null;
+  marginPercent?: number | null;
+  supplierName?: string | null;
+  note?: string | null;
+  purchasedAt: string;
+  previousUnitCost?: number | null;
+  costDeltaPercent?: number | null;
+  costTrend: 'UP' | 'DOWN' | 'STABLE' | 'FIRST' | string;
 }
 
 export interface ShoppingListItem {

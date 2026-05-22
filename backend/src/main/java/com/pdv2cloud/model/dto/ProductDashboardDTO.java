@@ -13,4 +13,6 @@ public class ProductDashboardDTO {
     private ProductPriceTimelineDTO priceTimeline;
     private List<ProductPriceEventDTO> priceEvents;
     private List<ProductPromotionWindowDTO> promotionWindows;
+    private List<ProductSeasonalPerformanceDTO> seasonalPerformance;
+    private ProductPurchaseSignalDTO purchaseSignal;
 }

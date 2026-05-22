@@ -202,4 +202,47 @@ export const marketService = {
   async deleteShoppingListItem(marketId: string, itemId: string) {
     await api.delete(`/v1/markets/${marketId}/shopping-list/items/${itemId}`);
   },
+
+  async recordPurchase(
+    marketId: string,
+    payload: {
+      productId: string;
+      shoppingListItemId?: string;
+      quantityPurchased?: number;
+      unitCost: number;
+      unitSalePrice?: number;
+      supplierName?: string;
+      note?: string;
+    }
+  ) {
+    const response = await api.post(`/v1/markets/${marketId}/purchase-history`, payload);
+    return response.data;
+  },
+
+  async getPurchaseHistory(marketId: string, productId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/purchase-history/${productId}`);
+    return response.data;
+  },
+
+  async getPromoEffectiveness(marketId: string, days = 180) {
+    const response = await api.get(`/v1/markets/${marketId}/analytics/promo-effectiveness`, { params: { days } });
+    return response.data;
+  },
+
+  async getProductPromoEffectiveness(marketId: string, productId: string, days = 180) {
+    const response = await api.get(`/v1/markets/${marketId}/analytics/promo-effectiveness/${productId}`, { params: { days } });
+    return response.data;
+  },
+
+  async searchProductCatalog(
+    marketId: string,
+    search: string,
+    page = 0,
+    size = 12
+  ) {
+    const params: any = { page, size };
+    if (search && search.trim()) params.search = search.trim();
+    const response = await api.get(`/v1/markets/${marketId}/analytics/products/performance`, { params });
+    return response.data;
+  },
 };

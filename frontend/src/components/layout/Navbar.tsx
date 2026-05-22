@@ -17,6 +17,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/app/cesta': { title: 'Combos', subtitle: 'Produtos que vendem juntos', section: 'Análise e operação' },
   '/app/previsao-demanda': { title: 'Previsão de vendas', subtitle: 'Antecipe a demanda dos próximos dias', section: 'Análise e operação' },
   '/app/campanhas': { title: 'Promoções', subtitle: 'Acompanhe o resultado das suas ações', section: 'Análise e operação' },
+  '/app/promocoes': { title: 'Efetividade de promoções', subtitle: 'Quais promoções realmente vendem mais — com base nas notas reais', section: 'Estratégia' },
   '/app/alertas': { title: 'Alertas', subtitle: 'O que precisa de ação imediata', section: 'Análise e operação' },
   '/app/pdvs': { title: 'Pontos de venda', subtitle: 'Resultado por caixa e filial', section: 'Análise e operação' },
   '/app/mapa-loja': { title: 'Mapa da loja', subtitle: 'Organize seus produtos para vender mais', section: 'Análise e operação' },

@@ -19,8 +19,11 @@ import {
   ProductPairInsight,
   ProductPriceEvent,
   ProductPromotionWindow,
+  ProductSeasonalPerformance,
+  ProductPurchaseSignal,
   SeasonalityPoint,
 } from '../types/analytics.types';
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, ShoppingCart, Calendar, Zap, Clock } from 'lucide-react';
 
 /* ─── Formatadores ─── */
 const fmt = {
@@ -72,6 +75,169 @@ const ProgressBar: React.FC<{ pct: number; color?: string }> = ({ pct, color = '
   </div>
 );
 
+/* ─── Purchase signal banner ─── */
+const DECISION_CONFIG: Record<string, { bg: string; border: string; text: string; icon: React.FC<any> }> = {
+  BUY:     { bg: 'var(--surface-success)', border: 'var(--border-success)', text: 'var(--brand-700)', icon: ShoppingCart },
+  HOLD:    { bg: 'var(--surface-muted)',   border: 'var(--border-soft)',    text: 'var(--text-primary)', icon: Minus },
+  REDUCE:  { bg: '#fff7ed',               border: '#fed7aa',               text: '#9a3412', icon: TrendingDown },
+  CAUTION: { bg: '#fef2f2',               border: '#fecaca',               text: '#991b1b', icon: AlertTriangle },
+};
+
+const PurchaseSignalBanner: React.FC<{ signal: ProductPurchaseSignal }> = ({ signal }) => {
+  const cfg = DECISION_CONFIG[signal.decision] ?? DECISION_CONFIG.HOLD;
+  const Icon = cfg.icon;
+
+  return (
+    <div
+      className="flex flex-col gap-4 rounded-xl p-5"
+      style={{ border: `1px solid ${cfg.border}`, background: cfg.bg }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+          style={{ background: cfg.border }}
+        >
+          <Icon className="h-5 w-5" style={{ color: cfg.text }} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-base font-bold" style={{ color: cfg.text }}>{signal.decisionLabel}</p>
+          <p className="text-sm" style={{ color: cfg.text, opacity: 0.85 }}>{signal.decisionReason}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3 border-t pt-3" style={{ borderColor: cfg.border }}>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Giro atual</p>
+          <p className="text-lg font-bold" style={{ color: cfg.text }}>
+            {Number(signal.salesVelocity || 0).toFixed(1)}<span className="text-sm font-normal"> un/dia</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Qtd. sugerida</p>
+          <p className="text-lg font-bold" style={{ color: cfg.text }}>
+            {fmt.qty(signal.suggestedQuantity)}<span className="text-sm font-normal"> un</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Cobrir</p>
+          <p className="text-lg font-bold" style={{ color: cfg.text }}>
+            {fmt.qty(signal.suggestedOrderDays)}<span className="text-sm font-normal"> dias</span>
+          </p>
+        </div>
+      </div>
+
+      {signal.daysWithoutSale > 0 && (
+        <div
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+          style={{ background: cfg.border, color: cfg.text }}
+        >
+          <Clock className="h-4 w-4 shrink-0" />
+          {signal.daysWithoutSale >= 30
+            ? `Produto sem venda há ${signal.daysWithoutSale} dias — avalie retirada do mix`
+            : signal.daysWithoutSale > 0
+            ? `Última venda há ${signal.daysWithoutSale} dias`
+            : 'Produto com venda recente'}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Seasonal performance card ─── */
+const SIGNAL_CONFIG: Record<string, { bg: string; border: string; badge: string; label: string }> = {
+  HIGH_SEASON: { bg: 'var(--surface-success)', border: 'var(--border-success)', badge: 'var(--brand-700)', label: 'Alta temporada' },
+  LOW_SEASON:  { bg: '#fef2f2',               border: '#fecaca',               badge: '#991b1b',          label: 'Baixa temporada' },
+  NEUTRAL:     { bg: 'var(--surface-base)',    border: 'var(--border-soft)',    badge: 'var(--text-soft)', label: 'Normal' },
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  CURRENT: 'Agora',
+  UPCOMING: 'Em breve',
+  RECENT: 'Recente',
+};
+
+const SeasonalCard: React.FC<{ season: ProductSeasonalPerformance }> = ({ season }) => {
+  const cfg = SIGNAL_CONFIG[season.signal] ?? SIGNAL_CONFIG.NEUTRAL;
+
+  return (
+    <article
+      className="flex min-w-[220px] flex-col gap-3 rounded-xl p-4"
+      style={{ border: `1px solid ${cfg.border}`, background: cfg.bg }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{season.title}</p>
+        <span className="shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-bold" style={{ background: cfg.border, color: cfg.badge }}>
+          {STATUS_LABEL[season.status] ?? season.status}
+        </span>
+      </div>
+
+      <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{season.periodLabel}</p>
+
+      <div className="flex items-center gap-2">
+        {season.signal === 'HIGH_SEASON' ? (
+          <TrendingUp className="h-4 w-4 shrink-0" style={{ color: cfg.badge }} />
+        ) : season.signal === 'LOW_SEASON' ? (
+          <TrendingDown className="h-4 w-4 shrink-0" style={{ color: cfg.badge }} />
+        ) : (
+          <Minus className="h-4 w-4 shrink-0" style={{ color: cfg.badge }} />
+        )}
+        <span className="text-xs font-semibold" style={{ color: cfg.badge }}>{cfg.label}</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          {season.indexVsBaseline > 0 ? `${(season.indexVsBaseline * 100).toFixed(0)}% do baseline` : '—'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-t pt-2" style={{ borderColor: cfg.border }}>
+        <div>
+          <p className="text-[0.65rem]" style={{ color: 'var(--text-soft)' }}>Receita</p>
+          <strong className="text-sm" style={{ color: 'var(--text-primary)' }}>{fmt.money(season.revenue)}</strong>
+        </div>
+        <div>
+          <p className="text-[0.65rem]" style={{ color: 'var(--text-soft)' }}>Vendas</p>
+          <strong className="text-sm" style={{ color: 'var(--text-primary)' }}>{fmt.qty(season.quantity)} un</strong>
+        </div>
+      </div>
+
+      {season.proximityLabel && (
+        <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{season.proximityLabel}</p>
+      )}
+    </article>
+  );
+};
+
+/* ─── Stock projection cards ─── */
+const StockProjectionSection: React.FC<{ signal: ProductPurchaseSignal }> = ({ signal }) => {
+  if (!signal.projections || signal.projections.length === 0) return null;
+  return (
+    <Section
+      kicker="Projeção de estoque"
+      title="Reforce o estoque nestas datas"
+      subtitle="Janelas onde o giro esperado é maior — planeje a compra com antecedência."
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {signal.projections.map((proj) => (
+          <div
+            key={proj.key}
+            className="flex flex-col gap-2 rounded-xl p-4"
+            style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}
+          >
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 shrink-0" style={{ color: 'var(--brand-600)' }} />
+              <p className="text-sm font-bold" style={{ color: 'var(--brand-700)' }}>{proj.label}</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-soft)' }}>
+              <Zap className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--brand-500)' }} />
+              <span>Uplift esperado: <strong style={{ color: 'var(--brand-700)' }}>{proj.upliftFactor.toFixed(1)}×</strong></span>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{proj.action}</p>
+            <p className="text-xs italic font-medium" style={{ color: 'var(--brand-600)' }}>{proj.daysUntil}</p>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+};
+
 /* ─── RailCard: filial ─── */
 const BranchCard: React.FC<{ branch: ProductBranchPerformance; maxRevenue: number }> = ({ branch, maxRevenue }) => (
   <RailCard
@@ -122,7 +288,6 @@ const PairCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
     className="flex min-w-[240px] max-w-[280px] flex-col gap-0 overflow-hidden rounded-xl"
     style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
   >
-    {/* imagens do par */}
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3" style={{ background: 'var(--surface-soft)' }}>
       <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg p-1" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
         <ProductImage src={pair.antecedentImageUrl} alt={pair.antecedentName || 'Produto'} className="h-full w-full object-contain" />
@@ -132,7 +297,6 @@ const PairCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
         <ProductImage src={pair.consequentImageUrl} alt={pair.consequentName || 'Produto'} className="h-full w-full object-contain" />
       </div>
     </div>
-    {/* dados */}
     <div className="flex flex-col gap-2.5 p-3">
       <div className="flex flex-wrap gap-1.5">
         <Chip variant="success">Lift {Number(pair.lift || 0).toFixed(2)}</Chip>
@@ -208,9 +372,9 @@ const PromoWindowList: React.FC<{ windows: ProductPromotionWindow[] }> = ({ wind
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { label: 'Preço base',     value: fmt.money(w.baselinePrice) },
-              { label: 'Preço promo',    value: fmt.money(w.promoPrice) },
-              { label: 'Desconto',       value: fmt.signedPct(-Math.abs(Number(w.discountPercent || 0))) },
+              { label: 'Preço base',      value: fmt.money(w.baselinePrice) },
+              { label: 'Preço promo',     value: fmt.money(w.promoPrice) },
+              { label: 'Desconto',        value: fmt.signedPct(-Math.abs(Number(w.discountPercent || 0))) },
               { label: 'Lift de receita', value: fmt.signedPct(w.revenueLiftPercent) },
             ].map((row) => (
               <div key={row.label}>
@@ -257,6 +421,8 @@ const ProductDetail: React.FC = () => {
   const weekdaySeasonality = dashboard?.weekdaySeasonality || [];
   const relatedPairs       = dashboard?.relatedPairs || [];
   const priceTimeline      = dashboard?.priceTimeline;
+  const seasonalPerformance = dashboard?.seasonalPerformance || [];
+  const purchaseSignal     = dashboard?.purchaseSignal;
 
   const priceEvents = useMemo(
     () => [...(dashboard?.priceEvents || [])].sort((a, b) => new Date(b.eventAt || 0).getTime() - new Date(a.eventAt || 0).getTime()),
@@ -271,6 +437,7 @@ const ProductDetail: React.FC = () => {
   const bestWeekday    = useMemo(() => [...weekdaySeasonality].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0], [weekdaySeasonality]);
   const weakestWeekday = useMemo(() => [...weekdaySeasonality].filter((r) => Number(r.revenue || 0) > 0).sort((a, b) => Number(a.revenue || 0) - Number(b.revenue || 0))[0], [weekdaySeasonality]);
   const strongestPair  = useMemo(() => [...relatedPairs].sort((a, b) => Number(b.lift || 0) - Number(a.lift || 0))[0], [relatedPairs]);
+  const highSeasonNow  = useMemo(() => seasonalPerformance.find(s => s.status === 'CURRENT' && s.signal === 'HIGH_SEASON'), [seasonalPerformance]);
 
   const addCurrentProductToList = async () => {
     if (!overview) return;
@@ -307,16 +474,14 @@ const ProductDetail: React.FC = () => {
 
         {/* ── Hero: imagem + dados principais ── */}
         <div className="grid gap-6 lg:grid-cols-[200px_1fr] lg:items-start">
-          {/* imagem */}
           <div className="flex items-center justify-center overflow-hidden rounded-xl p-4 lg:aspect-square" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
             <ProductImage src={overview.imageUrl} alt={overview.name} className="max-h-full max-w-full object-contain" />
           </div>
 
-          {/* copy */}
           <div className="flex flex-col gap-4">
             <PageHeader
               title={overview.name}
-              subtitle="Painel de desempenho — receita, preço, sazonalidade e compra casada."
+              subtitle="Painel de desempenho — receita, sazonalidade, datas comemorativas e sinal de compra."
               actions={
                 <>
                   <ButtonLink variant="secondary" to="/app/produtos">← Produtos</ButtonLink>
@@ -329,14 +494,15 @@ const ProductDetail: React.FC = () => {
               }
             />
 
-            {/* chips de metadado */}
             <div className="flex flex-wrap gap-2">
               <Chip>{compactLabel(overview.category)}</Chip>
               <Chip>GTIN {overview.ean || '--'}</Chip>
               <Chip>Última venda {fmt.date(overview.lastSoldAt)}</Chip>
+              {highSeasonNow && (
+                <Chip variant="success">Alta temporada: {highSeasonNow.title}</Chip>
+              )}
             </div>
 
-            {/* resumo rápido inline */}
             <div className="grid gap-2 sm:grid-cols-3">
               <DataRow label="Receita no período" value={fmt.money(overview.revenue)} />
               <DataRow label="Giro diário"         value={`${Number(overview.salesVelocity || 0).toFixed(1)}/dia`} />
@@ -344,6 +510,16 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Sinal de compra inteligente ── */}
+        {purchaseSignal && (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Decisão de compra
+            </p>
+            <PurchaseSignalBanner signal={purchaseSignal} />
+          </div>
+        )}
 
         {/* ── KPIs ── */}
         <StatGrid cols={4}>
@@ -355,7 +531,7 @@ const ProductDetail: React.FC = () => {
 
         {/* ── Insights rápidos ── */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat label="Melhor dia"   value={bestWeekday?.label || '--'}    sub={bestWeekday ? fmt.money(bestWeekday.revenue) : 'Sem dados'} variant="success" />
+          <Stat label="Melhor dia"    value={bestWeekday?.label || '--'}     sub={bestWeekday ? fmt.money(bestWeekday.revenue) : 'Sem dados'} variant="success" />
           <Stat label="Dia mais fraco" value={weakestWeekday?.label || '--'} sub={weakestWeekday ? fmt.money(weakestWeekday.revenue) : 'Sem comparação'} />
           <Stat label="PDV mais forte" value={bestBranch?.branchName || '--'} sub={bestBranch ? `${fmt.qty(bestBranch.quantitySold)} unidades` : 'Sem PDV dominante'} />
           <Stat label="Compra casada"  value={strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
@@ -381,6 +557,28 @@ const ProductDetail: React.FC = () => {
           </Section>
         </div>
 
+        {/* ── Datas comemorativas e sazonalidade ── */}
+        <Section
+          kicker="Datas comemorativas"
+          title="Alta e baixa por época do ano"
+          subtitle="Janelas onde este produto vende acima ou abaixo do ritmo normal — planeje compras e promoções com antecedência."
+        >
+          {seasonalPerformance.length === 0 ? (
+            <Empty>Dados insuficientes para calcular desempenho sazonal. Continue registrando vendas.</Empty>
+          ) : (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {seasonalPerformance.map((s) => (
+                <SeasonalCard key={s.key} season={s} />
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* ── Projeções de estoque (se houver) ── */}
+        {purchaseSignal && purchaseSignal.projections.length > 0 && (
+          <StockProjectionSection signal={purchaseSignal} />
+        )}
+
         {/* ── Filiais e PDVs ── */}
         <Section kicker="Filiais e PDVs" title="Onde este item vende melhor" subtitle="Priorize abastecimento e negociação nas unidades com melhor retorno.">
           {branchPerformance.length === 0
@@ -394,8 +592,8 @@ const ProductDetail: React.FC = () => {
             )}
         </Section>
 
-        {/* ── Sazonalidade ── */}
-        <Section kicker="Sazonalidade" title="Quando este item ganha ou perde tração" subtitle="Os dias mais fortes e fracos indicam quando reforçar compra ou revisar espaço.">
+        {/* ── Sazonalidade por dia da semana ── */}
+        <Section kicker="Sazonalidade semanal" title="Quando este item ganha ou perde tração" subtitle="Os dias mais fortes e fracos indicam quando reforçar compra ou revisar espaço.">
           {weekdaySeasonality.length === 0
             ? <Empty>Sem sazonalidade suficiente neste período.</Empty>
             : (

@@ -30,6 +30,7 @@ const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerCo
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
 const StatePriceComparison = lazy(() => import('./screens/StatePriceComparison'));
 const StoreMap = lazy(() => import('./screens/StoreMap'));
+const PromoEffectiveness = lazy(() => import('./screens/PromoEffectiveness'));
 
 const PageLoader = () => (
   <div className="card flex min-h-[220px] items-center justify-center text-base font-medium text-[color:var(--text-muted)]">
@@ -131,6 +132,7 @@ const App: React.FC = () => {
         <Route path="/app/pdvs" element={secure(<PDVs />)} />
         <Route path="/app/campanhas" element={secure(<Campaigns />)} />
         <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
+        <Route path="/app/promocoes" element={secure(<PromoEffectiveness />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
