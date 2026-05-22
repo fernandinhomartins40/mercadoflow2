@@ -1,18 +1,14 @@
 import React from 'react';
 import {
-  Bell,
   Database,
   Globe2,
   Home,
-  Link2,
   Map,
   Megaphone,
   PackageSearch,
-  Tag,
   Settings,
   ShoppingCart,
   Store,
-  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
@@ -43,24 +39,20 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: 'Hoje',
       items: [
         { to: '/app', label: 'Painel do dia', hint: 'O que precisa da sua atenção agora', icon: Home, exact: true },
-        { to: '/app/alertas', label: 'Alertas', hint: 'Sinais que pedem ação imediata', icon: Bell },
       ],
     },
     {
       title: 'Produtos',
       items: [
-        { to: '/app/produtos', label: 'Catálogo', hint: 'Como seus produtos estão vendendo', icon: PackageSearch },
-        { to: '/app/cesta', label: 'Combos', hint: 'Produtos que vendem juntos', icon: Link2 },
+        { to: '/app/produtos', label: 'Catálogo', hint: 'Desempenho, combos e previsão', icon: PackageSearch },
         { to: '/app/lista-compras', label: 'Pedido inteligente', hint: 'Compra guiada por vendas reais', icon: ShoppingCart },
       ],
     },
     {
       title: 'Estratégia',
       items: [
-        { to: '/app/campanhas', label: 'Promoções', hint: 'Resultado das suas ações promocionais', icon: Megaphone },
-        { to: '/app/promocoes', label: 'Efetividade promo', hint: 'Quais promoções realmente vendem mais', icon: Tag },
+        { to: '/app/promocoes', label: 'Promoções', hint: 'Campanhas e efetividade promocional', icon: Megaphone },
         { to: '/app/mapa-loja', label: 'Mapa da loja', hint: 'Organize produtos para vender mais', icon: Map },
-        { to: '/app/previsao-demanda', label: 'Previsão', hint: 'Antecipe a demanda dos próximos dias', icon: TrendingUp },
       ],
     },
     {

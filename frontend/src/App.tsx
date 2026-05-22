@@ -10,11 +10,7 @@ const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
 const Products = lazy(() => import('./screens/Products'));
 const ProductDetail = lazy(() => import('./screens/ProductDetail'));
-const MarketBasket = lazy(() => import('./screens/MarketBasket'));
-const Alerts = lazy(() => import('./screens/Alerts'));
 const PDVs = lazy(() => import('./screens/PDVs'));
-const Campaigns = lazy(() => import('./screens/Campaigns'));
-const DemandForecast = lazy(() => import('./screens/DemandForecast'));
 const Settings = lazy(() => import('./screens/Settings'));
 const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
@@ -30,7 +26,7 @@ const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerCo
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
 const StatePriceComparison = lazy(() => import('./screens/StatePriceComparison'));
 const StoreMap = lazy(() => import('./screens/StoreMap'));
-const PromoEffectiveness = lazy(() => import('./screens/PromoEffectiveness'));
+const Promocoes = lazy(() => import('./screens/Promocoes'));
 
 const PageLoader = () => (
   <div className="card flex min-h-[220px] items-center justify-center text-base font-medium text-[color:var(--text-muted)]">
@@ -119,8 +115,8 @@ const App: React.FC = () => {
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/produtos" element={secure(<Products />)} />
         <Route path="/app/produtos/:productId" element={secure(<ProductDetail />)} />
-        <Route path="/app/cesta" element={secure(<MarketBasket />)} />
-        <Route path="/app/alertas" element={secure(<Alerts />)} />
+        <Route path="/app/cesta" element={<Navigate to="/app/produtos" replace />} />
+        <Route path="/app/alertas" element={<Navigate to="/app" replace />} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
         <Route path="/app/pedidos" element={<Navigate to="/app/lista-compras" replace />} />
         <Route path="/app/mapa-loja" element={secure(<StoreMap />)} />
@@ -131,9 +127,9 @@ const App: React.FC = () => {
         <Route path="/app/ofertas/designer" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" /> : disabledModuleRedirect} />
         <Route path="/app/ofertas/jobs" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="media" defaultWorkspace="admin" /> : disabledModuleRedirect} />
         <Route path="/app/pdvs" element={secure(<PDVs />)} />
-        <Route path="/app/campanhas" element={secure(<Campaigns />)} />
-        <Route path="/app/previsao-demanda" element={secure(<DemandForecast />)} />
-        <Route path="/app/promocoes" element={secure(<PromoEffectiveness />)} />
+        <Route path="/app/campanhas" element={<Navigate to="/app/promocoes" replace />} />
+        <Route path="/app/previsao-demanda" element={<Navigate to="/app/produtos" replace />} />
+        <Route path="/app/promocoes" element={secure(<Promocoes />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />

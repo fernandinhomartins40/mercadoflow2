@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import ProductImage from '../components/product/ProductImage';
+import Button from '../components/common/Button';
 import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
+import { useAlerts } from '../hooks/useAlerts';
 import { useAuth } from '../context/AuthContext';
 import { ProductPerformance } from '../types/analytics.types';
 import {
@@ -17,6 +19,11 @@ import {
   CheckCircle2,
   Map,
   Activity,
+  Bell,
+  Clock,
+  Eye,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 const formatMoney = (value?: number | null) =>
@@ -154,6 +161,144 @@ const WeekBar: React.FC<{ label: string; value: number; maxValue: number }> = ({
   );
 };
 
+const priorityConfig = (p: string) => {
+  switch (p) {
+    case 'HIGH': return {
+      border: 'border-l-red-500',
+      icon: <AlertTriangle className="h-4 w-4 text-red-500" />,
+      label: 'Urgente',
+      labelStyle: { background: '#fee2e2', color: '#991b1b' } as React.CSSProperties,
+    };
+    case 'MEDIUM': return {
+      border: 'border-l-amber-500',
+      icon: <Clock className="h-4 w-4 text-amber-500" />,
+      label: 'Atenção',
+      labelStyle: { background: '#fef3c7', color: '#92400e' } as React.CSSProperties,
+    };
+    default: return {
+      border: 'border-l-slate-300',
+      icon: <Bell className="h-4 w-4" style={{ color: 'var(--text-soft)' }} />,
+      label: 'Info',
+      labelStyle: { background: 'var(--surface-muted)', color: 'var(--text-muted)' } as React.CSSProperties,
+    };
+  }
+};
+
+const AlertsSection: React.FC = () => {
+  const { alerts, loading, onlyUnread, setOnlyUnread, refresh, markRead, markAllRead } = useAlerts();
+  const [expanded, setExpanded] = useState(false);
+
+  const sorted = [...alerts].sort((a, b) => {
+    if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+    const order = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+    return (order[a.priority as keyof typeof order] ?? 2) - (order[b.priority as keyof typeof order] ?? 2);
+  });
+
+  const unreadCount = alerts.filter((a) => !a.isRead).length;
+  const highCount = alerts.filter((a) => a.priority === 'HIGH').length;
+  const visible = expanded ? sorted : sorted.slice(0, 3);
+
+  return (
+    <div className="rounded-xl" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 p-4 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4" style={{ color: unreadCount > 0 ? '#d97706' : 'var(--text-soft)' }} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Alertas</span>
+          {unreadCount > 0 && (
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount}</span>
+          )}
+          {highCount > 0 && (
+            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{highCount} urgente{highCount > 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{ color: 'var(--text-soft)' }}>{alerts.length} total</span>
+          {expanded ? <ChevronUp className="h-4 w-4" style={{ color: 'var(--text-soft)' }} /> : <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-soft)' }} />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t px-4 pb-4 pt-3 flex flex-col gap-3" style={{ borderColor: 'var(--border-soft)' }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOnlyUnread(!onlyUnread)}
+              className="rounded-full px-3 py-1 text-xs font-semibold transition"
+              style={
+                onlyUnread
+                  ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
+                  : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }
+              }
+            >
+              {onlyUnread ? 'Somente não lidos' : 'Todos'}
+            </button>
+            <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
+            <Button variant="ghost" onClick={markAllRead} disabled={loading || alerts.length === 0}>Marcar todos lidos</Button>
+          </div>
+
+          {loading ? (
+            <div className="flex h-16 items-center justify-center">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+            </div>
+          ) : sorted.length === 0 ? (
+            <div className="flex items-center gap-2 rounded-lg p-3" style={{ background: 'var(--surface-soft)' }}>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum alerta pendente. Tudo em ordem!</p>
+            </div>
+          ) : (
+            <>
+              {visible.map((alert) => {
+                const cfg = priorityConfig(alert.priority);
+                return (
+                  <div
+                    key={alert.id}
+                    className={`flex items-start gap-3 rounded-lg border-l-4 p-3 transition ${cfg.border} ${alert.isRead ? 'opacity-50' : ''}`}
+                    style={{ border: '1px solid var(--border-soft)', borderLeftWidth: 4, background: 'var(--surface-soft)' }}
+                  >
+                    {cfg.icon}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{alert.title}</h4>
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={cfg.labelStyle}>{cfg.label}</span>
+                        {!alert.isRead && <span className="h-2 w-2 rounded-full bg-green-500" />}
+                      </div>
+                      <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>{alert.message}</p>
+                    </div>
+                    {!alert.isRead && (
+                      <button
+                        type="button"
+                        onClick={() => markRead(alert.id)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition hover:opacity-80"
+                        style={{ background: 'var(--surface-base)', color: 'var(--text-muted)' }}
+                      >
+                        <Eye className="h-3 w-3" /> Lido
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {sorted.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  className="text-xs font-medium text-center"
+                  style={{ color: 'var(--brand-600)' }}
+                >
+                  {expanded && visible.length === sorted.length ? '' : `Ver mais ${sorted.length - 3} alertas`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const { name } = useAuth();
   const { dashboard, loading, error } = useMarketData();
@@ -172,7 +317,7 @@ const Dashboard: React.FC = () => {
         severity: 'critical',
         title: `${slowMovers.length} produtos com vendas muito baixas`,
         description: `${names} e outros precisam de revisão. Considere promoção ou reposicionamento.`,
-        actions: [{ label: 'Ver produtos', to: '/app/produtos' }, { label: 'Criar promoção', to: '/app/campanhas' }],
+        actions: [{ label: 'Ver produtos', to: '/app/produtos' }, { label: 'Criar promoção', to: '/app/promocoes' }],
       });
     }
     if (replenish.length > 0) {
@@ -261,6 +406,9 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Alerts section (collapsible) */}
+        <AlertsSection />
+
         {/* Two columns */}
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
           <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
@@ -296,9 +444,9 @@ const Dashboard: React.FC = () => {
             <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Precisam de atenção</h3>
-                <Link to="/app/alertas" className="text-xs font-medium text-red-500 no-underline hover:text-red-600">
-                  Ver alertas <ArrowRight className="inline h-3 w-3" />
-                </Link>
+                <span className="text-xs font-medium text-red-500">
+                  Precisa de atenção
+                </span>
               </div>
               <div className="mt-2 flex flex-col">
                 {slowMovers.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
@@ -312,8 +460,8 @@ const Dashboard: React.FC = () => {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { to: '/app/lista-compras', icon: ShoppingCart, title: 'Pedido inteligente', sub: 'Compra guiada por dados', color: 'bg-blue-50 border-blue-200 text-blue-600' },
-            { to: '/app/cesta', icon: Sparkles, title: 'Combos', sub: 'Produtos que vendem juntos', color: 'bg-violet-50 border-violet-200 text-violet-600' },
-            { to: '/app/campanhas', icon: TrendingUp, title: 'Promoções', sub: 'Crie e meça campanhas', color: 'bg-green-50 border-green-200 text-green-600' },
+            { to: '/app/produtos', icon: Sparkles, title: 'Combos', sub: 'Produtos que vendem juntos', color: 'bg-violet-50 border-violet-200 text-violet-600' },
+            { to: '/app/promocoes', icon: TrendingUp, title: 'Promoções', sub: 'Crie e meça campanhas', color: 'bg-green-50 border-green-200 text-green-600' },
             { to: '/app/mapa-loja', icon: Map, title: 'Mapa da loja', sub: 'Organize para vender mais', color: 'bg-amber-50 border-amber-200 text-amber-600' },
           ].map((link) => (
             <Link key={link.to} to={link.to} className={`flex items-center gap-3 rounded-xl border p-3.5 no-underline transition hover:opacity-80 ${link.color}`}>
