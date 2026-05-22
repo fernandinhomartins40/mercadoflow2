@@ -33,7 +33,7 @@ CREATE TABLE supplier_order_items (
     updated_at          TIMESTAMP
 );
 
-CREATE INDEX idx_supplier_orders_market_status  ON supplier_orders(market_id, status, order_date DESC);
+CREATE INDEX idx_supplier_orders_market_status   ON supplier_orders(market_id, status, order_date DESC);
 CREATE INDEX idx_supplier_orders_market_supplier ON supplier_orders(market_id, supplier_id);
 CREATE INDEX idx_supplier_order_items_order      ON supplier_order_items(supplier_order_id);
 CREATE INDEX idx_supplier_order_items_product    ON supplier_order_items(product_id);
