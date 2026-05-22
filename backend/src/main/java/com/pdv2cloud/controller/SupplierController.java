@@ -42,7 +42,7 @@ public class SupplierController {
             @PathVariable UUID marketId,
             Authentication auth) {
 
-        if (!accessService.hasAccess(auth, marketId)) return ResponseEntity.status(403).build();
+        accessService.assertCanAccessMarket(marketId, auth);
 
         return ResponseEntity.ok(
             supplierRepo.findByMarketIdAndIsActiveTrueOrderByRazaoSocialAsc(marketId)
@@ -59,7 +59,7 @@ public class SupplierController {
             @RequestBody SupplierUpsertRequest req,
             Authentication auth) {
 
-        if (!accessService.hasAccess(auth, marketId)) return ResponseEntity.status(403).build();
+        accessService.assertCanAccessMarket(marketId, auth);
         if (req.cnpj() == null || req.cnpj().isBlank()) return ResponseEntity.badRequest().build();
 
         Market market = marketRepo.findById(marketId).orElse(null);
@@ -98,7 +98,7 @@ public class SupplierController {
             @PathVariable UUID id,
             Authentication auth) {
 
-        if (!accessService.hasAccess(auth, marketId)) return ResponseEntity.status(403).build();
+        accessService.assertCanAccessMarket(marketId, auth);
 
         supplierRepo.findById(id).ifPresent(s -> {
             if (s.getMarket().getId().equals(marketId)) {
@@ -118,7 +118,7 @@ public class SupplierController {
             @PathVariable String cnpj,
             Authentication auth) {
 
-        if (!accessService.hasAccess(auth, marketId)) return ResponseEntity.status(403).build();
+        accessService.assertCanAccessMarket(marketId, auth);
 
         String digits = cnpj.replaceAll("\\D", "");
         if (digits.length() != 14) {
