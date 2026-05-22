@@ -79,6 +79,39 @@ ERROR_MESSAGES = {
         "technical": "Service unavailable (503)",
     },
 
+    # Arquivo incompleto (ainda sendo gravado pelo PDV)
+    "xml_incomplete": {
+        "title": "Arquivo incompleto",
+        "message": "O arquivo de nota foi detectado antes de ser totalmente gravado. O sistema aguardará e tentará novamente.",
+        "technical": "XML file incomplete or truncated",
+    },
+
+    # Encoding / caracteres inválidos
+    "xml_encoding_error": {
+        "title": "Arquivo com codificação inválida",
+        "message": "O arquivo XML possui caracteres inválidos. Verifique a configuração de exportação do seu sistema.",
+        "technical": "XML encoding error",
+    },
+
+    # Disco cheio ou inacessível
+    "disk_full": {
+        "title": "Espaço em disco insuficiente",
+        "message": "O disco está cheio. Libere espaço para que o sistema possa continuar operando.",
+        "technical": "No space left on device",
+    },
+    "disk_io_error": {
+        "title": "Erro de leitura no disco",
+        "message": "O sistema não conseguiu ler o arquivo. Pode ser um problema no armazenamento ou na pasta monitorada.",
+        "technical": "Disk I/O error",
+    },
+
+    # BD local corrompido (já tratado pelo QueueManager, mas registramos aqui)
+    "db_corrupted": {
+        "title": "Banco de dados local corrompido",
+        "message": "O banco de dados interno foi corrompido e foi recriado automaticamente. Nenhuma nota foi perdida.",
+        "technical": "SQLite database corrupted — recreated",
+    },
+
     # Generic fallback
     "unknown_error": {
         "title": "Erro desconhecido",
@@ -93,6 +126,21 @@ STATUS_MESSAGES = {
     "processing": "Processando arquivos...",
     "idle": "Aguardando novos arquivos...",
     "error": "Atenção: alguns arquivos falharam - Verifique os detalhes",
+    "updating": "Atualizando o agente — aguarde...",
+}
+
+UPDATE_PHASE_LABELS: dict[str, str] = {
+    "verificando":       "Verificando atualizações...",
+    "nova_versão":       "Nova versão disponível",
+    "baixando":          "Baixando atualização",
+    "validando":         "Validando integridade do arquivo",
+    "validado":          "Arquivo validado",
+    "instalando":        "Instalando atualização",
+    "instalado":         "Atualização concluída — reiniciando",
+    "aguardando_janela": "Atualização baixada — instalação agendada para madrugada",
+    "atualizado":        "Sistema atualizado",
+    "erro_download":     "Falha no download da atualização",
+    "erro_instalacao":   "Falha na instalação — versão anterior mantida",
 }
 
 
@@ -116,49 +164,89 @@ def get_friendly_error(error_type: str, technical_detail: str = "") -> dict:
 
 def classify_error(exception: Exception) -> str:
     """
-    Classifies an exception into a friendly error type.
+    Classifica uma exceção em um tipo de erro amigável.
 
-    Args:
-        exception: The exception object
-
-    Returns:
-        Error type key for ERROR_MESSAGES
+    Retorna uma chave de ERROR_MESSAGES.
     """
     import requests.exceptions as req_exc
 
     error_str = str(exception).lower()
 
-    # Network errors
+    # ── Erros de rede ───────────────────────────────────────────────────────
     if isinstance(exception, req_exc.ConnectionError):
         if "connection refused" in error_str:
             return "connection_refused"
-        elif "dns" in error_str or "name resolution" in error_str:
+        if "dns" in error_str or "name resolution" in error_str or "nodename" in error_str:
             return "dns_failed"
         return "connection_refused"
 
     if isinstance(exception, req_exc.Timeout):
         return "timeout"
 
-    # HTTP errors
+    # ── Erros HTTP ──────────────────────────────────────────────────────────
     if isinstance(exception, req_exc.HTTPError):
-        if hasattr(exception, 'response'):
-            status = exception.response.status_code
-            if status == 401 or status == 403:
+        response = getattr(exception, "response", None)
+        if response is not None:
+            status = response.status_code
+            if status in (401, 403):
                 return "invalid_api_key"
-            elif status == 429:
+            if status == 429:
                 return "rate_limit"
-            elif status >= 500:
+            if status == 503:
+                return "service_unavailable"
+            if status >= 500:
                 return "server_error"
 
-    # File errors
+    # ── Erros de arquivo ────────────────────────────────────────────────────
     if isinstance(exception, FileNotFoundError):
         return "file_not_found"
 
     if isinstance(exception, PermissionError):
         return "permission_denied"
 
-    # XML parsing errors
-    if "xml" in error_str or "parse" in error_str:
+    if isinstance(exception, OSError):
+        # errno 28 = ENOSPC (no space left on device) — Windows e Linux
+        import errno as errno_mod
+        eno = getattr(exception, "errno", None)
+        if eno == errno_mod.ENOSPC or "no space left" in error_str:
+            return "disk_full"
+        if eno in (errno_mod.EIO, errno_mod.ENXIO) or "i/o error" in error_str:
+            return "disk_io_error"
+        return "disk_io_error"
+
+    # ── Erros de XML ────────────────────────────────────────────────────────
+    if "xml" in error_str or "parse" in error_str or "lxml" in type(exception).__module__:
+        # XML truncado/incompleto: lxml lança XMLSyntaxError com "premature end" ou
+        # "document is empty" quando o arquivo ainda está sendo gravado
+        if any(kw in error_str for kw in (
+            "premature end", "document is empty", "no element found",
+            "unexpected end", "end of file",
+        )):
+            return "xml_incomplete"
+        # Problemas de encoding/caracteres inválidos
+        if any(kw in error_str for kw in (
+            "encoding", "codec", "unicode", "invalid byte",
+            "invalid character", "character reference",
+        )):
+            return "xml_encoding_error"
         return "xml_parse_error"
 
+    # Encoding genérico fora do parsing XML
+    if isinstance(exception, (UnicodeDecodeError, UnicodeEncodeError)):
+        return "xml_encoding_error"
+
     return "unknown_error"
+
+
+def is_transient_error(error_type: str) -> bool:
+    """
+    Retorna True para erros que valem ser retentados automaticamente
+    (problemas temporários de rede, servidor sobrecarregado, arquivo incompleto).
+    Retorna False para erros permanentes que exigem ação humana.
+    """
+    TRANSIENT = {
+        "connection_refused", "timeout", "dns_failed",
+        "rate_limit", "server_error", "service_unavailable",
+        "xml_incomplete", "disk_io_error",
+    }
+    return error_type in TRANSIENT

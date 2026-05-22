@@ -107,7 +107,7 @@ const PurchaseSignalBanner: React.FC<{ signal: ProductPurchaseSignal }> = ({ sig
 
       <div className="grid gap-3 sm:grid-cols-3 border-t pt-3" style={{ borderColor: cfg.border }}>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Giro atual</p>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas atuais</p>
           <p className="text-lg font-bold" style={{ color: cfg.text }}>
             {Number(signal.salesVelocity || 0).toFixed(1)}<span className="text-sm font-normal"> un/dia</span>
           </p>
@@ -299,7 +299,7 @@ const PairCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
     </div>
     <div className="flex flex-col gap-2.5 p-3">
       <div className="flex flex-wrap gap-1.5">
-        <Chip variant="success">Lift {Number(pair.lift || 0).toFixed(2)}</Chip>
+        <Chip variant="success">Afinidade {Number(pair.lift || 0).toFixed(2)}</Chip>
         <Chip>{pair.pairCount || 0} cestas</Chip>
       </div>
       <div>
@@ -375,7 +375,7 @@ const PromoWindowList: React.FC<{ windows: ProductPromotionWindow[] }> = ({ wind
               { label: 'Preço base',      value: fmt.money(w.baselinePrice) },
               { label: 'Preço promo',     value: fmt.money(w.promoPrice) },
               { label: 'Desconto',        value: fmt.signedPct(-Math.abs(Number(w.discountPercent || 0))) },
-              { label: 'Lift de receita', value: fmt.signedPct(w.revenueLiftPercent) },
+              { label: 'Impacto na receita', value: fmt.signedPct(w.revenueLiftPercent) },
             ].map((row) => (
               <div key={row.label}>
                 <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>{row.label}</p>
@@ -505,8 +505,8 @@ const ProductDetail: React.FC = () => {
 
             <div className="grid gap-2 sm:grid-cols-3">
               <DataRow label="Receita no período" value={fmt.money(overview.revenue)} />
-              <DataRow label="Giro diário"         value={`${Number(overview.salesVelocity || 0).toFixed(1)}/dia`} />
-              <DataRow label="Promo share"          value={fmt.pct((overview.promoRevenueShare || 0) * 100)} />
+              <DataRow label="Vendas/dia"            value={`${Number(overview.salesVelocity || 0).toFixed(1)}/dia`} />
+              <DataRow label="Participação em promo" value={fmt.pct((overview.promoRevenueShare || 0) * 100)} />
             </div>
           </div>
         </div>
@@ -534,7 +534,7 @@ const ProductDetail: React.FC = () => {
           <Stat label="Melhor dia"    value={bestWeekday?.label || '--'}     sub={bestWeekday ? fmt.money(bestWeekday.revenue) : 'Sem dados'} variant="success" />
           <Stat label="Dia mais fraco" value={weakestWeekday?.label || '--'} sub={weakestWeekday ? fmt.money(weakestWeekday.revenue) : 'Sem comparação'} />
           <Stat label="PDV mais forte" value={bestBranch?.branchName || '--'} sub={bestBranch ? `${fmt.qty(bestBranch.quantitySold)} unidades` : 'Sem PDV dominante'} />
-          <Stat label="Compra casada"  value={strongestPair ? `Lift ${Number(strongestPair.lift || 0).toFixed(2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
+          <Stat label="Compra casada"  value={strongestPair ? `Afinidade ${Number(strongestPair.lift || 0).toFixed(2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
         </div>
 
         {/* ── Gráfico de vendas + Decisões ── */}

@@ -42,6 +42,16 @@ const fmtPct = (v?: number | null) => {
   return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
 };
 
+const SOURCE_TAG_PT: Record<string, string> = {
+  RESTOCK: 'Reposição',
+  MANUAL: 'Manual',
+  PROMO_CANDIDATE: 'Candidato a promo',
+  SLOW_MOVER: 'Baixo giro',
+  SEASONAL: 'Sazonal',
+  PRODUTO: 'Produto',
+  PRODUTOS: 'Produto',
+};
+
 const suggestedQuantity = (product: ProductPerformance) => {
   const v = Number(product.salesVelocity || 0);
   if (v >= 8) return 24;
@@ -444,7 +454,7 @@ const CatalogSearch: React.FC<CatalogSearchProps> = ({ marketId, productIds, onA
                     {product.name}
                   </Link>
                   <p className="text-xs" style={{ color: 'var(--text-soft)' }}>
-                    Giro {Number(product.salesVelocity || 0).toFixed(1)}/dia
+                    {Number(product.salesVelocity || 0).toFixed(1)} un./dia
                     {Number(product.revenueTrendPercentage) > 0 ? ' · tendência +' : ' · tendência '}
                     {Number(product.revenueTrendPercentage || 0).toFixed(0)}%
                   </p>
@@ -547,7 +557,7 @@ const ListItem: React.FC<{
               <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{item.category || 'Sem categoria'}</p>
             </div>
             <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
-              {item.sourceTag.replace(/_/g, ' ')}
+              {SOURCE_TAG_PT[item.sourceTag] ?? item.sourceTag.replace(/_/g, ' ')}
             </span>
           </div>
 
@@ -725,7 +735,7 @@ const ShoppingListPage: React.FC = () => {
       productId: product.productId,
       quantityTarget: suggestedQuantity(product),
       sourceTag: 'MANUAL',
-      reasonSummary: `Giro ${Number(product.salesVelocity || 0).toFixed(1)}/dia · adicionado via busca`,
+      reasonSummary: `${Number(product.salesVelocity || 0).toFixed(1)} un./dia · adicionado via busca`,
     });
   };
 
@@ -839,7 +849,7 @@ const ShoppingListPage: React.FC = () => {
           ) : (
             <>
               {renderGroup('Urgente — quantidade alta', <AlertTriangle className="h-4 w-4 text-red-600" />, { background: '#fef2f2', color: '#991b1b' }, urgentItems)}
-              {renderGroup('Reforçar — giro acelerando', <Clock className="h-4 w-4 text-amber-600" />, { background: '#fffbeb', color: '#92400e' }, reinforceItems)}
+              {renderGroup('Reforçar — vendas acelerando', <Clock className="h-4 w-4 text-amber-600" />, { background: '#fffbeb', color: '#92400e' }, reinforceItems)}
               {renderGroup('Manter — compra regular', <CheckCircle2 className="h-4 w-4 text-green-600" />, { background: 'var(--surface-success)', color: 'var(--brand-700)' }, regularItems)}
               {renderGroup('Comprados', <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--text-soft)' }} />, { background: 'var(--surface-soft)', color: 'var(--text-muted)' }, checkedItems)}
             </>
@@ -855,9 +865,9 @@ const ShoppingListPage: React.FC = () => {
                 <SuggestionRow
                   key={p.productId}
                   product={p}
-                  label={`Giro ${Number(p.salesVelocity || 0).toFixed(1)}/dia`}
+                  label={`${Number(p.salesVelocity || 0).toFixed(1)} un./dia`}
                   inList={productIds.has(p.productId)}
-                  onAdd={() => handleAdd(p, 'REPOSIÇÃO', `Repor ${p.name}. Giro: ${Number(p.salesVelocity || 0).toFixed(1)}/dia.`)}
+                  onAdd={() => handleAdd(p, 'REPOSIÇÃO', `Repor ${p.name}. Vendas: ${Number(p.salesVelocity || 0).toFixed(1)} un./dia.`)}
                 />
               ))}
             </div>
@@ -881,7 +891,7 @@ const ShoppingListPage: React.FC = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                    <p className="text-xs text-red-500">Giro {Number(p.salesVelocity || 0).toFixed(1)}/dia</p>
+                    <p className="text-xs text-red-500">{Number(p.salesVelocity || 0).toFixed(1)} un./dia</p>
                   </div>
                   <Link to={`/app/produtos/${p.productId}`} className="text-xs font-medium text-red-500 no-underline hover:text-red-700">
                     Analisar

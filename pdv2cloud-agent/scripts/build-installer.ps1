@@ -1,222 +1,192 @@
-# Build script for PDV2Cloud Desktop Agent Installer
-# Requires: Inno Setup installed at C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+# Build do instalador PDV2Cloud para uma arquitetura específica.
+#
+# Uso:
+#   .\build-installer.ps1 -Version 1.2.3 -Arch x64             # só x64
+#   .\build-installer.ps1 -Version 1.2.3 -Arch x86             # só x86
+#   .\build-installer.ps1 -Version 1.2.3 -BothArch              # x64 + x86 (padrão CI)
+#   .\build-installer.ps1 -Version 1.2.3 -BothArch -PrepareArtifacts -Sign
 
 param(
-    [string]$Version = "1.0.0",
-    [string]$OutputDir = "..\\installer\\Output",
+    [string]$Version    = "1.0.0",
+    [string]$OutputDir  = "..\\installer\\Output",
+    [ValidateSet("x64","x86","")]
+    [string]$Arch       = "x64",
+    [switch]$BothArch,          # compila x64 E x86
     [switch]$PrepareArtifacts,
     [switch]$Sign,
-    [string]$PfxPath = $env:PDV2CLOUD_CODESIGN_PFX,
-    [string]$PfxPassword = $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD,
-    [string]$TimestampUrl = $env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL
+    [string]$PfxPath       = $env:PDV2CLOUD_CODESIGN_PFX,
+    [string]$PfxPassword   = $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD,
+    [string]$TimestampUrl  = $env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "PDV2Cloud Installer Build Script" -ForegroundColor Cyan
-Write-Host "Version: $Version" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-
-# Paths
-$RootDir = Split-Path -Parent $PSScriptRoot
-$RepoRoot = Split-Path -Parent $RootDir
-$DistDir = Join-Path $RepoRoot "dist"
+$RootDir      = Split-Path -Parent $PSScriptRoot
+$RepoRoot     = Split-Path -Parent $RootDir
 $InstallerDir = Join-Path $RootDir "installer"
-$SetupScript = Join-Path $InstallerDir "setup.iss"
-$OutputPath = Join-Path $InstallerDir "Output"
+$SetupScript  = Join-Path $InstallerDir "setup.iss"
 
+$OutputPath = Join-Path $InstallerDir "Output"
 if ($OutputDir -and $OutputDir.Trim() -ne "") {
     $OutputPath = Join-Path $PSScriptRoot $OutputDir
 }
-try {
-    $resolved = Resolve-Path -Path $OutputPath -ErrorAction Stop
-    if ($resolved -and $resolved.Path) {
-        $OutputPath = $resolved.Path
-    }
-} catch {
-    # Keep the provided output path; we'll create it below.
-}
-
+try { $r = Resolve-Path -Path $OutputPath -ErrorAction Stop; $OutputPath = $r.Path } catch {}
 New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
 
-# Optionally prepare dist/ (python-embed, service, config-ui) from the repo scripts.
-if ($PrepareArtifacts) {
-    Write-Host "[0/5] Preparando artifacts em dist/..." -ForegroundColor Green
-    $PrepareScript = Join-Path $RepoRoot "scripts\\build-installer.ps1"
-    if (-not (Test-Path $PrepareScript)) {
-        Write-Host "ERROR: Script nao encontrado: $PrepareScript" -ForegroundColor Red
-        exit 1
-    }
-    & powershell -ExecutionPolicy Bypass -File $PrepareScript
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Falha ao preparar dist/" -ForegroundColor Red
-        exit 1
-    }
-}
+# Determina lista de arquiteturas a construir
+$archList = if ($BothArch) { @("x64","x86") } else { @($Arch) }
 
-# Check if Inno Setup is installed
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "PDV2Cloud Installer Build"                -ForegroundColor Cyan
+Write-Host "Versão  : $Version"                      -ForegroundColor Cyan
+Write-Host "Arq.    : $($archList -join ' + ')"      -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+# ── Localizar Inno Setup ───────────────────────────────────────────────────
 $InnoSetupPath = "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe"
 if (-not (Test-Path $InnoSetupPath)) {
     $bundled = Join-Path $RepoRoot "tools\\innosetup\\ISCC.exe"
-    if (Test-Path $bundled) {
-        $InnoSetupPath = $bundled
-    }
+    if (Test-Path $bundled) { $InnoSetupPath = $bundled }
 }
 if (-not (Test-Path $InnoSetupPath)) {
-    Write-Host "ERROR: ISCC.exe (Inno Setup) nao encontrado." -ForegroundColor Red
-    Write-Host "Instale o Inno Setup 6 ou use o bundle em tools/innosetup." -ForegroundColor Yellow
-    exit 1
+    Write-Host "ERRO: ISCC.exe não encontrado. Instale o Inno Setup 6." -ForegroundColor Red; exit 1
 }
 
-# Check if dist folder exists
-if (-not (Test-Path $DistDir)) {
-    Write-Host "ERROR: dist folder not found at $DistDir" -ForegroundColor Red
-    Write-Host "Please prepare the distribution files first." -ForegroundColor Yellow
-    exit 1
-}
-
-Write-Host "[1/5] Checking distribution files..." -ForegroundColor Green
-$RequiredDirs = @(
-    (Join-Path $DistDir "python-embed"),
-    (Join-Path $DistDir "service"),
-    (Join-Path $DistDir "config-ui")
-)
-
-foreach ($dir in $RequiredDirs) {
-    if (-not (Test-Path $dir)) {
-        Write-Host "ERROR: Required directory not found: $dir" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  ✓ Found: $(Split-Path -Leaf $dir)" -ForegroundColor Gray
-}
-
-Write-Host "[2/5] Updating version in setup.iss..." -ForegroundColor Green
-$SetupContent = Get-Content $SetupScript -Raw
-$SetupContent = $SetupContent -replace 'AppVersion=.*', "AppVersion=$Version"
-
-# Set output directory in the script itself (more reliable than ISCC /O on CI runners).
-if ($SetupContent -match '(?m)^OutputDir=') {
-    $SetupContent = $SetupContent -replace '(?m)^OutputDir=.*$', ("OutputDir=" + $OutputPath)
-} elseif ($SetupContent -match '(?m)^OutputBaseFilename=') {
-    $SetupContent = $SetupContent -replace '(?m)^OutputBaseFilename=.*$', ('$0' + "`r`n" + ("OutputDir=" + $OutputPath))
-} else {
-    $SetupContent = $SetupContent + "`r`nOutputDir=$OutputPath`r`n"
-}
-
-Set-Content $SetupScript $SetupContent -NoNewline
-Write-Host "  ✓ Version updated to $Version" -ForegroundColor Gray
-
-Write-Host "[3/5] Building installer with Inno Setup..." -ForegroundColor Green
-& $InnoSetupPath $SetupScript
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Inno Setup build failed" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "[4/5] Verifying output..." -ForegroundColor Green
-$InstallerFile = Join-Path $OutputPath "PDV2Cloud-Setup.exe"
-if (-not (Test-Path $InstallerFile)) {
-    Write-Host "ERROR: Installer file not found at $InstallerFile" -ForegroundColor Red
-    exit 1
-}
-
-$FileSize = (Get-Item $InstallerFile).Length / 1MB
-Write-Host "  ✓ Installer created: $InstallerFile" -ForegroundColor Gray
-Write-Host "  ✓ Size: $([math]::Round($FileSize, 2)) MB" -ForegroundColor Gray
-
+# ── Localizar signtool ─────────────────────────────────────────────────────
 function Resolve-SignToolPath {
-    $candidates = @(
+    $patterns = @(
         "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\*\\x64\\signtool.exe",
         "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\*\\x86\\signtool.exe",
-        "C:\\Program Files\\Windows Kits\\10\\bin\\*\\x64\\signtool.exe",
-        "C:\\Program Files\\Windows Kits\\10\\bin\\*\\x86\\signtool.exe"
+        "C:\\Program Files\\Windows Kits\\10\\bin\\*\\x64\\signtool.exe"
     )
-    foreach ($pattern in $candidates) {
-        $items = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
-        if ($items) {
-            # Pick the newest SDK folder if multiple match
-            return ($items | Sort-Object FullName -Descending | Select-Object -First 1).FullName
-        }
+    foreach ($p in $patterns) {
+        $items = Get-ChildItem -Path $p -ErrorAction SilentlyContinue
+        if ($items) { return ($items | Sort-Object FullName -Descending | Select-Object -First 1).FullName }
     }
     return $null
 }
 
-if (-not $TimestampUrl -or $TimestampUrl.Trim() -eq "") {
-    $TimestampUrl = "http://timestamp.digicert.com"
-}
+if (-not $TimestampUrl -or $TimestampUrl.Trim() -eq "") { $TimestampUrl = "http://timestamp.digicert.com" }
 
-if ($Sign) {
+# ── Função de build para uma arquitetura ──────────────────────────────────
+function Build-Installer([string]$arch) {
     Write-Host ""
-    Write-Host "[5/5] Signing installer (Authenticode)..." -ForegroundColor Green
+    Write-Host "── Build $arch ───────────────────────────────────────────" -ForegroundColor Cyan
 
-    if (-not $PfxPath -or $PfxPath.Trim() -eq "") {
-        Write-Host "ERROR: PfxPath nao informado. Use -PfxPath ou defina PDV2CLOUD_CODESIGN_PFX" -ForegroundColor Red
-        exit 1
-    }
-    if (-not (Test-Path $PfxPath)) {
-        Write-Host "ERROR: Certificado nao encontrado em: $PfxPath" -ForegroundColor Red
-        exit 1
-    }
-    if (-not $PfxPassword -or $PfxPassword.Trim() -eq "") {
-        Write-Host "ERROR: PfxPassword nao informado. Use -PfxPassword ou defina PDV2CLOUD_CODESIGN_PFX_PASSWORD" -ForegroundColor Red
-        exit 1
-    }
+    $DistDir = Join-Path $RepoRoot "dist-$arch"
 
-    $SignTool = Resolve-SignToolPath
-    if (-not $SignTool) {
-        Write-Host "ERROR: signtool.exe nao encontrado. Instale o Windows SDK (App Certification Kit / SignTool)." -ForegroundColor Red
-        Write-Host "Sugestao: instale 'Windows 10/11 SDK' e tente novamente." -ForegroundColor Yellow
-        exit 1
+    # [0] Preparar artefatos (bundle Python + deps) se solicitado
+    if ($PrepareArtifacts) {
+        Write-Host "[0] Preparando artefatos dist-$arch..." -ForegroundColor Green
+        $BundleScript = Join-Path $PSScriptRoot "bundle-dependencies.ps1"
+        if (-not (Test-Path $BundleScript)) {
+            Write-Host "ERRO: bundle-dependencies.ps1 não encontrado" -ForegroundColor Red; exit 1
+        }
+        & pwsh -ExecutionPolicy Bypass -File $BundleScript `
+            -Arch $arch `
+            -OutputDir "..\\dist-$arch"
+        if ($LASTEXITCODE -ne 0) { Write-Host "ERRO: bundle falhou para $arch" -ForegroundColor Red; exit 1 }
     }
 
-    & $SignTool sign `
-        /fd SHA256 `
-        /td SHA256 `
-        /tr $TimestampUrl `
-        /f $PfxPath `
-        /p $PfxPassword `
-        $InstallerFile
+    # Verificar pasta dist
+    if (-not (Test-Path $DistDir)) {
+        Write-Host "ERRO: pasta dist-$arch não encontrada em $DistDir" -ForegroundColor Red; exit 1
+    }
+    foreach ($sub in @("python-embed","service","config-ui")) {
+        if (-not (Test-Path (Join-Path $DistDir $sub))) {
+            Write-Host "ERRO: subpasta '$sub' não encontrada em dist-$arch" -ForegroundColor Red; exit 1
+        }
+        Write-Host "  ✓ $sub" -ForegroundColor Gray
+    }
 
+    # [1] Atualizar versão e arquitetura no setup.iss (cópia por arch)
+    Write-Host "[1] Configurando setup.iss para $arch..." -ForegroundColor Green
+    $setupContent = Get-Content $SetupScript -Raw
+    $setupContent = $setupContent -replace 'AppVersion=.*', "AppVersion=$Version"
+    # OutputDir dinâmico
+    if ($setupContent -match '(?m)^OutputDir=') {
+        $setupContent = $setupContent -replace '(?m)^OutputDir=.*$', "OutputDir=$OutputPath"
+    } else {
+        $setupContent += "`r`nOutputDir=$OutputPath`r`n"
+    }
+    # Apontar dist para a pasta correta desta arquitetura
+    $setupContent = $setupContent -replace '\\\\dist\\\\', "\\dist-$arch\\"
+    $setupContent = $setupContent -replace '\.\./\.\./dist/', "../../dist-$arch/"
+    $setupContent = $setupContent -replace '\.\.\\\.\.\\dist\\', "..\..\dist-$arch\"
+
+    $tempIss = Join-Path $InstallerDir "setup-$arch.iss"
+    Set-Content $tempIss $setupContent -NoNewline
+
+    # [2] Compilar com ISCC passando /DArch
+    Write-Host "[2] Compilando com Inno Setup (Arch=$arch)..." -ForegroundColor Green
+    & $InnoSetupPath $tempIss /DArch=$arch
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Falha ao assinar o instalador" -ForegroundColor Red
+        Write-Host "ERRO: Inno Setup falhou para $arch" -ForegroundColor Red
+        Remove-Item $tempIss -ErrorAction SilentlyContinue
         exit 1
     }
+    Remove-Item $tempIss -ErrorAction SilentlyContinue
 
-    & $SignTool verify /pa /v $InstallerFile | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Assinatura nao passou na verificacao do signtool" -ForegroundColor Red
-        exit 1
+    # [3] Verificar saída
+    $suffix = if ($arch -eq "x86") { "-x86" } else { "" }
+    $installerFile = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe"
+    if (-not (Test-Path $installerFile)) {
+        Write-Host "ERRO: Arquivo de saída não encontrado: $installerFile" -ForegroundColor Red; exit 1
+    }
+    $sizeMB = [math]::Round((Get-Item $installerFile).Length / 1MB, 2)
+    Write-Host "  ✓ $installerFile ($sizeMB MB)" -ForegroundColor Gray
+
+    # [4] Assinar (opcional)
+    if ($Sign) {
+        Write-Host "[3] Assinando $arch..." -ForegroundColor Green
+        if (-not $PfxPath -or -not (Test-Path $PfxPath)) {
+            Write-Host "ERRO: Certificado PFX não encontrado: $PfxPath" -ForegroundColor Red; exit 1
+        }
+        if (-not $PfxPassword) {
+            Write-Host "ERRO: PfxPassword não informado" -ForegroundColor Red; exit 1
+        }
+        $signTool = Resolve-SignToolPath
+        if (-not $signTool) {
+            Write-Host "ERRO: signtool.exe não encontrado" -ForegroundColor Red; exit 1
+        }
+        & $signTool sign /fd SHA256 /td SHA256 /tr $TimestampUrl /f $PfxPath /p $PfxPassword $installerFile
+        if ($LASTEXITCODE -ne 0) { Write-Host "ERRO: falha ao assinar" -ForegroundColor Red; exit 1 }
+        & $signTool verify /pa $installerFile | Out-Null
+        Write-Host "  ✓ Assinatura válida" -ForegroundColor Gray
     }
 
-    Write-Host "  ✓ Assinatura aplicada com sucesso" -ForegroundColor Gray
+    # [5] SHA-256
+    Write-Host "[4] Gerando SHA-256..." -ForegroundColor Green
+    $hash     = (Get-FileHash $installerFile -Algorithm SHA256).Hash.ToLower()
+    $hashFile = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe.sha256"
+    Set-Content $hashFile $hash
+    Write-Host "  ✓ SHA256: $hash" -ForegroundColor Gray
+
+    # [6] meta.json por arch
+    $metaFile = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe.meta.json"
+    $meta = @{
+        version        = $Version
+        arch           = $arch
+        filename       = "PDV2Cloud-Setup$suffix.exe"
+        sha256         = $hash
+        size           = (Get-Item $installerFile).Length
+        buildTimestamp = (Get-Date).ToString("o")
+    }
+    $meta | ConvertTo-Json -Depth 3 | Set-Content $metaFile -Encoding UTF8
+    Write-Host "  ✓ Metadata: $metaFile" -ForegroundColor Gray
 }
 
-# Generate checksum
-Write-Host ""
-Write-Host "Generating SHA256 checksum..." -ForegroundColor Green
-$Hash = (Get-FileHash $InstallerFile -Algorithm SHA256).Hash
-$HashFile = Join-Path $OutputPath "PDV2Cloud-Setup.exe.sha256"
-Set-Content $HashFile $Hash
-Write-Host "  ✓ SHA256: $Hash" -ForegroundColor Gray
-Write-Host "  ✓ Checksum saved to: $HashFile" -ForegroundColor Gray
-
-# Generate metadata for the web download endpoint (optional but recommended)
-$MetaFile = Join-Path $OutputPath "PDV2Cloud-Setup.exe.meta.json"
-$Meta = @{
-    version        = $Version
-    filename       = "PDV2Cloud-Setup.exe"
-    sha256         = $Hash
-    size           = (Get-Item $InstallerFile).Length
-    buildTimestamp = (Get-Date).ToString("o")
+# ── Executar para cada arquitetura ─────────────────────────────────────────
+foreach ($a in $archList) {
+    Build-Installer -arch $a
 }
-$Meta | ConvertTo-Json -Depth 3 | Set-Content $MetaFile -Encoding UTF8
-Write-Host "  ✓ Metadata saved to: $MetaFile" -ForegroundColor Gray
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "Build completed successfully!" -ForegroundColor Green
-Write-Host "Installer: $InstallerFile" -ForegroundColor Green
+Write-Host "Build concluído!"                         -ForegroundColor Green
+foreach ($a in $archList) {
+    $suffix = if ($a -eq "x86") { "-x86" } else { "" }
+    $f = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe"
+    if (Test-Path $f) { Write-Host "  $a : $f" -ForegroundColor Gray }
+}
 Write-Host "========================================" -ForegroundColor Green

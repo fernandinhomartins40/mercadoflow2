@@ -98,7 +98,7 @@ const PromotionRow: React.FC<{
     <div className="dash-suggest-info">
       <strong className="dash-suggest-name">{product.name}</strong>
       <span className="dash-suggest-metric">
-        Promoção · lift {Number(product.quantityLiftPercent || 0).toFixed(0)}% · {formatMoney(product.promoAveragePrice)}
+        Promoção · +{Number(product.quantityLiftPercent || 0).toFixed(0)}% volume · {formatMoney(product.promoAveragePrice)}
       </span>
     </div>
     <button type="button" className="dash-suggest-btn" onClick={onUse}>
@@ -273,7 +273,7 @@ const OffersDashboard: React.FC = () => {
                       <SuggestionRow
                         key={p.productId}
                         product={p}
-                        label="Giro"
+                        label="Vendas/dia"
                         metric={`${Number(p.salesVelocity || 0).toFixed(1)}/dia`}
                         onUse={() => openDesigner(leadTemplate?.id, p.productId)}
                       />

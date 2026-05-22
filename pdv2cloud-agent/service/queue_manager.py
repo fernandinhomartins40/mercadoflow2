@@ -1,15 +1,23 @@
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine
+from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import enum
 import logging
+import shutil
 
 logger = logging.getLogger("PDV2Cloud.QueueManager")
 
 DB_PATH = Path("C:/ProgramData/PDV2Cloud/queue.db")
 Base = declarative_base()
+
+# Quantas vezes um item DEAD_LETTER pode ser ressuscitado antes de ser
+# considerado permanentemente inválido (ex: XML estruturalmente corrompido).
+DEAD_LETTER_MAX_RESURRECTIONS = 2
+# Só ressuscita se o item ficou em DEAD_LETTER há mais de N horas
+# (evita re-testar itens que acabaram de falhar).
+DEAD_LETTER_MIN_AGE_HOURS = 6
 
 
 class ProcessStatus(enum.Enum):
@@ -28,6 +36,7 @@ class QueuedInvoice(Base):
     payload_json = Column(Text, nullable=False)
     status = Column(Enum(ProcessStatus), default=ProcessStatus.PENDING)
     tentativas = Column(Integer, default=0)
+    ressurreicoes = Column(Integer, default=0)   # quantas vezes saiu de DEAD_LETTER
     data_criacao = Column(DateTime, nullable=False)
     data_processamento = Column(DateTime)
     erro_detalhes = Column(Text)
@@ -43,14 +52,76 @@ class QueueManager:
             logger.error("Failed to create database directory: %s", exc)
             raise
 
+        self.engine = None
+        self.Session = None
+        self._init_db()
+
+    def _init_db(self, after_recovery: bool = False):
+        """Inicializa o banco. Se corrompido, faz backup e recria."""
         try:
-            self.engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
-            Base.metadata.create_all(self.engine)
+            engine = create_engine(
+                f"sqlite:///{DB_PATH}",
+                echo=False,
+                connect_args={"check_same_thread": False},
+            )
+            # Verifica integridade antes de confiar no banco
+            with engine.connect() as conn:
+                result = conn.execute(text("PRAGMA integrity_check")).fetchone()
+                if result and result[0] != "ok":
+                    raise RuntimeError(f"SQLite integrity_check: {result[0]}")
+            Base.metadata.create_all(engine)
+            self._run_migrations(engine)
+            self.engine = engine
             self.Session = sessionmaker(bind=self.engine)
-            logger.info("Database initialized successfully: %s", DB_PATH)
+            if after_recovery:
+                logger.info("Banco de dados recriado com sucesso após recuperação.")
+            else:
+                logger.info("Database initialized successfully: %s", DB_PATH)
         except Exception as exc:
-            logger.error("Failed to initialize database: %s", exc)
-            raise
+            if after_recovery:
+                logger.error("CRÍTICO: não foi possível recriar o banco: %s", exc)
+                raise
+            logger.error(
+                "Banco corrompido ou inválido (%s). Fazendo backup e recriando.", exc
+            )
+            self._backup_and_recreate()
+            self._init_db(after_recovery=True)
+
+    def _backup_and_recreate(self):
+        """Faz backup do BD corrompido e remove para permitir recriação."""
+        if DB_PATH.exists():
+            backup = DB_PATH.with_suffix(
+                f".corrupt-{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}.db"
+            )
+            try:
+                shutil.copy2(DB_PATH, backup)
+                logger.warning("Backup do banco corrompido em: %s", backup)
+            except Exception as exc:
+                logger.warning("Não foi possível fazer backup: %s", exc)
+            try:
+                DB_PATH.unlink()
+            except Exception as exc:
+                logger.error("Não foi possível remover banco corrompido: %s", exc)
+                raise
+
+    def _run_migrations(self, engine):
+        """Adiciona colunas novas em BDs criados por versões anteriores do agente."""
+        with engine.connect() as conn:
+            cols = {
+                row[1]
+                for row in conn.execute(
+                    text("PRAGMA table_info(queued_invoices)")
+                ).fetchall()
+            }
+            if "ressurreicoes" not in cols:
+                conn.execute(
+                    text(
+                        "ALTER TABLE queued_invoices "
+                        "ADD COLUMN ressurreicoes INTEGER DEFAULT 0"
+                    )
+                )
+                conn.commit()
+                logger.info("Migration: coluna 'ressurreicoes' adicionada")
 
     def enqueue(self, chave_nfe: str, payload_json: str, xml_hash: str) -> str:
         session = self.Session()
@@ -181,6 +252,45 @@ class QueueManager:
                 .all()
             )
             return [item.chave_nfe for item in items if item.chave_nfe]
+        finally:
+            session.close()
+
+    def resurrect_dead_letters(self) -> int:
+        """
+        Recoloca itens DEAD_LETTER em PENDING se:
+        - ficaram em DEAD_LETTER há mais de DEAD_LETTER_MIN_AGE_HOURS horas
+        - ainda têm ressurreições disponíveis (< DEAD_LETTER_MAX_RESURRECTIONS)
+
+        Isso cobre o caso em que o item falhou porque o servidor estava fora,
+        não por problema no XML em si.
+        """
+        session = self.Session()
+        try:
+            cutoff = datetime.utcnow() - timedelta(hours=DEAD_LETTER_MIN_AGE_HOURS)
+            items = (
+                session.query(QueuedInvoice)
+                .filter(QueuedInvoice.status == ProcessStatus.DEAD_LETTER)
+                .filter(QueuedInvoice.ressurreicoes < DEAD_LETTER_MAX_RESURRECTIONS)
+                .filter(
+                    (QueuedInvoice.data_processamento == None)  # noqa: E711
+                    | (QueuedInvoice.data_processamento < cutoff)
+                )
+                .all()
+            )
+            changed = 0
+            for item in items:
+                item.status = ProcessStatus.PENDING
+                item.tentativas = 0
+                item.ressurreicoes = (item.ressurreicoes or 0) + 1
+                item.erro_detalhes = None
+                changed += 1
+            if changed:
+                session.commit()
+                logger.info(
+                    "Ressurreição: %d item(ns) DEAD_LETTER recolocado(s) em PENDING",
+                    changed,
+                )
+            return changed
         finally:
             session.close()
 

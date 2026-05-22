@@ -122,8 +122,8 @@ const WindowRow: React.FC<{ w: PromoWindowSummary; idx: number }> = ({ w, idx })
         {[
           { label: 'Receita na promo', value: fmtMoney(w.promoRevenue) },
           { label: 'Receita sem promo', value: fmtMoney(w.normalRevenueEquivalent), sub: 'estimado' },
-          { label: 'Lift quantidade', value: fmtPct(w.qtyLiftPercent), color: Number(w.qtyLiftPercent) >= 0 ? 'var(--brand-600)' : '#dc2626' },
-          { label: 'Lift receita', value: fmtPct(w.revenueLiftPercent), color: Number(w.revenueLiftPercent) >= 0 ? 'var(--brand-600)' : '#dc2626' },
+          { label: 'Variação em volume', value: fmtPct(w.qtyLiftPercent), color: Number(w.qtyLiftPercent) >= 0 ? 'var(--brand-600)' : '#dc2626' },
+          { label: 'Variação em receita', value: fmtPct(w.revenueLiftPercent), color: Number(w.revenueLiftPercent) >= 0 ? 'var(--brand-600)' : '#dc2626' },
         ].map((cell) => (
           <div key={cell.label}>
             <p className="text-[0.62rem]" style={{ color: 'var(--text-soft)' }}>{cell.label}{cell.sub ? <span className="italic"> ({cell.sub})</span> : ''}</p>
@@ -190,26 +190,26 @@ const ProductCard: React.FC<{
       {item.classification !== 'INSUFFICIENT_DATA' && (
         <div className="grid grid-cols-2 gap-3 border-t px-4 py-3 sm:grid-cols-4" style={{ borderColor: cfg.border }}>
           <div>
-            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Lift qtd.</p>
+            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Volume promo</p>
             <p className="text-lg font-bold" style={{ color: Number(item.qtyLiftPercent) >= 0 ? 'var(--brand-600)' : '#dc2626' }}>
               {fmtPct(item.qtyLiftPercent)}
             </p>
             <LiftBar value={Number(item.qtyLiftPercent)} max={maxQtyLift} color={Number(item.qtyLiftPercent) >= 0 ? 'var(--brand-500)' : '#ef4444'} />
           </div>
           <div>
-            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Lift receita</p>
+            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Receita promo</p>
             <p className="text-lg font-bold" style={{ color: Number(item.revenueLiftPercent) >= 0 ? 'var(--brand-600)' : '#dc2626' }}>
               {fmtPct(item.revenueLiftPercent)}
             </p>
             <LiftBar value={Number(item.revenueLiftPercent)} max={maxRevLift} color={Number(item.revenueLiftPercent) >= 0 ? 'var(--brand-500)' : '#ef4444'} />
           </div>
           <div>
-            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Giro/dia normal</p>
+            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas/dia normal</p>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtQty(item.normalDailyQty)} un</p>
             <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{fmtMoney(item.normalDailyRevenue)}/dia</p>
           </div>
           <div>
-            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Giro/dia promo</p>
+            <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas/dia em promoção</p>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtQty(item.promoDailyQty)} un</p>
             <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{fmtMoney(item.promoDailyRevenue)}/dia</p>
           </div>
@@ -393,19 +393,19 @@ const PromoEffectiveness: React.FC = () => {
             highlight={boosters.length > 0}
           />
           <KpiCard
-            label="Score médio"
+            label="Pontuação média"
             value={`${avgScore}/100`}
             sub="efetividade geral do mix promocional"
           />
           <KpiCard
-            label="Lift médio de volume"
+            label="Variação média de volume"
             value={<span style={{ color: avgQtyLift >= 0 ? 'var(--brand-600)' : '#dc2626' }}>{fmtPct(avgQtyLift)}</span>}
-            sub="giro un/dia: promo vs. normal"
+            sub="un./dia em promoção vs. normal"
           />
           <KpiCard
-            label="Lift médio de receita"
+            label="Variação média de receita"
             value={<span style={{ color: avgRevLift >= 0 ? 'var(--brand-600)' : '#dc2626' }}>{fmtPct(avgRevLift)}</span>}
-            sub="R$/dia: promo vs. normal"
+            sub="R$/dia em promoção vs. normal"
           />
         </div>
 

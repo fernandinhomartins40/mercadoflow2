@@ -1,147 +1,185 @@
-# Bundle all Python dependencies into the installer
-# This script downloads Python embeddable, installs dependencies, and prepares the dist folder
+# Bundle Python embeddable + dependências para o instalador do PDV2Cloud.
+# Suporta x64 (amd64) e x86 (32-bit) explicitamente.
+#
+# Uso:
+#   .\bundle-dependencies.ps1                        # detecta arquitetura do OS atual
+#   .\bundle-dependencies.ps1 -Arch x64              # força x64
+#   .\bundle-dependencies.ps1 -Arch x86              # força x86 (Windows 32-bit ou compatibilidade)
+#   .\bundle-dependencies.ps1 -PythonVersion 3.11.9 -Arch x64
 
 param(
     [string]$PythonVersion = "3.11.9",
-    [string]$OutputDir = "..\dist"
+    [string]$OutputDir     = "..\dist",
+    # "x64" | "x86" | "" (detecta automaticamente)
+    [ValidateSet("x64","x86","")]
+    [string]$Arch = ""
 )
 
 $ErrorActionPreference = "Stop"
 
+# ── Detectar arquitetura ────────────────────────────────────────────────────
+if ($Arch -eq "") {
+    $osArch = [System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE")
+    # Em processo 32-bit rodando em OS 64-bit, PROCESSOR_ARCHITECTURE = x86
+    # mas PROCESSOR_ARCHITEW6432 estará definido.
+    $isWow64 = [System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITEW6432")
+    if ($osArch -eq "AMD64" -or $isWow64 -eq "AMD64") {
+        $Arch = "x64"
+    } else {
+        $Arch = "x86"
+    }
+}
+
+# Python 3.11 mínimo requerido para x86: 3.11.9 (última 3.11.x com wheel x86)
+# Python 3.9 é a versão mais recente que roda em Windows 7 SP1 sem WUA patches.
+# Para Windows 7/8/8.1 recomendamos Python 3.8.20 (última 3.8.x, suporte estendido).
+# Para Windows 10+ (build 1607+) usamos 3.11.x.
+# A lógica de versão fica no setup.iss; aqui apenas selecionamos o wheel correto.
+
+$ArchSuffix = if ($Arch -eq "x64") { "amd64" } else { "win32" }
+
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "PDV2Cloud Dependency Bundler" -ForegroundColor Cyan
-Write-Host "Python Version: $PythonVersion" -ForegroundColor Cyan
+Write-Host "PDV2Cloud Dependency Bundler"            -ForegroundColor Cyan
+Write-Host "Python   : $PythonVersion"               -ForegroundColor Cyan
+Write-Host "Arch     : $Arch ($ArchSuffix)"          -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Setup paths
-$RootDir = Split-Path -Parent $PSScriptRoot
-$DistDir = Join-Path $RootDir $OutputDir
+$RootDir        = Split-Path -Parent $PSScriptRoot
+$DistDir        = Join-Path $RootDir $OutputDir
 $PythonEmbedDir = Join-Path $DistDir "python-embed"
-$ServiceDir = Join-Path $DistDir "service"
-$TempDir = Join-Path $env:TEMP "pdv2cloud-build"
+$ServiceDir     = Join-Path $DistDir "service"
+$TempDir        = Join-Path $env:TEMP "pdv2cloud-build-$Arch"
 
-# Clean and create directories
-Write-Host "[1/7] Creating directory structure..." -ForegroundColor Green
+# ── [1/8] Estrutura de diretórios ──────────────────────────────────────────
+Write-Host "[1/8] Criando diretórios ($Arch)..." -ForegroundColor Green
 Remove-Item -Path $DistDir -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
+New-Item -ItemType Directory -Force -Path $DistDir        | Out-Null
 New-Item -ItemType Directory -Force -Path $PythonEmbedDir | Out-Null
-New-Item -ItemType Directory -Force -Path $ServiceDir | Out-Null
-New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
+New-Item -ItemType Directory -Force -Path $ServiceDir     | Out-Null
+New-Item -ItemType Directory -Force -Path $TempDir        | Out-Null
 
-# Download Python embeddable
-Write-Host "[2/7] Downloading Python $PythonVersion embeddable..." -ForegroundColor Green
-$PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip"
-$PythonZip = Join-Path $TempDir "python-embed.zip"
+# ── [2/8] Download Python embeddable ──────────────────────────────────────
+Write-Host "[2/8] Baixando Python $PythonVersion ($ArchSuffix)..." -ForegroundColor Green
+$PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-$ArchSuffix.zip"
+$PythonZip = Join-Path $TempDir "python-embed-$ArchSuffix.zip"
 
+Write-Host "  URL: $PythonUrl" -ForegroundColor Gray
 try {
-    Invoke-WebRequest -Uri $PythonUrl -OutFile $PythonZip
-    Write-Host "  ✓ Downloaded Python embeddable" -ForegroundColor Gray
+    Invoke-WebRequest -Uri $PythonUrl -OutFile $PythonZip -UseBasicParsing
+    Write-Host "  ✓ Python embeddable baixado" -ForegroundColor Gray
 } catch {
-    Write-Host "ERROR: Failed to download Python" -ForegroundColor Red
+    Write-Host "ERRO: Falha ao baixar Python $PythonVersion $ArchSuffix" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
 }
 
-# Extract Python
-Write-Host "[3/7] Extracting Python..." -ForegroundColor Green
+# ── [3/8] Extrair Python ───────────────────────────────────────────────────
+Write-Host "[3/8] Extraindo Python..." -ForegroundColor Green
 Expand-Archive -Path $PythonZip -DestinationPath $PythonEmbedDir -Force
-Write-Host "  ✓ Python extracted to $PythonEmbedDir" -ForegroundColor Gray
+Write-Host "  ✓ Python extraído em $PythonEmbedDir" -ForegroundColor Gray
 
-# Download and install pip
-Write-Host "[4/7] Setting up pip..." -ForegroundColor Green
-$GetPipUrl = "https://bootstrap.pypa.io/get-pip.py"
-$GetPipPath = Join-Path $PythonEmbedDir "get-pip.py"
-Invoke-WebRequest -Uri $GetPipUrl -OutFile $GetPipPath
-
-# Modify python*._pth to enable site-packages
+# ── [4/8] Configurar python._pth (habilitar site-packages) ────────────────
+Write-Host "[4/8] Configurando paths do Python..." -ForegroundColor Green
 $PthFile = Get-ChildItem -Path $PythonEmbedDir -Filter "python*._pth" | Select-Object -First 1
 if ($PthFile) {
-    Write-Host "  ✓ Configuring Python paths ($($PthFile.Name))..." -ForegroundColor Gray
+    Write-Host "  Arquivo pth: $($PthFile.Name)" -ForegroundColor Gray
     $pthContent = Get-Content $PthFile.FullName
+    # Remove linha "#import site" e adiciona "import site" ativo
     $pthContent = $pthContent | Where-Object { $_ -notmatch "^#import site" }
-    if (-not ($pthContent -contains "..")) {
-        $pthContent += ".."
-    }
-    if (-not ($pthContent -contains "..\service")) {
-        $pthContent += "..\service"
-    }
-    if (-not ($pthContent -contains "Lib\site-packages")) {
-        $pthContent += "Lib\site-packages"
-    }
-    if (-not ($pthContent -contains "import site")) {
-        $pthContent += ""
-        $pthContent += "import site"
+    foreach ($entry in @("..", "..\service", "Lib\site-packages", "", "import site")) {
+        if (-not ($pthContent -contains $entry)) { $pthContent += $entry }
     }
     Set-Content -Path $PthFile.FullName -Value $pthContent
-}
-
-# Install pip
-$PythonExe = Join-Path $PythonEmbedDir "python.exe"
-& $PythonExe $GetPipPath --no-warn-script-location
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to install pip" -ForegroundColor Red
-    exit 1
-}
-Write-Host "  ✓ pip installed" -ForegroundColor Gray
-
-# Install dependencies from requirements.txt
-Write-Host "[5/7] Installing Python dependencies..." -ForegroundColor Green
-$RequirementsFile = Join-Path $RootDir "service\requirements.txt"
-
-if (Test-Path $RequirementsFile) {
-    & $PythonExe -m pip install -r $RequirementsFile --no-warn-script-location --target (Join-Path $PythonEmbedDir "Lib\site-packages")
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Failed to install dependencies" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  ✓ All dependencies installed" -ForegroundColor Gray
+    Write-Host "  ✓ pth configurado" -ForegroundColor Gray
 } else {
-    Write-Host "WARNING: requirements.txt not found" -ForegroundColor Yellow
+    Write-Host "  AVISO: Arquivo ._pth não encontrado — site-packages pode não funcionar" -ForegroundColor Yellow
 }
 
-# Copy service files
-Write-Host "[6/7] Copying service files..." -ForegroundColor Green
+# ── [5/8] Instalar pip ─────────────────────────────────────────────────────
+Write-Host "[5/8] Instalando pip..." -ForegroundColor Green
+$GetPipUrl  = "https://bootstrap.pypa.io/get-pip.py"
+$GetPipPath = Join-Path $PythonEmbedDir "get-pip.py"
+Invoke-WebRequest -Uri $GetPipUrl -OutFile $GetPipPath -UseBasicParsing
+
+$PythonExe = Join-Path $PythonEmbedDir "python.exe"
+& $PythonExe $GetPipPath --no-warn-script-location 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERRO: Falha ao instalar pip" -ForegroundColor Red; exit 1
+}
+Write-Host "  ✓ pip instalado" -ForegroundColor Gray
+
+# ── [6/8] Instalar dependências Python ────────────────────────────────────
+Write-Host "[6/8] Instalando dependências Python ($ArchSuffix)..." -ForegroundColor Green
+$RequirementsFile = Join-Path $RootDir "service\requirements.txt"
+$SitePackages     = Join-Path $PythonEmbedDir "Lib\site-packages"
+
+if (-not (Test-Path $RequirementsFile)) {
+    Write-Host "  AVISO: requirements.txt não encontrado em $RequirementsFile" -ForegroundColor Yellow
+} else {
+    # pip install com --platform garante que baixa wheels compatíveis com a arquitetura
+    # mesmo que o Python que está rodando o script seja de outra arch (ex: build em x64 para x86).
+    $pipPlatform = if ($Arch -eq "x64") { "win_amd64" } else { "win32" }
+    $pipArgs = @(
+        "-m", "pip", "install",
+        "-r", $RequirementsFile,
+        "--no-warn-script-location",
+        "--target", $SitePackages,
+        "--python-version", ($PythonVersion -replace '(\d+\.\d+)\.\d+','$1'),
+        "--platform", $pipPlatform,
+        "--implementation", "cp",
+        "--only-binary", ":all:"
+    )
+    Write-Host "  Instalando para platform=$pipPlatform..." -ForegroundColor Gray
+    & $PythonExe @pipArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERRO: Falha ao instalar dependências" -ForegroundColor Red; exit 1
+    }
+    Write-Host "  ✓ Dependências instaladas" -ForegroundColor Gray
+}
+
+# ── [7/8] Copiar arquivos do serviço ──────────────────────────────────────
+Write-Host "[7/8] Copiando arquivos do serviço..." -ForegroundColor Green
 $SourceServiceDir = Join-Path $RootDir "service"
 Copy-Item -Path (Join-Path $SourceServiceDir "*") -Destination $ServiceDir -Recurse -Force
-Write-Host "  ✓ Service files copied" -ForegroundColor Gray
+Write-Host "  ✓ Arquivos do serviço copiados" -ForegroundColor Gray
 
-# Copy config-ui (if exists)
+# Config UI (Electron — sempre x64, funciona via WOW64 em x86 OS de 64 bits;
+# para OS nativo 32-bit é necessário build separado do Electron)
 $ConfigUISource = Join-Path $RootDir "..\pdv2cloud-config\dist"
 $ConfigUITarget = Join-Path $DistDir "config-ui"
 if (Test-Path $ConfigUISource) {
-    Write-Host "[7/7] Copying config UI..." -ForegroundColor Green
+    Write-Host "[8/8] Copiando Config UI..." -ForegroundColor Green
     Copy-Item -Path $ConfigUISource -Destination $ConfigUITarget -Recurse -Force
-    Write-Host "  ✓ Config UI copied" -ForegroundColor Gray
+    Write-Host "  ✓ Config UI copiada" -ForegroundColor Gray
 } else {
-    Write-Host "[7/7] Skipping config UI (not built)" -ForegroundColor Yellow
+    Write-Host "[8/8] Config UI não encontrada — pulando" -ForegroundColor Yellow
 }
 
-# Create version info file
+# ── Gerar bundle-info.json ─────────────────────────────────────────────────
 $VersionInfo = @{
-    python_version = $PythonVersion
-    build_date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    bundled_dependencies = $true
+    python_version        = $PythonVersion
+    arch                  = $Arch
+    arch_suffix           = $ArchSuffix
+    build_date            = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    bundled_dependencies  = $true
 }
-$VersionInfo | ConvertTo-Json | Set-Content -Path (Join-Path $DistDir "bundle-info.json")
+$VersionInfo | ConvertTo-Json | Set-Content -Path (Join-Path $DistDir "bundle-info.json") -Encoding UTF8
 
-# Cleanup
-Write-Host "Cleaning up temporary files..." -ForegroundColor Gray
+# Limpeza
 Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
 
-# Calculate sizes
+# Resumo de tamanhos
 $PythonSize = (Get-ChildItem -Path $PythonEmbedDir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
-$ServiceSize = (Get-ChildItem -Path $ServiceDir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
-$TotalSize = (Get-ChildItem -Path $DistDir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+$ServiceSize= (Get-ChildItem -Path $ServiceDir     -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+$TotalSize  = (Get-ChildItem -Path $DistDir        -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "Bundle Complete!" -ForegroundColor Green
+Write-Host "Bundle concluído! ($Arch)"               -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "Python embeddable: $([math]::Round($PythonSize, 2)) MB" -ForegroundColor Gray
-Write-Host "Service files: $([math]::Round($ServiceSize, 2)) MB" -ForegroundColor Gray
-Write-Host "Total size: $([math]::Round($TotalSize, 2)) MB" -ForegroundColor Gray
+Write-Host "Python embeddable : $([math]::Round($PythonSize,  2)) MB" -ForegroundColor Gray
+Write-Host "Arquivos serviço  : $([math]::Round($ServiceSize, 2)) MB" -ForegroundColor Gray
+Write-Host "Total             : $([math]::Round($TotalSize,   2)) MB" -ForegroundColor Gray
 Write-Host ""
-Write-Host "Output directory: $DistDir" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Next step: Run build-installer.ps1 to create the setup.exe" -ForegroundColor Yellow
+Write-Host "Próximo passo: execute build-installer.ps1 -Arch $Arch" -ForegroundColor Yellow

@@ -85,7 +85,7 @@ const Products: React.FC = () => {
   const sortOptions = [
     { key: 'REVENUE', label: 'Receita' },
     { key: 'QUANTITY', label: 'Quantidade' },
-    { key: 'TURNOVER', label: 'Giro' },
+    { key: 'TURNOVER', label: 'Velocidade' },
     { key: 'TREND', label: 'Tendência' },
     { key: 'NAME', label: 'Nome' },
   ] as const;
@@ -206,7 +206,7 @@ const Products: React.FC = () => {
                         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatMoney(product.revenue)}</p>
                       </div>
                       <div>
-                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Giro</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Vendas/dia</span>
                         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(product.salesVelocity || 0).toFixed(1)}/dia</p>
                       </div>
                     </div>

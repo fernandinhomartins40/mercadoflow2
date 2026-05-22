@@ -266,7 +266,7 @@ const MarketBasket: React.FC = () => {
 
                   {/* Métricas secundárias */}
                   <div className="mt-3 flex items-center gap-3 text-xs" style={{ color: 'var(--text-soft)' }}>
-                    <span>Lift <strong style={{ color: 'var(--text-primary)' }}>{Number(rule.lift || 0).toFixed(1)}×</strong></span>
+                    <span>Afinidade <strong style={{ color: 'var(--text-primary)' }}>{Number(rule.lift || 0).toFixed(1)}×</strong></span>
                     {rule.leverage != null && rule.leverage > 0 && (
                       <span style={{ color: 'var(--brand-600)' }}>
                         +{(rule.leverage * 100).toFixed(1)}% acima do acaso

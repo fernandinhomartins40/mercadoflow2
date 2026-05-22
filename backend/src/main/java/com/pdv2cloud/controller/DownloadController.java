@@ -22,15 +22,26 @@ import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * Serve os instaladores do agente PDV2Cloud.
+ *
+ * Suporta dois instaladores por arquitetura:
+ *   PDV2Cloud-Setup.exe      → x64 (padrão)
+ *   PDV2Cloud-Setup-x86.exe  → x86 (32-bit / Windows antigos)
+ *
+ * Parâmetro ?arch=x86 seleciona o instalador 32-bit em todos os endpoints.
+ */
 @RestController
 @RequestMapping("/api/v1/downloads")
 public class DownloadController {
 
-    private static final String INSTALLER_FILENAME = "PDV2Cloud-Setup.exe";
-    private static final String CHECKSUM_FILENAME = "PDV2Cloud-Setup.exe.sha256";
-    private static final String META_FILENAME = "PDV2Cloud-Setup.exe.meta.json";
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-            .withZone(ZoneId.systemDefault());
+    private static final String INSTALLER_FILENAME_X64  = "PDV2Cloud-Setup.exe";
+    private static final String INSTALLER_FILENAME_X86  = "PDV2Cloud-Setup-x86.exe";
+    private static final String CHECKSUM_SUFFIX         = ".sha256";
+    private static final String META_SUFFIX             = ".meta.json";
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
     private final ObjectMapper objectMapper;
 
@@ -41,88 +52,164 @@ public class DownloadController {
         this.objectMapper = objectMapper;
     }
 
-    @GetMapping("/agent-installer")
-    public ResponseEntity<Resource> downloadAgentInstaller() {
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Retorna o nome do arquivo de instalador para a arquitetura solicitada. */
+    private String installerFilename(String arch) {
+        return "x86".equalsIgnoreCase(arch) ? INSTALLER_FILENAME_X86 : INSTALLER_FILENAME_X64;
+    }
+
+    private Path installerPath(String arch) {
+        return Paths.get(installerDir, installerFilename(arch));
+    }
+
+    private Path checksumPath(String arch) {
+        return Paths.get(installerDir, installerFilename(arch) + CHECKSUM_SUFFIX);
+    }
+
+    private Path metaPath(String arch) {
+        return Paths.get(installerDir, installerFilename(arch) + META_SUFFIX);
+    }
+
+    /** Lê o hash SHA-256 do arquivo .sha256 (suporta "hash  filename" e só hash). */
+    private String readSha256(Path path) {
+        if (!Files.exists(path)) return null;
         try {
-            Path installerPath = Paths.get(installerDir, INSTALLER_FILENAME);
+            String raw = Files.readString(path).trim();
+            String hash = raw.contains(" ") ? raw.split("\\s+")[0] : raw;
+            return hash.isBlank() ? null : hash.toLowerCase();
+        } catch (IOException e) {
+            return null;
+        }
+    }
 
-            if (!Files.exists(installerPath)) {
+    /** Lê o campo "version" do arquivo .meta.json. */
+    private String readVersion(Path path) {
+        if (!Files.exists(path)) return null;
+        try {
+            JsonNode meta = objectMapper.readTree(Files.readString(path));
+            if (meta.hasNonNull("version")) return meta.get("version").asText();
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    // ── Endpoints ────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/v1/downloads/agent-installer?arch=x64   → PDV2Cloud-Setup.exe
+     * GET /api/v1/downloads/agent-installer?arch=x86   → PDV2Cloud-Setup-x86.exe
+     */
+    @GetMapping("/agent-installer")
+    public ResponseEntity<Resource> downloadAgentInstaller(
+            @RequestParam(defaultValue = "x64") String arch) {
+        try {
+            Path path = installerPath(arch);
+            if (!Files.exists(path)) {
                 return ResponseEntity.notFound().build();
             }
-
-            Resource resource = new UrlResource(installerPath.toUri());
-
-            if (!resource.exists() || !resource.isReadable()) {
+            Resource resource = new UrlResource(path.toUri());
+            if (!resource.isReadable()) {
                 return ResponseEntity.notFound().build();
             }
-
-            // Get file size
-            long fileSize = Files.size(installerPath);
-
+            long fileSize = Files.size(path);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + INSTALLER_FILENAME + "\"")
+                            "attachment; filename=\"" + installerFilename(arch) + "\"")
                     .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(fileSize))
                     .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                     .header(HttpHeaders.PRAGMA, "no-cache")
                     .header(HttpHeaders.EXPIRES, "0")
                     .body(resource);
-
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    @GetMapping("/agent-installer/info")
-    public ResponseEntity<Map<String, Object>> getInstallerInfo() {
+    /**
+     * GET /api/v1/downloads/agent-installer/version?arch=x64
+     * GET /api/v1/downloads/agent-installer/version?arch=x86
+     *
+     * Resposta:
+     * {
+     *   "version": "1.0.42",
+     *   "arch":    "x64",
+     *   "sha256":  "abc123...",
+     *   "status":  "available"
+     * }
+     */
+    @GetMapping("/agent-installer/version")
+    public ResponseEntity<Map<String, String>> getInstallerVersion(
+            @RequestParam(defaultValue = "x64") String arch) {
         try {
-            Path installerPath = Paths.get(installerDir, INSTALLER_FILENAME);
-            Path checksumPath = Paths.get(installerDir, CHECKSUM_FILENAME);
-            Path metaPath = Paths.get(installerDir, META_FILENAME);
+            Path path = installerPath(arch);
+            if (!Files.exists(path)) {
+                Map<String, String> err = new HashMap<>();
+                err.put("error", "Installer not found for arch: " + arch);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+            }
 
-            if (!Files.exists(installerPath)) {
+            String version = readVersion(metaPath(arch));
+            String sha256  = readSha256(checksumPath(arch));
+
+            Map<String, String> resp = new HashMap<>();
+            resp.put("version", version != null ? version : "unknown");
+            resp.put("arch",    arch);
+            resp.put("status",  "available");
+            if (sha256 != null) resp.put("sha256", sha256);
+
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", "Failed to get version");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        }
+    }
+
+    /**
+     * GET /api/v1/downloads/agent-installer/info?arch=x64
+     *
+     * Informações completas: tamanho, data, sha256, urls.
+     */
+    @GetMapping("/agent-installer/info")
+    public ResponseEntity<Map<String, Object>> getInstallerInfo(
+            @RequestParam(defaultValue = "x64") String arch) {
+        try {
+            Path path = installerPath(arch);
+            if (!Files.exists(path)) {
                 return ResponseEntity.notFound().build();
             }
 
             Map<String, Object> info = new HashMap<>();
+            long fileSize = Files.size(path);
 
-            // File size
-            long fileSize = Files.size(installerPath);
-            info.put("filename", INSTALLER_FILENAME);
-            info.put("size", fileSize);
+            info.put("filename",    installerFilename(arch));
+            info.put("arch",        arch);
+            info.put("size",        fileSize);
             info.put("sizeFormatted", formatFileSize(fileSize));
 
-            // Creation/modification time
-            BasicFileAttributes attrs = Files.readAttributes(installerPath, BasicFileAttributes.class);
+            BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
             Instant modifiedTime = attrs.lastModifiedTime().toInstant();
-            info.put("lastModified", DATE_FORMATTER.format(modifiedTime));
+            info.put("lastModified",          DATE_FORMATTER.format(modifiedTime));
             info.put("lastModifiedTimestamp", modifiedTime.toEpochMilli());
 
-            // SHA256 checksum
-            if (Files.exists(checksumPath)) {
-                String checksum = Files.readString(checksumPath).trim();
-                info.put("sha256", checksum);
-            }
+            String sha256  = readSha256(checksumPath(arch));
+            String version = readVersion(metaPath(arch));
+            if (sha256  != null) info.put("sha256",  sha256);
+            if (version != null) info.put("version", version);
 
-            // Metadata (optional)
-            if (Files.exists(metaPath)) {
+            // Meta completo (buildTimestamp etc.)
+            Path mPath = metaPath(arch);
+            if (Files.exists(mPath)) {
                 try {
-                    JsonNode meta = objectMapper.readTree(Files.readString(metaPath));
-                    if (meta.hasNonNull("version")) {
-                        info.put("version", meta.get("version").asText());
-                    }
+                    JsonNode meta = objectMapper.readTree(Files.readString(mPath));
                     if (meta.hasNonNull("buildTimestamp")) {
                         info.put("buildTimestamp", meta.get("buildTimestamp").asText());
                     }
-                } catch (Exception ignored) {
-                    // Metadata is optional; ignore parsing errors to avoid breaking downloads.
-                }
+                } catch (Exception ignored) {}
             }
 
-            // Download URL
-            info.put("downloadUrl", "/api/v1/downloads/agent-installer");
-
+            info.put("downloadUrl", "/api/v1/downloads/agent-installer?arch=" + arch);
             return ResponseEntity.ok(info);
 
         } catch (IOException e) {
@@ -130,53 +217,44 @@ public class DownloadController {
         }
     }
 
-    @GetMapping("/agent-installer/version")
-    public ResponseEntity<Map<String, String>> getInstallerVersion() {
-        try {
-            Path installerPath = Paths.get(installerDir, INSTALLER_FILENAME);
-            Path metaPath = Paths.get(installerDir, META_FILENAME);
-
-            if (!Files.exists(installerPath)) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Installer not found");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    /**
+     * GET /api/v1/downloads/agent-installer/available
+     *
+     * Lista quais arquiteturas estão disponíveis no servidor.
+     * Útil para o frontend mostrar links de download corretos.
+     *
+     * Resposta:
+     * {
+     *   "x64": { "version": "1.0.42", "sha256": "...", "available": true },
+     *   "x86": { "version": "1.0.42", "sha256": "...", "available": true }
+     * }
+     */
+    @GetMapping("/agent-installer/available")
+    public ResponseEntity<Map<String, Object>> getAvailableInstallers() {
+        Map<String, Object> result = new HashMap<>();
+        for (String arch : new String[]{"x64", "x86"}) {
+            Path path = installerPath(arch);
+            Map<String, Object> entry = new HashMap<>();
+            boolean exists = Files.exists(path);
+            entry.put("available", exists);
+            if (exists) {
+                String version = readVersion(metaPath(arch));
+                String sha256  = readSha256(checksumPath(arch));
+                if (version != null) entry.put("version", version);
+                if (sha256  != null) entry.put("sha256",  sha256);
+                entry.put("downloadUrl", "/api/v1/downloads/agent-installer?arch=" + arch);
             }
-
-            Map<String, String> version = new HashMap<>();
-            String resolvedVersion = null;
-
-            if (Files.exists(metaPath)) {
-                try {
-                    JsonNode meta = objectMapper.readTree(Files.readString(metaPath));
-                    if (meta.hasNonNull("version")) {
-                        resolvedVersion = meta.get("version").asText();
-                    }
-                } catch (Exception ignored) {
-                    resolvedVersion = null;
-                }
-            }
-
-            version.put("version", resolvedVersion != null ? resolvedVersion : "unknown");
-            version.put("status", "available");
-
-            return ResponseEntity.ok(version);
-
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to get version");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            result.put(arch, entry);
         }
+        return ResponseEntity.ok(result);
     }
 
+    // ── Utilitário ────────────────────────────────────────────────────────────
+
     private String formatFileSize(long size) {
-        if (size < 1024) {
-            return size + " B";
-        } else if (size < 1024 * 1024) {
-            return String.format("%.2f KB", size / 1024.0);
-        } else if (size < 1024 * 1024 * 1024) {
-            return String.format("%.2f MB", size / (1024.0 * 1024.0));
-        } else {
-            return String.format("%.2f GB", size / (1024.0 * 1024.0 * 1024.0));
-        }
+        if (size < 1024)            return size + " B";
+        if (size < 1024 * 1024)     return String.format("%.2f KB", size / 1024.0);
+        if (size < 1024L * 1024 * 1024) return String.format("%.2f MB", size / (1024.0 * 1024));
+        return String.format("%.2f GB", size / (1024.0 * 1024 * 1024));
     }
 }
