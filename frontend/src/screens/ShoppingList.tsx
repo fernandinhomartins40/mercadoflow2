@@ -428,11 +428,21 @@ const CatalogSearch: React.FC<CatalogSearchProps> = ({ marketId, productIds, onA
                 className="flex items-center gap-3 px-4 py-3 transition hover:bg-[var(--surface-soft)]"
                 style={{ borderBottom: '1px solid var(--border-soft)' }}
               >
-                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
+                <Link
+                  to={`/app/produtos/${product.productId}`}
+                  className="h-10 w-10 shrink-0 overflow-hidden rounded-lg no-underline"
+                  style={{ background: 'var(--surface-soft)', display: 'block' }}
+                >
                   <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
-                </div>
+                </Link>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
+                  <Link
+                    to={`/app/produtos/${product.productId}`}
+                    className="block truncate text-sm font-medium no-underline hover:underline"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    {product.name}
+                  </Link>
                   <p className="text-xs" style={{ color: 'var(--text-soft)' }}>
                     Giro {Number(product.salesVelocity || 0).toFixed(1)}/dia
                     {Number(product.revenueTrendPercentage) > 0 ? ' · tendência +' : ' · tendência '}
@@ -520,16 +530,20 @@ const ListItem: React.FC<{
           {item.checked && <CheckCircle2 className="h-4 w-4" />}
         </button>
 
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
+        <Link to={`/app/produtos/${item.productId}`} className="h-12 w-12 shrink-0 overflow-hidden rounded-lg no-underline" style={{ display: 'block' }}>
           <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" />
-        </div>
+        </Link>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className={`text-sm font-semibold ${item.checked ? 'line-through' : ''}`} style={{ color: item.checked ? 'var(--text-soft)' : 'var(--text-primary)' }}>
+              <Link
+                to={`/app/produtos/${item.productId}`}
+                className={`block text-sm font-semibold no-underline hover:underline ${item.checked ? 'line-through' : ''}`}
+                style={{ color: item.checked ? 'var(--text-soft)' : 'var(--text-primary)' }}
+              >
                 {item.name}
-              </p>
+              </Link>
               <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{item.category || 'Sem categoria'}</p>
             </div>
             <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
@@ -577,8 +591,12 @@ const ListItem: React.FC<{
               <ShoppingCart className="h-3 w-3" /> Registrar compra
             </button>
 
-            <Link to={`/app/produtos/${item.productId}`} className="flex items-center gap-1 text-xs font-medium no-underline hover:opacity-70" style={{ color: 'var(--brand-600)' }}>
-              Ver <ArrowRight className="h-3 w-3" />
+            <Link
+              to={`/app/produtos/${item.productId}`}
+              className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold no-underline transition hover:opacity-80"
+              style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)', border: '1px solid var(--border-soft)' }}
+            >
+              Ver desempenho <ArrowRight className="h-3 w-3" />
             </Link>
 
             <button type="button" onClick={() => void onRemove()} className="text-xs hover:opacity-70" style={{ color: '#ef4444' }}>
@@ -655,20 +673,26 @@ const ListItem: React.FC<{
 /* ─── SuggestionRow ─── */
 const SuggestionRow: React.FC<{ product: ProductPerformance; label: string; onAdd: () => Promise<void>; inList: boolean }> = ({ product, label, onAdd, inList }) => (
   <div className="flex items-center gap-3 rounded-lg p-3 transition" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+    <Link to={`/app/produtos/${product.productId}`} className="h-10 w-10 shrink-0 overflow-hidden rounded-lg no-underline" style={{ display: 'block' }}>
       <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
-    </div>
+    </Link>
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
+      <Link
+        to={`/app/produtos/${product.productId}`}
+        className="block truncate text-sm font-medium no-underline hover:underline"
+        style={{ color: 'var(--text-primary)' }}
+      >
+        {product.name}
+      </Link>
       <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{label}</p>
     </div>
     {inList ? (
-      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Na lista</span>
+      <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Na lista</span>
     ) : (
       <button
         type="button"
         onClick={() => void onAdd()}
-        className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
+        className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
         style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}
       >
         <Plus className="h-3 w-3" /> Adicionar
