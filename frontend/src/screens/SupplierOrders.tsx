@@ -6,10 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { marketService } from '../services/market.service';
 import { SupplierOrder, SupplierOrderItem, Supplier, ProductPerformance } from '../types/analytics.types';
 import {
-  AlertTriangle,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   ClipboardList,
   Package,
   Plus,
@@ -21,9 +18,6 @@ import {
   Building2,
   Edit2,
   Ban,
-  TrendingUp,
-  TrendingDown,
-  Minus,
 } from 'lucide-react';
 
 /* ── Helpers ── */
