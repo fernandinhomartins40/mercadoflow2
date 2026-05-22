@@ -295,7 +295,7 @@ public class AlertService {
             .filter(r -> r.getMomentumScore() != null && r.getMomentumScore() < 0.72)
             .filter(r -> r.getRevenueTrendPercentage() == null || r.getRevenueTrendPercentage() > -5)
             .filter(r -> r.getTransactionCount() != null && r.getTransactionCount() >= 5)
-            .filter(r -> dbl(r.getRevenue()).compareTo(BigDecimal.ZERO.doubleValue()) > 0)
+            .filter(r -> dbl(r.getRevenue()) > 0)
             .sorted((a, b) -> Double.compare(
                 a.getMomentumScore() != null ? a.getMomentumScore() : 1,
                 b.getMomentumScore() != null ? b.getMomentumScore() : 1))

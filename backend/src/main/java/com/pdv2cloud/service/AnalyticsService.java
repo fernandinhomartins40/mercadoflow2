@@ -201,8 +201,12 @@ public class AnalyticsService {
             alert.getMessage(),
             alert.getPriority() != null ? alert.getPriority().name() : null,
             alert.getProduct() != null ? alert.getProduct().getId() : null,
+            alert.getProductName(),
+            alert.getProductEan(),
+            alert.getProductImage(),
             alert.getIsRead(),
-            alert.getCreatedAt()
+            alert.getCreatedAt(),
+            alert.getMetadata()
         );
     }
 }
