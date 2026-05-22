@@ -341,3 +341,20 @@ export interface ShoppingListOverview {
   pendingItems: number;
   items: ShoppingListItem[];
 }
+
+export interface Supplier {
+  id: string;
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia?: string | null;
+  email?: string | null;
+  telefone?: string | null;
+  logradouro?: string | null;
+  municipio?: string | null;
+  uf?: string | null;
+  cep?: string | null;
+  situacaoCadastral?: string | null;
+  cnaePrincipal?: string | null;
+  descricaoCnae?: string | null;
+  porte?: string | null;
+}

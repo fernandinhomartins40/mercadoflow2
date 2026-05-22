@@ -10,7 +10,9 @@ import {
   PurchasePriceHistory,
   ProductPerformance,
   ShoppingListItem,
+  Supplier,
 } from '../types/analytics.types';
+import SupplierModal from '../components/suppliers/SupplierModal';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -26,6 +28,7 @@ import {
   ChevronDown,
   ChevronUp,
   Plus,
+  Building2,
 } from 'lucide-react';
 
 /* ─── Formatadores ─── */
@@ -78,6 +81,7 @@ const RecordPurchaseModal: React.FC<RecordPurchaseModalProps> = ({ item, marketI
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<PurchasePriceHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
 
   useEffect(() => {
     marketService.getPurchaseHistory(marketId, item.productId)
@@ -250,15 +254,36 @@ const RecordPurchaseModal: React.FC<RecordPurchaseModalProps> = ({ item, marketI
                 <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
                   Fornecedor
                 </label>
-                <input
-                  type="text"
-                  placeholder="Nome do fornecedor"
-                  className="h-10 w-full rounded-lg px-3 text-sm outline-none"
-                  style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}
-                  value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <div
+                    className="flex h-10 flex-1 min-w-0 items-center gap-2 rounded-lg px-3 cursor-pointer transition hover:opacity-80"
+                    style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}
+                    onClick={() => setShowSupplierModal(true)}
+                  >
+                    <Building2 className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                    <span className="text-sm truncate" style={{ color: supplier ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      {supplier || 'Selecionar fornecedor'}
+                    </span>
+                  </div>
+                  {supplier && (
+                    <button
+                      type="button"
+                      onClick={() => setSupplier('')}
+                      className="h-10 rounded-lg px-2 transition hover:opacity-70"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
+              {showSupplierModal && (
+                <SupplierModal
+                  marketId={marketId}
+                  onClose={() => setShowSupplierModal(false)}
+                  onSelect={(s: Supplier) => setSupplier(s.nomeFantasia || s.razaoSocial)}
+                />
+              )}
             </div>
 
             <div>

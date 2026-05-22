@@ -245,4 +245,30 @@ export const marketService = {
     const response = await api.get(`/v1/markets/${marketId}/analytics/products/performance`, { params });
     return response.data;
   },
+
+  async getSuppliers(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/suppliers`);
+    return response.data;
+  },
+
+  async saveSupplier(marketId: string, payload: {
+    cnpj: string; razaoSocial: string; nomeFantasia?: string;
+    email?: string; telefone?: string; logradouro?: string;
+    municipio?: string; uf?: string; cep?: string;
+    situacaoCadastral?: string; cnaePrincipal?: string;
+    descricaoCnae?: string; porte?: string;
+  }) {
+    const response = await api.post(`/v1/markets/${marketId}/suppliers`, payload);
+    return response.data;
+  },
+
+  async deleteSupplier(marketId: string, supplierId: string) {
+    await api.delete(`/v1/markets/${marketId}/suppliers/${supplierId}`);
+  },
+
+  async lookupCnpj(marketId: string, cnpj: string) {
+    const digits = cnpj.replace(/\D/g, '');
+    const response = await api.get(`/v1/markets/${marketId}/suppliers/cnpj-lookup/${digits}`);
+    return response.data;
+  },
 };
