@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
   ClipboardList,
   Clock,
   Edit2,
@@ -31,12 +32,14 @@ import {
   Search,
   Send,
   ShoppingCart,
+  Slash,
   Trash2,
   TrendingDown,
   TrendingUp,
   Truck,
   X,
   ArrowRight,
+  Zap,
 } from 'lucide-react';
 
 /* ─── Formatadores ─── */
@@ -458,8 +461,14 @@ const ProductSearchDropdown: React.FC<{ marketId: string; existingIds: Set<strin
   );
 };
 
-const AddItemForm: React.FC<{ marketId: string; orderId: string; product: ProductPerformance; onSaved: (i: SupplierOrderItem) => void; onCancel: () => void }> = ({ marketId, orderId, product, onSaved, onCancel }) => {
-  const [qty, setQty] = useState('1');
+const UNIT_NEEDS_PACK = new Set(['CX', 'FD', 'DZ', 'PC']);
+
+const AddItemForm: React.FC<{
+  marketId: string; orderId: string; product: ProductPerformance;
+  onSaved: (i: SupplierOrderItem) => void; onCancel: () => void;
+  initialQty?: string;
+}> = ({ marketId, orderId, product, onSaved, onCancel, initialQty = '1' }) => {
+  const [qty, setQty] = useState(initialQty);
   const [unitType, setUnitType] = useState('UN');
   const [unitsPerPack, setUnitsPerPack] = useState('');
   const [unitCost, setUnitCost] = useState('');
@@ -471,6 +480,9 @@ const AddItemForm: React.FC<{ marketId: string; orderId: string; product: Produc
   const cost = parseFloat(unitCost.replace(',', '.')) || 0;
   const sale = parseFloat(unitSalePrice.replace(',', '.')) || 0;
   const margin = cost > 0 && sale > 0 ? ((sale - cost) / cost) * 100 : null;
+  const needsPack = UNIT_NEEDS_PACK.has(unitType);
+  const upp = parseFloat(unitsPerPack) || null;
+  const totalUnits = needsPack && upp ? (parseFloat(qty) || 0) * upp : null;
 
   const handleSave = async () => {
     if (!cost || cost <= 0) { setErr('Informe o custo unitário'); return; }
@@ -479,7 +491,7 @@ const AddItemForm: React.FC<{ marketId: string; orderId: string; product: Produc
     try {
       const item = await marketService.addSupplierOrderItem(marketId, orderId, {
         productId: product.productId, quantityRequested: parseFloat(qty), unitType,
-        unitsPerPack: unitsPerPack ? parseFloat(unitsPerPack) : undefined,
+        unitsPerPack: needsPack && unitsPerPack ? parseFloat(unitsPerPack) : undefined,
         unitCost: cost, unitSalePrice: sale > 0 ? sale : undefined, note: note.trim() || undefined,
       });
       onSaved(item);
@@ -505,13 +517,22 @@ const AddItemForm: React.FC<{ marketId: string; orderId: string; product: Produc
             style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Tipo</label>
-          <select value={unitType} onChange={(e) => setUnitType(e.target.value)}
+          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Unidade</label>
+          <select value={unitType} onChange={(e) => { setUnitType(e.target.value); setUnitsPerPack(''); }}
             className="h-9 w-full rounded-lg px-2 text-sm outline-none"
             style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
             {UNIT_TYPES.map(u => <option key={u} value={u}>{UNIT_LABELS[u] || u}</option>)}
           </select>
         </div>
+        {needsPack && (
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Un./embalagem</label>
+            <input type="number" min="1" step="1" placeholder="ex: 12" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)}
+              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
+            {totalUnits && <p className="mt-0.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>{totalUnits} unidades no total</p>}
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo unit. *</label>
           <div className="relative">
@@ -531,14 +552,19 @@ const AddItemForm: React.FC<{ marketId: string; orderId: string; product: Produc
           </div>
           {margin !== null && <p className="mt-0.5 text-xs font-semibold" style={{ color: margin >= 20 ? '#16a34a' : margin >= 10 ? '#d97706' : '#dc2626' }}>Margem: {margin.toFixed(1)}%</p>}
         </div>
-        <div className="sm:col-span-4">
+        <div className={needsPack ? 'sm:col-span-2' : 'sm:col-span-4'}>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observação</label>
           <input type="text" placeholder="Lote, validade..." value={note} onChange={(e) => setNote(e.target.value)}
             className="h-9 w-full rounded-lg px-3 text-sm outline-none"
             style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
         </div>
       </div>
-      {cost > 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Subtotal: <strong style={{ color: 'var(--text-primary)' }}>{fmtMoney((parseFloat(qty) || 0) * cost)}</strong></p>}
+      {cost > 0 && (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Subtotal: <strong style={{ color: 'var(--text-primary)' }}>{fmtMoney((parseFloat(qty) || 0) * cost)}</strong>
+          {totalUnits && <span className="ml-2">· {totalUnits} un. unitárias · custo/un: {fmtMoney(cost / upp!)}</span>}
+        </p>
+      )}
       {err && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{err}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>Cancelar</button>
@@ -758,14 +784,38 @@ const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onCl
   );
 };
 
-const CreateOrderModal: React.FC<{ marketId: string; onClose: () => void; onCreated: (o: SupplierOrder) => void }> = ({ marketId, onClose, onCreated }) => {
+/* ════════════════════════════════════════════════════════════════════
+   FLUXO DE CRIAÇÃO DE PEDIDO — página inline no ecossistema
+════════════════════════════════════════════════════════════════════ */
+
+type NewOrderStep = 'supplier' | 'items';
+
+interface NewOrderFlowProps {
+  marketId: string;
+  shoppingListItems: ShoppingListItem[];
+  replenishmentCandidates: ProductPerformance[];
+  initialSupplier?: Supplier | null;
+  onCancel: () => void;
+  onCreated: (o: SupplierOrder) => void;
+}
+
+const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
+  marketId, shoppingListItems, replenishmentCandidates, initialSupplier, onCancel, onCreated,
+}) => {
+  const [step, setStep] = useState<NewOrderStep>(initialSupplier ? 'items' : 'supplier');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSup, setLoadingSup] = useState(true);
   const [showSupModal, setShowSupModal] = useState(false);
-  const [selected, setSelected] = useState<Supplier | null>(null);
+  const [selected, setSelected] = useState<Supplier | null>(initialSupplier ?? null);
   const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [order, setOrder] = useState<SupplierOrder | null>(null);
+  const [addProd, setAddProd] = useState<ProductPerformance | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ProductPerformance[]>([]);
+  const [searching, setSearching] = useState(false);
+  const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadSuppliers = useCallback(() => {
     setLoadingSup(true);
@@ -774,61 +824,315 @@ const CreateOrderModal: React.FC<{ marketId: string; onClose: () => void; onCrea
 
   useEffect(() => { loadSuppliers(); }, [loadSuppliers]);
 
-  const handleCreate = async () => {
-    if (!selected) { setErr('Selecione um fornecedor'); return; }
-    setSaving(true); setErr(null);
-    try { const o = await marketService.createSupplierOrder(marketId, { supplierId: selected.id, notes: notes.trim() || undefined }); onCreated(o); onClose(); }
-    catch (e: any) { setErr(e?.message || 'Erro ao criar'); }
-    finally { setSaving(false); }
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    try { setSearchResults((await marketService.searchProductCatalog(marketId, q, 0, 12))?.content || []); }
+    catch { setSearchResults([]); } finally { setSearching(false); }
+  }, [marketId]);
+
+  const handleCreateOrder = async () => {
+    if (!selected) return;
+    setCreating(true); setErr(null);
+    try {
+      const o = await marketService.createSupplierOrder(marketId, { supplierId: selected.id, notes: notes.trim() || undefined });
+      setOrder(o);
+      setStep('items');
+    } catch (e: any) { setErr(e?.message || 'Erro ao criar pedido'); }
+    finally { setCreating(false); }
   };
 
-  return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="w-full max-w-md overflow-hidden rounded-2xl shadow-2xl" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}>
-          <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-soft)' }}>
-            <div><p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Novo pedido</p><p className="text-xs" style={{ color: 'var(--text-soft)' }}>Selecione o fornecedor</p></div>
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 transition hover:opacity-70" style={{ color: 'var(--text-muted)' }}><X className="h-4 w-4" /></button>
+  const refreshOrder = useCallback(async () => {
+    if (!order) return;
+    try { const o = await marketService.getSupplierOrder(marketId, order.id); setOrder(o); }
+    catch { /* silent */ }
+  }, [marketId, order]);
+
+  const existingIds = useMemo(() => new Set(order?.items.map(i => i.productId) ?? []), [order?.items]);
+
+  // Sugestões: produtos da lista de compras + replenishment candidates, dedupados, sem os já adicionados
+  const suggestions = useMemo(() => {
+    const listMap = new Map(shoppingListItems.map(i => [i.productId, i]));
+    const seen = new Set<string>();
+    const out: Array<{ perf: ProductPerformance; fromList: boolean; listItem: ShoppingListItem | undefined }> = [];
+
+    // Primeiro: produtos da lista de compras não checados, cruzando com replenishmentCandidates para ter perf
+    const perfMap = new Map<string, ProductPerformance>(replenishmentCandidates.map(p => [p.productId, p]));
+    for (const item of shoppingListItems) {
+      if (item.checked) continue;
+      const perf = perfMap.get(item.productId);
+      if (!perf) continue;
+      seen.add(item.productId);
+      out.push({ perf: perf as ProductPerformance, fromList: true, listItem: item as ShoppingListItem });
+    }
+    // Depois: candidatos de reposição que não estão na lista
+    for (const p of replenishmentCandidates) {
+      if (seen.has(p.productId)) continue;
+      seen.add(p.productId);
+      const listItem = listMap.get(p.productId) as ShoppingListItem | undefined;
+      out.push({ perf: p, fromList: !!listItem, listItem });
+    }
+    return out.sort((a, b) => b.perf.salesVelocity - a.perf.salesVelocity);
+  }, [shoppingListItems, replenishmentCandidates]);
+
+  const isAvoidAlert = (p: ProductPerformance) =>
+    (p.turnoverBand === 'SLOW' || (p.healthScore != null && p.healthScore < 30) || (p.momentumScore != null && p.momentumScore < 0.7));
+
+  const handleFinish = () => {
+    if (!order) { onCancel(); return; }
+    onCreated(order);
+  };
+
+  /* ─── Passo 1: selecionar fornecedor ─── */
+  if (step === 'supplier') {
+    return (
+      <>
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onCancel} className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
+              <ChevronLeft className="h-4 w-4" /> Voltar
+            </button>
+            <div>
+              <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Novo pedido</h2>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Selecione o fornecedor para este pedido</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-4 p-5">
-            {loadingSup ? <div className="flex justify-center py-4"><div className="h-4 w-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div> : (
+
+          {loadingSup
+            ? <div className="flex justify-center py-8"><div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>
+            : (
               <div className="flex flex-col gap-2">
                 {suppliers.length > 0 && (
-                  <div className="max-h-52 overflow-y-auto rounded-xl border flex flex-col" style={{ borderColor: 'var(--border-strong)' }}>
+                  <div className="flex flex-col rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
                     {suppliers.map(s => (
                       <button key={s.id} type="button" onClick={() => setSelected(s)}
-                        className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--surface-soft)]"
-                        style={{ borderBottom: '1px solid var(--border-soft)', background: selected?.id === s.id ? 'var(--surface-success)' : 'transparent' }}>
-                        <Building2 className="h-4 w-4 shrink-0" style={{ color: selected?.id === s.id ? 'var(--brand-700)' : 'var(--text-muted)' }} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.nomeFantasia || s.razaoSocial}</p>
-                          {s.nomeFantasia && <p className="text-xs truncate" style={{ color: 'var(--text-soft)' }}>{s.razaoSocial}</p>}
+                        className="flex items-center gap-3 px-4 py-3.5 text-left transition hover:bg-[var(--surface-soft)]"
+                        style={{ borderBottom: '1px solid var(--border-soft)', background: selected?.id === s.id ? 'var(--surface-success)' : 'var(--surface-base)' }}>
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: selected?.id === s.id ? 'var(--brand-100)' : 'var(--surface-soft)' }}>
+                          <Building2 className="h-4 w-4" style={{ color: selected?.id === s.id ? 'var(--brand-700)' : 'var(--text-muted)' }} />
                         </div>
-                        {selected?.id === s.id && <CheckCircle2 className="h-4 w-4 shrink-0 ml-auto" style={{ color: 'var(--brand-700)' }} />}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.nomeFantasia || s.razaoSocial}</p>
+                          {s.nomeFantasia && <p className="text-xs truncate" style={{ color: 'var(--text-soft)' }}>{s.razaoSocial}</p>}
+                          <div className="flex flex-wrap gap-x-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            {s.municipio && s.uf && <span>{s.municipio}/{s.uf}</span>}
+                            {s.telefone && <span>{s.telefone}</span>}
+                          </div>
+                        </div>
+                        {selected?.id === s.id && <CheckCircle2 className="h-5 w-5 shrink-0 ml-auto" style={{ color: 'var(--brand-700)' }} />}
                       </button>
                     ))}
                   </div>
                 )}
-                <button type="button" onClick={() => setShowSupModal(true)} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition hover:opacity-80" style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-soft)' }}>
+                {suppliers.length === 0 && (
+                  <div className="rounded-xl py-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+                    <Building2 className="mx-auto mb-2 h-8 w-8 opacity-20" style={{ color: 'var(--text-muted)' }} />
+                    <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Nenhum fornecedor cadastrado</p>
+                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Cadastre um fornecedor para criar pedidos.</p>
+                  </div>
+                )}
+                <button type="button" onClick={() => setShowSupModal(true)} className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition hover:opacity-80" style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-soft)' }}>
                   <Plus className="h-4 w-4" /> Cadastrar novo fornecedor
                 </button>
               </div>
             )}
-            <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observações</label>
-              <textarea rows={2} placeholder="Condição de pagamento, prazo de entrega..." value={notes} onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
-                style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-            </div>
-            {err && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{err}</p>}
+
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observações do pedido</label>
+            <textarea rows={2} placeholder="Condição de pagamento, prazo de entrega..." value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
           </div>
-          <div className="flex items-center justify-end gap-3 p-5" style={{ borderTop: '1px solid var(--border-soft)' }}>
-            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>Cancelar</button>
-            <button type="button" onClick={handleCreate} disabled={saving || !selected} className="flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50" style={{ background: 'var(--brand-500)', color: '#fff' }}>
-              <Plus className="h-4 w-4" />{saving ? 'Criando...' : 'Criar pedido'}
+
+          {err && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{err}</p>}
+
+          <div className="flex justify-end">
+            <button type="button" onClick={handleCreateOrder} disabled={creating || !selected}
+              className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+              style={{ background: 'var(--brand-500)', color: '#fff' }}>
+              {creating ? 'Criando...' : <><ArrowRight className="h-4 w-4" /> Continuar para produtos</>}
             </button>
           </div>
         </div>
+        {showSupModal && (
+          <SupplierModal marketId={marketId} onClose={() => setShowSupModal(false)} onSelect={(s: Supplier) => { setSelected(s); setShowSupModal(false); loadSuppliers(); }} />
+        )}
+      </>
+    );
+  }
+
+  /* ─── Passo 2: adicionar produtos ─── */
+  const supplier = selected!;
+  const orderItems = order?.items ?? [];
+  const total = order?.totalValue ?? 0;
+
+  return (
+    <>
+      <div className="flex flex-col gap-5">
+        {/* Cabeçalho */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => { if (!order) { setStep('supplier'); } else if (window.confirm('Voltar? O rascunho do pedido será mantido na aba Pedidos.')) { handleFinish(); } }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition hover:opacity-80"
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
+              <ChevronLeft className="h-4 w-4" /> Voltar
+            </button>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Pedido para {supplier.nomeFantasia || supplier.razaoSocial}</h2>
+                {order && <StatusBadge status={order.status} />}
+              </div>
+              {order && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{order.orderNumber} · {orderItems.length} {orderItems.length === 1 ? 'produto' : 'produtos'}</p>}
+            </div>
+          </div>
+          {order && orderItems.length > 0 && (
+            <div className="text-right shrink-0">
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total</p>
+              <p className="text-xl font-bold" style={{ color: 'var(--brand-700)' }}>{fmtMoney(total)}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-5">
+          {/* ── Coluna esquerda: sugestões ── */}
+          <div className="flex flex-col gap-4 lg:col-span-3">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Buscar produto</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                <input type="text" placeholder="Digite para buscar qualquer produto..." value={searchQuery}
+                  className="h-10 w-full rounded-xl pl-9 pr-9 text-sm outline-none"
+                  style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (debRef.current) clearTimeout(debRef.current);
+                    debRef.current = setTimeout(() => doSearch(e.target.value), 350);
+                  }} />
+                {searchQuery && <button type="button" onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}><X className="h-4 w-4" /></button>}
+              </div>
+            </div>
+
+            {/* Resultados de busca */}
+            {searchQuery && (
+              <div className="flex flex-col gap-2">
+                {searching && <div className="flex justify-center py-4"><div className="h-4 w-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>}
+                {!searching && searchResults.length === 0 && <p className="rounded-xl py-4 text-center text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>Nenhum produto encontrado para "{searchQuery}"</p>}
+                {!searching && searchResults.map(p => (
+                  <SuggestionRow key={p.productId} perf={p} fromList={false} listItem={undefined}
+                    added={existingIds.has(p.productId)}
+                    isAvoid={isAvoidAlert(p)}
+                    orderId={order?.id}
+                    marketId={marketId}
+                    onNeedOrder={handleCreateOrder}
+                    onSelect={() => { if (!order) return; setAddProd(p); }}
+                    onAdded={refreshOrder} />
+                ))}
+              </div>
+            )}
+
+            {/* Sugestões inteligentes */}
+            {!searchQuery && (
+              <>
+                {suggestions.length === 0
+                  ? <div className="rounded-xl py-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
+                      <Zap className="mx-auto mb-2 h-7 w-7 opacity-20" style={{ color: 'var(--text-muted)' }} />
+                      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem sugestões no momento. Use a busca acima.</p>
+                    </div>
+                  : (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                        Sugestões inteligentes ({suggestions.length})
+                      </p>
+                      {suggestions.map(({ perf, fromList, listItem }) => (
+                        <SuggestionRow key={perf.productId} perf={perf} fromList={fromList} listItem={listItem}
+                          added={existingIds.has(perf.productId)}
+                          isAvoid={isAvoidAlert(perf)}
+                          orderId={order?.id}
+                          marketId={marketId}
+                          onNeedOrder={handleCreateOrder}
+                          onSelect={() => { if (!order) return; setAddProd(perf); }}
+                          onAdded={refreshOrder} />
+                      ))}
+                    </div>
+                  )}
+              </>
+            )}
+          </div>
+
+          {/* ── Coluna direita: itens do pedido ── */}
+          <div className="flex flex-col gap-3 lg:col-span-2">
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Itens do pedido ({orderItems.length})
+            </p>
+            {orderItems.length === 0
+              ? <div className="rounded-xl py-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
+                  <Package className="mx-auto mb-2 h-7 w-7 opacity-20" style={{ color: 'var(--text-muted)' }} />
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum produto ainda.<br/>Clique em "Adicionar" nas sugestões.</p>
+                </div>
+              : (
+                <div className="flex flex-col gap-2">
+                  {orderItems.map(item => (
+                    <div key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+                      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}><ProductImage src={item.imageUrl} alt={item.productName} className="h-full w-full object-contain" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.productName}</p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0 text-xs" style={{ color: 'var(--text-soft)' }}>
+                          <span>{Number(item.quantityRequested).toFixed(3).replace(/\.?0+$/, '')} {UNIT_LABELS[item.unitType] || item.unitType}</span>
+                          {item.unitsPerPack && <span>· {item.unitsPerPack} un./emb.</span>}
+                          <span>· {fmtMoney(item.unitCost)}</span>
+                          {item.marginPercent != null && (
+                            <span className="font-semibold" style={{ color: Number(item.marginPercent) >= 20 ? '#16a34a' : Number(item.marginPercent) >= 10 ? '#d97706' : '#dc2626' }}>· {Number(item.marginPercent).toFixed(1)}%</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(item.subtotal)}</p>
+                        <button type="button" onClick={async () => { if (!order) return; await marketService.removeSupplierOrderItem(marketId, order.id, item.id); refreshOrder(); }}
+                          className="mt-0.5 transition hover:opacity-70" style={{ color: '#ef4444' }}><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'var(--surface-success)', border: '1px solid var(--border-success)' }}>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>Total</span>
+                    <span className="text-xl font-bold" style={{ color: 'var(--brand-700)' }}>{fmtMoney(total)}</span>
+                  </div>
+                </div>
+              )}
+
+            {/* Ações */}
+            <div className="flex flex-col gap-2 pt-2">
+              <button type="button" onClick={handleFinish}
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition hover:opacity-90"
+                style={{ background: 'var(--brand-500)', color: '#fff' }}>
+                <CheckCircle2 className="h-4 w-4" />
+                {order ? 'Salvar rascunho e fechar' : 'Concluir'}
+              </button>
+              {order && orderItems.length > 0 && (
+                <button type="button" onClick={async () => {
+                  if (!window.confirm('Enviar o pedido? Ele não poderá mais ser editado.')) return;
+                  try { const u = await marketService.sendSupplierOrder(marketId, order.id); onCreated(u); }
+                  catch (e: any) { setErr(e?.message || 'Erro ao enviar'); }
+                }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition hover:opacity-90"
+                  style={{ background: '#2563eb', color: '#fff' }}>
+                  <Send className="h-4 w-4" /> Enviar pedido ao fornecedor
+                </button>
+              )}
+            </div>
+            {err && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{err}</p>}
+          </div>
+        </div>
+
+        {/* Formulário de item selecionado */}
+        {addProd && order && (
+          <div className="rounded-2xl p-5" style={{ border: '1px solid var(--brand-300)', background: 'var(--surface-base)' }}>
+            <p className="mb-3 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Configurar item</p>
+            <AddItemForm marketId={marketId} orderId={order.id} product={addProd}
+              initialQty={String(suggestedQtyFromList(shoppingListItems, addProd.productId))}
+              onSaved={() => { setAddProd(null); refreshOrder(); }}
+              onCancel={() => setAddProd(null)} />
+          </div>
+        )}
       </div>
       {showSupModal && (
         <SupplierModal marketId={marketId} onClose={() => setShowSupModal(false)} onSelect={(s: Supplier) => { setSelected(s); setShowSupModal(false); loadSuppliers(); }} />
@@ -837,11 +1141,86 @@ const CreateOrderModal: React.FC<{ marketId: string; onClose: () => void; onCrea
   );
 };
 
+const suggestedQtyFromList = (items: ShoppingListItem[], productId: string): number => {
+  const item = items.find(i => i.productId === productId);
+  return item ? (Number(item.quantityTarget) || 1) : 1;
+};
+
+const SuggestionRow: React.FC<{
+  perf: ProductPerformance;
+  fromList: boolean;
+  listItem?: ShoppingListItem;
+  added: boolean;
+  isAvoid: boolean;
+  orderId?: string;
+  marketId: string;
+  onNeedOrder: () => void;
+  onSelect: () => void;
+  onAdded: () => void;
+}> = ({ perf, fromList, listItem, added, isAvoid, orderId, onSelect }) => {
+  const velocity = Number(perf.salesVelocity || 0);
+  const momentum = Number(perf.momentumScore || 1);
+  const health = perf.healthScore != null ? Number(perf.healthScore) : null;
+
+  return (
+    <div className="flex items-start gap-3 rounded-xl px-4 py-3 transition"
+      style={{
+        border: `1px solid ${isAvoid ? '#fecaca' : fromList ? 'var(--border-success)' : 'var(--border-soft)'}`,
+        background: isAvoid ? '#fff7f7' : fromList ? 'var(--surface-success)' : 'var(--surface-base)',
+        opacity: added ? 0.6 : 1,
+      }}>
+      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
+        <ProductImage src={perf.imageUrl} alt={perf.name} className="h-full w-full object-contain" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{perf.name}</p>
+          {fromList && !added && (
+            <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}>Na lista</span>
+          )}
+          {isAvoid && (
+            <span className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+              <AlertTriangle className="h-2.5 w-2.5" /> Evitar compra
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0 text-xs" style={{ color: 'var(--text-soft)' }}>
+          <span className="flex items-center gap-1">
+            {momentum >= 1.1 ? <TrendingUp className="h-3 w-3 text-green-600" /> : momentum <= 0.7 ? <TrendingDown className="h-3 w-3 text-red-500" /> : null}
+            <span style={{ color: velocity >= 4 ? '#16a34a' : velocity >= 1 ? 'var(--text-soft)' : '#dc2626' }}>{velocity.toFixed(1)} un./dia</span>
+          </span>
+          {health != null && (
+            <span style={{ color: health >= 70 ? '#16a34a' : health >= 40 ? '#d97706' : '#dc2626' }}>saúde {health.toFixed(0)}</span>
+          )}
+          {perf.category && <span>{perf.category}</span>}
+          {listItem && <span>meta: {listItem.quantityTarget} un.</span>}
+        </div>
+        {isAvoid && (
+          <p className="mt-0.5 text-[11px]" style={{ color: '#b91c1c' }}>
+            {perf.turnoverBand === 'SLOW' ? 'Baixo giro — produto parado em estoque.' : 'Saúde crítica — revise antes de comprar.'}
+          </p>
+        )}
+      </div>
+      <div className="shrink-0">
+        {added
+          ? <span className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}><CheckCircle2 className="h-3 w-3" /> Adicionado</span>
+          : <button type="button" onClick={onSelect}
+              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition hover:opacity-80"
+              style={{ background: isAvoid ? '#fef2f2' : 'var(--surface-success)', color: isAvoid ? '#dc2626' : 'var(--brand-700)', border: `1px solid ${isAvoid ? '#fecaca' : 'var(--border-success)'}` }}>
+              <Plus className="h-3 w-3" /> Adicionar
+            </button>}
+      </div>
+    </div>
+  );
+};
+
 /* ════════════════════════════════════════════════════════════════════
    PÁGINA PRINCIPAL COM ABAS
 ════════════════════════════════════════════════════════════════════ */
 
 type Tab = 'lista' | 'pedidos' | 'fornecedores';
+
+interface NewOrderState { supplier?: Supplier | null }
 
 const ShoppingListPage: React.FC = () => {
   const { marketId } = useAuth();
@@ -859,7 +1238,7 @@ const ShoppingListPage: React.FC = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
-  const [showCreate, setShowCreate] = useState(false);
+  const [newOrder, setNewOrder] = useState<NewOrderState | null>(null); // null = fechado
   const [detailOrder, setDetailOrder] = useState<SupplierOrder | null>(null);
   const [receiveOrder, setReceiveOrder] = useState<SupplierOrder | null>(null);
 
@@ -883,9 +1262,9 @@ const ShoppingListPage: React.FC = () => {
     catch { /* silent */ } finally { setSuppliersLoading(false); setSuppliersLoaded(true); }
   }, [marketId]);
 
-  useEffect(() => { if (tab === 'pedidos' && !ordersLoaded) fetchOrders(); }, [tab, ordersLoaded, fetchOrders]);
+  useEffect(() => { if (tab === 'pedidos' && !ordersLoaded && !newOrder) fetchOrders(); }, [tab, ordersLoaded, fetchOrders, newOrder]);
   useEffect(() => { if (tab === 'fornecedores' && !suppliersLoaded) fetchSuppliers(); }, [tab, suppliersLoaded, fetchSuppliers]);
-  useEffect(() => { if (tab === 'pedidos') fetchOrders(); }, [statusFilter]); // eslint-disable-line
+  useEffect(() => { if (tab === 'pedidos' && !newOrder) fetchOrders(); }, [statusFilter]); // eslint-disable-line
 
   const openOrderDetail = useCallback(async (order: SupplierOrder) => {
     if (!marketId) return;
@@ -1027,11 +1406,11 @@ const ShoppingListPage: React.FC = () => {
         )}
 
         {/* ── ABA: PEDIDOS ── */}
-        {tab === 'pedidos' && (
+        {tab === 'pedidos' && !newOrder && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Gerencie pedidos de compra por fornecedor. Registre custo, venda e margem de cada produto.</p>
-              <button type="button" onClick={() => setShowCreate(true)} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}>
+              <button type="button" onClick={() => setNewOrder({})} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}>
                 <Plus className="h-4 w-4" /> Novo pedido
               </button>
             </div>
@@ -1061,7 +1440,7 @@ const ShoppingListPage: React.FC = () => {
                     <ClipboardList className="mx-auto mb-3 h-9 w-9 opacity-20" style={{ color: 'var(--text-muted)' }} />
                     <p className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Nenhum pedido</p>
                     <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>{statusFilter ? `Sem pedidos com status "${STATUS_CFG[statusFilter]?.label}".` : 'Crie seu primeiro pedido a um fornecedor.'}</p>
-                    {!statusFilter && <button type="button" onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}><Plus className="h-4 w-4" /> Criar pedido</button>}
+                    {!statusFilter && <button type="button" onClick={() => setNewOrder({})} className="inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}><Plus className="h-4 w-4" /> Criar pedido</button>}
                   </div>
                 : <div className="flex flex-col gap-3">
                     {orders.map(order => {
@@ -1112,6 +1491,25 @@ const ShoppingListPage: React.FC = () => {
           </div>
         )}
 
+        {/* ── FLUXO NOVO PEDIDO (inline, substitui lista de pedidos) ── */}
+        {tab === 'pedidos' && newOrder && marketId && (
+          <NewOrderFlow
+            marketId={marketId}
+            shoppingListItems={items}
+            replenishmentCandidates={dashboard?.replenishmentCandidates || []}
+            initialSupplier={newOrder.supplier ?? null}
+            onCancel={() => setNewOrder(null)}
+            onCreated={(o) => {
+              setOrders(prev => {
+                const idx = prev.findIndex(x => x.id === o.id);
+                if (idx >= 0) { const n = [...prev]; n[idx] = o; return n; }
+                return [o, ...prev];
+              });
+              setNewOrder(null);
+            }}
+          />
+        )}
+
         {/* ── ABA: FORNECEDORES ── */}
         {tab === 'fornecedores' && (
           <div className="flex flex-col gap-4">
@@ -1147,7 +1545,7 @@ const ShoppingListPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-2">
-                          <button type="button" onClick={() => { setTab('pedidos'); setShowCreate(true); }}
+                          <button type="button" onClick={() => { setTab('pedidos'); setNewOrder({ supplier: s }); }}
                             className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition hover:opacity-80"
                             style={{ background: 'var(--surface-success)', color: 'var(--brand-700)', border: '1px solid var(--border-success)' }}>
                             <ClipboardList className="h-3 w-3" /> Novo pedido
@@ -1170,9 +1568,6 @@ const ShoppingListPage: React.FC = () => {
       {/* Modais */}
       {recordModal && marketId && (
         <RecordPurchaseModal item={recordModal} marketId={marketId} onClose={() => setRecordModal(null)} onSaved={() => setHistRefresh(v => v + 1)} />
-      )}
-      {showCreate && marketId && (
-        <CreateOrderModal marketId={marketId} onClose={() => setShowCreate(false)} onCreated={o => { setOrders(prev => [o, ...prev]); setShowCreate(false); openOrderDetail(o); }} />
       )}
       {detailOrder && marketId && (
         <OrderDetailModal order={detailOrder} marketId={marketId} onClose={() => setDetailOrder(null)} onUpdated={u => { handleOrderUpdated(u); setDetailOrder(u); }} />
