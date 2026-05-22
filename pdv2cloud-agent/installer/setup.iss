@@ -65,19 +65,14 @@ Name: "{autodesktop}\PDV2Cloud";       Filename: "{app}\config-ui\PDV2Cloud Conf
 Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"
 
 [Run]
-; Instalar pip no Python embeddable
-Filename: "{app}\python\python.exe"; Parameters: "get-pip.py"; WorkingDir: "{app}\python"; StatusMsg: "Instalando pip..."; Flags: runhidden
-
-; Instalar dependências Python
-Filename: "{app}\python\python.exe"; Parameters: "-m pip install -r requirements.txt --no-warn-script-location"; WorkingDir: "{app}\service"; StatusMsg: "Instalando dependências Python..."; Flags: runhidden
-
 ; Criar estrutura de diretórios em ProgramData
 Filename: "{sys}\cmd.exe"; Parameters: "/c if not exist ""{commonappdata}\PDV2Cloud\logs"" mkdir ""{commonappdata}\PDV2Cloud\logs"""; Flags: runhidden
 
-; Registrar e iniciar o serviço Windows
-Filename: "{app}\python\python.exe"; Parameters: "-m installer.service_installer install"; WorkingDir: "{app}"; StatusMsg: "Registrando serviço Windows..."; Flags: runhidden
+; Registrar serviço, corrigir pywin32 e iniciar automaticamente
+; WorkingDir={app} para que -m installer.service_installer resolva os paths corretamente
+Filename: "{app}\python\python.exe"; Parameters: "-m installer.service_installer install"; WorkingDir: "{app}\service"; StatusMsg: "Registrando e iniciando serviço Windows..."; Flags: runhidden waituntilterminated
 
-; Abrir UI de configuração após instalação
+; Abrir UI de configuração após instalação (só na primeira instalação, não em updates)
 Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Description: "Abrir Assistente de Configuração"; Flags: postinstall nowait shellexec
 
 [UninstallRun]
