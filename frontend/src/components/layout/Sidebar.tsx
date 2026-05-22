@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Bell,
-  ClipboardList,
   Database,
   Globe2,
   Home,
@@ -53,7 +52,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         { to: '/app/produtos', label: 'Catálogo', hint: 'Como seus produtos estão vendendo', icon: PackageSearch },
         { to: '/app/cesta', label: 'Combos', hint: 'Produtos que vendem juntos', icon: Link2 },
         { to: '/app/lista-compras', label: 'Pedido inteligente', hint: 'Compra guiada por vendas reais', icon: ShoppingCart },
-        { to: '/app/pedidos', label: 'Pedidos a fornecedores', hint: 'Gerencie pedidos de compra e entregas', icon: ClipboardList },
       ],
     },
     {
