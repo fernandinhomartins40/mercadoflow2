@@ -17,6 +17,7 @@ const Campaigns = lazy(() => import('./screens/Campaigns'));
 const DemandForecast = lazy(() => import('./screens/DemandForecast'));
 const Settings = lazy(() => import('./screens/Settings'));
 const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
+const SupplierOrdersPage = lazy(() => import('./screens/SupplierOrders'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
 const Landing = lazy(() => import('./screens/Landing'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
@@ -122,6 +123,7 @@ const App: React.FC = () => {
         <Route path="/app/cesta" element={secure(<MarketBasket />)} />
         <Route path="/app/alertas" element={secure(<Alerts />)} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
+        <Route path="/app/pedidos" element={secure(<SupplierOrdersPage />)} />
         <Route path="/app/mapa-loja" element={secure(<StoreMap />)} />
         <Route path="/app/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" /> : disabledModuleRedirect} />
         <Route path="/app/ofertas/campanhas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" /> : disabledModuleRedirect} />

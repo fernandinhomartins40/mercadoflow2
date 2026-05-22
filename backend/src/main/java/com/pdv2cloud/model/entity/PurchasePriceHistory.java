@@ -62,4 +62,10 @@ public class PurchasePriceHistory {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "supplier_order_id")
+    private UUID supplierOrderId;
+
+    @Column(name = "supplier_order_item_id")
+    private UUID supplierOrderItemId;
 }

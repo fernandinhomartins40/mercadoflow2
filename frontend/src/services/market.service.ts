@@ -271,4 +271,82 @@ export const marketService = {
     const response = await api.get(`/v1/markets/${marketId}/suppliers/cnpj-lookup/${digits}`);
     return response.data;
   },
+
+  async listSupplierOrders(marketId: string, status?: string) {
+    const params: any = {};
+    if (status) params.status = status;
+    const response = await api.get(`/v1/markets/${marketId}/supplier-orders`, { params });
+    return response.data;
+  },
+
+  async getSupplierOrder(marketId: string, orderId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/supplier-orders/${orderId}`);
+    return response.data;
+  },
+
+  async createSupplierOrder(marketId: string, payload: { supplierId: string; notes?: string }) {
+    const response = await api.post(`/v1/markets/${marketId}/supplier-orders`, payload);
+    return response.data;
+  },
+
+  async addSupplierOrderItem(
+    marketId: string,
+    orderId: string,
+    payload: {
+      productId: string;
+      quantityRequested: number;
+      unitType?: string;
+      unitsPerPack?: number;
+      unitCost: number;
+      unitSalePrice?: number;
+      note?: string;
+    }
+  ) {
+    const response = await api.post(`/v1/markets/${marketId}/supplier-orders/${orderId}/items`, payload);
+    return response.data;
+  },
+
+  async updateSupplierOrderItem(
+    marketId: string,
+    orderId: string,
+    itemId: string,
+    payload: {
+      quantityRequested?: number;
+      unitType?: string;
+      unitsPerPack?: number;
+      unitCost?: number;
+      unitSalePrice?: number;
+      note?: string;
+    }
+  ) {
+    const response = await api.patch(`/v1/markets/${marketId}/supplier-orders/${orderId}/items/${itemId}`, payload);
+    return response.data;
+  },
+
+  async removeSupplierOrderItem(marketId: string, orderId: string, itemId: string) {
+    await api.delete(`/v1/markets/${marketId}/supplier-orders/${orderId}/items/${itemId}`);
+  },
+
+  async sendSupplierOrder(marketId: string, orderId: string) {
+    const response = await api.post(`/v1/markets/${marketId}/supplier-orders/${orderId}/send`);
+    return response.data;
+  },
+
+  async receiveSupplierOrder(
+    marketId: string,
+    orderId: string,
+    payload?: { items?: Array<{ itemId: string; quantityReceived: number }>; receivedAt?: string }
+  ) {
+    const response = await api.post(`/v1/markets/${marketId}/supplier-orders/${orderId}/receive`, payload || {});
+    return response.data;
+  },
+
+  async cancelSupplierOrder(marketId: string, orderId: string, reason?: string) {
+    const response = await api.post(`/v1/markets/${marketId}/supplier-orders/${orderId}/cancel`, { reason });
+    return response.data;
+  },
+
+  async deleteSupplierOrder(marketId: string, orderId: string) {
+    await api.delete(`/v1/markets/${marketId}/supplier-orders/${orderId}`);
+  },
 };

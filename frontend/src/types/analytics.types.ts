@@ -358,3 +358,48 @@ export interface Supplier {
   descricaoCnae?: string | null;
   porte?: string | null;
 }
+
+export interface SupplierOrderItem {
+  id: string;
+  supplierOrderId: string;
+  productId: string;
+  productName: string;
+  productCategory?: string | null;
+  imageUrl?: string | null;
+  quantityRequested: number;
+  quantityReceived?: number | null;
+  unitType: string;
+  unitsPerPack?: number | null;
+  unitCost: number;
+  unitSalePrice?: number | null;
+  marginPercent?: number | null;
+  subtotal: number;
+  note?: string | null;
+  createdAt?: string | null;
+}
+
+export interface SupplierOrder {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  supplierFantasia?: string | null;
+  supplierCnpj?: string | null;
+  status: 'RASCUNHO' | 'ENVIADO' | 'ENTREGUE' | 'CANCELADO';
+  statusLabel: string;
+  orderNumber: string;
+  orderDate: string;
+  sentAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+  totalValue: number;
+  notes?: string | null;
+  itemCount: number;
+  items: SupplierOrderItem[];
+  canEdit: boolean;
+  canSend: boolean;
+  canReceive: boolean;
+  canCancel: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
