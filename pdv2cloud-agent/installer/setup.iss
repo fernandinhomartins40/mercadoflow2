@@ -46,7 +46,7 @@ CreateUninstallRegKey=yes
 ; Python 3.11 requer Windows 8.1 / Server 2012 R2 ou superior.
 ; Para Windows 7 SP1 usamos Python 3.8 (ver bundle-dependencies.ps1).
 ; Aqui bloqueamos XP/Vista que nunca suportam nenhum Python 3.x moderno.
-MinVersion=6.1sp1        ; Windows 7 SP1 mínimo
+MinVersion=6.1.1         ; Windows 7 SP1 mínimo (formato: major.minor.servicepack)
 
 ; ── Arquitetura ────────────────────────────────────────────────────────────
 #if IsWin64

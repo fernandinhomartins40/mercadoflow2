@@ -1,6 +1,7 @@
 watchdog==4.0.0
 lxml==5.2.1
 requests==2.31.0
+greenlet==3.0.3
 SQLAlchemy==2.0.29
 schedule==1.2.1
 pywin32==306

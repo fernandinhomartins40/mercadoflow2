@@ -119,32 +119,19 @@ if (-not (Test-Path $RequirementsFile)) {
 } else {
     # pip install com --platform garante wheels compatíveis quando o runner é x64 mas o
     # target é x86. Requer --only-binary :all: obrigatoriamente.
-    # greenlet (dep transitiva do SQLAlchemy) não tem wheel win32 no PyPI para cp311,
-    # mas o serviço usa apenas SQLAlchemy síncrono — greenlet é opcional (AsyncSession).
-    # Instalamos greenlet com --no-deps para não acionar a restrição --only-binary.
-    $pipPlatform  = if ($Arch -eq "x64") { "win_amd64" } else { "win32" }
-    $pyVersion    = ($PythonVersion -replace '(\d+\.\d+)\.\d+','$1')
-    $commonArgs   = @(
+    # greenlet==3.0.3 está fixado em requirements.txt com wheel para win32 e win_amd64.
+    $pipPlatform = if ($Arch -eq "x64") { "win_amd64" } else { "win32" }
+    $pipArgs = @(
+        "-m", "pip", "install",
+        "-r", $RequirementsFile,
         "--no-warn-script-location",
         "--target", $SitePackages,
-        "--python-version", $pyVersion,
+        "--python-version", ($PythonVersion -replace '(\d+\.\d+)\.\d+','$1'),
         "--platform", $pipPlatform,
         "--implementation", "cp",
         "--only-binary", ":all:"
     )
-
-    # Passo 1: greenlet sem resolução de dependências (evita erro de wheel ausente)
-    Write-Host "  Instalando greenlet (--no-deps) para platform=$pipPlatform..." -ForegroundColor Gray
-    $greenletArgs = @("-m", "pip", "install", "greenlet") + $commonArgs + @("--no-deps")
-    & $PythonExe @greenletArgs
-    if ($LASTEXITCODE -ne 0) {
-        # greenlet sem wheel para esta plataforma — ignorar; SQLAlchemy sync não precisa dele
-        Write-Host "  AVISO: greenlet sem wheel para $pipPlatform — ignorando (SQLAlchemy sync ok)" -ForegroundColor Yellow
-    }
-
-    # Passo 2: demais dependências (SQLAlchemy vai reusar o greenlet já instalado, se presente)
-    Write-Host "  Instalando demais dependências para platform=$pipPlatform..." -ForegroundColor Gray
-    $pipArgs = @("-m", "pip", "install", "-r", $RequirementsFile) + $commonArgs
+    Write-Host "  Instalando para platform=$pipPlatform..." -ForegroundColor Gray
     & $PythonExe @pipArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERRO: Falha ao instalar dependências" -ForegroundColor Red; exit 1
