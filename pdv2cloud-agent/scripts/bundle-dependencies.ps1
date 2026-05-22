@@ -134,37 +134,38 @@ if (-not (Test-Path $RequirementsFile)) {
     )
 
     if ($Arch -eq "x86") {
-        # x86: instala tudo exceto greenlet (sem wheel win32); SQLAlchemy via --no-deps
-        # para contornar a dep obrigatória declarada no metadata
-        $reqSemGreenlet = (Get-Content $RequirementsFile) | Where-Object { $_ -notmatch '^\s*greenlet' }
-        $tmpReq = Join-Path $env:TEMP "requirements-x86-nogreenlet.txt"
-        $reqSemGreenlet | Set-Content $tmpReq -Encoding UTF8
+        # x86: greenlet não tem wheel win32/cp311 — instala SQLAlchemy com --no-deps
+        # para contornar a dep obrigatória declarada no metadata do pacote.
 
-        # Instala todos exceto SQLAlchemy (que tem greenlet como dep obrigatória)
-        $reqSemSqlalchemy = $reqSemGreenlet | Where-Object { $_ -notmatch '^\s*SQLAlchemy' }
+        # Pacotes base (sem SQLAlchemy, que arrasta greenlet)
+        $reqSemSqlalchemy = (Get-Content $RequirementsFile) | Where-Object { $_ -notmatch '^\s*SQLAlchemy' }
         $tmpReqBase = Join-Path $env:TEMP "requirements-x86-base.txt"
         $reqSemSqlalchemy | Set-Content $tmpReqBase -Encoding UTF8
 
-        Write-Host "  [x86] Instalando pacotes base (sem SQLAlchemy/greenlet)..." -ForegroundColor Gray
-        & $PythonExe @("-m","pip","install","-r",$tmpReqBase) + $commonFlags
+        Write-Host "  [x86] Instalando pacotes base..." -ForegroundColor Gray
+        $argsBase = @("-m","pip","install","-r",$tmpReqBase) + $commonFlags
+        & $PythonExe $argsBase
         if ($LASTEXITCODE -ne 0) { Write-Host "ERRO: Falha ao instalar pacotes base" -ForegroundColor Red; exit 1 }
 
-        # SQLAlchemy sem resolver deps (evita greenlet obrigatório no metadata)
+        # SQLAlchemy sem deps (evita resolução do greenlet)
         $sqlalchemyLine = (Get-Content $RequirementsFile) | Where-Object { $_ -match '^\s*SQLAlchemy' } | Select-Object -First 1
-        Write-Host "  [x86] Instalando $sqlalchemyLine --no-deps..." -ForegroundColor Gray
-        & $PythonExe @("-m","pip","install",$sqlalchemyLine.Trim(),"--no-deps") + $commonFlags
+        Write-Host "  [x86] Instalando $($sqlalchemyLine.Trim()) --no-deps..." -ForegroundColor Gray
+        $argsSqlite = @("-m","pip","install",$sqlalchemyLine.Trim(),"--no-deps") + $commonFlags
+        & $PythonExe $argsSqlite
         if ($LASTEXITCODE -ne 0) { Write-Host "ERRO: Falha ao instalar SQLAlchemy" -ForegroundColor Red; exit 1 }
 
-        # typing-extensions (única dep real do SQLAlchemy além do greenlet)
+        # typing-extensions (única dep real do SQLAlchemy sync)
         Write-Host "  [x86] Instalando typing-extensions..." -ForegroundColor Gray
-        & $PythonExe @("-m","pip","install","typing-extensions","--no-deps") + $commonFlags
+        $argsTyping = @("-m","pip","install","typing-extensions","--no-deps") + $commonFlags
+        & $PythonExe $argsTyping
         if ($LASTEXITCODE -ne 0) { Write-Host "ERRO: Falha ao instalar typing-extensions" -ForegroundColor Red; exit 1 }
 
         Write-Host "  ✓ Dependências instaladas (x86, sem greenlet)" -ForegroundColor Gray
     } else {
-        # x64: greenlet tem wheel win_amd64, instala normalmente
+        # x64: instala normalmente, greenlet resolve via dep transitiva do SQLAlchemy
         Write-Host "  Instalando para platform=$pipPlatform..." -ForegroundColor Gray
-        & $PythonExe @("-m","pip","install","-r",$RequirementsFile) + $commonFlags
+        $argsAll = @("-m","pip","install","-r",$RequirementsFile) + $commonFlags
+        & $PythonExe $argsAll
         if ($LASTEXITCODE -ne 0) { Write-Host "ERRO: Falha ao instalar dependências" -ForegroundColor Red; exit 1 }
         Write-Host "  ✓ Dependências instaladas" -ForegroundColor Gray
     }
