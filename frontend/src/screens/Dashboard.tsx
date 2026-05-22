@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import ProductImage from '../components/product/ProductImage';
 import Button from '../components/common/Button';
@@ -7,6 +7,7 @@ import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
 import { useAlerts } from '../hooks/useAlerts';
 import { useAuth } from '../context/AuthContext';
+import { AlertItem, AlertType } from '../types/alert.types';
 import { ProductPerformance } from '../types/analytics.types';
 import {
   TrendingUp,
@@ -24,6 +25,13 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  Zap,
+  PackageSearch,
+  Tag,
+  Link2,
+  Heart,
+  BarChart2,
+  XCircle,
 } from 'lucide-react';
 
 const formatMoney = (value?: number | null) =>
@@ -161,41 +169,293 @@ const WeekBar: React.FC<{ label: string; value: number; maxValue: number }> = ({
   );
 };
 
-const priorityConfig = (p: string) => {
-  switch (p) {
-    case 'HIGH': return {
-      border: 'border-l-red-500',
-      icon: <AlertTriangle className="h-4 w-4 text-red-500" />,
-      label: 'Urgente',
-      labelStyle: { background: '#fee2e2', color: '#991b1b' } as React.CSSProperties,
-    };
-    case 'MEDIUM': return {
-      border: 'border-l-amber-500',
-      icon: <Clock className="h-4 w-4 text-amber-500" />,
-      label: 'Atenção',
-      labelStyle: { background: '#fef3c7', color: '#92400e' } as React.CSSProperties,
-    };
-    default: return {
-      border: 'border-l-slate-300',
-      icon: <Bell className="h-4 w-4" style={{ color: 'var(--text-soft)' }} />,
-      label: 'Info',
-      labelStyle: { background: 'var(--surface-muted)', color: 'var(--text-muted)' } as React.CSSProperties,
-    };
-  }
+// ── Alert type config ─────────────────────────────────────────────────────────
+
+const ALERT_TYPE_CFG: Record<AlertType, {
+  icon: React.ReactNode;
+  accentClass: string;        // border-l color
+  bgClass: string;            // card background when unread
+  label: string;
+  labelStyle: React.CSSProperties;
+  ctas: (alert: AlertItem) => { label: string; to: string }[];
+}> = {
+  ZERO_SALES: {
+    icon: <XCircle className="h-4 w-4 text-red-500" />,
+    accentClass: 'border-l-red-500',
+    bgClass: 'bg-red-50',
+    label: 'Sem vendas',
+    labelStyle: { background: '#fee2e2', color: '#991b1b' },
+    ctas: (a) => [
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+      { label: 'Criar promoção', to: '/app/promocoes' },
+    ],
+  },
+  LOW_STOCK: {
+    icon: <ShoppingCart className="h-4 w-4 text-orange-500" />,
+    accentClass: 'border-l-orange-500',
+    bgClass: 'bg-orange-50',
+    label: 'Reposição',
+    labelStyle: { background: '#ffedd5', color: '#9a3412' },
+    ctas: (a) => [
+      { label: 'Pedido inteligente', to: '/app/lista-compras' },
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+    ],
+  },
+  DEMAND_SPIKE: {
+    icon: <Zap className="h-4 w-4 text-orange-600" />,
+    accentClass: 'border-l-orange-600',
+    bgClass: 'bg-orange-50',
+    label: 'Pico de demanda',
+    labelStyle: { background: '#fed7aa', color: '#7c2d12' },
+    ctas: (a) => [
+      { label: 'Pedido urgente', to: '/app/lista-compras' },
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+    ],
+  },
+  HIGH_PERFORMING: {
+    icon: <TrendingUp className="h-4 w-4 text-green-600" />,
+    accentClass: 'border-l-green-500',
+    bgClass: 'bg-green-50',
+    label: 'Em alta',
+    labelStyle: { background: '#dcfce7', color: '#14532d' },
+    ctas: (a) => [
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+      { label: 'Pedido inteligente', to: '/app/lista-compras' },
+    ],
+  },
+  SLOW_MOVING: {
+    icon: <TrendingDown className="h-4 w-4 text-red-500" />,
+    accentClass: 'border-l-red-400',
+    bgClass: 'bg-red-50',
+    label: 'Giro baixo',
+    labelStyle: { background: '#fee2e2', color: '#991b1b' },
+    ctas: (a) => [
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+      { label: 'Criar promoção', to: '/app/promocoes' },
+    ],
+  },
+  HEALTH_CRITICAL: {
+    icon: <Heart className="h-4 w-4 text-red-600" />,
+    accentClass: 'border-l-red-600',
+    bgClass: 'bg-red-50',
+    label: 'Crítico',
+    labelStyle: { background: '#fecaca', color: '#7f1d1d' },
+    ctas: (a) => [
+      ...(a.productId ? [{ label: 'Analisar produto', to: `/app/produtos/${a.productId}` }] : []),
+      { label: 'Ver promoções', to: '/app/promocoes' },
+    ],
+  },
+  MOMENTUM_REVERSAL: {
+    icon: <BarChart2 className="h-4 w-4 text-amber-500" />,
+    accentClass: 'border-l-amber-500',
+    bgClass: 'bg-amber-50',
+    label: 'Desacelerando',
+    labelStyle: { background: '#fef3c7', color: '#92400e' },
+    ctas: (a) => [
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+      { label: 'Ajustar pedido', to: '/app/lista-compras' },
+    ],
+  },
+  PROMOTION_OPPORTUNITY: {
+    icon: <Tag className="h-4 w-4 text-violet-600" />,
+    accentClass: 'border-l-violet-500',
+    bgClass: 'bg-violet-50',
+    label: 'Promoção',
+    labelStyle: { background: '#ede9fe', color: '#4c1d95' },
+    ctas: (a) => [
+      { label: 'Criar campanha', to: '/app/promocoes' },
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+    ],
+  },
+  BASKET_OPPORTUNITY: {
+    icon: <Link2 className="h-4 w-4 text-blue-600" />,
+    accentClass: 'border-l-blue-500',
+    bgClass: 'bg-blue-50',
+    label: 'Combo',
+    labelStyle: { background: '#dbeafe', color: '#1e3a8a' },
+    ctas: (a) => [
+      { label: 'Ver combos', to: '/app/produtos' },
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+    ],
+  },
+  EXPIRATION_RISK: {
+    icon: <Clock className="h-4 w-4 text-amber-600" />,
+    accentClass: 'border-l-amber-600',
+    bgClass: 'bg-amber-50',
+    label: 'Vencimento',
+    labelStyle: { background: '#fef3c7', color: '#92400e' },
+    ctas: (a) => [
+      { label: 'Criar promoção', to: '/app/promocoes' },
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+    ],
+  },
+  PRICE_ABOVE_MARKET: {
+    icon: <PackageSearch className="h-4 w-4 text-slate-600" />,
+    accentClass: 'border-l-slate-400',
+    bgClass: 'bg-slate-50',
+    label: 'Preço alto',
+    labelStyle: { background: '#f1f5f9', color: '#334155' },
+    ctas: (a) => [
+      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
+    ],
+  },
 };
+
+const PRIORITY_ORDER: Record<string, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+const PRIORITY_BADGE: Record<string, React.CSSProperties> = {
+  URGENT: { background: '#fecaca', color: '#7f1d1d' },
+  HIGH:   { background: '#fee2e2', color: '#991b1b' },
+  MEDIUM: { background: '#fef3c7', color: '#92400e' },
+  LOW:    { background: 'var(--surface-muted)', color: 'var(--text-muted)' },
+};
+
+const PRIORITY_LABEL: Record<string, string> = { URGENT: 'Urgente', HIGH: 'Alto', MEDIUM: 'Atenção', LOW: 'Info' };
+
+// ── Metric chips ──────────────────────────────────────────────────────────────
+
+const MetricChip: React.FC<{ label: string; value: string; highlight?: boolean }> = ({ label, value, highlight }) => (
+  <span
+    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold"
+    style={highlight
+      ? { background: '#fee2e2', color: '#991b1b' }
+      : { background: 'var(--surface-muted)', color: 'var(--text-soft)' }}
+  >
+    <span style={{ color: 'var(--text-soft)', fontWeight: 400 }}>{label}</span> {value}
+  </span>
+);
+
+const AlertMetricChips: React.FC<{ alert: AlertItem }> = ({ alert }) => {
+  const m = alert.metadata;
+  if (!m) return null;
+  const chips: React.ReactNode[] = [];
+
+  if (alert.type === 'ZERO_SALES' && m.daysSilent) {
+    chips.push(<MetricChip key="ds" label="Dias sem venda" value={String(m.daysSilent)} highlight />);
+    if (m.previousTransactions) chips.push(<MetricChip key="pt" label="Transações anteriores" value={String(m.previousTransactions)} />);
+  }
+  if ((alert.type === 'LOW_STOCK' || alert.type === 'DEMAND_SPIKE') && m.salesVelocity) {
+    chips.push(<MetricChip key="sv" label="Giro" value={`${(m.salesVelocity as number).toFixed(1)} un./dia`} highlight />);
+    if (m.velocityRatio) chips.push(<MetricChip key="vr" label="vs. portfólio" value={`${(m.velocityRatio as number).toFixed(1)}×`} />);
+    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={(m.momentumScore as number).toFixed(2)} />);
+  }
+  if ((alert.type === 'SLOW_MOVING' || alert.type === 'HEALTH_CRITICAL') && m.revenueTrend !== undefined) {
+    chips.push(<MetricChip key="rt" label="Tendência receita" value={`${(m.revenueTrend as number).toFixed(1)}%`} highlight />);
+    if (m.healthScore !== undefined) chips.push(<MetricChip key="hs" label="Health" value={`${(m.healthScore as number).toFixed(0)}/100`} highlight={(m.healthScore as number) < 25} />);
+    if (m.velocityRatio !== undefined) chips.push(<MetricChip key="vr" label="Giro vs. média" value={`${((m.velocityRatio as number) * 100).toFixed(0)}%`} />);
+  }
+  if (alert.type === 'MOMENTUM_REVERSAL' && m.momentumScore) {
+    chips.push(<MetricChip key="ms" label="Momentum" value={(m.momentumScore as number).toFixed(2)} highlight={(m.momentumScore as number) < 0.7} />);
+    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro atual" value={`${(m.salesVelocity as number).toFixed(1)} un./dia`} />);
+  }
+  if (alert.type === 'PROMOTION_OPPORTUNITY' && m.priceAboveBaselinePercent) {
+    chips.push(<MetricChip key="pa" label="Preço acima base" value={`+${(m.priceAboveBaselinePercent as number).toFixed(1)}%`} highlight />);
+    if (m.revenueTrend !== undefined) chips.push(<MetricChip key="rt" label="Queda receita" value={`${(m.revenueTrend as number).toFixed(1)}%`} />);
+    if (m.promoRevenueShare !== undefined) chips.push(<MetricChip key="ps" label="Receita promo" value={`${((m.promoRevenueShare as number) * 100).toFixed(0)}%`} />);
+  }
+  if (alert.type === 'BASKET_OPPORTUNITY' && m.lift) {
+    chips.push(<MetricChip key="li" label="Lift" value={`${(m.lift as number).toFixed(1)}×`} highlight />);
+    if (m.antecedentName) chips.push(<MetricChip key="an" label="Acompanha" value={String(m.antecedentName)} />);
+    if (m.consequentTrend !== undefined) chips.push(<MetricChip key="ct" label="Tendência" value={`${(m.consequentTrend as number).toFixed(1)}%`} />);
+  }
+  if (alert.type === 'HIGH_PERFORMING' && m.revenueTrend !== undefined) {
+    chips.push(<MetricChip key="rt" label="Crescimento" value={`+${(m.revenueTrend as number).toFixed(1)}%`} highlight />);
+    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro" value={`${(m.salesVelocity as number).toFixed(1)} un./dia`} />);
+    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={(m.momentumScore as number).toFixed(2)} />);
+  }
+
+  if (chips.length === 0) return null;
+  return <div className="mt-2 flex flex-wrap gap-1.5">{chips}</div>;
+};
+
+// ── Alert card ────────────────────────────────────────────────────────────────
+
+const AlertCard: React.FC<{ alert: AlertItem; onMarkRead: (id: string) => void }> = ({ alert, onMarkRead }) => {
+  const navigate = useNavigate();
+  const cfg = ALERT_TYPE_CFG[alert.type] ?? ALERT_TYPE_CFG['LOW_STOCK'];
+  const isUrgent = alert.priority === 'URGENT' || alert.priority === 'HIGH';
+
+  return (
+    <div
+      className={`rounded-xl border-l-4 transition ${cfg.accentClass} ${alert.isRead ? 'opacity-50' : ''}`}
+      style={{ border: '1px solid var(--border-soft)', borderLeftWidth: 4, background: alert.isRead ? 'var(--surface-soft)' : 'var(--surface-base)' }}
+    >
+      <div className="flex items-start gap-3 p-3">
+        {/* Product image or type icon */}
+        {alert.productImage ? (
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
+            <ProductImage src={alert.productImage} alt={alert.productName || ''} className="h-full w-full object-contain" />
+          </div>
+        ) : (
+          <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${alert.isRead ? '' : cfg.bgClass}`}>
+            {cfg.icon}
+          </span>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={PRIORITY_BADGE[alert.priority] ?? PRIORITY_BADGE['LOW']}>
+              {PRIORITY_LABEL[alert.priority] ?? alert.priority}
+            </span>
+            <span className="rounded-md px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-muted)', color: 'var(--text-soft)' }}>
+              {cfg.label}
+            </span>
+            {!alert.isRead && isUrgent && (
+              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+            )}
+          </div>
+
+          {alert.productName && (
+            <p className="mt-1 text-xs font-semibold" style={{ color: 'var(--text-soft)' }}>{alert.productName}</p>
+          )}
+          <h4 className="mt-0.5 text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>{alert.title}</h4>
+          <p className="mt-0.5 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{alert.message}</p>
+
+          <AlertMetricChips alert={alert} />
+
+          {/* CTAs */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {cfg.ctas(alert).map((cta) => (
+              <button
+                key={cta.to}
+                type="button"
+                onClick={() => navigate(cta.to)}
+                className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition hover:opacity-80"
+                style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+              >
+                {cta.label} <ArrowRight className="h-3 w-3" />
+              </button>
+            ))}
+            {!alert.isRead && (
+              <button
+                type="button"
+                onClick={() => onMarkRead(alert.id)}
+                className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition hover:opacity-70"
+                style={{ color: 'var(--text-soft)' }}
+              >
+                <Eye className="h-3 w-3" /> Lido
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Alerts section (collapsible, in Dashboard) ────────────────────────────────
 
 const AlertsSection: React.FC = () => {
   const { alerts, loading, onlyUnread, setOnlyUnread, refresh, markRead, markAllRead } = useAlerts();
   const [expanded, setExpanded] = useState(false);
 
-  const sorted = [...alerts].sort((a, b) => {
+  const sorted = useMemo(() => [...alerts].sort((a, b) => {
     if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-    const order = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-    return (order[a.priority as keyof typeof order] ?? 2) - (order[b.priority as keyof typeof order] ?? 2);
-  });
+    return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
+  }), [alerts]);
 
   const unreadCount = alerts.filter((a) => !a.isRead).length;
-  const highCount = alerts.filter((a) => a.priority === 'HIGH').length;
+  const urgentCount = alerts.filter((a) => a.priority === 'URGENT' || a.priority === 'HIGH').length;
   const visible = expanded ? sorted : sorted.slice(0, 3);
 
   return (
@@ -207,12 +467,12 @@ const AlertsSection: React.FC = () => {
       >
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4" style={{ color: unreadCount > 0 ? '#d97706' : 'var(--text-soft)' }} />
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Alertas</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Alertas de desempenho</span>
           {unreadCount > 0 && (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount}</span>
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount} novos</span>
           )}
-          {highCount > 0 && (
-            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{highCount} urgente{highCount > 1 ? 's' : ''}</span>
+          {urgentCount > 0 && (
+            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{urgentCount} urgente{urgentCount > 1 ? 's' : ''}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -221,23 +481,21 @@ const AlertsSection: React.FC = () => {
         </div>
       </button>
 
-      {expanded && (
-        <div className="border-t px-4 pb-4 pt-3 flex flex-col gap-3" style={{ borderColor: 'var(--border-soft)' }}>
+      <div className={`overflow-hidden transition-all ${expanded ? 'max-h-[4000px]' : 'max-h-0'}`} style={{ borderTop: expanded ? '1px solid var(--border-soft)' : 'none' }}>
+        <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setOnlyUnread(!onlyUnread)}
               className="rounded-full px-3 py-1 text-xs font-semibold transition"
-              style={
-                onlyUnread
-                  ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
-                  : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }
-              }
+              style={onlyUnread
+                ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
+                : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
             >
               {onlyUnread ? 'Somente não lidos' : 'Todos'}
             </button>
             <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
-            <Button variant="ghost" onClick={markAllRead} disabled={loading || alerts.length === 0}>Marcar todos lidos</Button>
+            <Button variant="ghost" onClick={markAllRead} disabled={loading || unreadCount === 0}>Marcar todos lidos</Button>
           </div>
 
           {loading ? (
@@ -245,56 +503,29 @@ const AlertsSection: React.FC = () => {
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
             </div>
           ) : sorted.length === 0 ? (
-            <div className="flex items-center gap-2 rounded-lg p-3" style={{ background: 'var(--surface-soft)' }}>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum alerta pendente. Tudo em ordem!</p>
+            <div className="flex items-center gap-2 rounded-xl p-4" style={{ background: 'var(--surface-soft)' }}>
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Todos os produtos em dia. Nenhum alerta pendente.</p>
             </div>
           ) : (
             <>
-              {visible.map((alert) => {
-                const cfg = priorityConfig(alert.priority);
-                return (
-                  <div
-                    key={alert.id}
-                    className={`flex items-start gap-3 rounded-lg border-l-4 p-3 transition ${cfg.border} ${alert.isRead ? 'opacity-50' : ''}`}
-                    style={{ border: '1px solid var(--border-soft)', borderLeftWidth: 4, background: 'var(--surface-soft)' }}
-                  >
-                    {cfg.icon}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{alert.title}</h4>
-                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={cfg.labelStyle}>{cfg.label}</span>
-                        {!alert.isRead && <span className="h-2 w-2 rounded-full bg-green-500" />}
-                      </div>
-                      <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>{alert.message}</p>
-                    </div>
-                    {!alert.isRead && (
-                      <button
-                        type="button"
-                        onClick={() => markRead(alert.id)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition hover:opacity-80"
-                        style={{ background: 'var(--surface-base)', color: 'var(--text-muted)' }}
-                      >
-                        <Eye className="h-3 w-3" /> Lido
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-              {sorted.length > 3 && (
+              {visible.map((alert) => (
+                <AlertCard key={alert.id} alert={alert} onMarkRead={markRead} />
+              ))}
+              {sorted.length > 3 && !expanded && (
                 <button
                   type="button"
                   onClick={() => setExpanded(true)}
-                  className="text-xs font-medium text-center"
-                  style={{ color: 'var(--brand-600)' }}
+                  className="rounded-lg px-3 py-2 text-xs font-semibold transition hover:opacity-80"
+                  style={{ background: 'var(--surface-soft)', color: 'var(--brand-600)' }}
                 >
-                  {expanded && visible.length === sorted.length ? '' : `Ver mais ${sorted.length - 3} alertas`}
+                  Ver mais {sorted.length - 3} alertas
                 </button>
               )}
             </>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

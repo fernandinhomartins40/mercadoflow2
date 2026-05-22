@@ -1,10 +1,13 @@
 package com.pdv2cloud.model.entity;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -41,4 +44,19 @@ public class Alert {
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    /** Structured numbers that generated this alert. Stored as JSONB, surfaced to frontend. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private Map<String, Object> metadata;
+
+    /** Denormalized for read performance — avoids JOIN on every alert list. */
+    @Column(name = "product_name")
+    private String productName;
+
+    @Column(name = "product_ean")
+    private String productEan;
+
+    @Column(name = "product_image")
+    private String productImage;
 }
