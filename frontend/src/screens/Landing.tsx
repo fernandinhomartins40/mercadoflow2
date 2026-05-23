@@ -322,14 +322,8 @@ const Landing: React.FC = () => {
       {/* ══════ NAVBAR ══════ */}
       <header className="sticky top-0 z-50 backdrop-blur-xl" style={{ borderBottom: '1px solid #e2e8f0', background: 'rgba(255,255,255,0.92)' }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
-          <Link to="/" className="flex items-center gap-3 no-underline">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-extrabold text-white shadow-lg" style={{ background: '#16a34a', boxShadow: '0 4px 14px rgba(22,163,74,0.30)' }}>
-              MF
-            </span>
-            <div>
-              <p className="text-sm font-bold leading-tight" style={{ color: '#0f172a' }}>MercadoFlow</p>
-              <p className="text-[11px] font-medium" style={{ color: '#94a3b8' }}>Inteligência para supermercados</p>
-            </div>
+          <Link to="/" className="flex items-center no-underline">
+            <img src="/logomercadoflow-color.png" alt="MercadoFlow" className="h-8 w-auto" />
           </Link>
 
           <nav className="hidden items-center gap-7 md:flex">
@@ -793,12 +787,7 @@ const Landing: React.FC = () => {
       <footer style={{ borderTop: '1px solid #1e293b', background: '#0f172a' }} className="py-14">
         <div className="mx-auto grid max-w-7xl gap-10 px-6 sm:grid-cols-4">
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-bold text-white" style={{ background: '#16a34a' }}>
-                MF
-              </span>
-              <span className="text-sm font-bold text-white">MercadoFlow</span>
-            </div>
+            <img src="/logomercadoflow-branco.png" alt="MercadoFlow" className="h-7 w-auto" />
             <p className="mt-3 text-xs leading-relaxed" style={{ color: '#64748b' }}>
               Inteligência de vendas para supermercados. Transforme dados do seu PDV em decisões práticas.
             </p>
