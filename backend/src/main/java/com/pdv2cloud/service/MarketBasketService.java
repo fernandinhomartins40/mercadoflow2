@@ -204,12 +204,17 @@ public class MarketBasketService {
         }
         if (ids.isEmpty()) return;
 
-        Map<UUID, String> names = productRepository.findAllById(ids).stream()
-            .collect(Collectors.toMap(Product::getId, Product::getName));
+        List<Product> products = productRepository.findAllById(ids);
+        Map<UUID, String> names  = products.stream().collect(Collectors.toMap(Product::getId, Product::getName));
+        Map<UUID, String> images = products.stream()
+            .filter(p -> p.getImageUrl() != null)
+            .collect(Collectors.toMap(Product::getId, Product::getImageUrl));
 
         for (MarketBasketDTO r : rules) {
             r.setAntecedentNames(r.getAntecedent().stream().map(id -> names.getOrDefault(id, id.toString())).collect(Collectors.toList()));
             r.setConsequentNames(r.getConsequent().stream().map(id -> names.getOrDefault(id, id.toString())).collect(Collectors.toList()));
+            r.setAntecedentImages(r.getAntecedent().stream().map(id -> images.getOrDefault(id, null)).collect(Collectors.toList()));
+            r.setConsequentImages(r.getConsequent().stream().map(id -> images.getOrDefault(id, null)).collect(Collectors.toList()));
         }
     }
 

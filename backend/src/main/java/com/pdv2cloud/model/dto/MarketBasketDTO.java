@@ -10,6 +10,8 @@ public class MarketBasketDTO {
     private List<UUID> consequent;
     private List<String> antecedentNames;
     private List<String> consequentNames;
+    private List<String> antecedentImages;
+    private List<String> consequentImages;
     private double support;
     private double confidence;
     private double lift;

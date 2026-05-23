@@ -155,18 +155,23 @@ public class AnalyticsService {
             return dto;
         }).toList();
 
-        // Enrich names in bulk
+        // Enrich names and images in bulk
         Set<UUID> ids = new HashSet<>();
         for (MarketBasketDTO dto : dtos) {
             ids.addAll(dto.getAntecedent());
             ids.addAll(dto.getConsequent());
         }
-        Map<UUID, String> names = productRepository.findAllById(ids).stream()
-            .collect(Collectors.toMap(Product::getId, Product::getName));
+        List<Product> products = productRepository.findAllById(ids);
+        Map<UUID, String> names  = products.stream().collect(Collectors.toMap(Product::getId, Product::getName));
+        Map<UUID, String> images = products.stream()
+            .filter(p -> p.getImageUrl() != null)
+            .collect(Collectors.toMap(Product::getId, Product::getImageUrl));
 
         for (MarketBasketDTO dto : dtos) {
             dto.setAntecedentNames(dto.getAntecedent().stream().map(names::get).toList());
             dto.setConsequentNames(dto.getConsequent().stream().map(names::get).toList());
+            dto.setAntecedentImages(dto.getAntecedent().stream().map(id -> images.getOrDefault(id, null)).toList());
+            dto.setConsequentImages(dto.getConsequent().stream().map(id -> images.getOrDefault(id, null)).toList());
         }
 
         return dtos;
