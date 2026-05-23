@@ -33,6 +33,7 @@ import com.pdv2cloud.service.PriceIntelligenceService;
 import com.pdv2cloud.service.PromoEffectivenessService;
 import com.pdv2cloud.service.PurchasePriceService;
 import com.pdv2cloud.service.ShoppingListService;
+import com.pdv2cloud.service.StoreLayoutService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,9 @@ public class MarketController {
 
     @Autowired
     private PromoEffectivenessService promoEffectivenessService;
+
+    @Autowired
+    private StoreLayoutService storeLayoutService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -388,5 +392,48 @@ public class MarketController {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
         return ResponseEntity.ok(promoEffectivenessService.analyzeProduct(id, productId, days));
+    }
+
+    // ── Store Layout ──────────────────────────────────────────────────────────
+
+    @GetMapping("/{id}/store-layout")
+    public ResponseEntity<Map<String, Object>> getStoreLayout(
+        @PathVariable("id") UUID id,
+        Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(storeLayoutService.getLayout(id));
+    }
+
+    @PutMapping("/{id}/store-layout")
+    public ResponseEntity<Map<String, Object>> saveStoreLayout(
+        @PathVariable("id") UUID id,
+        @RequestBody Map<String, Object> body,
+        Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        int gridCols = body.containsKey("gridCols") ? ((Number) body.get("gridCols")).intValue() : 4;
+        int gridRows = body.containsKey("gridRows") ? ((Number) body.get("gridRows")).intValue() : 5;
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> cells = (List<Map<String, Object>>) body.getOrDefault("cells", List.of());
+        return ResponseEntity.ok(storeLayoutService.saveLayout(id, gridCols, gridRows, cells));
+    }
+
+    @GetMapping("/{id}/store-layout/heatmap")
+    public ResponseEntity<List<Map<String, Object>>> getCategoryHeatmap(
+        @PathVariable("id") UUID id,
+        Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(storeLayoutService.getCategoryHeatmap(id));
+    }
+
+    @PostMapping("/{id}/store-layout/neighbor-insights")
+    public ResponseEntity<List<Map<String, Object>>> getNeighborInsights(
+        @PathVariable("id") UUID id,
+        @RequestBody Map<String, Object> body,
+        Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> cells = (List<Map<String, Object>>) body.getOrDefault("cells", List.of());
+        int gridCols = body.containsKey("gridCols") ? ((Number) body.get("gridCols")).intValue() : 4;
+        return ResponseEntity.ok(storeLayoutService.getNeighborInsights(id, cells, gridCols));
     }
 }
