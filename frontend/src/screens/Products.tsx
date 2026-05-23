@@ -595,11 +595,18 @@ const PrevisaoTab: React.FC<{ marketId: string }> = ({ marketId }) => {
   useEffect(() => { load(); }, [marketId, days]); // eslint-disable-line
 
   const totalPredicted = useMemo(() => rows.reduce((s, r) => s + Number(r.predictedQuantity || 0), 0), [rows]);
-  const maxQty = useMemo(() => Math.max(...rows.map((r) => Number(r.predictedQuantity || 0)), 1), [rows]);
-  const grouped = useMemo(() => {
-    const map = new Map<string, ForecastRow[]>();
-    rows.forEach((r) => { if (!map.has(r.forecastDate)) map.set(r.forecastDate, []); map.get(r.forecastDate)!.push(r); });
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const maxQty = useMemo(() => rows.reduce((m, r) => Math.max(m, Number(r.predictedQuantity || 0)), 1), [rows]);
+  const grouped = useMemo((): [string, ForecastRow[]][] => {
+    const keys: string[] = [];
+    const buckets: ForecastRow[][] = [];
+    rows.forEach((r) => {
+      const idx = keys.indexOf(r.forecastDate);
+      if (idx === -1) { keys.push(r.forecastDate); buckets.push([r]); }
+      else { buckets[idx].push(r); }
+    });
+    const pairs: [string, ForecastRow[]][] = keys.map((k, i) => [k, buckets[i]]);
+    pairs.sort(([a], [b]) => a.localeCompare(b));
+    return pairs;
   }, [rows]);
 
   return (
