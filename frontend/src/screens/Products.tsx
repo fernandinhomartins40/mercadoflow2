@@ -248,9 +248,9 @@ function comboInsight(r: BasketRule): string {
 }
 
 const STRENGTH_CFG = {
-  hot:  { label: '🔥 Top combo',        dot: '#22c55e', border: 'var(--border-success)', bg: 'var(--surface-success)', textColor: 'var(--brand-700)', barColor: '#22c55e' },
-  warm: { label: '👍 Boa dupla',         dot: '#f59e0b', border: '#fde68a',              bg: '#fffbeb',                textColor: '#92400e',          barColor: '#f59e0b' },
-  cool: { label: '📊 Par emergente',     dot: '#94a3b8', border: 'var(--border-soft)',   bg: 'var(--surface-base)',    textColor: 'var(--text-muted)', barColor: '#94a3b8' },
+  hot:  { label: 'Top combo',     dot: '#22c55e', border: 'var(--border-success)', bg: 'var(--surface-success)', textColor: 'var(--brand-700)', barColor: '#22c55e' },
+  warm: { label: 'Boa dupla',     dot: '#f59e0b', border: '#fde68a',              bg: '#fffbeb',                textColor: '#92400e',          barColor: '#f59e0b' },
+  cool: { label: 'Par emergente', dot: '#94a3b8', border: 'var(--border-soft)',   bg: 'var(--surface-base)',    textColor: 'var(--text-muted)', barColor: '#94a3b8' },
 } as const;
 
 // Mini foto de produto com fallback genérico
@@ -289,14 +289,22 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
   useEffect(() => { load(); }, [marketId, useCached]); // eslint-disable-line
 
   // Deduplica pares: só a direção com maior confidence fica
-  const deduped = useMemo(() => {
-    const seen = new Map<string, BasketRule>();
+  const deduped = useMemo((): BasketRule[] => {
+    const seenKeys: string[] = [];
+    const seenRules: BasketRule[] = [];
     rules.forEach((r) => {
-      const key = [(r.antecedent || [])[0] || '', (r.consequent || [])[0] || ''].sort().join('|');
-      const existing = seen.get(key);
-      if (!existing || Number(r.confidence) > Number(existing.confidence)) seen.set(key, r);
+      const ids = [(r.antecedent || [])[0] || '', (r.consequent || [])[0] || ''];
+      ids.sort();
+      const key = ids.join('|');
+      const existingIdx = seenKeys.indexOf(key);
+      if (existingIdx === -1) {
+        seenKeys.push(key);
+        seenRules.push(r);
+      } else if (Number(r.confidence) > Number(seenRules[existingIdx].confidence)) {
+        seenRules[existingIdx] = r;
+      }
     });
-    return Array.from(seen.values());
+    return seenRules;
   }, [rules]);
 
   const filtered = useMemo(() =>
@@ -306,7 +314,7 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
   const hotCount  = useMemo(() => deduped.filter((r) => comboStrength(r) === 'hot').length,  [deduped]);
   const warmCount = useMemo(() => deduped.filter((r) => comboStrength(r) === 'warm').length, [deduped]);
   const topRule   = deduped[0];
-  const maxPairs  = useMemo(() => Math.max(...deduped.map((r) => Number(r.pairCount || 0)), 1), [deduped]);
+  const maxPairs  = useMemo(() => deduped.reduce((m, r) => Math.max(m, Number(r.pairCount || 0)), 1), [deduped]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -367,9 +375,9 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
       {deduped.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {([
-            { key: 'all',  label: 'Todos',          count: deduped.length },
-            { key: 'hot',  label: '🔥 Top combos',  count: hotCount  },
-            { key: 'warm', label: '👍 Boas duplas',  count: warmCount },
+            { key: 'all',  label: 'Todos',        count: deduped.length },
+            { key: 'hot',  label: 'Top combos',   count: hotCount  },
+            { key: 'warm', label: 'Boas duplas',  count: warmCount },
           ] as const).map((f) => (
             <button key={f.key} type="button" onClick={() => setFilter(f.key)}
               className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
