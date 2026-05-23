@@ -302,9 +302,10 @@ const CatalogSearch: React.FC<{ marketId: string; productIds: Set<string>; onAdd
 
 const ListItem: React.FC<{
   item: ShoppingListItem; marketId: string; histRefresh: number;
+  selected: boolean; onSelect: (v: boolean) => void;
   onToggle: (c: boolean) => Promise<unknown>; onUpdate: (p: { quantityTarget?: number }) => Promise<unknown>;
   onRemove: () => Promise<unknown>; onRecordPurchase: () => void; onCreateOrder: () => void;
-}> = ({ item, marketId, histRefresh, onToggle, onUpdate, onRemove, onRecordPurchase, onCreateOrder }) => {
+}> = ({ item, marketId, histRefresh, selected, onSelect, onToggle, onUpdate, onRemove, onRecordPurchase, onCreateOrder }) => {
   const [qty, setQty] = useState(String(item.quantityTarget || 1));
   const [expanded, setExpanded] = useState(false);
   const [history, setHistory] = useState<PurchasePriceHistory[]>([]);
@@ -323,8 +324,25 @@ const ListItem: React.FC<{
 
   return (
     <div className={`flex flex-col rounded-xl transition ${item.checked ? 'opacity-60' : ''}`}
-      style={{ border: `1px solid ${item.checked ? 'var(--border-soft)' : 'var(--border-strong)'}`, background: 'var(--surface-base)' }}>
+      style={{
+        border: `1.5px solid ${selected ? 'var(--brand-500)' : item.checked ? 'var(--border-soft)' : 'var(--border-strong)'}`,
+        background: selected ? 'var(--surface-success)' : 'var(--surface-base)',
+        boxShadow: selected ? '0 0 0 3px rgba(34,197,94,0.12)' : undefined,
+      }}>
       <div className="flex items-start gap-3 p-4">
+        {/* Checkbox de seleção para pedido */}
+        <button
+          type="button"
+          onClick={() => onSelect(!selected)}
+          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 transition"
+          style={{
+            borderColor: selected ? 'var(--brand-500)' : '#cbd5e1',
+            background: selected ? 'var(--brand-500)' : 'transparent',
+          }}
+          title={selected ? 'Remover da seleção' : 'Selecionar para pedido'}>
+          {selected && <Check className="h-3.5 w-3.5 text-white" />}
+        </button>
+        {/* Toggle comprado (círculo) */}
         <button type="button" onClick={() => void onToggle(!item.checked)}
           className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-green-500 bg-green-500 text-white' : 'border-slate-300 hover:border-green-400'}`}>
           {item.checked && <CheckCircle2 className="h-4 w-4" />}
@@ -799,12 +817,13 @@ interface NewOrderFlowProps {
   replenishmentCandidates: ProductPerformance[];
   initialSupplier?: Supplier | null;
   highlightProductId?: string;
+  selectedProductIds?: string[];
   onCancel: () => void;
   onCreated: (o: SupplierOrder) => void;
 }
 
 const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
-  marketId, shoppingListItems, replenishmentCandidates, initialSupplier, highlightProductId, onCancel, onCreated,
+  marketId, shoppingListItems, replenishmentCandidates, initialSupplier, highlightProductId, selectedProductIds, onCancel, onCreated,
 }) => {
   const [step, setStep] = useState<NewOrderStep>(initialSupplier ? 'items' : 'supplier');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -876,8 +895,14 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
       const listItem = listMap.get(p.productId) as ShoppingListItem | undefined;
       out.push({ perf: p, fromList: !!listItem, listItem });
     }
-    return out.sort((a, b) => b.perf.salesVelocity - a.perf.salesVelocity);
-  }, [shoppingListItems, replenishmentCandidates]);
+    const sorted = out.sort((a, b) => b.perf.salesVelocity - a.perf.salesVelocity);
+    // Se há seleção, produtos selecionados sobem para o topo
+    if (selectedProductIds && selectedProductIds.length > 0) {
+      const selSet = new Set(selectedProductIds);
+      return [...sorted.filter(s => selSet.has(s.perf.productId)), ...sorted.filter(s => !selSet.has(s.perf.productId))];
+    }
+    return sorted;
+  }, [shoppingListItems, replenishmentCandidates, selectedProductIds]);
 
   const isAvoidAlert = (p: ProductPerformance) =>
     (p.turnoverBand === 'SLOW' || (p.healthScore != null && p.healthScore < 30) || (p.momentumScore != null && p.momentumScore < 0.7));
@@ -1047,13 +1072,27 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                     <div className="flex flex-col gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                         Sugestões inteligentes ({suggestions.length})
-                        {highlightProductId && <span className="ml-2 font-normal normal-case" style={{ color: 'var(--brand-600)' }}>— produto destacado da lista</span>}
+                        {(highlightProductId || (selectedProductIds && selectedProductIds.length > 0)) && (
+                          <span className="ml-2 font-normal normal-case" style={{ color: 'var(--brand-600)' }}>
+                            — {selectedProductIds && selectedProductIds.length > 0
+                              ? `${selectedProductIds.length} selecionados destacados`
+                              : 'produto destacado da lista'}
+                          </span>
+                        )}
                       </p>
+                      {selectedProductIds && selectedProductIds.length > 0 && (
+                        <div className="rounded-xl px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--surface-success)', border: '1px solid var(--border-success)' }}>
+                          <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: 'var(--brand-600)' }} />
+                          <p className="text-xs font-medium" style={{ color: 'var(--brand-700)' }}>
+                            {selectedProductIds.length} produto{selectedProductIds.length > 1 ? 's' : ''} da sua seleção estão destacados abaixo. Adicione-os ao pedido.
+                          </p>
+                        </div>
+                      )}
                       {suggestions.map(({ perf, fromList, listItem }) => (
                         <SuggestionRow key={perf.productId} perf={perf} fromList={fromList} listItem={listItem}
                           added={existingIds.has(perf.productId)}
                           isAvoid={isAvoidAlert(perf)}
-                          highlighted={perf.productId === highlightProductId}
+                          highlighted={perf.productId === highlightProductId || (selectedProductIds?.includes(perf.productId) ?? false)}
                           orderId={order?.id}
                           marketId={marketId}
                           onNeedOrder={handleCreateOrder}
@@ -1229,7 +1268,7 @@ const SuggestionRow: React.FC<{
 
 type Tab = 'lista' | 'pedidos' | 'fornecedores';
 
-interface NewOrderState { supplier?: Supplier | null; highlightProductId?: string }
+interface NewOrderState { supplier?: Supplier | null; highlightProductId?: string; selectedProductIds?: string[] }
 
 const ShoppingListPage: React.FC = () => {
   const { marketId } = useAuth();
@@ -1241,6 +1280,17 @@ const ShoppingListPage: React.FC = () => {
   // Lista
   const [recordModal, setRecordModal] = useState<ShoppingListItem | null>(null);
   const [histRefresh, setHistRefresh] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string, v: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (v) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const selectedItems = useMemo(() => items.filter(i => selectedIds.has(i.id)), [items, selectedIds]);
 
   // Pedidos
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
@@ -1320,12 +1370,32 @@ const ShoppingListPage: React.FC = () => {
 
   const renderGroup = (title: string, icon: React.ReactNode, style: React.CSSProperties, groupItems: ShoppingListItem[]) => {
     if (!groupItems.length) return null;
+    const allSelected = groupItems.every(i => selectedIds.has(i.id));
+    const someSelected = groupItems.some(i => selectedIds.has(i.id));
     return (
       <div>
-        <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2" style={style}>{icon}<span className="text-sm font-semibold">{title} ({groupItems.length})</span></div>
+        <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2" style={style}>
+          {icon}
+          <span className="text-sm font-semibold flex-1">{title} ({groupItems.length})</span>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedIds(prev => {
+                const next = new Set(prev);
+                if (allSelected) { groupItems.forEach(i => next.delete(i.id)); }
+                else { groupItems.forEach(i => next.add(i.id)); }
+                return next;
+              });
+            }}
+            className="text-[10px] font-semibold transition hover:opacity-70"
+            style={{ color: 'inherit', opacity: someSelected ? 1 : 0.6 }}>
+            {allSelected ? 'Desmarcar grupo' : 'Selecionar grupo'}
+          </button>
+        </div>
         <div className="flex flex-col gap-3">
           {groupItems.map(item => (
             <ListItem key={item.id} item={item} marketId={marketId!} histRefresh={histRefresh}
+              selected={selectedIds.has(item.id)} onSelect={v => toggleSelect(item.id, v)}
               onToggle={c => updateItem(item.id, { checked: c })} onUpdate={p => updateItem(item.id, p)}
               onRemove={() => removeItem(item.id)} onRecordPurchase={() => setRecordModal(item)}
               onCreateOrder={() => { setTab('pedidos'); setNewOrder({ highlightProductId: item.productId }); }} />
@@ -1365,16 +1435,40 @@ const ShoppingListPage: React.FC = () => {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Adicionar produto</p>
-                  {items.filter(i => !i.checked).length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => { setTab('pedidos'); setNewOrder({}); }}
-                      className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90"
-                      style={{ background: 'var(--brand-500)', color: '#fff' }}>
-                      <ClipboardList className="h-4 w-4" />
-                      Criar pedido com a lista ({items.filter(i => !i.checked).length})
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedIds.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIds(new Set())}
+                        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition hover:opacity-80"
+                        style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
+                        <X className="h-3.5 w-3.5" /> Limpar seleção ({selectedIds.size})
+                      </button>
+                    )}
+                    {selectedIds.size > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ids = items.filter(i => selectedIds.has(i.id)).map(i => i.productId);
+                          setTab('pedidos');
+                          setNewOrder({ selectedProductIds: ids });
+                        }}
+                        className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+                        style={{ background: 'var(--brand-500)', color: '#fff' }}>
+                        <ClipboardList className="h-4 w-4" />
+                        Pedido com selecionados ({selectedIds.size})
+                      </button>
+                    ) : items.filter(i => !i.checked).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => { setTab('pedidos'); setNewOrder({}); }}
+                        className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition hover:opacity-80"
+                        style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
+                        <ClipboardList className="h-4 w-4" />
+                        Criar pedido com lista ({items.filter(i => !i.checked).length})
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <CatalogSearch marketId={marketId} productIds={productIds} onAdd={async p => addItem({ productId: p.productId, quantityTarget: suggestedQuantity(p), sourceTag: 'MANUAL', reasonSummary: `${Number(p.salesVelocity || 0).toFixed(1)} un./dia · adicionado via busca` })} />
               </div>
@@ -1425,6 +1519,43 @@ const ShoppingListPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Barra flutuante de seleção */}
+          {selectedIds.size > 0 && (
+            <div className="sticky bottom-4 z-40 mx-auto flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-5 py-3 shadow-2xl"
+              style={{ background: '#1e293b', border: '1px solid #334155', color: '#fff' }}>
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                  style={{ background: 'var(--brand-500)' }}>
+                  {selectedIds.size}
+                </div>
+                <span className="text-sm font-medium">
+                  {selectedIds.size === 1 ? '1 produto selecionado' : `${selectedIds.size} produtos selecionados`}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium transition hover:opacity-70"
+                  style={{ color: '#94a3b8', border: '1px solid #334155' }}>
+                  Limpar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = items.filter(i => selectedIds.has(i.id)).map(i => i.productId);
+                    setTab('pedidos');
+                    setNewOrder({ selectedProductIds: ids });
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition hover:opacity-90"
+                  style={{ background: 'var(--brand-500)', color: '#fff' }}>
+                  <ClipboardList className="h-3.5 w-3.5" />
+                  Criar pedido
+                </button>
+              </div>
+            </div>
+          )}
         )}
 
         {/* ── ABA: PEDIDOS ── */}
@@ -1521,7 +1652,8 @@ const ShoppingListPage: React.FC = () => {
             replenishmentCandidates={dashboard?.replenishmentCandidates || []}
             initialSupplier={newOrder.supplier ?? null}
             highlightProductId={newOrder.highlightProductId}
-            onCancel={() => setNewOrder(null)}
+            selectedProductIds={newOrder.selectedProductIds}
+            onCancel={() => { setNewOrder(null); setSelectedIds(new Set()); }}
             onCreated={(o) => {
               setOrders(prev => {
                 const idx = prev.findIndex(x => x.id === o.id);
