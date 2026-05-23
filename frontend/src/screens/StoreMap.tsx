@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import api from '../services/api';
 import {
-  Save, RefreshCw, Plus, Minus, Zap, TrendingUp, TrendingDown,
-  Lightbulb, X, Edit2, Check, AlertTriangle, ArrowRight,
+  Save, RefreshCw, Plus, Minus, TrendingUp,
+  Lightbulb, X, Check, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
