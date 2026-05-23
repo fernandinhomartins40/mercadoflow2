@@ -303,8 +303,8 @@ const CatalogSearch: React.FC<{ marketId: string; productIds: Set<string>; onAdd
 const ListItem: React.FC<{
   item: ShoppingListItem; marketId: string; histRefresh: number;
   onToggle: (c: boolean) => Promise<unknown>; onUpdate: (p: { quantityTarget?: number }) => Promise<unknown>;
-  onRemove: () => Promise<unknown>; onRecordPurchase: () => void;
-}> = ({ item, marketId, histRefresh, onToggle, onUpdate, onRemove, onRecordPurchase }) => {
+  onRemove: () => Promise<unknown>; onRecordPurchase: () => void; onCreateOrder: () => void;
+}> = ({ item, marketId, histRefresh, onToggle, onUpdate, onRemove, onRecordPurchase, onCreateOrder }) => {
   const [qty, setQty] = useState(String(item.quantityTarget || 1));
   const [expanded, setExpanded] = useState(false);
   const [history, setHistory] = useState<PurchasePriceHistory[]>([]);
@@ -357,6 +357,9 @@ const ListItem: React.FC<{
                 className="h-7 w-16 rounded px-2 text-center text-xs outline-none"
                 style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }} />
             </label>
+            <button type="button" onClick={onCreateOrder} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition hover:opacity-80" style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+              <ClipboardList className="h-3 w-3" /> Pedido
+            </button>
             <button type="button" onClick={onRecordPurchase} className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition hover:opacity-80" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)', border: '1px solid var(--border-success)' }}>
               <ShoppingCart className="h-3 w-3" /> Registrar compra
             </button>
@@ -795,12 +798,13 @@ interface NewOrderFlowProps {
   shoppingListItems: ShoppingListItem[];
   replenishmentCandidates: ProductPerformance[];
   initialSupplier?: Supplier | null;
+  highlightProductId?: string;
   onCancel: () => void;
   onCreated: (o: SupplierOrder) => void;
 }
 
 const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
-  marketId, shoppingListItems, replenishmentCandidates, initialSupplier, onCancel, onCreated,
+  marketId, shoppingListItems, replenishmentCandidates, initialSupplier, highlightProductId, onCancel, onCreated,
 }) => {
   const [step, setStep] = useState<NewOrderStep>(initialSupplier ? 'items' : 'supplier');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -1021,6 +1025,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                   <SuggestionRow key={p.productId} perf={p} fromList={false} listItem={undefined}
                     added={existingIds.has(p.productId)}
                     isAvoid={isAvoidAlert(p)}
+                    highlighted={p.productId === highlightProductId}
                     orderId={order?.id}
                     marketId={marketId}
                     onNeedOrder={handleCreateOrder}
@@ -1042,11 +1047,13 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                     <div className="flex flex-col gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                         Sugestões inteligentes ({suggestions.length})
+                        {highlightProductId && <span className="ml-2 font-normal normal-case" style={{ color: 'var(--brand-600)' }}>— produto destacado da lista</span>}
                       </p>
                       {suggestions.map(({ perf, fromList, listItem }) => (
                         <SuggestionRow key={perf.productId} perf={perf} fromList={fromList} listItem={listItem}
                           added={existingIds.has(perf.productId)}
                           isAvoid={isAvoidAlert(perf)}
+                          highlighted={perf.productId === highlightProductId}
                           orderId={order?.id}
                           marketId={marketId}
                           onNeedOrder={handleCreateOrder}
@@ -1152,12 +1159,13 @@ const SuggestionRow: React.FC<{
   listItem?: ShoppingListItem;
   added: boolean;
   isAvoid: boolean;
+  highlighted?: boolean;
   orderId?: string;
   marketId: string;
   onNeedOrder: () => void;
   onSelect: () => void;
   onAdded: () => void;
-}> = ({ perf, fromList, listItem, added, isAvoid, orderId, onSelect }) => {
+}> = ({ perf, fromList, listItem, added, isAvoid, highlighted, orderId, onSelect }) => {
   const velocity = Number(perf.salesVelocity || 0);
   const momentum = Number(perf.momentumScore || 1);
   const health = perf.healthScore != null ? Number(perf.healthScore) : null;
@@ -1165,9 +1173,10 @@ const SuggestionRow: React.FC<{
   return (
     <div className="flex items-start gap-3 rounded-xl px-4 py-3 transition"
       style={{
-        border: `1px solid ${isAvoid ? '#fecaca' : fromList ? 'var(--border-success)' : 'var(--border-soft)'}`,
-        background: isAvoid ? '#fff7f7' : fromList ? 'var(--surface-success)' : 'var(--surface-base)',
+        border: `1.5px solid ${highlighted ? 'var(--brand-500)' : isAvoid ? '#fecaca' : fromList ? 'var(--border-success)' : 'var(--border-soft)'}`,
+        background: highlighted ? 'var(--surface-success)' : isAvoid ? '#fff7f7' : fromList ? 'var(--surface-success)' : 'var(--surface-base)',
         opacity: added ? 0.6 : 1,
+        boxShadow: highlighted ? '0 0 0 3px rgba(34,197,94,0.15)' : undefined,
       }}>
       <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
         <ProductImage src={perf.imageUrl} alt={perf.name} className="h-full w-full object-contain" />
@@ -1220,7 +1229,7 @@ const SuggestionRow: React.FC<{
 
 type Tab = 'lista' | 'pedidos' | 'fornecedores';
 
-interface NewOrderState { supplier?: Supplier | null }
+interface NewOrderState { supplier?: Supplier | null; highlightProductId?: string }
 
 const ShoppingListPage: React.FC = () => {
   const { marketId } = useAuth();
@@ -1318,7 +1327,8 @@ const ShoppingListPage: React.FC = () => {
           {groupItems.map(item => (
             <ListItem key={item.id} item={item} marketId={marketId!} histRefresh={histRefresh}
               onToggle={c => updateItem(item.id, { checked: c })} onUpdate={p => updateItem(item.id, p)}
-              onRemove={() => removeItem(item.id)} onRecordPurchase={() => setRecordModal(item)} />
+              onRemove={() => removeItem(item.id)} onRecordPurchase={() => setRecordModal(item)}
+              onCreateOrder={() => { setTab('pedidos'); setNewOrder({ highlightProductId: item.productId }); }} />
           ))}
         </div>
       </div>
@@ -1352,8 +1362,20 @@ const ShoppingListPage: React.FC = () => {
         {tab === 'lista' && (
           <div className="flex flex-col gap-5">
             {marketId && (
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Adicionar produto</p>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Adicionar produto</p>
+                  {items.filter(i => !i.checked).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setTab('pedidos'); setNewOrder({}); }}
+                      className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+                      style={{ background: 'var(--brand-500)', color: '#fff' }}>
+                      <ClipboardList className="h-4 w-4" />
+                      Criar pedido com a lista ({items.filter(i => !i.checked).length})
+                    </button>
+                  )}
+                </div>
                 <CatalogSearch marketId={marketId} productIds={productIds} onAdd={async p => addItem({ productId: p.productId, quantityTarget: suggestedQuantity(p), sourceTag: 'MANUAL', reasonSummary: `${Number(p.salesVelocity || 0).toFixed(1)} un./dia · adicionado via busca` })} />
               </div>
             )}
@@ -1498,6 +1520,7 @@ const ShoppingListPage: React.FC = () => {
             shoppingListItems={items}
             replenishmentCandidates={dashboard?.replenishmentCandidates || []}
             initialSupplier={newOrder.supplier ?? null}
+            highlightProductId={newOrder.highlightProductId}
             onCancel={() => setNewOrder(null)}
             onCreated={(o) => {
               setOrders(prev => {
