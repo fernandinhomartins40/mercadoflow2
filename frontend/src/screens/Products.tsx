@@ -248,21 +248,66 @@ function comboInsight(r: BasketRule): string {
 }
 
 const STRENGTH_CFG = {
-  hot:  { label: 'Top combo',     dot: '#22c55e', border: 'var(--border-success)', bg: 'var(--surface-success)', textColor: 'var(--brand-700)', barColor: '#22c55e' },
-  warm: { label: 'Boa dupla',     dot: '#f59e0b', border: '#fde68a',              bg: '#fffbeb',                textColor: '#92400e',          barColor: '#f59e0b' },
-  cool: { label: 'Par emergente', dot: '#94a3b8', border: 'var(--border-soft)',   bg: 'var(--surface-base)',    textColor: 'var(--text-muted)', barColor: '#94a3b8' },
+  hot: {
+    label: 'Top combo',
+    headerBg: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+    headerText: '#ffffff',
+    accent: '#16a34a',
+    accentLight: '#dcfce7',
+    accentMid: '#86efac',
+    cardBg: '#f0fdf4',
+    cardBorder: '#86efac',
+    metricColor: '#15803d',
+    barColor: '#22c55e',
+    photoBorder: '#86efac',
+    photoBg: '#ffffff',
+    badgeBg: '#bbf7d0',
+    badgeText: '#14532d',
+  },
+  warm: {
+    label: 'Boa dupla',
+    headerBg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+    headerText: '#ffffff',
+    accent: '#d97706',
+    accentLight: '#fef3c7',
+    accentMid: '#fcd34d',
+    cardBg: '#fffbeb',
+    cardBorder: '#fcd34d',
+    metricColor: '#92400e',
+    barColor: '#f59e0b',
+    photoBorder: '#fcd34d',
+    photoBg: '#ffffff',
+    badgeBg: '#fde68a',
+    badgeText: '#78350f',
+  },
+  cool: {
+    label: 'Par emergente',
+    headerBg: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+    headerText: '#ffffff',
+    accent: '#6366f1',
+    accentLight: '#eef2ff',
+    accentMid: '#a5b4fc',
+    cardBg: '#f5f3ff',
+    cardBorder: '#c4b5fd',
+    metricColor: '#4338ca',
+    barColor: '#818cf8',
+    photoBorder: '#c4b5fd',
+    photoBg: '#ffffff',
+    badgeBg: '#e0e7ff',
+    badgeText: '#3730a3',
+  },
 } as const;
 
-// Mini foto de produto com fallback genérico
-const ComboProductPhoto: React.FC<{ src?: string | null; name: string; size?: number }> = ({ src, name, size = 72 }) => {
+// Mini foto de produto com fallback de iniciais e borda colorida
+const ComboProductPhoto: React.FC<{ src?: string | null; name: string; size?: number; borderColor: string; bgColor: string; accentColor: string }> = ({ src, name, size = 76, borderColor, bgColor, accentColor }) => {
   const [broken, setBroken] = React.useState(false);
   const initials = name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   return src && !broken ? (
     <img src={src} alt={name} onError={() => setBroken(true)} loading="lazy"
-      style={{ width: size, height: size, objectFit: 'contain', borderRadius: 10, background: 'var(--surface-muted)', padding: 4 }} />
+      style={{ width: size, height: size, objectFit: 'contain', borderRadius: 12, background: bgColor, padding: 6, border: `2px solid ${borderColor}`, boxShadow: `0 2px 8px ${borderColor}55` }} />
   ) : (
-    <div style={{ width: size, height: size, borderRadius: 10, background: 'var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ fontSize: size * 0.28, fontWeight: 700, color: 'var(--text-soft)' }}>{initials || '?'}</span>
+    <div style={{ width: size, height: size, borderRadius: 12, background: bgColor, border: `2px solid ${borderColor}`, boxShadow: `0 2px 8px ${borderColor}55`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span style={{ fontSize: size * 0.28, fontWeight: 800, color: accentColor }}>{initials || '?'}</span>
     </div>
   );
 };
@@ -375,15 +420,15 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
       {deduped.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {([
-            { key: 'all',  label: 'Todos',        count: deduped.length },
-            { key: 'hot',  label: 'Top combos',   count: hotCount  },
-            { key: 'warm', label: 'Boas duplas',  count: warmCount },
+            { key: 'all',  label: 'Todos',        count: deduped.length, activeStyle: { background: '#334155', color: '#fff', border: '2px solid #334155' } },
+            { key: 'hot',  label: 'Top combos',   count: hotCount,       activeStyle: { background: STRENGTH_CFG.hot.headerBg,  color: '#fff', border: `2px solid ${STRENGTH_CFG.hot.accent}` } },
+            { key: 'warm', label: 'Boas duplas',  count: warmCount,      activeStyle: { background: STRENGTH_CFG.warm.headerBg, color: '#fff', border: `2px solid ${STRENGTH_CFG.warm.accent}` } },
           ] as const).map((f) => (
             <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-              className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
+              className="rounded-full px-4 py-1.5 text-xs font-bold transition"
               style={filter === f.key
-                ? { background: 'var(--brand-500)', color: '#fff', border: '1px solid var(--brand-600)' }
-                : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
+                ? f.activeStyle
+                : { border: '2px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
               {f.label} <span className="ml-1 opacity-70">{f.count}</span>
             </button>
           ))}
@@ -424,85 +469,86 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
             const insight  = comboInsight(rule);
 
             return (
-              <article key={idx} className="flex flex-col rounded-xl overflow-hidden"
-                style={{ border: `1.5px solid ${cfg.border}`, background: cfg.bg }}>
+              <article key={idx} className="flex flex-col rounded-2xl overflow-hidden"
+                style={{ border: `2px solid ${cfg.cardBorder}`, background: cfg.cardBg, boxShadow: `0 4px 16px ${cfg.accent}18` }}>
 
-                {/* header badge */}
-                <div className="flex items-center justify-between px-4 pt-3 pb-0">
-                  <span className="text-xs font-bold" style={{ color: 'var(--text-soft)' }}>#{idx + 1}</span>
-                  <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                    style={{ background: cfg.dot + '22', color: cfg.textColor, border: `1px solid ${cfg.dot}44` }}>
+                {/* faixa de cor + badge */}
+                <div className="flex items-center justify-between px-4 py-3"
+                  style={{ background: cfg.headerBg }}>
+                  <span className="text-xs font-bold opacity-80" style={{ color: cfg.headerText }}>#{idx + 1}</span>
+                  <span className="rounded-full px-3 py-0.5 text-xs font-bold"
+                    style={{ background: 'rgba(255,255,255,0.25)', color: cfg.headerText, backdropFilter: 'blur(4px)' }}>
                     {cfg.label}
                   </span>
                 </div>
 
                 {/* par visual: foto + conector + foto */}
-                <div className="flex items-center justify-center gap-3 px-4 py-4">
-                  <div className="flex flex-col items-center gap-1.5" style={{ maxWidth: 80 }}>
-                    <ComboProductPhoto src={imgA} name={nameA} size={72} />
-                    <p className="text-center text-[11px] font-semibold leading-tight line-clamp-2"
-                      style={{ color: 'var(--text-primary)' }}>{nameA}</p>
+                <div className="flex items-center justify-center gap-2 px-4 py-5">
+                  <div className="flex flex-col items-center gap-2" style={{ flex: 1, maxWidth: 90 }}>
+                    <ComboProductPhoto src={imgA} name={nameA} size={76} borderColor={cfg.photoBorder} bgColor={cfg.photoBg} accentColor={cfg.accent} />
+                    <p className="text-center text-[11px] font-bold leading-tight line-clamp-2"
+                      style={{ color: '#1e293b' }}>{nameA}</p>
                   </div>
 
-                  {/* conector central com % de confiança */}
-                  <div className="flex flex-col items-center gap-1 shrink-0">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
-                      style={{ background: cfg.dot, color: '#fff' }}>+</div>
-                    <span className="text-[10px] font-semibold whitespace-nowrap"
-                      style={{ color: cfg.textColor }}>{Math.round(conf * 100)}% juntos</span>
+                  {/* conector central */}
+                  <div className="flex flex-col items-center gap-1 shrink-0 mx-1">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full text-base font-black"
+                      style={{ background: cfg.headerBg, color: '#fff', boxShadow: `0 2px 8px ${cfg.accent}66` }}>+</div>
+                    <span className="text-[10px] font-bold whitespace-nowrap rounded-full px-2 py-0.5"
+                      style={{ background: cfg.badgeBg, color: cfg.badgeText }}>{Math.round(conf * 100)}% juntos</span>
                   </div>
 
-                  <div className="flex flex-col items-center gap-1.5" style={{ maxWidth: 80 }}>
-                    <ComboProductPhoto src={imgB} name={nameB} size={72} />
-                    <p className="text-center text-[11px] font-semibold leading-tight line-clamp-2"
-                      style={{ color: 'var(--text-primary)' }}>{nameB}</p>
+                  <div className="flex flex-col items-center gap-2" style={{ flex: 1, maxWidth: 90 }}>
+                    <ComboProductPhoto src={imgB} name={nameB} size={76} borderColor={cfg.photoBorder} bgColor={cfg.photoBg} accentColor={cfg.accent} />
+                    <p className="text-center text-[11px] font-bold leading-tight line-clamp-2"
+                      style={{ color: '#1e293b' }}>{nameB}</p>
                   </div>
                 </div>
 
-                {/* métricas em linha */}
-                <div className="grid grid-cols-3 divide-x border-t"
-                  style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-base)' }}>
+                {/* métricas coloridas */}
+                <div className="grid grid-cols-3 mx-4 mb-3 rounded-xl overflow-hidden"
+                  style={{ border: `1.5px solid ${cfg.cardBorder}`, background: cfg.accentLight }}>
                   <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Cestas</span>
-                    <span className="mt-0.5 text-base font-bold" style={{ color: 'var(--text-primary)' }}>{pairs}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.metricColor, opacity: 0.7 }}>Cestas</span>
+                    <span className="mt-0.5 text-lg font-black" style={{ color: cfg.metricColor }}>{pairs}</span>
+                  </div>
+                  <div className="flex flex-col items-center py-2.5 px-1" style={{ borderLeft: `1.5px solid ${cfg.cardBorder}`, borderRight: `1.5px solid ${cfg.cardBorder}` }}>
+                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.metricColor, opacity: 0.7 }}>Afinidade</span>
+                    <span className="mt-0.5 text-lg font-black" style={{ color: cfg.metricColor }}>{lift.toFixed(1)}x</span>
                   </div>
                   <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Afinidade</span>
-                    <span className="mt-0.5 text-base font-bold" style={{ color: lift >= 2 ? 'var(--brand-700)' : 'var(--text-primary)' }}>{lift.toFixed(1)}×</span>
-                  </div>
-                  <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Juntos</span>
-                    <span className="mt-0.5 text-base font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(conf * 100)}%</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.metricColor, opacity: 0.7 }}>Juntos</span>
+                    <span className="mt-0.5 text-lg font-black" style={{ color: cfg.metricColor }}>{Math.round(conf * 100)}%</span>
                   </div>
                 </div>
 
-                {/* barra de frequência relativa */}
-                <div className="px-4 pt-2 pb-1" style={{ background: 'var(--surface-base)' }}>
+                {/* barra de frequência */}
+                <div className="px-4 pb-2">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Frequência relativa ao par mais comum</span>
-                    <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>{barPct}%</span>
+                    <span className="text-[10px] font-medium" style={{ color: cfg.metricColor, opacity: 0.7 }}>Frequência relativa</span>
+                    <span className="text-[10px] font-bold" style={{ color: cfg.metricColor }}>{barPct}%</span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(barPct, 3)}%`, background: cfg.barColor }} />
+                  <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: cfg.accentMid + '55' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(barPct, 4)}%`, background: cfg.headerBg }} />
                   </div>
                 </div>
 
-                {/* insight de ação */}
-                <div className="px-4 pt-2 pb-3" style={{ background: 'var(--surface-base)' }}>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>{insight}</p>
+                {/* insight */}
+                <div className="px-4 pt-1.5 pb-3">
+                  <p className="text-xs leading-relaxed font-medium" style={{ color: cfg.metricColor, opacity: 0.85 }}>{insight}</p>
                 </div>
 
                 {/* CTAs */}
-                <div className="flex gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-base)' }}>
+                <div className="flex gap-2 px-4 pb-4">
                   <Link to="/app/mapa-loja"
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
-                    style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>
-                    <Map className="h-3 w-3" /> Organizar loja
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold no-underline transition hover:opacity-90"
+                    style={{ background: cfg.headerBg, color: '#fff', boxShadow: `0 2px 8px ${cfg.accent}44` }}>
+                    <Map className="h-3.5 w-3.5" /> Organizar loja
                   </Link>
                   <Link to="/app/promocoes"
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
-                    style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
-                    Criar promoção <ArrowRight className="h-3 w-3" />
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold no-underline transition hover:opacity-90"
+                    style={{ background: cfg.accentLight, color: cfg.metricColor, border: `1.5px solid ${cfg.cardBorder}` }}>
+                    Promoção <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
               </article>
