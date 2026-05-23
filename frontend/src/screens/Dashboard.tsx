@@ -4,7 +4,6 @@ import Layout from '../components/layout/Layout';
 import ProductImage from '../components/product/ProductImage';
 import Button from '../components/common/Button';
 import { useMarketData } from '../hooks/useMarketData';
-import { useShoppingList } from '../hooks/useShoppingList';
 import { useAlerts } from '../hooks/useAlerts';
 import { useAuth } from '../context/AuthContext';
 import { AlertItem, AlertType } from '../types/alert.types';
@@ -87,42 +86,6 @@ const KPICard: React.FC<{ label: string; value: string; change?: number; color: 
   );
 };
 
-const ActionCard: React.FC<{
-  severity: 'critical' | 'warning' | 'positive';
-  title: string;
-  description: string;
-  actions: { label: string; to: string }[];
-}> = ({ severity, title, description, actions }) => {
-  const styleMap = {
-    critical: { wrap: 'border-red-200 bg-red-50',    iconBg: 'bg-red-100',   iconColor: 'text-red-500' },
-    warning:  { wrap: 'border-amber-200 bg-amber-50', iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
-    positive: { wrap: 'border-green-200 bg-green-50', iconBg: 'bg-green-100', iconColor: 'text-green-600' },
-  };
-  const s = styleMap[severity];
-  const Icon = severity === 'positive' ? CheckCircle2 : AlertTriangle;
-  return (
-    <div className={`flex items-start gap-3 rounded-xl border p-4 ${s.wrap}`}>
-      <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${s.iconBg}`}>
-        <Icon className={`h-4 w-4 ${s.iconColor}`} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h4>
-        <p className="mt-0.5 text-sm" style={{ color: 'var(--text-muted)' }}>{description}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {actions.map((a) => (
-            <Link
-              key={a.to} to={a.to}
-              className="inline-flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold no-underline transition hover:opacity-80"
-              style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-            >
-              {a.label} <ArrowRight className="h-3 w-3" />
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const ProductRow: React.FC<{ product: ProductPerformance; rank: number }> = ({ product, rank }) => {
   const trend = Number(product.revenueTrendPercentage || 0);
@@ -533,43 +496,10 @@ const AlertsSection: React.FC = () => {
 const Dashboard: React.FC = () => {
   const { name } = useAuth();
   const { dashboard, loading, error } = useMarketData();
-  const { productIds: _ids } = useShoppingList();
 
   const growth = Number(dashboard?.growthPercentage || 0);
   const topProducts = dashboard?.topProducts || [];
   const slowMovers = dashboard?.slowMovers || [];
-  const replenish = dashboard?.replenishmentCandidates || [];
-
-  const actions = useMemo(() => {
-    const result: { severity: 'critical' | 'warning' | 'positive'; title: string; description: string; actions: { label: string; to: string }[] }[] = [];
-    if (slowMovers.length > 0) {
-      const names = slowMovers.slice(0, 2).map((p) => p.name).join(', ');
-      result.push({
-        severity: 'critical',
-        title: `${slowMovers.length} produtos com vendas muito baixas`,
-        description: `${names} e outros precisam de revisão. Considere promoção ou reposicionamento.`,
-        actions: [{ label: 'Ver produtos', to: '/app/produtos' }, { label: 'Criar promoção', to: '/app/promocoes' }],
-      });
-    }
-    if (replenish.length > 0) {
-      const names = replenish.slice(0, 2).map((p) => p.name).join(', ');
-      result.push({
-        severity: 'warning',
-        title: `${replenish.length} produtos pedem reposição`,
-        description: `${names} estão com giro forte. Aumente o pedido para não faltar.`,
-        actions: [{ label: 'Ver pedido inteligente', to: '/app/lista-compras' }],
-      });
-    }
-    if (topProducts.length > 0 && Number(topProducts[0].revenueTrendPercentage || 0) > 0) {
-      result.push({
-        severity: 'positive',
-        title: `${topProducts[0].name} está em alta!`,
-        description: `Vendas subiram ${formatSignedPercent(topProducts[0].revenueTrendPercentage)}. Garanta estoque e boa exposição.`,
-        actions: [{ label: 'Ver detalhes', to: `/app/produtos/${topProducts[0].productId}` }],
-      });
-    }
-    return result;
-  }, [slowMovers, replenish, topProducts]);
 
   const weekData = useMemo(() => {
     const days = dashboard?.weekdaySeasonality || [];
@@ -607,19 +537,11 @@ const Dashboard: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         {/* Greeting */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              {getGreeting()}, {name || 'gestor'}!
-            </h1>
-            <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-soft)' }}>{getDayOfWeek()}</p>
-          </div>
-          {actions.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {actions.length} iten{actions.length > 1 ? 's' : ''} para atenção
-            </span>
-          )}
+        <div>
+          <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            {getGreeting()}, {name || 'gestor'}!
+          </h1>
+          <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-soft)' }}>{getDayOfWeek()}</p>
         </div>
 
         {/* KPI strip */}
@@ -629,13 +551,6 @@ const Dashboard: React.FC = () => {
           <KPICard label="Transações" value={formatCompact(dashboard.totalTransactions)} color="purple" />
           <KPICard label="Produtos ativos" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
         </div>
-
-        {/* Actions */}
-        {actions.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {actions.map((a, i) => <ActionCard key={i} {...a} />)}
-          </div>
-        )}
 
         {/* Alerts section (collapsible) */}
         <AlertsSection />
