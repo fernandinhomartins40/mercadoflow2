@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Ban,
   Building2,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -330,23 +331,27 @@ const ListItem: React.FC<{
         boxShadow: selected ? '0 0 0 3px rgba(34,197,94,0.12)' : undefined,
       }}>
       <div className="flex items-start gap-3 p-4">
-        {/* Checkbox de seleção para pedido */}
-        <button
-          type="button"
-          onClick={() => onSelect(!selected)}
-          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 transition"
-          style={{
-            borderColor: selected ? 'var(--brand-500)' : '#cbd5e1',
-            background: selected ? 'var(--brand-500)' : 'transparent',
-          }}
-          title={selected ? 'Remover da seleção' : 'Selecionar para pedido'}>
-          {selected && <Check className="h-3.5 w-3.5 text-white" />}
-        </button>
-        {/* Toggle comprado (círculo) */}
-        <button type="button" onClick={() => void onToggle(!item.checked)}
-          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-green-500 bg-green-500 text-white' : 'border-slate-300 hover:border-green-400'}`}>
-          {item.checked && <CheckCircle2 className="h-4 w-4" />}
-        </button>
+        {/* Checkbox único: quadrado = selecionar para pedido, círculo sobreposto = marcar comprado */}
+        <div className="mt-0.5 flex shrink-0 flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onSelect(!selected)}
+            className="flex h-6 w-6 items-center justify-center rounded border-2 transition"
+            style={{
+              borderColor: selected ? 'var(--brand-500)' : '#cbd5e1',
+              background: selected ? 'var(--brand-500)' : 'transparent',
+            }}
+            title={selected ? 'Remover da seleção' : 'Selecionar para pedido'}>
+            {selected && <Check className="h-3.5 w-3.5 text-white" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onToggle(!item.checked)}
+            className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-green-500 bg-green-500' : 'border-slate-200 hover:border-green-400'}`}
+            title={item.checked ? 'Desmarcar comprado' : 'Marcar como comprado'}>
+            {item.checked && <Check className="h-2.5 w-2.5 text-white" />}
+          </button>
+        </div>
         <Link to={`/app/produtos/${item.productId}`} className="h-12 w-12 shrink-0 overflow-hidden rounded-lg no-underline" style={{ display: 'block' }}>
           <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" />
         </Link>
