@@ -331,30 +331,32 @@ const ListItem: React.FC<{
         boxShadow: selected ? '0 0 0 3px rgba(34,197,94,0.12)' : undefined,
       }}>
       <div className="flex items-start gap-3 p-4">
-        {/* Checkbox único: quadrado = selecionar para pedido, círculo sobreposto = marcar comprado */}
-        <div className="mt-0.5 flex shrink-0 flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onSelect(!selected)}
-            className="flex h-6 w-6 items-center justify-center rounded border-2 transition"
-            style={{
-              borderColor: selected ? 'var(--brand-500)' : '#cbd5e1',
-              background: selected ? 'var(--brand-500)' : 'transparent',
-            }}
-            title={selected ? 'Remover da seleção' : 'Selecionar para pedido'}>
-            {selected && <Check className="h-3.5 w-3.5 text-white" />}
-          </button>
+        {/* Checkbox: selecionar para pedido */}
+        <button
+          type="button"
+          onClick={() => onSelect(!selected)}
+          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 transition"
+          style={{
+            borderColor: selected ? 'var(--brand-500)' : '#cbd5e1',
+            background: selected ? 'var(--brand-500)' : 'transparent',
+          }}
+          title={selected ? 'Remover da seleção' : 'Selecionar para pedido'}>
+          {selected && <Check className="h-3.5 w-3.5 text-white" />}
+        </button>
+        {/* Foto: clique abre produto, botão circular no canto marca comprado */}
+        <div className="relative h-12 w-12 shrink-0">
+          <Link to={`/app/produtos/${item.productId}`} className="block h-full w-full overflow-hidden rounded-lg no-underline">
+            <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" />
+          </Link>
           <button
             type="button"
             onClick={() => void onToggle(!item.checked)}
-            className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition ${item.checked ? 'border-green-500 bg-green-500' : 'border-slate-200 hover:border-green-400'}`}
+            className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white transition"
+            style={{ background: item.checked ? '#22c55e' : '#e2e8f0' }}
             title={item.checked ? 'Desmarcar comprado' : 'Marcar como comprado'}>
             {item.checked && <Check className="h-2.5 w-2.5 text-white" />}
           </button>
         </div>
-        <Link to={`/app/produtos/${item.productId}`} className="h-12 w-12 shrink-0 overflow-hidden rounded-lg no-underline" style={{ display: 'block' }}>
-          <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" />
-        </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
