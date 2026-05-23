@@ -1518,7 +1518,6 @@ const ShoppingListPage: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
 
           {/* Barra flutuante de seleção */}
           {selectedIds.size > 0 && (
@@ -1556,6 +1555,7 @@ const ShoppingListPage: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
         )}
 
         {/* ── ABA: PEDIDOS ── */}
