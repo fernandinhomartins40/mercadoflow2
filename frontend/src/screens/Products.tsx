@@ -57,17 +57,43 @@ const DesempenhoTab: React.FC = () => {
       .finally(() => setLoading(false));
   }, [marketId, page, size, category, querySearch, sortBy]);
 
-  const statusLabel = (band?: string | null) => {
-    switch ((band || '').toUpperCase()) {
-      case 'HIGH': return { text: 'Vende muito', style: { background: 'var(--surface-success)', color: 'var(--brand-700)' } };
-      case 'MEDIUM': return { text: 'Vende bem', style: { background: 'var(--surface-warning)', color: '#92400e' } };
-      default: return { text: 'Vende pouco', style: { background: 'var(--surface-danger)', color: '#991b1b' } };
-    }
+  // Badge reflects current momentum + trend, not just historical turnover band
+  const statusLabel = (p: ProductPerformance) => {
+    const trend = Number(p.revenueTrendPercentage || 0);
+    const momentum = Number(p.momentumScore || 0);
+    const band = (p.turnoverBand || '').toUpperCase();
+
+    // Spike: strong positive trend right now
+    if (trend >= 20 || (trend >= 10 && momentum > 1.2))
+      return { text: 'Em alta', style: { background: '#dcfce7', color: '#166534' } };
+
+    // Accelerating: momentum above 1 even if trend modest
+    if (momentum >= 1.15 && trend >= 0)
+      return { text: 'Acelerando', style: { background: '#d1fae5', color: '#065f46' } };
+
+    // Steady high performer
+    if (band === 'HIGH' && trend > -10)
+      return { text: 'Alto giro', style: { background: 'var(--surface-success)', color: 'var(--brand-700)' } };
+
+    // Medium band or high band losing speed but not crashing
+    if (band === 'MEDIUM' || (band === 'HIGH' && trend <= -10))
+      return { text: 'Giro médio', style: { background: 'var(--surface-warning)', color: '#92400e' } };
+
+    // Declining: active downtrend
+    if (trend <= -20 || (trend < -10 && momentum < 0.8))
+      return { text: 'Em queda', style: { background: '#fee2e2', color: '#991b1b' } };
+
+    // Decelerating but not crashing
+    if (momentum < 0.85 && momentum > 0)
+      return { text: 'Desacelerando', style: { background: '#fef3c7', color: '#92400e' } };
+
+    // True low / no signal
+    return { text: 'Baixo giro', style: { background: 'var(--surface-muted)', color: 'var(--text-muted)' } };
   };
 
   const TrendIcon: React.FC<{ value: number }> = ({ value }) => {
-    if (value > 1) return <TrendingUp className="h-3.5 w-3.5 text-green-600" />;
-    if (value < -1) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
+    if (value > 3) return <TrendingUp className="h-3.5 w-3.5 text-green-600" />;
+    if (value < -3) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
     return <Minus className="h-3.5 w-3.5" style={{ color: 'var(--text-soft)' }} />;
   };
 
@@ -112,7 +138,7 @@ const DesempenhoTab: React.FC = () => {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => {
-            const status = statusLabel(product.turnoverBand);
+            const status = statusLabel(product);
             const trend = Number(product.revenueTrendPercentage || 0);
             return (
               <article key={product.productId} onClick={() => navigate(`/app/produtos/${product.productId}`)}
@@ -136,6 +162,22 @@ const DesempenhoTab: React.FC = () => {
                   <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-2" style={{ borderColor: 'var(--border-soft)' }}>
                     <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Receita</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(product.revenue)}</p></div>
                     <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Vendas/dia</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(product.salesVelocity || 0).toFixed(1)}/dia</p></div>
+                    {product.momentumScore != null && (
+                      <div className="col-span-2">
+                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Momentum</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
+                            <div className="h-full rounded-full transition-all" style={{
+                              width: `${Math.min(100, Math.max(4, (Number(product.momentumScore) / 2) * 100))}%`,
+                              background: Number(product.momentumScore) >= 1.1 ? '#22c55e' : Number(product.momentumScore) >= 0.85 ? '#f59e0b' : '#ef4444',
+                            }} />
+                          </div>
+                          <span className="text-[11px] font-semibold shrink-0" style={{ color: Number(product.momentumScore) >= 1.1 ? '#166534' : Number(product.momentumScore) >= 0.85 ? '#92400e' : '#991b1b' }}>
+                            {Number(product.momentumScore).toFixed(2)}×
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {product.healthScore != null && (
                     <div className="mt-1">
