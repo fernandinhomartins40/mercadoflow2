@@ -250,64 +250,43 @@ function comboInsight(r: BasketRule): string {
 const STRENGTH_CFG = {
   hot: {
     label: 'Top combo',
-    headerBg: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-    headerText: '#ffffff',
     accent: '#16a34a',
-    accentLight: '#dcfce7',
-    accentMid: '#86efac',
-    cardBg: '#f0fdf4',
-    cardBorder: '#86efac',
+    badgeBg: '#dcfce7',
+    badgeText: '#15803d',
+    connectorBg: '#16a34a',
     metricColor: '#15803d',
-    barColor: '#22c55e',
-    photoBorder: '#86efac',
-    photoBg: '#ffffff',
-    badgeBg: '#bbf7d0',
-    badgeText: '#14532d',
+    photoBorder: '#bbf7d0',
   },
   warm: {
     label: 'Boa dupla',
-    headerBg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-    headerText: '#ffffff',
     accent: '#d97706',
-    accentLight: '#fef3c7',
-    accentMid: '#fcd34d',
-    cardBg: '#fffbeb',
-    cardBorder: '#fcd34d',
+    badgeBg: '#fef3c7',
+    badgeText: '#92400e',
+    connectorBg: '#d97706',
     metricColor: '#92400e',
-    barColor: '#f59e0b',
-    photoBorder: '#fcd34d',
-    photoBg: '#ffffff',
-    badgeBg: '#fde68a',
-    badgeText: '#78350f',
+    photoBorder: '#fde68a',
   },
   cool: {
     label: 'Par emergente',
-    headerBg: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-    headerText: '#ffffff',
     accent: '#6366f1',
-    accentLight: '#eef2ff',
-    accentMid: '#a5b4fc',
-    cardBg: '#f5f3ff',
-    cardBorder: '#c4b5fd',
+    badgeBg: '#eef2ff',
+    badgeText: '#4338ca',
+    connectorBg: '#6366f1',
     metricColor: '#4338ca',
-    barColor: '#818cf8',
     photoBorder: '#c4b5fd',
-    photoBg: '#ffffff',
-    badgeBg: '#e0e7ff',
-    badgeText: '#3730a3',
   },
 } as const;
 
-// Mini foto de produto com fallback de iniciais e borda colorida
-const ComboProductPhoto: React.FC<{ src?: string | null; name: string; size?: number; borderColor: string; bgColor: string; accentColor: string }> = ({ src, name, size = 76, borderColor, bgColor, accentColor }) => {
+// Mini foto de produto com fallback de iniciais
+const ComboProductPhoto: React.FC<{ src?: string | null; name: string; size?: number; borderColor: string; accentColor: string }> = ({ src, name, size = 72, borderColor, accentColor }) => {
   const [broken, setBroken] = React.useState(false);
   const initials = name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   return src && !broken ? (
     <img src={src} alt={name} onError={() => setBroken(true)} loading="lazy"
-      style={{ width: size, height: size, objectFit: 'contain', borderRadius: 12, background: bgColor, padding: 6, border: `2px solid ${borderColor}`, boxShadow: `0 2px 8px ${borderColor}55` }} />
+      style={{ width: size, height: size, objectFit: 'contain', borderRadius: 10, background: '#fff', padding: 5, border: `1.5px solid ${borderColor}` }} />
   ) : (
-    <div style={{ width: size, height: size, borderRadius: 12, background: bgColor, border: `2px solid ${borderColor}`, boxShadow: `0 2px 8px ${borderColor}55`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ fontSize: size * 0.28, fontWeight: 800, color: accentColor }}>{initials || '?'}</span>
+    <div style={{ width: size, height: size, borderRadius: 10, background: '#f8fafc', border: `1.5px solid ${borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span style={{ fontSize: size * 0.26, fontWeight: 700, color: accentColor }}>{initials || '?'}</span>
     </div>
   );
 };
@@ -420,15 +399,15 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
       {deduped.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {([
-            { key: 'all',  label: 'Todos',        count: deduped.length, activeStyle: { background: '#334155', color: '#fff', border: '2px solid #334155' } },
-            { key: 'hot',  label: 'Top combos',   count: hotCount,       activeStyle: { background: STRENGTH_CFG.hot.headerBg,  color: '#fff', border: `2px solid ${STRENGTH_CFG.hot.accent}` } },
-            { key: 'warm', label: 'Boas duplas',  count: warmCount,      activeStyle: { background: STRENGTH_CFG.warm.headerBg, color: '#fff', border: `2px solid ${STRENGTH_CFG.warm.accent}` } },
+            { key: 'all',  label: 'Todos',       count: deduped.length, activeBg: STRENGTH_CFG.hot.badgeBg,  activeColor: 'var(--text-primary)' },
+            { key: 'hot',  label: 'Top combos',  count: hotCount,       activeBg: STRENGTH_CFG.hot.badgeBg,  activeColor: STRENGTH_CFG.hot.badgeText },
+            { key: 'warm', label: 'Boas duplas', count: warmCount,      activeBg: STRENGTH_CFG.warm.badgeBg, activeColor: STRENGTH_CFG.warm.badgeText },
           ] as const).map((f) => (
             <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-              className="rounded-full px-4 py-1.5 text-xs font-bold transition"
+              className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
               style={filter === f.key
-                ? f.activeStyle
-                : { border: '2px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
+                ? { background: f.activeBg, color: f.activeColor, border: `1px solid ${f.activeColor}33` }
+                : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
               {f.label} <span className="ml-1 opacity-70">{f.count}</span>
             </button>
           ))}
@@ -468,86 +447,92 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
             const barPct   = Math.round((pairs / maxPairs) * 100);
             const insight  = comboInsight(rule);
 
-            return (
-              <article key={idx} className="flex flex-col rounded-2xl overflow-hidden"
-                style={{ border: `2px solid ${cfg.cardBorder}`, background: cfg.cardBg, boxShadow: `0 4px 16px ${cfg.accent}18` }}>
+            // Barra dinâmica: vermelho < 30%, amarelo 30-65%, verde > 65%
+            const barColor = barPct >= 66 ? '#22c55e' : barPct >= 31 ? '#f59e0b' : '#ef4444';
 
-                {/* faixa de cor + badge */}
-                <div className="flex items-center justify-between px-4 py-3"
-                  style={{ background: cfg.headerBg }}>
-                  <span className="text-xs font-bold opacity-80" style={{ color: cfg.headerText }}>#{idx + 1}</span>
-                  <span className="rounded-full px-3 py-0.5 text-xs font-bold"
-                    style={{ background: 'rgba(255,255,255,0.25)', color: cfg.headerText, backdropFilter: 'blur(4px)' }}>
+            return (
+              <article key={idx} className="flex flex-col rounded-xl overflow-hidden"
+                style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+
+                {/* header neutro com badge colorido */}
+                <div className="flex items-center justify-between px-4 pt-3 pb-2"
+                  style={{ borderBottom: '1px solid var(--border-soft)' }}>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-soft)' }}>#{idx + 1}</span>
+                  <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                    style={{ background: cfg.badgeBg, color: cfg.badgeText }}>
                     {cfg.label}
                   </span>
                 </div>
 
                 {/* par visual: foto + conector + foto */}
-                <div className="flex items-center justify-center gap-2 px-4 py-5">
-                  <div className="flex flex-col items-center gap-2" style={{ flex: 1, maxWidth: 90 }}>
-                    <ComboProductPhoto src={imgA} name={nameA} size={76} borderColor={cfg.photoBorder} bgColor={cfg.photoBg} accentColor={cfg.accent} />
-                    <p className="text-center text-[11px] font-bold leading-tight line-clamp-2"
-                      style={{ color: '#1e293b' }}>{nameA}</p>
+                <div className="flex items-center justify-center gap-2 px-4 py-4">
+                  <div className="flex flex-col items-center gap-1.5" style={{ flex: 1, maxWidth: 88 }}>
+                    <ComboProductPhoto src={imgA} name={nameA} size={72} borderColor={cfg.photoBorder} accentColor={cfg.accent} />
+                    <p className="text-center text-[11px] font-semibold leading-tight line-clamp-2"
+                      style={{ color: 'var(--text-primary)' }}>{nameA}</p>
                   </div>
 
-                  {/* conector central */}
-                  <div className="flex flex-col items-center gap-1 shrink-0 mx-1">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full text-base font-black"
-                      style={{ background: cfg.headerBg, color: '#fff', boxShadow: `0 2px 8px ${cfg.accent}66` }}>+</div>
+                  {/* conector com cor do tier */}
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-black"
+                      style={{ background: cfg.connectorBg, color: '#fff' }}>+</div>
                     <span className="text-[10px] font-bold whitespace-nowrap rounded-full px-2 py-0.5"
-                      style={{ background: cfg.badgeBg, color: cfg.badgeText }}>{Math.round(conf * 100)}% juntos</span>
+                      style={{ background: cfg.badgeBg, color: cfg.badgeText }}>
+                      {Math.round(conf * 100)}% juntos
+                    </span>
                   </div>
 
-                  <div className="flex flex-col items-center gap-2" style={{ flex: 1, maxWidth: 90 }}>
-                    <ComboProductPhoto src={imgB} name={nameB} size={76} borderColor={cfg.photoBorder} bgColor={cfg.photoBg} accentColor={cfg.accent} />
-                    <p className="text-center text-[11px] font-bold leading-tight line-clamp-2"
-                      style={{ color: '#1e293b' }}>{nameB}</p>
+                  <div className="flex flex-col items-center gap-1.5" style={{ flex: 1, maxWidth: 88 }}>
+                    <ComboProductPhoto src={imgB} name={nameB} size={72} borderColor={cfg.photoBorder} accentColor={cfg.accent} />
+                    <p className="text-center text-[11px] font-semibold leading-tight line-clamp-2"
+                      style={{ color: 'var(--text-primary)' }}>{nameB}</p>
                   </div>
                 </div>
 
-                {/* métricas coloridas */}
-                <div className="grid grid-cols-3 mx-4 mb-3 rounded-xl overflow-hidden"
-                  style={{ border: `1.5px solid ${cfg.cardBorder}`, background: cfg.accentLight }}>
+                {/* métricas: fundo neutro, valores coloridos */}
+                <div className="grid grid-cols-3 mx-4 mb-3 rounded-lg overflow-hidden"
+                  style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
                   <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.metricColor, opacity: 0.7 }}>Cestas</span>
-                    <span className="mt-0.5 text-lg font-black" style={{ color: cfg.metricColor }}>{pairs}</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Cestas</span>
+                    <span className="mt-0.5 text-base font-black" style={{ color: 'var(--text-primary)' }}>{pairs}</span>
                   </div>
-                  <div className="flex flex-col items-center py-2.5 px-1" style={{ borderLeft: `1.5px solid ${cfg.cardBorder}`, borderRight: `1.5px solid ${cfg.cardBorder}` }}>
-                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.metricColor, opacity: 0.7 }}>Afinidade</span>
-                    <span className="mt-0.5 text-lg font-black" style={{ color: cfg.metricColor }}>{lift.toFixed(1)}x</span>
+                  <div className="flex flex-col items-center py-2.5 px-1"
+                    style={{ borderLeft: '1px solid var(--border-soft)', borderRight: '1px solid var(--border-soft)' }}>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Afinidade</span>
+                    <span className="mt-0.5 text-base font-black" style={{ color: cfg.metricColor }}>{lift.toFixed(1)}x</span>
                   </div>
                   <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.metricColor, opacity: 0.7 }}>Juntos</span>
-                    <span className="mt-0.5 text-lg font-black" style={{ color: cfg.metricColor }}>{Math.round(conf * 100)}%</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Juntos</span>
+                    <span className="mt-0.5 text-base font-black" style={{ color: cfg.metricColor }}>{Math.round(conf * 100)}%</span>
                   </div>
                 </div>
 
-                {/* barra de frequência */}
+                {/* barra dinâmica: vermelho/amarelo/verde por frequência relativa */}
                 <div className="px-4 pb-2">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] font-medium" style={{ color: cfg.metricColor, opacity: 0.7 }}>Frequência relativa</span>
-                    <span className="text-[10px] font-bold" style={{ color: cfg.metricColor }}>{barPct}%</span>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Frequência relativa</span>
+                    <span className="text-[10px] font-bold" style={{ color: barColor }}>{barPct}%</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: cfg.accentMid + '55' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(barPct, 4)}%`, background: cfg.headerBg }} />
+                  <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(barPct, 3)}%`, background: barColor }} />
                   </div>
                 </div>
 
                 {/* insight */}
                 <div className="px-4 pt-1.5 pb-3">
-                  <p className="text-xs leading-relaxed font-medium" style={{ color: cfg.metricColor, opacity: 0.85 }}>{insight}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>{insight}</p>
                 </div>
 
                 {/* CTAs */}
-                <div className="flex gap-2 px-4 pb-4">
+                <div className="flex gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border-soft)' }}>
                   <Link to="/app/mapa-loja"
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold no-underline transition hover:opacity-90"
-                    style={{ background: cfg.headerBg, color: '#fff', boxShadow: `0 2px 8px ${cfg.accent}44` }}>
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
+                    style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>
                     <Map className="h-3.5 w-3.5" /> Organizar loja
                   </Link>
                   <Link to="/app/promocoes"
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold no-underline transition hover:opacity-90"
-                    style={{ background: cfg.accentLight, color: cfg.metricColor, border: `1.5px solid ${cfg.cardBorder}` }}>
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
+                    style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
                     Promoção <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
