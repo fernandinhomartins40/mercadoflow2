@@ -493,19 +493,202 @@ const AlertsSection: React.FC = () => {
   );
 };
 
+// ── Tab: Painel ───────────────────────────────────────────────────────────────
+
+const PainelTab: React.FC<{
+  dashboard: NonNullable<ReturnType<typeof useMarketData>['dashboard']>;
+}> = ({ dashboard }) => {
+  const growth = Number(dashboard.growthPercentage || 0);
+  const topProducts = dashboard.topProducts || [];
+  const slowMovers = dashboard.slowMovers || [];
+
+  const weekData = useMemo(() => {
+    const days = dashboard.weekdaySeasonality || [];
+    const maxRevenue = Math.max(...days.map((d) => Number(d.revenue || 0)), 1);
+    return { days, maxRevenue };
+  }, [dashboard.weekdaySeasonality]);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* KPI strip */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KPICard label="Faturamento" value={formatMoney(dashboard.totalRevenue)} change={growth} color={ragColor(growth, 0, -5) as any} />
+        <KPICard label="Ticket médio" value={formatMoney(dashboard.averageTicket)} color="blue" />
+        <KPICard label="Transações" value={formatCompact(dashboard.totalTransactions)} color="purple" />
+        <KPICard label="Produtos ativos" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
+      </div>
+
+      {/* Two columns */}
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+        <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-green-500" />
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vendas da semana</h3>
+          </div>
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>Faturamento por dia</p>
+          {weekData.days.length > 0 ? (
+            <div className="mt-4 grid grid-cols-7 gap-1.5">
+              {weekData.days.map((day) => (
+                <WeekBar key={day.label} label={day.label?.slice(0, 3) || ''} value={Number(day.revenue || 0)} maxValue={weekData.maxRevenue} />
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Sem dados de sazonalidade semanal.</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Mais vendidos</h3>
+              <Link to="/app/produtos" className="text-xs font-medium text-green-600 no-underline hover:text-green-700">
+                Ver todos <ArrowRight className="inline h-3 w-3" />
+              </Link>
+            </div>
+            <div className="mt-2 flex flex-col">
+              {topProducts.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
+              {topProducts.length === 0 && <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Sem dados.</p>}
+            </div>
+          </div>
+          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Precisam de atenção</h3>
+              <Link to="/app/produtos" className="text-xs font-medium text-red-500 no-underline hover:text-red-600">
+                Ver catálogo <ArrowRight className="inline h-3 w-3" />
+              </Link>
+            </div>
+            <div className="mt-2 flex flex-col">
+              {slowMovers.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
+              {slowMovers.length === 0 && <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Todos os produtos em dia!</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick links */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { to: '/app/lista-compras', icon: ShoppingCart, title: 'Pedido inteligente', sub: 'Compra guiada por dados', color: 'bg-blue-50 border-blue-200 text-blue-600' },
+          { to: '/app/produtos',      icon: Sparkles,     title: 'Combos',             sub: 'Produtos que vendem juntos', color: 'bg-violet-50 border-violet-200 text-violet-600' },
+          { to: '/app/promocoes',     icon: TrendingUp,   title: 'Promoções',          sub: 'Crie e meça campanhas', color: 'bg-green-50 border-green-200 text-green-600' },
+          { to: '/app/mapa-loja',     icon: Map,          title: 'Mapa da loja',       sub: 'Organize para vender mais', color: 'bg-amber-50 border-amber-200 text-amber-600' },
+        ].map((link) => (
+          <Link key={link.to} to={link.to} className={`flex items-center gap-3 rounded-xl border p-3.5 no-underline transition hover:opacity-80 ${link.color}`}>
+            <link.icon className="h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{link.title}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{link.sub}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ── Tab: Alertas ──────────────────────────────────────────────────────────────
+
+const AlertasTab: React.FC = () => {
+  const { alerts, loading, onlyUnread, setOnlyUnread, refresh, markRead, markAllRead } = useAlerts();
+
+  const sorted = useMemo(() => [...alerts].sort((a, b) => {
+    if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+    return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
+  }), [alerts]);
+
+  const unreadCount = alerts.filter((a) => !a.isRead).length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOnlyUnread(!onlyUnread)}
+          className="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+          style={onlyUnread
+            ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
+            : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
+        >
+          {onlyUnread ? 'Somente não lidos' : 'Todos'}
+        </button>
+        <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
+        <Button variant="ghost" onClick={markAllRead} disabled={loading || unreadCount === 0}>Marcar todos lidos</Button>
+        <span className="ml-auto text-xs" style={{ color: 'var(--text-soft)' }}>{alerts.length} alerta{alerts.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex h-32 items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl py-16" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}>
+          <CheckCircle2 className="h-10 w-10 text-green-400" />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Todos os produtos em dia. Nenhum alerta pendente.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {sorted.map((alert) => (
+            <AlertCard key={alert.id} alert={alert} onMarkRead={markRead} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Tab switcher ──────────────────────────────────────────────────────────────
+
+type DashTab = 'painel' | 'alertas';
+
+const TabBar: React.FC<{
+  active: DashTab;
+  onChange: (t: DashTab) => void;
+  unreadAlerts: number;
+  urgentAlerts: number;
+}> = ({ active, onChange, unreadAlerts, urgentAlerts }) => (
+  <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'var(--surface-muted)', width: 'fit-content' }}>
+    {([
+      { key: 'painel',  label: 'Painel do dia', icon: Activity },
+      { key: 'alertas', label: 'Alertas',       icon: Bell },
+    ] as { key: DashTab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
+      <button
+        key={key}
+        type="button"
+        onClick={() => onChange(key)}
+        className="relative inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+        style={active === key
+          ? { background: 'var(--surface-base)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+          : { color: 'var(--text-soft)' }}
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+        {key === 'alertas' && urgentAlerts > 0 && (
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {urgentAlerts}
+          </span>
+        )}
+        {key === 'alertas' && urgentAlerts === 0 && unreadAlerts > 0 && (
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+            {unreadAlerts}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+);
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
 const Dashboard: React.FC = () => {
   const { name } = useAuth();
   const { dashboard, loading, error } = useMarketData();
+  const { alerts } = useAlerts();
+  const [tab, setTab] = useState<DashTab>('painel');
 
-  const growth = Number(dashboard?.growthPercentage || 0);
-  const topProducts = dashboard?.topProducts || [];
-  const slowMovers = dashboard?.slowMovers || [];
-
-  const weekData = useMemo(() => {
-    const days = dashboard?.weekdaySeasonality || [];
-    const maxRevenue = Math.max(...days.map((d) => Number(d.revenue || 0)), 1);
-    return { days, maxRevenue };
-  }, [dashboard?.weekdaySeasonality]);
+  const unreadAlerts = alerts.filter((a) => !a.isRead).length;
+  const urgentAlerts = alerts.filter((a) => (a.priority === 'URGENT' || a.priority === 'HIGH') && !a.isRead).length;
 
   if (loading) {
     return (
@@ -536,89 +719,20 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        {/* Greeting */}
-        <div>
-          <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            {getGreeting()}, {name || 'gestor'}!
-          </h1>
-          <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-soft)' }}>{getDayOfWeek()}</p>
-        </div>
-
-        {/* KPI strip */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <KPICard label="Faturamento" value={formatMoney(dashboard.totalRevenue)} change={growth} color={ragColor(growth, 0, -5) as any} />
-          <KPICard label="Ticket médio" value={formatMoney(dashboard.averageTicket)} color="blue" />
-          <KPICard label="Transações" value={formatCompact(dashboard.totalTransactions)} color="purple" />
-          <KPICard label="Produtos ativos" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
-        </div>
-
-        {/* Alerts section (collapsible) */}
-        <AlertsSection />
-
-        {/* Two columns */}
-        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-green-500" />
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vendas da semana</h3>
-            </div>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>Faturamento por dia</p>
-            {weekData.days.length > 0 ? (
-              <div className="mt-4 grid grid-cols-7 gap-1.5">
-                {weekData.days.map((day) => (
-                  <WeekBar key={day.label} label={day.label?.slice(0, 3) || ''} value={Number(day.revenue || 0)} maxValue={weekData.maxRevenue} />
-                ))}
-              </div>
-            ) : (
-              <p className="py-8 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Sem dados de sazonalidade semanal.</p>
-            )}
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              {getGreeting()}, {name || 'gestor'}!
+            </h1>
+            <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-soft)' }}>{getDayOfWeek()}</p>
           </div>
-
-          <div className="flex flex-col gap-4">
-            <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Mais vendidos</h3>
-                <Link to="/app/produtos" className="text-xs font-medium text-green-600 no-underline hover:text-green-700">
-                  Ver todos <ArrowRight className="inline h-3 w-3" />
-                </Link>
-              </div>
-              <div className="mt-2 flex flex-col">
-                {topProducts.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-                {topProducts.length === 0 && <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Sem dados.</p>}
-              </div>
-            </div>
-            <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Precisam de atenção</h3>
-                <span className="text-xs font-medium text-red-500">
-                  Precisa de atenção
-                </span>
-              </div>
-              <div className="mt-2 flex flex-col">
-                {slowMovers.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-                {slowMovers.length === 0 && <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Todos os produtos em dia!</p>}
-              </div>
-            </div>
-          </div>
+          <TabBar active={tab} onChange={setTab} unreadAlerts={unreadAlerts} urgentAlerts={urgentAlerts} />
         </div>
 
-        {/* Quick links */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { to: '/app/lista-compras', icon: ShoppingCart, title: 'Pedido inteligente', sub: 'Compra guiada por dados', color: 'bg-blue-50 border-blue-200 text-blue-600' },
-            { to: '/app/produtos', icon: Sparkles, title: 'Combos', sub: 'Produtos que vendem juntos', color: 'bg-violet-50 border-violet-200 text-violet-600' },
-            { to: '/app/promocoes', icon: TrendingUp, title: 'Promoções', sub: 'Crie e meça campanhas', color: 'bg-green-50 border-green-200 text-green-600' },
-            { to: '/app/mapa-loja', icon: Map, title: 'Mapa da loja', sub: 'Organize para vender mais', color: 'bg-amber-50 border-amber-200 text-amber-600' },
-          ].map((link) => (
-            <Link key={link.to} to={link.to} className={`flex items-center gap-3 rounded-xl border p-3.5 no-underline transition hover:opacity-80 ${link.color}`}>
-              <link.icon className="h-5 w-5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{link.title}</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{link.sub}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {/* Tab content */}
+        {tab === 'painel'  && <PainelTab dashboard={dashboard} />}
+        {tab === 'alertas' && <AlertasTab />}
       </div>
     </Layout>
   );
