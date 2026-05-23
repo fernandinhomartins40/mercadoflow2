@@ -375,39 +375,44 @@ const SectionForm: React.FC<{
   const [color, setColor] = useState(initial.color || PRESET_COLORS[0]);
 
   return (
-    <div className="absolute z-20 rounded-xl p-3 shadow-xl"
-      style={{ width: 260, background: '#fff', border: '1.5px solid var(--brand-500)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}
-      onClick={e => e.stopPropagation()}>
-      <p className="mb-2 text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Editar seção</p>
-      <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') onConfirm({ sectionName: name, categorySlug: slug, color }); if (e.key === 'Escape') onCancel(); }}
-        placeholder="Nome da seção (ex: Bebidas)"
-        className="mb-2 h-8 w-full rounded px-2 text-xs outline-none"
-        style={{ border: '1px solid var(--border-strong)', color: '#1e293b', background: '#f8fafc' }} />
-      <input value={slug} onChange={e => setSlug(e.target.value)}
-        placeholder="Categoria (ex: bebidas)"
-        className="mb-2 h-8 w-full rounded px-2 text-[11px] outline-none"
-        style={{ border: '1px solid var(--border-strong)', color: '#64748b', background: '#f8fafc' }} />
-      <div className="mb-3">
-        <p className="mb-1.5 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Cor</p>
-        <ColorPicker value={color} onChange={setColor} />
-      </div>
-      <div className="flex gap-1.5">
-        <button type="button" onClick={() => onConfirm({ sectionName: name, categorySlug: slug, color })}
-          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold"
-          style={{ background: 'var(--brand-500)', color: '#fff' }}>
-          <Check className="h-3 w-3" /> Salvar
-        </button>
-        <button type="button" onClick={onClear}
-          className="rounded-lg px-2 py-1.5 text-xs"
-          style={{ border: '1px solid #fecaca', color: '#ef4444', background: '#fff1f2' }}>
-          Limpar
-        </button>
-        <button type="button" onClick={onCancel}
-          className="rounded-lg px-2 py-1.5 text-xs"
-          style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>
-          <X className="h-3 w-3" />
-        </button>
+    /* Full-screen overlay so the form floats above the grid regardless of cell position */
+    <div className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(2px)' }}
+      onClick={onCancel}>
+      <div className="rounded-xl p-4 shadow-2xl"
+        style={{ width: 280, background: '#fff', border: '1.5px solid var(--brand-500)' }}
+        onClick={e => e.stopPropagation()}>
+        <p className="mb-3 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Editar seção</p>
+        <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onConfirm({ sectionName: name, categorySlug: slug, color }); if (e.key === 'Escape') onCancel(); }}
+          placeholder="Nome da seção (ex: Bebidas)"
+          className="mb-2 h-8 w-full rounded px-2 text-xs outline-none"
+          style={{ border: '1px solid var(--border-strong)', color: '#1e293b', background: '#f8fafc' }} />
+        <input value={slug} onChange={e => setSlug(e.target.value)}
+          placeholder="Categoria (ex: bebidas)"
+          className="mb-2 h-8 w-full rounded px-2 text-[11px] outline-none"
+          style={{ border: '1px solid var(--border-strong)', color: '#64748b', background: '#f8fafc' }} />
+        <div className="mb-3">
+          <p className="mb-1.5 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Cor</p>
+          <ColorPicker value={color} onChange={setColor} />
+        </div>
+        <div className="flex gap-1.5">
+          <button type="button" onClick={() => onConfirm({ sectionName: name, categorySlug: slug, color })}
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold"
+            style={{ background: 'var(--brand-500)', color: '#fff' }}>
+            <Check className="h-3 w-3" /> Salvar
+          </button>
+          <button type="button" onClick={onClear}
+            className="rounded-lg px-2 py-1.5 text-xs"
+            style={{ border: '1px solid #fecaca', color: '#ef4444', background: '#fff1f2' }}>
+            Limpar
+          </button>
+          <button type="button" onClick={onCancel}
+            className="rounded-lg px-2 py-1.5 text-xs"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>
+            <X className="h-3 w-3" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -590,6 +595,16 @@ const StoreMap: React.FC = () => {
 
   return (
     <Layout>
+      {/* Section edit form — rendered as fixed overlay, above everything */}
+      {editingCell && (
+        <SectionForm
+          initial={editingInitial}
+          inputRef={editInputRef}
+          onConfirm={confirmSectionEdit}
+          onCancel={() => setEditingCell(null)}
+          onClear={() => clearCell(editingCell.row, editingCell.col)}
+        />
+      )}
       <div className="flex flex-col gap-4">
 
         {/* Header */}
@@ -713,16 +728,6 @@ const StoreMap: React.FC = () => {
                             border: isOpen ? '2px solid var(--brand-500)' : isEditing ? '2px solid #6366f1' : '1px solid var(--border-soft)',
                             boxShadow: isOpen ? '0 0 0 3px rgba(34,197,94,0.15)' : undefined,
                           }}>
-
-                          {isEditing && (
-                            <SectionForm
-                              initial={editingInitial}
-                              inputRef={editInputRef}
-                              onConfirm={confirmSectionEdit}
-                              onCancel={() => setEditingCell(null)}
-                              onClear={() => clearCell(row, col)}
-                            />
-                          )}
 
                           {isAisle ? (
                             <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>
