@@ -23,7 +23,7 @@ public class ProductionSeeder {
     @Value("${app.admin.email:admin@mercadoflow.com}")
     private String adminEmail;
 
-    @Value("${app.admin.password:MercadoFlow@2026}")
+    @Value("${app.admin.password:}")
     private String adminPassword;
 
     @Value("${app.admin.name:Administrador}")
@@ -32,7 +32,7 @@ public class ProductionSeeder {
     @Value("${app.super-admin.email:superadmin@mercadoflow.com}")
     private String superAdminEmail;
 
-    @Value("${app.super-admin.password:SuperAdmin@2026}")
+    @Value("${app.super-admin.password:}")
     private String superAdminPassword;
 
     @Value("${app.super-admin.name:Super Administrador}")
@@ -71,6 +71,10 @@ public class ProductionSeeder {
         if (userRepository.findByEmail(adminEmail).isPresent()) {
             return;
         }
+        if (adminPassword == null || adminPassword.isBlank()) {
+            logger.warn("ADMIN_PASSWORD not set; skipping admin user seed for {}", adminEmail);
+            return;
+        }
 
         User admin = new User();
         admin.setEmail(adminEmail);
@@ -85,6 +89,10 @@ public class ProductionSeeder {
 
     private void ensureSuperAdminUser(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         if (userRepository.findByEmail(superAdminEmail).isPresent()) {
+            return;
+        }
+        if (superAdminPassword == null || superAdminPassword.isBlank()) {
+            logger.warn("APP_SUPER_ADMIN_PASSWORD not set; skipping super admin seed for {}", superAdminEmail);
             return;
         }
 

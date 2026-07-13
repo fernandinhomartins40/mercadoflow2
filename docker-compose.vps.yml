@@ -6,8 +6,13 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_APP_USER=${DATABASE_APP_USER:-pdv2cloud_app}
+      - DATABASE_APP_PASSWORD=${DATABASE_APP_PASSWORD:-}
     volumes:
       - mercadoflow_postgres_data:/var/lib/postgresql/data
+      # Cria a role de aplicacao (sem BYPASSRLS) no primeiro provisionamento.
+      # Para volume ja existente, rode o script manualmente (ver scripts/db/setup-tenant-roles.sh)
+      - ./scripts/db/setup-tenant-roles.sh:/docker-entrypoint-initdb.d/10-setup-tenant-roles.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -20,8 +25,12 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=production
       - DATABASE_URL=${DATABASE_URL}
+      # DATABASE_USER deve ser a role de aplicacao (pdv2cloud_app), sujeita a RLS
       - DATABASE_USER=${DATABASE_USER}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      # Flyway roda migrations com a role dona do schema
+      - FLYWAY_USER=${FLYWAY_USER:-${POSTGRES_USER}}
+      - FLYWAY_PASSWORD=${FLYWAY_PASSWORD:-${POSTGRES_PASSWORD}}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION_MS=86400000
       - CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
@@ -70,8 +79,9 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=jobs
       - DATABASE_URL=${DATABASE_URL}
-      - DATABASE_USER=${DATABASE_USER}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      # Jobs operam sobre todos os tenants: usam a role dona do schema (nao sujeita a RLS)
+      - DATABASE_USER=${POSTGRES_USER}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION_MS=86400000
     depends_on:

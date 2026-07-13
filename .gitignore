@@ -18,6 +18,11 @@ data/catalog/supermarket_products.json
 data/catalog/supermarket_products.csv
 .env
 *.log
+
+# Credenciais nunca devem ser versionadas
+CREDENTIALS.md
+SUPER_ADMIN_TEST_CREDENTIALS.md
+*credentials*.md
 pdv2cloud-agent/installer/Output/*.exe
 pdv2cloud-agent/installer/Output/*.sha256
 pdv2cloud-agent/installer/Output/*.meta.json

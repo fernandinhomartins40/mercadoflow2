@@ -15,6 +15,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # Migrations rodam com a role dona do schema; a aplicacao conecta com role sujeita a RLS
+    user: ${FLYWAY_USER:${DATABASE_USER:pdv2cloud}}
+    password: ${FLYWAY_PASSWORD:${DATABASE_PASSWORD:pdv2cloud}}
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -28,8 +31,9 @@ server:
       force: true
       charset: UTF-8
 
+# JWT_SECRET nao tem fallback: a aplicacao falha no startup se nao for configurado (ver .env.example)
 jwt:
-  secret: ${JWT_SECRET:CWkVPciXTxXTcBAh8BXGQYqcyX3Ci6ekGsnfr14YiQz+N6xsAfFIYi/IEhBTx7uyAM/su+p7994Mk4Qex0Ht1Q==}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION_MS:86400000}
 
 cors:

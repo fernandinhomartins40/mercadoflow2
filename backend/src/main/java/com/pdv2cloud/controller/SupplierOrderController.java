@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.SupplierOrderDTO;
 import com.pdv2cloud.model.dto.SupplierOrderItemDTO;
+import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.SupplierOrderService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,29 +18,37 @@ import org.springframework.web.bind.annotation.*;
 public class SupplierOrderController {
 
     private final SupplierOrderService service;
+    private final MarketAccessService marketAccessService;
 
-    public SupplierOrderController(SupplierOrderService service) {
+    public SupplierOrderController(SupplierOrderService service, MarketAccessService marketAccessService) {
         this.service = service;
+        this.marketAccessService = marketAccessService;
     }
 
     @GetMapping
     public List<SupplierOrderDTO> list(
             @PathVariable UUID marketId,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         return service.listOrders(marketId, status);
     }
 
     @GetMapping("/{orderId}")
     public SupplierOrderDTO get(
             @PathVariable UUID marketId,
-            @PathVariable UUID orderId) {
+            @PathVariable UUID orderId,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         return service.getOrder(marketId, orderId);
     }
 
     @PostMapping
     public ResponseEntity<SupplierOrderDTO> create(
             @PathVariable UUID marketId,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         UUID supplierId = UUID.fromString(body.get("supplierId").toString());
         String notes = body.containsKey("notes") ? (String) body.get("notes") : null;
         SupplierOrderDTO dto = service.createOrder(marketId, supplierId, notes);
@@ -49,7 +59,9 @@ public class SupplierOrderController {
     public SupplierOrderDTO updateNotes(
             @PathVariable UUID marketId,
             @PathVariable UUID orderId,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         String notes = body.containsKey("notes") ? (String) body.get("notes") : null;
         return service.updateNotes(marketId, orderId, notes);
     }
@@ -58,7 +70,9 @@ public class SupplierOrderController {
     public ResponseEntity<SupplierOrderItemDTO> addItem(
             @PathVariable UUID marketId,
             @PathVariable UUID orderId,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         UUID productId = UUID.fromString(body.get("productId").toString());
         BigDecimal qty = new BigDecimal(body.get("quantityRequested").toString());
         String unitType = body.containsKey("unitType") ? (String) body.get("unitType") : "UN";
@@ -79,7 +93,9 @@ public class SupplierOrderController {
             @PathVariable UUID marketId,
             @PathVariable UUID orderId,
             @PathVariable UUID itemId,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         BigDecimal qty = body.containsKey("quantityRequested") && body.get("quantityRequested") != null
             ? new BigDecimal(body.get("quantityRequested").toString()) : null;
         String unitType = body.containsKey("unitType") ? (String) body.get("unitType") : null;
@@ -98,7 +114,9 @@ public class SupplierOrderController {
     public ResponseEntity<Void> removeItem(
             @PathVariable UUID marketId,
             @PathVariable UUID orderId,
-            @PathVariable UUID itemId) {
+            @PathVariable UUID itemId,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         service.removeItem(marketId, orderId, itemId);
         return ResponseEntity.noContent().build();
     }
@@ -106,7 +124,9 @@ public class SupplierOrderController {
     @PostMapping("/{orderId}/send")
     public SupplierOrderDTO send(
             @PathVariable UUID marketId,
-            @PathVariable UUID orderId) {
+            @PathVariable UUID orderId,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         return service.sendOrder(marketId, orderId);
     }
 
@@ -114,7 +134,9 @@ public class SupplierOrderController {
     public SupplierOrderDTO receive(
             @PathVariable UUID marketId,
             @PathVariable UUID orderId,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         List<Map<String, Object>> items = null;
         LocalDateTime receivedAt = null;
         if (body != null) {
@@ -132,7 +154,9 @@ public class SupplierOrderController {
     public SupplierOrderDTO cancel(
             @PathVariable UUID marketId,
             @PathVariable UUID orderId,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         String reason = (body != null && body.containsKey("reason")) ? (String) body.get("reason") : null;
         return service.cancelOrder(marketId, orderId, reason);
     }
@@ -140,7 +164,9 @@ public class SupplierOrderController {
     @DeleteMapping("/{orderId}")
     public ResponseEntity<Void> delete(
             @PathVariable UUID marketId,
-            @PathVariable UUID orderId) {
+            @PathVariable UUID orderId,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
         service.deleteOrder(marketId, orderId);
         return ResponseEntity.noContent().build();
     }

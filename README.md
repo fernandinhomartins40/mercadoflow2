@@ -65,5 +65,5 @@ Swagger: `http://localhost:8080/swagger-ui/index.html`
 
 ## Painel Super Admin
 - Login separado: `/super-admin/login`
-- Credenciais de seed: `SUPER_ADMIN_TEST_CREDENTIALS.md`
+- Credenciais de seed: definidas via ambiente (`SUPER_ADMIN_PASSWORD`) — ver `.env.example` e `docs/SEGURANCA_MULTI_TENANT.md`
 - Escopo: usuarios, planos/bloqueios, catalogo global (CRUD) e configuracao do crawler web.

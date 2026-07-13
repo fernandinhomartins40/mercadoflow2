@@ -22,6 +22,7 @@ import com.pdv2cloud.security.AgentApiKeyAuthenticationFilter;
 import com.pdv2cloud.security.JwtAuthenticationFilter;
 import com.pdv2cloud.security.HmacSignatureFilter;
 import com.pdv2cloud.security.RateLimitFilter;
+import com.pdv2cloud.security.TenantAccessFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -39,6 +40,9 @@ public class SecurityConfig {
 
     @Autowired
     private RateLimitFilter rateLimitFilter;
+
+    @Autowired
+    private TenantAccessFilter tenantAccessFilter;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -67,7 +71,10 @@ public class SecurityConfig {
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(hmacSignatureFilter, AgentApiKeyAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // Roda apos todos os filtros de autenticacao: popula o TenantContext e
+            // valida {marketId} da URL contra o tenant do principal (isolamento estrutural)
+            .addFilterAfter(tenantAccessFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

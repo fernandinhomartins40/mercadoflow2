@@ -27,14 +27,13 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findForAuthenticationByEmail(username)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return new org.springframework.security.core.userdetails.User(
+        return new AppUserDetails(
             user.getEmail(),
             user.getPassword(),
             isUserEnabled(user),
-            true,
-            true,
-            true,
-            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
+            user.getMarket() != null ? user.getMarket().getId() : null,
+            user.getRole()
         );
     }
 

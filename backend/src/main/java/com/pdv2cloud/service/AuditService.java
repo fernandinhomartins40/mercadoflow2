@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.entity.AuditLog;
 import com.pdv2cloud.repository.AuditLogRepository;
 import com.pdv2cloud.security.AgentPrincipal;
+import com.pdv2cloud.security.AppUserDetails;
+import com.pdv2cloud.tenancy.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,14 +49,23 @@ public class AuditService {
                     builder.actorType("AGENT")
                             .agentKeyId(agentPrincipal.getAgentKeyId())
                             .marketId(agentPrincipal.getMarketId());
+                } else if (auth.getPrincipal() instanceof AppUserDetails appUserDetails) {
+                    builder.actorType("USER")
+                            .userId(extractUserId(appUserDetails))
+                            .marketId(appUserDetails.getMarketId());
                 } else if (auth.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails) {
                     builder.actorType("USER")
-                            .userId(extractUserId(userDetails));
+                            .userId(extractUserId(userDetails))
+                            .marketId(resolveContextMarketId());
                 } else {
-                    builder.actorType("SYSTEM");
+                    builder.actorType("SYSTEM")
+                            .marketId(resolveContextMarketId());
                 }
             } else {
-                builder.actorType("SYSTEM");
+                // Em threads @Async o SecurityContext nao e propagado; o TenantContext e
+                // (via TaskDecorator) e garante o market_id exigido pela RLS de audit_logs
+                builder.actorType("SYSTEM")
+                        .marketId(resolveContextMarketId());
             }
 
             // Request metadata
@@ -97,11 +108,16 @@ public class AuditService {
                     builder.actorType("AGENT")
                             .agentKeyId(agentPrincipal.getAgentKeyId())
                             .marketId(agentPrincipal.getMarketId());
+                } else if (auth.getPrincipal() instanceof AppUserDetails appUserDetails) {
+                    builder.actorType("USER")
+                            .marketId(appUserDetails.getMarketId());
                 } else {
-                    builder.actorType("USER");
+                    builder.actorType("USER")
+                            .marketId(resolveContextMarketId());
                 }
             } else {
-                builder.actorType("SYSTEM");
+                builder.actorType("SYSTEM")
+                        .marketId(resolveContextMarketId());
             }
 
             if (request != null) {
@@ -121,6 +137,11 @@ public class AuditService {
         } catch (Exception e) {
             log.error("Failed to create audit failure log", e);
         }
+    }
+
+    private UUID resolveContextMarketId() {
+        TenantContext.TenantInfo info = TenantContext.get();
+        return info != null ? info.marketId() : null;
     }
 
     private UUID extractUserId(org.springframework.security.core.userdetails.UserDetails userDetails) {
