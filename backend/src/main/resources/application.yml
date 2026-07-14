@@ -15,7 +15,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    # Migrations rodam com a role dona do schema; a aplicacao conecta com role sujeita a RLS
+    # Migrations rodam com a role dona do schema; a aplicacao conecta com role sujeita a RLS.
+    # url explicito e obrigatorio no Spring Boot 3.2 quando user/password diferem do datasource,
+    # senao o Flyway tenta montar um DataSource sem URL e o boot falha.
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pdv2cloud}
     user: ${FLYWAY_USER:${DATABASE_USER:pdv2cloud}}
     password: ${FLYWAY_PASSWORD:${DATABASE_PASSWORD:pdv2cloud}}
   jackson:
