@@ -354,9 +354,10 @@ def run_drogariasp(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/drogariasp_web_br_catalog",
         site_base="https://www.drogariasaopaulo.com.br",
-        catalog_api_base="https://www.drogariasaopaulo.com.br",
+        # Dominio publico responde 503 no CDN para chamadas de API.
+        catalog_api_base="https://drogariasaopaulo.vtexcommercestable.com.br",
         mode="category-tree",
-        category_tree_url="https://www.drogariasaopaulo.com.br/api/catalog_system/pub/category/tree/20",
+        category_tree_url="https://drogariasaopaulo.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "DROGARIASP_WEB_BR"),
     )
     return run_vtex_category_tree_job(
@@ -402,9 +403,11 @@ def run_supermuffato(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/supermuffato_web_br_catalog",
         site_base="https://www.supermuffato.com.br",
-        catalog_api_base="https://www.supermuffato.com.br",
+        # O dominio publico responde 503 no CDN para chamadas de API; o host
+        # vtexcommercestable da mesma conta serve o catalogo normalmente.
+        catalog_api_base="https://supermuffato.vtexcommercestable.com.br",
         mode="category-tree",
-        category_tree_url="https://www.supermuffato.com.br/api/catalog_system/pub/category/tree/20",
+        category_tree_url="https://supermuffato.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "SUPERMUFFATO_WEB_BR"),
     )
@@ -502,10 +505,12 @@ def run_angeloni(args: argparse.Namespace) -> Dict[str, Any]:
         provider="ANGELONI_WEB_BR",
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/angeloni_web_br_catalog",
-        site_base="https://www.angeloni.com.br/eletro",
-        catalog_api_base="https://eletroangeloni.vtexcommercestable.com.br",
+        # Antes apontava para a loja de eletro (eletroangeloni), que nao contem o
+        # catalogo de supermercado. A conta "superangeloni" e a do supermercado.
+        site_base="https://www.angeloni.com.br/supermercado",
+        catalog_api_base="https://superangeloni.vtexcommercestable.com.br",
         mode="category-tree",
-        category_tree_url="https://eletroangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
+        category_tree_url="https://superangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         selected_categories=selected_categories_for_provider(args, "ANGELONI_WEB_BR"),
     )
     return run_vtex_category_tree_job(
@@ -525,9 +530,10 @@ def run_bistek(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/bistek_web_br_catalog",
         site_base="https://www.bistek.com.br",
-        catalog_api_base="https://www.bistek.com.br",
+        # Dominio publico responde 503 no CDN para chamadas de API.
+        catalog_api_base="https://bistek.vtexcommercestable.com.br",
         mode="category-tree",
-        category_tree_url="https://www.bistek.com.br/api/catalog_system/pub/category/tree/20",
+        category_tree_url="https://bistek.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.bistek.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "BISTEK_WEB_BR"),
         non_fatal_page_errors=1,
@@ -575,9 +581,10 @@ def run_festval(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/festval_web_br_catalog",
         site_base="https://www.festval.com",
-        catalog_api_base="https://www.festval.com",
+        # Dominio publico responde 503 no CDN; a conta VTEX do Festval e "meufestval".
+        catalog_api_base="https://meufestval.vtexcommercestable.com.br",
         mode="category-tree",
-        category_tree_url="https://www.festval.com/api/catalog_system/pub/category/tree/20",
+        category_tree_url="https://meufestval.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.festval.com/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "FESTVAL_WEB_BR"),
         catalog_retry_attempts=6,
@@ -602,9 +609,10 @@ def run_giassi(args: argparse.Namespace) -> Dict[str, Any]:
         source_license="Public website/API data (respect provider terms and robots)",
         output="data/catalog/giassi_web_br_catalog",
         site_base="https://www.giassi.com.br",
-        catalog_api_base="https://www.giassi.com.br",
+        # Dominio publico responde 503 no CDN para chamadas de API.
+        catalog_api_base="https://giassi.vtexcommercestable.com.br",
         mode="category-tree",
-        category_tree_url="https://www.giassi.com.br/api/catalog_system/pub/category/tree/20",
+        category_tree_url="https://giassi.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
         sitemap_index_url="https://www.giassi.com.br/sitemap.xml",
         selected_categories=selected_categories_for_provider(args, "GIASSI_WEB_BR"),
         catalog_retry_attempts=6,

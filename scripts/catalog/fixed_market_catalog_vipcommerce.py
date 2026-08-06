@@ -545,9 +545,11 @@ def _generic_catalog_job(job: SupermercadosOnlineJobConfig) -> GenericCatalogJob
             domain,
             f"www.{domain}" if not domain.startswith("www.") else domain,
         ],
-        product_path_hints=("/departamentos/", "/colecoes/", "/produto/", "/ofertas", "/mais-vendidos"),
-        max_pages=1000,
-        max_records=50_000,
+        product_path_hints=("/departamentos/", "/colecoes/", "/produto/", "/produtos/", "/ofertas", "/mais-vendidos"),
+        # max_pages e um orcamento compartilhado entre todos os departamentos e
+        # vitrines; com 1000 a varredura parava no meio dos departamentos maiores.
+        max_pages=20_000,
+        max_records=80_000,
         rate_limit_ms=0,
         timeout_sec=30,
         ignore_robots=False,

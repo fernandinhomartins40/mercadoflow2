@@ -438,16 +438,17 @@ def run_gpa_catalog_job(
             cached_shelf = completed_shelves.get(shelf_key)
             if cached_shelf and norm_text(cached_shelf.get("scopeHash")) == shelf_hash:
                 metadata = cached_shelf.get("metadata") or {}
-                shelf_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
-                if isinstance(shelf_gtins, list) and shelf_gtins:
-                    missing_images = checkpoint_store.codes_needing_image_refresh(shelf_gtins)
-                    if not missing_images:
-                        skipped_cached_shelves += 1
-                        print(f"[{job.provider}] skip cached shelf_id={shelf_id} rows={len(rows)}")
-                        continue
-                    print(f"[{job.provider}] reprocess shelf_id={shelf_id} missing_images={len(missing_images)}")
-                else:
-                    print(f"[{job.provider}] reprocess shelf_id={shelf_id} reason=missing-gtin-metadata")
+                cached_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+                if not isinstance(cached_gtins, list):
+                    cached_gtins = []
+                missing_images = (
+                    checkpoint_store.codes_needing_image_refresh(cached_gtins) if cached_gtins else set()
+                )
+                if not missing_images:
+                    skipped_cached_shelves += 1
+                    print(f"[{job.provider}] skip cached shelf_id={shelf_id} rows={len(rows)}")
+                    continue
+                print(f"[{job.provider}] reprocess shelf_id={shelf_id} missing_images={len(missing_images)}")
             processed_shelves[shelf_key] = {
                 "scopeHash": shelf_hash,
                 "itemCount": len(rows),

@@ -36,10 +36,12 @@ def run_guanabara_catalog_job(
         site_base=job.site_base,
         seeds=seeds,
         allowed_domains=["smguanabaraonline.com.br", "www.smguanabaraonline.com.br", "api.smguanabaraonline.com.br"],
-        product_path_hints=("/produto/", "/categoria/", "/departamento/", "/busca"),
-        max_pages=500,
-        max_records=18_000,
-        rate_limit_ms=900,
+        # O site usa /produtos/ e /categorias/ (plural). Com os hints no singular
+        # nenhuma das 16.6k URLs do sitemap era reconhecida como pagina de produto.
+        product_path_hints=("/produtos/", "/produto/", "/categorias/", "/categoria/", "/departamento/", "/busca"),
+        max_pages=25_000,
+        max_records=20_000,
+        rate_limit_ms=250,
         timeout_sec=25,
         enable_browser_simulation=True,
     )

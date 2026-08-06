@@ -126,8 +126,15 @@ def build_session() -> requests.Session:
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)",
+            # Varios sites (Atacadao, Bistek, Giassi, Muffato) devolvem 503 no CDN
+            # para User-Agents de bot; um UA de navegador real e aceito normalmente.
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
             "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
         }
     )
     return session
@@ -536,6 +543,85 @@ def resolve_brand_id(
     return resolved
 
 
+def extract_specification_partitions(payload: Dict[str, Any]) -> List[Tuple[str, List[Tuple[str, str, int]]]]:
+    """Le os SpecificationFilters de uma resposta de facets.
+
+    Devolve [(nome_do_grupo, [(rotulo, fq, quantidade), ...]), ...]. O fq usa o
+    formato que a propria API publica em Map/Value (ex.: specificationFilter_143:Valor).
+    """
+    groups = payload.get("SpecificationFilters") if isinstance(payload, dict) else None
+    if not isinstance(groups, dict):
+        return []
+    result: List[Tuple[str, List[Tuple[str, str, int]]]] = []
+    for group_name, values in groups.items():
+        if not isinstance(values, list):
+            continue
+        entries: List[Tuple[str, str, int]] = []
+        for value in values:
+            if not isinstance(value, dict):
+                continue
+            map_key = norm_text(value.get("Map"))
+            raw_value = norm_text(value.get("Value"))
+            try:
+                quantity = int(value.get("Quantity") or 0)
+            except Exception:
+                quantity = 0
+            if not map_key or not raw_value or quantity <= 0:
+                continue
+            entries.append((norm_text(value.get("Name")) or raw_value, f"{map_key}:{raw_value}", quantity))
+        if entries:
+            result.append((norm_text(group_name) or "spec", entries))
+    return result
+
+
+def split_partition_by_specification(
+    job: VtexJobConfig,
+    partition: VtexSearchPartition,
+) -> List[VtexSearchPartition]:
+    """Quebra uma particao acima do teto de 2500 usando filtros de especificacao.
+
+    A busca VTEX nunca devolve resultados alem do offset 2500, entao sem esta
+    quebra todo o excedente de uma folha/marca grande era descartado. Escolhe o
+    grupo de especificacao com maior cobertura e menor pico por valor.
+    """
+    try:
+        facets = fetch_facets(job, partition.fqs)
+    except Exception:
+        return []
+
+    best: Optional[List[Tuple[str, str, int]]] = None
+    best_group = ""
+    best_peak = 0
+    for group_name, entries in extract_specification_partitions(facets):
+        coverage = sum(quantity for _, _, quantity in entries)
+        peak = max((quantity for _, _, quantity in entries), default=0)
+        # so vale a pena se cobrir a maior parte da particao e reduzir o pico
+        if coverage < partition.total_hint * 0.6 or peak >= partition.total_hint:
+            continue
+        if best is None or peak < best_peak:
+            best, best_group, best_peak = entries, group_name, peak
+
+    if not best:
+        return []
+
+    partitions: List[VtexSearchPartition] = []
+    for label, spec_fq, quantity in best:
+        spec_fqs = partition.fqs + (spec_fq,)
+        partitions.append(
+            VtexSearchPartition(
+                key="|".join(spec_fqs),
+                label=f"{partition.label} | {best_group}: {label}",
+                fqs=spec_fqs,
+                total_hint=quantity,
+                leaf_label=partition.leaf_label,
+                leaf_fq=partition.leaf_fq,
+                leaf_ids=partition.leaf_ids,
+                kind="SPECIFICATION",
+            )
+        )
+    return partitions
+
+
 def build_leaf_partitions(
     job: VtexJobConfig,
     leaf: VtexCategoryLeaf,
@@ -593,34 +679,41 @@ def build_leaf_partitions(
         covered_total += max(facet.quantity, 0)
 
     if not partitions:
-        return [
-            VtexSearchPartition(
-                key=leaf.fq,
-                label=leaf.label,
-                fqs=(leaf.fq,),
-                total_hint=total_hint,
-                leaf_label=leaf.label,
-                leaf_fq=leaf.fq,
-                leaf_ids=leaf.ids,
-                kind="UNSPLITTABLE_LEAF",
-            )
-        ]
+        fallback = VtexSearchPartition(
+            key=leaf.fq,
+            label=leaf.label,
+            fqs=(leaf.fq,),
+            total_hint=total_hint,
+            leaf_label=leaf.label,
+            leaf_fq=leaf.fq,
+            leaf_ids=leaf.ids,
+            kind="UNSPLITTABLE_LEAF",
+        )
+        return split_partition_by_specification(job, fallback) or [fallback]
 
     if covered_total < total_hint:
-        partitions.append(
-            VtexSearchPartition(
-                key=leaf.fq,
-                label=f"{leaf.label} | Folha completa",
-                fqs=(leaf.fq,),
-                total_hint=total_hint,
-                leaf_label=leaf.label,
-                leaf_fq=leaf.fq,
-                leaf_ids=leaf.ids,
-                kind="UNRESOLVED_LEAF",
-            )
+        residual = VtexSearchPartition(
+            key=leaf.fq,
+            label=f"{leaf.label} | Folha completa",
+            fqs=(leaf.fq,),
+            total_hint=total_hint,
+            leaf_label=leaf.label,
+            leaf_fq=leaf.fq,
+            leaf_ids=leaf.ids,
+            kind="UNRESOLVED_LEAF",
         )
+        partitions.append(residual)
 
-    return partitions
+    # Marcas com mais de 2500 itens ainda estouram o teto da busca VTEX: quebra
+    # cada uma dessas em faixas de preco para nao perder o excedente.
+    expanded: List[VtexSearchPartition] = []
+    for partition in partitions:
+        if partition.total_hint <= 2500:
+            expanded.append(partition)
+            continue
+        bands = split_partition_by_specification(job, partition)
+        expanded.extend(bands or [partition])
+    return expanded
 
 
 def fetch_product_by_url(job: VtexJobConfig, product_url: str) -> Optional[Dict[str, Any]]:
@@ -926,22 +1019,23 @@ def run_vtex_paged_job(
         cached_page = completed_pages.get(page_key)
         if cached_page and norm_text(cached_page.get("scopeHash")) == page_hash:
             metadata = cached_page.get("metadata") or {}
-            page_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
-            if isinstance(page_gtins, list) and page_gtins:
-                missing_images = checkpoint_store.codes_needing_image_refresh(page_gtins)
-                if not missing_images:
-                    skipped_cached_pages += 1
-                    pages += 1
-                    start += page_size
-                    print(f"[{job.provider}] skip cached page={page_key} total_hint={total_hint or 'n/a'}")
-                    if max_pages and pages >= max_pages:
-                        break
-                    if total_hint and start >= total_hint:
-                        break
-                    continue
-                print(f"[{job.provider}] reprocess cached page={page_key} missing_images={len(missing_images)}")
-            else:
-                print(f"[{job.provider}] reprocess cached page={page_key} reason=missing-gtin-metadata")
+            cached_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+            if not isinstance(cached_gtins, list):
+                cached_gtins = []
+            missing_images = (
+                checkpoint_store.codes_needing_image_refresh(cached_gtins) if cached_gtins else set()
+            )
+            if not missing_images:
+                skipped_cached_pages += 1
+                pages += 1
+                start += page_size
+                print(f"[{job.provider}] skip cached page={page_key} total_hint={total_hint or 'n/a'}")
+                if max_pages and pages >= max_pages:
+                    break
+                if total_hint and start >= total_hint:
+                    break
+                continue
+            print(f"[{job.provider}] reprocess cached page={page_key} missing_images={len(missing_images)}")
 
         page_detail_errors = 0
         page_gtins: List[str] = []
@@ -1260,19 +1354,29 @@ def run_vtex_category_tree_job(
                     cached_page = completed_pages.get(page_key)
                     if cached_page and norm_text(cached_page.get("scopeHash")) == page_hash:
                         metadata = cached_page.get("metadata") or {}
-                        page_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
-                        if isinstance(page_gtins, list) and page_gtins:
-                            missing_images = checkpoint_store.codes_needing_image_refresh(page_gtins)
-                            if not missing_images:
-                                skipped_cached_pages += 1
-                                leaf_pages += 1
-                                pages_fetched += 1
-                                start += page_size
-                                if max_pages_per_leaf and leaf_pages >= max_pages_per_leaf:
-                                    break
-                                if total_hint and start >= total_hint:
-                                    break
-                                continue
+                        cached_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+                        if not isinstance(cached_gtins, list):
+                            cached_gtins = []
+                        # Paginas antigas gravadas sem a lista de gtins ainda sao um checkpoint
+                        # valido: o hash confere, entao o conteudo ja foi importado. Sem esta
+                        # tolerancia todo checkpoint legado era ignorado e a pagina reprocessada.
+                        missing_images = (
+                            checkpoint_store.codes_needing_image_refresh(cached_gtins) if cached_gtins else set()
+                        )
+                        if not missing_images:
+                            skipped_cached_pages += 1
+                            leaf_pages += 1
+                            pages_fetched += 1
+                            start += page_size
+                            if max_pages_per_leaf and leaf_pages >= max_pages_per_leaf:
+                                break
+                            if total_hint and start >= total_hint:
+                                break
+                            continue
+                        print(
+                            f"[{job.provider}] reprocess cached page={page_key} "
+                            f"missing_images={len(missing_images)}"
+                        )
 
                     page_detail_errors = 0
                     page_gtins: List[str] = []
@@ -1449,17 +1553,20 @@ def run_vtex_category_tree_job(
             cached_sitemap = completed_sitemaps.get(sitemap_url)
             if cached_sitemap and norm_text(cached_sitemap.get("scopeHash")) == sitemap_hash:
                 metadata = cached_sitemap.get("metadata") or {}
-                sitemap_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
-                if isinstance(sitemap_gtins, list) and sitemap_gtins:
-                    missing_images = checkpoint_store.codes_needing_image_refresh(sitemap_gtins)
-                    if not missing_images:
-                        residual_skipped_cached_sitemaps += 1
-                        print(f"[{job.provider}] skip cached residual sitemap={sitemap_index}/{len(sitemap_urls)} url={sitemap_url}")
-                        continue
-                    print(
-                        f"[{job.provider}] reprocess residual sitemap={sitemap_index}/{len(sitemap_urls)} "
-                        f"missing_images={len(missing_images)}"
-                    )
+                cached_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+                if not isinstance(cached_gtins, list):
+                    cached_gtins = []
+                missing_images = (
+                    checkpoint_store.codes_needing_image_refresh(cached_gtins) if cached_gtins else set()
+                )
+                if not missing_images:
+                    residual_skipped_cached_sitemaps += 1
+                    print(f"[{job.provider}] skip cached residual sitemap={sitemap_index}/{len(sitemap_urls)} url={sitemap_url}")
+                    continue
+                print(
+                    f"[{job.provider}] reprocess residual sitemap={sitemap_index}/{len(sitemap_urls)} "
+                    f"missing_images={len(missing_images)}"
+                )
 
             executor = ThreadPoolExecutor(max_workers=max(1, residual_product_workers))
             cancelled = False
@@ -1706,16 +1813,17 @@ def run_vtex_sitemap_job(
         cached_sitemap = completed_sitemaps.get(sitemap_url)
         if cached_sitemap and norm_text(cached_sitemap.get("scopeHash")) == sitemap_hash:
             metadata = cached_sitemap.get("metadata") or {}
-            sitemap_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
-            if isinstance(sitemap_gtins, list) and sitemap_gtins:
-                missing_images = checkpoint_store.codes_needing_image_refresh(sitemap_gtins)
-                if not missing_images:
-                    skipped_cached_sitemaps += 1
-                    print(f"[{job.provider}] skip cached sitemap={sitemap_index}/{len(sitemap_urls)} url={sitemap_url}")
-                    continue
-                print(f"[{job.provider}] reprocess cached sitemap={sitemap_index}/{len(sitemap_urls)} missing_images={len(missing_images)}")
-            else:
-                print(f"[{job.provider}] reprocess cached sitemap={sitemap_index}/{len(sitemap_urls)} reason=missing-gtin-metadata")
+            cached_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+            if not isinstance(cached_gtins, list):
+                cached_gtins = []
+            missing_images = (
+                checkpoint_store.codes_needing_image_refresh(cached_gtins) if cached_gtins else set()
+            )
+            if not missing_images:
+                skipped_cached_sitemaps += 1
+                print(f"[{job.provider}] skip cached sitemap={sitemap_index}/{len(sitemap_urls)} url={sitemap_url}")
+                continue
+            print(f"[{job.provider}] reprocess cached sitemap={sitemap_index}/{len(sitemap_urls)} missing_images={len(missing_images)}")
 
         executor = ThreadPoolExecutor(max_workers=max(1, product_workers))
         cancelled = False

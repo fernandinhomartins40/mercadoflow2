@@ -375,16 +375,19 @@ def run_koch_catalog_job(
         cached_batch = completed_batches.get(batch_key)
         if cached_batch and norm_text(cached_batch.get("scopeHash")) == batch_hash:
             metadata = cached_batch.get("metadata") or {}
-            batch_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
-            if isinstance(batch_gtins, list) and batch_gtins:
-                missing_images = checkpoint_store.codes_needing_image_refresh(batch_gtins)
-                if not missing_images:
-                    skipped_cached_batches += 1
-                    print(f"[{job.provider}] skip cached batch={batch_index} size={len(batch)}")
-                    continue
-                print(f"[{job.provider}] reprocess batch={batch_index} missing_images={len(missing_images)}")
-            else:
-                print(f"[{job.provider}] reprocess batch={batch_index} reason=missing-gtin-metadata")
+            cached_gtins = metadata.get("gtins") if isinstance(metadata, dict) else []
+            if not isinstance(cached_gtins, list):
+                cached_gtins = []
+            # Checkpoint com hash igual ja foi importado: sem lista de gtins ainda
+            # e valido para pular, senao todo checkpoint legado era reprocessado.
+            missing_images = (
+                checkpoint_store.codes_needing_image_refresh(cached_gtins) if cached_gtins else set()
+            )
+            if not missing_images:
+                skipped_cached_batches += 1
+                print(f"[{job.provider}] skip cached batch={batch_index} size={len(batch)}")
+                continue
+            print(f"[{job.provider}] reprocess batch={batch_index} missing_images={len(missing_images)}")
 
         batch_errors = 0
         batch_captured_before = session_import.captured
