@@ -11,7 +11,7 @@ HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-10}"
 POSTGRES_DB="${POSTGRES_DB:-pdv2cloud}"
 POSTGRES_USER="${POSTGRES_USER:-pdv2cloud}"
 SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-superadmin@mercadoflow.com}"
-SUPER_ADMIN_PASSWORD="${SUPER_ADMIN_PASSWORD:?Defina SUPER_ADMIN_PASSWORD no ambiente (sem default por seguranca)}"
+SUPER_ADMIN_PASSWORD="${SUPER_ADMIN_PASSWORD:-}"
 SUPER_ADMIN_NAME="${SUPER_ADMIN_NAME:-Super Administrador}"
 CATALOG_HARVESTER_INTERVAL_MINUTES="${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}"
 BARCODE_ENRICH_INTERVAL_MINUTES="${BARCODE_ENRICH_INTERVAL_MINUTES:-720}"
@@ -56,6 +56,32 @@ ensure_secret_file() {
   log "Gerando ${label}"
   openssl rand -hex "$bytes" > "$file_path"
   chmod 600 "$file_path"
+}
+
+resolve_super_admin_password() {
+  # Ordem de resolucao: variavel de ambiente -> senha ja gravada no .env do
+  # servidor -> geracao automatica. Reaproveitar o .env evita exigir um secret
+  # novo no CI e mantem a senha que o super admin e os coletores ja usam: o
+  # seeder do backend nunca troca a senha de um usuario existente, entao gerar
+  # um valor diferente a cada deploy quebraria o login dos coletores.
+  if [[ -n "$SUPER_ADMIN_PASSWORD" ]]; then
+    return
+  fi
+
+  if [[ -f .env ]]; then
+    # Le sem executar o arquivo: o .env tem valores com espacos (ex.: o nome do
+    # super admin), que quebrariam um `source`.
+    local existing
+    existing="$(sed -n 's/^SUPER_ADMIN_PASSWORD=//p' .env | head -n 1)"
+    if [[ -n "$existing" ]]; then
+      SUPER_ADMIN_PASSWORD="$existing"
+      log "Reaproveitando SUPER_ADMIN_PASSWORD ja presente no .env"
+      return
+    fi
+  fi
+
+  SUPER_ADMIN_PASSWORD="$(openssl rand -hex 16)"
+  log "SUPER_ADMIN_PASSWORD ausente; gerada uma nova senha para o primeiro seed"
 }
 
 write_env_file() {
@@ -324,6 +350,7 @@ main() {
 
   ensure_secret_file ".jwt_secret" 64 "JWT secret"
   ensure_secret_file ".db_secret" 16 "senha do PostgreSQL"
+  resolve_super_admin_password
   write_env_file
 
   export DOCKER_BUILDKIT=1

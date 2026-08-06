@@ -79,7 +79,6 @@ jobs:
           chmod +x deploy/deploy-web.sh
           APP_DIR=/root/mercadoflow-web \
           COMPOSE_PROJECT_NAME=mercadoflow-web \
-          SUPER_ADMIN_PASSWORD="${{ secrets.SUPER_ADMIN_PASSWORD }}" \
           DOCKER_CLEANUP_ENABLED=true \
           DOCKER_CLEANUP_PROJECT_CONTAINERS=true \
           DOCKER_CLEANUP_DANGLING_IMAGES=true \
