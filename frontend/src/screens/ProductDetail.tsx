@@ -8,6 +8,7 @@ import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import SalesChart from '../components/dashboard/SalesChart';
 import ProductImage from '../components/product/ProductImage';
+import ProductSpecSheet from '../components/product/ProductSpecSheet';
 import PageHeader from '../components/layout/PageHeader';
 import { Section, DataRow, Stat, Chip, Empty, RailCard, StatGrid } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -556,6 +557,9 @@ const ProductDetail: React.FC = () => {
             </div>
           </Section>
         </div>
+
+        {/* ── Ficha técnica do catálogo enriquecido ── */}
+        <ProductSpecSheet sheet={dashboard.specSheet} />
 
         {/* ── Datas comemorativas e sazonalidade ── */}
         <Section

@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class ProductDashboardDTO {
     private ProductPerformanceDTO overview;
+    private ProductSpecSheetDTO specSheet;
     private List<SalesTrendPointDTO> salesTrend;
     private List<SeasonalityPointDTO> weekdaySeasonality;
     private List<ProductBranchPerformanceDTO> branchPerformance;

@@ -194,8 +194,31 @@ export interface ProductPurchaseSignal {
   projections: StockProjectionPeriod[];
 }
 
+export interface ProductSpecAttribute {
+  label: string;
+  value: string;
+  group?: 'MEDIDAS' | 'COMPOSICAO' | 'CONSERVACAO' | 'GERAL' | string;
+}
+
+/** Ficha tecnica vinda do catalogo enriquecido (product_enrichments). */
+export interface ProductSpecSheet {
+  description?: string | null;
+  nutritionTableHtml?: string | null;
+  ingredients?: string | null;
+  brand?: string | null;
+  manufacturer?: string | null;
+  ncm?: string | null;
+  unit?: string | null;
+  packageDescription?: string | null;
+  provider?: string | null;
+  sourceLicense?: string | null;
+  attributes?: ProductSpecAttribute[];
+  hasContent?: boolean;
+}
+
 export interface ProductDashboard {
   overview: ProductPerformance;
+  specSheet?: ProductSpecSheet | null;
   salesTrend: SalesTrendPoint[];
   weekdaySeasonality: SeasonalityPoint[];
   branchPerformance: ProductBranchPerformance[];

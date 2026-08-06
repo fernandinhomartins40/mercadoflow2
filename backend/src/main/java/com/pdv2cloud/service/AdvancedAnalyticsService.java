@@ -73,6 +73,9 @@ public class AdvancedAnalyticsService {
     private ProductRepository productRepository;
 
     @Autowired
+    private ProductSpecSheetService productSpecSheetService;
+
+    @Autowired
     private CatalogImageStorageService catalogImageStorageService;
 
     public MarketCockpitDTO getCockpit(UUID marketId, LocalDate startDate, LocalDate endDate) {
@@ -139,6 +142,7 @@ public class AdvancedAnalyticsService {
 
         ProductDashboardDTO dashboard = new ProductDashboardDTO();
         dashboard.setOverview(overview);
+        dashboard.setSpecSheet(productSpecSheetService.buildForProduct(productId));
         dashboard.setSalesTrend(fetchProductSalesTrend(marketId, productId, window));
         dashboard.setWeekdaySeasonality(fetchProductWeekdaySeasonality(marketId, productId, window));
         dashboard.setBranchPerformance(fetchProductBranchPerformance(marketId, productId, window));

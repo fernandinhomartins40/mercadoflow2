@@ -8853,3 +8853,39 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    END OFFER PANELS v2
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FICHA TECNICA — TABELA NUTRICIONAL
+   O HTML vem publicado pelo mercado de origem, sem classes proprias; estas
+   regras dao legibilidade sem depender da marcacao original.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.product-nutrition-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.product-nutrition-table td,
+.product-nutrition-table th {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.product-nutrition-table tr:last-child td {
+  border-bottom: none;
+}
+
+.product-nutrition-table td:not(:first-child),
+.product-nutrition-table th:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.product-nutrition-table strong,
+.product-nutrition-table th {
+  color: var(--text-primary);
+  font-weight: 600;
+}
