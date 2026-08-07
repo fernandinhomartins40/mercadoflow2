@@ -61,7 +61,7 @@ const Sidebar: React.FC<{ active: string; onSelect: (id: string) => void }> = ({
           fontFamily: typography.fontFamily.sans,
           lineHeight: 1.2,
         }}>
-          PDV2Cloud
+          Mercado Flow
         </p>
         <p style={{
           margin: 0,
@@ -70,7 +70,7 @@ const Sidebar: React.FC<{ active: string; onSelect: (id: string) => void }> = ({
           fontFamily: typography.fontFamily.sans,
           lineHeight: 1.2,
         }}>
-          Coletor de Notas
+          Agente Coletor
         </p>
       </div>
     </div>

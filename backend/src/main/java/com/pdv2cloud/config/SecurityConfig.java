@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -60,6 +61,14 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/downloads/**").permitAll()
                 .requestMatchers("/api/v1/catalog/images/**").permitAll()
+                // Pareamento do Agente Mercado Flow: o agente ainda nao tem credencial
+                // alguma nestes passos. Protegido por codigo efemero de alta entropia,
+                // segredo do agente e rate limit dedicado (RateLimitFilter).
+                // /approve fica de fora: exige usuario autenticado.
+                .requestMatchers("/api/v1/agent-pairing/start",
+                                 "/api/v1/agent-pairing/claim",
+                                 "/api/v1/agent-pairing/cancel").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/agent-pairing/session/*").permitAll()
                 .requestMatchers("/api/v1/agent/**").hasRole("AGENT")
                 .requestMatchers("/api/v1/ingest/**").hasRole("AGENT")
                 .requestMatchers("/api/v1/markets/**").hasAnyRole("MARKET_OWNER", "MARKET_MANAGER", "ADMIN", "SUPER_ADMIN")

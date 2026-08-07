@@ -112,7 +112,7 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
       const msg = err?.toString?.() || String(err || '');
 
       if (msg.includes('SERVICE_INSTALLER_NOT_FOUND')) {
-        showMessage('Arquivos não encontrados. Reinstale o PDV2Cloud usando o instalador oficial.', 'error');
+        showMessage('Arquivos não encontrados. Reinstale o Agente Mercado Flow usando o instalador oficial.', 'error');
       } else if (msg.includes('Access') || msg.includes('Acesso')) {
         showMessage('Sem permissão. Feche este aplicativo e execute-o como Administrador (botão direito > Executar como administrador).', 'error');
       } else {

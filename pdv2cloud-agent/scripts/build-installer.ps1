@@ -129,7 +129,7 @@ function Build-Installer([string]$arch) {
 
     # [3] Verificar saída
     $suffix = if ($arch -eq "x86") { "-x86" } else { "" }
-    $installerFile = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe"
+    $installerFile = Join-Path $OutputPath "AgenteMercadoFlow-Setup$suffix.exe"
     if (-not (Test-Path $installerFile)) {
         Write-Host "ERRO: Arquivo de saída não encontrado: $installerFile" -ForegroundColor Red; exit 1
     }
@@ -158,16 +158,16 @@ function Build-Installer([string]$arch) {
     # [5] SHA-256
     Write-Host "[4] Gerando SHA-256..." -ForegroundColor Green
     $hash     = (Get-FileHash $installerFile -Algorithm SHA256).Hash.ToLower()
-    $hashFile = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe.sha256"
+    $hashFile = Join-Path $OutputPath "AgenteMercadoFlow-Setup$suffix.exe.sha256"
     Set-Content $hashFile $hash
     Write-Host "  ✓ SHA256: $hash" -ForegroundColor Gray
 
     # [6] meta.json por arch
-    $metaFile = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe.meta.json"
+    $metaFile = Join-Path $OutputPath "AgenteMercadoFlow-Setup$suffix.exe.meta.json"
     $meta = @{
         version        = $Version
         arch           = $arch
-        filename       = "PDV2Cloud-Setup$suffix.exe"
+        filename       = "AgenteMercadoFlow-Setup$suffix.exe"
         sha256         = $hash
         size           = (Get-Item $installerFile).Length
         buildTimestamp = (Get-Date).ToString("o")
@@ -186,7 +186,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "Build concluído!"                         -ForegroundColor Green
 foreach ($a in $archList) {
     $suffix = if ($a -eq "x86") { "-x86" } else { "" }
-    $f = Join-Path $OutputPath "PDV2Cloud-Setup$suffix.exe"
+    $f = Join-Path $OutputPath "AgenteMercadoFlow-Setup$suffix.exe"
     if (Test-Path $f) { Write-Host "  $a : $f" -ForegroundColor Gray }
 }
 Write-Host "========================================" -ForegroundColor Green

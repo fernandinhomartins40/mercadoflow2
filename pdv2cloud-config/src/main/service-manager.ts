@@ -4,7 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import logger from './logger';
 
-const SERVICE_NAME = 'PDV2CloudAgent';
+const SERVICE_NAME = 'MercadoFlowAgent';
+// Serviço das versões PDV2Cloud: removido na instalação para não sobrar um
+// segundo agente monitorando as mesmas pastas.
+const LEGACY_SERVICE_NAME = 'PDV2CloudAgent';
+const SERVICE_DISPLAY_NAME = 'Agente Mercado Flow';
+const SERVICE_DESCRIPTION = 'Coleta e transmite as notas fiscais do PDV para o Mercado Flow';
 const DEFAULT_INSTALL_DIRNAME = 'PDV2Cloud';
 const REMOTE_SYNC_TTL_MS = 10 * 1000;
 const SERVICE_SDDL = [
@@ -175,7 +180,7 @@ export const installService = async () => {
       [
         'SERVICE_INSTALLER_NOT_FOUND',
         'Nao foi possivel localizar os arquivos do agente (python embutido e instalador do servico).',
-        'Instale/reinstale o "PDV2Cloud Collector Agent" (PDV2Cloud-Setup.exe) ou execute a Config UI dentro da pasta do PDV2Cloud.',
+        'Instale/reinstale o "Agente Mercado Flow" (AgenteMercadoFlow-Setup.exe) ou execute o aplicativo dentro da pasta de instalacao do agente.',
         '',
         'Caminhos verificados:',
         ...candidates.map((d) => `- ${d}`),
@@ -431,8 +436,11 @@ const buildServiceBootstrapScript = (baseDir: string) => {
     'import win32service',
     '',
     `SERVICE_NAME = ${JSON.stringify(SERVICE_NAME)}`,
+    `LEGACY_SERVICE_NAME = ${JSON.stringify(LEGACY_SERVICE_NAME)}`,
+    `SERVICE_DISPLAY_NAME = ${JSON.stringify(SERVICE_DISPLAY_NAME)}`,
+    `SERVICE_DESCRIPTION = ${JSON.stringify(SERVICE_DESCRIPTION)}`,
     `SERVICE_SDDL = ${JSON.stringify(SERVICE_SDDL)}`,
-    'SERVICE_CLASS = "service.windows_service.PDV2CloudService"',
+    'SERVICE_CLASS = "service.windows_service.MercadoFlowService"',
     `BASE_DIR = Path(${JSON.stringify(baseDir)})`,
     '',
     'def _run(cmd):',
@@ -441,31 +449,36 @@ const buildServiceBootstrapScript = (baseDir: string) => {
     '    except Exception as exc:',
     '        print(f"WARNING: command failed: {cmd} | {exc}")',
     '',
-    'def _service_exists():',
+    'def _service_exists(name):',
     '    try:',
-    '        win32serviceutil.QueryServiceStatus(SERVICE_NAME)',
+    '        win32serviceutil.QueryServiceStatus(name)',
     '        return True',
     '    except Exception:',
     '        return False',
     '',
-    'sys.path.insert(0, str(BASE_DIR))',
-    'sys.path.insert(0, str(BASE_DIR / "service"))',
-    '__import__("service.windows_service")',
-    '',
-    'if _service_exists():',
+    'def _remove_service(name):',
+    '    if not _service_exists(name):',
+    '        return',
     '    try:',
-    '        status = win32serviceutil.QueryServiceStatus(SERVICE_NAME)',
+    '        status = win32serviceutil.QueryServiceStatus(name)',
     '        if status and status[1] != win32service.SERVICE_STOPPED:',
     '            try:',
-    '                win32serviceutil.StopService(SERVICE_NAME)',
+    '                win32serviceutil.StopService(name)',
     '            except Exception:',
     '                pass',
     '    except Exception:',
     '        pass',
     '    try:',
-    '        win32serviceutil.RemoveService(SERVICE_NAME)',
+    '        win32serviceutil.RemoveService(name)',
     '    except Exception as exc:',
-    '        print(f"WARNING: remove failed: {exc}")',
+    '        print(f"WARNING: remove failed for {name}: {exc}")',
+    '',
+    'sys.path.insert(0, str(BASE_DIR))',
+    'sys.path.insert(0, str(BASE_DIR / "service"))',
+    '__import__("service.windows_service")',
+    '',
+    '_remove_service(LEGACY_SERVICE_NAME)',
+    '_remove_service(SERVICE_NAME)',
     '',
     'exe_name = str(sys.executable)',
     'try:',
@@ -483,8 +496,8 @@ const buildServiceBootstrapScript = (baseDir: string) => {
     'win32serviceutil.InstallService(',
     '    pythonClassString=SERVICE_CLASS,',
     '    serviceName=SERVICE_NAME,',
-    '    displayName="PDV2Cloud Collector Agent",',
-    '    description="Coleta e transmite dados de vendas para PDV2Cloud",',
+    '    displayName=SERVICE_DISPLAY_NAME,',
+    '    description=SERVICE_DESCRIPTION,',
     '    exeName=exe_name,',
     '    startType=win32service.SERVICE_AUTO_START,',
     ')',

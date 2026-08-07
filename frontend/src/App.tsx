@@ -16,6 +16,7 @@ const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
 const Landing = lazy(() => import('./screens/Landing'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
+const AgentPairing = lazy(() => import('./screens/AgentPairing'));
 const AgentDownload = lazy(() => import('./screens/AgentDownload'));
 const AdminCatalog = lazy(() => import('./screens/AdminCatalog'));
 const SuperAdminLogin = lazy(() => import('./screens/SuperAdminLogin'));
@@ -111,6 +112,7 @@ const App: React.FC = () => {
         <Route path="/" element={<Landing />} />
         <Route path="/download-agente" element={<PublicAgentDownload />} />
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
+        <Route path="/parear-agente" element={<AgentPairing />} />
 
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/produtos" element={secure(<Products />)} />

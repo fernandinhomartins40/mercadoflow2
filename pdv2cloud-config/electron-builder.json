@@ -1,6 +1,6 @@
 {
-  "appId": "com.pdv2cloud.config",
-  "productName": "PDV2Cloud Config",
+  "appId": "com.mercadoflow.agente",
+  "productName": "Agente Mercado Flow",
   "directories": {
     "output": "dist"
   },

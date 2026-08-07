@@ -25,6 +25,14 @@ public class AgentApiKey {
     @JoinColumn(name = "market_id", nullable = false)
     private Market market;
 
+    /**
+     * PDV nomeado durante o pareamento. Nulo nas chaves emitidas antes do
+     * fluxo de pareamento automatizado, que ficam ligadas apenas ao mercado.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pdv_id")
+    private PDV pdv;
+
     @Column(nullable = false)
     private String name;
 

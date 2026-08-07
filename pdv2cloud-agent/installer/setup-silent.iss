@@ -1,10 +1,10 @@
 [Setup]
-AppName=PDV2Cloud Collector Agent
+AppName=Agente Mercado Flow
 AppVersion=1.0.0
 DefaultDirName={pf}\PDV2Cloud
-DefaultGroupName=PDV2Cloud
+DefaultGroupName=Agente Mercado Flow
 OutputDir=Output
-OutputBaseFilename=PDV2Cloud-Setup-Silent
+OutputBaseFilename=AgenteMercadoFlow-Setup-Silent
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -23,7 +23,7 @@ Source: "silent-config.json"; DestDir: "{commonappdata}\PDV2Cloud"; DestName: "c
 
 [Registry]
 ; Optional: Auto-start config UI after reboot (enterprise mode)
-; Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PDV2CloudConfig"; ValueData: """{app}\config-ui\PDV2Cloud Config.exe"""; Flags: uninsdeletevalue
+; Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AgenteMercadoFlow"; ValueData: """{app}\config-ui\Agente Mercado Flow.exe"""; Flags: uninsdeletevalue
 
 [Run]
 ; Install dependencies silently
@@ -103,8 +103,8 @@ begin
 end;
 
 [Icons]
-Name: "{group}\PDV2Cloud Config"; Filename: "{app}\config-ui\PDV2Cloud Config.exe"
-Name: "{group}\Uninstall PDV2Cloud"; Filename: "{uninstallexe}"
+Name: "{group}\Agente Mercado Flow"; Filename: "{app}\config-ui\Agente Mercado Flow.exe"
+Name: "{group}\Desinstalar Agente Mercado Flow"; Filename: "{uninstallexe}"
 
 [Messages]
-WelcomeLabel2=Este instalador configurará o PDV2Cloud Collector Agent em seu computador em modo silencioso.
+WelcomeLabel2=Este instalador configurará o Agente Mercado Flow em seu computador em modo silencioso.

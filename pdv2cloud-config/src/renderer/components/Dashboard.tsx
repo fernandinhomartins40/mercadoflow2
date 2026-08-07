@@ -285,7 +285,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   }, [serviceInstalled, status, online, testingConnection]);
 
   const installUpdate = async () => {
-    if (!confirm('Instalar atualização agora?\n\nO PDV2Cloud será fechado e o instalador será executado automaticamente.')) {
+    if (!confirm('Instalar atualização agora?\n\nO Agente Mercado Flow será fechado e o instalador será executado automaticamente.')) {
       return;
     }
 

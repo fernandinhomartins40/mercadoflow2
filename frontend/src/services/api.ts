@@ -49,7 +49,9 @@ api.interceptors.response.use(
       if (requestUrl.includes('/v1/auth/me') || requestUrl.includes('/v1/super-admin/auth/me')) {
         return Promise.reject(error);
       }
-      const publicPaths = ['/', '/login', '/register', '/download-agente', '/super-admin/login'];
+      // /parear-agente autentica sozinha no próprio fluxo: redirecionar para
+      // /login perderia o código de pareamento que veio na query string.
+      const publicPaths = ['/', '/login', '/register', '/download-agente', '/parear-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
         if (isOffersAppPath(window.location.pathname)) {

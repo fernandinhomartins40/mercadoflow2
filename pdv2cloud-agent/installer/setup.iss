@@ -1,4 +1,4 @@
-; PDV2Cloud Collector Agent — Inno Setup Script
+; Agente Mercado Flow — Inno Setup Script
 ; Suporta Windows 7 SP1 (x64 e x86), Windows 8/8.1, Windows 10, Windows 11.
 ;
 ; Variável de build injetada pelo build-installer.ps1:
@@ -22,22 +22,22 @@
 #endif
 
 [Setup]
-AppName=PDV2Cloud Collector Agent
+AppName=Agente Mercado Flow
 AppVersion=1.0.0
 AppId={{A8B5C6D7-E8F9-4A1B-2C3D-4E5F6A7B8C9D}
 DefaultDirName={autopf}\PDV2Cloud
-DefaultGroupName=PDV2Cloud
+DefaultGroupName=Agente Mercado Flow
 OutputDir=Output
-OutputBaseFilename=PDV2Cloud-Setup{#ArchSuffix}
+OutputBaseFilename=AgenteMercadoFlow-Setup{#ArchSuffix}
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
-UninstallDisplayIcon={app}\config-ui\PDV2Cloud Config.exe
+UninstallDisplayIcon={app}\config-ui\Agente Mercado Flow.exe
 CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
 RestartApplications=no
 SetupLogging=yes
-AppPublisher=PDV2Cloud
+AppPublisher=Mercado Flow
 AllowNoIcons=no
 UsePreviousAppDir=yes
 CreateUninstallRegKey=yes
@@ -57,9 +57,9 @@ Source: "..\..\dist\service\*";      DestDir: "{app}\service"; Flags: recursesub
 Source: "..\..\dist\config-ui\*";    DestDir: "{app}\config-ui"; Flags: recursesubdirs ignoreversion
 
 [Icons]
-Name: "{group}\PDV2Cloud";             Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Comment: "Abrir PDV2Cloud Coletor"
-Name: "{group}\Desinstalar PDV2Cloud"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\PDV2Cloud";       Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Comment: "Abrir PDV2Cloud Coletor"; Tasks: desktopicon
+Name: "{group}\Agente Mercado Flow";             Filename: "{app}\config-ui\Agente Mercado Flow.exe"; Comment: "Abrir o Agente Mercado Flow"
+Name: "{group}\Desinstalar Agente Mercado Flow"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\Agente Mercado Flow";       Filename: "{app}\config-ui\Agente Mercado Flow.exe"; Comment: "Abrir o Agente Mercado Flow"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"
@@ -73,13 +73,17 @@ Filename: "{sys}\cmd.exe"; Parameters: "/c if not exist ""{commonappdata}\PDV2Cl
 Filename: "{app}\python\python.exe"; Parameters: "-m installer.service_installer install"; WorkingDir: "{app}\service"; StatusMsg: "Registrando e iniciando serviço Windows..."; Flags: runhidden waituntilterminated
 
 ; Abrir UI de configuração após instalação (só na primeira instalação, não em updates)
-Filename: "{app}\config-ui\PDV2Cloud Config.exe"; Description: "Abrir Assistente de Configuração"; Flags: postinstall nowait shellexec
+Filename: "{app}\config-ui\Agente Mercado Flow.exe"; Description: "Abrir Assistente de Configuração"; Flags: postinstall nowait shellexec
 
 [UninstallRun]
-Filename: "{sys}\net.exe"; Parameters: "stop PDV2CloudAgent"; Flags: runhidden; RunOnceId: "StopService"
-Filename: "{sys}\sc.exe";  Parameters: "delete PDV2CloudAgent"; Flags: runhidden; RunOnceId: "DeleteService"
+Filename: "{sys}\net.exe"; Parameters: "stop MercadoFlowAgent"; Flags: runhidden; RunOnceId: "StopService"
+Filename: "{sys}\sc.exe";  Parameters: "delete MercadoFlowAgent"; Flags: runhidden; RunOnceId: "DeleteService"
+; Serviço das versões PDV2Cloud anteriores, caso ainda exista nesta máquina
+Filename: "{sys}\net.exe"; Parameters: "stop PDV2CloudAgent"; Flags: runhidden; RunOnceId: "StopLegacyService"
+Filename: "{sys}\sc.exe";  Parameters: "delete PDV2CloudAgent"; Flags: runhidden; RunOnceId: "DeleteLegacyService"
+Filename: "taskkill.exe";  Parameters: "/F /IM ""Agente Mercado Flow.exe"""; Flags: runhidden
 Filename: "taskkill.exe";  Parameters: "/F /IM ""PDV2Cloud Config.exe"""; Flags: runhidden
-Filename: "taskkill.exe";  Parameters: "/F /IM python.exe /FI ""WINDOWTITLE eq PDV2CloudAgent*"""; Flags: runhidden
+Filename: "taskkill.exe";  Parameters: "/F /IM python.exe /FI ""WINDOWTITLE eq MercadoFlowAgent*"""; Flags: runhidden
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\PDV2Cloud"
@@ -91,6 +95,7 @@ Type: files; Name: "{app}\*.tmp"
 Type: files; Name: "{app}\*.pyc"
 Type: files; Name: "{app}\*.pyo"
 Type: files; Name: "{app}\version.txt"
+Type: files; Name: "{tmp}\AgenteMercadoFlow-*.exe"
 Type: files; Name: "{tmp}\PDV2Cloud-*.exe"
 
 [Code]
@@ -129,7 +134,7 @@ begin
   if not IsWindows8OrLater() then
   begin
     Msg := 'Atenção: Windows 7 SP1 detectado.' + #13#10 +
-           'O PDV2Cloud requer recursos adicionais do sistema operacional.' + #13#10 + #13#10 +
+           'O Agente Mercado Flow requer recursos adicionais do sistema operacional.' + #13#10 + #13#10 +
            'Certifique-se de que as seguintes atualizações estão instaladas:' + #13#10 +
            '  • KB2533623 (Universal CRT)' + #13#10 +
            '  • KB3063858 (Visual C++ 2015 runtime patch)' + #13#10 + #13#10 +
@@ -159,7 +164,7 @@ begin
     MsgBox(
       'Este instalador é para Windows 64-bit.' + #13#10 +
       'Seu sistema operacional é 32-bit.' + #13#10 + #13#10 +
-      'Por favor, baixe a versão 32-bit do instalador (PDV2Cloud-Setup-x86.exe).',
+      'Por favor, baixe a versão 32-bit do instalador (AgenteMercadoFlow-Setup-x86.exe).',
       mbError, MB_OK
     );
     Result := False;
@@ -170,15 +175,17 @@ begin
   ShowOSWarningIfNeeded();
 
   { Fechar processos em execução }
+  Exec('taskkill.exe', '/F /IM "Agente Mercado Flow.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('taskkill.exe', '/F /IM "PDV2Cloud Config.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('taskkill.exe', '/F /IM python.exe /FI "WINDOWTITLE eq PDV2CloudAgent*"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /IM python.exe /FI "WINDOWTITLE eq MercadoFlowAgent*"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('net.exe', 'stop MercadoFlowAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('net.exe', 'stop PDV2CloudAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
   { Desinstalar versão anterior se existir }
   if RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{#emit SetupSetting("AppId")}_is1', 'UninstallString', UninstallString) then
   begin
     if MsgBox(
-      'Uma versão anterior do PDV2Cloud foi detectada.' + #13#10 +
+      'Uma versão anterior do Agente Mercado Flow foi detectada.' + #13#10 +
       'Deseja desinstalá-la antes de continuar?' + #13#10 + #13#10 +
       'Recomendado: Sim',
       mbConfirmation, MB_YESNO
@@ -191,6 +198,7 @@ begin
         Sleep(2000);
         DelTree(ExpandConstant('{autopf}\PDV2Cloud'), True, True, True);
         DelTree(ExpandConstant('{commonappdata}\PDV2Cloud'), True, True, True);
+        Exec('sc.exe', 'delete MercadoFlowAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
         Exec('sc.exe', 'delete PDV2CloudAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       end;
     end else
@@ -203,7 +211,14 @@ begin
     end;
   end;
 
-  { Limpar serviço órfão }
+  { Limpar serviço órfão — atual e o legado PDV2Cloud }
+  Exec('sc.exe', 'query MercadoFlowAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if ResultCode = 0 then
+  begin
+    Exec('net.exe', 'stop MercadoFlowAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('sc.exe', 'delete MercadoFlowAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+
   Exec('sc.exe', 'query PDV2CloudAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then
   begin

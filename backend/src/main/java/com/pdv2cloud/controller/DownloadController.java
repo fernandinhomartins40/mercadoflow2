@@ -23,11 +23,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Serve os instaladores do agente PDV2Cloud.
+ * Serve os instaladores do Agente Mercado Flow.
  *
  * Suporta dois instaladores por arquitetura:
- *   PDV2Cloud-Setup.exe      → x64 (padrão)
- *   PDV2Cloud-Setup-x86.exe  → x86 (32-bit / Windows antigos)
+ *   AgenteMercadoFlow-Setup.exe      → x64 (padrão)
+ *   AgenteMercadoFlow-Setup-x86.exe  → x86 (32-bit / Windows antigos)
+ *
+ * Enquanto o novo instalador não estiver publicado no diretório de downloads,
+ * cai automaticamente para o nome PDV2Cloud-Setup*.exe, de modo que o rename
+ * do produto não derrube o download em produção.
  *
  * Parâmetro ?arch=x86 seleciona o instalador 32-bit em todos os endpoints.
  */
@@ -35,8 +39,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @RequestMapping("/api/v1/downloads")
 public class DownloadController {
 
-    private static final String INSTALLER_FILENAME_X64  = "PDV2Cloud-Setup.exe";
-    private static final String INSTALLER_FILENAME_X86  = "PDV2Cloud-Setup-x86.exe";
+    private static final String INSTALLER_FILENAME_X64  = "AgenteMercadoFlow-Setup.exe";
+    private static final String INSTALLER_FILENAME_X86  = "AgenteMercadoFlow-Setup-x86.exe";
+    private static final String LEGACY_INSTALLER_X64    = "PDV2Cloud-Setup.exe";
+    private static final String LEGACY_INSTALLER_X86    = "PDV2Cloud-Setup-x86.exe";
     private static final String CHECKSUM_SUFFIX         = ".sha256";
     private static final String META_SUFFIX             = ".meta.json";
 
@@ -54,9 +60,18 @@ public class DownloadController {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Retorna o nome do arquivo de instalador para a arquitetura solicitada. */
+    /**
+     * Nome do instalador para a arquitetura solicitada. Prefere o nome atual e
+     * só usa o legado se o arquivo novo ainda não tiver sido publicado.
+     */
     private String installerFilename(String arch) {
-        return "x86".equalsIgnoreCase(arch) ? INSTALLER_FILENAME_X86 : INSTALLER_FILENAME_X64;
+        boolean x86 = "x86".equalsIgnoreCase(arch);
+        String current = x86 ? INSTALLER_FILENAME_X86 : INSTALLER_FILENAME_X64;
+        if (Files.exists(Paths.get(installerDir, current))) {
+            return current;
+        }
+        String legacy = x86 ? LEGACY_INSTALLER_X86 : LEGACY_INSTALLER_X64;
+        return Files.exists(Paths.get(installerDir, legacy)) ? legacy : current;
     }
 
     private Path installerPath(String arch) {

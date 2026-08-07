@@ -11,10 +11,10 @@ except ImportError:
     from service.main import ServiceApp
 
 
-class PDV2CloudService(win32serviceutil.ServiceFramework):
-    _svc_name_ = "PDV2CloudAgent"
-    _svc_display_name_ = "PDV2Cloud Collector Agent"
-    _svc_description_ = "Coleta e transmite dados de vendas para PDV2Cloud"
+class MercadoFlowService(win32serviceutil.ServiceFramework):
+    _svc_name_ = "MercadoFlowAgent"
+    _svc_display_name_ = "Agente Mercado Flow"
+    _svc_description_ = "Coleta e transmite as notas fiscais do PDV para o Mercado Flow"
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
@@ -50,5 +50,12 @@ class PDV2CloudService(win32serviceutil.ServiceFramework):
             raise
 
 
+
+# Alias de compatibilidade: instalações anteriores registraram a classe do
+# serviço com este nome. Mantê-lo evita que o pywin32 falhe ao parar/remover
+# o serviço antigo durante a atualização para o Agente Mercado Flow.
+PDV2CloudService = MercadoFlowService
+
+
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(PDV2CloudService)
+    win32serviceutil.HandleCommandLine(MercadoFlowService)

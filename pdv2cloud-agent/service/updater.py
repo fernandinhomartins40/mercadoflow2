@@ -269,7 +269,7 @@ class UpdateChecker:
         url = f"{self.base_url}{DOWNLOAD_PATH}?arch={self.arch}"
         version_tag = self._latest_version or "latest"
         arch_suffix = "-x86" if self.arch == "x86" else ""
-        target = Path(tempfile.gettempdir()) / f"PDV2Cloud-Setup{arch_suffix}-{version_tag}.exe"
+        target = Path(tempfile.gettempdir()) / f"AgenteMercadoFlow-Setup{arch_suffix}-{version_tag}.exe"
 
         logger.info("Baixando atualização %s → %s", version_tag, target)
         self._report("baixando", 0)

@@ -13,9 +13,9 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_ROOT="$(dirname "$SCRIPT_DIR")"
 INSTALLER_DIR="$AGENT_ROOT/installer/Output"
-INSTALLER_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe"
-CHECKSUM_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe.sha256"
-META_FILE="$INSTALLER_DIR/PDV2Cloud-Setup.exe.meta.json"
+INSTALLER_FILE="$INSTALLER_DIR/AgenteMercadoFlow-Setup.exe"
+CHECKSUM_FILE="$INSTALLER_DIR/AgenteMercadoFlow-Setup.exe.sha256"
+META_FILE="$INSTALLER_DIR/AgenteMercadoFlow-Setup.exe.meta.json"
 
 # Create installer directory if it doesn't exist
 mkdir -p "$INSTALLER_DIR"
@@ -34,7 +34,7 @@ else
     echo "To upload the installer:"
     echo "  1. Build locally on Windows with build-installer.ps1"
     echo "  2. Upload to VPS:"
-    echo "     scp pdv2cloud-agent/installer/Output/PDV2Cloud-Setup.exe root@72.60.10.112:$INSTALLER_DIR/"
+    echo "     scp pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup.exe root@72.60.10.112:$INSTALLER_DIR/"
     echo ""
 fi
 

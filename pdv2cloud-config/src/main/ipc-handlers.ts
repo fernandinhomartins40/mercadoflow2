@@ -1,7 +1,9 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { startService, stopService, restartService, serviceStatus, installService, testConfiguredConnection, loadAgentSnapshot } from './service-manager';
+import { scanForXmlFolders } from './scanner-manager';
+import { startPairing, claimPairing, cancelPairing } from './pairing-manager';
 import logger from './logger';
 
 const CONFIG_PATH = 'C:/ProgramData/PDV2Cloud/config.json';
@@ -176,7 +178,19 @@ export const registerIpcHandlers = () => {
     }
   });
 
-  // Auto-detect common PDV XML paths
+  // Varredura automática: encontra as pastas de XML sem o usuário escolher nada.
+  ipcMain.handle('paths:scan', async (event, options?: { timeoutSeconds?: number }) => {
+    try {
+      logger.info('IPC: paths:scan');
+      return await scanForXmlFolders(options?.timeoutSeconds ?? 45);
+    } catch (err) {
+      logger.error('IPC paths:scan failed', err);
+      throw err;
+    }
+  });
+
+  // Detecção rápida (apenas caminhos conhecidos). Mantida para telas que só
+  // precisam de uma sugestão instantânea; o wizard usa paths:scan.
   ipcMain.handle('paths:detect', async () => {
     const commonPaths = [
       'C:/SAT/XML',
@@ -185,6 +199,7 @@ export const registerIpcHandlers = () => {
       'C:/Emissor/XML',
       'C:/NFe/XML',
       'C:/NFCe/Emitidas',
+      'C:/PDV/XMLs',
       'C:/Program Files/SAT/XML',
       'C:/Arquivos de Programas/NFe/XML',
     ];
@@ -196,6 +211,49 @@ export const registerIpcHandlers = () => {
       }
     }
     return detected;
+  });
+
+  // ── Pareamento por QR Code ────────────────────────────────────────────────
+
+  ipcMain.handle('pairing:start', async () => {
+    try {
+      logger.info('IPC: pairing:start');
+      return await startPairing(getConfiguredApiUrl());
+    } catch (err) {
+      logger.error('IPC pairing:start failed', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('pairing:claim', async () => {
+    try {
+      return await claimPairing(getConfiguredApiUrl());
+    } catch (err) {
+      logger.error('IPC pairing:claim failed', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('pairing:cancel', async () => {
+    try {
+      await cancelPairing(getConfiguredApiUrl());
+      return true;
+    } catch (err) {
+      logger.error('IPC pairing:cancel failed', err);
+      return false;
+    }
+  });
+
+  ipcMain.handle('shell:openExternal', async (event, url: string) => {
+    // Só abre o próprio domínio configurado: evita transformar o IPC em um
+    // "abra qualquer coisa" caso o renderer receba conteúdo inesperado.
+    const target = String(url || '');
+    const allowedPrefix = getConfiguredApiUrl();
+    if (!target.startsWith(allowedPrefix)) {
+      throw new Error('URL não permitida');
+    }
+    await shell.openExternal(target);
+    return true;
   });
 
   // Test API key validity
@@ -244,7 +302,7 @@ export const registerIpcHandlers = () => {
   ipcMain.handle('update:install', async () => {
     try {
       const apiUrl = getConfiguredApiUrl();
-      const tempPath = path.join(require('os').tmpdir(), 'PDV2Cloud-Update.exe');
+      const tempPath = path.join(require('os').tmpdir(), 'AgenteMercadoFlow-Update.exe');
       const response = await fetch(`${apiUrl}/api/v1/downloads/agent-installer`);
 
       if (!response.ok) {

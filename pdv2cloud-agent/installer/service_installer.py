@@ -4,8 +4,14 @@ import subprocess
 import win32serviceutil
 import win32service
 
-SERVICE_NAME = "PDV2CloudAgent"
-SERVICE_CLASS = "service.windows_service.PDV2CloudService"
+SERVICE_NAME = "MercadoFlowAgent"
+SERVICE_CLASS = "service.windows_service.MercadoFlowService"
+SERVICE_DISPLAY_NAME = "Agente Mercado Flow"
+SERVICE_DESCRIPTION = "Coleta e transmite as notas fiscais do PDV para o Mercado Flow"
+
+# Serviço das versões anteriores (PDV2Cloud). É removido durante a instalação
+# para que a máquina não fique com dois agentes disputando as mesmas pastas.
+LEGACY_SERVICE_NAME = "PDV2CloudAgent"
 
 # Grant Interactive Users start/stop rights so the UI can control the service without elevation.
 SERVICE_SDDL = (
@@ -42,20 +48,48 @@ def _resolve_python_service_exe() -> str:
     return sys.executable
 
 
-def _service_exists() -> bool:
+def _service_exists(service_name: str = SERVICE_NAME) -> bool:
     try:
-        win32serviceutil.QueryServiceStatus(SERVICE_NAME)
+        win32serviceutil.QueryServiceStatus(service_name)
         return True
     except Exception:
         return False
 
 
-def _service_state() -> int | None:
+def _service_state(service_name: str = SERVICE_NAME) -> int | None:
     try:
-        status = win32serviceutil.QueryServiceStatus(SERVICE_NAME)
+        status = win32serviceutil.QueryServiceStatus(service_name)
         return status[1]
     except Exception:
         return None
+
+
+def _remove_service(service_name: str) -> None:
+    """Para e remove um serviço, tolerando qualquer etapa que já esteja feita."""
+    if not _service_exists(service_name):
+        return
+
+    try:
+        state = _service_state(service_name)
+        if state is not None and state != win32service.SERVICE_STOPPED:
+            try:
+                win32serviceutil.StopService(service_name)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    try:
+        win32serviceutil.RemoveService(service_name)
+    except Exception as exc:
+        print(f"WARNING: Failed to remove service {service_name}: {exc}")
+
+
+def _remove_legacy_service() -> None:
+    """Desinstala o agente PDV2Cloud anterior, se ainda estiver presente."""
+    if _service_exists(LEGACY_SERVICE_NAME):
+        print(f"Removendo serviço legado {LEGACY_SERVICE_NAME}...")
+        _remove_service(LEGACY_SERVICE_NAME)
 
 
 def _ensure_service_autostart() -> None:
@@ -84,34 +118,19 @@ def _ensure_service_importable() -> None:
 
 
 def _remove_existing_service_if_any() -> None:
-    if not _service_exists():
-        return
-
-    try:
-        state = _service_state()
-        if state is not None and state != win32service.SERVICE_STOPPED:
-            try:
-                win32serviceutil.StopService(SERVICE_NAME)
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    try:
-        win32serviceutil.RemoveService(SERVICE_NAME)
-    except Exception as exc:
-        print(f"WARNING: Failed to remove existing service before reinstall: {exc}")
+    _remove_service(SERVICE_NAME)
 
 
 def install():
     _ensure_service_importable()
+    _remove_legacy_service()
     _remove_existing_service_if_any()
 
     win32serviceutil.InstallService(
         pythonClassString=SERVICE_CLASS,
         serviceName=SERVICE_NAME,
-        displayName="PDV2Cloud Collector Agent",
-        description="Coleta e transmite dados de vendas para PDV2Cloud",
+        displayName=SERVICE_DISPLAY_NAME,
+        description=SERVICE_DESCRIPTION,
         exeName=_resolve_python_service_exe(),
         startType=win32service.SERVICE_AUTO_START,
     )

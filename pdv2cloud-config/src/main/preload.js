@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('pdv2cloud', {
   readLogs: () => ipcRenderer.invoke('logs:read'),
   exportLogs: () => ipcRenderer.invoke('logs:export'),
   loadStatus: () => ipcRenderer.invoke('status:load'),
+  scanXmlFolders: (options) => ipcRenderer.invoke('paths:scan', options),
+  startPairing: () => ipcRenderer.invoke('pairing:start'),
+  claimPairing: () => ipcRenderer.invoke('pairing:claim'),
+  cancelPairing: () => ipcRenderer.invoke('pairing:cancel'),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 });
 
 contextBridge.exposeInMainWorld('electron', {

@@ -64,7 +64,7 @@ const AgentDownload: React.FC = () => {
       <div className="page analytics-page">
         <PageHeader
           title="Download do agente"
-          subtitle="Baixe e instale o coletor PDV2Cloud."
+          subtitle="Baixe e instale o Agente Mercado Flow."
           actions={
             <Button variant="secondary" onClick={fetchInstallerInfo} disabled={loading}>
               Verificar atualização
@@ -86,7 +86,7 @@ const AgentDownload: React.FC = () => {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-2">
                   <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">PDV2Cloud Agent</p>
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Agente Mercado Flow</p>
                     <h3 className="text-sm font-semibold text-slate-900">Instalador oficial</h3>
                   </div>
                   <Button onClick={handleDownload} disabled={downloading}>

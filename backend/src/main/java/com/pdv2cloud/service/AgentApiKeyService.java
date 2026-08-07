@@ -2,6 +2,7 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.entity.AgentApiKey;
 import com.pdv2cloud.model.entity.Market;
+import com.pdv2cloud.model.entity.PDV;
 import com.pdv2cloud.repository.AgentApiKeyRepository;
 import com.pdv2cloud.repository.MarketRepository;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +28,15 @@ public class AgentApiKeyService {
 
     @Transactional
     public GeneratedKey createKey(UUID marketId, String name) {
+        return createKey(marketId, name, null);
+    }
+
+    /**
+     * Emite uma chave de agente opcionalmente vinculada a um PDV — usado pelo
+     * pareamento automatizado, em que o usuario nomeia o PDV no passo a passo web.
+     */
+    @Transactional
+    public GeneratedKey createKey(UUID marketId, String name, PDV pdv) {
         Market market = marketRepository.findById(marketId)
             .orElseThrow(() -> new IllegalArgumentException("Market not found"));
         String rawKey = generateKey();
@@ -35,6 +45,7 @@ public class AgentApiKeyService {
 
         AgentApiKey entity = new AgentApiKey();
         entity.setMarket(market);
+        entity.setPdv(pdv);
         entity.setName(name);
         entity.setKeyHash(hash);
         entity.setKeyPrefix(prefix);

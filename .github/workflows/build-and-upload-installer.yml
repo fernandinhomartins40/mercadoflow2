@@ -88,9 +88,9 @@ jobs:
           name: pdv2cloud-installer-${{ matrix.arch }}
           if-no-files-found: error
           path: |
-            pdv2cloud-agent/installer/Output/PDV2Cloud-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe
-            pdv2cloud-agent/installer/Output/PDV2Cloud-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.sha256
-            pdv2cloud-agent/installer/Output/PDV2Cloud-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.meta.json
+            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe
+            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.sha256
+            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.meta.json
 
   # ── Upload: aguarda os dois builds e envia ao VPS ─────────────────────────
   upload_vps:
@@ -128,12 +128,12 @@ jobs:
 
           # Envia todos os artefatos (x64 e x86) atomicamente
           for f in \
-            PDV2Cloud-Setup.exe \
-            PDV2Cloud-Setup.exe.sha256 \
-            PDV2Cloud-Setup.exe.meta.json \
-            PDV2Cloud-Setup-x86.exe \
-            PDV2Cloud-Setup-x86.exe.sha256 \
-            PDV2Cloud-Setup-x86.exe.meta.json; do
+            AgenteMercadoFlow-Setup.exe \
+            AgenteMercadoFlow-Setup.exe.sha256 \
+            AgenteMercadoFlow-Setup.exe.meta.json \
+            AgenteMercadoFlow-Setup-x86.exe \
+            AgenteMercadoFlow-Setup-x86.exe.sha256 \
+            AgenteMercadoFlow-Setup-x86.exe.meta.json; do
 
             if [ ! -f "installer/$f" ]; then
               echo "AVISO: arquivo não encontrado: installer/$f (ignorando)"
