@@ -81,6 +81,51 @@ public class Market {
     @Column(name = "plan_notes", length = 1000)
     private String planNotes;
 
+    // ── Rede: matriz e filiais (ver V34__network_and_plan_pricing.sql) ──────
+
+    /**
+     * Matriz da rede. Nulo indica que este mercado é a própria matriz (ou uma
+     * loja única). A hierarquia tem exatamente dois níveis — o banco impede
+     * filial de filial por trigger.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_market_id")
+    private Market parentMarket;
+
+    @OneToMany(mappedBy = "parentMarket")
+    private List<Market> branches;
+
+    /**
+     * Oito primeiros dígitos do CNPJ, idênticos entre filiais da mesma empresa.
+     * É o que permite detectar uma rede tentando se cadastrar fatiada.
+     */
+    @Column(name = "cnpj_root", length = 8)
+    private String cnpjRoot;
+
+    /** Rótulo curto da unidade ("Centro", "Filial 2"). */
+    @Column(name = "branch_label", length = 120)
+    private String branchLabel;
+
+    @Column(name = "branch_limit_override")
+    private Integer branchLimitOverride;
+
+    @Column(name = "pdv_per_branch_override")
+    private Integer pdvPerBranchOverride;
+
+    /** Preço negociado do plano sob medida, em centavos. */
+    @Column(name = "custom_price_cents")
+    private Integer customPriceCents;
+
+    /** True quando este mercado é uma filial de outro. */
+    public boolean isBranch() {
+        return parentMarket != null;
+    }
+
+    /** Matriz da rede: o pai quando é filial, ou o próprio mercado. */
+    public Market networkRoot() {
+        return parentMarket != null ? parentMarket : this;
+    }
+
     private String contactName;
 
     private String contactEmail;

@@ -12,9 +12,11 @@ import com.pdv2cloud.model.entity.UserRole;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.UserRepository;
 import com.pdv2cloud.security.JwtTokenProvider;
+import com.pdv2cloud.util.CnpjUtils;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -51,9 +53,31 @@ public class AuthService {
         if (userRepository.findForAuthenticationByEmail(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email ja cadastrado");
         }
+        String normalizedCnpj = request.getMarketCnpj() == null || request.getMarketCnpj().isBlank()
+            ? null
+            : request.getMarketCnpj().trim();
+
+        // Anti-fatiamento de rede: filiais da mesma empresa compartilham os 8
+        // primeiros dígitos do CNPJ. Sem esta checagem, uma rede abriria uma
+        // conta gratuita por loja e nunca sentiria os limites do plano, que são
+        // apurados por rede.
+        String cnpjRoot = CnpjUtils.root(normalizedCnpj);
+        if (cnpjRoot != null) {
+            List<Market> sameCompany = marketRepository.findByCnpjRoot(cnpjRoot);
+            if (!sameCompany.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "Já existe uma conta do Mercado Flow para esta empresa (CNPJ "
+                        + CnpjUtils.format(normalizedCnpj) + "). "
+                        + "Peça ao administrador da conta para adicionar esta loja como filial, "
+                        + "ou fale com o comercial para um plano de rede."
+                );
+            }
+        }
+
         Market market = new Market();
         market.setName(request.getMarketName() != null && !request.getMarketName().isBlank() ? request.getMarketName().trim() : request.getName().trim());
-        market.setCnpj(request.getMarketCnpj() == null || request.getMarketCnpj().isBlank() ? null : request.getMarketCnpj().trim());
+        market.setCnpj(normalizedCnpj);
+        market.setCnpjRoot(cnpjRoot);
         // Freemium: acesso imediato, sem cartão e sem aprovação manual.
         // O cadastro público criava o mercado como PENDING/inativo, estado em
         // que CustomUserDetailsService bloqueia o login — ninguém entrava sem o

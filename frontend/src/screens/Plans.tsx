@@ -5,6 +5,7 @@ import subscriptionService, {
   MarketUsage,
   PlanDescriptor,
   formatLimit,
+  formatPrice,
 } from '../services/subscription.service';
 import { useAuth } from '../context/AuthContext';
 
@@ -68,7 +69,8 @@ const Plans: React.FC = () => {
               {fmt(usage.invoicesUsed)} de {formatLimit(usage.invoiceLimit)} notas fiscais
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Plano {usage.planName} · {usage.pdvCount} de {formatLimit(usage.pdvLimit)} PDV(s) ·{' '}
+              Plano {usage.planName} · {usage.branchCount} de {formatLimit(usage.branchLimit)} loja(s) ·{' '}
+              {usage.pdvCount} de {formatLimit(usage.pdvLimit)} PDV(s) ·{' '}
               {usage.seatCount} de {formatLimit(usage.seatLimit)} usuário(s)
             </p>
           </div>
@@ -79,10 +81,10 @@ const Plans: React.FC = () => {
             Carregando planos...
           </p>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {plans.map((plan) => {
               const current = usage?.planCode === plan.code;
-              const recommended = plan.code === 'PRO';
+              const recommended = plan.code === 'ESSENCIAL';
               return (
                 <div
                   key={plan.code}
@@ -115,6 +117,17 @@ const Plans: React.FC = () => {
                     )}
                   </div>
 
+                  <div>
+                    <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                      {formatPrice(plan.monthlyPriceCents)}
+                    </span>
+                    {plan.monthlyPriceCents > 0 && (
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {' '}/mês
+                      </span>
+                    )}
+                  </div>
+
                   <ul className="flex flex-col gap-2">
                     {(plan.highlights || []).map((item) => (
                       <li key={item} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -134,7 +147,11 @@ const Plans: React.FC = () => {
                           : { border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }
                       }
                     >
-                      {plan.code === 'FREE' ? 'Plano gratuito' : 'Falar com o comercial'}
+                      {plan.code === 'FREE'
+                        ? 'Plano gratuito'
+                        : plan.custom
+                          ? 'Montar plano sob medida'
+                          : 'Assinar'}
                     </a>
                   )}
                 </div>

@@ -7,6 +7,7 @@ import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.MarketUsageCounterRepository;
 import com.pdv2cloud.repository.PDVRepository;
 import com.pdv2cloud.repository.UserRepository;
+import com.pdv2cloud.util.CnpjUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,17 +21,21 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Limites de plano e medição de uso.
  *
- * Este serviço é a única fonte de verdade sobre "o que este mercado pode
- * fazer". Antes dele, {@code planType} e {@code userSeatLimit} eram gravados no
- * banco mas nunca consultados — o plano não restringia nada.
+ * Única fonte de verdade sobre "o que esta empresa pode fazer". Antes dele,
+ * {@code planType} e {@code userSeatLimit} eram gravados mas nunca consultados.
  *
- * O limite que dispara o upgrade é o volume mensal de notas fiscais: acompanha
- * o faturamento da loja, então um mercado pequeno opera de graça
- * indefinidamente enquanto um maior chega ao teto naturalmente.
+ * Ponto central do desenho: todo limite é apurado sobre a REDE inteira — matriz
+ * mais filiais — e não por conta. Uma rede que abre uma conta por loja continua
+ * somando contra o mesmo teto, então fatiar-se não contorna nada. Os tetos são
+ * três e se cobrem mutuamente:
  *
- * Ao estourar, a ingestão para mas a leitura continua: o supermercadista não
- * perde o que já coletou, e o histórico segue disponível — o que o pressiona a
- * assinar sem destruir o valor acumulado.
+ *   filiais            impede a rede de crescer em número de lojas;
+ *   PDVs por filial    impede concentrar dezenas de caixas numa loja só;
+ *   PDVs no total      impede distribuir muitos caixas em várias lojas.
+ *
+ * Ao estourar o volume mensal a ingestão para, mas a leitura continua: o
+ * supermercadista não perde o que já coletou, o que o pressiona a assinar sem
+ * destruir o valor acumulado.
  */
 @Service
 @Slf4j
@@ -53,40 +58,60 @@ public class PlanService {
         this.userRepository = userRepository;
     }
 
+    // ── Rede ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Matriz da rede a que este mercado pertence.
+     *
+     * O plano e os limites vivem sempre na matriz: uma filial não tem assinatura
+     * própria, ela consome a da rede.
+     */
+    @Transactional(readOnly = true)
+    public Market networkRootOf(Market market) {
+        return market.getParentMarket() != null ? market.getParentMarket() : market;
+    }
+
+    /** Todos os mercados da rede (matriz + filiais). */
+    @Transactional(readOnly = true)
+    public List<Market> networkOf(UUID marketId) {
+        Market market = requireMarket(marketId);
+        return marketRepository.findNetwork(networkRootOf(market).getId());
+    }
+
     // ── Limites efetivos ─────────────────────────────────────────────────────
 
     /**
-     * Limites que valem para este mercado, já considerando o plano, eventuais
-     * overrides negociados e a flag de conta ilimitada.
+     * Limites válidos para a rede deste mercado, considerando plano, overrides
+     * negociados e a flag de conta ilimitada.
      */
+    @Transactional(readOnly = true)
     public EffectiveLimits limitsFor(Market market) {
-        PlanType plan = market.getPlanType() != null ? market.getPlanType() : PlanType.FREE;
+        Market root = networkRootOf(market);
+        PlanType plan = root.getPlanType() != null ? root.getPlanType() : PlanType.FREE;
 
-        if (Boolean.TRUE.equals(market.getIsUnlimited())) {
+        if (Boolean.TRUE.equals(root.getIsUnlimited())) {
             return new EffectiveLimits(
                 plan, PlanType.UNLIMITED, PlanType.UNLIMITED, PlanType.UNLIMITED,
-                PlanType.UNLIMITED, true, true
+                PlanType.UNLIMITED, PlanType.UNLIMITED, true, true, root.getId()
             );
         }
 
-        int invoiceLimit = resolveOverride(market.getInvoiceLimitOverride(), plan.getMonthlyInvoiceLimit());
-        int pdvLimit = resolveOverride(market.getPdvLimitOverride(), plan.getPdvLimit());
+        int invoiceLimit = resolveOverride(root.getInvoiceLimitOverride(), plan.getMonthlyInvoiceLimit());
+        int branchLimit = resolveOverride(root.getBranchLimitOverride(), plan.getBranchLimit());
+        int pdvPerBranch = resolveOverride(root.getPdvPerBranchOverride(), plan.getPdvPerBranchLimit());
+        int pdvLimit = resolveOverride(root.getPdvLimitOverride(), plan.getPdvLimit());
+
         // seatLimitOverride tem precedência; userSeatLimit é o campo legado,
         // preenchido em cadastros antigos antes de existir plano de verdade.
-        Integer legacySeat = market.getUserSeatLimit();
+        Integer legacySeat = root.getUserSeatLimit();
         int seatLimit = resolveOverride(
-            market.getSeatLimitOverride() != null ? market.getSeatLimitOverride() : legacySeat,
+            root.getSeatLimitOverride() != null ? root.getSeatLimitOverride() : legacySeat,
             plan.getUserSeatLimit()
         );
 
         return new EffectiveLimits(
-            plan,
-            invoiceLimit,
-            pdvLimit,
-            seatLimit,
-            plan.getHistoryRetentionDays(),
-            plan.hasFullInsights(),
-            false
+            plan, invoiceLimit, branchLimit, pdvPerBranch, pdvLimit, seatLimit,
+            plan.getHistoryRetentionDays(), plan.hasFullInsights(), root.getId()
         );
     }
 
@@ -110,39 +135,63 @@ public class PlanService {
         return LocalDate.now().withDayOfMonth(1);
     }
 
+    /**
+     * Notas ingeridas no ciclo por toda a rede.
+     *
+     * Somar as filiais é o que impede o contorno mais óbvio: sem isso, cada loja
+     * teria o teto cheio para si.
+     */
+    @Transactional(readOnly = true)
+    public int networkInvoicesThisCycle(UUID rootId) {
+        LocalDate cycle = currentCycleStart();
+        int total = 0;
+        for (Market member : marketRepository.findNetwork(rootId)) {
+            total += usageRepository.findByMarketIdAndCycleStart(member.getId(), cycle)
+                .map(MarketUsageCounter::getInvoicesIngested)
+                .orElse(0);
+        }
+        return total;
+    }
+
     @Transactional(readOnly = true)
     public UsageSnapshot usageFor(UUID marketId) {
         Market market = requireMarket(marketId);
         EffectiveLimits limits = limitsFor(market);
         LocalDate cycle = currentCycleStart();
 
-        MarketUsageCounter counter = usageRepository
-            .findByMarketIdAndCycleStart(marketId, cycle)
-            .orElse(null);
+        List<Market> network = marketRepository.findNetwork(limits.networkRootId());
 
-        int used = counter != null ? counter.getInvoicesIngested() : 0;
-        int rejected = counter != null ? counter.getInvoicesRejected() : 0;
+        int used = 0;
+        int rejected = 0;
+        int pdvCount = 0;
+        int seatCount = 0;
+        LocalDateTime limitReachedAt = null;
 
-        long pdvCount = pdvRepository.findByMarketId(marketId).size();
-        long seatCount = userRepository.countByMarket_IdAndIsActive(marketId, true);
+        for (Market member : network) {
+            MarketUsageCounter counter = usageRepository
+                .findByMarketIdAndCycleStart(member.getId(), cycle)
+                .orElse(null);
+            if (counter != null) {
+                used += counter.getInvoicesIngested();
+                rejected += counter.getInvoicesRejected();
+                if (counter.getLimitReachedAt() != null
+                    && (limitReachedAt == null || counter.getLimitReachedAt().isBefore(limitReachedAt))) {
+                    limitReachedAt = counter.getLimitReachedAt();
+                }
+            }
+            pdvCount += pdvRepository.findByMarketId(member.getId()).size();
+            seatCount += (int) userRepository.countByMarket_IdAndIsActive(member.getId(), true);
+        }
 
         return new UsageSnapshot(
-            limits,
-            cycle,
-            cycle.plusMonths(1),
-            used,
-            rejected,
-            (int) pdvCount,
-            (int) seatCount,
-            counter != null ? counter.getLimitReachedAt() : null
+            limits, cycle, cycle.plusMonths(1),
+            used, rejected, network.size(), pdvCount, seatCount, limitReachedAt
         );
     }
 
     /**
-     * Decide se o mercado ainda pode ingerir uma nota.
-     *
-     * Roda no caminho quente da ingestão, então evita carregar o mercado
-     * inteiro quando o plano já é ilimitado.
+     * Decide se o mercado ainda pode ingerir uma nota. Roda no caminho quente da
+     * ingestão, então evita trabalho quando o plano já é ilimitado.
      */
     @Transactional(readOnly = true)
     public QuotaDecision canIngest(UUID marketId) {
@@ -156,13 +205,14 @@ public class PlanService {
             return QuotaDecision.allowed(PlanType.UNLIMITED, 0);
         }
 
-        LocalDate cycle = currentCycleStart();
-        int used = usageRepository.findByMarketIdAndCycleStart(marketId, cycle)
-            .map(MarketUsageCounter::getInvoicesIngested)
-            .orElse(0);
-
+        int used = networkInvoicesThisCycle(limits.networkRootId());
         if (used >= limits.monthlyInvoices()) {
-            return QuotaDecision.denied(limits.monthlyInvoices(), used, limits.plan());
+            return QuotaDecision.denied(limits.monthlyInvoices(), used, limits.plan(),
+                String.format(
+                    "Limite do plano %s atingido (%d notas por mês na rede). "
+                        + "Faça upgrade para continuar — seus dados já coletados seguem disponíveis.",
+                    limits.plan().getDisplayName(), limits.monthlyInvoices()
+                ));
         }
         return QuotaDecision.allowed(limits.monthlyInvoices(), used);
     }
@@ -171,8 +221,8 @@ public class PlanService {
      * Registra uma nota aceita.
      *
      * Em transação própria (REQUIRES_NEW) para que o contador sobreviva a um
-     * rollback do processamento da nota: uma falha no parse não deve zerar a
-     * medição do que já entrou.
+     * rollback do processamento: uma falha no parse não deve zerar a medição do
+     * que já entrou.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordIngested(UUID marketId, int itemCount) {
@@ -196,30 +246,111 @@ public class PlanService {
 
     // ── Limites estruturais ──────────────────────────────────────────────────
 
-    /** Se o mercado ainda pode cadastrar outro PDV. */
+    /**
+     * Se ainda cabe outro PDV nesta loja.
+     *
+     * Checa os dois tetos: o da loja e o da rede. Passar em apenas um não basta
+     * — é justamente a combinação que impede a rede de se acomodar num plano
+     * barato distribuindo caixas entre muitas lojas.
+     */
     @Transactional(readOnly = true)
     public QuotaDecision canAddPdv(UUID marketId) {
-        EffectiveLimits limits = limitsFor(requireMarket(marketId));
-        if (PlanType.isUnlimited(limits.pdvs())) {
-            return QuotaDecision.allowed(PlanType.UNLIMITED, 0);
+        Market market = requireMarket(marketId);
+        EffectiveLimits limits = limitsFor(market);
+
+        int inThisBranch = pdvRepository.findByMarketId(marketId).size();
+        if (!PlanType.isUnlimited(limits.pdvsPerBranch()) && inThisBranch >= limits.pdvsPerBranch()) {
+            return QuotaDecision.denied(limits.pdvsPerBranch(), inThisBranch, limits.plan(),
+                String.format(
+                    "Seu plano %s permite %d PDV(s) por loja e esta já tem %d. "
+                        + "Faça upgrade para conectar mais caixas nesta loja.",
+                    limits.plan().getDisplayName(), limits.pdvsPerBranch(), inThisBranch
+                ));
         }
-        int current = pdvRepository.findByMarketId(marketId).size();
-        return current >= limits.pdvs()
-            ? QuotaDecision.denied(limits.pdvs(), current, limits.plan())
-            : QuotaDecision.allowed(limits.pdvs(), current);
+
+        if (!PlanType.isUnlimited(limits.pdvs())) {
+            int inNetwork = 0;
+            for (Market member : marketRepository.findNetwork(limits.networkRootId())) {
+                inNetwork += pdvRepository.findByMarketId(member.getId()).size();
+            }
+            if (inNetwork >= limits.pdvs()) {
+                return QuotaDecision.denied(limits.pdvs(), inNetwork, limits.plan(),
+                    String.format(
+                        "Seu plano %s permite %d PDV(s) somando todas as lojas e já há %d. "
+                            + "Fale com o comercial para um plano sob medida.",
+                        limits.plan().getDisplayName(), limits.pdvs(), inNetwork
+                    ));
+            }
+        }
+
+        return QuotaDecision.allowed(limits.pdvs(), inThisBranch);
     }
 
-    /** Se o mercado ainda pode cadastrar outro usuário ativo. */
+    /** Se a rede ainda pode abrir outra loja. */
+    @Transactional(readOnly = true)
+    public QuotaDecision canAddBranch(UUID marketId) {
+        Market market = requireMarket(marketId);
+        EffectiveLimits limits = limitsFor(market);
+        if (PlanType.isUnlimited(limits.branches())) {
+            return QuotaDecision.allowed(PlanType.UNLIMITED, 0);
+        }
+
+        int current = (int) marketRepository.countNetworkMembers(limits.networkRootId());
+        if (current >= limits.branches()) {
+            return QuotaDecision.denied(limits.branches(), current, limits.plan(),
+                String.format(
+                    "Seu plano %s permite %d loja(s) e a rede já tem %d. "
+                        + "Fale com o comercial para um plano sob medida para redes.",
+                    limits.plan().getDisplayName(), limits.branches(), current
+                ));
+        }
+        return QuotaDecision.allowed(limits.branches(), current);
+    }
+
+    /** Se a rede ainda pode cadastrar outro usuário ativo. */
     @Transactional(readOnly = true)
     public QuotaDecision canAddUser(UUID marketId) {
-        EffectiveLimits limits = limitsFor(requireMarket(marketId));
+        Market market = requireMarket(marketId);
+        EffectiveLimits limits = limitsFor(market);
         if (PlanType.isUnlimited(limits.seats())) {
             return QuotaDecision.allowed(PlanType.UNLIMITED, 0);
         }
-        int current = (int) userRepository.countByMarket_IdAndIsActive(marketId, true);
-        return current >= limits.seats()
-            ? QuotaDecision.denied(limits.seats(), current, limits.plan())
-            : QuotaDecision.allowed(limits.seats(), current);
+
+        int current = 0;
+        for (Market member : marketRepository.findNetwork(limits.networkRootId())) {
+            current += (int) userRepository.countByMarket_IdAndIsActive(member.getId(), true);
+        }
+        if (current >= limits.seats()) {
+            return QuotaDecision.denied(limits.seats(), current, limits.plan(),
+                String.format(
+                    "Seu plano %s permite %d usuário(s) na rede e já há %d.",
+                    limits.plan().getDisplayName(), limits.seats(), current
+                ));
+        }
+        return QuotaDecision.allowed(limits.seats(), current);
+    }
+
+    // ── Anti-fatiamento de rede ──────────────────────────────────────────────
+
+    /**
+     * Contas já existentes da mesma empresa (mesmo CNPJ raiz).
+     *
+     * Usado no cadastro para recusar a segunda conta de uma rede que tenta se
+     * fatiar, e no painel do super admin para achar as que entraram antes desta
+     * regra existir.
+     */
+    @Transactional(readOnly = true)
+    public List<Market> findSameCompanyAccounts(String cnpj) {
+        String root = CnpjUtils.root(cnpj);
+        if (root == null) {
+            return List.of();
+        }
+        return marketRepository.findByCnpjRoot(root);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Market> findMarket(UUID marketId) {
+        return marketRepository.findById(marketId);
     }
 
     // ── Recorte de listas de inteligência ────────────────────────────────────
@@ -228,10 +359,9 @@ public class PlanService {
      * Aplica o recorte do plano gratuito às listas de inteligência.
      *
      * O gratuito enxerga o produto inteiro, mas só os
-     * {@link PlanType#FREE_INSIGHT_PREVIEW_SIZE} primeiros itens de cada lista:
-     * prova o valor sem permitir operar apenas com o gratuito. A lista já chega
-     * ordenada por prioridade, então o recorte preserva o que há de mais
-     * relevante.
+     * {@link PlanType#FREE_INSIGHT_PREVIEW_SIZE} primeiros itens de cada lista.
+     * A lista já chega ordenada por prioridade, então o recorte preserva o que
+     * há de mais relevante.
      */
     public <T> InsightSlice<T> sliceInsights(EffectiveLimits limits, List<T> items) {
         if (items == null || items.isEmpty()) {
@@ -245,16 +375,8 @@ public class PlanService {
             return new InsightSlice<>(items, items.size(), 0, false);
         }
         return new InsightSlice<>(
-            items.subList(0, preview),
-            items.size(),
-            items.size() - preview,
-            true
+            items.subList(0, preview), items.size(), items.size() - preview, true
         );
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<Market> findMarket(UUID marketId) {
-        return marketRepository.findById(marketId);
     }
 
     private Market requireMarket(UUID marketId) {
@@ -267,12 +389,24 @@ public class PlanService {
     public record EffectiveLimits(
         PlanType plan,
         int monthlyInvoices,
+        int branches,
+        int pdvsPerBranch,
         int pdvs,
         int seats,
         int historyDays,
         boolean fullInsights,
-        boolean unlimitedAccount
-    ) {}
+        /** Matriz cuja assinatura vale para toda a rede. */
+        UUID networkRootId
+    ) {
+        /** Construtor para contas isentas de teto. */
+        EffectiveLimits(
+            PlanType plan, int invoices, int branches, int pdvsPerBranch, int pdvs, int seats,
+            boolean fullInsights, boolean unlimitedAccount, UUID networkRootId
+        ) {
+            this(plan, invoices, branches, pdvsPerBranch, pdvs, seats,
+                PlanType.UNLIMITED, fullInsights, networkRootId);
+        }
+    }
 
     public record UsageSnapshot(
         EffectiveLimits limits,
@@ -280,6 +414,7 @@ public class PlanService {
         LocalDate cycleEnd,
         int invoicesUsed,
         int invoicesRejected,
+        int branchCount,
         int pdvCount,
         int seatCount,
         LocalDateTime limitReachedAt
@@ -319,16 +454,8 @@ public class PlanService {
             return new QuotaDecision(true, limit, used, null, null);
         }
 
-        static QuotaDecision denied(int limit, int used, PlanType plan) {
-            return new QuotaDecision(false, limit, used, plan, buildMessage(limit, plan));
-        }
-
-        private static String buildMessage(int limit, PlanType plan) {
-            return String.format(
-                "Limite do plano %s atingido (%d por mês). "
-                    + "Faça upgrade para continuar — seus dados já coletados seguem disponíveis.",
-                plan != null ? plan.getDisplayName() : "atual", limit
-            );
+        static QuotaDecision denied(int limit, int used, PlanType plan, String message) {
+            return new QuotaDecision(false, limit, used, plan, message);
         }
     }
 

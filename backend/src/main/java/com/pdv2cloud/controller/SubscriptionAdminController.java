@@ -103,12 +103,55 @@ public class SubscriptionAdminController {
         return ResponseEntity.ok(subscriptionAdminService.updateLimits(
             marketId,
             request.getInvoiceLimit(),
+            request.getBranchLimit(),
+            request.getPdvPerBranchLimit(),
             request.getPdvLimit(),
             request.getSeatLimit(),
+            request.getCustomPriceCents(),
             request.getUnlimited(),
             request.getReason(),
             authentication.getName()
         ));
+    }
+
+    // ── Rede ─────────────────────────────────────────────────────────────────
+
+    /** Lojas da rede a que este mercado pertence. */
+    @GetMapping("/{marketId}/network")
+    public ResponseEntity<List<SubscriptionAdminService.NetworkMember>> network(
+        @PathVariable("marketId") UUID marketId
+    ) {
+        return ResponseEntity.ok(subscriptionAdminService.networkOf(marketId));
+    }
+
+    /**
+     * Empresas com várias contas soltas sob o mesmo CNPJ raiz — redes que se
+     * fatiaram antes do bloqueio no cadastro existir.
+     */
+    @GetMapping("/suspected-networks")
+    public ResponseEntity<List<SubscriptionAdminService.SuspectedNetwork>> suspectedNetworks() {
+        return ResponseEntity.ok(subscriptionAdminService.listSuspectedNetworks());
+    }
+
+    /** Transforma contas soltas numa rede: vincula a loja como filial da matriz. */
+    @PostMapping("/{marketId}/branches")
+    public ResponseEntity<SubscriptionAdminService.SubscriptionRow> attachBranch(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody AttachBranchRequest request,
+        Authentication authentication
+    ) {
+        return ResponseEntity.ok(subscriptionAdminService.attachBranch(
+            marketId, request.getBranchMarketId(), authentication.getName()
+        ));
+    }
+
+    @DeleteMapping("/branches/{branchMarketId}")
+    public ResponseEntity<SubscriptionAdminService.SubscriptionRow> detachBranch(
+        @PathVariable("branchMarketId") UUID branchMarketId,
+        Authentication authentication
+    ) {
+        return ResponseEntity.ok(
+            subscriptionAdminService.detachBranch(branchMarketId, authentication.getName()));
     }
 
     @Data
@@ -128,9 +171,19 @@ public class SubscriptionAdminController {
     @Data
     public static class UpdateLimitsRequest {
         private Integer invoiceLimit;
+        private Integer branchLimit;
+        private Integer pdvPerBranchLimit;
         private Integer pdvLimit;
         private Integer seatLimit;
+        /** Preço negociado do plano Rede, em centavos. */
+        private Integer customPriceCents;
         private Boolean unlimited;
         private String reason;
+    }
+
+    @Data
+    public static class AttachBranchRequest {
+        @NotNull(message = "Informe a loja a vincular")
+        private UUID branchMarketId;
     }
 }

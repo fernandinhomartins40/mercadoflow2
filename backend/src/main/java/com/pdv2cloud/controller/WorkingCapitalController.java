@@ -75,6 +75,9 @@ public class WorkingCapitalController {
         response.put("limitReachedAt", usage.limitReachedAt());
         response.put("pdvLimit", usage.limits().pdvs());
         response.put("pdvCount", usage.pdvCount());
+        response.put("pdvsPerBranchLimit", usage.limits().pdvsPerBranch());
+        response.put("branchLimit", usage.limits().branches());
+        response.put("branchCount", usage.branchCount());
         response.put("seatLimit", usage.limits().seats());
         response.put("seatCount", usage.seatCount());
         response.put("historyDays", usage.limits().historyDays());

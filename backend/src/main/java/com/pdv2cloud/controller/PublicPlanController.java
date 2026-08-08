@@ -28,12 +28,16 @@ public class PublicPlanController {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("code", plan.name());
             item.put("name", plan.getDisplayName());
+            item.put("monthlyPriceCents", plan.getMonthlyPriceCents());
             item.put("monthlyInvoices", plan.getMonthlyInvoiceLimit());
+            item.put("branches", plan.getBranchLimit());
+            item.put("pdvsPerBranch", plan.getPdvPerBranchLimit());
             item.put("pdvs", plan.getPdvLimit());
             item.put("seats", plan.getUserSeatLimit());
             item.put("historyDays", plan.getHistoryRetentionDays());
             item.put("fullInsights", plan.hasFullInsights());
             item.put("free", plan.isFree());
+            item.put("custom", plan.isCustom());
             item.put("highlights", highlightsFor(plan));
             plans.add(item);
         }
@@ -44,24 +48,33 @@ public class PublicPlanController {
         return switch (plan) {
             case FREE -> List.of(
                 "1.000 notas fiscais por mês",
-                "1 PDV conectado",
+                "1 loja e 1 PDV",
                 "2 usuários",
                 "90 dias de histórico",
                 "Prévia da inteligência de capital e promoções",
                 "Sem cartão de crédito"
             );
-            case PRO -> List.of(
+            case ESSENCIAL -> List.of(
                 "15.000 notas fiscais por mês",
-                "5 PDVs conectados",
-                "10 usuários",
-                "2 anos de histórico",
+                "1 loja com até 3 PDVs",
+                "5 usuários",
+                "1 ano de histórico",
                 "Inteligência completa de capital de giro",
                 "Plano de compra por orçamento",
                 "Efeito de tração e recomendação de promoções"
             );
-            case ENTERPRISE -> List.of(
-                "Notas fiscais ilimitadas",
-                "PDVs e usuários ilimitados",
+            case PROFISSIONAL -> List.of(
+                "50.000 notas fiscais por mês",
+                "Até 3 lojas, 4 PDVs por loja (10 no total)",
+                "15 usuários",
+                "2 anos de histórico",
+                "Tudo do Essencial",
+                "Visão consolidada da rede"
+            );
+            case REDE -> List.of(
+                "Volume sob medida",
+                "Lojas e PDVs conforme sua operação",
+                "Usuários sob medida",
                 "Histórico completo",
                 "Inteligência completa",
                 "Suporte prioritário"

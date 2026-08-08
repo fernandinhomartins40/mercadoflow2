@@ -5,7 +5,9 @@ import subscriptionService, {
   SubscriptionEvent,
   SubscriptionOverview,
   SubscriptionRow,
+  SuspectedNetwork,
   formatLimit,
+  formatPrice,
   isUnlimited,
 } from '../services/subscription.service';
 import {
@@ -16,6 +18,7 @@ import {
   Clock,
   CreditCard,
   Gauge,
+  Network,
   RefreshCw,
   Search,
   TrendingUp,
@@ -40,8 +43,9 @@ const fmtDate = (v?: string | null) => {
 
 const PLAN_STYLE: Record<PlanCode, { bg: string; color: string }> = {
   FREE: { bg: '#f1f5f9', color: '#475569' },
-  PRO: { bg: '#dcfce7', color: '#15803d' },
-  ENTERPRISE: { bg: '#ede9fe', color: '#6d28d9' },
+  ESSENCIAL: { bg: '#dcfce7', color: '#15803d' },
+  PROFISSIONAL: { bg: '#dbeafe', color: '#1d4ed8' },
+  REDE: { bg: '#ede9fe', color: '#6d28d9' },
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -111,6 +115,8 @@ const SuperAdminSubscriptions: React.FC = () => {
   const [planFilter, setPlanFilter] = useState<'ALL' | PlanCode>('ALL');
   const [onlyCandidates, setOnlyCandidates] = useState(false);
 
+  const [suspected, setSuspected] = useState<SuspectedNetwork[]>([]);
+  const [showSuspected, setShowSuspected] = useState(false);
   const [detail, setDetail] = useState<SubscriptionRow | null>(null);
   const [history, setHistory] = useState<SubscriptionEvent[]>([]);
   const [saving, setSaving] = useState(false);
@@ -119,7 +125,12 @@ const SuperAdminSubscriptions: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      setOverview(await subscriptionService.getOverview());
+      const [data, networks] = await Promise.all([
+        subscriptionService.getOverview(),
+        subscriptionService.getSuspectedNetworks().catch(() => [] as SuspectedNetwork[]),
+      ]);
+      setOverview(data);
+      setSuspected(networks);
     } catch (err: any) {
       setError(err?.message || 'Não foi possível carregar as assinaturas.');
     } finally {
@@ -162,6 +173,18 @@ const SuperAdminSubscriptions: React.FC = () => {
       setDetail(null);
     } catch (err: any) {
       setError(err?.message || 'Falha ao alterar o status.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const linkBranch = async (parentMarketId: string, branchMarketId: string) => {
+    setSaving(true);
+    try {
+      await subscriptionService.attachBranch(parentMarketId, branchMarketId);
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao vincular a filial.');
     } finally {
       setSaving(false);
     }
@@ -235,7 +258,7 @@ const SuperAdminSubscriptions: React.FC = () => {
               <StatTile
                 icon={<CreditCard size={13} />}
                 label="Pagantes"
-                value={fmtNumber((metrics?.proMarkets || 0) + (metrics?.enterpriseMarkets || 0))}
+                value={fmtNumber((metrics?.essencialMarkets || 0) + (metrics?.profissionalMarkets || 0) + (metrics?.redeMarkets || 0))}
                 hint={`${fmtNumber(metrics?.freeMarkets)} no gratuito`}
                 tone="good"
               />
@@ -279,12 +302,24 @@ const SuperAdminSubscriptions: React.FC = () => {
                       {fmtNumber(plan.marketCount)} conta(s)
                     </span>
                   </div>
-                  <div className="mt-3 grid gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <div className="mt-1 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {formatPrice(plan.monthlyPriceCents)}
+                    {plan.monthlyPriceCents > 0 && (
+                      <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                        {' '}/mês
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 grid gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
                     <span>
                       <strong style={{ color: 'var(--text-primary)' }}>{formatLimit(plan.monthlyInvoices)}</strong>{' '}
                       notas/mês
                     </span>
-                    <span>{formatLimit(plan.pdvs)} PDV(s) · {formatLimit(plan.seats)} usuário(s)</span>
+                    <span>
+                      {formatLimit(plan.branches)} loja(s) · {formatLimit(plan.pdvsPerBranch)} PDV(s) por loja
+                      {' '}({formatLimit(plan.pdvs)} no total)
+                    </span>
+                    <span>{formatLimit(plan.seats)} usuário(s)</span>
                     <span>
                       {isUnlimited(plan.historyDays)
                         ? 'Histórico completo'
@@ -295,6 +330,80 @@ const SuperAdminSubscriptions: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Redes fatiadas */}
+            {suspected.length > 0 && (
+              <div
+                className="rounded-xl p-4"
+                style={{ background: '#fffbeb', border: '1px solid #fde68a' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowSuspected((v) => !v)}
+                  className="flex w-full items-center gap-2 text-left"
+                >
+                  <Network size={16} style={{ color: '#b45309' }} />
+                  <span className="text-sm font-bold" style={{ color: '#92400e' }}>
+                    {suspected.length} empresa(s) com contas separadas
+                  </span>
+                  <span className="text-xs" style={{ color: '#92400e', opacity: 0.85 }}>
+                    mesmo CNPJ raiz, sem vínculo de rede — cada uma é uma conversa comercial
+                  </span>
+                  <span className="ml-auto text-xs font-semibold" style={{ color: '#92400e' }}>
+                    {showSuspected ? 'Ocultar' : 'Ver'}
+                  </span>
+                </button>
+
+                {showSuspected && (
+                  <div className="mt-3 flex flex-col gap-3">
+                    {suspected.map((network) => {
+                      const headquarters = network.accounts[0];
+                      return (
+                        <div
+                          key={network.cnpjRoot}
+                          className="rounded-lg p-3"
+                          style={{ background: 'var(--surface-base)' }}
+                        >
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <strong style={{ color: 'var(--text-primary)' }}>
+                              CNPJ raiz {network.cnpjRoot}
+                            </strong>
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              {network.accountCount} contas · {network.totalPdvs} PDV(s) no total
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-col gap-1">
+                            {network.accounts.map((account) => (
+                              <div
+                                key={account.marketId}
+                                className="flex flex-wrap items-center gap-2 text-xs"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
+                                <span style={{ color: 'var(--text-primary)' }}>{account.name}</span>
+                                <span>{account.cnpj}</span>
+                                <span>{account.pdvCount} PDV(s)</span>
+                                {account.marketId !== headquarters.marketId && (
+                                  <button
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => linkBranch(headquarters.marketId, account.marketId)}
+                                    className="rounded px-2 py-0.5 text-[10px] font-semibold disabled:opacity-50"
+                                    style={{ background: '#fef3c7', color: '#92400e' }}
+                                    title={`Vincular como filial de ${headquarters.name}`}
+                                  >
+                                    Vincular como filial
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Filtros */}
             <div className="flex flex-wrap items-center gap-2">
@@ -316,7 +425,7 @@ const SuperAdminSubscriptions: React.FC = () => {
                   }}
                 />
               </div>
-              {(['ALL', 'FREE', 'PRO', 'ENTERPRISE'] as const).map((code) => (
+              {(['ALL', 'FREE', 'ESSENCIAL', 'PROFISSIONAL', 'REDE'] as const).map((code) => (
                 <button
                   key={code}
                   type="button"
@@ -359,6 +468,7 @@ const SuperAdminSubscriptions: React.FC = () => {
                     <th className="px-3 py-2 font-semibold">Plano</th>
                     <th className="px-3 py-2 font-semibold">Status</th>
                     <th className="px-3 py-2 font-semibold">Consumo do ciclo</th>
+                    <th className="px-3 py-2 font-semibold">Rede</th>
                     <th className="px-3 py-2 font-semibold">Usuários</th>
                     <th className="px-3 py-2 font-semibold">Última nota</th>
                     <th className="px-3 py-2 font-semibold" />
@@ -367,7 +477,7 @@ const SuperAdminSubscriptions: React.FC = () => {
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>
+                      <td colSpan={8} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>
                         Nenhuma assinatura encontrada com estes filtros.
                       </td>
                     </tr>
@@ -414,6 +524,20 @@ const SuperAdminSubscriptions: React.FC = () => {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
+                        {row.parentMarketName ? (
+                          <span title={`Filial de ${row.parentMarketName}`}>
+                            filial de {row.parentMarketName}
+                          </span>
+                        ) : (
+                          <>
+                            {row.branchCount} / {formatLimit(row.branchLimit)} loja(s)
+                            <div className="text-[10px]">
+                              {row.pdvCount} / {formatLimit(row.pdvLimit)} PDV(s)
+                            </div>
+                          </>
+                        )}
                       </td>
                       <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
                         {row.seatCount} / {formatLimit(row.seatLimit)}
@@ -467,7 +591,7 @@ const SuperAdminSubscriptions: React.FC = () => {
                 Plano
               </p>
               <div className="flex flex-wrap gap-2">
-                {(['FREE', 'PRO', 'ENTERPRISE'] as PlanCode[]).map((code) => (
+                {(['FREE', 'ESSENCIAL', 'PROFISSIONAL', 'REDE'] as PlanCode[]).map((code) => (
                   <button
                     key={code}
                     type="button"

@@ -8,6 +8,7 @@ import com.pdv2cloud.model.entity.SubscriptionEvent;
 import com.pdv2cloud.model.entity.User;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.MarketUsageCounterRepository;
+import com.pdv2cloud.repository.PDVRepository;
 import com.pdv2cloud.repository.SubscriptionEventRepository;
 import com.pdv2cloud.repository.UserRepository;
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class SubscriptionAdminService {
     private final MarketUsageCounterRepository usageRepository;
     private final SubscriptionEventRepository eventRepository;
     private final UserRepository userRepository;
+    private final PDVRepository pdvRepository;
     private final PlanService planService;
     private final SubscriptionEventService subscriptionEventService;
 
@@ -47,6 +50,7 @@ public class SubscriptionAdminService {
         MarketUsageCounterRepository usageRepository,
         SubscriptionEventRepository eventRepository,
         UserRepository userRepository,
+        PDVRepository pdvRepository,
         PlanService planService,
         SubscriptionEventService subscriptionEventService
     ) {
@@ -54,6 +58,7 @@ public class SubscriptionAdminService {
         this.usageRepository = usageRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
+        this.pdvRepository = pdvRepository;
         this.planService = planService;
         this.subscriptionEventService = subscriptionEventService;
     }
@@ -67,11 +72,15 @@ public class SubscriptionAdminService {
             plans.add(new PlanDescriptor(
                 plan.name(),
                 plan.getDisplayName(),
+                plan.getMonthlyPriceCents(),
                 plan.getMonthlyInvoiceLimit(),
+                plan.getBranchLimit(),
+                plan.getPdvPerBranchLimit(),
                 plan.getPdvLimit(),
                 plan.getUserSeatLimit(),
                 plan.getHistoryRetentionDays(),
                 plan.hasFullInsights(),
+                plan.isCustom(),
                 marketRepository.countByPlanType(plan)
             ));
         }
@@ -127,7 +136,12 @@ public class SubscriptionAdminService {
                 counter != null && counter.getLimitReachedAt() != null,
                 (int) userRepository.countByMarket_IdAndIsActive(market.getId(), true),
                 limits.seats(),
+                pdvRepository.findByMarketId(market.getId()).size(),
                 limits.pdvs(),
+                (int) marketRepository.countNetworkMembers(limits.networkRootId()),
+                limits.branches(),
+                market.getParentMarket() != null ? market.getParentMarket().getId() : null,
+                market.getParentMarket() != null ? market.getParentMarket().getName() : null,
                 market.getCreatedAt(),
                 market.getPlanChangedAt(),
                 counter != null ? counter.getLastIngestAt() : null,
@@ -205,16 +219,22 @@ public class SubscriptionAdminService {
     public SubscriptionRow updateLimits(
         UUID marketId,
         Integer invoiceLimit,
+        Integer branchLimit,
+        Integer pdvPerBranchLimit,
         Integer pdvLimit,
         Integer seatLimit,
+        Integer customPriceCents,
         Boolean unlimited,
         String reason,
         String actorEmail
     ) {
         Market market = requireMarket(marketId);
         market.setInvoiceLimitOverride(invoiceLimit);
+        market.setBranchLimitOverride(branchLimit);
+        market.setPdvPerBranchOverride(pdvPerBranchLimit);
         market.setPdvLimitOverride(pdvLimit);
         market.setSeatLimitOverride(seatLimit);
+        market.setCustomPriceCents(customPriceCents);
         if (unlimited != null) {
             market.setIsUnlimited(unlimited);
         }
@@ -225,6 +245,142 @@ public class SubscriptionAdminService {
         return findRow(marketId);
     }
 
+    // ── Gestão de rede ───────────────────────────────────────────────────────
+
+    /**
+     * Vincula um mercado como filial de outro.
+     *
+     * É a saída oferecida à rede que tentou se cadastrar fatiada: em vez de N
+     * contas soltas, uma matriz com filiais, cujos limites passam a ser
+     * apurados em conjunto.
+     */
+    @Transactional
+    public SubscriptionRow attachBranch(UUID parentMarketId, UUID branchMarketId, String actorEmail) {
+        if (parentMarketId.equals(branchMarketId)) {
+            throw new IllegalArgumentException("Um mercado não pode ser filial de si mesmo");
+        }
+
+        Market parent = requireMarket(parentMarketId);
+        Market branch = requireMarket(branchMarketId);
+
+        if (parent.getParentMarket() != null) {
+            throw new IllegalArgumentException(
+                "A matriz indicada já é filial de outra rede. Vincule à matriz principal.");
+        }
+        if (!marketRepository.findByParentMarketId(branchMarketId).isEmpty()) {
+            throw new IllegalArgumentException(
+                "Este mercado já é matriz de outras lojas. Desvincule-as antes.");
+        }
+
+        branch.setParentMarket(parent);
+        // A filial passa a consumir a assinatura da matriz: manter plano próprio
+        // faria a mesma loja ser contada duas vezes nas métricas.
+        branch.setPlanType(parent.getPlanType());
+        marketRepository.save(branch);
+
+        subscriptionEventService.recordPlanChange(
+            branch, branch.getPlanType(), parent.getPlanType(),
+            "Vinculado como filial de " + parent.getName(), resolveActor(actorEmail)
+        );
+        return findRow(parentMarketId);
+    }
+
+    @Transactional
+    public SubscriptionRow detachBranch(UUID branchMarketId, String actorEmail) {
+        Market branch = requireMarket(branchMarketId);
+        if (branch.getParentMarket() == null) {
+            throw new IllegalArgumentException("Este mercado não é filial de ninguém");
+        }
+        String parentName = branch.getParentMarket().getName();
+        branch.setParentMarket(null);
+        marketRepository.save(branch);
+
+        subscriptionEventService.recordPlanChange(
+            branch, branch.getPlanType(), branch.getPlanType(),
+            "Desvinculado da rede " + parentName, resolveActor(actorEmail)
+        );
+        return findRow(branchMarketId);
+    }
+
+    /** Lojas de uma rede: a matriz e suas filiais. */
+    @Transactional(readOnly = true)
+    public List<NetworkMember> networkOf(UUID marketId) {
+        Market market = requireMarket(marketId);
+        UUID rootId = market.getParentMarket() != null
+            ? market.getParentMarket().getId()
+            : market.getId();
+
+        List<NetworkMember> members = new ArrayList<>();
+        for (Market member : marketRepository.findNetwork(rootId)) {
+            members.add(new NetworkMember(
+                member.getId(),
+                member.getName(),
+                member.getBranchLabel(),
+                member.getCnpj(),
+                member.getParentMarket() == null,
+                pdvRepository.findByMarketId(member.getId()).size(),
+                (int) userRepository.countByMarket_IdAndIsActive(member.getId(), true),
+                member.getCreatedAt()
+            ));
+        }
+        return members;
+    }
+
+    /**
+     * Empresas com mais de uma conta e sem vínculo de rede.
+     *
+     * São as redes que se fatiaram antes de o bloqueio por CNPJ raiz existir —
+     * e cada uma delas é uma conversa comercial em aberto.
+     */
+    @Transactional(readOnly = true)
+    public List<SuspectedNetwork> listSuspectedNetworks() {
+        Map<String, List<Market>> byRoot = new LinkedHashMap<>();
+        for (Market market : marketRepository.findAll()) {
+            String root = market.getCnpjRoot();
+            if (root == null || root.isBlank()) {
+                continue;
+            }
+            byRoot.computeIfAbsent(root, key -> new ArrayList<>()).add(market);
+        }
+
+        List<SuspectedNetwork> suspected = new ArrayList<>();
+        for (Map.Entry<String, List<Market>> entry : byRoot.entrySet()) {
+            List<Market> accounts = entry.getValue();
+            if (accounts.size() < 2) {
+                continue;
+            }
+            // Já vinculadas não são suspeitas: a rede está corretamente modelada.
+            long unlinked = accounts.stream().filter(m -> m.getParentMarket() == null).count();
+            if (unlinked < 2) {
+                continue;
+            }
+
+            int totalPdvs = 0;
+            for (Market account : accounts) {
+                totalPdvs += pdvRepository.findByMarketId(account.getId()).size();
+            }
+
+            suspected.add(new SuspectedNetwork(
+                entry.getKey(),
+                accounts.size(),
+                (int) unlinked,
+                totalPdvs,
+                accounts.stream()
+                    .map(m -> new NetworkMember(
+                        m.getId(), m.getName(), m.getBranchLabel(), m.getCnpj(),
+                        m.getParentMarket() == null,
+                        pdvRepository.findByMarketId(m.getId()).size(),
+                        (int) userRepository.countByMarket_IdAndIsActive(m.getId(), true),
+                        m.getCreatedAt()
+                    ))
+                    .toList()
+            ));
+        }
+
+        suspected.sort(Comparator.comparingInt(SuspectedNetwork::accountCount).reversed());
+        return suspected;
+    }
+
     // ── Métricas agregadas ───────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -232,8 +388,9 @@ public class SubscriptionAdminService {
         List<SubscriptionRow> rows = listSubscriptions();
 
         long free = rows.stream().filter(r -> PlanType.FREE.name().equals(r.planCode())).count();
-        long pro = rows.stream().filter(r -> PlanType.PRO.name().equals(r.planCode())).count();
-        long enterprise = rows.stream().filter(r -> PlanType.ENTERPRISE.name().equals(r.planCode())).count();
+        long essencial = rows.stream().filter(r -> PlanType.ESSENCIAL.name().equals(r.planCode())).count();
+        long profissional = rows.stream().filter(r -> PlanType.PROFISSIONAL.name().equals(r.planCode())).count();
+        long rede = rows.stream().filter(r -> PlanType.REDE.name().equals(r.planCode())).count();
 
         long active = rows.stream().filter(SubscriptionRow::active).count();
         long atLimit = rows.stream().filter(SubscriptionRow::limitReached).count();
@@ -244,7 +401,7 @@ public class SubscriptionAdminService {
         long totalInvoices = rows.stream().mapToLong(SubscriptionRow::invoicesUsed).sum();
         long rejected = rows.stream().mapToLong(SubscriptionRow::invoicesRejected).sum();
 
-        long paying = pro + enterprise;
+        long paying = essencial + profissional + rede;
         BigDecimal conversionRate = rows.isEmpty()
             ? BigDecimal.ZERO
             : BigDecimal.valueOf(paying)
@@ -253,7 +410,7 @@ public class SubscriptionAdminService {
                 .setScale(2, RoundingMode.HALF_UP);
 
         return new SubscriptionMetrics(
-            rows.size(), active, free, pro, enterprise,
+            rows.size(), active, free, essencial, profissional, rede,
             atLimit, nearLimit, totalInvoices, rejected, conversionRate
         );
     }
@@ -293,8 +450,20 @@ public class SubscriptionAdminService {
 
     public record PlanDescriptor(
         String code, String name,
-        int monthlyInvoices, int pdvs, int seats, int historyDays,
-        boolean fullInsights, long marketCount
+        int monthlyPriceCents,
+        int monthlyInvoices, int branches, int pdvsPerBranch, int pdvs, int seats,
+        int historyDays, boolean fullInsights, boolean custom, long marketCount
+    ) {}
+
+    public record NetworkMember(
+        UUID marketId, String name, String branchLabel, String cnpj,
+        boolean headquarters, int pdvCount, int seatCount, LocalDateTime createdAt
+    ) {}
+
+    /** Empresa com várias contas soltas — candidata a virar rede formal. */
+    public record SuspectedNetwork(
+        String cnpjRoot, int accountCount, int unlinkedCount, int totalPdvs,
+        List<NetworkMember> accounts
     ) {}
 
     public record SubscriptionRow(
@@ -303,14 +472,18 @@ public class SubscriptionAdminService {
         boolean active, boolean unlimited,
         int invoiceLimit, int invoicesUsed, int invoicesRejected, int usagePercent,
         boolean limitReached,
-        int seatCount, int seatLimit, int pdvLimit,
+        int seatCount, int seatLimit, int pdvCount, int pdvLimit,
+        /** Lojas na rede, contando a matriz. */
+        int branchCount, int branchLimit,
+        /** Preenchido quando este mercado e filial de outro. */
+        UUID parentMarketId, String parentMarketName,
         LocalDateTime createdAt, LocalDateTime planChangedAt, LocalDateTime lastIngestAt,
         LocalDateTime trialEndsAt, LocalDateTime accessExpiresAt
     ) {}
 
     public record SubscriptionMetrics(
         int totalMarkets, long activeMarkets,
-        long freeMarkets, long proMarkets, long enterpriseMarkets,
+        long freeMarkets, long essencialMarkets, long profissionalMarkets, long redeMarkets,
         long marketsAtLimit, long marketsNearLimit,
         long invoicesThisCycle, long invoicesRejectedThisCycle,
         BigDecimal conversionRatePercent

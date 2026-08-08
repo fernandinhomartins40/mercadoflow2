@@ -10,16 +10,30 @@ export const formatLimit = (value?: number | null) =>
 
 /* ─── Tipos ─── */
 
-export type PlanCode = 'FREE' | 'PRO' | 'ENTERPRISE';
+export type PlanCode = 'FREE' | 'ESSENCIAL' | 'PROFISSIONAL' | 'REDE';
+
+/** Preço mensal formatado; -1 significa "sob consulta". */
+export const formatPrice = (cents?: number | null) => {
+  if (cents == null || cents < 0) return 'Sob consulta';
+  if (cents === 0) return 'Gratuito';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
+};
 
 export interface PlanDescriptor {
   code: PlanCode;
   name: string;
+  monthlyPriceCents: number;
   monthlyInvoices: number;
+  /** Lojas na rede, contando a matriz. */
+  branches: number;
+  /** Teto de PDVs numa mesma loja. */
+  pdvsPerBranch: number;
+  /** Teto de PDVs somando todas as lojas. */
   pdvs: number;
   seats: number;
   historyDays: number;
   fullInsights: boolean;
+  custom?: boolean;
   marketCount?: number;
   free?: boolean;
   highlights?: string[];
@@ -43,7 +57,12 @@ export interface SubscriptionRow {
   limitReached: boolean;
   seatCount: number;
   seatLimit: number;
+  pdvCount: number;
   pdvLimit: number;
+  branchCount: number;
+  branchLimit: number;
+  parentMarketId?: string | null;
+  parentMarketName?: string | null;
   createdAt?: string | null;
   planChangedAt?: string | null;
   lastIngestAt?: string | null;
@@ -55,8 +74,9 @@ export interface SubscriptionMetrics {
   totalMarkets: number;
   activeMarkets: number;
   freeMarkets: number;
-  proMarkets: number;
-  enterpriseMarkets: number;
+  essencialMarkets: number;
+  profissionalMarkets: number;
+  redeMarkets: number;
   marketsAtLimit: number;
   marketsNearLimit: number;
   invoicesThisCycle: number;
@@ -101,8 +121,32 @@ export interface MarketUsage {
   pdvCount: number;
   seatLimit: number;
   seatCount: number;
+  branchLimit: number;
+  branchCount: number;
+  pdvsPerBranchLimit: number;
   historyDays: number;
   fullInsights: boolean;
+}
+
+/** Loja de uma rede. */
+export interface NetworkMember {
+  marketId: string;
+  name: string;
+  branchLabel?: string | null;
+  cnpj?: string | null;
+  headquarters: boolean;
+  pdvCount: number;
+  seatCount: number;
+  createdAt?: string | null;
+}
+
+/** Empresa com várias contas soltas sob o mesmo CNPJ raiz. */
+export interface SuspectedNetwork {
+  cnpjRoot: string;
+  accountCount: number;
+  unlinkedCount: number;
+  totalPdvs: number;
+  accounts: NetworkMember[];
 }
 
 /** Envelope das listas de inteligência recortadas por plano. */
@@ -139,13 +183,41 @@ const updateLimits = async (
   marketId: string,
   payload: {
     invoiceLimit?: number | null;
+    branchLimit?: number | null;
+    pdvPerBranchLimit?: number | null;
     pdvLimit?: number | null;
     seatLimit?: number | null;
+    customPriceCents?: number | null;
     unlimited?: boolean;
     reason?: string;
   },
 ): Promise<SubscriptionRow> => {
   const { data } = await api.patch<SubscriptionRow>(`${adminBase}/${marketId}/limits`, payload);
+  return data;
+};
+
+/* ─── Rede ─── */
+
+const getNetwork = async (marketId: string): Promise<NetworkMember[]> => {
+  const { data } = await api.get<NetworkMember[]>(`${adminBase}/${marketId}/network`);
+  return data;
+};
+
+const getSuspectedNetworks = async (): Promise<SuspectedNetwork[]> => {
+  const { data } = await api.get<SuspectedNetwork[]>(`${adminBase}/suspected-networks`);
+  return data;
+};
+
+/** Vincula uma conta solta como filial da matriz — formaliza a rede. */
+const attachBranch = async (parentMarketId: string, branchMarketId: string): Promise<SubscriptionRow> => {
+  const { data } = await api.post<SubscriptionRow>(`${adminBase}/${parentMarketId}/branches`, {
+    branchMarketId,
+  });
+  return data;
+};
+
+const detachBranch = async (branchMarketId: string): Promise<SubscriptionRow> => {
+  const { data } = await api.delete<SubscriptionRow>(`${adminBase}/branches/${branchMarketId}`);
   return data;
 };
 
@@ -173,6 +245,10 @@ export default {
   changePlan,
   changeStatus,
   updateLimits,
+  getNetwork,
+  getSuspectedNetworks,
+  attachBranch,
+  detachBranch,
   getHistory,
   getMarketUsage,
   getPublicPlans,
