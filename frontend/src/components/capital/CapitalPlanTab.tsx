@@ -17,6 +17,8 @@ import workingCapitalService, {
   PurchaseLine,
   PurchasePlan,
 } from '../../services/workingCapital.service';
+import subscriptionService, { MarketUsage } from '../../services/subscription.service';
+import UsageBanner from '../billing/UsageBanner';
 
 /**
  * Plano de capital de giro.
@@ -184,6 +186,7 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
   const [budgetInput, setBudgetInput] = useState('');
   const [appliedBudget, setAppliedBudget] = useState<number | null>(null);
   const [plan, setPlan] = useState<PurchasePlan | null>(null);
+  const [usage, setUsage] = useState<MarketUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -207,6 +210,22 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
   useEffect(() => {
     void load(null);
   }, [load]);
+
+  // Plano do mercado: define se as listas abaixo vêm recortadas.
+  useEffect(() => {
+    let cancelled = false;
+    subscriptionService
+      .getMarketUsage(marketId)
+      .then((data) => {
+        if (!cancelled) setUsage(data);
+      })
+      .catch(() => {
+        // sem o plano, a tela segue funcionando sem o aviso de upgrade
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [marketId]);
 
   const applyBudget = () => {
     const parsed = Number(budgetInput.replace(/\./g, '').replace(',', '.'));
@@ -269,8 +288,12 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
     );
   }
 
+  const truncated = usage != null && !usage.fullInsights;
+
   return (
     <div className="flex flex-col gap-5">
+      <UsageBanner />
+
       {/* Resumo do portfólio */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
@@ -414,6 +437,18 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
               </div>
             ))}
           </div>
+        )}
+
+        {truncated && plan.selected.length > 0 && (
+          <a
+            href="/app/planos"
+            className="mt-2 flex items-center gap-2 rounded-lg p-2 text-xs"
+            style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
+          >
+            <Info size={13} />
+            Mostrando os principais itens do plano {usage?.planName}. Faça upgrade para planejar a
+            compra com o portfólio inteiro.
+          </a>
         )}
       </section>
 

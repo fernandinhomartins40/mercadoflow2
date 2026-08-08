@@ -23,4 +23,15 @@ public class IngestResponse {
     public static IngestResponse error(String chaveNFe, String message) {
         return new IngestResponse("ERROR", null, chaveNFe, message);
     }
+
+    /**
+     * Nota recusada por estouro do limite mensal do plano.
+     *
+     * Distinto de ERROR de propósito: o agente não deve tratar como falha
+     * transitória nem ficar retentando — a nota só entra após upgrade ou virada
+     * do ciclo.
+     */
+    public static IngestResponse quotaExceeded(String chaveNFe, String message) {
+        return new IngestResponse("QUOTA_EXCEEDED", null, chaveNFe, message);
+    }
 }

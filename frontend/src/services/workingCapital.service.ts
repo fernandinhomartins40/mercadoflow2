@@ -1,4 +1,5 @@
 import api from './api';
+import type { GatedList } from './subscription.service';
 
 /* ─── Capital de giro ─── */
 
@@ -169,8 +170,11 @@ export interface PromoRecommendations {
 
 const base = (marketId: string) => `/v1/markets/${marketId}`;
 
-const getPortfolio = async (marketId: string, windowDays = 90): Promise<CapitalMetric[]> => {
-  const { data } = await api.get<CapitalMetric[]>(`${base(marketId)}/capital/portfolio`, {
+const getPortfolio = async (
+  marketId: string,
+  windowDays = 90,
+): Promise<GatedList<CapitalMetric>> => {
+  const { data } = await api.get<GatedList<CapitalMetric>>(`${base(marketId)}/capital/portfolio`, {
     params: { windowDays },
   });
   return data;
@@ -187,8 +191,11 @@ const getPurchasePlan = async (
   return data;
 };
 
-const getTrafficDrivers = async (marketId: string, windowDays = 180): Promise<TrafficDriver[]> => {
-  const { data } = await api.get<TrafficDriver[]>(
+const getTrafficDrivers = async (
+  marketId: string,
+  windowDays = 180,
+): Promise<GatedList<TrafficDriver>> => {
+  const { data } = await api.get<GatedList<TrafficDriver>>(
     `${base(marketId)}/promo-intelligence/traffic-drivers`,
     { params: { windowDays } },
   );
@@ -214,11 +221,17 @@ const getSeasonality = async (
   return data;
 };
 
+/** O backend recorta cada objetivo por plano — ver GatedList. */
+export interface GatedPromoRecommendations {
+  traction: GatedList<PromoCandidate>;
+  clearance: GatedList<PromoCandidate>;
+}
+
 const getPromoRecommendations = async (
   marketId: string,
   windowDays = 180,
-): Promise<PromoRecommendations> => {
-  const { data } = await api.get<PromoRecommendations>(
+): Promise<GatedPromoRecommendations> => {
+  const { data } = await api.get<GatedPromoRecommendations>(
     `${base(marketId)}/promo-intelligence/recommendations`,
     { params: { windowDays } },
   );

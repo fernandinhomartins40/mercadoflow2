@@ -6,6 +6,16 @@ from typing import Dict
 import requests
 
 
+class QuotaExceededError(Exception):
+    """Limite mensal do plano atingido (HTTP 402).
+
+    Herda de Exception e não de RuntimeError/RequestException de propósito: o
+    laço de retry de send_invoice captura apenas essas duas, então esta escapa
+    imediatamente, sem consumir as 5 tentativas. É um erro permanente até o
+    upgrade do plano ou a virada do ciclo mensal.
+    """
+
+
 class APITransmitter:
     def __init__(self, base_url: str, api_key: str, market_id: str):
         self.base_url = base_url.rstrip("/")
@@ -64,6 +74,20 @@ class APITransmitter:
                     headers=headers,
                     timeout=30,
                 )
+                # 402: limite do plano atingido. Não adianta retentar — a nota só
+                # entra após upgrade ou virada do ciclo mensal. Levanta erro
+                # permanente para o item ir a dead letter em vez de consumir as
+                # 5 tentativas e voltar à fila indefinidamente.
+                if response.status_code == 402:
+                    detail = ""
+                    try:
+                        detail = str(response.json().get("message") or "")
+                    except ValueError:
+                        detail = response.text.strip()
+                    raise QuotaExceededError(
+                        detail or "Limite mensal do plano atingido."
+                    )
+
                 if not response.ok:
                     detail = response.text.strip()
                     raise requests.exceptions.HTTPError(

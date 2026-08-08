@@ -1,5 +1,6 @@
 package com.pdv2cloud.model.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -50,6 +51,35 @@ public class Market {
     private LocalDateTime accessExpiresAt;
 
     private LocalDateTime trialEndsAt;
+
+    // ── Assinatura e limites (ver V33__saas_plans_and_usage.sql) ────────────
+
+    /** Âncora do ciclo mensal de contagem de notas. */
+    @Column(name = "billing_cycle_start")
+    private LocalDate billingCycleStart;
+
+    /**
+     * Sobrescrevem o limite padrão do plano para um cliente específico
+     * (negociação, cortesia, piloto). Nulo = usa o limite do plano.
+     */
+    @Column(name = "invoice_limit_override")
+    private Integer invoiceLimitOverride;
+
+    @Column(name = "pdv_limit_override")
+    private Integer pdvLimitOverride;
+
+    @Column(name = "seat_limit_override")
+    private Integer seatLimitOverride;
+
+    /** Contas internas/demo, isentas de qualquer teto. */
+    @Column(name = "is_unlimited", nullable = false)
+    private Boolean isUnlimited = false;
+
+    @Column(name = "plan_changed_at")
+    private LocalDateTime planChangedAt;
+
+    @Column(name = "plan_notes", length = 1000)
+    private String planNotes;
 
     private String contactName;
 

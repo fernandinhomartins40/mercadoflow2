@@ -22,6 +22,8 @@ const AdminCatalog = lazy(() => import('./screens/AdminCatalog'));
 const SuperAdminLogin = lazy(() => import('./screens/SuperAdminLogin'));
 const SuperAdminDashboard = lazy(() => import('./screens/SuperAdminDashboard'));
 const SuperAdminUsers = lazy(() => import('./screens/SuperAdminUsers'));
+const SuperAdminSubscriptions = lazy(() => import('./screens/SuperAdminSubscriptions'));
+const Plans = lazy(() => import('./screens/Plans'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
@@ -133,6 +135,7 @@ const App: React.FC = () => {
         <Route path="/app/previsao-demanda" element={<Navigate to="/app/produtos" replace />} />
         <Route path="/app/promocoes" element={secure(<Promocoes />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
+        <Route path="/app/planos" element={secure(<Plans />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
         <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />
@@ -140,7 +143,7 @@ const App: React.FC = () => {
 
         <Route path="/super-admin" element={secureSuperAdmin(<SuperAdminDashboard />)} />
         <Route path="/super-admin/saas" element={secureSuperAdmin(<SuperAdminUsers />)} />
-        <Route path="/super-admin/assinaturas" element={<Navigate to="/super-admin/saas" replace />} />
+        <Route path="/super-admin/assinaturas" element={secureSuperAdmin(<SuperAdminSubscriptions />)} />
         <Route path="/super-admin/usuarios" element={<Navigate to="/super-admin/saas" replace />} />
         <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
         <Route path="/super-admin/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? secureSuperAdmin(<StatePriceComparison />) : disabledSuperAdminModuleRedirect} />

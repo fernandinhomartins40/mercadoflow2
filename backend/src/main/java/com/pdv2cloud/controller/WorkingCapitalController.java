@@ -1,11 +1,15 @@
 package com.pdv2cloud.controller;
 
+import com.pdv2cloud.model.dto.GatedListDTO;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.PromoIntelligenceService;
 import com.pdv2cloud.service.PurchasePlanService;
 import com.pdv2cloud.service.WorkingCapitalService;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,30 +32,75 @@ public class WorkingCapitalController {
     private final PurchasePlanService purchasePlanService;
     private final PromoIntelligenceService promoIntelligenceService;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public WorkingCapitalController(
         WorkingCapitalService workingCapitalService,
         PurchasePlanService purchasePlanService,
         PromoIntelligenceService promoIntelligenceService,
-        MarketAccessService marketAccessService
+        MarketAccessService marketAccessService,
+        PlanService planService
     ) {
         this.workingCapitalService = workingCapitalService;
         this.purchasePlanService = purchasePlanService;
         this.promoIntelligenceService = promoIntelligenceService;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
+    }
+
+    /**
+     * Plano e consumo do próprio mercado. Alimenta o medidor de uso e o aviso
+     * de upgrade na interface do supermercadista.
+     */
+    @GetMapping("/billing/usage")
+    public ResponseEntity<Map<String, Object>> usage(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        PlanService.UsageSnapshot usage = planService.usageFor(marketId);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("planCode", usage.limits().plan().name());
+        response.put("planName", usage.limits().plan().getDisplayName());
+        response.put("cycleStart", usage.cycleStart());
+        response.put("cycleEnd", usage.cycleEnd());
+        response.put("invoiceLimit", usage.limits().monthlyInvoices());
+        response.put("invoicesUsed", usage.invoicesUsed());
+        response.put("invoicesRejected", usage.invoicesRejected());
+        response.put("invoicesRemaining", usage.remainingInvoices());
+        response.put("usagePercent", usage.usagePercent());
+        response.put("limitReached", usage.limitReached());
+        response.put("nearLimit", usage.nearLimit());
+        response.put("limitReachedAt", usage.limitReachedAt());
+        response.put("pdvLimit", usage.limits().pdvs());
+        response.put("pdvCount", usage.pdvCount());
+        response.put("seatLimit", usage.limits().seats());
+        response.put("seatCount", usage.seatCount());
+        response.put("historyDays", usage.limits().historyDays());
+        response.put("fullInsights", usage.limits().fullInsights());
+        return ResponseEntity.ok(response);
     }
 
     // ── Capital de giro ──────────────────────────────────────────────────────
 
-    /** Métricas por produto: ABC/XYZ, GMROI, cobertura e veredito de capital. */
+    /**
+     * Métricas por produto: ABC/XYZ, GMROI, cobertura e veredito de capital.
+     *
+     * No plano gratuito a lista vem recortada nos principais itens — ver
+     * {@link GatedListDTO}.
+     */
     @GetMapping("/capital/portfolio")
-    public ResponseEntity<List<WorkingCapitalService.CapitalMetric>> portfolio(
+    public ResponseEntity<GatedListDTO<WorkingCapitalService.CapitalMetric>> portfolio(
         @PathVariable("marketId") UUID marketId,
         @RequestParam(value = "windowDays", defaultValue = "90") int windowDays,
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(workingCapitalService.computePortfolio(marketId, windowDays));
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
+        List<WorkingCapitalService.CapitalMetric> all =
+            workingCapitalService.computePortfolio(marketId, windowDays);
+        return ResponseEntity.ok(GatedListDTO.of(planService.sliceInsights(limits, all), limits.plan()));
     }
 
     /**
@@ -68,20 +117,51 @@ public class WorkingCapitalController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(purchasePlanService.buildPlan(marketId, budget, windowDays));
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
+        PurchasePlanService.PurchasePlan plan = purchasePlanService.buildPlan(marketId, budget, windowDays);
+        // O resumo do portfólio (capital total, parado, GMROI) permanece
+        // completo no gratuito: é o que mostra o tamanho do problema. Só as
+        // listas item a item — o que de fato operacionaliza a compra — são
+        // recortadas.
+        return ResponseEntity.ok(truncatePlanLists(plan, limits));
+    }
+
+    private PurchasePlanService.PurchasePlan truncatePlanLists(
+        PurchasePlanService.PurchasePlan plan,
+        PlanService.EffectiveLimits limits
+    ) {
+        if (limits.fullInsights()) {
+            return plan;
+        }
+        return new PurchasePlanService.PurchasePlan(
+            plan.budget(),
+            plan.allocatedValue(),
+            plan.remainingBudget(),
+            plan.totalNeededValue(),
+            plan.expectedMargin(),
+            plan.expectedReturnPercent(),
+            plan.frozenCapital(),
+            planService.sliceInsights(limits, plan.selected()).items(),
+            planService.sliceInsights(limits, plan.deferred()).items(),
+            planService.sliceInsights(limits, plan.frozen()).items(),
+            plan.summary()
+        );
     }
 
     // ── Inteligência de promoções ────────────────────────────────────────────
 
     /** Produtos que puxam a venda de outros quando entram em promoção. */
     @GetMapping("/promo-intelligence/traffic-drivers")
-    public ResponseEntity<List<PromoIntelligenceService.TrafficDriver>> trafficDrivers(
+    public ResponseEntity<GatedListDTO<PromoIntelligenceService.TrafficDriver>> trafficDrivers(
         @PathVariable("marketId") UUID marketId,
         @RequestParam(value = "windowDays", defaultValue = "180") int windowDays,
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(promoIntelligenceService.rankTrafficDrivers(marketId, windowDays));
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
+        List<PromoIntelligenceService.TrafficDriver> all =
+            promoIntelligenceService.rankTrafficDrivers(marketId, windowDays);
+        return ResponseEntity.ok(GatedListDTO.of(planService.sliceInsights(limits, all), limits.plan()));
     }
 
     /** Detalhe do efeito halo par a par (driver → alvo). */
@@ -113,12 +193,23 @@ public class WorkingCapitalController {
 
     /** Candidatos a promoção, separados entre tração de cesta e liquidação. */
     @GetMapping("/promo-intelligence/recommendations")
-    public ResponseEntity<PromoIntelligenceService.PromoRecommendations> recommendations(
+    public ResponseEntity<Map<String, Object>> recommendations(
         @PathVariable("marketId") UUID marketId,
         @RequestParam(value = "windowDays", defaultValue = "180") int windowDays,
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(promoIntelligenceService.recommend(marketId, windowDays));
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
+        PromoIntelligenceService.PromoRecommendations recs =
+            promoIntelligenceService.recommend(marketId, windowDays);
+
+        // Cada objetivo é recortado por si: o gratuito vê os principais
+        // candidatos de tração E de liquidação, em vez de perder um dos dois.
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("traction",
+            GatedListDTO.of(planService.sliceInsights(limits, recs.traction()), limits.plan()));
+        response.put("clearance",
+            GatedListDTO.of(planService.sliceInsights(limits, recs.clearance()), limits.plan()));
+        return ResponseEntity.ok(response);
     }
 }

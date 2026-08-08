@@ -32,6 +32,15 @@ ERROR_MESSAGES = {
         "message": "Sua chave de acesso expirou. Acesse o painel web e gere uma nova chave.",
         "technical": "API key expired",
     },
+    "quota_exceeded": {
+        "title": "Limite do plano atingido",
+        "message": (
+            "Seu plano atingiu o limite de notas fiscais deste mês. As notas já enviadas "
+            "continuam disponíveis no painel. Faça upgrade do plano para retomar o envio — "
+            "as notas pendentes serão enviadas automaticamente."
+        ),
+        "technical": "Plan quota exceeded (402)",
+    },
     "rate_limit": {
         "title": "Muitas requisições",
         "message": "O sistema detectou um volume alto de dados. Aguarde alguns minutos e o envio será retomado automaticamente.",
@@ -171,6 +180,12 @@ def classify_error(exception: Exception) -> str:
     import requests.exceptions as req_exc
 
     error_str = str(exception).lower()
+
+    # ── Limite de plano ─────────────────────────────────────────────────────
+    # Verificado antes dos demais: é permanente até o upgrade, e não deve ser
+    # confundido com rate limit (que é transitório e vale retentar).
+    if type(exception).__name__ == "QuotaExceededError":
+        return "quota_exceeded"
 
     # ── Erros de rede ───────────────────────────────────────────────────────
     if isinstance(exception, req_exc.ConnectionError):

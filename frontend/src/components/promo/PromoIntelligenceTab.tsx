@@ -10,11 +10,12 @@ import {
 } from 'lucide-react';
 import ProductImage from '../product/ProductImage';
 import workingCapitalService, {
+  GatedPromoRecommendations,
   PromoCandidate,
-  PromoRecommendations,
   SeasonalIndex,
   TrafficDriver,
 } from '../../services/workingCapital.service';
+import type { GatedList } from '../../services/subscription.service';
 
 /**
  * Inteligência de promoções: o que descontar, por quê, e quando.
@@ -180,14 +181,32 @@ const SeasonalBar: React.FC<{ point: SeasonalIndex }> = ({ point }) => {
   );
 };
 
+
+/** Aviso de recorte por plano: mostra o que está sendo ocultado. */
+const UpgradeNotice: React.FC<{ gated?: { truncated: boolean; upgradeMessage?: string | null } | null }> = ({
+  gated,
+}) => {
+  if (!gated?.truncated || !gated.upgradeMessage) return null;
+  return (
+    <a
+      href="/app/planos"
+      className="mt-2 flex items-center gap-2 rounded-lg p-2 text-xs"
+      style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
+    >
+      <Sparkles size={13} />
+      {gated.upgradeMessage}
+    </a>
+  );
+};
+
 interface PromoIntelligenceTabProps {
   marketId: string;
   onCreateCampaign?: (candidate: PromoCandidate) => void;
 }
 
 const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, onCreateCampaign }) => {
-  const [recommendations, setRecommendations] = useState<PromoRecommendations | null>(null);
-  const [drivers, setDrivers] = useState<TrafficDriver[]>([]);
+  const [recommendations, setRecommendations] = useState<GatedPromoRecommendations | null>(null);
+  const [drivers, setDrivers] = useState<GatedList<TrafficDriver> | null>(null);
   const [seasonality, setSeasonality] = useState<SeasonalIndex[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -243,12 +262,13 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
     );
   }
 
-  const traction = recommendations?.traction ?? [];
-  const clearance = recommendations?.clearance ?? [];
+  const traction = recommendations?.traction.items ?? [];
+  const clearance = recommendations?.clearance.items ?? [];
+  const driverRows = drivers?.items ?? [];
   const dowPoints = seasonality.filter((s) => s.periodType === 'DOW');
   const monthPoints = seasonality.filter((s) => s.periodType === 'MONTH');
 
-  const nothingToShow = traction.length === 0 && clearance.length === 0 && drivers.length === 0;
+  const nothingToShow = traction.length === 0 && clearance.length === 0 && driverRows.length === 0;
 
   if (nothingToShow) {
     return (
@@ -277,6 +297,7 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
               <CandidateCard key={candidate.productId} candidate={candidate} onCreateCampaign={onCreateCampaign} />
             ))}
           </div>
+          <UpgradeNotice gated={recommendations?.traction} />
         </section>
       )}
 
@@ -293,11 +314,12 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
               <CandidateCard key={candidate.productId} candidate={candidate} onCreateCampaign={onCreateCampaign} />
             ))}
           </div>
+          <UpgradeNotice gated={recommendations?.clearance} />
         </section>
       )}
 
       {/* Ranking de tração medida */}
-      {drivers.length > 0 && (
+      {driverRows.length > 0 && (
         <section>
           <SectionHeader
             icon={<TrendingUp size={16} style={{ color: 'var(--brand-600, #16a34a)' }} />}
@@ -318,7 +340,7 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
                 </tr>
               </thead>
               <tbody>
-                {drivers.slice(0, 15).map((driver) => (
+                {driverRows.slice(0, 15).map((driver) => (
                   <tr key={driver.productId} style={{ borderTop: '1px solid var(--border-soft)' }}>
                     <td className="px-3 py-2" style={{ color: 'var(--text-primary)' }}>
                       {driver.driverName}

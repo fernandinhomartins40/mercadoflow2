@@ -41,10 +41,51 @@ public class InvoiceProcessingService {
     @Autowired
     private MarketBasketService marketBasketService;
 
+    @Autowired
+    private PlanService planService;
+
+    @Autowired
+    private SubscriptionEventService subscriptionEventService;
+
+    /**
+     * Registra o estouro de cota na trilha de assinatura uma única vez por
+     * ciclo. Sem isso, um agente com fila cheia geraria um evento por nota
+     * recusada e inundaria o histórico do super admin.
+     */
+    private void notifyLimitReachedOnce(UUID marketId, PlanService.QuotaDecision quota) {
+        try {
+            PlanService.UsageSnapshot usage = planService.usageFor(marketId);
+            if (usage.limitReachedAt() != null) {
+                return; // já registrado neste ciclo
+            }
+            planService.findMarket(marketId).ifPresent(market ->
+                subscriptionEventService.recordLimitReached(market, quota.limit(), quota.used())
+            );
+        } catch (Exception exc) {
+            log.debug("Falha ao registrar limite atingido do mercado {}: {}", marketId, exc.getMessage());
+        }
+    }
+
     public IngestResponse processInvoice(InvoiceDTO dto, UUID marketId) {
         try {
             if (invoiceRepository.existsByChaveNFe(dto.getChaveNFe())) {
                 return IngestResponse.duplicate(dto.getChaveNFe());
+            }
+
+            // Limite do plano. A checagem vem depois da duplicidade de propósito:
+            // reenvio de nota já conhecida não deve consumir cota nem ser
+            // recusado por ela.
+            PlanService.QuotaDecision quota = planService.canIngest(marketId);
+            if (!quota.allowed()) {
+                // Antes de recordRejected, que é quem grava limit_reached_at:
+                // invertido, o evento nunca seria registrado.
+                notifyLimitReachedOnce(marketId, quota);
+                planService.recordRejected(marketId);
+                log.info(
+                    "Nota recusada por limite de plano | market={} | limite={} | usado={}",
+                    marketId, quota.limit(), quota.used()
+                );
+                return IngestResponse.quotaExceeded(dto.getChaveNFe(), quota.message());
             }
 
             List<Product> products = productCatalogService.resolveProducts(dto.getItems(), marketId);
@@ -65,6 +106,13 @@ public class InvoiceProcessingService {
             }
             // Invalidate market basket cache so next request recomputes with fresh data
             marketBasketService.invalidate(marketId);
+
+            // Só conta o que de fato entrou: duplicatas e falhas não consomem cota.
+            planService.recordIngested(
+                marketId,
+                savedInvoice.getItems() != null ? savedInvoice.getItems().size() : 0
+            );
+
             return IngestResponse.success(savedInvoice.getId(), dto.getChaveNFe());
         } catch (Exception e) {
             log.error("Error processing invoice: {}", dto.getChaveNFe(), e);
@@ -88,6 +136,18 @@ public class InvoiceProcessingService {
                 case "DUPLICATE":
                     duplicates++;
                     break;
+                case "QUOTA_EXCEEDED":
+                    errors++;
+                    // Cota estourada vale para o lote inteiro: seguir tentando as
+                    // demais notas só geraria recusas idênticas e inflaria o
+                    // contador de rejeições.
+                    while (results.size() < invoices.size()) {
+                        InvoiceDTO pending = invoices.get(results.size());
+                        results.add(IngestResponse.quotaExceeded(
+                            pending.getChaveNFe(), response.getMessage()));
+                        errors++;
+                    }
+                    return new BatchIngestResponse(invoices.size(), success, duplicates, errors, results);
                 default:
                     errors++;
                     break;

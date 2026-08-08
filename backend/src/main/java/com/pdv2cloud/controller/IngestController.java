@@ -51,6 +51,13 @@ public class IngestController {
             "message", response.getMessage()
         );
 
+        // Cota estourada não é falha de processamento: devolve 402 para o agente
+        // parar de tentar até haver upgrade ou virada de ciclo, em vez de tratar
+        // como erro transitório e ficar em retry.
+        if ("QUOTA_EXCEEDED".equals(response.getStatus())) {
+            return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(response);
+        }
+
         if ("ERROR".equals(response.getStatus())) {
             auditService.logFailure(
                 "INVOICE",

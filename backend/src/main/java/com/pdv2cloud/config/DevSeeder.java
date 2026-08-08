@@ -28,7 +28,7 @@ public class DevSeeder {
                     Market created = new Market();
                     created.setName("Mercado Demo");
                     created.setCnpj("00000000000000");
-                    created.setPlanType(PlanType.BASIC);
+                    created.setPlanType(PlanType.PRO);
                     created.setIsActive(true);
                     return marketRepository.save(created);
                 });

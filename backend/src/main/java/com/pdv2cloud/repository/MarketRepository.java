@@ -37,5 +37,6 @@ public interface MarketRepository extends JpaRepository<Market, UUID> {
 
     long countByIsActive(Boolean isActive);
     long countByBillingStatus(MarketBillingStatus billingStatus);
+    long countByPlanType(PlanType planType);
     long countByAccessExpiresAtBetween(LocalDateTime start, LocalDateTime end);
 }

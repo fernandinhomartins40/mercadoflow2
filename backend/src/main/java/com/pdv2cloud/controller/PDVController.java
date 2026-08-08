@@ -7,6 +7,7 @@ import com.pdv2cloud.model.entity.PDV;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.PDVRepository;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -28,13 +29,16 @@ public class PDVController {
     private final PDVRepository pdvRepository;
     private final MarketRepository marketRepository;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public PDVController(PDVRepository pdvRepository,
                          MarketRepository marketRepository,
-                         MarketAccessService marketAccessService) {
+                         MarketAccessService marketAccessService,
+                         PlanService planService) {
         this.pdvRepository = pdvRepository;
         this.marketRepository = marketRepository;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
     }
 
     @GetMapping
@@ -51,6 +55,17 @@ public class PDVController {
                                               @Valid @RequestBody PDVCreateRequest request,
                                               Authentication authentication) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+
+        // Limite de PDVs do plano. Sem isso, o plano gratuito poderia conectar
+        // quantos caixas quisesse e o teto de notas seria o único freio.
+        PlanService.QuotaDecision quota = planService.canAddPdv(marketId);
+        if (!quota.allowed()) {
+            throw new IllegalArgumentException(String.format(
+                "Seu plano permite %d PDV(s) e você já tem %d. Faça upgrade para conectar mais caixas.",
+                quota.limit(), quota.used()
+            ));
+        }
+
         Market market = marketRepository.getReferenceById(marketId);
 
         PDV pdv = new PDV();

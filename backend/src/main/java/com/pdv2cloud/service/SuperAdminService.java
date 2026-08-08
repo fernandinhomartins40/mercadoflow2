@@ -1009,7 +1009,7 @@ public class SuperAdminService {
     private void applyMarketFields(Market market, SuperAdminMarketCreateRequest request) {
         market.setName(request.getName().trim());
         market.setCnpj(normalizeOptionalText(request.getCnpj()));
-        market.setPlanType(request.getPlanType() != null ? request.getPlanType() : PlanType.BASIC);
+        market.setPlanType(request.getPlanType() != null ? request.getPlanType() : PlanType.FREE);
         market.setBillingStatus(request.getBillingStatus() != null ? request.getBillingStatus() : MarketBillingStatus.ACTIVE);
         market.setIsActive(request.getActive() == null || request.getActive());
         market.setUserSeatLimit(resolveSeatLimit(request.getUserSeatLimit(), market.getPlanType()));
@@ -1065,12 +1065,11 @@ public class SuperAdminService {
         if (requestedSeatLimit != null) {
             return Math.max(1, requestedSeatLimit);
         }
-        PlanType resolvedPlan = planType != null ? planType : PlanType.BASIC;
-        return switch (resolvedPlan) {
-            case ADVANCED -> 30;
-            case INTERMEDIATE -> 10;
-            case BASIC -> 3;
-        };
+        // Assentos vem do proprio catalogo de planos, para nao existirem dois
+        // lugares definindo o mesmo limite.
+        PlanType resolvedPlan = planType != null ? planType : PlanType.FREE;
+        int planSeats = resolvedPlan.getUserSeatLimit();
+        return PlanType.isUnlimited(planSeats) ? null : planSeats;
     }
 
     private void ensureTrialDefaults(Market market) {
