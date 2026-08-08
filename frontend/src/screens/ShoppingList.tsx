@@ -15,6 +15,7 @@ import {
   SupplierOrderItem,
 } from '../types/analytics.types';
 import SupplierModal from '../components/suppliers/SupplierModal';
+import CapitalPlanTab from '../components/capital/CapitalPlanTab';
 import {
   AlertTriangle,
   Ban,
@@ -1273,7 +1274,7 @@ const SuggestionRow: React.FC<{
    PÁGINA PRINCIPAL COM ABAS
 ════════════════════════════════════════════════════════════════════ */
 
-type Tab = 'lista' | 'pedidos' | 'fornecedores';
+type Tab = 'capital' | 'lista' | 'pedidos' | 'fornecedores';
 
 interface NewOrderState { supplier?: Supplier | null; highlightProductId?: string; selectedProductIds?: string[] }
 
@@ -1282,7 +1283,9 @@ const ShoppingListPage: React.FC = () => {
   const { dashboard, loading: dLoading } = useMarketData();
   const { overview, items, productIds, loading, error, addItem, updateItem, removeItem } = useShoppingList();
 
-  const [tab, setTab] = useState<Tab>('lista');
+  // Abre em "Onde investir": é a decisão que o supermercadista precisa tomar
+  // antes de montar a lista, não depois.
+  const [tab, setTab] = useState<Tab>('capital');
 
   // Lista
   const [recordModal, setRecordModal] = useState<ShoppingListItem | null>(null);
@@ -1353,6 +1356,7 @@ const ShoppingListPage: React.FC = () => {
   );
 
   const TABS: Array<{ key: Tab; label: string; icon: React.ReactNode; badge?: number }> = [
+    { key: 'capital', label: 'Onde investir', icon: <Zap className="h-4 w-4" /> },
     { key: 'lista', label: 'Lista de compras', icon: <ShoppingCart className="h-4 w-4" />, badge: overview.pendingItems || undefined },
     { key: 'pedidos', label: 'Pedidos', icon: <ClipboardList className="h-4 w-4" />, badge: orders.filter(o => o.status === 'ENVIADO').length || undefined },
     { key: 'fornecedores', label: 'Fornecedores', icon: <Building2 className="h-4 w-4" /> },
@@ -1418,7 +1422,7 @@ const ShoppingListPage: React.FC = () => {
         {/* Header */}
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pedido inteligente</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Lista de compras, pedidos a fornecedores e histórico de preços</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Onde investir seu capital de giro, lista de compras e pedidos a fornecedores</p>
         </div>
 
         {/* Abas */}
@@ -1434,6 +1438,26 @@ const ShoppingListPage: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* ── ABA: ONDE INVESTIR ── */}
+        {tab === 'capital' && marketId && (
+          <CapitalPlanTab
+            marketId={marketId}
+            onAddToList={async (productId, units, reason) => {
+              try {
+                await addItem({
+                  productId,
+                  quantityTarget: Math.max(1, Math.round(units)),
+                  sourceTag: 'RESTOCK',
+                  reasonSummary: reason,
+                });
+                setTab('lista');
+              } catch {
+                // o hook já expõe o erro na aba da lista
+              }
+            }}
+          />
+        )}
 
         {/* ── ABA: LISTA ── */}
         {tab === 'lista' && (

@@ -59,18 +59,41 @@ public class PromoEffectivenessService {
 
     // ── Core computation ─────────────────────────────────────────────────────
 
+    /**
+     * Produtos que valem a análise: precisam ter dias suficientes com venda e
+     * alguma variação real de preço no período.
+     *
+     * O filtro por variação evita rodar a análise completa (várias consultas por
+     * produto) sobre itens de preço estável, que nunca entraram em promoção e
+     * jamais produziriam resultado conclusivo.
+     */
     private List<UUID> loadProductsWithPromo(UUID marketId, LocalDate since) {
         String sql =
-            "select distinct it.product_id " +
-            "from invoice_items it " +
-            "join invoices i on i.id = it.invoice_id " +
-            "join products p on p.id = it.product_id " +
-            "where i.market_id = :marketId " +
-            "  and i.data_emissao >= :since " +
-            "  and it.product_id is not null " +
-            "order by it.product_id";
+            "with daily as ( " +
+            "  select it.product_id, " +
+            "         cast(i.data_emissao as date) as sale_date, " +
+            "         sum(it.valor_total) / nullif(sum(it.quantidade), 0) as day_avg_price " +
+            "  from invoice_items it " +
+            "  join invoices i on i.id = it.invoice_id " +
+            "  where i.market_id = :marketId " +
+            "    and i.data_emissao >= :since " +
+            "    and it.product_id is not null " +
+            "    and it.valor_unitario > 0 " +
+            "  group by it.product_id, cast(i.data_emissao as date) " +
+            ") " +
+            "select product_id " +
+            "from daily " +
+            "where day_avg_price is not null " +
+            "group by product_id " +
+            "having count(*) >= :minDays " +
+            // Só interessa quem teve alguma queda relevante frente à mediana.
+            "   and min(day_avg_price) < percentile_cont(0.5) within group (order by day_avg_price) * :threshold " +
+            "order by product_id";
         return jdbcTemplate.queryForList(sql,
-            new MapSqlParameterSource("marketId", marketId).addValue("since", since.atStartOfDay()),
+            new MapSqlParameterSource("marketId", marketId)
+                .addValue("since", since.atStartOfDay())
+                .addValue("minDays", MIN_PROMO_DAYS + MIN_NORMAL_DAYS)
+                .addValue("threshold", PROMO_THRESHOLD_RATIO),
             UUID.class);
     }
 
@@ -146,22 +169,64 @@ public class PromoEffectivenessService {
         );
     }
 
+    /**
+     * Preço "normal" de referência do produto na janela analisada.
+     *
+     * Usa a MEDIANA do preço médio diário, não a média, por duas razões:
+     *  1. a média é puxada para baixo pelos próprios dias de promoção, o que
+     *     encolhe o desconto aparente e chega a esconder promoções inteiras em
+     *     produtos promocionados com frequência;
+     *  2. a mediana ignora outliers de dias com pouquíssimo volume.
+     *
+     * Refina em duas passadas: calcula a mediana bruta, descarta os dias abaixo
+     * do limiar de promoção e recalcula sobre os dias restantes. O resultado é o
+     * preço de prateleira fora de promoção — que é a base correta para medir
+     * profundidade de desconto e lift.
+     */
     private Double loadBaseline(UUID marketId, UUID productId, LocalDate since) {
-        // Use median of unit prices over the full window as baseline (robust to outliers)
+        Double rawMedian = medianDailyPrice(marketId, productId, since, null);
+        if (rawMedian == null || rawMedian <= 0) {
+            return rawMedian;
+        }
+
+        // Segunda passada: mediana apenas dos dias que não parecem promoção.
+        Double refined = medianDailyPrice(marketId, productId, since, rawMedian * PROMO_THRESHOLD_RATIO);
+        if (refined == null || refined <= 0) {
+            return rawMedian;
+        }
+        return refined;
+    }
+
+    /**
+     * Mediana do preço médio ponderado por dia. Quando {@code minPrice} é
+     * informado, considera apenas os dias com preço igual ou acima dele.
+     */
+    private Double medianDailyPrice(UUID marketId, UUID productId, LocalDate since, Double minPrice) {
         String sql =
-            "select avg(it.valor_unitario) as baseline " +
-            "from invoice_items it " +
-            "join invoices i on i.id = it.invoice_id " +
-            "where i.market_id = :marketId " +
-            "  and it.product_id = :productId " +
-            "  and i.data_emissao >= :since " +
-            "  and it.valor_unitario > 0";
-        Double raw = jdbcTemplate.queryForObject(sql,
-            new MapSqlParameterSource("marketId", marketId)
-                .addValue("productId", productId)
-                .addValue("since", since.atStartOfDay()),
-            Double.class);
-        return raw;
+            "with daily as ( " +
+            "  select cast(i.data_emissao as date) as sale_date, " +
+            "         sum(it.valor_total) / nullif(sum(it.quantidade), 0) as day_avg_price " +
+            "  from invoice_items it " +
+            "  join invoices i on i.id = it.invoice_id " +
+            "  where i.market_id = :marketId " +
+            "    and it.product_id = :productId " +
+            "    and i.data_emissao >= :since " +
+            "    and it.valor_unitario > 0 " +
+            "  group by cast(i.data_emissao as date) " +
+            ") " +
+            "select percentile_cont(0.5) within group (order by day_avg_price) as baseline " +
+            "from daily " +
+            "where day_avg_price is not null " +
+            (minPrice != null ? "  and day_avg_price >= :minPrice " : "");
+
+        MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId)
+            .addValue("productId", productId)
+            .addValue("since", since.atStartOfDay());
+        if (minPrice != null) {
+            params.addValue("minPrice", minPrice);
+        }
+
+        return jdbcTemplate.queryForObject(sql, params, Double.class);
     }
 
     private record DailyMetrics(
@@ -348,25 +413,33 @@ public class PromoEffectivenessService {
     }
 
     private String buildInsight(String c, double qtyLift, double revLift, double discountPct, double elasticity, int windows) {
+        // Atenção ao formato: "%s" (e não "%.s", que aplica precisão zero e
+        // apaga a string inteira, deixando o texto sem número algum).
         String qtyFmt  = String.format("%.0f%%", Math.abs(qtyLift));
         String revFmt  = String.format("%.0f%%", Math.abs(revLift));
         String discFmt = String.format("%.1f%%", Math.abs(discountPct));
+
+        // elasticity = qtyLift / discountPct, com discountPct negativo (desconto).
+        // Um produto que reage ao desconto tem elasticity negativa; o ganho de
+        // volume por 1% de desconto é, portanto, o valor absoluto.
+        double gainPerPercent = Math.abs(elasticity);
+
         return switch (c) {
             case "BOOSTER" -> String.format(
-                "Com %.s de desconto médio, o volume cresce %.s e a receita diária %s %.s — promoção efetiva. " +
-                "Elasticidade-preço %.2f: cada 1%% de desconto gera %.1f%% a mais de vendas.",
-                discFmt, qtyFmt, revLift >= 0 ? "cresce" : "cai", revFmt, elasticity, -elasticity);
+                "Com %s de desconto médio, o volume cresce %s e a receita diária %s %s — promoção efetiva. " +
+                "Elasticidade-preço %.2f: cada 1%% de desconto gera cerca de %.1f%% a mais de vendas.",
+                discFmt, qtyFmt, revLift >= 0 ? "cresce" : "cai", revFmt, elasticity, gainPerPercent);
             case "REVENUE_LOSS" -> String.format(
-                "Com %.s de desconto, o volume cresce %.s mas a receita diária cai %.s. " +
-                "O desconto é grande demais — tente reduzir para %.s e validar o resultado.",
+                "Com %s de desconto, o volume cresce %s mas a receita diária cai %s. " +
+                "O desconto é grande demais — tente reduzir para %s e validar o resultado.",
                 discFmt, qtyFmt, revFmt, String.format("%.1f%%", Math.abs(discountPct) * 0.6));
             case "BACKFIRE" -> String.format(
-                "Surpreendente: em dias de promoção o volume cai %.s. " +
+                "Surpreendente: em dias de promoção o volume cai %s. " +
                 "Possíveis causas: gôndola esvaziada rapidamente, produto de percepção premium, ou janela de promoção muito curta.",
                 qtyFmt);
             case "NEUTRAL" -> String.format(
                 "Promoção aplicada em %d janelas sem efeito mensurável na velocidade de venda. " +
-                "Revise profundidade do desconto (atual: %.s) ou comunicação no ponto de venda.",
+                "Revise profundidade do desconto (atual: %s) ou comunicação no ponto de venda.",
                 windows, discFmt);
             default -> "Dados insuficientes para análise conclusiva. São necessários pelo menos 5 dias em promoção e 10 dias sem.";
         };

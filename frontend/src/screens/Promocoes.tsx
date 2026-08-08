@@ -6,6 +6,7 @@ import ProductImage from '../components/product/ProductImage';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import { CampaignImpact, ProductPromoEffectiveness, PromoWindowSummary } from '../types/analytics.types';
+import PromoIntelligenceTab from '../components/promo/PromoIntelligenceTab';
 import {
   Plus, Calendar, TrendingUp, TrendingDown, Minus, Zap, AlertTriangle,
   ChevronDown, ChevronUp, ArrowRight, RefreshCw, BarChart2, Tag,
@@ -479,13 +480,16 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
    PÁGINA PRINCIPAL
 ════════════════════════════════════════════════════════════ */
 
-type PromoTab = 'campanhas' | 'efetividade';
+type PromoTab = 'inteligencia' | 'campanhas' | 'efetividade';
 
 const Promocoes: React.FC = () => {
   const { marketId } = useAuth();
-  const [tab, setTab] = useState<PromoTab>('campanhas');
+  // Abre na inteligencia: o supermercadista precisa saber O QUE promover
+  // antes de cadastrar a campanha.
+  const [tab, setTab] = useState<PromoTab>('inteligencia');
 
   const TABS: Array<{ key: PromoTab; label: string; icon: React.ReactNode }> = [
+    { key: 'inteligencia', label: 'O que promover', icon: <Zap className="h-4 w-4" /> },
     { key: 'campanhas', label: 'Campanhas', icon: <Calendar className="h-4 w-4" /> },
     { key: 'efetividade', label: 'Efetividade', icon: <BarChart2 className="h-4 w-4" /> },
   ];
@@ -495,7 +499,7 @@ const Promocoes: React.FC = () => {
       <div className="flex flex-col gap-5">
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Promoções</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Crie campanhas e analise se cada promoção realmente traciona vendas</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Descubra o que promover, crie campanhas e meça se cada promoção realmente traciona vendas</p>
         </div>
 
         <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}>
@@ -510,6 +514,7 @@ const Promocoes: React.FC = () => {
           ))}
         </div>
 
+        {marketId && tab === 'inteligencia' && <PromoIntelligenceTab marketId={marketId} />}
         {marketId && tab === 'campanhas' && <CampanhasTab marketId={marketId} />}
         {marketId && tab === 'efetividade' && <EfetividadeTab marketId={marketId} />}
       </div>
