@@ -116,10 +116,13 @@ public class PublicPlanController {
         return isUnlimited(value) ? unlimitedText : format(value) + " " + suffix;
     }
 
+    /** Locale pt-BR. new Locale(...) porque Locale.of() só existe no Java 19+. */
+    private static final Locale PT_BR = new Locale("pt", "BR");
+
     private String format(Integer value) {
         if (value == null) {
             return "—";
         }
-        return NumberFormat.getIntegerInstance(Locale.of("pt", "BR")).format(value);
+        return NumberFormat.getIntegerInstance(PT_BR).format(value);
     }
 }

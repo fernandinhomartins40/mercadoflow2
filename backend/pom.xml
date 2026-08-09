@@ -148,8 +148,14 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>${java.version}</source>
-          <target>${java.version}</target>
+          <!--
+            <release> em vez de <source>/<target>: source/target geram bytecode
+            17 mas continuam permitindo APIs do JDK usado na compilacao. Foi
+            assim que um Locale.of() (Java 19+) passou numa build local com JDK
+            21 e so quebrou no Dockerfile, que compila com 17.
+            <release> valida tambem a API, entao o erro aparece na hora.
+          -->
+          <release>${java.version}</release>
           <parameters>true</parameters>
         </configuration>
       </plugin>
