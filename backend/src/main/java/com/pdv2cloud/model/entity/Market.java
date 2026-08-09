@@ -139,6 +139,19 @@ public class Market {
     @Column(name = "cancel_at_period_end", nullable = false)
     private Boolean cancelAtPeriodEnd = false;
 
+    // ── CRM comercial (ver V38__commercial_crm.sql) ────────────────────────
+
+    /** Responsável comercial pela conta. */
+    @Column(name = "account_owner_email")
+    private String accountOwnerEmail;
+
+    /** 0-100, recalculado por job a partir de uso, pagamento e engajamento. */
+    @Column(name = "health_score")
+    private Integer healthScore;
+
+    @Column(name = "health_updated_at")
+    private LocalDateTime healthUpdatedAt;
+
     /** True quando este mercado é uma filial de outro. */
     public boolean isBranch() {
         return parentMarket != null;

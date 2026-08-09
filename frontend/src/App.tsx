@@ -23,6 +23,8 @@ const SuperAdminLogin = lazy(() => import('./screens/SuperAdminLogin'));
 const SuperAdminDashboard = lazy(() => import('./screens/SuperAdminDashboard'));
 const SuperAdminUsers = lazy(() => import('./screens/SuperAdminUsers'));
 const SuperAdminSubscriptions = lazy(() => import('./screens/SuperAdminSubscriptions'));
+const SuperAdminCustomers = lazy(() => import('./screens/SuperAdminCustomers'));
+const SuperAdminCollections = lazy(() => import('./screens/SuperAdminCollections'));
 const Plans = lazy(() => import('./screens/Plans'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
@@ -144,6 +146,8 @@ const App: React.FC = () => {
         <Route path="/super-admin" element={secureSuperAdmin(<SuperAdminDashboard />)} />
         <Route path="/super-admin/saas" element={secureSuperAdmin(<SuperAdminUsers />)} />
         <Route path="/super-admin/assinaturas" element={secureSuperAdmin(<SuperAdminSubscriptions />)} />
+        <Route path="/super-admin/clientes" element={secureSuperAdmin(<SuperAdminCustomers />)} />
+        <Route path="/super-admin/cobranca" element={secureSuperAdmin(<SuperAdminCollections />)} />
         <Route path="/super-admin/usuarios" element={<Navigate to="/super-admin/saas" replace />} />
         <Route path="/super-admin/catalogo" element={secureSuperAdmin(<SuperAdminCatalogManager />)} />
         <Route path="/super-admin/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? secureSuperAdmin(<StatePriceComparison />) : disabledSuperAdminModuleRedirect} />
