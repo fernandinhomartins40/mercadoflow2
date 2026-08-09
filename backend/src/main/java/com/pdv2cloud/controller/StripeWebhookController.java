@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.repository.StripeProcessedEventRepository;
 import com.pdv2cloud.model.entity.StripeProcessedEvent;
+import com.pdv2cloud.service.InvoiceReconciliationService;
 import com.pdv2cloud.service.StripeService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -46,13 +47,16 @@ public class StripeWebhookController {
 
     private final StripeService stripeService;
     private final StripeProcessedEventRepository processedEventRepository;
+    private final InvoiceReconciliationService invoiceReconciliationService;
 
     public StripeWebhookController(
         StripeService stripeService,
-        StripeProcessedEventRepository processedEventRepository
+        StripeProcessedEventRepository processedEventRepository,
+        InvoiceReconciliationService invoiceReconciliationService
     ) {
         this.stripeService = stripeService;
         this.processedEventRepository = processedEventRepository;
+        this.invoiceReconciliationService = invoiceReconciliationService;
     }
 
     @PostMapping("/webhook")
@@ -112,13 +116,24 @@ public class StripeWebhookController {
                  "customer.subscription.deleted" -> deserialize(event, Subscription.class)
                 .ifPresent(stripeService::syncSubscription);
 
-            // Renovação paga: revalida o estado, cobrindo o caso de a assinatura
-            // ter saído de past_due.
-            case "invoice.paid", "invoice.payment_succeeded" -> deserialize(event, Invoice.class)
-                .ifPresent(invoice -> log.info("Fatura paga | customer={}", invoice.getCustomer()));
+            // Ciclo de vida da fatura. Todos caem na mesma conciliação porque o
+            // objeto do evento traz o estado completo e sincronizar é idempotente.
+            //
+            // No boleto, invoice.paid chega no dia útil SEGUINTE ao pagamento —
+            // é o Stripe confirmando a compensação. É esse evento que faz a
+            // baixa da fatura, dispensando leitura de retorno bancário.
+            case "invoice.created",
+                 "invoice.finalized",
+                 "invoice.updated",
+                 "invoice.voided",
+                 "invoice.marked_uncollectible",
+                 "invoice.paid",
+                 "invoice.payment_succeeded" -> deserialize(event, Invoice.class)
+                .ifPresent(invoiceReconciliationService::sync);
 
             case "invoice.payment_failed" -> deserialize(event, Invoice.class)
                 .ifPresent(invoice -> {
+                    invoiceReconciliationService.sync(invoice);
                     if (invoice.getCustomer() != null) {
                         stripeService.markPastDue(invoice.getCustomer());
                     }

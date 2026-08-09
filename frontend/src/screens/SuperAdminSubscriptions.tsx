@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
+import NetworkContractsPanel from '../components/admin/NetworkContractsPanel';
 import subscriptionService, {
   PlanCode,
   SubscriptionEvent,
@@ -119,7 +120,7 @@ const SuperAdminSubscriptions: React.FC = () => {
   const [planFilter, setPlanFilter] = useState<'ALL' | PlanCode>('ALL');
   const [onlyCandidates, setOnlyCandidates] = useState(false);
 
-  const [tab, setTab] = useState<'contas' | 'planos' | 'faturamento'>('contas');
+  const [tab, setTab] = useState<'contas' | 'planos' | 'redes' | 'faturamento'>('contas');
   const [suspected, setSuspected] = useState<SuspectedNetwork[]>([]);
   const [showSuspected, setShowSuspected] = useState(false);
   const [detail, setDetail] = useState<SubscriptionRow | null>(null);
@@ -253,6 +254,7 @@ const SuperAdminSubscriptions: React.FC = () => {
           {([
             { key: 'contas', label: 'Contas', icon: <Users size={14} /> },
             { key: 'planos', label: 'Planos e preços', icon: <Package size={14} /> },
+            { key: 'redes', label: 'Contratos de rede', icon: <Network size={14} /> },
             { key: 'faturamento', label: 'Faturamento', icon: <DollarSign size={14} /> },
           ] as const).map((t) => (
             <button
@@ -273,6 +275,7 @@ const SuperAdminSubscriptions: React.FC = () => {
         </div>
 
         {tab === 'planos' && <PlanCatalogPanel />}
+        {tab === 'redes' && <NetworkContractsPanel markets={overview?.subscriptions ?? []} />}
         {tab === 'faturamento' && <BillingReportPanel />}
 
         {tab === 'contas' && (loading && !overview ? (

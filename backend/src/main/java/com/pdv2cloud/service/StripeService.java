@@ -201,7 +201,16 @@ public class StripeService {
         return session.getUrl();
     }
 
-    /** Cliente do Stripe do mercado, criado na primeira contratação. */
+    /**
+     * Cliente do Stripe do mercado, criado na primeira contratação.
+     *
+     * Público para o contrato de rede reaproveitar o mesmo cliente: criar outro
+     * espalharia o histórico de cobrança da empresa entre dois clientes.
+     */
+    public String ensureCustomerFor(Market market) throws StripeException {
+        return ensureCustomer(market);
+    }
+
     private String ensureCustomer(Market market) throws StripeException {
         if (market.getStripeCustomerId() != null && !market.getStripeCustomerId().isBlank()) {
             return market.getStripeCustomerId();

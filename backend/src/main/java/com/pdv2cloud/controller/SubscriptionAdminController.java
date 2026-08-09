@@ -2,12 +2,16 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.entity.MarketBillingStatus;
 import com.pdv2cloud.model.entity.MarketUsageCounter;
+import com.pdv2cloud.model.entity.NetworkContract;
+import com.pdv2cloud.model.entity.NetworkInvoice;
 import com.pdv2cloud.model.entity.PlanCatalogEntry;
 import com.pdv2cloud.model.entity.PlanPriceHistory;
 import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.model.entity.SubscriptionEvent;
 import com.pdv2cloud.repository.PlanPriceHistoryRepository;
 import com.pdv2cloud.service.BillingReportService;
+import com.pdv2cloud.service.InvoiceReconciliationService;
+import com.pdv2cloud.service.NetworkContractService;
 import com.pdv2cloud.service.PlanCatalogService;
 import com.pdv2cloud.service.StripeAdminService;
 import com.pdv2cloud.service.SubscriptionAdminService;
@@ -39,19 +43,25 @@ public class SubscriptionAdminController {
     private final StripeAdminService stripeAdminService;
     private final BillingReportService billingReportService;
     private final PlanPriceHistoryRepository priceHistoryRepository;
+    private final NetworkContractService networkContractService;
+    private final InvoiceReconciliationService invoiceReconciliationService;
 
     public SubscriptionAdminController(
         SubscriptionAdminService subscriptionAdminService,
         PlanCatalogService planCatalogService,
         StripeAdminService stripeAdminService,
         BillingReportService billingReportService,
-        PlanPriceHistoryRepository priceHistoryRepository
+        PlanPriceHistoryRepository priceHistoryRepository,
+        NetworkContractService networkContractService,
+        InvoiceReconciliationService invoiceReconciliationService
     ) {
         this.subscriptionAdminService = subscriptionAdminService;
         this.planCatalogService = planCatalogService;
         this.stripeAdminService = stripeAdminService;
         this.billingReportService = billingReportService;
         this.priceHistoryRepository = priceHistoryRepository;
+        this.networkContractService = networkContractService;
+        this.invoiceReconciliationService = invoiceReconciliationService;
     }
 
     /** Painel: métricas agregadas + planos + assinaturas + fila de upgrade. */
@@ -208,6 +218,106 @@ public class SubscriptionAdminController {
         return ResponseEntity.ok(priceHistoryRepository.findTop50ByOrderByCreatedAtDesc());
     }
 
+    // ── Contratos de rede (plano sob medida) ─────────────────────────────────
+
+    @GetMapping("/contracts")
+    public ResponseEntity<List<NetworkContract>> contracts() {
+        return ResponseEntity.ok(networkContractService.listAll());
+    }
+
+    @GetMapping("/{marketId}/contract")
+    public ResponseEntity<NetworkContract> contractOf(@PathVariable("marketId") UUID marketId) {
+        return networkContractService.activeContract(marketId)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
+     * Define preço e limites da rede e liga a cobrança por fatura no Stripe.
+     *
+     * Substitui o contrato anterior, se houver — só um fica ativo por rede.
+     */
+    @PostMapping("/{marketId}/contract")
+    public ResponseEntity<Map<String, Object>> saveContract(
+        @PathVariable("marketId") UUID marketId,
+        @RequestBody NetworkContractRequest request,
+        Authentication authentication
+    ) {
+        try {
+            NetworkContractService.ContractResult result = networkContractService.createOrUpdate(
+                marketId,
+                new NetworkContractService.ContractRequest(
+                    request.getMonthlyPriceCents(),
+                    request.getDaysUntilDue(),
+                    request.getInvoiceLimit(),
+                    request.getBranchLimit(),
+                    request.getPdvPerBranchLimit(),
+                    request.getPdvLimit(),
+                    request.getSeatLimit(),
+                    request.getContactName(),
+                    request.getContactEmail(),
+                    request.getNotes()
+                ),
+                authentication.getName()
+            );
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("contract", result.contract());
+            response.put("warning", result.warning());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException exc) {
+            return ResponseEntity.badRequest().body(Map.of("error", exc.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{marketId}/contract")
+    public ResponseEntity<Map<String, Object>> endContract(
+        @PathVariable("marketId") UUID marketId,
+        @RequestParam(value = "immediately", defaultValue = "false") boolean immediately,
+        @RequestParam(value = "reason", required = false) String reason
+    ) {
+        try {
+            String warning = networkContractService.endContract(marketId, immediately, reason);
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("ended", true);
+            response.put("warning", warning);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException exc) {
+            return ResponseEntity.badRequest().body(Map.of("error", exc.getMessage()));
+        }
+    }
+
+    // ── Faturas e conciliação ────────────────────────────────────────────────
+
+    /** Contas a receber: aberto, vencido e recebido nos últimos 30/90 dias. */
+    @GetMapping("/receivables")
+    public ResponseEntity<Map<String, Object>> receivables() {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("summary", invoiceReconciliationService.receivables());
+        response.put("overdue", networkContractService.overdueInvoices());
+        response.put("open", networkContractService.openInvoices());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{marketId}/invoices")
+    public ResponseEntity<List<NetworkInvoice>> invoices(@PathVariable("marketId") UUID marketId) {
+        return ResponseEntity.ok(networkContractService.invoicesOf(marketId));
+    }
+
+    /** Reenvia a fatura por e-mail. Só vale para faturas em aberto. */
+    @PostMapping("/invoices/{invoiceId}/resend")
+    public ResponseEntity<Map<String, Object>> resendInvoice(@PathVariable("invoiceId") UUID invoiceId) {
+        try {
+            String warning = networkContractService.resendInvoice(invoiceId);
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("sent", warning == null);
+            response.put("warning", warning);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException | IllegalStateException exc) {
+            return ResponseEntity.badRequest().body(Map.of("error", exc.getMessage()));
+        }
+    }
+
     // ── Relatórios de faturamento ────────────────────────────────────────────
 
     @GetMapping("/reports/billing")
@@ -269,6 +379,23 @@ public class SubscriptionAdminController {
         private String reason;
         /** KEEP | AT_PERIOD_END | IMMEDIATELY. Padrão: não mexe na cobrança. */
         private SubscriptionAdminService.CancelBilling cancelBilling;
+    }
+
+    @Data
+    public static class NetworkContractRequest {
+        @NotNull(message = "Informe o valor mensal")
+        private Integer monthlyPriceCents;
+        /** Dias até o vencimento da fatura. Padrão 15. */
+        private Integer daysUntilDue;
+        private Integer invoiceLimit;
+        private Integer branchLimit;
+        private Integer pdvPerBranchLimit;
+        private Integer pdvLimit;
+        private Integer seatLimit;
+        private String contactName;
+        /** Para onde o Stripe envia a fatura. */
+        private String contactEmail;
+        private String notes;
     }
 
     @Data

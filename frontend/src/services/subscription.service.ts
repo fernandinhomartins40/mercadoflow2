@@ -371,6 +371,118 @@ const getBillingReport = async (): Promise<BillingReport> => {
   return data;
 };
 
+/* ─── Contratos de rede e faturas ─── */
+
+export interface NetworkContract {
+  id: string;
+  monthlyPriceCents: number;
+  daysUntilDue: number;
+  invoiceLimit?: number | null;
+  branchLimit?: number | null;
+  pdvPerBranchLimit?: number | null;
+  pdvLimit?: number | null;
+  seatLimit?: number | null;
+  stripePriceId?: string | null;
+  stripeSubscriptionId?: string | null;
+  status: 'ACTIVE' | 'SUSPENDED' | 'ENDED';
+  contactName?: string | null;
+  contactEmail?: string | null;
+  notes?: string | null;
+  startedAt: string;
+  endedAt?: string | null;
+  createdBy?: string | null;
+  market?: { id: string; name: string } | null;
+}
+
+export interface NetworkInvoice {
+  id: string;
+  stripeInvoiceId: string;
+  invoiceNumber?: string | null;
+  /** draft | open | paid | void | uncollectible */
+  status: string;
+  amountDueCents: number;
+  amountPaidCents: number;
+  currency: string;
+  /** Página onde o cliente paga (boleto, cartão). */
+  hostedInvoiceUrl?: string | null;
+  invoicePdfUrl?: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  dueDate?: string | null;
+  paidAt?: string | null;
+  attemptCount: number;
+  market?: { id: string; name: string } | null;
+}
+
+export interface ReceivablesSummary {
+  openCents: number;
+  openCount: number;
+  overdueCents: number;
+  overdueCount: number;
+  worstDelayDays: number;
+  paidLast30DaysCents: number;
+  paidLast90DaysCents: number;
+}
+
+export interface ReceivablesResponse {
+  summary: ReceivablesSummary;
+  overdue: NetworkInvoice[];
+  open: NetworkInvoice[];
+}
+
+export interface NetworkContractPayload {
+  monthlyPriceCents: number;
+  daysUntilDue?: number;
+  invoiceLimit?: number | null;
+  branchLimit?: number | null;
+  pdvPerBranchLimit?: number | null;
+  pdvLimit?: number | null;
+  seatLimit?: number | null;
+  contactName?: string;
+  contactEmail?: string;
+  notes?: string;
+}
+
+const getContracts = async (): Promise<NetworkContract[]> => {
+  const { data } = await api.get<NetworkContract[]>(`${adminBase}/contracts`);
+  return data;
+};
+
+const saveContract = async (
+  marketId: string,
+  payload: NetworkContractPayload,
+): Promise<{ contract: NetworkContract; warning?: string | null }> => {
+  const { data } = await api.post(`${adminBase}/${marketId}/contract`, payload);
+  return data;
+};
+
+const endContract = async (
+  marketId: string,
+  immediately = false,
+  reason?: string,
+): Promise<{ ended: boolean; warning?: string | null }> => {
+  const { data } = await api.delete(`${adminBase}/${marketId}/contract`, {
+    params: { immediately, ...(reason ? { reason } : {}) },
+  });
+  return data;
+};
+
+/** Contas a receber: aberto, vencido e recebido nos últimos 30/90 dias. */
+const getReceivables = async (): Promise<ReceivablesResponse> => {
+  const { data } = await api.get<ReceivablesResponse>(`${adminBase}/receivables`);
+  return data;
+};
+
+const getMarketInvoices = async (marketId: string): Promise<NetworkInvoice[]> => {
+  const { data } = await api.get<NetworkInvoice[]>(`${adminBase}/${marketId}/invoices`);
+  return data;
+};
+
+const resendInvoice = async (invoiceId: string): Promise<{ sent: boolean; warning?: string | null }> => {
+  const { data } = await api.post(`${adminBase}/invoices/${invoiceId}/resend`);
+  return data;
+};
+
 /* ─── Cobrança (Stripe) ─── */
 
 export interface BillingStatus {
@@ -414,6 +526,12 @@ export default {
   syncCatalogToStripe,
   getPriceHistory,
   getBillingReport,
+  getContracts,
+  saveContract,
+  endContract,
+  getReceivables,
+  getMarketInvoices,
+  resendInvoice,
   changePlan,
   changeStatus,
   updateLimits,
