@@ -147,7 +147,7 @@ const Login: React.FC = () => {
           <Button type="submit">Entrar</Button>
         </form>
         <p className="login-switch">
-          Ainda nao tem conta? <Link to="/register">Solicitar acesso</Link>
+          Ainda não tem conta? <Link to="/register">Criar conta grátis</Link>
         </p>
       </div>
     </div>

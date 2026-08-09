@@ -62,10 +62,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+        // Devolve a mensagem do campo que falhou, em vez de um texto generico
+        // sobre XML: esta excecao cobre qualquer formulario da aplicacao, e o
+        // usuario de um cadastro precisa saber QUAL regra ele nao atendeu.
+        String detail = ex.getBindingResult().getFieldErrors().stream()
+            .map(error -> error.getDefaultMessage() != null
+                ? error.getDefaultMessage()
+                : error.getField() + " inválido")
+            .filter(message -> message != null && !message.isBlank())
+            .distinct()
+            .collect(java.util.stream.Collectors.joining(". "));
+
         return ResponseEntity.badRequest().body(errorBody(
             "validation_error",
             ex.getMessage(),
-            "Os dados enviados estao incompletos ou invalidos. Verifique os arquivos XML gerados pelo seu sistema."
+            detail.isBlank() ? "Os dados enviados estão incompletos ou inválidos." : detail
         ));
     }
 

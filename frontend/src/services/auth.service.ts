@@ -20,7 +20,11 @@ export interface RegisterRequest {
   email: string;
   password: string;
   marketName: string;
+  /** Somente dígitos: o backend normaliza e extrai a raiz do CNPJ. */
   marketCnpj?: string;
+  marketPhone?: string;
+  /** Plano escolhido na tela. A conta sempre nasce no gratuito. */
+  intendedPlan?: string;
 }
 
 export interface RegisterResponse {

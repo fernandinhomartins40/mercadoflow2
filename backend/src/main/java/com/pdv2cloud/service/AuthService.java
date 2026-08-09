@@ -90,7 +90,14 @@ public class AuthService {
         market.setBillingCycleStart(LocalDate.now().withDayOfMonth(1));
         market.setContactName(request.getName().trim());
         market.setContactEmail(normalizedEmail);
-        market.setNotes("Cadastro publico no plano gratuito.");
+        if (request.getMarketPhone() != null && !request.getMarketPhone().isBlank()) {
+            market.setContactPhone(request.getMarketPhone().trim());
+        }
+        // intendedPlan registra apenas a intencao: a conta nasce no gratuito e o
+        // checkout e oferecido apos o primeiro acesso.
+        market.setNotes(request.getIntendedPlan() != null && !request.getIntendedPlan().isBlank()
+            ? "Cadastro publico no plano gratuito. Interesse declarado: " + request.getIntendedPlan()
+            : "Cadastro publico no plano gratuito.");
         market = marketRepository.save(market);
 
         User user = new User();
