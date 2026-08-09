@@ -112,6 +112,13 @@
       <version>3.5.3</version>
     </dependency>
 
+    <!-- Cobranca de assinaturas (Checkout, Billing Portal e webhooks) -->
+    <dependency>
+      <groupId>com.stripe</groupId>
+      <artifactId>stripe-java</artifactId>
+      <version>33.2.0</version>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

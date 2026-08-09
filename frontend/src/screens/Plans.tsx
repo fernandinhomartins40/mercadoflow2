@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/layout/Layout';
-import { Check, Sparkles } from 'lucide-react';
+import { AlertTriangle, Check, CreditCard, ExternalLink, Sparkles } from 'lucide-react';
 import subscriptionService, {
+  BillingStatus,
   MarketUsage,
+  PlanCode,
   PlanDescriptor,
   formatLimit,
   formatPrice,
@@ -22,19 +24,24 @@ const Plans: React.FC = () => {
   const { marketId } = useAuth();
   const [plans, setPlans] = useState<PlanDescriptor[]>([]);
   const [usage, setUsage] = useState<MarketUsage | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState<PlanCode | 'PORTAL' | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const [planList, usageData] = await Promise.all([
+        const [planList, usageData, billingData] = await Promise.all([
           subscriptionService.getPublicPlans(),
           marketId ? subscriptionService.getMarketUsage(marketId).catch(() => null) : Promise.resolve(null),
+          marketId ? subscriptionService.getBillingStatus(marketId).catch(() => null) : Promise.resolve(null),
         ]);
         if (cancelled) return;
         setPlans(planList);
         setUsage(usageData);
+        setBilling(billingData);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -44,6 +51,40 @@ const Plans: React.FC = () => {
       cancelled = true;
     };
   }, [marketId]);
+
+  const subscribe = async (plan: PlanCode) => {
+    if (!marketId) return;
+    setRedirecting(plan);
+    setError(null);
+    try {
+      // O backend devolve a URL do Checkout; o pagamento acontece no Stripe.
+      window.location.href = await subscriptionService.startCheckout(marketId, plan);
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível abrir o pagamento.');
+      setRedirecting(null);
+    }
+  };
+
+  const manageSubscription = async () => {
+    if (!marketId) return;
+    setRedirecting('PORTAL');
+    setError(null);
+    try {
+      window.location.href = await subscriptionService.openBillingPortal(marketId);
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível abrir a gestão da assinatura.');
+      setRedirecting(null);
+    }
+  };
+
+  const canCheckout = (plan: PlanDescriptor) => {
+    if (!billing?.checkoutEnabled) return false;
+    if (plan.code === 'ESSENCIAL') return billing.essencialAvailable;
+    if (plan.code === 'PROFISSIONAL') return billing.profissionalAvailable;
+    return false;
+  };
+
+  const hasPaidPlan = usage != null && usage.planCode !== 'FREE';
 
   return (
     <Layout>
@@ -73,6 +114,30 @@ const Plans: React.FC = () => {
               {usage.pdvCount} de {formatLimit(usage.pdvLimit)} PDV(s) ·{' '}
               {usage.seatCount} de {formatLimit(usage.seatLimit)} usuário(s)
             </p>
+
+            {hasPaidPlan && billing?.checkoutEnabled && (
+              <button
+                type="button"
+                disabled={redirecting !== null}
+                onClick={manageSubscription}
+                className="mt-3 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+              >
+                <CreditCard size={13} />
+                {redirecting === 'PORTAL' ? 'Abrindo...' : 'Gerenciar assinatura'}
+                <ExternalLink size={12} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="flex items-center gap-2 rounded-xl p-3 text-sm"
+            style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}
+          >
+            <AlertTriangle size={16} />
+            {error}
           </div>
         )}
 
@@ -137,22 +202,32 @@ const Plans: React.FC = () => {
                     ))}
                   </ul>
 
-                  {!current && (
-                    <a
-                      href="mailto:comercial@mercadoflow.com?subject=Upgrade%20de%20plano"
-                      className="mt-auto rounded-lg py-2 text-center text-sm font-semibold"
-                      style={
-                        recommended
-                          ? { background: 'var(--brand-500, #22c55e)', color: '#fff' }
-                          : { border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }
-                      }
-                    >
-                      {plan.code === 'FREE'
-                        ? 'Plano gratuito'
-                        : plan.custom
-                          ? 'Montar plano sob medida'
-                          : 'Assinar'}
-                    </a>
+                  {!current && plan.code !== 'FREE' && (
+                    canCheckout(plan) ? (
+                      <button
+                        type="button"
+                        disabled={redirecting !== null}
+                        onClick={() => subscribe(plan.code)}
+                        className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60"
+                        style={
+                          recommended
+                            ? { background: 'var(--brand-500, #22c55e)', color: '#fff' }
+                            : { border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }
+                        }
+                      >
+                        <CreditCard size={14} />
+                        {redirecting === plan.code ? 'Abrindo pagamento...' : 'Assinar'}
+                      </button>
+                    ) : (
+                      <a
+                        href={`mailto:comercial@mercadoflow.com?subject=Plano%20${encodeURIComponent(plan.name)}`}
+                        className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold"
+                        style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                      >
+                        {plan.custom ? 'Montar plano sob medida' : 'Falar com o comercial'}
+                        <ExternalLink size={13} />
+                      </a>
+                    )
                   )}
                 </div>
               );

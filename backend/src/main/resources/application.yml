@@ -53,6 +53,15 @@ app:
   downloads:
     installer-dir: ${INSTALLER_DIR:/opt/pdv2cloud/installer}
   public-base-url: ${APP_PUBLIC_BASE_URL:https://mercadoflow.com}
+  # Cobranca de assinaturas. Sem STRIPE_SECRET_KEY a integracao fica desligada
+  # e a aplicacao sobe normalmente — o upgrade volta a ser manual no painel.
+  stripe:
+    enabled: ${STRIPE_ENABLED:false}
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    # IDs de preco (price_...) criados no painel do Stripe, um por plano pago.
+    price-essencial: ${STRIPE_PRICE_ESSENCIAL:}
+    price-profissional: ${STRIPE_PRICE_PROFISSIONAL:}
   catalog:
     images-dir: ${APP_CATALOG_IMAGES_DIR:../data/catalog/images}
     max-image-bytes: ${APP_CATALOG_MAX_IMAGE_BYTES:5000000}

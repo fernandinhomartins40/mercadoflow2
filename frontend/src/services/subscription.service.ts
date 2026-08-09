@@ -233,6 +233,34 @@ const getMarketUsage = async (marketId: string): Promise<MarketUsage> => {
   return data;
 };
 
+/* ─── Cobrança (Stripe) ─── */
+
+export interface BillingStatus {
+  /** Falso quando o Stripe não está configurado: a UI cai para "falar com o comercial". */
+  checkoutEnabled: boolean;
+  essencialAvailable: boolean;
+  profissionalAvailable: boolean;
+}
+
+const getBillingStatus = async (marketId: string): Promise<BillingStatus> => {
+  const { data } = await api.get<BillingStatus>(`/v1/markets/${marketId}/billing/status`);
+  return data;
+};
+
+/** Devolve a URL do Checkout do Stripe para redirecionar o cliente. */
+const startCheckout = async (marketId: string, plan: PlanCode): Promise<string> => {
+  const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/checkout`, {
+    plan,
+  });
+  return data.url;
+};
+
+/** Portal do Stripe: trocar cartão, mudar de plano ou cancelar. */
+const openBillingPortal = async (marketId: string): Promise<string> => {
+  const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/portal`);
+  return data.url;
+};
+
 /* ─── Público ─── */
 
 const getPublicPlans = async (): Promise<PlanDescriptor[]> => {
@@ -251,5 +279,8 @@ export default {
   detachBranch,
   getHistory,
   getMarketUsage,
+  getBillingStatus,
+  startCheckout,
+  openBillingPortal,
   getPublicPlans,
 };

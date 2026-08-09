@@ -116,6 +116,29 @@ public class Market {
     @Column(name = "custom_price_cents")
     private Integer customPriceCents;
 
+    // ── Cobrança Stripe (ver V35__stripe_billing.sql) ──────────────────────
+
+    /** Cliente no Stripe, reaproveitado entre assinaturas do mesmo mercado. */
+    @Column(name = "stripe_customer_id", length = 64)
+    private String stripeCustomerId;
+
+    @Column(name = "stripe_subscription_id", length = 64)
+    private String stripeSubscriptionId;
+
+    /** Espelho do status no Stripe: active, past_due, canceled, trialing... */
+    @Column(name = "stripe_status", length = 32)
+    private String stripeStatus;
+
+    @Column(name = "stripe_price_id", length = 64)
+    private String stripePriceId;
+
+    /** Fim do período pago: o acesso vale até aqui, mesmo após cancelamento. */
+    @Column(name = "current_period_end")
+    private LocalDateTime currentPeriodEnd;
+
+    @Column(name = "cancel_at_period_end", nullable = false)
+    private Boolean cancelAtPeriodEnd = false;
+
     /** True quando este mercado é uma filial de outro. */
     public boolean isBranch() {
         return parentMarket != null;
