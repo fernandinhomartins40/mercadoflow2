@@ -95,7 +95,7 @@ jobs:
       # seguinte baixar e repassar à VPS. Isso estourou a cota de storage do
       # Actions e derrubou a build inteira depois de compilar com sucesso —
       # os artefatos eram intermediários descartáveis, mas ocupavam cota por
-      # 90 dias. O runner Windows tem OpenSSH nativo e alcança a VPS sozinho.
+      # 90 dias. O runner alcança a VPS sozinho, então o intermediário sai.
       - name: Enviar para a VPS (${{ matrix.arch }})
         shell: bash
         env:
@@ -119,10 +119,12 @@ jobs:
           find_tool() {
             local name="$1"
             command -v "$name" 2>/dev/null && return 0
-            local found
-            found=$(find /c/ProgramData/chocolatey /c/Program\ Files /c/Program\ Files\ \(x86\) \
-                      -maxdepth 4 -iname "$name.exe" -print -quit 2>/dev/null || true)
-            [ -n "$found" ] && { printf '%s\n' "$found"; return 0; }
+            local c
+            for c in "/c/Program Files/PuTTY/$name.exe" \
+                     "/c/Program Files (x86)/PuTTY/$name.exe" \
+                     "/c/ProgramData/chocolatey/bin/$name.exe"; do
+              [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
+            done
             return 1
           }
 
@@ -131,11 +133,20 @@ jobs:
           echo "plink: $PLINK"
           echo "pscp:  $PSCP"
 
+          # Registra a chave do host uma vez. Em -batch o plink recusa host
+          # desconhecido e aborta, e -hostkey exige a fingerprint literal
+          # ("*" nao e aceito: "not a valid format for a manual host key").
+          # Alimentar "y" no prompt sem -batch grava a chave no registro do
+          # runner, e as chamadas seguintes ja a encontram.
+          echo y | "$PLINK" -ssh -pw "$VPS_PASSWORD" \
+            "$VPS_USER@$VPS_HOST" "true" >/dev/null 2>&1 || true
+
           ssh_run() {
-            "$PLINK" -ssh -batch -pw "$VPS_PASSWORD" -hostkey "*" \
+            "$PLINK" -ssh -batch -pw "$VPS_PASSWORD" \
               "$VPS_USER@$VPS_HOST" "$1"
           }
 
+          # Falha aqui se a chave nao foi aceita, antes de tentar enviar 107 MB.
           ssh_run "mkdir -p '$TARGET_DIR'"
 
           for f in \
@@ -149,7 +160,7 @@ jobs:
             fi
 
             echo "Enviando $f..."
-            "$PSCP" -batch -pw "$VPS_PASSWORD" -hostkey "*" \
+            "$PSCP" -batch -pw "$VPS_PASSWORD" \
               "$OUT/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
 
             # Publica com mv: o download nunca enxerga um arquivo pela metade.
