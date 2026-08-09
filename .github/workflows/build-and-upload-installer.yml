@@ -7,6 +7,14 @@ on:
       - 'pdv2cloud-agent/**'
       - 'pdv2cloud-config/**'
       - '.github/workflows/build-and-upload-installer.yml'
+  # Batimento semanal. O agente muda com pouca frequência, e o GitHub desabilita
+  # workflows sem execução por 60 dias — foi o que aconteceu entre maio e agosto
+  # de 2026: o rename do produto foi commitado, o gatilho de paths casou, mas o
+  # workflow já estava desabilitado e nada rodou. Rodar toda semana mantém o
+  # workflow vivo e ainda revela quebras de build antes de alguém precisar do
+  # instalador.
+  schedule:
+    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 concurrency:

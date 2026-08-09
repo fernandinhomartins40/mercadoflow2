@@ -74,6 +74,20 @@ public class DownloadController {
         return Files.exists(Paths.get(installerDir, legacy)) ? legacy : current;
     }
 
+    /**
+     * True quando estamos servindo o binário anterior ao rename do produto.
+     *
+     * O fallback para o nome legado existe para o download não cair durante a
+     * transição, mas ele é silencioso por natureza: entre maio e agosto de 2026
+     * a build do instalador ficou parada e o endpoint continuou respondendo
+     * "available" com um .exe de três meses atrás, sem nada indicando o
+     * problema. Expor a condição transforma uma falha muda em algo visível.
+     */
+    private boolean isServingLegacyInstaller(String arch) {
+        String served = installerFilename(arch);
+        return LEGACY_INSTALLER_X64.equals(served) || LEGACY_INSTALLER_X86.equals(served);
+    }
+
     private Path installerPath(String arch) {
         return Paths.get(installerDir, installerFilename(arch));
     }
@@ -170,8 +184,19 @@ public class DownloadController {
             Map<String, String> resp = new HashMap<>();
             resp.put("version", version != null ? version : "unknown");
             resp.put("arch",    arch);
-            resp.put("status",  "available");
             if (sha256 != null) resp.put("sha256", sha256);
+
+            // Sinaliza o fallback em vez de responder "available" como se a
+            // publicação estivesse em dia — é o que faltou para a build parada
+            // aparecer sozinha.
+            if (isServingLegacyInstaller(arch)) {
+                resp.put("status",   "legacy");
+                resp.put("filename", installerFilename(arch));
+                resp.put("warning",  "Servindo instalador anterior ao rename; "
+                    + "a build do Agente Mercado Flow nao foi publicada.");
+            } else {
+                resp.put("status", "available");
+            }
 
             return ResponseEntity.ok(resp);
         } catch (Exception e) {
@@ -202,6 +227,7 @@ public class DownloadController {
             info.put("arch",        arch);
             info.put("size",        fileSize);
             info.put("sizeFormatted", formatFileSize(fileSize));
+            info.put("legacy",      isServingLegacyInstaller(arch));
 
             BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
             Instant modifiedTime = attrs.lastModifiedTime().toInstant();
