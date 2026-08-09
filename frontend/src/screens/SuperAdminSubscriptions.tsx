@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
+import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
+import BillingReportPanel from '../components/admin/BillingReportPanel';
 import subscriptionService, {
   PlanCode,
   SubscriptionEvent,
@@ -17,8 +19,10 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  DollarSign,
   Gauge,
   Network,
+  Package,
   RefreshCw,
   Search,
   TrendingUp,
@@ -115,6 +119,7 @@ const SuperAdminSubscriptions: React.FC = () => {
   const [planFilter, setPlanFilter] = useState<'ALL' | PlanCode>('ALL');
   const [onlyCandidates, setOnlyCandidates] = useState(false);
 
+  const [tab, setTab] = useState<'contas' | 'planos' | 'faturamento'>('contas');
   const [suspected, setSuspected] = useState<SuspectedNetwork[]>([]);
   const [showSuspected, setShowSuspected] = useState(false);
   const [detail, setDetail] = useState<SubscriptionRow | null>(null);
@@ -240,7 +245,37 @@ const SuperAdminSubscriptions: React.FC = () => {
           </div>
         )}
 
-        {loading && !overview ? (
+        {/* Abas */}
+        <div
+          className="flex w-fit gap-1 rounded-xl p-1"
+          style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}
+        >
+          {([
+            { key: 'contas', label: 'Contas', icon: <Users size={14} /> },
+            { key: 'planos', label: 'Planos e preços', icon: <Package size={14} /> },
+            { key: 'faturamento', label: 'Faturamento', icon: <DollarSign size={14} /> },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition"
+              style={
+                tab === t.key
+                  ? { background: 'var(--surface-base)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                  : { color: 'var(--text-muted)' }
+              }
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'planos' && <PlanCatalogPanel />}
+        {tab === 'faturamento' && <BillingReportPanel />}
+
+        {tab === 'contas' && (loading && !overview ? (
           <div className="flex items-center gap-2 p-6 text-sm" style={{ color: 'var(--text-muted)' }}>
             <RefreshCw size={16} className="animate-spin" />
             Carregando assinaturas...
@@ -564,7 +599,7 @@ const SuperAdminSubscriptions: React.FC = () => {
               </table>
             </div>
           </>
-        )}
+        ))}
       </div>
 
       {/* Ficha do cliente */}

@@ -44,6 +44,7 @@ public class SubscriptionAdminService {
     private final PDVRepository pdvRepository;
     private final PlanService planService;
     private final SubscriptionEventService subscriptionEventService;
+    private final StripeAdminService stripeAdminService;
 
     public SubscriptionAdminService(
         MarketRepository marketRepository,
@@ -52,7 +53,8 @@ public class SubscriptionAdminService {
         UserRepository userRepository,
         PDVRepository pdvRepository,
         PlanService planService,
-        SubscriptionEventService subscriptionEventService
+        SubscriptionEventService subscriptionEventService,
+        StripeAdminService stripeAdminService
     ) {
         this.marketRepository = marketRepository;
         this.usageRepository = usageRepository;
@@ -61,6 +63,7 @@ public class SubscriptionAdminService {
         this.pdvRepository = pdvRepository;
         this.planService = planService;
         this.subscriptionEventService = subscriptionEventService;
+        this.stripeAdminService = stripeAdminService;
     }
 
     // ── Catálogo de planos ───────────────────────────────────────────────────
@@ -188,7 +191,16 @@ public class SubscriptionAdminService {
         }
         marketRepository.save(market);
 
-        subscriptionEventService.recordPlanChange(market, previous, newPlan, reason, resolveActor(actorEmail));
+        // Reflete no Stripe: sem isso o cliente ganharia limites que não paga
+        // (ou pagaria por limites que não tem). O aviso volta para a UI quando
+        // a sincronização falha, em vez de a divergência passar despercebida.
+        String warning = stripeAdminService.syncPlanChange(market, newPlan);
+        if (warning != null) {
+            log.warn("Plano alterado com divergência no Stripe | market={}: {}", marketId, warning);
+        }
+
+        subscriptionEventService.recordPlanChange(market, previous, newPlan,
+            warning != null ? reason + " | " + warning : reason, resolveActor(actorEmail));
         log.info("Plano alterado: market={} de={} para={} por={}", marketId, previous, newPlan, actorEmail);
         return findRow(marketId);
     }
@@ -197,9 +209,24 @@ public class SubscriptionAdminService {
     public SubscriptionRow changeStatus(
         UUID marketId, MarketBillingStatus newStatus, String reason, String actorEmail
     ) {
+        return changeStatus(marketId, newStatus, reason, actorEmail, CancelBilling.KEEP);
+    }
+
+    /**
+     * Altera o status e decide o que fazer com a cobrança no Stripe.
+     *
+     * A escolha é explícita porque suspender por inadimplência e suspender a
+     * pedido do cliente exigem tratamentos opostos: no primeiro caso a cobrança
+     * deve continuar tentando, no segundo precisa parar.
+     */
+    @Transactional
+    public SubscriptionRow changeStatus(
+        UUID marketId, MarketBillingStatus newStatus, String reason, String actorEmail,
+        CancelBilling cancelBilling
+    ) {
         Market market = requireMarket(marketId);
         MarketBillingStatus previous = market.getBillingStatus();
-        if (previous == newStatus) {
+        if (previous == newStatus && cancelBilling == CancelBilling.KEEP) {
             return findRow(marketId);
         }
 
@@ -210,8 +237,30 @@ public class SubscriptionAdminService {
             || newStatus == MarketBillingStatus.TRIAL);
         marketRepository.save(market);
 
-        subscriptionEventService.recordStatusChange(market, previous, newStatus, reason, resolveActor(actorEmail));
+        String warning = switch (cancelBilling) {
+            case AT_PERIOD_END -> stripeAdminService.cancelSubscription(market, true, reason);
+            case IMMEDIATELY -> stripeAdminService.cancelSubscription(market, false, reason);
+            case KEEP -> newStatus == MarketBillingStatus.ACTIVE
+                // Reativar desfaz um cancelamento agendado, senão a conta
+                // voltaria a funcionar e mesmo assim seria encerrada no fim do
+                // período.
+                ? stripeAdminService.resumeSubscription(market)
+                : null;
+        };
+
+        subscriptionEventService.recordStatusChange(market, previous, newStatus,
+            warning != null ? reason + " | " + warning : reason, resolveActor(actorEmail));
         return findRow(marketId);
+    }
+
+    /** O que fazer com a assinatura do Stripe ao mudar o status da conta. */
+    public enum CancelBilling {
+        /** Não mexe na cobrança: bloqueio apenas de acesso. */
+        KEEP,
+        /** Encerra ao fim do período pago: o cliente usa o que já pagou. */
+        AT_PERIOD_END,
+        /** Encerra na hora, com estorno proporcional feito pelo Stripe. */
+        IMMEDIATELY
     }
 
     /** Limites negociados para um cliente específico. Null restaura o padrão do plano. */

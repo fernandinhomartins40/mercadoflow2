@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, Database, Globe2, Home, Sparkles, Users } from 'lucide-react';
+import { Bot, CreditCard, Database, Globe2, Home, Sparkles, Users } from 'lucide-react';
 import Button from '../common/Button';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 import WorkspaceTopbar from './WorkspaceTopbar';
@@ -40,7 +40,8 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       title: 'Controle',
       items: [
         { to: '/super-admin', label: 'Visão geral', hint: 'Saúde da plataforma', icon: Home, exact: true },
-        { to: '/super-admin/saas', label: 'Assinaturas', hint: 'Planos, liberacoes e usuarios', icon: Users },
+        { to: '/super-admin/assinaturas', label: 'Assinaturas', hint: 'Planos, consumo e upgrades', icon: CreditCard },
+        { to: '/super-admin/saas', label: 'Contas e usuários', hint: 'Mercados e acessos', icon: Users },
       ],
     },
     {

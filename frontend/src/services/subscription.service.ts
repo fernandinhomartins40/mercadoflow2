@@ -174,8 +174,17 @@ const changePlan = async (marketId: string, plan: PlanCode, reason?: string): Pr
   return data;
 };
 
-const changeStatus = async (marketId: string, status: string, reason?: string): Promise<SubscriptionRow> => {
-  const { data } = await api.patch<SubscriptionRow>(`${adminBase}/${marketId}/status`, { status, reason });
+const changeStatus = async (
+  marketId: string,
+  status: string,
+  reason?: string,
+  cancelBilling: CancelBilling = 'KEEP',
+): Promise<SubscriptionRow> => {
+  const { data } = await api.patch<SubscriptionRow>(`${adminBase}/${marketId}/status`, {
+    status,
+    reason,
+    cancelBilling,
+  });
   return data;
 };
 
@@ -233,6 +242,135 @@ const getMarketUsage = async (marketId: string): Promise<MarketUsage> => {
   return data;
 };
 
+/* ─── Catálogo editável e relatórios (super admin) ─── */
+
+export interface PlanCatalogEntry {
+  code: PlanCode;
+  displayName: string;
+  description?: string | null;
+  monthlyPriceCents: number;
+  monthlyInvoiceLimit: number;
+  branchLimit: number;
+  pdvPerBranchLimit: number;
+  pdvLimit: number;
+  userSeatLimit: number;
+  historyRetentionDays: number;
+  fullInsights: boolean;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
+  previousStripePriceId?: string | null;
+  priceChangedAt?: string | null;
+  purchasable: boolean;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface PriceChangeResult {
+  planCode: string;
+  fromPriceCents?: number | null;
+  toPriceCents: number;
+  stripePriceId?: string | null;
+  migratedSubscriptions: number;
+  /** Preenchido quando o Stripe não pôde ser sincronizado. */
+  warning?: string | null;
+}
+
+export interface PlanPriceHistoryEntry {
+  id: string;
+  planCode: string;
+  fromPriceCents?: number | null;
+  toPriceCents: number;
+  stripePriceId?: string | null;
+  migratedCount: number;
+  reason?: string | null;
+  actorEmail?: string | null;
+  createdAt: string;
+}
+
+export interface PlanRevenue {
+  planCode: string;
+  planName: string;
+  accounts: number;
+  mrrCents: number;
+}
+
+export interface AccountRevenue {
+  marketId: string;
+  marketName: string;
+  planCode: string;
+  planName: string;
+  monthlyPriceCents: number;
+  billingStatus?: string | null;
+  hasStripeSubscription: boolean;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd?: string | null;
+  createdAt?: string | null;
+}
+
+export interface BillingReport {
+  mrrCents: number;
+  arrCents: number;
+  pastDueCents: number;
+  payingAccounts: number;
+  pastDueAccounts: number;
+  trialAccounts: number;
+  freeAccounts: number;
+  cancelingAccounts: number;
+  /** Contas em plano pago sem assinatura ativa no Stripe. */
+  unbilledAccounts: number;
+  averageTicketCents: number;
+  byPlan: PlanRevenue[];
+  topAccounts: AccountRevenue[];
+  unbilled: AccountRevenue[];
+  generatedAt: string;
+}
+
+/** O que fazer com a cobrança ao bloquear/suspender uma conta. */
+export type CancelBilling = 'KEEP' | 'AT_PERIOD_END' | 'IMMEDIATELY';
+
+const getCatalog = async (): Promise<PlanCatalogEntry[]> => {
+  const { data } = await api.get<PlanCatalogEntry[]>(`${adminBase}/catalog`);
+  return data;
+};
+
+/** Altera o preço e cria o Price correspondente no Stripe. */
+const changePlanPrice = async (
+  planCode: PlanCode,
+  priceCents: number,
+  migrateExisting: boolean,
+  reason?: string,
+): Promise<PriceChangeResult> => {
+  const { data } = await api.patch<PriceChangeResult>(`${adminBase}/catalog/${planCode}/price`, {
+    priceCents,
+    migrateExisting,
+    reason,
+  });
+  return data;
+};
+
+const updatePlan = async (
+  planCode: PlanCode,
+  payload: Partial<Omit<PlanCatalogEntry, 'code' | 'monthlyPriceCents'>>,
+): Promise<PlanCatalogEntry> => {
+  const { data } = await api.patch<PlanCatalogEntry>(`${adminBase}/catalog/${planCode}`, payload);
+  return data;
+};
+
+const syncCatalogToStripe = async (): Promise<string[]> => {
+  const { data } = await api.post<{ results: string[] }>(`${adminBase}/catalog/sync-stripe`);
+  return data.results;
+};
+
+const getPriceHistory = async (): Promise<PlanPriceHistoryEntry[]> => {
+  const { data } = await api.get<PlanPriceHistoryEntry[]>(`${adminBase}/catalog/price-history`);
+  return data;
+};
+
+const getBillingReport = async (): Promise<BillingReport> => {
+  const { data } = await api.get<BillingReport>(`${adminBase}/reports/billing`);
+  return data;
+};
+
 /* ─── Cobrança (Stripe) ─── */
 
 export interface BillingStatus {
@@ -270,6 +408,12 @@ const getPublicPlans = async (): Promise<PlanDescriptor[]> => {
 
 export default {
   getOverview,
+  getCatalog,
+  changePlanPrice,
+  updatePlan,
+  syncCatalogToStripe,
+  getPriceHistory,
+  getBillingReport,
   changePlan,
   changeStatus,
   updateLimits,

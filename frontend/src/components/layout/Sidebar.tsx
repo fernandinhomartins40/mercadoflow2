@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  CreditCard,
   Database,
   Globe2,
   Home,
@@ -61,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         ...(isAdmin ? [{ to: '/app/admin/catalogo', label: 'Catálogo global', hint: 'Base consolidada de produtos', icon: Database }] : []),
         ...(isAdmin ? [{ to: '/app/admin/precos-estaduais', label: 'Preços estaduais', hint: 'Comparação entre estados', icon: Globe2 }] : []),
         { to: '/app/pdvs', label: 'PDVs e agente', hint: 'Caixas, filiais e coletor local', icon: Store },
+        { to: '/app/planos', label: 'Plano e consumo', hint: 'Limites do plano e upgrade', icon: CreditCard },
         { to: '/app/configuracoes', label: 'Conta', hint: 'Acessos e integrações', icon: Settings },
       ],
     },

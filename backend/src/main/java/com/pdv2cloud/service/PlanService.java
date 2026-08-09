@@ -45,17 +45,20 @@ public class PlanService {
     private final MarketUsageCounterRepository usageRepository;
     private final PDVRepository pdvRepository;
     private final UserRepository userRepository;
+    private final PlanCatalogService planCatalogService;
 
     public PlanService(
         MarketRepository marketRepository,
         MarketUsageCounterRepository usageRepository,
         PDVRepository pdvRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        PlanCatalogService planCatalogService
     ) {
         this.marketRepository = marketRepository;
         this.usageRepository = usageRepository;
         this.pdvRepository = pdvRepository;
         this.userRepository = userRepository;
+        this.planCatalogService = planCatalogService;
     }
 
     // ── Rede ─────────────────────────────────────────────────────────────────
@@ -96,22 +99,28 @@ public class PlanService {
             );
         }
 
-        int invoiceLimit = resolveOverride(root.getInvoiceLimitOverride(), plan.getMonthlyInvoiceLimit());
-        int branchLimit = resolveOverride(root.getBranchLimitOverride(), plan.getBranchLimit());
-        int pdvPerBranch = resolveOverride(root.getPdvPerBranchOverride(), plan.getPdvPerBranchLimit());
-        int pdvLimit = resolveOverride(root.getPdvLimitOverride(), plan.getPdvLimit());
+        // Limites vêm do catálogo editável pelo painel; o enum é só o fallback
+        // quando a linha não existe (ver PlanCatalogService.entryFor).
+        var catalog = planCatalogService.entryFor(plan);
+
+        int invoiceLimit = resolveOverride(root.getInvoiceLimitOverride(), catalog.getMonthlyInvoiceLimit());
+        int branchLimit = resolveOverride(root.getBranchLimitOverride(), catalog.getBranchLimit());
+        int pdvPerBranch = resolveOverride(root.getPdvPerBranchOverride(), catalog.getPdvPerBranchLimit());
+        int pdvLimit = resolveOverride(root.getPdvLimitOverride(), catalog.getPdvLimit());
 
         // seatLimitOverride tem precedência; userSeatLimit é o campo legado,
         // preenchido em cadastros antigos antes de existir plano de verdade.
         Integer legacySeat = root.getUserSeatLimit();
         int seatLimit = resolveOverride(
             root.getSeatLimitOverride() != null ? root.getSeatLimitOverride() : legacySeat,
-            plan.getUserSeatLimit()
+            catalog.getUserSeatLimit()
         );
 
         return new EffectiveLimits(
             plan, invoiceLimit, branchLimit, pdvPerBranch, pdvLimit, seatLimit,
-            plan.getHistoryRetentionDays(), plan.hasFullInsights(), root.getId()
+            catalog.getHistoryRetentionDays(),
+            Boolean.TRUE.equals(catalog.getFullInsights()),
+            root.getId()
         );
     }
 

@@ -61,13 +61,16 @@ public class StripeService {
 
     private final MarketRepository marketRepository;
     private final SubscriptionEventService subscriptionEventService;
+    private final PlanCatalogService planCatalogService;
 
     public StripeService(
         MarketRepository marketRepository,
-        SubscriptionEventService subscriptionEventService
+        SubscriptionEventService subscriptionEventService,
+        PlanCatalogService planCatalogService
     ) {
         this.marketRepository = marketRepository;
         this.subscriptionEventService = subscriptionEventService;
+        this.planCatalogService = planCatalogService;
     }
 
     @PostConstruct
@@ -84,8 +87,19 @@ public class StripeService {
         return enabled && secretKey != null && !secretKey.isBlank();
     }
 
-    /** Preço configurado para o plano, ou vazio se o plano não é vendável online. */
+    /**
+     * Preço configurado para o plano, ou vazio se não é vendável online.
+     *
+     * Prioriza o catálogo, que é editável pelo painel: um preço alterado lá
+     * passa a valer sem deploy. As variáveis de ambiente ficam como fallback
+     * para a configuração inicial, antes de o painel ter sido usado.
+     */
     public Optional<String> priceIdFor(PlanType plan) {
+        String fromCatalog = planCatalogService.entryFor(plan).getStripePriceId();
+        if (fromCatalog != null && !fromCatalog.isBlank()) {
+            return Optional.of(fromCatalog);
+        }
+
         String priceId = switch (plan) {
             case ESSENCIAL -> priceEssencial;
             case PROFISSIONAL -> priceProfissional;
