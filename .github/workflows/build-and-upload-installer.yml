@@ -89,37 +89,67 @@ jobs:
 
           pwsh -ExecutionPolicy Bypass -File "pdv2cloud-agent/scripts/build-installer.ps1" @params
 
-      # Sufixo vazio para x64, "-x86" para x86
-      - name: Upload Artifact (${{ matrix.arch }})
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdv2cloud-installer-${{ matrix.arch }}
-          if-no-files-found: error
-          path: |
-            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe
-            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.sha256
-            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.meta.json
+      # Envia direto do runner que compilou, sem passar por artefato.
+      #
+      # O fluxo anterior subia ~107 MB por arch como artefato só para o job
+      # seguinte baixar e repassar à VPS. Isso estourou a cota de storage do
+      # Actions e derrubou a build inteira depois de compilar com sucesso —
+      # os artefatos eram intermediários descartáveis, mas ocupavam cota por
+      # 90 dias. O runner Windows tem OpenSSH nativo e alcança a VPS sozinho.
+      - name: Enviar para a VPS (${{ matrix.arch }})
+        shell: bash
+        env:
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
 
-  # ── Upload: aguarda os dois builds e envia ao VPS ─────────────────────────
-  upload_vps:
+          VPS_HOST="72.60.10.112"
+          VPS_USER="root"
+          TARGET_DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
+          SUFFIX="${{ matrix.arch == 'x86' && '-x86' || '' }}"
+          OUT="pdv2cloud-agent/installer/Output"
+
+          # sshpass não existe no runner Windows; o plink do Chocolatey cobre
+          # autenticação por senha em modo não interativo.
+          choco install putty -y --no-progress >/dev/null
+          PLINK="/c/Program Files/PuTTY/plink.exe"
+          PSCP="/c/Program Files/PuTTY/pscp.exe"
+
+          ssh_run() {
+            "$PLINK" -ssh -batch -pw "$VPS_PASSWORD" -hostkey "*" \
+              "$VPS_USER@$VPS_HOST" "$1"
+          }
+
+          ssh_run "mkdir -p '$TARGET_DIR'"
+
+          for f in \
+            "AgenteMercadoFlow-Setup$SUFFIX.exe" \
+            "AgenteMercadoFlow-Setup$SUFFIX.exe.sha256" \
+            "AgenteMercadoFlow-Setup$SUFFIX.exe.meta.json"; do
+
+            if [ ! -f "$OUT/$f" ]; then
+              echo "ERRO: build nao gerou $f"
+              exit 1
+            fi
+
+            echo "Enviando $f..."
+            "$PSCP" -batch -pw "$VPS_PASSWORD" -hostkey "*" \
+              "$OUT/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
+
+            # Publica com mv: o download nunca enxerga um arquivo pela metade.
+            ssh_run "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f'"
+          done
+
+          echo "Enviado ${{ matrix.arch }}."
+
+  # ── Publica: os dois arquivos já estão na VPS; recarrega e confere ────────
+  publicar:
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 20
 
     steps:
-      - name: Download x64 Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pdv2cloud-installer-x64
-          path: installer
-
-      - name: Download x86 Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pdv2cloud-installer-x86
-          path: installer
-
-      - name: Upload To VPS (Atomic)
+      - name: Reiniciar backend e verificar publicação
         env:
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
@@ -130,46 +160,38 @@ jobs:
           VPS_USER="root"
           TARGET_DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
 
-          echo "Criando diretório no VPS..."
-          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
-            "mkdir -p '$TARGET_DIR'"
+          ssh_run() {
+            sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no \
+              "$VPS_USER@$VPS_HOST" "$1"
+          }
 
-          # Envia todos os artefatos (x64 e x86) atomicamente
-          for f in \
-            AgenteMercadoFlow-Setup.exe \
-            AgenteMercadoFlow-Setup.exe.sha256 \
-            AgenteMercadoFlow-Setup.exe.meta.json \
-            AgenteMercadoFlow-Setup-x86.exe \
-            AgenteMercadoFlow-Setup-x86.exe.sha256 \
-            AgenteMercadoFlow-Setup-x86.exe.meta.json; do
-
-            if [ ! -f "installer/$f" ]; then
-              echo "AVISO: arquivo não encontrado: installer/$f (ignorando)"
-              continue
-            fi
-
-            echo "Enviando $f..."
-            sshpass -p "$VPS_PASSWORD" scp -o StrictHostKeyChecking=no \
-              "installer/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
-
-            sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
-              "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f' && echo 'Movido: $f'"
-          done
-
-          echo "Verificando arquivos no VPS..."
-          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
-            "ls -lh '$TARGET_DIR'"
+          echo "Arquivos publicados:"
+          ssh_run "ls -lh '$TARGET_DIR'"
 
           echo "Reiniciando backend para recarregar instaladores..."
-          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
-            "cd /root/mercadoflow-web && docker compose -f docker-compose.vps.yml restart mercadoflow-backend"
-
+          ssh_run "cd /root/mercadoflow-web && docker compose -f docker-compose.vps.yml restart mercadoflow-backend"
           sleep 10
 
-          echo "Verificando acesso via API (x64)..."
-          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
-            "curl -sf http://localhost:3300/api/v1/downloads/agent-installer/version | python3 -m json.tool || echo 'Aviso: falha na verificação'"
+          # Falha o job se a API ainda servir o binário legado: sem isso, uma
+          # publicação que não chegou ao destino passaria como sucesso — foi
+          # assim que o instalador ficou três meses desatualizado sem aviso.
+          for arch in x64 x86; do
+            echo "Verificando $arch..."
+            body=$(ssh_run "curl -sf 'http://localhost:3300/api/v1/downloads/agent-installer/version?arch=$arch'")
+            echo "  $body"
 
-          echo "Verificando acesso via API (x86)..."
-          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" \
-            "curl -sf http://localhost:3300/api/v1/downloads/agent-installer/version?arch=x86 | python3 -m json.tool || echo 'Aviso: falha na verificação x86'"
+            case "$body" in
+              *'"status":"legacy"'*|*'"status": "legacy"'*)
+                echo "ERRO: API ainda serve o instalador legado em $arch."
+                exit 1
+                ;;
+              *'"status":"available"'*|*'"status": "available"'*)
+                ;;
+              *)
+                echo "ERRO: resposta inesperada da API para $arch."
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Instalador publicado e verificado nas duas arquiteturas."
