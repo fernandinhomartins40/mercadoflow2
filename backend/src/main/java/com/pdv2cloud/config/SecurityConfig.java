@@ -109,7 +109,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // PATCH e obrigatorio: 17 rotas do sistema o usam (mudar plano, status,
+        // limites, preco, bloquear usuario, editar pedido). Sem ele na lista, o
+        // preflight OPTIONS do navegador e recusado e o axios reporta 403 —
+        // enquanto curl, que nao faz preflight, funciona normalmente.
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
