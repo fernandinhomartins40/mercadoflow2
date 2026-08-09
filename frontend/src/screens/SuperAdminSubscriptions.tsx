@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Layout from '../components/layout/Layout';
+import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
 import subscriptionService, {
@@ -213,7 +213,7 @@ const SuperAdminSubscriptions: React.FC = () => {
   const metrics = overview?.metrics;
 
   return (
-    <Layout>
+    <SuperAdminLayout>
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -708,7 +708,7 @@ const SuperAdminSubscriptions: React.FC = () => {
           </div>
         </div>
       )}
-    </Layout>
+    </SuperAdminLayout>
   );
 };
 
