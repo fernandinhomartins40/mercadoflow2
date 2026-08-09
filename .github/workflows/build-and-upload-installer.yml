@@ -109,11 +109,27 @@ jobs:
           SUFFIX="${{ matrix.arch == 'x86' && '-x86' || '' }}"
           OUT="pdv2cloud-agent/installer/Output"
 
-          # sshpass não existe no runner Windows; o plink do Chocolatey cobre
-          # autenticação por senha em modo não interativo.
-          choco install putty -y --no-progress >/dev/null
-          PLINK="/c/Program Files/PuTTY/plink.exe"
-          PSCP="/c/Program Files/PuTTY/pscp.exe"
+          # O runner Windows tem ssh/scp (OpenSSH) mas nao tem sshpass, e o
+          # OpenSSH nao aceita senha em modo nao interativo. O plink do PuTTY
+          # cobre isso — mas o caminho de instalacao do Chocolatey varia, entao
+          # ele e localizado em vez de assumido: fixar
+          # "/c/Program Files/PuTTY" quebrou a build com exit 127.
+          choco install putty.install -y --no-progress >/dev/null 2>&1 || true
+
+          find_tool() {
+            local name="$1"
+            command -v "$name" 2>/dev/null && return 0
+            local found
+            found=$(find /c/ProgramData/chocolatey /c/Program\ Files /c/Program\ Files\ \(x86\) \
+                      -maxdepth 4 -iname "$name.exe" -print -quit 2>/dev/null || true)
+            [ -n "$found" ] && { printf '%s\n' "$found"; return 0; }
+            return 1
+          }
+
+          PLINK=$(find_tool plink) || { echo "ERRO: plink nao encontrado"; exit 1; }
+          PSCP=$(find_tool pscp)   || { echo "ERRO: pscp nao encontrado";  exit 1; }
+          echo "plink: $PLINK"
+          echo "pscp:  $PSCP"
 
           ssh_run() {
             "$PLINK" -ssh -batch -pw "$VPS_PASSWORD" -hostkey "*" \
