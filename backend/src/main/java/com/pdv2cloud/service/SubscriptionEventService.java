@@ -31,7 +31,19 @@ public class SubscriptionEventService {
         this.eventRepository = eventRepository;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Registra o cadastro na trilha.
+     *
+     * Diferente dos demais, participa da transação em curso (REQUIRED) em vez de
+     * abrir uma nova. O mercado acabou de ser criado e ainda não foi commitado;
+     * numa transação separada ele não seria visível, e a FK de market_id
+     * falharia — foi exatamente o que quebrou o cadastro em produção.
+     *
+     * A consequência é aceitável: se o registro falhar depois deste ponto, o
+     * evento some junto com o mercado — que é o comportamento correto, porque
+     * não faz sentido guardar o cadastro de uma conta que não existe.
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
     public void recordSignup(Market market, User owner) {
         SubscriptionEvent event = base(market, EventType.SIGNUP);
         event.setToPlan(market.getPlanType());
@@ -41,7 +53,7 @@ public class SubscriptionEventService {
             event.setActorUserId(owner.getId());
             event.setActorEmail(owner.getEmail());
         }
-        save(event);
+        saveOrThrow(event);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -129,12 +141,25 @@ public class SubscriptionEventService {
         }
     }
 
+    /**
+     * Grava o evento sem derrubar a operação que o originou.
+     *
+     * O try/catch só protege de fato nos métodos REQUIRES_NEW, onde a falha
+     * fica contida na transação própria. Em recordSignup, que participa da
+     * transação do cadastro, engolir a exceção não evitaria o rollback — o
+     * Hibernate já teria marcado a transação como inconsistente. Por isso lá o
+     * evento é gravado por saveOrThrow, que falha alto em vez de deixar o
+     * cadastro morrer com uma mensagem sem relação com a causa.
+     */
     private void save(SubscriptionEvent event) {
         try {
             eventRepository.save(event);
         } catch (Exception exc) {
-            // A trilha nunca deve derrubar a operação que a originou.
             log.warn("Falha ao registrar evento de assinatura: {}", exc.getMessage());
         }
+    }
+
+    private void saveOrThrow(SubscriptionEvent event) {
+        eventRepository.save(event);
     }
 }
