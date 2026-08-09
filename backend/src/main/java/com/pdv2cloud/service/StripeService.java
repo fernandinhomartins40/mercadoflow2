@@ -123,6 +123,10 @@ public class StripeService {
         String customerId = ensureCustomer(market);
         String base = publicBaseUrl.replaceAll("/+$", "");
 
+        // payment_method_types deliberadamente NÃO é fixado: o Checkout oferece
+        // o que estiver ativo em Settings → Payments da conta (hoje cartão e
+        // boleto; Pix quando a capability for liberada). Fixar aqui exigiria
+        // deploy a cada método novo e poderia ofertar um indisponível.
         com.stripe.param.checkout.SessionCreateParams params =
             com.stripe.param.checkout.SessionCreateParams.builder()
                 .setMode(Mode.SUBSCRIPTION)
@@ -142,6 +146,14 @@ public class StripeService {
                         .build()
                 )
                 .build();
+
+        // Nota sobre boleto: o Stripe ignora payment_method_options[boleto] em
+        // modo subscription (verificado na API — só retorna as opções de card),
+        // então o prazo de vencimento vem da configuração da conta. Como o
+        // boleto leva de 1 a 3 dias úteis para compensar, a assinatura pode
+        // passar por past_due nesse intervalo; o sistema mantém o acesso nesse
+        // estado justamente para não penalizar quem pagou e está aguardando
+        // compensação (ver syncSubscription).
 
         com.stripe.model.checkout.Session session =
             com.stripe.model.checkout.Session.create(params);

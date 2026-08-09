@@ -103,6 +103,51 @@ falha com `Permission denied` — o resto do sistema continua funcionando.
 
 ---
 
+## 4b. Métodos de pagamento (cartão, boleto, Pix)
+
+Os métodos vêm da configuração da **conta**, não do código: o backend não fixa
+`payment_method_types`, então o Checkout oferece tudo que estiver ativo em
+**Settings → Payments → Payment methods**.
+
+Estado atual da conta:
+
+| Método | Situação |
+|---|---|
+| Cartão | ativo |
+| Boleto | ativo — funciona em assinatura recorrente |
+| Pix | **não habilitado na conta** |
+
+### Sobre o Pix
+
+O Stripe suporta Pix recorrente (Pix Automático) desde abril/2026, mas a
+capability precisa estar habilitada na conta. Nesta conta ela não existe: marcar
+`pix` como `on` na configuração é aceito pela API, porém retorna
+`available: false`, e um pagamento avulso forçando Pix falha com
+*"The payment method type provided: pix is invalid"*.
+
+Para habilitar:
+
+1. **Settings → Payments → Payment methods** e procure Pix
+2. Se aparecer como indisponível, solicite ativação ao suporte do Stripe
+   (dashboard → Help → Contact support), informando que a conta é brasileira e
+   deseja Pix e Pix Automático para assinaturas
+3. Depois de ativo, ligue com:
+
+```bash
+curl -s -u "$STRIPE_SECRET_KEY:" \
+  "https://api.stripe.com/v1/payment_method_configurations/pmc_SEU_ID" \
+  -d "pix[display_preference][preference]=on"
+```
+
+Confirme que retornou `available: true` — só então o Pix aparece no Checkout.
+Nenhuma mudança no código é necessária.
+
+**Atenção ao Pix Automático:** o Pix comum é pagamento único e não sustenta
+assinatura. Só o Pix Automático (com mandato autorizado pelo cliente) serve para
+cobrança recorrente, e a aprovação dele é separada da do Pix comum.
+
+---
+
 ## 5. Testar de ponta a ponta
 
 1. Entre na aplicação com uma conta no plano gratuito
