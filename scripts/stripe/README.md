@@ -72,18 +72,34 @@ qualquer um que descobrisse a URL poderia forjar um "pagamento aprovado".
 
 ## 4. Configurar o servidor
 
-No `.env` da VPS (ou nos secrets do deploy):
+**Pelos GitHub Secrets** — o `.env` da VPS é reescrito a cada deploy, então
+editá-lo à mão perde a configuração no deploy seguinte.
 
-```bash
-STRIPE_ENABLED=true
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ESSENCIAL=price_...
-STRIPE_PRICE_PROFISSIONAL=price_...
-```
+Em **Settings → Secrets and variables → Actions → New repository secret**,
+crie os cinco:
 
-Reinicie o backend. Sem `STRIPE_ENABLED=true` a integração fica desligada e a
-aplicação sobe normalmente — o botão vira "Falar com o comercial".
+| Secret | Valor |
+|---|---|
+| `STRIPE_ENABLED` | `true` |
+| `STRIPE_SECRET_KEY` | `sk_live_...` ou `rk_live_...` |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` do passo 2 |
+| `STRIPE_PRICE_ESSENCIAL` | `price_...` do Essencial |
+| `STRIPE_PRICE_PROFISSIONAL` | `price_...` do Profissional |
+
+Depois rode o workflow **Deploy PDV2Cloud Web** (push na `main` ou disparo
+manual). O deploy grava as chaves no `.env` e sobe o backend.
+
+Sem `STRIPE_SECRET_KEY` a integração fica desligada e a aplicação sobe
+normalmente — o botão vira "Falar com o comercial". Se os secrets não estiverem
+definidos mas as chaves já existirem no `.env` do servidor, o deploy as
+reaproveita em vez de apagá-las.
+
+### Chave restrita (`rk_live_`)
+
+Se usar uma restricted key em vez da secret padrão, ela precisa de permissão de
+**escrita** em: Customers, Checkout Sessions, Billing Portal, Products, Prices,
+Subscriptions e Webhook Endpoints. Faltando Checkout Sessions, o botão "Assinar"
+falha com `Permission denied` — o resto do sistema continua funcionando.
 
 ---
 

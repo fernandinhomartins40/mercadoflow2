@@ -24,6 +24,14 @@ CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS="${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-2160
 CATALOG_IMAGE_REPAIR_BATCH_SIZE="${CATALOG_IMAGE_REPAIR_BATCH_SIZE:-300}"
 CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN="${CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN:-250000}"
 CATALOG_IMAGE_REPAIR_PROVIDER="${CATALOG_IMAGE_REPAIR_PROVIDER:-}"
+# Stripe: vem dos GitHub Secrets. Quando ausentes, sao reaproveitados do .env ja
+# gravado no servidor (ver resolve_stripe_config), para que um deploy sem os
+# secrets configurados nao desligue a cobranca que ja estava funcionando.
+STRIPE_ENABLED="${STRIPE_ENABLED:-}"
+STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
+STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
+STRIPE_PRICE_ESSENCIAL="${STRIPE_PRICE_ESSENCIAL:-}"
+STRIPE_PRICE_PROFISSIONAL="${STRIPE_PRICE_PROFISSIONAL:-}"
 DOCKER_CLEANUP_ENABLED="${DOCKER_CLEANUP_ENABLED:-true}"
 DOCKER_CLEANUP_PROJECT_CONTAINERS="${DOCKER_CLEANUP_PROJECT_CONTAINERS:-true}"
 DOCKER_CLEANUP_DANGLING_IMAGES="${DOCKER_CLEANUP_DANGLING_IMAGES:-true}"
@@ -84,6 +92,43 @@ resolve_super_admin_password() {
   log "SUPER_ADMIN_PASSWORD ausente; gerada uma nova senha para o primeiro seed"
 }
 
+resolve_stripe_config() {
+  # Mesma logica do super admin: secret do CI tem precedencia, senao reaproveita
+  # o que ja esta no .env do servidor.
+  #
+  # Reaproveitar importa porque este script REESCREVE o .env inteiro a cada
+  # deploy: sem isso, um deploy feito sem os secrets configurados apagaria as
+  # chaves e desligaria a cobranca em produção silenciosamente.
+  local key
+  for key in STRIPE_ENABLED STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET \
+             STRIPE_PRICE_ESSENCIAL STRIPE_PRICE_PROFISSIONAL; do
+    if [[ -n "${!key}" ]]; then
+      continue
+    fi
+    if [[ -f .env ]]; then
+      local existing
+      existing="$(sed -n "s/^${key}=//p" .env | head -n 1)"
+      if [[ -n "$existing" ]]; then
+        printf -v "$key" '%s' "$existing"
+      fi
+    fi
+  done
+
+  # Sem chave nao ha o que habilitar: evita o backend subir com
+  # STRIPE_ENABLED=true e falhar ao criar o cliente do Stripe.
+  if [[ -z "$STRIPE_SECRET_KEY" ]]; then
+    STRIPE_ENABLED="false"
+  elif [[ -z "$STRIPE_ENABLED" ]]; then
+    STRIPE_ENABLED="true"
+  fi
+
+  if [[ "$STRIPE_ENABLED" == "true" ]]; then
+    log "Stripe habilitado (chave presente)"
+  else
+    log "Stripe desabilitado; upgrade de plano permanece manual no painel"
+  fi
+}
+
 write_env_file() {
   local jwt_secret
   local db_password
@@ -117,6 +162,11 @@ CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS=${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS}
 CATALOG_IMAGE_REPAIR_BATCH_SIZE=${CATALOG_IMAGE_REPAIR_BATCH_SIZE}
 CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN=${CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN}
 CATALOG_IMAGE_REPAIR_PROVIDER=${CATALOG_IMAGE_REPAIR_PROVIDER}
+STRIPE_ENABLED=${STRIPE_ENABLED}
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+STRIPE_PRICE_ESSENCIAL=${STRIPE_PRICE_ESSENCIAL}
+STRIPE_PRICE_PROFISSIONAL=${STRIPE_PRICE_PROFISSIONAL}
 MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
@@ -351,6 +401,7 @@ main() {
   ensure_secret_file ".jwt_secret" 64 "JWT secret"
   ensure_secret_file ".db_secret" 16 "senha do PostgreSQL"
   resolve_super_admin_password
+  resolve_stripe_config
   write_env_file
 
   export DOCKER_BUILDKIT=1

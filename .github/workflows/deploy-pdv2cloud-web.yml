@@ -73,7 +73,14 @@ jobs:
 
       - name: Run deployment on VPS
         run: |
-          sshpass -f ~/.ssh/vps_password ssh -o StrictHostKeyChecking=no root@${VPS_HOST} <<'EOF'
+          # Sem aspas no delimitador: as variaveis do Stripe precisam ser
+          # expandidas AQUI, no runner, para chegarem ao script na VPS. Os
+          # valores nao aparecem no log porque o GitHub mascara secrets.
+          #
+          # Secrets ausentes viram string vazia, e o deploy-web.sh reaproveita o
+          # que ja estiver no .env do servidor — um deploy sem eles nao desliga
+          # a cobranca que ja funcionava.
+          sshpass -f ~/.ssh/vps_password ssh -o StrictHostKeyChecking=no root@${VPS_HOST} <<EOF
           set -euo pipefail
           cd /root/mercadoflow-web
           chmod +x deploy/deploy-web.sh
@@ -83,6 +90,11 @@ jobs:
           DOCKER_CLEANUP_PROJECT_CONTAINERS=true \
           DOCKER_CLEANUP_DANGLING_IMAGES=true \
           DOCKER_CLEANUP_BUILD_CACHE=true \
+          STRIPE_ENABLED='${{ secrets.STRIPE_ENABLED }}' \
+          STRIPE_SECRET_KEY='${{ secrets.STRIPE_SECRET_KEY }}' \
+          STRIPE_WEBHOOK_SECRET='${{ secrets.STRIPE_WEBHOOK_SECRET }}' \
+          STRIPE_PRICE_ESSENCIAL='${{ secrets.STRIPE_PRICE_ESSENCIAL }}' \
+          STRIPE_PRICE_PROFISSIONAL='${{ secrets.STRIPE_PRICE_PROFISSIONAL }}' \
           ./deploy/deploy-web.sh
           EOF
 
