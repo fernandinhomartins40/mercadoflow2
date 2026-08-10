@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.zxing.WriterException;
+import com.pdv2cloud.tenancy.TenantContext;
 import com.pdv2cloud.model.entity.AgentPairingSession;
 import com.pdv2cloud.model.entity.User;
 import com.pdv2cloud.model.entity.UserRole;
@@ -48,7 +49,12 @@ public class AgentPairingController {
     @PostMapping("/start")
     public ResponseEntity<Map<String, Object>> start(@RequestBody(required = false) StartRequest request) {
         String hostname = request != null ? request.getHostname() : null;
-        AgentPairingService.StartedPairing started = pairingService.start(hostname);
+        // Escopo de sistema aqui, e não dentro do serviço: o TenantAwareDataSource
+        // fixa as variáveis de tenant no checkout da conexão, e o @Transactional
+        // do serviço obtém a conexão antes do corpo executar. Marcado lá dentro,
+        // o is_admin chegaria tarde demais.
+        AgentPairingService.StartedPairing started =
+            TenantContext.runAsSystem(() -> pairingService.start(hostname));
 
         Map<String, Object> response = new HashMap<>();
         response.put("userCode", started.userCode());
@@ -119,8 +125,8 @@ public class AgentPairingController {
     @PostMapping("/claim")
     public ResponseEntity<Map<String, Object>> claim(@Valid @RequestBody ClaimRequest request) {
         try {
-            AgentPairingService.ClaimResult result =
-                pairingService.claim(request.getUserCode(), request.getAgentSecret());
+            AgentPairingService.ClaimResult result = TenantContext.runAsSystem(
+                () -> pairingService.claim(request.getUserCode(), request.getAgentSecret()));
 
             Map<String, Object> response = new HashMap<>();
             response.put("status", result.status());
@@ -141,7 +147,7 @@ public class AgentPairingController {
 
     @PostMapping("/cancel")
     public ResponseEntity<Void> cancel(@Valid @RequestBody CancelRequest request) {
-        pairingService.cancel(request.getUserCode());
+        TenantContext.runAsSystem(() -> pairingService.cancel(request.getUserCode()));
         return ResponseEntity.noContent().build();
     }
 

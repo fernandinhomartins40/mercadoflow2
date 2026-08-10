@@ -48,13 +48,18 @@ public class AuthService {
     @Autowired
     private SubscriptionEventService subscriptionEventService;
 
+    /**
+     * O cadastro público cria o mercado e o primeiro usuário sem que exista
+     * tenant na sessão — é ele que dá origem ao tenant.
+     *
+     * O escopo de sistema é aplicado pelo AuthController, antes de entrar aqui:
+     * o TenantAwareDataSource fixa as variáveis de tenant no checkout da
+     * conexão, e o @Transactional a obtém antes do corpo executar, então um
+     * runAsSystem interno marcaria is_admin tarde demais.
+     */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
-        // O cadastro público cria o mercado e o primeiro usuário sem que exista
-        // tenant na sessão — é ele que dá origem ao tenant. Sob RLS, a inserção
-        // seria recusada pela política (market_id não bate com a sessão vazia),
-        // então o fluxo roda com escopo de sistema.
-        return TenantContext.runAsSystem(() -> doRegister(request));
+        return doRegister(request);
     }
 
     private RegisterResponse doRegister(RegisterRequest request) {

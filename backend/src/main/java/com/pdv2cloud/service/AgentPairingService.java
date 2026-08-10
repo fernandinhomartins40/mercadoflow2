@@ -17,7 +17,9 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +50,16 @@ public class AgentPairingService {
 
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Auto-referência para chamadas que precisam passar pelo proxy do Spring.
+     * Chamar um método @Transactional diretamente de dentro da classe ignora o
+     * proxy, e a transação simplesmente não abre — falha silenciosa.
+     * @Lazy evita o ciclo de dependência na criação do bean.
+     */
+    @Autowired
+    @Lazy
+    private AgentPairingService self;
+
     @Value("${app.public-base-url:https://mercadoflow.com}")
     private String publicBaseUrl;
 
@@ -57,13 +69,14 @@ public class AgentPairingService {
     // ── Passo 1: o agente inicia o pareamento (rota publica, sem credencial) ──
 
     /**
-     * Roda com escopo de sistema: nesta etapa o agente ainda não tem chave e a
-     * sessão não pertence a mercado nenhum — o vínculo só existe após o
-     * approve. Sob RLS, sem isso a sessão não poderia ser criada nem relida.
+     * Nesta etapa o agente ainda não tem chave e a sessão não pertence a
+     * mercado nenhum — o vínculo só existe após o approve. O escopo de sistema
+     * vem do controller; ver a nota em {@link #claim(String, String)} sobre por
+     * que ele não pode ser aplicado aqui dentro.
      */
     @Transactional
     public StartedPairing start(String hostname) {
-        return TenantContext.runAsSystem(() -> doStart(hostname));
+        return doStart(hostname);
     }
 
     private StartedPairing doStart(String hostname) {
@@ -151,12 +164,22 @@ public class AgentPairingService {
      * no mesmo instante, de modo que um vazamento posterior do banco nao exponha
      * credencial alguma.
      */
+    /**
+     * O agente resgata a chave antes de possuir credencial, então não há tenant
+     * na sessão — a autorização aqui é o segredo conferido abaixo, não o RLS.
+     *
+     * O escopo de sistema é aplicado pelo AgentPairingController, ANTES de
+     * entrar neste método. O motivo é a ordem em que as coisas acontecem: o
+     * TenantAwareDataSource fixa app.current_market/app.is_admin no checkout da
+     * conexão, e @Transactional obtém a conexão antes do corpo executar. Um
+     * runAsSystem aqui dentro marcaria is_admin numa conexão já configurada sem
+     * tenant, tarde demais — era o que prendia o agente em "aguardando", com o
+     * claim respondendo "Código de pareamento não encontrado" para uma sessão
+     * que existe e está aprovada.
+     */
     @Transactional
     public ClaimResult claim(String userCode, String agentSecret) {
-        // Escopo de sistema: o agente resgata a chave antes de possuir
-        // credencial, então não há tenant na sessão. A autorização aqui é o
-        // segredo verificado logo abaixo, não o RLS.
-        return TenantContext.runAsSystem(() -> doClaim(userCode, agentSecret));
+        return doClaim(userCode, agentSecret);
     }
 
     private ClaimResult doClaim(String userCode, String agentSecret) {
@@ -202,10 +225,10 @@ public class AgentPairingService {
         };
     }
 
+    /** Rota publica: o agente desiste antes de ter credencial. Escopo de sistema no controller. */
     @Transactional
     public void cancel(String userCode) {
-        // Rota publica: o agente desiste antes de ter credencial.
-        TenantContext.runAsSystem(() -> doCancel(userCode));
+        doCancel(userCode);
     }
 
     private void doCancel(String userCode) {
@@ -219,17 +242,26 @@ public class AgentPairingService {
         });
     }
 
-    /** Fecha sessoes abandonadas de hora em hora para nao acumular chaves reservadas. */
+    /**
+     * Fecha sessoes abandonadas de hora em hora para nao acumular chaves
+     * reservadas.
+     *
+     * O runAsSystem envolve a chamada transacional, e nao o contrário: o
+     * escopo precisa estar definido antes de a conexão ser obtida. Chama via
+     * self para passar pelo proxy do Spring — auto-invocação direta ignoraria
+     * o @Transactional.
+     */
     @Scheduled(fixedDelay = 3_600_000L)
-    @Transactional
     public void expireStaleSessions() {
-        // Varre sessoes de todos os mercados, sem usuario no contexto.
-        TenantContext.runAsSystem(() -> {
-            int expired = pairingRepository.expireStaleSessions(LocalDateTime.now());
-            if (expired > 0) {
-                log.info("Sessoes de pareamento expiradas: {}", expired);
-            }
-        });
+        TenantContext.runAsSystem(() -> self.expireStaleSessionsTransacional());
+    }
+
+    @Transactional
+    public void expireStaleSessionsTransacional() {
+        int expired = pairingRepository.expireStaleSessions(LocalDateTime.now());
+        if (expired > 0) {
+            log.info("Sessoes de pareamento expiradas: {}", expired);
+        }
     }
 
     public String buildPairingUrl(String userCode) {

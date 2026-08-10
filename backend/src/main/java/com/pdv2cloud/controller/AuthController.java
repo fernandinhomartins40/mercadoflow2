@@ -1,5 +1,6 @@
 package com.pdv2cloud.controller;
 
+import com.pdv2cloud.tenancy.TenantContext;
 import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.RegisterRequest;
@@ -37,7 +38,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
-        RegisterResponse response = authService.register(request);
+        // Escopo de sistema antes do serviço: o cadastro cria o mercado que
+        // ainda não existe, e a conexão precisa estar marcada como is_admin
+        // antes de o @Transactional obtê-la.
+        RegisterResponse response = TenantContext.runAsSystem(() -> authService.register(request));
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 

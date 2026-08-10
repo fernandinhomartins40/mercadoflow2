@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class DunningService {
+
+    /**
+     * Auto-referência para atravessar o proxy do Spring: chamar um método
+     * @Transactional de dentro da própria classe ignora o proxy e a transação
+     * não abre. @Lazy evita ciclo na criação do bean.
+     */
+    @Autowired
+    @Lazy
+    private DunningService self;
 
     private final DunningRuleRepository ruleRepository;
     private final DunningLogRepository logRepository;
@@ -76,17 +87,23 @@ public class DunningService {
      * tarde o bastante para o Stripe já ter processado as compensações da noite
      * (boleto pago cai como {@code invoice.paid} no dia útil seguinte).
      */
+    /**
+     * A régua percorre faturas de todos os mercados e roda sem usuário. Sob
+     * RLS, sem escopo de sistema ela não enxergaria fatura nenhuma e
+     * "concluiria" sem cobrar ninguém — falha silenciosa no fluxo de receita.
+     *
+     * O runAsSystem envolve a chamada transacional, e não o contrário: as
+     * variáveis de tenant são fixadas no checkout da conexão, que o
+     * @Transactional faz antes de o corpo executar. A chamada passa por `self`
+     * para atravessar o proxy do Spring — auto-invocação ignoraria a transação.
+     */
     @Scheduled(cron = "0 0 9 * * *")
-    @Transactional
     public DunningRunResult run() {
-        // A régua percorre faturas de todos os mercados e roda sem usuário. Sob
-        // RLS, sem escopo de sistema ela não enxergaria fatura nenhuma e
-        // "concluiria" sem cobrar ninguém — falha silenciosa exatamente no
-        // fluxo de receita.
-        return TenantContext.runAsSystem(this::executeRun);
+        return TenantContext.runAsSystem(() -> self.executeRun());
     }
 
-    private DunningRunResult executeRun() {
+    @Transactional
+    public DunningRunResult executeRun() {
         List<DunningRule> rules = ruleRepository.findByIsActiveTrueOrderByDaysOffsetAsc();
         if (rules.isEmpty()) {
             return new DunningRunResult(0, 0, List.of());
