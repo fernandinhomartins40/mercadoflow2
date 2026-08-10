@@ -10,6 +10,9 @@ HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-24}"
 HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-10}"
 POSTGRES_DB="${POSTGRES_DB:-pdv2cloud}"
 POSTGRES_USER="${POSTGRES_USER:-pdv2cloud}"
+# Role com que a APLICACAO conecta: sem superuser e sem bypassrls, para que o
+# row-level security valha de fato. O Flyway e os jobs seguem com POSTGRES_USER.
+APP_DB_ROLE="${APP_DB_ROLE:-mercadoflow_app}"
 SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-superadmin@mercadoflow.com}"
 SUPER_ADMIN_PASSWORD="${SUPER_ADMIN_PASSWORD:-}"
 SUPER_ADMIN_NAME="${SUPER_ADMIN_NAME:-Super Administrador}"
@@ -129,11 +132,49 @@ resolve_stripe_config() {
   fi
 }
 
+ensure_app_role() {
+  # A aplicacao conecta com uma role SEM superuser e SEM bypassrls, para que as
+  # policies de row-level security sejam de fato avaliadas. Com a role dona do
+  # schema o PostgreSQL ignora RLS silenciosamente, e o isolamento entre
+  # mercados passa a depender so de cada consulta Java lembrar de filtrar.
+  #
+  # O Flyway continua com a role dona (FLYWAY_USER), porque migracao precisa de
+  # DDL e de escrever em flyway_schema_history.
+  ensure_secret_file ".app_role_secret" 24 "senha da role de aplicacao"
+  local app_password
+  app_password="$(< .app_role_secret)"
+
+  log "Garantindo role de aplicacao ${APP_DB_ROLE} (sem bypass de RLS)"
+  docker exec -i mercadoflow-postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -q <<SQL
+DO \$\$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${APP_DB_ROLE}') THEN
+    EXECUTE format('ALTER ROLE ${APP_DB_ROLE} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD %L', '${app_password}');
+  ELSE
+    EXECUTE format('CREATE ROLE ${APP_DB_ROLE} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD %L', '${app_password}');
+  END IF;
+END \$\$;
+
+GRANT USAGE ON SCHEMA public TO ${APP_DB_ROLE};
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${APP_DB_ROLE};
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${APP_DB_ROLE};
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${APP_DB_ROLE};
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${APP_DB_ROLE};
+REVOKE ALL ON TABLE flyway_schema_history FROM ${APP_DB_ROLE};
+SQL
+
+  # Repetido a cada deploy de proposito: tabela criada por migracao nova so fica
+  # acessivel se o GRANT rodar DEPOIS dela, e o ALTER DEFAULT PRIVILEGES acima
+  # nao alcanca o que o Flyway acabou de criar nesta mesma execucao.
+}
+
 write_env_file() {
   local jwt_secret
   local db_password
+  local app_password
   jwt_secret="$(< .jwt_secret)"
   db_password="$(< .db_secret)"
+  app_password="$(< .app_role_secret)"
 
   cat > .env.tmp <<EOF
 NODE_ENV=production
@@ -142,8 +183,10 @@ POSTGRES_DB=${POSTGRES_DB}
 POSTGRES_USER=${POSTGRES_USER}
 POSTGRES_PASSWORD=${db_password}
 DATABASE_URL=jdbc:postgresql://mercadoflow-postgres:5432/${POSTGRES_DB}
-DATABASE_USER=${POSTGRES_USER}
-DATABASE_PASSWORD=${db_password}
+DATABASE_USER=${APP_DB_ROLE}
+DATABASE_PASSWORD=${app_password}
+FLYWAY_USER=${POSTGRES_USER}
+FLYWAY_PASSWORD=${db_password}
 JWT_SECRET=${jwt_secret}
 CORS_ORIGIN=https://mercadoflow.com,https://www.mercadoflow.com
 VITE_API_URL=https://mercadoflow.com/api
@@ -400,6 +443,7 @@ main() {
 
   ensure_secret_file ".jwt_secret" 64 "JWT secret"
   ensure_secret_file ".db_secret" 16 "senha do PostgreSQL"
+  ensure_secret_file ".app_role_secret" 24 "senha da role de aplicacao"
   resolve_super_admin_password
   resolve_stripe_config
   write_env_file
@@ -426,6 +470,23 @@ main() {
   log "Construindo imagens da aplicaÃ§Ã£o"
   compose build --pull mercadoflow-backend mercadoflow-frontend mercadoflow-cron
 
+  # O banco sobe sozinho primeiro: a role de aplicacao precisa existir ANTES de
+  # o backend tentar conectar com ela, senao o boot falha com autenticacao
+  # recusada. O compose ja tem depends_on por saude, mas quem cria a role e este
+  # script, entao a ordem tem de ser explicita aqui.
+  log "Subindo PostgreSQL antes da aplicacao"
+  compose up -d --force-recreate mercadoflow-postgres
+  local tentativa=0
+  until docker exec mercadoflow-postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" >/dev/null 2>&1; do
+    tentativa=$((tentativa + 1))
+    if [[ $tentativa -ge 60 ]]; then
+      log "ERRO: PostgreSQL nao respondeu em 120s"
+      exit 1
+    fi
+    sleep 2
+  done
+  ensure_app_role
+
   log "Aplicando atualizaÃ§Ã£o sem remover volumes"
   compose up -d --force-recreate --remove-orphans \
     mercadoflow-postgres \
@@ -443,6 +504,17 @@ main() {
   ensure_host_nginx_proxy
 
   wait_for_health
+
+  # Depois do boot: o Flyway acabou de rodar e pode ter criado tabelas nesta
+  # execucao. O GRANT anterior nao as alcanca (ALTER DEFAULT PRIVILEGES so vale
+  # para o que for criado a partir dali), entao reaplica para nao deixar a
+  # aplicacao sem permissao numa tabela recem-migrada.
+  log "Reaplicando permissoes da role de aplicacao pos-migracao"
+  docker exec -i mercadoflow-postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -q <<SQL
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${APP_DB_ROLE};
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${APP_DB_ROLE};
+REVOKE ALL ON TABLE flyway_schema_history FROM ${APP_DB_ROLE};
+SQL
 
   cleanup_docker_artifacts
   report_disk_usage
