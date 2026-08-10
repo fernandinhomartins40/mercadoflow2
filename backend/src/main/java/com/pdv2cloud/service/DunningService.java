@@ -2,6 +2,7 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.entity.CustomerActivity;
 import com.pdv2cloud.model.entity.CustomerTask;
+import com.pdv2cloud.tenancy.TenantContext;
 import com.pdv2cloud.model.entity.DunningLog;
 import com.pdv2cloud.model.entity.DunningRule;
 import com.pdv2cloud.model.entity.Market;
@@ -78,6 +79,14 @@ public class DunningService {
     @Scheduled(cron = "0 0 9 * * *")
     @Transactional
     public DunningRunResult run() {
+        // A régua percorre faturas de todos os mercados e roda sem usuário. Sob
+        // RLS, sem escopo de sistema ela não enxergaria fatura nenhuma e
+        // "concluiria" sem cobrar ninguém — falha silenciosa exatamente no
+        // fluxo de receita.
+        return TenantContext.runAsSystem(this::executeRun);
+    }
+
+    private DunningRunResult executeRun() {
         List<DunningRule> rules = ruleRepository.findByIsActiveTrueOrderByDaysOffsetAsc();
         if (rules.isEmpty()) {
             return new DunningRunResult(0, 0, List.of());

@@ -2,8 +2,11 @@ import time
 import hmac
 import hashlib
 import json
+import logging
 from typing import Dict
 import requests
+
+logger = logging.getLogger("PDV2Cloud.Transmitter")
 
 
 class QuotaExceededError(Exception):
@@ -101,12 +104,22 @@ class APITransmitter:
                     return True
 
                 status = str(payload.get("status") or "").upper()
-                if status in {"SUCCESS", "DUPLICATE"}:
+                # DUPLICATE conta como entregue: a nota já está no servidor,
+                # reenviar não muda nada. Fica registrado à parte de SUCCESS
+                # porque a distinção é justamente o que faltou quando um
+                # mercado inteiro recebeu DUPLICATE por causa de uma constraint
+                # global e ninguém percebeu que nada estava sendo gravado.
+                if status == "DUPLICATE":
+                    logger.info(
+                        "Nota ja registrada no servidor | chave=%s",
+                        payload.get("chaveNFe") or "?",
+                    )
+                    return True
+                if status == "SUCCESS":
                     return True
 
                 message = str(payload.get("message") or response.text or "Unknown ingest error").strip()
                 raise RuntimeError(f"Ingest rejected with status={status or 'UNKNOWN'}: {message}")
-                return True
             except (requests.exceptions.RequestException, RuntimeError) as exc:
                 last_exception = exc
                 # Avoid sleeping after the final attempt.

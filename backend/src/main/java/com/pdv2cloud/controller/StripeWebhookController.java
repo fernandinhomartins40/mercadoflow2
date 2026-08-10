@@ -4,6 +4,7 @@ import com.pdv2cloud.repository.StripeProcessedEventRepository;
 import com.pdv2cloud.model.entity.StripeProcessedEvent;
 import com.pdv2cloud.service.InvoiceReconciliationService;
 import com.pdv2cloud.service.StripeService;
+import com.pdv2cloud.tenancy.TenantContext;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.model.Invoice;
@@ -83,13 +84,17 @@ public class StripeWebhookController {
             return ResponseEntity.badRequest().body("malformed");
         }
 
-        if (processedEventRepository.existsById(event.getId())) {
+        if (TenantContext.runAsSystem(() -> processedEventRepository.existsById(event.getId()))) {
             log.debug("Evento {} já processado — reenvio ignorado", event.getId());
             return ResponseEntity.ok("duplicate");
         }
 
         try {
-            process(event);
+            // Webhook chega sem usuário e sem tenant: o mercado a atualizar é
+            // descoberto pelo customer do Stripe. Sob RLS isso é fail-closed —
+            // sem escopo de sistema, o processamento não enxergaria mercado
+            // nenhum e o pagamento nunca seria baixado.
+            TenantContext.runAsSystem(() -> process(event));
         } catch (Exception exc) {
             // 200 mesmo assim: reenviar não corrigiria um erro nosso, e manteria
             // o Stripe tentando por dias. O log é a trilha para investigar.
@@ -98,10 +103,14 @@ public class StripeWebhookController {
             return ResponseEntity.ok("error-logged");
         }
 
-        StripeProcessedEvent processed = new StripeProcessedEvent();
-        processed.setEventId(event.getId());
-        processed.setEventType(event.getType());
-        processedEventRepository.save(processed);
+        // Também sob escopo de sistema: a tabela tem market_id e a gravação
+        // acontece fora de qualquer request de usuário.
+        TenantContext.runAsSystem(() -> {
+            StripeProcessedEvent processed = new StripeProcessedEvent();
+            processed.setEventId(event.getId());
+            processed.setEventType(event.getType());
+            processedEventRepository.save(processed);
+        });
 
         return ResponseEntity.ok("ok");
     }

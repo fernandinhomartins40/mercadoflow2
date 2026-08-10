@@ -27,3 +27,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_invoices_chave_nfe_market
 COMMENT ON INDEX ux_invoices_chave_nfe_market IS
     'Chave de NF-e é única por mercado. Global impedia que dois mercados '
     'coletassem a mesma chave e fazia o segundo perder a nota em silêncio.';
+
+-- Índice não-único herdado do desenho anterior. O novo índice já atende as
+-- buscas por chave (é prefixo dele), então manter os dois só custa escrita.
+DROP INDEX IF EXISTS idx_chave_nfe;

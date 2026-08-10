@@ -2,6 +2,7 @@ package com.pdv2cloud.security;
 
 import com.pdv2cloud.model.entity.AgentApiKey;
 import com.pdv2cloud.repository.AgentApiKeyRepository;
+import com.pdv2cloud.tenancy.TenantContext;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -31,14 +32,24 @@ public class AgentApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String apiKey = resolveApiKey(request);
         if (StringUtils.hasText(apiKey)) {
             String keyHash = sha256Hex(apiKey);
-            apiKeyRepository.findByKeyHashAndIsActiveTrue(keyHash).ifPresent(record -> {
-                record.setLastUsedAt(LocalDateTime.now());
-                apiKeyRepository.save(record);
-                AgentPrincipal principal = new AgentPrincipal(record.getId(), record.getMarket().getId(), apiKey, record.getName());
-                AgentAuthenticationToken authentication = new AgentAuthenticationToken(principal);
-                org.springframework.security.core.context.SecurityContextHolder.getContext()
-                    .setAuthentication(authentication);
-            });
+            // Escopo de sistema: é esta consulta que DESCOBRE o mercado do
+            // agente, então ela roda necessariamente antes de haver tenant na
+            // sessão. Sob RLS, sem isso a chave nunca seria encontrada e todo o
+            // envio de notas passaria a responder 403.
+            //
+            // A autorização não é enfraquecida: a busca é por hash da chave
+            // apresentada, e o escopo do agente é fixado logo abaixo, no
+            // principal que o TenantAccessFilter usa.
+            TenantContext.runAsSystem(() ->
+                apiKeyRepository.findByKeyHashAndIsActiveTrue(keyHash).ifPresent(record -> {
+                    record.setLastUsedAt(LocalDateTime.now());
+                    apiKeyRepository.save(record);
+                    AgentPrincipal principal = new AgentPrincipal(record.getId(), record.getMarket().getId(), apiKey, record.getName());
+                    AgentAuthenticationToken authentication = new AgentAuthenticationToken(principal);
+                    org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .setAuthentication(authentication);
+                })
+            );
         }
         filterChain.doFilter(request, response);
     }

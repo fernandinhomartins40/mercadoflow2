@@ -5,6 +5,7 @@ import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.RegisterRequest;
 import com.pdv2cloud.model.dto.RegisterResponse;
 import com.pdv2cloud.model.entity.Market;
+import com.pdv2cloud.tenancy.TenantContext;
 import com.pdv2cloud.model.entity.MarketBillingStatus;
 import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.model.entity.User;
@@ -49,6 +50,14 @@ public class AuthService {
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
+        // O cadastro público cria o mercado e o primeiro usuário sem que exista
+        // tenant na sessão — é ele que dá origem ao tenant. Sob RLS, a inserção
+        // seria recusada pela política (market_id não bate com a sessão vazia),
+        // então o fluxo roda com escopo de sistema.
+        return TenantContext.runAsSystem(() -> doRegister(request));
+    }
+
+    private RegisterResponse doRegister(RegisterRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
         if (userRepository.findForAuthenticationByEmail(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email ja cadastrado");

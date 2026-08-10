@@ -1,6 +1,7 @@
 package com.pdv2cloud.tenancy;
 
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Contexto de tenant do request corrente.
@@ -33,5 +34,42 @@ public final class TenantContext {
 
     public static void clear() {
         CURRENT.remove();
+    }
+
+    /**
+     * Executa trabalho de sistema com escopo global (webhooks do Stripe, jobs
+     * agendados, migrações de dados).
+     *
+     * Sem isto, esse código roda sem tenant na sessão: hoje isso é inofensivo
+     * porque a role da aplicação ignora RLS, mas assim que ela passa a
+     * respeitá-lo o comportamento vira fail-closed — o webhook de pagamento não
+     * encontraria o mercado a atualizar e a régua de cobrança não veria fatura
+     * alguma, os dois falhando em silêncio.
+     *
+     * Deve envolver apenas trabalho que é legitimamente global. Requisição de
+     * usuário nunca passa por aqui: o escopo dela vem do principal autenticado.
+     *
+     * O contexto anterior é restaurado no finally, e não simplesmente limpo,
+     * para que a chamada seja segura dentro de um request já escopado.
+     */
+    public static <T> T runAsSystem(Supplier<T> work) {
+        TenantInfo previous = CURRENT.get();
+        CURRENT.set(new TenantInfo(null, true));
+        try {
+            return work.get();
+        } finally {
+            if (previous != null) {
+                CURRENT.set(previous);
+            } else {
+                CURRENT.remove();
+            }
+        }
+    }
+
+    public static void runAsSystem(Runnable work) {
+        runAsSystem(() -> {
+            work.run();
+            return null;
+        });
     }
 }

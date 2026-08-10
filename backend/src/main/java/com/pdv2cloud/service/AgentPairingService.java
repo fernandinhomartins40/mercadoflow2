@@ -3,6 +3,7 @@ package com.pdv2cloud.service;
 import com.pdv2cloud.model.entity.AgentApiKey;
 import com.pdv2cloud.model.entity.AgentPairingSession;
 import com.pdv2cloud.model.entity.Market;
+import com.pdv2cloud.tenancy.TenantContext;
 import com.pdv2cloud.model.entity.PDV;
 import com.pdv2cloud.repository.AgentPairingSessionRepository;
 import com.pdv2cloud.repository.MarketRepository;
@@ -55,8 +56,17 @@ public class AgentPairingService {
 
     // ── Passo 1: o agente inicia o pareamento (rota publica, sem credencial) ──
 
+    /**
+     * Roda com escopo de sistema: nesta etapa o agente ainda não tem chave e a
+     * sessão não pertence a mercado nenhum — o vínculo só existe após o
+     * approve. Sob RLS, sem isso a sessão não poderia ser criada nem relida.
+     */
     @Transactional
     public StartedPairing start(String hostname) {
+        return TenantContext.runAsSystem(() -> doStart(hostname));
+    }
+
+    private StartedPairing doStart(String hostname) {
         String userCode = generateUniqueUserCode();
         String agentSecret = generateAgentSecret();
 
@@ -143,6 +153,13 @@ public class AgentPairingService {
      */
     @Transactional
     public ClaimResult claim(String userCode, String agentSecret) {
+        // Escopo de sistema: o agente resgata a chave antes de possuir
+        // credencial, então não há tenant na sessão. A autorização aqui é o
+        // segredo verificado logo abaixo, não o RLS.
+        return TenantContext.runAsSystem(() -> doClaim(userCode, agentSecret));
+    }
+
+    private ClaimResult doClaim(String userCode, String agentSecret) {
         AgentPairingSession session = pairingRepository.findByUserCode(normalizeCode(userCode))
             .orElseThrow(() -> new IllegalArgumentException("Código de pareamento não encontrado"));
 
@@ -187,6 +204,11 @@ public class AgentPairingService {
 
     @Transactional
     public void cancel(String userCode) {
+        // Rota publica: o agente desiste antes de ter credencial.
+        TenantContext.runAsSystem(() -> doCancel(userCode));
+    }
+
+    private void doCancel(String userCode) {
         pairingRepository.findByUserCode(normalizeCode(userCode)).ifPresent(session -> {
             if (session.getStatus() == AgentPairingSession.Status.PENDING
                 || session.getStatus() == AgentPairingSession.Status.APPROVED) {
@@ -201,10 +223,13 @@ public class AgentPairingService {
     @Scheduled(fixedDelay = 3_600_000L)
     @Transactional
     public void expireStaleSessions() {
-        int expired = pairingRepository.expireStaleSessions(LocalDateTime.now());
-        if (expired > 0) {
-            log.info("Sessoes de pareamento expiradas: {}", expired);
-        }
+        // Varre sessoes de todos os mercados, sem usuario no contexto.
+        TenantContext.runAsSystem(() -> {
+            int expired = pairingRepository.expireStaleSessions(LocalDateTime.now());
+            if (expired > 0) {
+                log.info("Sessoes de pareamento expiradas: {}", expired);
+            }
+        });
     }
 
     public String buildPairingUrl(String userCode) {
