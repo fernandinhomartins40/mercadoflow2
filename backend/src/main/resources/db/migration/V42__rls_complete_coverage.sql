@@ -65,3 +65,13 @@ CREATE POLICY users_modify ON users FOR ALL USING (
 COMMENT ON TABLE users IS
     'RLS: escrita restrita ao próprio mercado; SELECT liberado porque o login '
     'consulta por e-mail antes de haver tenant na sessão.';
+
+-- Índice não-único herdado do desenho anterior, quando a chave de NF-e era
+-- global. O índice único (chave_nfe, market_id) criado na V39 já atende as
+-- buscas por chave, porque chave_nfe é o prefixo dele; manter os dois só custa
+-- escrita a cada nota ingerida.
+--
+-- Fica aqui, e não na V39, porque a V39 já foi aplicada em produção: editar uma
+-- migração aplicada muda seu checksum e o Flyway se recusa a subir — foi
+-- exatamente o que derrubou o backend por 7 horas.
+DROP INDEX IF EXISTS idx_chave_nfe;
