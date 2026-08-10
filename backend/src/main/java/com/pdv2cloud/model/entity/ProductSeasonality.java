@@ -5,7 +5,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 /**
  * Índice sazonal de venda por período (ver V31__working_capital_intelligence.sql).
@@ -15,9 +17,19 @@ import lombok.NoArgsConstructor;
  * da janela de promoção (descontar quando o produto já vende sozinho costuma
  * ser desperdício de margem).
  */
+/**
+ * equals/hashCode/toString apenas pelo id.
+ *
+ * O @Data do Lombok inclui todos os campos, e relacionamentos bidirecionais
+ * fazem o hashCode de uma entidade chamar o da outra em ciclo — foi o que
+ * derrubou a ingestao de notas com StackOverflowError. Comparar entidade JPA
+ * pelo id tambem evita tocar em colecao lazy so para calcular igualdade.
+ */
 @Entity
 @Table(name = "product_seasonality")
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 public class ProductSeasonality {
 
@@ -31,6 +43,8 @@ public class ProductSeasonality {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)

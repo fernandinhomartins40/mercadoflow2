@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 /**
  * Linha do tempo de uma conta (ver V38__commercial_crm.sql).
@@ -14,9 +16,19 @@ import lombok.NoArgsConstructor;
  * {@link #automated} separa os dois na interface: sem essa distinção, uma nota
  * escrita à mão se perderia no meio de dezenas de eventos automáticos.
  */
+/**
+ * equals/hashCode/toString apenas pelo id.
+ *
+ * O @Data do Lombok inclui todos os campos, e relacionamentos bidirecionais
+ * fazem o hashCode de uma entidade chamar o da outra em ciclo — foi o que
+ * derrubou a ingestao de notas com StackOverflowError. Comparar entidade JPA
+ * pelo id tambem evita tocar em colecao lazy so para calcular igualdade.
+ */
 @Entity
 @Table(name = "customer_activities")
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 public class CustomerActivity {
 
@@ -37,6 +49,8 @@ public class CustomerActivity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)

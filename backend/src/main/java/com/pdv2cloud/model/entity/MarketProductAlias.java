@@ -4,8 +4,18 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
+/**
+ * equals/hashCode/toString apenas pelo id.
+ *
+ * O @Data do Lombok inclui todos os campos, e relacionamentos bidirecionais
+ * fazem o hashCode de uma entidade chamar o da outra em ciclo — foi o que
+ * derrubou a ingestao de notas com StackOverflowError. Comparar entidade JPA
+ * pelo id tambem evita tocar em colecao lazy so para calcular igualdade.
+ */
 @Entity
 @Table(
     name = "market_product_aliases",
@@ -17,10 +27,14 @@ import lombok.NoArgsConstructor;
     }
 )
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 public class MarketProductAlias {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)

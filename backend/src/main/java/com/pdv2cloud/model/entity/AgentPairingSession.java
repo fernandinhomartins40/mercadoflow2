@@ -4,7 +4,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 /**
  * Sessao de pareamento do Agente Mercado Flow (ver V30__agent_pairing_sessions.sql).
@@ -12,9 +14,19 @@ import lombok.NoArgsConstructor;
  * A API key em texto puro vive em {@link #issuedApiKey} apenas entre a aprovacao
  * pelo usuario e o resgate pelo agente; depois disso o campo e zerado.
  */
+/**
+ * equals/hashCode/toString apenas pelo id.
+ *
+ * O @Data do Lombok inclui todos os campos, e relacionamentos bidirecionais
+ * fazem o hashCode de uma entidade chamar o da outra em ciclo — foi o que
+ * derrubou a ingestao de notas com StackOverflowError. Comparar entidade JPA
+ * pelo id tambem evita tocar em colecao lazy so para calcular igualdade.
+ */
 @Entity
 @Table(name = "agent_pairing_sessions")
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 public class AgentPairingSession {
 
@@ -28,6 +40,8 @@ public class AgentPairingSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private UUID id;
 
     @Column(name = "user_code", nullable = false, unique = true, length = 16)
