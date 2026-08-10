@@ -87,49 +87,40 @@ jobs:
           printf '%s' "${{ secrets.VPS_PASSWORD }}" > ~/.ssh/vps_password
           chmod 600 ~/.ssh/vps_password
 
-      # Primeiro contato com a VPS. A rota entre os runners do GitHub e a
-      # Hostinger cai de forma intermitente: em 10/08 dois deploys falharam aqui
-      # por "Connection timed out" com o servidor saudavel (sshd escutando, sem
-      # ufw, sem fail2ban, zero regras de bloqueio) e outros tres passaram na
-      # mesma tarde.
+      # Primeiro contato com a VPS.
       #
-      # A primeira versao deste retry usou 5 tentativas a cada 15s: as cinco
-      # cairam dentro da mesma janela ruim, ~75s no total. O intervalo cresce
-      # ate 2min para atravessar apagoes mais longos, somando ~10min de janela.
+      # A porta 22 e alcancavel da internet (sshd escutando, sem ufw, sem
+      # fail2ban, nenhuma regra bloqueando a 22), mas alguns runners nao
+      # chegam la: a Hostinger filtra por reputacao faixas de datacenter, e o
+      # GitHub sorteia o runner entre ~7300 faixas, quase todas Azure. Em
+      # 10/08, tres deploys passaram e tres falharam — depende do IP sorteado.
+      #
+      # Por isso NAO ha laco de retry aqui. Insistir do mesmo runner repete o
+      # mesmo IP ja rejeitado: a versao anterior gastou 10 minutos em 9
+      # tentativas sem nenhuma chance a mais de sucesso. Uma tentativa curta,
+      # e o job inteiro e refeito (num runner novo, com IP novo) pelo passo de
+      # retry abaixo.
       - name: Ensure application directory exists on VPS
-        timeout-minutes: 15
+        id: contato
+        timeout-minutes: 3
         run: |
           set -euo pipefail
-          esperas="15 30 45 60 90 120 120 120"
-          tentativa=0
-          for espera in $esperas; do
-            tentativa=$((tentativa + 1))
-            if sshpass -f ~/.ssh/vps_password ssh \
+          if ! sshpass -f ~/.ssh/vps_password ssh \
                  -o StrictHostKeyChecking=no \
-                 -o ConnectTimeout=25 \
-                 -o ServerAliveInterval=15 \
+                 -o ConnectTimeout=30 \
                  root@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"; then
-              echo "Conectado (tentativa ${tentativa})."
-              exit 0
-            fi
-            echo "Sem conexao (tentativa ${tentativa}); nova tentativa em ${espera}s..."
-            sleep "$espera"
-          done
-
-          # Ultima tentativa depois da maior espera, para nao desistir
-          # exatamente no fim do backoff.
-          if sshpass -f ~/.ssh/vps_password ssh \
-               -o StrictHostKeyChecking=no \
-               -o ConnectTimeout=25 \
-               root@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"; then
-            echo "Conectado na tentativa final."
-            exit 0
+            echo
+            echo "Este runner nao alcanca a porta 22 da VPS."
+            echo "IP de saida deste runner: $(curl -s --max-time 10 ifconfig.me || echo 'indisponivel')"
+            echo
+            echo "A aplicacao provavelmente esta no ar — confira:"
+            echo "  https://mercadoflow.com/api/v1/health"
+            echo
+            echo "Solucao: 'Re-run all jobs'. O novo runner recebe outro IP e"
+            echo "costuma passar. Se falhar varias vezes seguidas, peca a"
+            echo "Hostinger para liberar as faixas do GitHub Actions na porta 22."
+            exit 1
           fi
-
-          echo "ERRO: VPS inacessivel apos $((tentativa + 1)) tentativas em ~10min."
-          echo "O servidor pode estar no ar e inacessivel apenas a partir do runner:"
-          echo "verifique em https://mercadoflow.com/api/v1/health antes de investigar a VPS."
-          exit 1
 
       - name: Sync code to VPS
         run: |
