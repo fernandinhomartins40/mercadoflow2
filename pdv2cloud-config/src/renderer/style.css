@@ -75,7 +75,11 @@ body {
 }
 
 /* ── Inputs ──────────────────────────────────────────────────────────────── */
-input, textarea, select {
+/* :not(checkbox/radio) porque estes nao sao campos de texto: o width:100%
+   fazia a caixa de selecao esticar por toda a largura do container e espremer
+   o texto ao lado — na lista de pastas o caminho chegava a quebrar uma letra
+   por linha. */
+input:not([type="checkbox"]):not([type="radio"]), textarea, select {
   width: 100%;
   padding: 10px 12px;
   border-radius: var(--radius-md);
@@ -87,9 +91,19 @@ input, textarea, select {
   outline: none;
 }
 
-input:focus, textarea:focus, select:focus {
+input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus {
   border-color: var(--brand-500);
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+/* Dimensao propria, imune ao flex do container. */
+input[type="checkbox"], input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+  accent-color: var(--brand-500);
+  cursor: pointer;
 }
 
 label {

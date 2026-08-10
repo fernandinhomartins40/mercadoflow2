@@ -512,9 +512,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
                     type="checkbox"
                     checked={checked}
                     onChange={() => togglePath(candidate.path)}
-                    // shrink:0 impede que o flex esprema a caixa de seleção
-                    // quando o caminho é longo.
-                    style={{ marginTop: '3px', flexShrink: 0 }}
+                    style={{ marginTop: '3px' }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
