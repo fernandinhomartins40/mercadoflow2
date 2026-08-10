@@ -87,10 +87,27 @@ jobs:
           printf '%s' "${{ secrets.VPS_PASSWORD }}" > ~/.ssh/vps_password
           chmod 600 ~/.ssh/vps_password
 
+      # Primeiro contato com a VPS no deploy. Sem retry, uma oscilacao de rede
+      # de poucos segundos aborta a esteira inteira — foi o que aconteceu em
+      # 10/08: o passo levou 2min16s e falhou por timeout de conexao, com o
+      # servidor saudavel e sem nada a ver com a mudanca sendo publicada.
       - name: Ensure application directory exists on VPS
         run: |
-          sshpass -f ~/.ssh/vps_password ssh -o StrictHostKeyChecking=no root@${VPS_HOST} \
-            "mkdir -p ${VPS_APP_DIR}"
+          set -euo pipefail
+          for tentativa in 1 2 3 4 5; do
+            if sshpass -f ~/.ssh/vps_password ssh \
+                 -o StrictHostKeyChecking=no \
+                 -o ConnectTimeout=20 \
+                 -o ServerAliveInterval=15 \
+                 root@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"; then
+              echo "Conectado (tentativa ${tentativa})."
+              exit 0
+            fi
+            echo "Falha de conexao na tentativa ${tentativa}; nova tentativa em 15s..."
+            sleep 15
+          done
+          echo "ERRO: VPS inacessivel apos 5 tentativas."
+          exit 1
 
       - name: Sync code to VPS
         run: |
@@ -109,6 +126,8 @@ jobs:
             --exclude='.env.local' \
             --exclude='.db_secret' \
             --exclude='.jwt_secret' \
+            --exclude='.app_role_secret' \
+            --exclude='.env.bak-*' \
             --exclude='data/catalog' \
             --exclude='data/catalog/**' \
             --exclude='backups' \

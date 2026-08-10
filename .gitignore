@@ -24,6 +24,14 @@ data/catalog/supermarket_products.csv
 # Credenciais nunca devem ser versionadas
 CREDENTIALS.md
 SUPER_ADMIN_TEST_CREDENTIALS.md
+
+# Segredos gerados pelo deploy e mantidos apenas na VPS. Hoje nao existem no
+# repositorio, mas nada impedia que um `git add -A` rodado no servidor os
+# trouxesse junto.
+.jwt_secret
+.db_secret
+.app_role_secret
+.env.bak-*
 *credentials*.md
 pdv2cloud-agent/installer/Output/*.exe
 pdv2cloud-agent/installer/Output/*.sha256
