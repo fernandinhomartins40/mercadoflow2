@@ -89,94 +89,49 @@ jobs:
 
           pwsh -ExecutionPolicy Bypass -File "pdv2cloud-agent/scripts/build-installer.ps1" @params
 
-      # Envia direto do runner que compilou, sem passar por artefato.
+      # O artefato é o transporte entre o runner Windows (que compila) e o
+      # Ubuntu (que envia à VPS).
       #
-      # O fluxo anterior subia ~107 MB por arch como artefato só para o job
-      # seguinte baixar e repassar à VPS. Isso estourou a cota de storage do
-      # Actions e derrubou a build inteira depois de compilar com sucesso —
-      # os artefatos eram intermediários descartáveis, mas ocupavam cota por
-      # 90 dias. O runner alcança a VPS sozinho, então o intermediário sai.
-      - name: Enviar para a VPS (${{ matrix.arch }})
-        shell: bash
-        env:
-          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
-        run: |
-          set -euo pipefail
+      # Enviar direto daqui parecia melhor — corta o intermediário e não gasta
+      # cota — mas o runner Windows não alcança a porta 22 da VPS: dá
+      # "Network error: Connection timed out". Quem sempre falou com o servidor
+      # foi o job Ubuntu, e é a rota que comprovadamente funciona.
+      #
+      # O que causou o estouro de cota não foi existir artefato, e sim retê-lo
+      # por 90 dias (o padrão) sendo que ele vive uns poucos minutos entre os
+      # dois jobs. Com 1 dia, o custo de storage é desprezível.
+      - name: Upload Artifact (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv2cloud-installer-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0   # .exe já vem comprimido; recomprimir só custa tempo
+          path: |
+            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe
+            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.sha256
+            pdv2cloud-agent/installer/Output/AgenteMercadoFlow-Setup${{ matrix.arch == 'x86' && '-x86' || '' }}.exe.meta.json
 
-          VPS_HOST="72.60.10.112"
-          VPS_USER="root"
-          TARGET_DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
-          SUFFIX="${{ matrix.arch == 'x86' && '-x86' || '' }}"
-          OUT="pdv2cloud-agent/installer/Output"
-
-          # O runner Windows tem ssh/scp (OpenSSH) mas nao tem sshpass, e o
-          # OpenSSH nao aceita senha em modo nao interativo. O plink do PuTTY
-          # cobre isso — mas o caminho de instalacao do Chocolatey varia, entao
-          # ele e localizado em vez de assumido: fixar
-          # "/c/Program Files/PuTTY" quebrou a build com exit 127.
-          choco install putty.install -y --no-progress >/dev/null 2>&1 || true
-
-          find_tool() {
-            local name="$1"
-            command -v "$name" 2>/dev/null && return 0
-            local c
-            for c in "/c/Program Files/PuTTY/$name.exe" \
-                     "/c/Program Files (x86)/PuTTY/$name.exe" \
-                     "/c/ProgramData/chocolatey/bin/$name.exe"; do
-              [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
-            done
-            return 1
-          }
-
-          PLINK=$(find_tool plink) || { echo "ERRO: plink nao encontrado"; exit 1; }
-          PSCP=$(find_tool pscp)   || { echo "ERRO: pscp nao encontrado";  exit 1; }
-          echo "plink: $PLINK"
-          echo "pscp:  $PSCP"
-
-          # Registra a chave do host uma vez. Em -batch o plink recusa host
-          # desconhecido e aborta, e -hostkey exige a fingerprint literal
-          # ("*" nao e aceito: "not a valid format for a manual host key").
-          # Alimentar "y" no prompt sem -batch grava a chave no registro do
-          # runner, e as chamadas seguintes ja a encontram.
-          echo y | "$PLINK" -ssh -pw "$VPS_PASSWORD" \
-            "$VPS_USER@$VPS_HOST" "true" >/dev/null 2>&1 || true
-
-          ssh_run() {
-            "$PLINK" -ssh -batch -pw "$VPS_PASSWORD" \
-              "$VPS_USER@$VPS_HOST" "$1"
-          }
-
-          # Falha aqui se a chave nao foi aceita, antes de tentar enviar 107 MB.
-          ssh_run "mkdir -p '$TARGET_DIR'"
-
-          for f in \
-            "AgenteMercadoFlow-Setup$SUFFIX.exe" \
-            "AgenteMercadoFlow-Setup$SUFFIX.exe.sha256" \
-            "AgenteMercadoFlow-Setup$SUFFIX.exe.meta.json"; do
-
-            if [ ! -f "$OUT/$f" ]; then
-              echo "ERRO: build nao gerou $f"
-              exit 1
-            fi
-
-            echo "Enviando $f..."
-            "$PSCP" -batch -pw "$VPS_PASSWORD" \
-              "$OUT/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
-
-            # Publica com mv: o download nunca enxerga um arquivo pela metade.
-            ssh_run "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f'"
-          done
-
-          echo "Enviado ${{ matrix.arch }}."
-
-  # ── Publica: os dois arquivos já estão na VPS; recarrega e confere ────────
+  # ── Publica: baixa os dois arquivos, envia à VPS, recarrega e confere ─────
   publicar:
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 20
 
     steps:
-      - name: Reiniciar backend e verificar publicação
+      - name: Baixar instalador x64
+        uses: actions/download-artifact@v4
+        with:
+          name: pdv2cloud-installer-x64
+          path: installer
+
+      - name: Baixar instalador x86
+        uses: actions/download-artifact@v4
+        with:
+          name: pdv2cloud-installer-x86
+          path: installer
+
+      - name: Enviar para a VPS e verificar publicação
         env:
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
@@ -191,6 +146,31 @@ jobs:
             sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no \
               "$VPS_USER@$VPS_HOST" "$1"
           }
+
+          ssh_run "mkdir -p '$TARGET_DIR'"
+
+          for f in \
+            AgenteMercadoFlow-Setup.exe \
+            AgenteMercadoFlow-Setup.exe.sha256 \
+            AgenteMercadoFlow-Setup.exe.meta.json \
+            AgenteMercadoFlow-Setup-x86.exe \
+            AgenteMercadoFlow-Setup-x86.exe.sha256 \
+            AgenteMercadoFlow-Setup-x86.exe.meta.json; do
+
+            # Falta de arquivo aqui é erro: antes isso era só um aviso e o job
+            # seguia verde publicando pela metade.
+            if [ ! -f "installer/$f" ]; then
+              echo "ERRO: artefato nao trouxe $f"
+              exit 1
+            fi
+
+            echo "Enviando $f..."
+            sshpass -p "$VPS_PASSWORD" scp -o StrictHostKeyChecking=no \
+              "installer/$f" "$VPS_USER@$VPS_HOST:$TARGET_DIR/$f.new"
+
+            # Publica com mv: o download nunca enxerga um arquivo pela metade.
+            ssh_run "mv -f '$TARGET_DIR/$f.new' '$TARGET_DIR/$f'"
+          done
 
           echo "Arquivos publicados:"
           ssh_run "ls -lh '$TARGET_DIR'"
