@@ -178,21 +178,39 @@ jobs:
           echo "Reiniciando backend para recarregar instaladores..."
           ssh_run "cd /root/mercadoflow-web && docker compose -f docker-compose.vps.yml restart mercadoflow-backend"
 
-          # Espera o backend responder em vez de dormir um tempo fixo. O
-          # "sleep 10" anterior perdia a corrida com a subida do Spring: o
-          # curl pegava a aplicação ainda inicializando, e o -f derrubava o
-          # job com exit 22 depois de uma publicação que dera certo.
-          echo "Aguardando o backend ficar pronto..."
+          # ── Verificação ────────────────────────────────────────────────────
+          #
+          # Daqui em diante nada pode abortar o script por conta do `set -e`: a
+          # consulta à API falha por design enquanto o Spring sobe, e é isso que
+          # o laço abaixo está medindo. As chamadas ficam fora de `if`/`while`
+          # e o código de saída é capturado na mão — com `if ssh_run ...` o
+          # script morria antes mesmo de imprimir a primeira mensagem, e o job
+          # aparecia como exit 22 logo após uma publicação bem-sucedida.
+          #
+          # `curl -f` responde 22 em 4xx/5xx, que é exatamente o que a aplicação
+          # devolve durante a inicialização.
+          consultar() {
+            local arch="$1" out rc
+            out=$(ssh_run "curl -sf 'http://localhost:3300/api/v1/downloads/agent-installer/version?arch=$arch'" 2>/dev/null) && rc=0 || rc=$?
+            printf '%s' "$out"
+            return $rc
+          }
+
+          echo "Aguardando o backend ficar pronto (ate 150s)..."
           pronto=0
-          for _ in $(seq 1 30); do
-            if ssh_run "curl -sf -o /dev/null 'http://localhost:3300/api/v1/downloads/agent-installer/version'"; then
+          for tentativa in $(seq 1 30); do
+            corpo=$(consultar x64) && rc=0 || rc=$?
+            if [ "$rc" -eq 0 ] && [ -n "$corpo" ]; then
+              echo "  backend respondeu na tentativa $tentativa."
               pronto=1
               break
             fi
             sleep 5
           done
+
           if [ "$pronto" -ne 1 ]; then
             echo "ERRO: backend nao respondeu em 150s apos o restart."
+            ssh_run "docker logs --tail 40 mercadoflow-backend" || true
             exit 1
           fi
 
@@ -201,15 +219,21 @@ jobs:
           # assim que o instalador ficou três meses desatualizado sem aviso.
           for arch in x64 x86; do
             echo "Verificando $arch..."
-            body=$(ssh_run "curl -sf 'http://localhost:3300/api/v1/downloads/agent-installer/version?arch=$arch'")
-            echo "  $body"
+            corpo=$(consultar "$arch") && rc=0 || rc=$?
+            echo "  $corpo"
 
-            case "$body" in
+            if [ "$rc" -ne 0 ]; then
+              echo "ERRO: API nao respondeu para $arch (curl rc=$rc)."
+              exit 1
+            fi
+
+            case "$corpo" in
               *'"status":"legacy"'*|*'"status": "legacy"'*)
                 echo "ERRO: API ainda serve o instalador legado em $arch."
                 exit 1
                 ;;
               *'"status":"available"'*|*'"status": "available"'*)
+                echo "  OK"
                 ;;
               *)
                 echo "ERRO: resposta inesperada da API para $arch."
