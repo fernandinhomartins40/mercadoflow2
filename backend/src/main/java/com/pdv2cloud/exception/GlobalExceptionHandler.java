@@ -3,6 +3,7 @@ package com.pdv2cloud.exception;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomExceptions.InvalidSignature.class)
@@ -89,8 +91,18 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+    /**
+     * Rede de segurança para o que não tem handler específico.
+     *
+     * O log com a exceção é o ponto principal: sem ele, todo erro interno vira
+     * um JSON genérico e desaparece — um StackOverflowError na ingestão custou
+     * horas de investigação porque nada do stack trace chegava ao log, e a
+     * mensagem ao cliente ("contacte o suporte") não diz nada a quem precisa
+     * corrigir.
+     */
+    @ExceptionHandler(Throwable.class)
+    public ResponseEntity<Map<String, Object>> handleGeneric(Throwable ex) {
+        log.error("Erro nao tratado: {}", ex.toString(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody(
             "internal_error",
             ex.getMessage(),
