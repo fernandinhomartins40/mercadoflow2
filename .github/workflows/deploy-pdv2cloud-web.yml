@@ -87,26 +87,48 @@ jobs:
           printf '%s' "${{ secrets.VPS_PASSWORD }}" > ~/.ssh/vps_password
           chmod 600 ~/.ssh/vps_password
 
-      # Primeiro contato com a VPS no deploy. Sem retry, uma oscilacao de rede
-      # de poucos segundos aborta a esteira inteira — foi o que aconteceu em
-      # 10/08: o passo levou 2min16s e falhou por timeout de conexao, com o
-      # servidor saudavel e sem nada a ver com a mudanca sendo publicada.
+      # Primeiro contato com a VPS. A rota entre os runners do GitHub e a
+      # Hostinger cai de forma intermitente: em 10/08 dois deploys falharam aqui
+      # por "Connection timed out" com o servidor saudavel (sshd escutando, sem
+      # ufw, sem fail2ban, zero regras de bloqueio) e outros tres passaram na
+      # mesma tarde.
+      #
+      # A primeira versao deste retry usou 5 tentativas a cada 15s: as cinco
+      # cairam dentro da mesma janela ruim, ~75s no total. O intervalo cresce
+      # ate 2min para atravessar apagoes mais longos, somando ~10min de janela.
       - name: Ensure application directory exists on VPS
+        timeout-minutes: 15
         run: |
           set -euo pipefail
-          for tentativa in 1 2 3 4 5; do
+          esperas="15 30 45 60 90 120 120 120"
+          tentativa=0
+          for espera in $esperas; do
+            tentativa=$((tentativa + 1))
             if sshpass -f ~/.ssh/vps_password ssh \
                  -o StrictHostKeyChecking=no \
-                 -o ConnectTimeout=20 \
+                 -o ConnectTimeout=25 \
                  -o ServerAliveInterval=15 \
                  root@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"; then
               echo "Conectado (tentativa ${tentativa})."
               exit 0
             fi
-            echo "Falha de conexao na tentativa ${tentativa}; nova tentativa em 15s..."
-            sleep 15
+            echo "Sem conexao (tentativa ${tentativa}); nova tentativa em ${espera}s..."
+            sleep "$espera"
           done
-          echo "ERRO: VPS inacessivel apos 5 tentativas."
+
+          # Ultima tentativa depois da maior espera, para nao desistir
+          # exatamente no fim do backoff.
+          if sshpass -f ~/.ssh/vps_password ssh \
+               -o StrictHostKeyChecking=no \
+               -o ConnectTimeout=25 \
+               root@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"; then
+            echo "Conectado na tentativa final."
+            exit 0
+          fi
+
+          echo "ERRO: VPS inacessivel apos $((tentativa + 1)) tentativas em ~10min."
+          echo "O servidor pode estar no ar e inacessivel apenas a partir do runner:"
+          echo "verifique em https://mercadoflow.com/api/v1/health antes de investigar a VPS."
           exit 1
 
       - name: Sync code to VPS
