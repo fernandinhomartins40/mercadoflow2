@@ -16,7 +16,14 @@ import com.pdv2cloud.model.dto.ProductAnalyticsDTO;
 import com.pdv2cloud.model.dto.RecentInvoiceSummaryDTO;
 
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
-    boolean existsByChaveNFe(String chaveNFe);
+    /**
+     * Duplicidade é sempre por mercado.
+     *
+     * A versão global desta consulta (existsByChaveNFe) fazia o segundo mercado
+     * a enviar uma chave já conhecida receber DUPLICATE e perder a nota sem
+     * erro — o agente registrava "enviada" e nada era gravado.
+     */
+    boolean existsByChaveNFeAndMarket_Id(String chaveNFe, UUID marketId);
     long countByMarket_Id(UUID marketId);
     long countByMarket_IdAndProcessedAtAfter(UUID marketId, LocalDateTime since);
     Optional<Invoice> findFirstByMarket_IdOrderByProcessedAtDesc(UUID marketId);

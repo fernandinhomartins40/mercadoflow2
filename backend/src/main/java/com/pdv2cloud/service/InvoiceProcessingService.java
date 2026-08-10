@@ -68,7 +68,7 @@ public class InvoiceProcessingService {
 
     public IngestResponse processInvoice(InvoiceDTO dto, UUID marketId) {
         try {
-            if (invoiceRepository.existsByChaveNFe(dto.getChaveNFe())) {
+            if (invoiceRepository.existsByChaveNFeAndMarket_Id(dto.getChaveNFe(), marketId)) {
                 return IngestResponse.duplicate(dto.getChaveNFe());
             }
 
