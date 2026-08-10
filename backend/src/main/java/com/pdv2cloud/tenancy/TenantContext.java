@@ -66,10 +66,20 @@ public final class TenantContext {
         }
     }
 
+    /**
+     * Variante para trabalho que não devolve valor.
+     *
+     * O Supplier é tipado explicitamente de propósito: escrito como lambda
+     * cru, {@code runAsSystem(() -> { work.run(); return null; })} volta a
+     * casar com esta mesma sobrecarga (Runnable) em vez da de Supplier, e o
+     * método chama a si próprio até estourar a pilha — foi um
+     * StackOverflowError em produção, na primeira nota que o agente enviou.
+     */
     public static void runAsSystem(Runnable work) {
-        runAsSystem(() -> {
+        Supplier<Void> comoSupplier = () -> {
             work.run();
             return null;
-        });
+        };
+        runAsSystem(comoSupplier);
     }
 }
