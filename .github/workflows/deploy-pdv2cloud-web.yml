@@ -28,6 +28,53 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Precisa do histórico para comparar as migrações com o commit
+          # anterior; com o checkout raso (padrão) não há com o que comparar.
+          fetch-depth: 0
+
+      # Migração já aplicada em produção não pode mudar de conteúdo: o Flyway
+      # guarda o checksum e recusa subir quando ele diverge. Editar uma delas
+      # deixou o backend fora do ar por 7 horas, e o erro só apareceu no deploy
+      # — tarde demais. Aqui a esteira para antes de derrubar nada.
+      - name: Verificar migrações já aplicadas
+        run: |
+          set -euo pipefail
+          DIR=backend/src/main/resources/db/migration
+
+          # No primeiro commit do repo não há anterior com que comparar.
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "Sem commit anterior; nada a verificar."
+            exit 0
+          fi
+
+          alteradas=$(git diff --name-only --diff-filter=MD HEAD~1 HEAD -- "$DIR" || true)
+
+          if [ -z "$alteradas" ]; then
+            echo "Nenhuma migração existente foi alterada."
+            exit 0
+          fi
+
+          # Válvula de escape para o caso legítimo: reverter uma migração ao
+          # conteúdo original é justamente como se conserta um checksum já
+          # quebrado. Sem isto, a regra impediria o próprio conserto.
+          if git log -1 --pretty=%B | grep -qiE '\[migracao-revertida\]'; then
+            echo "AVISO: migração alterada, liberada por [migracao-revertida] na mensagem do commit:"
+            echo "$alteradas" | sed 's/^/  - /'
+            echo "Confirme que o conteúdo voltou ao que está aplicado em produção."
+            exit 0
+          fi
+
+          echo "ERRO: migração já versionada foi alterada ou removida:"
+          echo "$alteradas" | sed 's/^/  - /'
+          echo
+          echo "O Flyway valida o checksum de cada migração aplicada e se recusa"
+          echo "a iniciar quando ele muda. Para corrigir o efeito de uma migração"
+          echo "já aplicada, crie uma nova versão em vez de editar a antiga."
+          echo
+          echo "Se esta mudança RESTAURA uma migração ao conteúdo já aplicado,"
+          echo "inclua [migracao-revertida] na mensagem do commit."
+          exit 1
 
       - name: Install SSH tools
         run: |
