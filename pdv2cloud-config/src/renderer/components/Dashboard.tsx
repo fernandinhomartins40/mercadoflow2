@@ -687,7 +687,10 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
           </button>
 
           <button
-            onClick={testConnection}
+            // Sem o wrapper, o React passa o MouseEvent como primeiro
+            // argumento e ele cai no lugar de `options` — o clique virava
+            // uma chamada com options.silent indefinido.
+            onClick={() => testConnection()}
             disabled={testingConnection || !serviceInstalled}
             style={{
               padding: `${spacing.sm} ${spacing.lg}`,

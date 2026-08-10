@@ -502,13 +502,19 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
                     border: `1px solid ${checked ? colors.success[200] : colors.neutral[200]}`,
                     borderRadius: borderRadius.md,
                     cursor: 'pointer',
+                    // Sem largura explícita o label encolhe ao conteúdo, o miolo
+                    // fica sem espaço e o caminho quebra uma letra por linha.
+                    width: '100%',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => togglePath(candidate.path)}
-                    style={{ marginTop: '3px' }}
+                    // shrink:0 impede que o flex esprema a caixa de seleção
+                    // quando o caminho é longo.
+                    style={{ marginTop: '3px', flexShrink: 0 }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
@@ -516,7 +522,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
                         fontSize: typography.fontSize.sm,
                         color: colors.text.primary,
                         fontFamily: typography.fontFamily.mono,
-                        wordBreak: 'break-all',
+                        // break-word só parte a palavra quando ela sozinha não
+                        // cabe; break-all partia o caminho em qualquer letra
+                        // mesmo havendo espaço na linha.
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {candidate.path}
@@ -545,6 +554,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
                         padding: `2px ${spacing.sm}`,
                         borderRadius: borderRadius.sm,
                         whiteSpace: 'nowrap',
+                        flexShrink: 0,
                       }}
                     >
                       Recomendada
@@ -657,7 +667,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
                     backgroundColor: colors.background.primary,
                     borderRadius: borderRadius.sm,
                     border: `1px solid ${colors.neutral[200]}`,
-                    wordBreak: 'break-all',
+                    overflowWrap: 'break-word',
                   }}
                 >
                   {path}
