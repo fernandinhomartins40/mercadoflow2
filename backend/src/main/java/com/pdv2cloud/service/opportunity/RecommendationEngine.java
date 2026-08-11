@@ -33,13 +33,16 @@ public class RecommendationEngine {
 
     private final OpportunityRepository opportunityRepository;
     private final RecommendationRepository recommendationRepository;
+    private final OutcomeEvaluationService outcomeEvaluationService;
 
     public RecommendationEngine(
         OpportunityRepository opportunityRepository,
-        RecommendationRepository recommendationRepository
+        RecommendationRepository recommendationRepository,
+        OutcomeEvaluationService outcomeEvaluationService
     ) {
         this.opportunityRepository = opportunityRepository;
         this.recommendationRepository = recommendationRepository;
+        this.outcomeEvaluationService = outcomeEvaluationService;
     }
 
     /**
@@ -268,6 +271,14 @@ public class RecommendationEngine {
         Opportunity o = r.getOpportunity();
         if (decision == Recommendation.Status.ACEITA || decision == Recommendation.Status.EXECUTADA) {
             o.setStatus(Opportunity.Status.EM_ACAO);
+            /*
+             * Congela o ponto de partida AGORA, não na hora de medir: comparar
+             * com números recalculados depois seria comparar com um passado que
+             * já embute o efeito da própria decisão.
+             *
+             * Só para aceitas — rejeição não gera ação cujo efeito medir.
+             */
+            outcomeEvaluationService.createPending(r);
         } else if (decision == Recommendation.Status.REJEITADA) {
             o.setStatus(Opportunity.Status.DESCARTADA);
             o.setDismissReason(note);

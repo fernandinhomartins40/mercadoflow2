@@ -3,13 +3,16 @@ package com.pdv2cloud.controller;
 import com.pdv2cloud.model.entity.Opportunity;
 import com.pdv2cloud.model.entity.Recommendation;
 import com.pdv2cloud.repository.OpportunityRepository;
+import com.pdv2cloud.repository.RecommendationOutcomeRepository;
 import com.pdv2cloud.repository.RecommendationRepository;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.intelligence.ForecastAccuracyService;
 import com.pdv2cloud.service.opportunity.OpportunityEngine;
 import com.pdv2cloud.service.opportunity.RecommendationEngine;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +42,8 @@ public class OpportunityController {
     private final RecommendationEngine recommendationEngine;
     private final OpportunityRepository opportunityRepository;
     private final RecommendationRepository recommendationRepository;
+    private final RecommendationOutcomeRepository outcomeRepository;
+    private final ForecastAccuracyService forecastAccuracyService;
     private final MarketAccessService marketAccessService;
 
     public OpportunityController(
@@ -46,12 +51,16 @@ public class OpportunityController {
         RecommendationEngine recommendationEngine,
         OpportunityRepository opportunityRepository,
         RecommendationRepository recommendationRepository,
+        RecommendationOutcomeRepository outcomeRepository,
+        ForecastAccuracyService forecastAccuracyService,
         MarketAccessService marketAccessService
     ) {
         this.opportunityEngine = opportunityEngine;
         this.recommendationEngine = recommendationEngine;
         this.opportunityRepository = opportunityRepository;
         this.recommendationRepository = recommendationRepository;
+        this.outcomeRepository = outcomeRepository;
+        this.forecastAccuracyService = forecastAccuracyService;
         this.marketAccessService = marketAccessService;
     }
 
@@ -176,7 +185,79 @@ public class OpportunityController {
         ));
     }
 
+    /**
+     * Resultado das decisões: o que foi aceito e no que deu.
+     *
+     * É a tela que fecha o ciclo — sem ela, o usuário decide no escuro para
+     * sempre e o sistema nunca ganha crédito pelos acertos.
+     */
+    @GetMapping("/outcomes")
+    public ResponseEntity<Map<String, Object>> outcomes(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+
+        List<OutcomeDTO> measured = outcomeRepository.findMeasuredByMarket(marketId)
+            .stream().map(OutcomeDTO::from).toList();
+
+        // Taxa de acerto por tipo de ação: se COMPRAR acerta 80% e PROMOVER
+        // 30%, o score de promoção está otimista e precisa de calibração.
+        Map<String, Map<String, Long>> byAction = new LinkedHashMap<>();
+        for (Object[] row : outcomeRepository.summarizeByActionAndVerdict(marketId)) {
+            String action = row[0] != null ? row[0].toString() : "OUTRO";
+            String verdict = row[1] != null ? row[1].toString() : "SEM_DADOS";
+            byAction.computeIfAbsent(action, k -> new LinkedHashMap<>())
+                .put(verdict, ((Number) row[2]).longValue());
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "resultados", measured,
+            "porTipoDeAcao", byAction,
+            "acuraciaPrevisao", forecastAccuracyService.summarize(marketId)
+        ));
+    }
+
+    /** Produtos em que a previsão de demanda mais erra. */
+    @GetMapping("/outcomes/forecast-accuracy")
+    public ResponseEntity<Map<String, Object>> forecastAccuracy(
+        @PathVariable("marketId") UUID marketId,
+        @RequestParam(value = "limit", defaultValue = "20") int limit,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(Map.of(
+            "resumo", forecastAccuracyService.summarize(marketId),
+            "pioresProdutos", forecastAccuracyService.worstProducts(marketId, limit)
+        ));
+    }
+
     // ── DTOs ─────────────────────────────────────────────────────────────────
+
+    public record OutcomeDTO(
+        UUID id, UUID recommendationId, String recommendationTitle,
+        String actionType, String verdict,
+        UUID productId, String productName,
+        BigDecimal predictedValue, BigDecimal actualValue,
+        BigDecimal deltaValue, BigDecimal deltaPercent,
+        int horizonDays, LocalDateTime measuredAt, String notes
+    ) {
+        static OutcomeDTO from(com.pdv2cloud.model.entity.RecommendationOutcome o) {
+            return new OutcomeDTO(
+                o.getId(),
+                o.getRecommendation().getId(),
+                o.getRecommendation().getTitle(),
+                o.getActionType(),
+                o.getVerdict() != null ? o.getVerdict().name() : null,
+                o.getProduct() != null ? o.getProduct().getId() : null,
+                o.getProduct() != null ? o.getProduct().getName() : null,
+                o.getPredictedValue(), o.getActualValue(),
+                o.getDeltaValue(), o.getDeltaPercent(),
+                o.getHorizonDays() != null ? o.getHorizonDays() : 30,
+                o.getMeasuredAt(), o.getNotes()
+            );
+        }
+    }
 
     public record OpportunityDTO(
         UUID id, String type, String source, String status,

@@ -512,3 +512,41 @@ export interface RecommendationItem {
   decisionNote?: string | null;
   createdAt?: string | null;
 }
+
+/* ─── Feedback loop (Fase 8) ─── */
+
+export type OutcomeVerdict = 'ACERTOU' | 'PARCIAL' | 'ERROU' | 'SEM_DADOS';
+
+export interface OutcomeItem {
+  id: string;
+  recommendationId: string;
+  recommendationTitle: string;
+  actionType: string;
+  verdict?: OutcomeVerdict | null;
+  productId?: string | null;
+  productName?: string | null;
+  predictedValue?: number | null;
+  actualValue?: number | null;
+  deltaValue?: number | null;
+  deltaPercent?: number | null;
+  horizonDays: number;
+  measuredAt?: string | null;
+  notes?: string | null;
+}
+
+/** Acurácia do Holt-Winters — antes da Fase 8, nunca havia sido medida. */
+export interface ForecastAccuracySummary {
+  observations: number;
+  products: number;
+  /** Erro percentual absoluto médio. */
+  mape?: number | null;
+  mae?: number | null;
+  confidenceIntervalCoverage?: number | null;
+  interpretation: string;
+}
+
+export interface OutcomesResponse {
+  resultados: OutcomeItem[];
+  porTipoDeAcao: Record<string, Record<string, number>>;
+  acuraciaPrevisao: ForecastAccuracySummary;
+}

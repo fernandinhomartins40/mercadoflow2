@@ -6,7 +6,7 @@ import ProductImage from '../components/product/ProductImage';
 import { Section, Empty, StatGrid, Stat } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { marketService } from '../services/market.service';
-import { OpportunityItem, RecommendationItem } from '../types/analytics.types';
+import { OpportunityItem, OutcomesResponse, RecommendationItem } from '../types/analytics.types';
 import {
   AlertTriangle, TrendingDown, TrendingUp, Package, Tag as TagIcon,
   RefreshCw, Sparkles, ArrowRight, Check, X, ChevronDown, DollarSign,
@@ -247,7 +247,7 @@ const OpportunityCard: React.FC<{
 };
 
 /* ─── Tela ─── */
-type Tab = 'recomendacoes' | 'oportunidades' | 'historico';
+type Tab = 'recomendacoes' | 'oportunidades' | 'historico' | 'resultados';
 
 const IntelligenceCenter: React.FC = () => {
   const { marketId } = useAuth();
@@ -255,6 +255,7 @@ const IntelligenceCenter: React.FC = () => {
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [history, setHistory] = useState<RecommendationItem[]>([]);
+  const [outcomes, setOutcomes] = useState<OutcomesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [detecting, setDetecting] = useState(false);
   const [deciding, setDeciding] = useState<string | null>(null);
@@ -266,14 +267,16 @@ const IntelligenceCenter: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [opps, recs, hist] = await Promise.all([
+      const [opps, recs, hist, outc] = await Promise.all([
         marketService.getOpportunities(marketId),
         marketService.getPendingRecommendations(marketId),
         marketService.getDecisionHistory(marketId),
+        marketService.getOutcomes(marketId).catch(() => null),
       ]);
       setOpportunities(opps || []);
       setRecommendations(recs || []);
       setHistory(hist || []);
+      setOutcomes(outc);
 
       // Marca como vistas as que estavam NOVA — o sistema passa a saber o que
       // o usuário já conhece, e o feed para de repetir novidade velha.
@@ -342,6 +345,7 @@ const IntelligenceCenter: React.FC = () => {
     { key: 'recomendacoes', label: 'O que fazer', count: recommendations.length },
     { key: 'oportunidades', label: 'O que está acontecendo', count: opportunities.length },
     { key: 'historico', label: 'Decisões tomadas', count: history.length },
+    { key: 'resultados', label: 'No que deu', count: outcomes?.resultados?.length || 0 },
   ];
 
   return (
@@ -451,6 +455,107 @@ const IntelligenceCenter: React.FC = () => {
               </div>
             )}
           </Section>
+        ) : null}
+
+        {tab === 'resultados' ? (
+          <div className="flex flex-col gap-6">
+            {/* A acurácia do modelo importa mesmo sem decisão nenhuma: se a
+                previsão erra, toda sugestão de compra erra junto. */}
+            {outcomes?.acuraciaPrevisao ? (
+              <Section
+                kicker="Previsão de demanda"
+                title="O modelo está acertando?"
+                subtitle="Comparação entre o que foi previsto e o que de fato vendeu."
+              >
+                <StatGrid cols={3}>
+                  <Stat
+                    label="Erro médio (MAPE)"
+                    value={
+                      outcomes.acuraciaPrevisao.mape != null
+                        ? `${Number(outcomes.acuraciaPrevisao.mape).toFixed(0)}%`
+                        : '--'
+                    }
+                    variant={
+                      outcomes.acuraciaPrevisao.mape == null ? 'default'
+                        : Number(outcomes.acuraciaPrevisao.mape) < 35 ? 'success'
+                        : Number(outcomes.acuraciaPrevisao.mape) < 60 ? 'warning' : 'danger'
+                    }
+                  />
+                  <Stat
+                    label="Previsões aferidas"
+                    value={fmt.int(outcomes.acuraciaPrevisao.observations)}
+                    sub={`${fmt.int(outcomes.acuraciaPrevisao.products)} produtos`}
+                  />
+                  <Stat
+                    label="Dentro do intervalo"
+                    value={
+                      outcomes.acuraciaPrevisao.confidenceIntervalCoverage != null
+                        ? `${Number(outcomes.acuraciaPrevisao.confidenceIntervalCoverage).toFixed(0)}%`
+                        : '--'
+                    }
+                    sub="Ideal próximo de 90%"
+                  />
+                </StatGrid>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+                  {outcomes.acuraciaPrevisao.interpretation}
+                </p>
+              </Section>
+            ) : null}
+
+            <Section
+              kicker="Resultado das decisões"
+              title="No que deu o que você decidiu"
+              subtitle="Cada decisão aceita é medida 30 dias depois, contra a situação congelada no dia da escolha."
+            >
+              {loading ? (
+                <Empty>Carregando...</Empty>
+              ) : !outcomes?.resultados?.length ? (
+                <Empty>
+                  Nenhum resultado medido ainda. As decisões aceitas são avaliadas 30 dias
+                  depois — é o tempo necessário para o efeito aparecer nas vendas.
+                </Empty>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {outcomes.resultados.map((o) => {
+                    const tone = o.verdict === 'ACERTOU' ? TONE.green
+                      : o.verdict === 'ERROU' ? TONE.red
+                      : o.verdict === 'PARCIAL' ? TONE.amber : TONE.slate;
+                    return (
+                      <article
+                        key={o.id}
+                        className="flex flex-col gap-2 rounded-xl p-4"
+                        style={{ border: '1px solid var(--border-soft)' }}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[0.68rem] font-semibold"
+                            style={{ background: tone.bg, color: tone.text, border: `1px solid ${tone.border}` }}
+                          >
+                            {o.verdict === 'ACERTOU' ? 'Funcionou'
+                              : o.verdict === 'PARCIAL' ? 'Parcial'
+                              : o.verdict === 'ERROU' ? 'Não funcionou'
+                              : 'Sem dados'}
+                          </span>
+                          <span className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>
+                            {ACTION_LABEL[o.actionType] || o.actionType} · medido em {fmt.date(o.measuredAt)}
+                          </span>
+                        </div>
+
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {o.recommendationTitle}
+                        </p>
+                        {o.notes ? (
+                          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+                            {o.notes}
+                          </p>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+          </div>
         ) : null}
 
         {tab === 'historico' ? (

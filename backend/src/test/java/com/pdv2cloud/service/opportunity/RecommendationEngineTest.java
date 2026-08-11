@@ -30,6 +30,7 @@ class RecommendationEngineTest {
 
     private OpportunityRepository opportunityRepository;
     private RecommendationRepository recommendationRepository;
+    private OutcomeEvaluationService outcomeEvaluationService;
     private RecommendationEngine engine;
 
     private final UUID marketId = UUID.randomUUID();
@@ -38,7 +39,9 @@ class RecommendationEngineTest {
     void setUp() {
         opportunityRepository = mock(OpportunityRepository.class);
         recommendationRepository = mock(RecommendationRepository.class);
-        engine = new RecommendationEngine(opportunityRepository, recommendationRepository);
+        outcomeEvaluationService = mock(OutcomeEvaluationService.class);
+        engine = new RecommendationEngine(
+            opportunityRepository, recommendationRepository, outcomeEvaluationService);
     }
 
     private Opportunity opportunity(String type, Map<String, Object> evidence) {

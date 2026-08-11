@@ -430,6 +430,35 @@ fingerprint. Build de produção do frontend OK.
 
 ---
 
+### FASE 8 — concluída (11/08/2026)
+
+Implementada antes da Fase 5 de propósito: fecha o ciclo de aprendizado sem
+depender de provedor externo, e dá à IA generativa um contexto que ela não teria
+de outro modo ("da última vez que você aceitou algo assim, o resultado foi X").
+
+| Item | Status | Observação |
+|---|---|---|
+| Snapshot no ato da decisão | ✅ Feito | O baseline é congelado quando o usuário ACEITA, não na hora de medir. Comparar com números recalculados depois seria comparar com um passado que já embute o efeito da própria decisão |
+| Medição por tipo de ação | ✅ Feito | **Cada ação responde a uma pergunta diferente**: comprar acerta se o produto escoou; liquidar acerta se o estoque SAIU (giro sobe — lógica oposta); promover acerta se a receita subiu. Um veredito único para todos seria pouco honesto. Há teste provando que o mesmo cenário numérico é ACERTO para liquidação e ERRO para compra |
+| `SEM_DADOS` como veredito legítimo | ✅ Feito | Produto que quase não vendeu não valida nem invalida a recomendação. Declarar a ausência é mais útil que inventar julgamento |
+| Acurácia do forecast (MAPE) | ✅ Feito | `forecast_accuracy` + `ForecastAccuracyService`. O Holt-Winters roda desde sempre e **o erro nunca havia sido medido** — grave porque desde a Fase 2 a sugestão de compra usa a previsão no lugar da média: se o modelo erra, toda recomendação erra junto |
+| Dias de venda zero excluídos do MAPE | ✅ Feito | \|previsto − 0\| / 0 é indefinido, não infinito. Incluí-los como erro de 100% inflaria a métrica e faria um modelo bom parecer ruim numa loja com muitos itens de cauda. Validado no banco: previsões de 10→8, 10→10 e 10→0 dão MAPE 10% (não 40%) e MAE 4,0 |
+| Cobertura do intervalo de confiança | ✅ Feito | Modelo calibrado acerta a faixa de 90% em ~90% das vezes; muito acima significa intervalo largo demais para ser útil na compra |
+| Taxa de acerto por tipo de ação | ✅ Feito | Base da calibração: se COMPRAR acerta 80% e PROMOVER 30%, o score de promoção está otimista |
+| `OutcomeEvaluationJob` | ✅ Feito | Segunda-feira 04:00. Semanal e não diário porque o horizonte é de 30 dias — rodar todo dia processaria as mesmas pendências |
+| Tela "No que deu" | ✅ Feito | Quarta aba da Central, com a acurácia do modelo em destaque |
+
+**Interpretação em linguagem de decisão:** o MAPE não é exibido cru. Abaixo de
+35% (critério de sucesso do próprio plano) a tela diz que a sugestão é
+confiável; acima de 60%, diz explicitamente para tratar a compra sugerida como
+ponto de partida e não como número final.
+
+**Validação:** V47 aplicada num PostgreSQL 16 real (47 migrations em ordem), com
+o cálculo do MAPE conferido contra dados montados à mão. Testes cobrindo os
+vereditos de cada tipo de ação.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**

@@ -57,6 +57,11 @@ export const marketService = {
     return response.data;
   },
 
+  async getOutcomes(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/opportunities/outcomes`);
+    return response.data;
+  },
+
   async detectOpportunitiesNow(marketId: string) {
     const response = await api.post(`/v1/markets/${marketId}/opportunities/detect`);
     return response.data;
