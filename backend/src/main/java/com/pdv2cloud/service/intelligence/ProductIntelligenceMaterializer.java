@@ -64,6 +64,15 @@ public class ProductIntelligenceMaterializer {
      */
     private static final int MIN_SEASONALITY_OBSERVATIONS = 3;
 
+    /**
+     * Janela da sazonalidade horária: 90 dias.
+     *
+     * Mais curta que a anual das outras granularidades de propósito — o horário
+     * de movimento muda quando a loja muda o horário de funcionamento ou o
+     * bairro muda de perfil, e um ano de histórico atrasaria a percepção disso.
+     */
+    private static final int HOURLY_WINDOW_DAYS = 90;
+
     /** Janela do halo: promoções são esparsas, precisa de mais histórico. */
     private static final int HALO_WINDOW_DAYS = 180;
 
@@ -126,6 +135,25 @@ public class ProductIntelligenceMaterializer {
     public MaterializationResult materializeMarket(UUID marketId) {
         long startedAt = System.currentTimeMillis();
 
+        /*
+         * Lock consultivo por mercado.
+         *
+         * Duas rodadas podem coincidir: o job noturno das 03:00 e o refresh
+         * adaptativo, que roda a cada poucos minutos. Como a estratégia de
+         * escrita é apagar-e-regravar, sem lock o segundo apagaria o que o
+         * primeiro acabou de gravar (READ COMMITTED não protege contra isso) —
+         * ou os dois se travariam em deadlock ao competir pelas mesmas linhas.
+         *
+         * pg_advisory_xact_lock é liberado automaticamente no fim da transação,
+         * então não há risco de lock órfão se algo estourar. O segundo chamador
+         * espera em vez de falhar: o trabalho dele seria redundante de qualquer
+         * forma, e esperar alguns segundos é melhor que abortar um ciclo.
+         */
+        jdbcTemplate.query(
+            "select pg_advisory_xact_lock(hashtext(:lockKey))",
+            new MapSqlParameterSource("lockKey", "mat:" + marketId),
+            rs -> { /* o lock é o efeito; não há linha a ler */ });
+
         List<CapitalMetric> portfolio =
             workingCapitalService.computePortfolio(marketId, CAPITAL_WINDOW_DAYS);
 
@@ -139,7 +167,16 @@ public class ProductIntelligenceMaterializer {
             inventoryEstimateRepository.deleteByMarketId(marketId);
         }
 
+        /*
+         * A ordem importa: writeSeasonality apaga TODA a sazonalidade do
+         * mercado antes de gravar (DOW e MONTH), então a horária precisa vir
+         * depois — senão seria apagada em seguida. Deixado em duas linhas
+         * separadas de propósito, para a dependência não ficar escondida numa
+         * expressão que depende da ordem de avaliação.
+         */
         int seasonality = writeSeasonality(marketId);
+        seasonality += writeHourlySeasonality(marketId);
+
         int halo = writeHaloEffects(marketId);
 
         // Perfis de cliente e recompra por produto: o CPF da nota, gravado desde
@@ -348,6 +385,94 @@ public class ProductIntelligenceMaterializer {
         }
 
         inventoryEstimateRepository.saveAll(rows);
+        return rows.size();
+    }
+
+    // ── Sazonalidade horária (ritmo da loja) ─────────────────────────────────
+
+    /**
+     * Índice de movimento por hora do dia, no nível da LOJA.
+     *
+     * Diferente da sazonalidade por produto, esta responde "quando esta loja
+     * vende": 1,0 = hora na média; 2,3 = hora de pico. É o que permite à
+     * cadência do refresh acompanhar o ritmo real de cada unidade — um mercado
+     * de bairro com pico às 18h e um atacadista com pico às 8h precisam de
+     * comportamentos opostos no mesmo horário.
+     *
+     * Gravado com {@code product = null}... exceto que a tabela exige produto.
+     * Por isso o índice horário da loja é derivado na leitura, a partir do
+     * agregado por produto — ver StoreRhythmService. Aqui persistimos o índice
+     * horário POR PRODUTO, que serve às duas coisas: o ritmo da loja (somando)
+     * e a análise de qual item vende em que hora.
+     */
+    private int writeHourlySeasonality(UUID marketId) {
+        LocalDate since = LocalDate.now().minusDays(HOURLY_WINDOW_DAYS);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("marketId", marketId)
+            .addValue("since", since.atStartOfDay())
+            .addValue("minObservations", MIN_SEASONALITY_OBSERVATIONS);
+
+        /*
+         * A unidade de observação é (produto, dia, hora): quanto o produto
+         * vendeu naquela hora daquele dia. O índice é a média da hora dividida
+         * pela média geral do produto — comparável entre itens de volumes
+         * muito diferentes.
+         */
+        String sql =
+            "with hourly as ( " +
+            "  select it.product_id, " +
+            "         cast(i.data_emissao as date) as sale_date, " +
+            "         extract(hour from i.data_emissao)::int as hour_of_day, " +
+            "         sum(it.quantidade) as qty " +
+            "  from invoice_items it " +
+            "  join invoices i on i.id = it.invoice_id " +
+            "  where i.market_id = :marketId " +
+            "    and i.data_emissao >= :since " +
+            "    and it.product_id is not null " +
+            "  group by it.product_id, cast(i.data_emissao as date), " +
+            "           extract(hour from i.data_emissao) " +
+            "), " +
+            "overall as ( " +
+            "  select product_id, avg(qty) as avg_qty, count(*) as total_obs " +
+            "  from hourly group by product_id " +
+            "), " +
+            "by_hour as ( " +
+            "  select product_id, hour_of_day, avg(qty) as hour_avg, count(*) as observations " +
+            "  from hourly group by product_id, hour_of_day " +
+            ") " +
+            "select h.product_id, h.hour_of_day, h.observations, " +
+            "       case when o.avg_qty > 0 then h.hour_avg / o.avg_qty else 1 end as seasonal_index " +
+            "from by_hour h join overall o on o.product_id = h.product_id " +
+            "where h.observations >= :minObservations";
+
+        Market market = marketRepository.getReferenceById(marketId);
+        LocalDateTime now = LocalDateTime.now();
+        List<ProductSeasonality> rows = new ArrayList<>();
+        Map<UUID, Product> productCache = new HashMap<>();
+
+        jdbcTemplate.query(sql, params, rs -> {
+            UUID productId = UUID.fromString(rs.getString("product_id"));
+            Product product = productCache.computeIfAbsent(
+                productId, id -> productRepository.findById(id).orElse(null));
+            if (product == null) return;
+
+            int observations = rs.getInt("observations");
+
+            ProductSeasonality row = new ProductSeasonality();
+            row.setMarket(market);
+            row.setProduct(product);
+            row.setPeriodType(ProductSeasonality.PeriodType.HOUR);
+            row.setPeriodIndex(rs.getInt("hour_of_day"));
+            row.setSeasonalIndex(
+                rs.getBigDecimal("seasonal_index").setScale(4, RoundingMode.HALF_UP));
+            row.setObservations(observations);
+            row.setConfidence(seasonalityConfidence(observations, observations));
+            row.setWindowDays(HOURLY_WINDOW_DAYS);
+            row.setComputedAt(now);
+            rows.add(row);
+        });
+
+        seasonalityRepository.saveAll(rows);
         return rows.size();
     }
 

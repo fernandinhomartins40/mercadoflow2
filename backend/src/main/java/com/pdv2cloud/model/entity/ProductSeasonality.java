@@ -38,7 +38,14 @@ public class ProductSeasonality {
         /** Dia da semana, 0=domingo .. 6=sábado. */
         DOW,
         /** Mês do ano, 1..12. */
-        MONTH
+        MONTH,
+        /**
+         * Hora do dia, 0..23.
+         *
+         * É a granularidade que define o pico de movimento da loja, e por isso
+         * governa a cadência do refresh adaptativo — ver StoreRhythmService.
+         */
+        HOUR
     }
 
     @Id

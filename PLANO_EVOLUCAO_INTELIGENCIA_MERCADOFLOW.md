@@ -459,6 +459,59 @@ vereditos de cada tipo de ação.
 
 ---
 
+### CADÊNCIA ADAPTATIVA — a inteligência acompanha o ritmo de cada loja (11/08/2026)
+
+**O descompasso que motivou:** o agente entrega a nota em segundos (watchdog com
+evento `on_created`, não poll), mas a inteligência que a consome rodava **uma vez
+por dia**. O supermercadista atende fornecedor a qualquer hora e decidia o pedido
+com números calculados às 03:00 — antes de fechar o caixa da noite anterior. Se um
+produto vendeu forte à noite, o sistema ainda achava que havia cobertura.
+
+| Camada | Antes | Agora |
+|---|---|---|
+| Coleta (agente) | instantânea | instantânea |
+| Capital, cobertura, sugestão de compra | **~24h** | **10–60 min, conforme o ritmo da loja** |
+| Detecção de oportunidades | ~24h | mesma cadência |
+| Halo (180d), sazonalidade (365d), ABC | noturno | **continua noturno** — não ganha nada em rodar de 10 em 10 min |
+
+**Por que adaptativo e não um intervalo fixo:** um intervalo igual para todos seria
+a única coisa no sistema a ignorar que cada loja é diferente. ABC, z-score e
+turnover band são todos relativos ao próprio portfólio justamente porque duas lojas
+da mesma rede têm produtos, clientes e horários distintos. O ritmo da análise segue
+a mesma regra — um mercado de bairro com pico às 18h e um atacadista com pico às 8h
+recebem cadências **opostas no mesmo horário**, e é isso que está certo.
+
+| Ritmo da loja | Cadência | Critério |
+|---|---|---|
+| PICO | 10 min | índice sazonal horário ≥ 1,30 **da própria loja** |
+| NORMAL | 30 min | entre os dois cortes |
+| VALE | 60 min | índice ≤ 0,60 |
+| OCIOSA | 60 min (só verifica) | nenhuma nota nova desde a última rodada |
+
+**Como o custo é controlado:** o job roda a cada 5 min, mas não recalcula nada a
+cada 5 min — apenas oferece a oportunidade, e cada mercado decide se é a hora dele.
+Loja sem nota nova custa **uma consulta de contagem** e termina. O trabalho pesado
+só acontece onde há movimento.
+
+**Limite assumido com honestidade:** a materialização do capital continua
+recalculando o portfólio inteiro, porque ABC e participação de receita são
+classificações RELATIVAS — não existe recálculo isolado por SKU que produza o mesmo
+número. O ganho real do "incremental" está em **pular a loja quando nada vendeu**,
+que é a maior parte dos ciclos (madrugada, domingo fechado, hora morta). Isso está
+documentado no código, não escondido atrás do nome.
+
+**Sazonalidade horária materializada:** a V31 previu `DOW` e `MONTH`; faltava
+`HOUR`, que é justamente a granularidade que define pico. Agora persistida com
+janela de 90 dias — mais curta que a anual das outras de propósito, porque o
+horário de movimento muda quando a loja muda de horário ou o bairro muda de perfil.
+
+**Exposto ao lojista** (`GET /intelligence/rhythm`): "o movimento desta loja
+concentra em 18h, 19h". É um insight que ele provavelmente não tem sobre a própria
+operação, e que muda escala de equipe, hora de reposição de prateleira e janela de
+promoção.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**

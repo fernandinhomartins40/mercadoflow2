@@ -6,8 +6,10 @@ import com.pdv2cloud.service.intelligence.CustomerIntelligenceService;
 import com.pdv2cloud.service.intelligence.IntelligenceCenterService;
 import com.pdv2cloud.service.intelligence.MarketPriceComparisonDetector;
 import com.pdv2cloud.service.intelligence.SalesAnomalyDetector;
+import com.pdv2cloud.service.intelligence.StoreRhythmService;
 import com.pdv2cloud.service.intelligence.ProductIntelligenceMaterializer;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +38,7 @@ public class IntelligenceCenterController {
     private final SalesAnomalyDetector salesAnomalyDetector;
     private final MarketPriceComparisonDetector priceComparisonDetector;
     private final CampaignProductIntelligenceService campaignProductIntelligenceService;
+    private final StoreRhythmService storeRhythmService;
     private final MarketAccessService marketAccessService;
 
     public IntelligenceCenterController(
@@ -45,6 +48,7 @@ public class IntelligenceCenterController {
         SalesAnomalyDetector salesAnomalyDetector,
         MarketPriceComparisonDetector priceComparisonDetector,
         CampaignProductIntelligenceService campaignProductIntelligenceService,
+        StoreRhythmService storeRhythmService,
         MarketAccessService marketAccessService
     ) {
         this.intelligenceCenterService = intelligenceCenterService;
@@ -53,6 +57,7 @@ public class IntelligenceCenterController {
         this.salesAnomalyDetector = salesAnomalyDetector;
         this.priceComparisonDetector = priceComparisonDetector;
         this.campaignProductIntelligenceService = campaignProductIntelligenceService;
+        this.storeRhythmService = storeRhythmService;
         this.marketAccessService = marketAccessService;
     }
 
@@ -114,6 +119,26 @@ public class IntelligenceCenterController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         return ResponseEntity.ok(customerIntelligenceService.topRepurchaseProducts(marketId, limit));
+    }
+
+    /**
+     * Ritmo de movimento desta loja por hora do dia.
+     *
+     * Serve a duas coisas: explica por que a análise atualiza na cadência que
+     * atualiza, e entrega um insight de negócio que o lojista provavelmente não
+     * tem — saber que o movimento concentra das 17h às 20h muda escala de
+     * equipe, hora de reposição de prateleira e janela de promoção.
+     */
+    @GetMapping("/rhythm")
+    public ResponseEntity<Map<String, Object>> rhythm(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(Map.of(
+            "resumo", storeRhythmService.describePeakHours(marketId),
+            "porHora", storeRhythmService.dailyProfile(marketId)
+        ));
     }
 
     /** Dias de venda fora da curva, detectados por EWMA. */
