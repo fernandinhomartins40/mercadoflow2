@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
   '/app': { title: 'Hoje no mercado', subtitle: 'O que precisa da sua atenção agora', section: 'Visão do negócio' },
+  '/app/inteligencia': { title: 'Central de Inteligência', subtitle: 'O que está acontecendo e o que fazer a respeito', section: 'Visão do negócio' },
   '/app/produtos': { title: 'Produtos', subtitle: 'Como seus produtos estão vendendo', section: 'Visão do negócio' },
   '/app/lista-compras': { title: 'Pedido inteligente', subtitle: 'Compra guiada por vendas reais', section: 'Análise e operação' },
   '/app/ofertas': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },

@@ -9,6 +9,7 @@ import {
   PackageSearch,
   Settings,
   ShoppingCart,
+  Sparkles,
   Store,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -40,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: 'Hoje',
       items: [
         { to: '/app', label: 'Painel do dia', hint: 'O que precisa da sua atenção agora', icon: Home, exact: true },
+        { to: '/app/inteligencia', label: 'Central de Inteligência', hint: 'Oportunidades priorizadas da sua loja', icon: Sparkles },
       ],
     },
     {

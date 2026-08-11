@@ -33,6 +33,33 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+/**
+ * Dashboard legado da loja (endpoint {@code GET /markets/{id}/dashboard}).
+ *
+ * STATUS: em depreciação. O cockpit ({@code AdvancedAnalyticsService.getCockpit})
+ * é a fonte de verdade das métricas de visão geral, e a tela Dashboard do
+ * frontend já consome exclusivamente o cockpit — {@code marketService.getDashboard}
+ * existe mas nenhum componente o chama.
+ *
+ * O que ainda vive SÓ aqui e precisa de destino antes da remoção:
+ *   - status de ingestão: totalInvoices, invoicesLast24h, lastInvoiceProcessedAt,
+ *     recentInvoices (o cockpit não cobre nada disso);
+ *   - contagem de alertas não lidos;
+ *   - {@link #getCachedMarketBasketAnalysis}, que lê as regras persistidas pelo
+ *     job noturno — é o único caminho que usa {@code market_basket_rules}.
+ *
+ * Por isso o serviço NÃO foi deletado nesta fase: o endpoint é público e pode
+ * ter clientes fora do frontend. A remoção segura é mover o bloco de ingestão
+ * para um endpoint próprio de "saúde da coleta" e então descontinuar a rota,
+ * com aviso de versão.
+ *
+ * Ver §17 e §18 da auditoria e a Fase 1 do plano de evolução.
+ *
+ * @deprecated preferir {@code AdvancedAnalyticsService.getCockpit} para métricas
+ *             de visão geral. Mantido enquanto o status de ingestão não tiver
+ *             endpoint próprio.
+ */
+@Deprecated(since = "Fase 1 — evolução da inteligência")
 @Service
 public class AnalyticsService {
 
