@@ -361,6 +361,41 @@ loja". Passou a exigir exatamente 11 dígitos.
 > comportamento real de consumidor. A validação de negócio dessas métricas só
 > será possível com um cliente real operando.
 
+### RLS: resolvida (verificado em 11/08/2026)
+
+A pendência que a auditoria classificava como P0 **já estava fechada** — a
+verificação em produção mostrou `DATABASE_USER=mercadoflow_app` no backend, com
+`rolbypassrls=f`, `rolsuper=f` e sem posse das tabelas (dono é `pdv2cloud`).
+
+Isolamento provado com o próprio role da aplicação:
+
+| Sessão | Notas visíveis |
+|---|---|
+| `app.current_market` = tenant A | 3.653 |
+| `app.current_market` = tenant B | 1.000 |
+| **sem tenant** | **0** (fail-closed) |
+
+O total no banco é 4.653 e nenhum tenant o enxerga. 48 das 61 tabelas têm RLS;
+**nenhuma das 13 restantes tem coluna `market_id`** (catálogo, preços estaduais,
+planos, crawler). As 6 tabelas de inteligência (V31 + V45) têm policy
+`tenant_isolation` e o `mercadoflow_app` tem SELECT/INSERT/UPDATE/DELETE nelas —
+confirmado por escrita real de teste, depois revertida.
+
+Dois pontos que parecem furo e não são: o container de jobs usa o role dono de
+propósito (varre todos os mercados, com `runAsSystem` no código), e
+`markets`/`users` ficam sem RLS porque protegê-las quebraria o login, que
+resolve o mercado antes de existir tenant na sessão — ali a proteção é o
+`MarketAccessService`.
+
+### Insumos reais disponíveis para a Fase 2 (11/08/2026)
+
+| Insumo | Estado em produção |
+|---|---|
+| Forecast | **6.362 previsões, 283 produtos**, até 10/09. **100 produtos** passam no critério de cobertura de 70% do horizonte e terão a compra calculada por previsão em vez de média — exatamente o top-100 que o `MLPredictionJob` cobre |
+| Sazonalidade | **3.378 linhas** seriam geradas no mercado de maior volume |
+| Recompra | **565 produtos** atingem o k-anonimato de 5 clientes |
+| Lead time real | **0 produtos** — nenhum pedido a fornecedor foi entregue e registrado, então o fallback de 7 dias é usado. Comportamento correto; a melhoria só rende quando houver operação real de compras |
+
 > **Nota de operação:** o `ProductIntelligenceJob` só roda com `jobs.enabled=true`. Enquanto ele não rodar em produção, todos os caminhos continuam servindo o cálculo on-line — o ganho de latência só aparece depois da primeira execução (ou de um POST em `/intelligence/rebuild`).
 
 ---
