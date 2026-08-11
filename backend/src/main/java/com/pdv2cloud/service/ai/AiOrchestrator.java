@@ -3,10 +3,8 @@ package com.pdv2cloud.service.ai;
 import com.pdv2cloud.model.entity.AiInterpretation;
 import com.pdv2cloud.model.entity.AiProviderCredential;
 import com.pdv2cloud.model.entity.AiUsageLog;
-import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.AiInterpretationRepository;
 import com.pdv2cloud.repository.AiProviderCredentialRepository;
-import com.pdv2cloud.repository.MarketRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +13,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Ponto único de chamada de IA no sistema.
@@ -59,7 +56,6 @@ public class AiOrchestrator {
     private final AiProviderCredentialRepository credentialRepository;
     private final AiInterpretationRepository interpretationRepository;
     private final AiUsageRecorder usageRecorder;
-    private final MarketRepository marketRepository;
     private final AiCredentialCipher cipher;
     private final LlmClient llmClient;
 
@@ -76,14 +72,12 @@ public class AiOrchestrator {
         AiProviderCredentialRepository credentialRepository,
         AiInterpretationRepository interpretationRepository,
         AiUsageRecorder usageRecorder,
-        MarketRepository marketRepository,
         AiCredentialCipher cipher,
         LlmClient llmClient
     ) {
         this.credentialRepository = credentialRepository;
         this.interpretationRepository = interpretationRepository;
         this.usageRecorder = usageRecorder;
-        this.marketRepository = marketRepository;
         this.cipher = cipher;
         this.llmClient = llmClient;
     }
@@ -104,11 +98,19 @@ public class AiOrchestrator {
     /**
      * Produz (ou recupera do cache) a interpretação de um contexto.
      *
+     * NÃO é {@code @Transactional} de propósito. O corpo faz uma chamada HTTP
+     * de até 45 segundos por provedor, e envolvê-la numa transação prenderia
+     * uma conexão do pool durante toda a espera — com uma cadeia de dois
+     * provedores lentos, 90 segundos por oportunidade, vezes as dezenas que o
+     * job percorre. As três operações de banco aqui (ler cache, gravar
+     * interpretação, registrar uso) são independentes entre si e cada uma
+     * conclui sozinha; não há estado intermediário que precise ser revertido
+     * em bloco.
+     *
      * @param fallbackText texto determinístico usado quando a IA não está
      *                     disponível. Nunca nulo — é a garantia de que este
      *                     método sempre devolve algo exibível.
      */
-    @Transactional
     public Interpretation interpret(
         UUID marketId,
         String task,
@@ -178,8 +180,8 @@ public class AiOrchestrator {
                     response.inputTokens(), response.outputTokens(),
                     (int) response.latencyMs(), AiUsageLog.Outcome.OK, null);
 
-                store(marketId, task, subjectType, subjectId, context.hash(),
-                    response.content(), credential.getProvider().name(),
+                usageRecorder.storeInterpretation(marketId, task, subjectType, subjectId,
+                    context.hash(), response.content(), credential.getProvider().name(),
                     credential.effectiveModel(), promptVersion, false);
 
                 return new Interpretation(
@@ -198,8 +200,8 @@ public class AiOrchestrator {
         // rodada seguinte não repita a cadeia inteira pelos mesmos números.
         usageRecorder.record(marketId, task, null, null, promptVersion, context.hash(),
             null, null, null, AiUsageLog.Outcome.FALLBACK, lastError);
-        store(marketId, task, subjectType, subjectId, context.hash(),
-            fallbackText, null, null, promptVersion, true);
+        usageRecorder.storeInterpretation(marketId, task, subjectType, subjectId,
+            context.hash(), fallbackText, null, null, promptVersion, true);
 
         return deterministic(fallbackText);
     }
@@ -244,29 +246,5 @@ public class AiOrchestrator {
         breaker.put(credentialId, LocalDateTime.now().plusMinutes(BREAKER_MINUTES));
     }
 
-    private void store(
-        UUID marketId, String task, String subjectType, UUID subjectId, String hash,
-        String content, String provider, String model, String promptVersion, boolean det
-    ) {
-        try {
-            Market market = marketRepository.getReferenceById(marketId);
-            AiInterpretation entity = new AiInterpretation();
-            entity.setMarket(market);
-            entity.setTask(task);
-            entity.setContextHash(hash);
-            entity.setSubjectType(subjectType);
-            entity.setSubjectId(subjectId);
-            entity.setContent(content);
-            entity.setProvider(provider);
-            entity.setModel(model);
-            entity.setPromptVersion(promptVersion);
-            entity.setDeterministic(det);
-            interpretationRepository.save(entity);
-        } catch (Exception e) {
-            // Corrida entre duas rodadas para o mesmo hash viola a unique. Não
-            // é erro: a outra já gravou o mesmo conteúdo.
-            log.debug("Interpretação não gravada (provável duplicata): {}", e.getMessage());
-        }
-    }
 
 }

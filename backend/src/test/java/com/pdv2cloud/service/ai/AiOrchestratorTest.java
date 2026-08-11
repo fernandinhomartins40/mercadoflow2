@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -17,10 +18,8 @@ import static org.mockito.Mockito.when;
 import com.pdv2cloud.model.entity.AiInterpretation;
 import com.pdv2cloud.model.entity.AiProviderCredential;
 import com.pdv2cloud.model.entity.AiUsageLog;
-import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.AiInterpretationRepository;
 import com.pdv2cloud.repository.AiProviderCredentialRepository;
-import com.pdv2cloud.repository.MarketRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,7 +49,6 @@ class AiOrchestratorTest {
     @Mock private AiProviderCredentialRepository credentialRepository;
     @Mock private AiInterpretationRepository interpretationRepository;
     @Mock private AiUsageRecorder usageRecorder;
-    @Mock private MarketRepository marketRepository;
     @Mock private LlmClient llmClient;
 
     private AiCredentialCipher cipher;
@@ -63,11 +61,10 @@ class AiOrchestratorTest {
     void setUp() {
         cipher = new AiCredentialCipher(MASTER);
         orchestrator = new AiOrchestrator(credentialRepository, interpretationRepository,
-            usageRecorder, marketRepository, cipher, llmClient);
+            usageRecorder, cipher, llmClient);
 
         when(interpretationRepository.findByMarketIdAndTaskAndContextHash(any(), any(), any()))
             .thenReturn(Optional.empty());
-        when(marketRepository.getReferenceById(any())).thenReturn(new Market());
     }
 
     @Test
@@ -90,8 +87,7 @@ class AiOrchestratorTest {
     @Test
     void semChaveMestraDevolveFallback() {
         AiOrchestrator semCripto = new AiOrchestrator(credentialRepository,
-            interpretationRepository, usageRecorder, marketRepository,
-            new AiCredentialCipher(""), llmClient);
+            interpretationRepository, usageRecorder, new AiCredentialCipher(""), llmClient);
 
         AiOrchestrator.Interpretation result = semCripto.interpret(marketId, "TAREFA",
             "OPPORTUNITY", UUID.randomUUID(), context, "sistema", "v1", FALLBACK);
@@ -114,6 +110,49 @@ class AiOrchestratorTest {
         assertEquals("Análise escrita pelo modelo.", result.content());
         assertFalse(result.deterministic());
         assertEquals("GROQ", result.provider());
+
+        // A gravação vai para o recorder, que tem transação própria: o
+        // orquestrador roda fora de transação para não prender conexão do pool
+        // durante a chamada HTTP.
+        verify(usageRecorder).storeInterpretation(eq(marketId), anyString(), anyString(),
+            any(), eq("hash-abc"), eq("Análise escrita pelo modelo."), eq("GROQ"),
+            anyString(), anyString(), eq(false));
+    }
+
+    /**
+     * Quando a cadeia existe e falha, o fallback é guardado marcado como
+     * determinístico: sem isso, cada rodada repetiria a cadeia inteira pelos
+     * mesmos números, e a UI não teria como distinguir o texto do sistema do
+     * que um modelo escreveu.
+     */
+    @Test
+    void fallbackDeCadeiaQueFalhouEGuardadoComoDeterministico() {
+        when(credentialRepository.findChain(marketId))
+            .thenReturn(List.of(credential(AiProvider.GROQ, 10)));
+        when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
+            anyInt(), anyDouble()))
+            .thenReturn(LlmClient.LlmResponse.fail("provedor fora do ar", true, 100));
+
+        interpret();
+
+        verify(usageRecorder).storeInterpretation(eq(marketId), anyString(), anyString(),
+            any(), eq("hash-abc"), eq(FALLBACK), eq(null), eq(null), anyString(), eq(true));
+    }
+
+    /**
+     * Mercado SEM credencial não tem o fallback cacheado — de propósito. Se
+     * tivesse, o texto do sistema ficaria preso no cache e o lojista que
+     * acabasse de cadastrar uma chave continuaria lendo a versão antiga até os
+     * números mudarem.
+     */
+    @Test
+    void semCredencialNaoCacheiaOFallback() {
+        when(credentialRepository.findChain(marketId)).thenReturn(List.of());
+
+        interpret();
+
+        verify(usageRecorder, never()).storeInterpretation(any(), anyString(), anyString(),
+            any(), anyString(), anyString(), any(), any(), anyString(), anyBoolean());
     }
 
     /** O cliente pode cadastrar vários provedores; o segundo cobre o primeiro. */
