@@ -35,6 +35,12 @@ STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
 STRIPE_PRICE_ESSENCIAL="${STRIPE_PRICE_ESSENCIAL:-}"
 STRIPE_PRICE_PROFISSIONAL="${STRIPE_PRICE_PROFISSIONAL:-}"
+# Chave mestra que cifra as chaves de IA que os CLIENTES cadastram (BYOK).
+#
+# NAO PODE MUDAR entre deploys: as chaves ja cadastradas foram cifradas com ela
+# e ficariam indecifraveis. Por isso e gerada UMA vez no servidor e preservada
+# do .env em diante (ver resolve_ai_config), nunca regerada a cada deploy.
+AI_ENCRYPTION_KEY="${AI_ENCRYPTION_KEY:-}"
 DOCKER_CLEANUP_ENABLED="${DOCKER_CLEANUP_ENABLED:-true}"
 DOCKER_CLEANUP_PROJECT_CONTAINERS="${DOCKER_CLEANUP_PROJECT_CONTAINERS:-true}"
 DOCKER_CLEANUP_DANGLING_IMAGES="${DOCKER_CLEANUP_DANGLING_IMAGES:-true}"
@@ -132,6 +138,31 @@ resolve_stripe_config() {
   fi
 }
 
+# Preserva (ou gera na primeira vez) a chave mestra de criptografia da IA.
+#
+# A ordem importa: secret do GitHub > o que ja esta no .env > gerar nova. Gerar
+# so acontece quando nao existe nenhuma, porque sobrescrever uma chave em uso
+# tornaria as credenciais dos clientes ilegiveis -- eles teriam de recadastrar
+# sem entender por que.
+resolve_ai_config() {
+  if [[ -z "$AI_ENCRYPTION_KEY" && -f .env ]]; then
+    local existing
+    existing="$(sed -n 's/^AI_ENCRYPTION_KEY=//p' .env | head -n 1)"
+    if [[ -n "$existing" ]]; then
+      AI_ENCRYPTION_KEY="$existing"
+    fi
+  fi
+
+  if [[ -z "$AI_ENCRYPTION_KEY" ]]; then
+    # tr remove a quebra que o openssl acrescenta: ela entraria no .env e
+    # cortaria o valor da variavel no meio.
+    AI_ENCRYPTION_KEY="$(openssl rand -base64 48 | tr -d '\n')"
+    log "Chave de criptografia de IA gerada (primeira vez); sera preservada nos proximos deploys"
+  else
+    log "Chave de criptografia de IA preservada"
+  fi
+}
+
 ensure_app_role() {
   # A aplicacao conecta com uma role SEM superuser e SEM bypassrls, para que as
   # policies de row-level security sejam de fato avaliadas. Com a role dona do
@@ -210,6 +241,7 @@ STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
 STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
 STRIPE_PRICE_ESSENCIAL=${STRIPE_PRICE_ESSENCIAL}
 STRIPE_PRICE_PROFISSIONAL=${STRIPE_PRICE_PROFISSIONAL}
+AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY}
 MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
@@ -446,6 +478,7 @@ main() {
   ensure_secret_file ".app_role_secret" 24 "senha da role de aplicacao"
   resolve_super_admin_password
   resolve_stripe_config
+  resolve_ai_config
   write_env_file
 
   export DOCKER_BUILDKIT=1

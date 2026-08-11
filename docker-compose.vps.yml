@@ -48,6 +48,9 @@ services:
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - STRIPE_PRICE_ESSENCIAL=${STRIPE_PRICE_ESSENCIAL:-}
       - STRIPE_PRICE_PROFISSIONAL=${STRIPE_PRICE_PROFISSIONAL:-}
+      # Cifra as chaves de IA que os clientes cadastram (BYOK). Ausente = BYOK
+      # desabilitado com aviso na tela; todo o resto do produto segue igual.
+      - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
       - CATALOG_IMAGE_REPAIR_ENABLED=${CATALOG_IMAGE_REPAIR_ENABLED:-true}
       - CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS=${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS:-60000}
       - CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS=${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-21600000}
@@ -91,6 +94,9 @@ services:
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION_MS=86400000
+      # O container de jobs tambem precisa: e ele quem interpreta as
+      # oportunidades no batch noturno, decifrando a chave de cada mercado.
+      - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
     depends_on:
       mercadoflow-backend:
         condition: service_healthy
