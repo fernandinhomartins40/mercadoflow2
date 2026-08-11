@@ -219,6 +219,23 @@ const OpportunityCard: React.FC<{
             {opp.description}
           </p>
         ) : null}
+        {/*
+          Leitura da IA que o mercado configurou. Vem marcada porque o usuário
+          tem direito de distinguir o que um modelo escreveu do que o sistema
+          calculou — e só aparece quando existe: sem chave, o card fica
+          exatamente como era antes.
+        */}
+        {opp.aiInsight ? (
+          <div
+            className="flex gap-2 rounded-lg px-3 py-2"
+            style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}
+          >
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: 'var(--brand-500)' }} />
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+              {opp.aiInsight}
+            </p>
+          </div>
+        ) : null}
         {opp.expectedImpactValue ? (
           <p className="text-xs font-medium" style={{ color: tone.text }}>
             Impacto estimado: {fmt.money(opp.expectedImpactValue)}

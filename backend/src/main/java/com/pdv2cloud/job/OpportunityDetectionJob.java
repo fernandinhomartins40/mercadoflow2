@@ -2,6 +2,8 @@ package com.pdv2cloud.job;
 
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.MarketRepository;
+import com.pdv2cloud.repository.OpportunityRepository;
+import com.pdv2cloud.service.ai.OpportunityInterpreter;
 import com.pdv2cloud.service.opportunity.OpportunityEngine;
 import com.pdv2cloud.service.opportunity.OpportunityEngine.DetectionResult;
 import com.pdv2cloud.service.opportunity.RecommendationEngine;
@@ -18,6 +20,10 @@ import org.springframework.stereotype.Component;
  * Roda às 03:30 — depois do ProductIntelligenceJob (03:00), do qual depende: os
  * detectores de capital e halo leem as tabelas que aquele job materializa. Rodar
  * antes usaria os números da véspera.
+ *
+ * A interpretação por IA acontece AQUI, no batch, e não quando a tela é aberta:
+ * o feed nunca deve esperar por um provedor externo. Mercados sem chave
+ * configurada pulam a etapa sem custo — o texto determinístico já está pronto.
  */
 @Component
 @Slf4j
@@ -27,15 +33,21 @@ public class OpportunityDetectionJob {
     private final OpportunityEngine opportunityEngine;
     private final RecommendationEngine recommendationEngine;
     private final MarketRepository marketRepository;
+    private final OpportunityRepository opportunityRepository;
+    private final OpportunityInterpreter opportunityInterpreter;
 
     public OpportunityDetectionJob(
         OpportunityEngine opportunityEngine,
         RecommendationEngine recommendationEngine,
-        MarketRepository marketRepository
+        MarketRepository marketRepository,
+        OpportunityRepository opportunityRepository,
+        OpportunityInterpreter opportunityInterpreter
     ) {
         this.opportunityEngine = opportunityEngine;
         this.recommendationEngine = recommendationEngine;
         this.marketRepository = marketRepository;
+        this.opportunityRepository = opportunityRepository;
+        this.opportunityInterpreter = opportunityInterpreter;
     }
 
     /**
@@ -53,6 +65,7 @@ public class OpportunityDetectionJob {
         int failed = 0;
         int totalCreated = 0;
         int totalRecommendations = 0;
+        int totalInterpreted = 0;
 
         for (Market market : markets) {
             try {
@@ -61,8 +74,22 @@ public class OpportunityDetectionJob {
                 int recs = TenantContext.runAsSystem(
                     () -> recommendationEngine.generateForMarket(market.getId()));
 
+                // Interpretação por IA: falha aqui não invalida a detecção,
+                // que é o produto real deste job. A IA é acréscimo.
+                int interpreted = 0;
+                try {
+                    interpreted = TenantContext.runAsSystem(() ->
+                        opportunityInterpreter.interpretMarket(
+                            market.getId(),
+                            opportunityRepository.findOpenByMarket(market.getId())));
+                } catch (Exception e) {
+                    log.warn("Interpretacao por IA falhou no mercado {}: {}",
+                        market.getId(), e.getMessage());
+                }
+
                 totalCreated += result.created();
                 totalRecommendations += recs;
+                totalInterpreted += interpreted;
                 ok++;
                 log.debug(
                     "Mercado {}: {} detectadas, {} novas, {} atualizadas, {} concluidas, "
@@ -76,7 +103,8 @@ public class OpportunityDetectionJob {
         }
 
         log.info("Deteccao concluida: {} mercado(s) ok, {} com falha, "
-                + "{} oportunidades novas, {} recomendacoes geradas",
-            ok, failed, totalCreated, totalRecommendations);
+                + "{} oportunidades novas, {} recomendacoes geradas, "
+                + "{} interpretadas por IA",
+            ok, failed, totalCreated, totalRecommendations, totalInterpreted);
     }
 }

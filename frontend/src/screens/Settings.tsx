@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
+import AiSettingsCard from '../components/settings/AiSettingsCard';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
@@ -90,6 +91,16 @@ const Settings: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/*
+          Configuração de IA só para quem pode assumir o compromisso: cadastrar
+          uma chave de API implica gasto na conta do provedor. O backend aplica
+          a mesma regra (MARKET_OWNER/ADMIN) — esconder aqui é conveniência de
+          interface, não a proteção.
+        */}
+        {(role === 'MARKET_OWNER' || role === 'ADMIN') && (
+          <AiSettingsCard marketId={marketId} />
+        )}
 
         {/* Sair */}
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>

@@ -557,6 +557,54 @@ retrato isolado. Ambas dependem de o histórico começar a existir hoje.
 
 ---
 
+### FASE 5 — IA generativa com BYOK por mercado (11/08/2026)
+
+**Desvio deliberado em relação ao plano original, decidido pelo dono:** o §24
+previa a plataforma operando sobre a cadeia gratuita com chaves próprias
+(Cerebras → Groq → NVIDIA NIM → OpenRouter :free). A decisão foi outra: **cada
+mercado cadastra a própria chave** (BYOK), no frontend, cifrada. O que era da
+Fase 6 veio para cá — e resolve, de saída, o problema mais difícil da Fase 5
+como estava planejada, que era impedir um tenant de consumir a cota dos outros.
+
+Como quase todos os provedores do catálogo têm camada gratuita, o cliente
+continua conseguindo operar sem pagar nada; a diferença é que a cota é dele, o
+teto de gasto é o da conta dele, e a plataforma não entra no caminho.
+
+| Item | Status | Observação |
+|---|---|---|
+| Migration V50 | ✅ Feito | `ai_provider_credentials` (BYOK cifrado), `ai_interpretations` (cache), `ai_usage_log` (observabilidade), `opportunities.interpretation_id`. RLS ativa nas três + GRANT para `mercadoflow_app` |
+| Custódia da chave (AES-256-GCM) | ✅ Feito | Chave mestra fora do banco (`AI_ENCRYPTION_KEY`): quem tem só o dump não tem as chaves dos clientes. GCM e não CBC porque é autenticado — ciphertext adulterado falha em vez de devolver lixo. IV aleatório por operação. A chave em claro **nunca** volta pela API: só `keyHint` (últimos 4) |
+| `LlmClient` único | ✅ Feito | Todos os provedores do catálogo falam o dialeto `POST /chat/completions` da OpenAI, então um cliente HTTP cobre a lista inteira trocando três strings. Usa `java.net.http.HttpClient` da JDK, como o crawler — **nenhuma dependência nova no pom** |
+| Catálogo de provedores | ✅ Feito | Cerebras, Groq, NVIDIA NIM, OpenRouter, Gemini, OpenAI e **endpoint próprio** (LiteLLM/Ollama do cliente). Cada um traz URL e modelo padrão: quem quer "usar o Groq" não precisa descobrir endpoint |
+| Context Builder com allowlist | ✅ Feito | Filtragem por **allowlist**, não blocklist: um detector futuro que ponha CPF ou chave de NFe em `evidence` não atravessa — o campo desconhecido é descartado, e ninguém precisa lembrar de proibi-lo. Coberto por teste |
+| Cache por hash do contexto | ✅ Feito | Uma oportunidade é interpretada **uma vez**. Números iguais = hash igual = texto reaproveitado. Importa mais aqui do que importaria com chave da plataforma: quem paga o token é o cliente. As chaves são ordenadas antes do hash, senão a ordem de iteração do mapa faria o cache nunca acertar |
+| Cadeia de fallback + circuit breaker | ✅ Feito | O cliente pode cadastrar vários provedores e ordená-los. Provedor que falhou fica 10 min fora — numa rodada de 80 oportunidades, insistir seriam 80 chamadas inúteis e 80 timeouts |
+| **Fallback determinístico** | ✅ Feito | **O ponto mais importante da fase.** Sem chave, com chave inválida, com o provedor fora do ar: o usuário lê o mesmo texto que lia antes da Fase 5. A IA **nunca** é caminho crítico. Cinco testes protegem essa propriedade |
+| Interpretação no batch, não na tela | ✅ Feito | O `OpportunityDetectionJob` interpreta depois de detectar; o feed só **lê** o que já existe. Montar a tela nunca chama provedor externo — um feed de 60 oportunidades com provedor lento faria o lojista esperar minutos |
+| Observabilidade | ✅ Feito | `ai_usage_log` registra tenant, tarefa, provedor, modelo, versão do prompt, tokens, latência e desfecho — mas **só o hash do contexto**, nunca o prompt: um log com o conteúdo integral criaria mais uma cópia dos dados de venda do cliente |
+| Prompt versionado | ✅ Feito | `AiPrompts.VERSION_OPPORTUNITY`, gravado em cada interpretação e no log. Sem isso, "a IA piorou depois da mudança" seria impossível de investigar |
+| API + tela | ✅ Feito | `/markets/{id}/ai/*` restrito a **MARKET_OWNER/ADMIN** — não a MARKET_MANAGER, porque cadastrar chave de API é assumir compromisso financeiro. Card na tela de Conta com teste de conexão real, link para criar a chave em cada provedor e consumo dos últimos 30 dias |
+| Insight no feed | ✅ Feito | O texto da IA aparece marcado com ícone próprio, separado da descrição do sistema: o usuário tem direito de saber o que um modelo escreveu e o que foi calculado |
+
+**O que o prompt proíbe, e por quê:** o modelo é instruído a nunca calcular,
+estimar ou projetar — apenas interpretar os números recebidos. O modo de falha
+mais provável aqui seria o modelo "melhorar" um valor, e isso destruiria
+exatamente a propriedade que as Fases 3 e 4 construíram: todo número exibido tem
+rastro de cálculo.
+
+**Validação:** backend compila em Java 17 (imagem do Dockerfile) e passa **108
+testes** (84 + 24 novos: cifra, allowlist LGPD e as garantias de fallback).
+Migration V50 aplicada num PostgreSQL 16 real com as 50 migrations em ordem — as
+3 tabelas criadas com RLS ativa e policy `tenant_isolation`, o FK em
+`opportunities` e as duas unique constraints confirmados. Build de produção do
+frontend OK, com os mesmos 124 erros de tipo pré-existentes e nenhum novo.
+
+**Pendente do lado da operação:** definir `AI_ENCRYPTION_KEY` no deploy. Sem
+ela, o BYOK aparece desabilitado na tela (com aviso) e todo o resto do produto
+segue funcionando com os textos determinísticos.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**
@@ -574,7 +622,7 @@ Tabela + detectores plugáveis migrando os 8 alertas e candidatos; ciclo de vida
 **FASE 4 — Recommendation Engine**
 Recomendações estruturadas (evidência/cálculo/confiança/impacto); ações executáveis (compra→lista/pedido, promoção→campanha); registro de decisão.
 
-**FASE 5 — IA Generativa (função adicional, custo zero)**
+**FASE 5 — IA Generativa (função adicional, custo zero)** — ✅ CONCLUÍDA (11/08/2026), com desvio: BYOK por mercado em vez da cadeia free da plataforma. Ver §31-A.
 AI Orchestrator v1 sobre a **cadeia free** (§24: Cerebras → Groq → NVIDIA NIM → OpenRouter :free → texto determinístico); Context Builder com allowlist; interpretação de oportunidades (batch) + resumo semanal; contabilidade de cota free por provedor e por tenant. Nada do que foi entregue nas Fases 0–4 passa a depender disto.
 
 **FASE 6 — Orquestração**

@@ -6,6 +6,7 @@ import com.pdv2cloud.repository.OpportunityRepository;
 import com.pdv2cloud.repository.RecommendationOutcomeRepository;
 import com.pdv2cloud.repository.RecommendationRepository;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.ai.OpportunityInterpreter;
 import com.pdv2cloud.service.intelligence.ForecastAccuracyService;
 import com.pdv2cloud.service.opportunity.OpportunityEngine;
 import com.pdv2cloud.service.opportunity.RecommendationEngine;
@@ -44,6 +45,7 @@ public class OpportunityController {
     private final RecommendationRepository recommendationRepository;
     private final RecommendationOutcomeRepository outcomeRepository;
     private final ForecastAccuracyService forecastAccuracyService;
+    private final OpportunityInterpreter opportunityInterpreter;
     private final MarketAccessService marketAccessService;
 
     public OpportunityController(
@@ -53,6 +55,7 @@ public class OpportunityController {
         RecommendationRepository recommendationRepository,
         RecommendationOutcomeRepository outcomeRepository,
         ForecastAccuracyService forecastAccuracyService,
+        OpportunityInterpreter opportunityInterpreter,
         MarketAccessService marketAccessService
     ) {
         this.opportunityEngine = opportunityEngine;
@@ -61,6 +64,7 @@ public class OpportunityController {
         this.recommendationRepository = recommendationRepository;
         this.outcomeRepository = outcomeRepository;
         this.forecastAccuracyService = forecastAccuracyService;
+        this.opportunityInterpreter = opportunityInterpreter;
         this.marketAccessService = marketAccessService;
     }
 
@@ -75,7 +79,16 @@ public class OpportunityController {
         List<Opportunity> rows = all
             ? opportunityRepository.findAllByMarket(marketId)
             : opportunityRepository.findOpenByMarket(marketId);
-        return ResponseEntity.ok(rows.stream().map(OpportunityDTO::from).toList());
+
+        // Só o que JÁ foi interpretado pelo job noturno. Montar o feed nunca
+        // chama provedor externo: uma tela com 60 oportunidades faria o
+        // usuário esperar minutos por algo que ele já podia ler.
+        Map<UUID, String> interpretations = opportunityInterpreter.loadExisting(
+            marketId, rows.stream().map(Opportunity::getId).toList());
+
+        return ResponseEntity.ok(rows.stream()
+            .map(o -> OpportunityDTO.from(o, interpretations.get(o.getId())))
+            .toList());
     }
 
     /** Recomendações aguardando decisão. */
@@ -266,9 +279,15 @@ public class OpportunityController {
         Map<String, Object> evidence,
         BigDecimal expectedImpactValue, BigDecimal confidence, BigDecimal priorityScore,
         int detectionCount, LocalDateTime firstDetectedAt, LocalDateTime lastDetectedAt,
-        LocalDateTime expiresAt
+        LocalDateTime expiresAt,
+        /** Texto escrito pela IA do cliente; null quando não há (a UI usa description). */
+        String aiInsight
     ) {
         static OpportunityDTO from(Opportunity o) {
+            return from(o, null);
+        }
+
+        static OpportunityDTO from(Opportunity o, String aiInsight) {
             return new OpportunityDTO(
                 o.getId(), o.getType(), o.getSource(), o.getStatus().name(),
                 o.getTitle(), o.getDescription(),
@@ -278,7 +297,8 @@ public class OpportunityController {
                 o.getEvidence(),
                 o.getExpectedImpactValue(), o.getConfidence(), o.getPriorityScore(),
                 o.getDetectionCount() != null ? o.getDetectionCount() : 1,
-                o.getFirstDetectedAt(), o.getLastDetectedAt(), o.getExpiresAt()
+                o.getFirstDetectedAt(), o.getLastDetectedAt(), o.getExpiresAt(),
+                aiInsight
             );
         }
     }

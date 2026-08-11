@@ -484,6 +484,12 @@ export interface OpportunityItem {
   firstDetectedAt?: string | null;
   lastDetectedAt?: string | null;
   expiresAt?: string | null;
+  /**
+   * Texto escrito pela IA que o mercado configurou (BYOK). Ausente quando não
+   * há chave cadastrada ou o job ainda não interpretou — nesse caso a tela usa
+   * `description`, que é o texto determinístico do próprio sistema.
+   */
+  aiInsight?: string | null;
 }
 
 export type RecommendationStatus = 'PROPOSTA' | 'ACEITA' | 'REJEITADA' | 'EXECUTADA';

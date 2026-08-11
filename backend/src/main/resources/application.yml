@@ -62,6 +62,16 @@ app:
     # IDs de preco (price_...) criados no painel do Stripe, um por plano pago.
     price-essencial: ${STRIPE_PRICE_ESSENCIAL:}
     price-profissional: ${STRIPE_PRICE_PROFISSIONAL:}
+  # Inteligencia com IA generativa. Cada mercado cadastra a PROPRIA chave de API
+  # (BYOK) na tela de configuracao; a plataforma nao fornece chave.
+  #
+  # encryption-key e a chave mestra que cifra as chaves dos clientes em repouso
+  # (AES-GCM). Sem ela o BYOK fica desabilitado e todo o produto continua
+  # funcionando com os textos deterministicos das Fases 3 e 4 — a IA nunca e
+  # caminho critico. Deve ser um segredo longo e aleatorio, definido por
+  # variavel de ambiente e NUNCA commitado.
+  ai:
+    encryption-key: ${AI_ENCRYPTION_KEY:}
   catalog:
     images-dir: ${APP_CATALOG_IMAGES_DIR:../data/catalog/images}
     max-image-bytes: ${APP_CATALOG_MAX_IMAGE_BYTES:5000000}
