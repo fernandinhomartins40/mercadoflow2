@@ -3,6 +3,7 @@ package com.pdv2cloud.service;
 import com.pdv2cloud.model.entity.ProductCapitalMetric;
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.intelligence.ExpectedDemandService;
+import com.pdv2cloud.service.intelligence.SalesWindowResolver;
 import com.pdv2cloud.service.metric.MetricDefinitions;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -84,13 +85,16 @@ public class WorkingCapitalService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ExpectedDemandService expectedDemandService;
+    private final SalesWindowResolver salesWindowResolver;
 
     public WorkingCapitalService(
         NamedParameterJdbcTemplate jdbcTemplate,
-        ExpectedDemandService expectedDemandService
+        ExpectedDemandService expectedDemandService,
+        SalesWindowResolver salesWindowResolver
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.expectedDemandService = expectedDemandService;
+        this.salesWindowResolver = salesWindowResolver;
     }
 
     // ── API pública ──────────────────────────────────────────────────────────
@@ -104,7 +108,24 @@ public class WorkingCapitalService {
     @Transactional(readOnly = true)
     public List<CapitalMetric> computePortfolio(UUID marketId, int windowDays) {
         int days = windowDays > 0 ? Math.min(windowDays, 365) : DEFAULT_WINDOW_DAYS;
-        LocalDate since = LocalDate.now().minusDays(days);
+
+        /*
+         * A janela termina na última venda conhecida, não em "hoje".
+         *
+         * Na primeira instalação o agente envia o acervo de XMLs que estava na
+         * pasta do PDV — que pode terminar meses atrás. Contando 90 dias a
+         * partir de hoje, esse acervo ficaria inteiro fora da janela e o cliente
+         * novo veria capital zerado no primeiro acesso, como se o produto não
+         * funcionasse. Ancorar na última venda faz a análise descrever o período
+         * que os dados de fato cobrem.
+         *
+         * Quando a coleta está em dia, âncora e hoje coincidem e nada muda.
+         */
+        SalesWindowResolver.SalesCoverage coverage = salesWindowResolver.resolve(marketId);
+        if (!coverage.hasData()) {
+            return List.of();
+        }
+        LocalDate since = salesWindowResolver.windowStart(coverage, days);
 
         List<SalesAggregate> sales = loadSalesAggregates(marketId, since, days);
         if (sales.isEmpty()) {
@@ -254,10 +275,25 @@ public class WorkingCapitalService {
             "join products p on p.id = d.product_id " +
             "group by d.product_id, p.name, p.category, p.ean, p.image_url";
 
+        /*
+         * O momentum é ancorado no FIM DA JANELA, não em "hoje".
+         *
+         * Com acervo histórico (primeira instalação, coleta interrompida),
+         * "últimos 7 dias a partir de hoje" não alcança venda nenhuma: o
+         * recent_avg_qty sairia zero para todo produto e o sistema concluiria
+         * que a loja inteira está desacelerando — quando na verdade os dados é
+         * que são antigos.
+         *
+         * `since` já vem ancorado na última venda conhecida (ver
+         * computePortfolio), então somar a janela devolve o fim real do período
+         * analisado.
+         */
+        LocalDate windowEnd = since.plusDays(windowDays);
+
         MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId)
             .addValue("since", since.atStartOfDay())
-            .addValue("recentSince", LocalDate.now().minusDays(7))
-            .addValue("baseSince", LocalDate.now().minusDays(28));
+            .addValue("recentSince", windowEnd.minusDays(7))
+            .addValue("baseSince", windowEnd.minusDays(28));
 
         List<SalesAggregate> out = new ArrayList<>();
         jdbcTemplate.query(sql, params, rs -> {

@@ -6,6 +6,8 @@ import com.pdv2cloud.service.intelligence.CustomerIntelligenceService;
 import com.pdv2cloud.service.intelligence.IntelligenceCenterService;
 import com.pdv2cloud.service.intelligence.MarketPriceComparisonDetector;
 import com.pdv2cloud.service.intelligence.SalesAnomalyDetector;
+import com.pdv2cloud.service.intelligence.ProductHistoryService;
+import com.pdv2cloud.service.intelligence.SalesWindowResolver;
 import com.pdv2cloud.service.intelligence.StoreRhythmService;
 import com.pdv2cloud.service.intelligence.ProductIntelligenceMaterializer;
 import java.util.List;
@@ -39,6 +41,8 @@ public class IntelligenceCenterController {
     private final MarketPriceComparisonDetector priceComparisonDetector;
     private final CampaignProductIntelligenceService campaignProductIntelligenceService;
     private final StoreRhythmService storeRhythmService;
+    private final ProductHistoryService productHistoryService;
+    private final SalesWindowResolver salesWindowResolver;
     private final MarketAccessService marketAccessService;
 
     public IntelligenceCenterController(
@@ -49,6 +53,8 @@ public class IntelligenceCenterController {
         MarketPriceComparisonDetector priceComparisonDetector,
         CampaignProductIntelligenceService campaignProductIntelligenceService,
         StoreRhythmService storeRhythmService,
+        ProductHistoryService productHistoryService,
+        SalesWindowResolver salesWindowResolver,
         MarketAccessService marketAccessService
     ) {
         this.intelligenceCenterService = intelligenceCenterService;
@@ -58,6 +64,8 @@ public class IntelligenceCenterController {
         this.priceComparisonDetector = priceComparisonDetector;
         this.campaignProductIntelligenceService = campaignProductIntelligenceService;
         this.storeRhythmService = storeRhythmService;
+        this.productHistoryService = productHistoryService;
+        this.salesWindowResolver = salesWindowResolver;
         this.marketAccessService = marketAccessService;
     }
 
@@ -139,6 +147,51 @@ public class IntelligenceCenterController {
             "resumo", storeRhythmService.describePeakHours(marketId),
             "porHora", storeRhythmService.dailyProfile(marketId)
         ));
+    }
+
+    /**
+     * Evolução das métricas de um produto ao longo do tempo.
+     *
+     * Responde "o giro deste produto está melhorando?" — pergunta que o sistema
+     * não sabia responder enquanto cada materialização apagava o retrato
+     * anterior.
+     */
+    @GetMapping("/products/{productId}/history")
+    public ResponseEntity<ProductHistoryService.ProductEvolution> productHistory(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("productId") UUID productId,
+        @RequestParam(value = "days", defaultValue = "90") int days,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(productHistoryService.evolution(marketId, productId, days));
+    }
+
+    /** Evolução do portfólio: o capital parado da loja está crescendo ou diminuindo? */
+    @GetMapping("/portfolio-evolution")
+    public ResponseEntity<List<ProductHistoryService.PortfolioSnapshot>> portfolioEvolution(
+        @PathVariable("marketId") UUID marketId,
+        @RequestParam(value = "days", defaultValue = "90") int days,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(productHistoryService.portfolioEvolution(marketId, days));
+    }
+
+    /**
+     * Cobertura dos dados de venda desta loja.
+     *
+     * Diz explicitamente qual período a análise está descrevendo — essencial
+     * quando o agente acabou de subir um acervo histórico, ou quando a coleta
+     * parou e os números não representam mais o momento atual.
+     */
+    @GetMapping("/data-coverage")
+    public ResponseEntity<SalesWindowResolver.SalesCoverage> dataCoverage(
+        @PathVariable("marketId") UUID marketId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return ResponseEntity.ok(salesWindowResolver.resolve(marketId));
     }
 
     /** Dias de venda fora da curva, detectados por EWMA. */

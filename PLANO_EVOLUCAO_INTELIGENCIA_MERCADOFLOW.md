@@ -512,6 +512,51 @@ promoção.
 
 ---
 
+### BACKFILL E HISTÓRICO DE MÉTRICAS (11/08/2026)
+
+Dois problemas de fundação, resolvidos juntos porque o segundo é pré-requisito de
+tudo que vem depois.
+
+**1. Carga inicial (backfill).** Na primeira instalação o agente encontra meses
+de XMLs na pasta do PDV e envia tudo. Mas todas as janelas do sistema — 90 dias
+do capital, 180 do halo, 365 da sazonalidade — eram contadas a partir de HOJE. Se
+o acervo termina há quatro meses, o cliente novo abria a Central e via capital
+zerado, giro zerado, nenhuma oportunidade: a impressão de que o produto não
+funciona, justamente no primeiro contato.
+
+`SalesWindowResolver` ancora a janela na **última venda conhecida**, não em
+"hoje". Quando a coleta está em dia, âncora e hoje coincidem e nada muda. O
+endpoint `GET /intelligence/data-coverage` diz explicitamente qual período a
+análise está descrevendo, e distingue as duas causas de dado antigo, porque a
+ação é diferente: acervo recém-importado se resolve sozinho; **coleta parada
+exige que alguém verifique o agente**.
+
+**Bug encontrado ao implementar:** o momentum usava `hoje - 7` e `hoje - 28` como
+âncora. Com acervo histórico, `recent_avg_qty` sairia **zero para todo produto** e
+o sistema concluiria que a loja inteira está desacelerando — quando os dados é que
+são antigos. Agora ancorado no fim da janela.
+
+**2. Histórico de métricas.** A materialização é destrutiva (`delete` + `insert`):
+cada rodada apagava o retrato anterior. O sistema nunca soube responder "o giro
+deste produto está melhorando?" — e **dado que não foi guardado não se recupera
+depois**.
+
+`product_metric_history` grava um snapshot por produto **por dia** (não por
+materialização — com o refresh adaptativo rodando de 10 em 10 min, guardar 50
+retratos do mesmo dia infla a tabela sem acrescentar informação). Escrito em
+batch, porque são milhares de linhas por mercado.
+
+Exposto em `GET /intelligence/products/{id}/history` (série + tendência + mudanças
+de classe ABC/veredito, com data) e `GET /intelligence/portfolio-evolution` (o
+capital parado da loja está crescendo ou diminuindo?).
+
+**Por que isto é fundação:** a calibração de scores do feedback loop precisa
+comparar previsto e realizado ao longo de semanas, e a futura divisão para
+fabricantes só tem valor mostrando **evolução** do produto no mercado, não um
+retrato isolado. Ambas dependem de o histórico começar a existir hoje.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**

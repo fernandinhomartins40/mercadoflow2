@@ -174,6 +174,17 @@ public class ProductIntelligenceMaterializer {
          * separadas de propósito, para a dependência não ficar escondida numa
          * expressão que depende da ordem de avaliação.
          */
+        /*
+         * Histórico: a materialização é destrutiva (delete + insert), então sem
+         * este snapshot cada rodada apagaria o retrato anterior e o sistema
+         * nunca saberia se o giro de um produto está melhorando. Dado que não
+         * foi guardado não se recupera depois — e toda funcionalidade futura que
+         * dependa de série temporal precisa que ele comece a existir hoje.
+         */
+        if (!portfolio.isEmpty()) {
+            writeMetricHistory(marketId, portfolio);
+        }
+
         int seasonality = writeSeasonality(marketId);
         seasonality += writeHourlySeasonality(marketId);
 
@@ -188,6 +199,78 @@ public class ProductIntelligenceMaterializer {
         return new MaterializationResult(
             marketId, capital, inventory, seasonality, halo,
             customers.profiles(), customers.repurchaseRows(), elapsed);
+    }
+
+    // ── Histórico de métricas ────────────────────────────────────────────────
+
+    /**
+     * Grava o retrato do dia de cada produto.
+     *
+     * Um snapshot por produto POR DIA — e não por materialização — porque o
+     * interesse é a tendência: guardar 50 retratos do mesmo dia infla a tabela
+     * sem acrescentar informação. Com o refresh adaptativo rodando de 10 em 10
+     * minutos, isso importa.
+     *
+     * O upsert faz a última rodada do dia prevalecer, que é a mais completa.
+     *
+     * Escrito em lote via SQL nativo em vez de JPA: são milhares de linhas por
+     * mercado por dia, e o overhead de entidade gerenciada não se paga aqui.
+     */
+    private int writeMetricHistory(UUID marketId, List<CapitalMetric> portfolio) {
+        LocalDate today = LocalDate.now();
+
+        // Batch: um round-trip por lote em vez de um por SKU. Com 8 mil
+        // produtos, a diferença é entre segundos e minutos.
+        MapSqlParameterSource[] batch = portfolio.stream()
+            .map(m -> new MapSqlParameterSource()
+                .addValue("marketId", marketId)
+                .addValue("productId", m.productId())
+                .addValue("snapshotDate", today)
+                .addValue("revenue", m.revenue())
+                .addValue("quantitySold", m.quantitySold())
+                .addValue("dailyVelocity", m.dailyVelocity())
+                .addValue("abcClass", m.abcClass())
+                .addValue("xyzClass", m.xyzClass())
+                .addValue("capitalStatus", m.capitalStatus() != null ? m.capitalStatus().name() : null)
+                .addValue("gmroi", m.gmroi())
+                .addValue("coverageDays", m.coverageDays())
+                .addValue("momentumScore", m.momentumScore())
+                .addValue("stagnationRisk", m.stagnationRisk())
+                .addValue("priorityScore", m.priorityScore())
+                .addValue("grossMarginPercent", m.grossMarginPercent())
+                .addValue("unitPrice", m.unitPrice())
+                .addValue("inventoryValue", m.inventoryValue())
+                .addValue("windowDays", CAPITAL_WINDOW_DAYS))
+            .toArray(MapSqlParameterSource[]::new);
+
+        int[] results = jdbcTemplate.batchUpdate(
+                "insert into product_metric_history ( "
+                    + "  market_id, product_id, snapshot_date, revenue, quantity_sold, "
+                    + "  daily_velocity, abc_class, xyz_class, capital_status, gmroi, "
+                    + "  coverage_days, momentum_score, stagnation_risk, priority_score, "
+                    + "  gross_margin_percent, unit_price, inventory_value, window_days) "
+                    + "values (:marketId, :productId, :snapshotDate, :revenue, :quantitySold, "
+                    + "        :dailyVelocity, :abcClass, :xyzClass, :capitalStatus, :gmroi, "
+                    + "        :coverageDays, :momentumScore, :stagnationRisk, :priorityScore, "
+                    + "        :grossMarginPercent, :unitPrice, :inventoryValue, :windowDays) "
+                    + "on conflict (market_id, product_id, snapshot_date) do update set "
+                    + "  revenue = excluded.revenue, "
+                    + "  quantity_sold = excluded.quantity_sold, "
+                    + "  daily_velocity = excluded.daily_velocity, "
+                    + "  abc_class = excluded.abc_class, "
+                    + "  xyz_class = excluded.xyz_class, "
+                    + "  capital_status = excluded.capital_status, "
+                    + "  gmroi = excluded.gmroi, "
+                    + "  coverage_days = excluded.coverage_days, "
+                    + "  momentum_score = excluded.momentum_score, "
+                    + "  stagnation_risk = excluded.stagnation_risk, "
+                    + "  priority_score = excluded.priority_score, "
+                    + "  gross_margin_percent = excluded.gross_margin_percent, "
+                    + "  unit_price = excluded.unit_price, "
+                    + "  inventory_value = excluded.inventory_value",
+            batch);
+
+        return results.length;
     }
 
     // ── Efeito halo ──────────────────────────────────────────────────────────
