@@ -400,6 +400,36 @@ resolve o mercado antes de existir tenant na sessão — ali a proteção é o
 
 ---
 
+### FASES 3 e 4 — concluídas (11/08/2026)
+
+Implementadas juntas por serem acopladas: oportunidade sem recomendação não
+fecha o ciclo de decisão.
+
+| Item | Status | Observação |
+|---|---|---|
+| Tabela `opportunities` + ciclo de vida | ✅ Feito | V46. NOVA→VISTA→EM_ACAO→CONCLUIDA/DESCARTADA/EXPIRADA. **O que muda de verdade é a memória**: antes o feed era recalculado a cada request, então o que o usuário via e descartava reaparecia idêntico no dia seguinte |
+| `fingerprint` para deduplicação | ✅ Feito | Chave estável por situação (`CAPITAL:<produto>`), com unique constraint. Sem ela cada rodada criaria linha nova e o feed viraria histórico. `detection_count` registra persistência — o que volta há três semanas pesa mais que o de ontem |
+| `OpportunityDetector` plugável | ✅ Feito | Interface + injeção de `List<OpportunityDetector>`: adicionar tipo novo não exige tocar no motor. Três detectores migrados (capital, promoção, sinais de venda) cobrindo 8 tipos de oportunidade |
+| Regras de convivência | ✅ Feito | (1) o que o usuário DESCARTOU não ressuscita; (2) o que sumiu do detector é CONCLUÍDO; (3) detector que estoura não derruba os outros. As três cobertas por teste |
+| Tabela `recommendations` + decisão | ✅ Feito | Aceitar move a oportunidade para EM_ACAO; rejeitar descarta com o motivo registrado |
+| `calculation_trace` | ✅ Feito | Cada recomendação expõe COMO o número saiu. É o que permite ao lojista discordar com fundamento em vez de simplesmente não confiar — e o que separa recomendação de palpite |
+| `recommendation_outcomes` | ✅ Feito | Tabela criada com `predicted_value` gravado no ato da decisão. Prepara a Fase 8: comparar com previsão recalculada depois mediria outra coisa |
+| `OpportunityDetectionJob` | ✅ Feito | 03:30, depois do ProductIntelligenceJob (03:00) do qual depende |
+| API + tela | ✅ Feito | `/opportunities` com feed, decisão, descarte e histórico. Central reorganizada em três abas: **o que fazer** / **o que está acontecendo** / **decisões tomadas** |
+| Alerta como notificação | ✅ Feito | `alerts.opportunity_id` criada; a UI legada segue funcionando durante a transição |
+
+**Nada é executado automaticamente.** O sistema propõe, o dono da loja decide.
+Não é limitação técnica — é a única postura defensável para um sistema que
+sugere gastar dinheiro com base em estoque teórico.
+
+**Validação:** 68 testes (50 + 18 novos cobrindo as regras dos dois motores);
+V46 aplicada num PostgreSQL 16 real com as 46 migrations em ordem, RLS ativa nas
+3 tabelas novas e o fluxo completo testado no banco (oportunidade → recomendação
+→ decisão → oportunidade em ação), incluindo a rejeição de duplicata por
+fingerprint. Build de produção do frontend OK.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**

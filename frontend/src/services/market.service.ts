@@ -12,6 +12,56 @@ export const marketService = {
     return response.data;
   },
 
+  /* ─── Oportunidades e recomendações (com ciclo de vida) ─── */
+
+  async getOpportunities(marketId: string, all = false) {
+    const response = await api.get(`/v1/markets/${marketId}/opportunities`, {
+      params: { all },
+    });
+    return response.data;
+  },
+
+  async getPendingRecommendations(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/opportunities/recommendations`);
+    return response.data;
+  },
+
+  async getDecisionHistory(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/opportunities/recommendations/history`);
+    return response.data;
+  },
+
+  async markOpportunitiesSeen(marketId: string, ids: string[]) {
+    const response = await api.post(`/v1/markets/${marketId}/opportunities/seen`, ids);
+    return response.data;
+  },
+
+  async dismissOpportunity(marketId: string, opportunityId: string, reason?: string) {
+    const response = await api.post(
+      `/v1/markets/${marketId}/opportunities/${opportunityId}/dismiss`,
+      { reason },
+    );
+    return response.data;
+  },
+
+  async decideRecommendation(
+    marketId: string,
+    recommendationId: string,
+    decision: 'ACEITA' | 'REJEITADA' | 'EXECUTADA',
+    note?: string,
+  ) {
+    const response = await api.post(
+      `/v1/markets/${marketId}/opportunities/recommendations/${recommendationId}/decide`,
+      { decision, note },
+    );
+    return response.data;
+  },
+
+  async detectOpportunitiesNow(marketId: string) {
+    const response = await api.post(`/v1/markets/${marketId}/opportunities/detect`);
+    return response.data;
+  },
+
   async getCockpit(marketId: string, startDate?: string, endDate?: string) {
     const params: any = {};
     if (startDate && startDate.trim()) params.startDate = startDate.trim();

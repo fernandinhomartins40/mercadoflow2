@@ -459,3 +459,56 @@ export interface IntelligenceFeed {
   summary: FeedSummary;
   totalAvailable: number;
 }
+
+/* ─── Opportunity / Recommendation Engine ─── */
+
+export type OpportunityStatus =
+  | 'NOVA' | 'VISTA' | 'EM_ACAO' | 'CONCLUIDA' | 'DESCARTADA' | 'EXPIRADA';
+
+export interface OpportunityItem {
+  id: string;
+  type: string;
+  source: string;
+  status: OpportunityStatus;
+  title: string;
+  description?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  productImage?: string | null;
+  evidence?: Record<string, any> | null;
+  expectedImpactValue?: number | null;
+  confidence?: number | null;
+  priorityScore: number;
+  /** Quantas rodadas do detector reencontraram a mesma situação. */
+  detectionCount: number;
+  firstDetectedAt?: string | null;
+  lastDetectedAt?: string | null;
+  expiresAt?: string | null;
+}
+
+export type RecommendationStatus = 'PROPOSTA' | 'ACEITA' | 'REJEITADA' | 'EXECUTADA';
+
+export type RecommendationAction =
+  | 'COMPRAR' | 'PROMOVER' | 'LIQUIDAR' | 'AJUSTAR_PRECO' | 'REPOSICIONAR' | 'INVESTIGAR';
+
+export interface RecommendationItem {
+  id: string;
+  opportunityId: string;
+  actionType: RecommendationAction;
+  status: RecommendationStatus;
+  title: string;
+  rationale?: string | null;
+  /** Como o número foi obtido — permite discordar com fundamento. */
+  calculationTrace?: string | null;
+  parameters?: Record<string, any> | null;
+  evidence?: Record<string, any> | null;
+  confidence?: number | null;
+  expectedImpactValue?: number | null;
+  productId?: string | null;
+  productName?: string | null;
+  productImage?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  decisionNote?: string | null;
+  createdAt?: string | null;
+}
