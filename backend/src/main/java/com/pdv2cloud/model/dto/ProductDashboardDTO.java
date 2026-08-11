@@ -9,7 +9,7 @@ public class ProductDashboardDTO {
     private ProductSpecSheetDTO specSheet;
     private List<SalesTrendPointDTO> salesTrend;
     private List<SeasonalityPointDTO> weekdaySeasonality;
-    private List<ProductBranchPerformanceDTO> branchPerformance;
+    private List<ProductPdvPerformanceDTO> pdvPerformance;
     private List<ProductPairInsightDTO> relatedPairs;
     private ProductPriceTimelineDTO priceTimeline;
     private List<ProductPriceEventDTO> priceEvents;

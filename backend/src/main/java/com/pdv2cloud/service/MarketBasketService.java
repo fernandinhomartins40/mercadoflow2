@@ -33,9 +33,13 @@ import org.springframework.stereotype.Service;
  *   5. Ordena por pair_count desc (frequência absoluta) como critério principal,
  *      depois lift desc — garante que "Coca + Salgadinho" apareça antes de pares raros
  *      com lift alto por puro acaso estatístico.
+ *   6. Aplica os cortes de support/confidence pedidos pelo chamador e limita a
+ *      MAX_RULES — nessa ordem, para não descartar regras antes de filtrá-las.
  *
  * Janela de análise: 90 dias (configurável via MIN_PAIR_COUNT).
- * Cache TTL: 10 minutos, invalidado a cada nova nota recebida.
+ * Cache TTL: 10 minutos, invalidado a cada nova nota recebida. O cache guarda o
+ * conjunto bruto; os cortes por threshold são aplicados na leitura (ver
+ * analyzeMarketBasket).
  */
 @Service
 public class MarketBasketService {
@@ -56,12 +60,31 @@ public class MarketBasketService {
 
     private final ConcurrentHashMap<UUID, CacheEntry> cache = new ConcurrentHashMap<>();
 
+    /**
+     * Regras de co-compra do mercado, filtradas por support e confidence mínimos.
+     *
+     * O cache guarda o conjunto BRUTO (sem filtro), porque cada chamador usa
+     * thresholds diferentes de propósito — o mapa da loja quer regras fracas
+     * (0,05) para sugerir adjacências, o job noturno só as fortes (0,5). Cachear
+     * o resultado já filtrado faria o primeiro chamador da janela de 10 min
+     * definir o corte para todos os outros.
+     */
     public List<MarketBasketDTO> analyzeMarketBasket(UUID marketId, double minSupport, double minConfidence) {
+        List<MarketBasketDTO> all = loadRules(marketId);
+        return all.stream()
+            .filter(r -> r.getSupport() >= minSupport)
+            .filter(r -> r.getConfidence() >= minConfidence)
+            .limit(MAX_RULES)
+            .collect(Collectors.toList());
+    }
+
+    /** Conjunto bruto de regras (cacheado por mercado, sem filtro de threshold). */
+    private List<MarketBasketDTO> loadRules(UUID marketId) {
         CacheEntry cached = cache.get(marketId);
         if (cached != null && !cached.isExpired()) {
             return cached.rules;
         }
-        List<MarketBasketDTO> rules = computeRules(marketId, minConfidence);
+        List<MarketBasketDTO> rules = computeRules(marketId);
         cache.put(marketId, new CacheEntry(rules));
         return rules;
     }
@@ -72,7 +95,7 @@ public class MarketBasketService {
 
     // ── Core SQL computation ──────────────────────────────────────────────────
 
-    private List<MarketBasketDTO> computeRules(UUID marketId, double minConfidence) {
+    private List<MarketBasketDTO> computeRules(UUID marketId) {
         LocalDateTime since = LocalDateTime.now().minusDays(WINDOW_DAYS);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -191,9 +214,11 @@ public class MarketBasketService {
             .thenComparingDouble(MarketBasketDTO::getConfidence).reversed()
         );
 
-        List<MarketBasketDTO> top = rules.stream().limit(MAX_RULES).collect(Collectors.toList());
-        enrichWithNames(top);
-        return top;
+        // Sem truncar aqui: o corte de MAX_RULES é aplicado depois dos filtros de
+        // support/confidence, senão regras válidas de um chamador com threshold
+        // baixo seriam descartadas antes de ele as ver.
+        enrichWithNames(rules);
+        return rules;
     }
 
     private void enrichWithNames(List<MarketBasketDTO> rules) {
