@@ -337,6 +337,30 @@ Todos os engines rodam por filial (como hoje) — os cortes já são relativos �
 
 **A migration V45 foi aplicada num PostgreSQL 16 real** (container descartável, as 45 migrations em ordem), confirmando: as 4 tabelas criadas com RLS ativa, o `pgcrypto` instalado e o `hmac()` funcionando. Os 6 SQLs analíticos novos — perfis de cliente, recompra, lead time, estoque em trânsito, sazonalidade, canibalização e preço vs mercado — foram validados com `EXPLAIN` contra o schema real, porque erro de SQL passa pelo compilador Java e só apareceria em produção.
 
+### Estado em produção (11/08/2026)
+
+As Fases 0, 1 e 2 estão **implantadas em produção** via GitHub Actions (commits
+`9b629e9`, `f44c716`, `a2b5e2e` e o fix `bbb763d`). Verificado na VPS:
+
+- migration **V45 aplicada** (`flyway_schema_history`), com as 4 tabelas novas e RLS ativa;
+- `pgcrypto` instalado e `hmac()` operando;
+- backend `{"status":"UP"}`, site público HTTP 200, zero erros no log;
+- container `mercadoflow-cron` ativo com `SPRING_PROFILES_ACTIVE=jobs`, então o
+  `ProductIntelligenceJob` das 03:00 roda automaticamente.
+
+**Um defeito foi encontrado pela verificação em produção e corrigido** (`bbb763d`):
+o campo `cpf_cnpj_destinatario` aceita CPF e CNPJ, e havia um CNPJ com 991 notas
+emitidas. O filtro era `length >= 11`, então compra de empresa entrava como
+consumidor final — um único CNPJ ativo viraria "o cliente mais recorrente da
+loja". Passou a exigir exatamente 11 dígitos.
+
+> **Atenção sobre os dados atuais:** o mercado de maior volume tem 3.653 notas,
+> mas 3.031 delas concentradas em 3 CPFs sintéticos (`12345678901`,
+> `98765432100`) — são dados de teste. A camada de cliente classificou
+> corretamente (3 recorrentes, 621 únicos), mas os números não representam
+> comportamento real de consumidor. A validação de negócio dessas métricas só
+> será possível com um cliente real operando.
+
 > **Nota de operação:** o `ProductIntelligenceJob` só roda com `jobs.enabled=true`. Enquanto ele não rodar em produção, todos os caminhos continuam servindo o cálculo on-line — o ganho de latência só aparece depois da primeira execução (ou de um POST em `/intelligence/rebuild`).
 
 ---
