@@ -62,6 +62,18 @@ public class CustomerIntelligenceService {
      */
     private static final int MIN_CUSTOMERS_FOR_STATS = 5;
 
+    /*
+     * SOMENTE CPF (11 dígitos), nunca CNPJ.
+     *
+     * O campo `cpf_cnpj_destinatario` aceita os dois, e uma verificação nos
+     * dados de produção encontrou CNPJ com quase mil notas emitidas. Misturar
+     * os dois distorceria tudo: compra de empresa tem frequência, ticket e
+     * cesta completamente diferentes de consumidor final, e um único CNPJ
+     * ativo sozinho viraria "o cliente mais recorrente da loja".
+     *
+     * O filtro está aplicado nas duas consultas abaixo (perfis e recompra).
+     */
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CustomerIntelligenceService(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -171,7 +183,7 @@ public class CustomerIntelligenceService {
             "  where i.market_id = :marketId " +
             "    and i.data_emissao >= :since " +
             "    and i.cpf_cnpj_destinatario is not null " +
-            "    and length(regexp_replace(i.cpf_cnpj_destinatario, '\\D', '', 'g')) >= 11 " +
+            "    and length(regexp_replace(i.cpf_cnpj_destinatario, '\\D', '', 'g')) = 11 " +
             "), " +
             "agg as ( " +
             "  select customer_hash, " +
@@ -237,7 +249,7 @@ public class CustomerIntelligenceService {
             "    and i.data_emissao >= :since " +
             "    and it.product_id is not null " +
             "    and i.cpf_cnpj_destinatario is not null " +
-            "    and length(regexp_replace(i.cpf_cnpj_destinatario, '\\D', '', 'g')) >= 11 " +
+            "    and length(regexp_replace(i.cpf_cnpj_destinatario, '\\D', '', 'g')) = 11 " +
             "  group by it.product_id, customer_hash " +
             "), " +
             "per_product as ( " +

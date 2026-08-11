@@ -79,6 +79,20 @@ class CustomerIntelligenceServiceTest {
     }
 
     @Test
+    @DisplayName("CNPJ e CPF de mesmo prefixo não colidem")
+    void cnpjAndCpfDoNotCollide() {
+        // O campo cpf_cnpj_destinatario aceita os dois, e a producao tem CNPJ
+        // com quase mil notas. As consultas filtram por 11 digitos justamente
+        // para nao misturar compra de empresa com consumidor final; este teste
+        // garante que, se algum dia um CNPJ passar, ele nao vira o mesmo
+        // cliente de um CPF parecido.
+        String cpf = service.hashDocument("11222333044", SALT_LOJA_A);
+        String cnpj = service.hashDocument("11222333000181", SALT_LOJA_A);
+
+        assertNotEquals(cpf, cnpj);
+    }
+
+    @Test
     @DisplayName("documento ausente ou sem dígitos devolve null")
     void missingDocumentIsNull() {
         assertNull(service.hashDocument(null, SALT_LOJA_A));
