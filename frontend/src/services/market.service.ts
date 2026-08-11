@@ -1,12 +1,13 @@
 import api from './api';
 
 export const marketService = {
-  async getDashboard(marketId: string, startDate?: string, endDate?: string) {
-    const params: any = {};
-    if (startDate && startDate.trim()) params.startDate = startDate.trim();
-    if (endDate && endDate.trim()) params.endDate = endDate.trim();
-    const response = await api.get(`/v1/markets/${marketId}/dashboard`, {
-      params,
+  /**
+   * Feed da Central de Inteligência: oportunidades priorizadas unificando
+   * alertas, capital de giro e candidatos a promoção.
+   */
+  async getIntelligenceFeed(marketId: string, limit = 30) {
+    const response = await api.get(`/v1/markets/${marketId}/intelligence/feed`, {
+      params: { limit },
     });
     return response.data;
   },

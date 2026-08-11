@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
 import { marketService } from '../services/market.service';
 import {
-  ProductBranchPerformance,
+  ProductPdvPerformance,
   ProductDashboard,
   ProductPairInsight,
   ProductPriceEvent,
@@ -239,25 +239,25 @@ const StockProjectionSection: React.FC<{ signal: ProductPurchaseSignal }> = ({ s
   );
 };
 
-/* ─── RailCard: filial ─── */
-const BranchCard: React.FC<{ branch: ProductBranchPerformance; maxRevenue: number }> = ({ branch, maxRevenue }) => (
+/* ─── RailCard: frente de caixa (PDV) ─── */
+const PdvCard: React.FC<{ pdv: ProductPdvPerformance; maxRevenue: number }> = ({ pdv, maxRevenue }) => (
   <RailCard
     kicker="PDV"
-    title={branch.branchName}
-    badge={<Chip variant="success">{fmt.pct((branch.promoRevenueShare || 0) * 100)} promo</Chip>}
-    footer={`Preço médio ${fmt.money(branch.averagePrice)} · Última venda em ${fmt.date(branch.lastSoldAt)}`}
+    title={pdv.pdvName}
+    badge={<Chip variant="success">{fmt.pct((pdv.promoRevenueShare || 0) * 100)} promo</Chip>}
+    footer={`Preço médio ${fmt.money(pdv.averagePrice)} · Última venda em ${fmt.date(pdv.lastSoldAt)}`}
   >
     <div className="grid grid-cols-2 gap-2">
       <div>
         <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>Receita</p>
-        <strong className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt.money(branch.revenue)}</strong>
+        <strong className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt.money(pdv.revenue)}</strong>
       </div>
       <div>
         <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>Quantidade</p>
-        <strong className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt.qty(branch.quantitySold)}</strong>
+        <strong className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt.qty(pdv.quantitySold)}</strong>
       </div>
     </div>
-    <ProgressBar pct={(Number(branch.revenue || 0) / Math.max(maxRevenue, 1)) * 100} />
+    <ProgressBar pct={(Number(pdv.revenue || 0) / Math.max(maxRevenue, 1)) * 100} />
   </RailCard>
 );
 
@@ -418,7 +418,7 @@ const ProductDetail: React.FC = () => {
   }, [marketId, productId]);
 
   const overview           = dashboard?.overview;
-  const branchPerformance  = dashboard?.branchPerformance || [];
+  const pdvPerformance  = dashboard?.pdvPerformance || [];
   const weekdaySeasonality = dashboard?.weekdaySeasonality || [];
   const relatedPairs       = dashboard?.relatedPairs || [];
   const priceTimeline      = dashboard?.priceTimeline;
@@ -434,7 +434,7 @@ const ProductDetail: React.FC = () => {
     [dashboard],
   );
 
-  const bestBranch     = useMemo(() => branchPerformance[0], [branchPerformance]);
+  const bestPdv     = useMemo(() => pdvPerformance[0], [pdvPerformance]);
   const bestWeekday    = useMemo(() => [...weekdaySeasonality].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0], [weekdaySeasonality]);
   const weakestWeekday = useMemo(() => [...weekdaySeasonality].filter((r) => Number(r.revenue || 0) > 0).sort((a, b) => Number(a.revenue || 0) - Number(b.revenue || 0))[0], [weekdaySeasonality]);
   const strongestPair  = useMemo(() => [...relatedPairs].sort((a, b) => Number(b.lift || 0) - Number(a.lift || 0))[0], [relatedPairs]);
@@ -448,7 +448,7 @@ const ProductDetail: React.FC = () => {
   const firstPrice = Number(priceTimeline?.firstObservedPrice || 0);
   const lastPrice  = Number(priceTimeline?.lastObservedPrice || 0);
   const deltaPrice = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
-  const maxBranchRev      = Math.max(...branchPerformance.map((r) => Number(r.revenue || 0)), 1);
+  const maxPdvRev      = Math.max(...pdvPerformance.map((r) => Number(r.revenue || 0)), 1);
   const maxSeasonalityRev = Math.max(...weekdaySeasonality.map((r) => Number(r.revenue || 0)), 1);
 
   if (loading) {
@@ -534,7 +534,7 @@ const ProductDetail: React.FC = () => {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Melhor dia"    value={bestWeekday?.label || '--'}     sub={bestWeekday ? fmt.money(bestWeekday.revenue) : 'Sem dados'} variant="success" />
           <Stat label="Dia mais fraco" value={weakestWeekday?.label || '--'} sub={weakestWeekday ? fmt.money(weakestWeekday.revenue) : 'Sem comparação'} />
-          <Stat label="PDV mais forte" value={bestBranch?.branchName || '--'} sub={bestBranch ? `${fmt.qty(bestBranch.quantitySold)} unidades` : 'Sem PDV dominante'} />
+          <Stat label="PDV mais forte" value={bestPdv?.pdvName || '--'} sub={bestPdv ? `${fmt.qty(bestPdv.quantitySold)} unidades` : 'Sem PDV dominante'} />
           <Stat label="Compra casada"  value={strongestPair ? `Afinidade ${Number(strongestPair.lift || 0).toFixed(2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
         </div>
 
@@ -583,14 +583,14 @@ const ProductDetail: React.FC = () => {
           <StockProjectionSection signal={purchaseSignal} />
         )}
 
-        {/* ── Filiais e PDVs ── */}
-        <Section kicker="Filiais e PDVs" title="Onde este item vende melhor" subtitle="Priorize abastecimento e negociação nas unidades com melhor retorno.">
-          {branchPerformance.length === 0
+        {/* ── Desempenho por caixa (PDV) ── */}
+        <Section kicker="Por caixa (PDV)" title="Em quais caixas este item vende melhor" subtitle="A leitura é por frente de caixa desta loja — útil para abastecimento e posicionamento no PDV.">
+          {pdvPerformance.length === 0
             ? <Empty>Sem distribuição por PDV neste período.</Empty>
             : (
               <div className="flex gap-4 overflow-x-auto pb-4">
-                {branchPerformance.map((b) => (
-                  <BranchCard key={b.branchId || b.branchName} branch={b} maxRevenue={maxBranchRev} />
+                {pdvPerformance.map((b) => (
+                  <PdvCard key={b.pdvId || b.pdvName} pdv={b} maxRevenue={maxPdvRev} />
                 ))}
               </div>
             )}

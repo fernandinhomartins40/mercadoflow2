@@ -2,8 +2,12 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.entity.ProductCapitalMetric;
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
+import com.pdv2cloud.service.intelligence.ExpectedDemandService;
+import com.pdv2cloud.service.metric.MetricDefinitions;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -66,6 +70,9 @@ public class WorkingCapitalService {
     /** Prazo de entrega assumido quando o fornecedor não tem histórico. */
     private static final int DEFAULT_LEAD_TIME_DAYS = 7;
 
+    /** Entregas mínimas para o lead time medido valer mais que o padrão. */
+    private static final int MIN_DELIVERIES_FOR_LEAD_TIME = 2;
+
     /** Ciclo de compra alvo: quantos dias de venda cada pedido deve cobrir. */
     private static final int TARGET_COVERAGE_DAYS = 21;
 
@@ -76,9 +83,14 @@ public class WorkingCapitalService {
     private static final BigDecimal FALLBACK_MARGIN_PERCENT = BigDecimal.valueOf(25);
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ExpectedDemandService expectedDemandService;
 
-    public WorkingCapitalService(NamedParameterJdbcTemplate jdbcTemplate) {
+    public WorkingCapitalService(
+        NamedParameterJdbcTemplate jdbcTemplate,
+        ExpectedDemandService expectedDemandService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.expectedDemandService = expectedDemandService;
     }
 
     // ── API pública ──────────────────────────────────────────────────────────
@@ -101,6 +113,22 @@ public class WorkingCapitalService {
 
         Map<UUID, CostInfo> costs = loadCosts(marketId);
         Map<UUID, InventoryInfo> inventory = computeInventory(marketId, costs);
+
+        /*
+         * Insumos que qualificam a decisão de compra e antes eram ignorados:
+         *
+         *  - forecast: Holt-Winters já gravado em demand_forecasts pelo
+         *    MLPredictionJob, que o cálculo de reposição nunca consultava;
+         *  - lead time real por produto, medido em supplier_orders, no lugar da
+         *    constante de 7 dias;
+         *  - estoque em trânsito: pedidos enviados e ainda não entregues, que
+         *    inflavam a sugestão porque ninguém os descontava.
+         */
+        int horizon = TARGET_COVERAGE_DAYS + DEFAULT_LEAD_TIME_DAYS;
+        Map<UUID, ExpectedDemandService.ExpectedDemand> forecasts =
+            expectedDemandService.forHorizon(marketId, horizon);
+        Map<UUID, Integer> leadTimes = loadLeadTimes(marketId);
+        Map<UUID, BigDecimal> inTransit = loadInTransitUnits(marketId);
 
         // ABC precisa da receita total do portfólio: é uma classificação relativa.
         BigDecimal totalRevenue = sales.stream()
@@ -128,12 +156,67 @@ public class WorkingCapitalService {
                 inventory.get(sale.productId()),
                 share,
                 cumulativeShare,
-                days
+                days,
+                forecasts.get(sale.productId()),
+                leadTimes.getOrDefault(sale.productId(), DEFAULT_LEAD_TIME_DAYS),
+                inTransit.getOrDefault(sale.productId(), BigDecimal.ZERO)
             ));
         }
 
         metrics.sort(Comparator.comparing(CapitalMetric::priorityScore).reversed());
         return metrics;
+    }
+
+    /**
+     * Métrica de capital de um único produto.
+     *
+     * Roda o portfólio inteiro e filtra: ABC e participação de receita são
+     * classificações RELATIVAS à loja, então não existe cálculo isolado por SKU
+     * que produza o mesmo número. Para não repetir esse trabalho a cada abertura
+     * da tela de produto, o resultado por mercado fica em cache curto.
+     *
+     * @return a métrica do produto, ou {@code null} se ele não vendeu na janela
+     */
+    @Transactional(readOnly = true)
+    public CapitalMetric computeForProduct(UUID marketId, UUID productId, int windowDays) {
+        if (productId == null) return null;
+        return portfolioCached(marketId, windowDays).stream()
+            .filter(m -> productId.equals(m.productId()))
+            .findFirst()
+            .orElse(null);
+    }
+
+    /** Portfólio com cache de curta duração, por mercado e tamanho de janela. */
+    private List<CapitalMetric> portfolioCached(UUID marketId, int windowDays) {
+        int days = windowDays > 0 ? Math.min(windowDays, 365) : DEFAULT_WINDOW_DAYS;
+        String key = marketId + ":" + days;
+
+        PortfolioCacheEntry cached = portfolioCache.get(key);
+        if (cached != null && !cached.isExpired()) {
+            return cached.metrics;
+        }
+        List<CapitalMetric> metrics = computePortfolio(marketId, days);
+        portfolioCache.put(key, new PortfolioCacheEntry(metrics));
+        return metrics;
+    }
+
+    private static final Duration PORTFOLIO_CACHE_TTL = Duration.ofMinutes(10);
+
+    private final java.util.concurrent.ConcurrentHashMap<String, PortfolioCacheEntry> portfolioCache =
+        new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static final class PortfolioCacheEntry {
+        final List<CapitalMetric> metrics;
+        final Instant expiresAt;
+
+        PortfolioCacheEntry(List<CapitalMetric> metrics) {
+            this.metrics = metrics;
+            this.expiresAt = Instant.now().plus(PORTFOLIO_CACHE_TTL);
+        }
+
+        boolean isExpired() {
+            return Instant.now().isAfter(expiresAt);
+        }
     }
 
     // ── Carga de dados ───────────────────────────────────────────────────────
@@ -345,6 +428,79 @@ public class WorkingCapitalService {
         return out;
     }
 
+    /**
+     * Lead time real por produto: mediana de (entrega − envio) dos pedidos já
+     * entregues do fornecedor que costuma atendê-lo.
+     *
+     * Substitui a constante de {@value #DEFAULT_LEAD_TIME_DAYS} dias, que tratava
+     * o distribuidor da esquina e o fornecedor que entrega em três semanas como
+     * se fossem iguais — e por isso errava o ponto de reposição dos dois.
+     *
+     * Usa mediana em vez de média porque uma entrega atrasada por greve ou
+     * feriado não deve virar a regra. Exige pelo menos
+     * {@value #MIN_DELIVERIES_FOR_LEAD_TIME} entregas: com uma só, o número é
+     * anedota, não histórico.
+     */
+    private Map<UUID, Integer> loadLeadTimes(UUID marketId) {
+        String sql =
+            "with delivered as ( " +
+            "  select soi.product_id, " +
+            "         extract(epoch from (so.delivered_at - coalesce(so.sent_at, so.order_date))) " +
+            "             / 86400.0 as lead_days " +
+            "  from supplier_orders so " +
+            "  join supplier_order_items soi on soi.supplier_order_id = so.id " +
+            "  where so.market_id = :marketId " +
+            "    and so.delivered_at is not null " +
+            "    and so.delivered_at > coalesce(so.sent_at, so.order_date) " +
+            ") " +
+            "select product_id, " +
+            "       percentile_cont(0.5) within group (order by lead_days) as median_lead_days, " +
+            "       count(*) as deliveries " +
+            "from delivered " +
+            "group by product_id " +
+            "having count(*) >= :minDeliveries";
+
+        MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId)
+            .addValue("minDeliveries", MIN_DELIVERIES_FOR_LEAD_TIME);
+
+        Map<UUID, Integer> out = new HashMap<>();
+        jdbcTemplate.query(sql, params, rs -> {
+            double median = rs.getDouble("median_lead_days");
+            // Limita a faixa plausível: zero dia não é lead time, e acima de 90
+            // dias o dado quase certamente é sujeira de cadastro.
+            int days = (int) Math.round(Math.max(1, Math.min(90, median)));
+            out.put(UUID.fromString(rs.getString("product_id")), days);
+        });
+        return out;
+    }
+
+    /**
+     * Unidades já pedidas ao fornecedor e ainda não recebidas.
+     *
+     * Conta apenas pedidos enviados e não cancelados: rascunho não é compromisso
+     * de compra e não deve reduzir a sugestão.
+     */
+    private Map<UUID, BigDecimal> loadInTransitUnits(UUID marketId) {
+        String sql =
+            "select soi.product_id, " +
+            "       sum(soi.quantity_requested - coalesce(soi.quantity_received, 0)) as pending_units " +
+            "from supplier_orders so " +
+            "join supplier_order_items soi on soi.supplier_order_id = so.id " +
+            "where so.market_id = :marketId " +
+            "  and so.sent_at is not null " +
+            "  and so.delivered_at is null " +
+            "  and so.cancelled_at is null " +
+            "group by soi.product_id " +
+            "having sum(soi.quantity_requested - coalesce(soi.quantity_received, 0)) > 0";
+
+        MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId);
+        Map<UUID, BigDecimal> out = new HashMap<>();
+        jdbcTemplate.query(sql, params, rs -> {
+            out.put(UUID.fromString(rs.getString("product_id")), nonNull(rs.getBigDecimal("pending_units")));
+        });
+        return out;
+    }
+
     // ── Cálculo por produto ──────────────────────────────────────────────────
 
     private CapitalMetric buildMetric(
@@ -353,19 +509,38 @@ public class WorkingCapitalService {
         InventoryInfo inventory,
         double revenueShare,
         double cumulativeShare,
-        int windowDays
+        int windowDays,
+        ExpectedDemandService.ExpectedDemand forecast,
+        int leadTimeDays,
+        BigDecimal inTransitUnits
     ) {
-        // Velocidade sobre a janela inteira (e não só sobre os dias com venda):
-        // um produto que vendeu 10 unidades em 2 dias de 90 não gira 5/dia.
-        double dailyVelocity = sale.quantity().doubleValue() / Math.max(1, windowDays);
+        // Velocidade canônica: quantidade / dias da janela (MetricDefinitions).
+        double dailyVelocity = MetricDefinitions.dailyVelocity(sale.quantity().doubleValue(), windowDays);
 
         String abcClass = cumulativeShare <= ABC_A_CUTOFF ? "A"
             : cumulativeShare <= ABC_B_CUTOFF ? "B" : "C";
 
         // Coeficiente de variação: dispersão relativa à média.
-        double cv = sale.avgDailyQty() > 0 ? sale.stddevDailyQty() / sale.avgDailyQty() : 0.0;
+        double cv = MetricDefinitions.coefficientOfVariation(sale.stddevDailyQty(), sale.avgDailyQty());
         String xyzClass = cv <= XYZ_X_CUTOFF ? "X" : cv <= XYZ_Y_CUTOFF ? "Y" : "Z";
 
+        /*
+         * Momentum aproximado: avg(7d) / avg(28d) de QUANTIDADE, vindo do SQL
+         * agregado.
+         *
+         * DIVERGÊNCIA CONHECIDA E AINDA ABERTA: MetricDefinitions.momentum() é
+         * EMA(7)/SMA(28) sobre RECEITA e é o que a tela de produto mostra. Este
+         * valor vai para capitalMetric.momentumScore e aparece no texto de
+         * buildReason ("momentum %.2f"), então o mesmo produto ainda pode exibir
+         * dois momentums diferentes entre a tela de capital e a de produto.
+         *
+         * Não unificado aqui porque a fórmula canônica exige a série diária de
+         * cada produto, e este método roda sobre TODOS os SKUs da loja numa
+         * query só, justamente para não fazer 8 mil round-trips (ver
+         * computePortfolio). A consolidação real depende da materialização da
+         * V31 (Fase 2 do plano), quando a série passa a ser pré-calculada por
+         * job em vez de por request.
+         */
         double momentum = sale.baseAvgQty() > 0 ? sale.recentAvgQty() / sale.baseAvgQty() : 1.0;
 
         // ── Margem e GMROI ──
@@ -419,12 +594,32 @@ public class WorkingCapitalService {
             case "Y" -> 1.0;
             default  -> 1.6;
         };
-        double safetyStock = sale.stddevDailyQty() * safetyFactor * Math.sqrt(DEFAULT_LEAD_TIME_DAYS);
-        double reorderPoint = dailyVelocity * DEFAULT_LEAD_TIME_DAYS + safetyStock;
+        double safetyStock = sale.stddevDailyQty() * safetyFactor * Math.sqrt(leadTimeDays);
 
-        double targetStock = dailyVelocity * TARGET_COVERAGE_DAYS + safetyStock;
+        /*
+         * Demanda diária esperada: a previsão do Holt-Winters quando ela cobre o
+         * horizonte, a média histórica caso contrário.
+         *
+         * A previsão é melhor para reposição porque enxerga tendência e
+         * sazonalidade semanal: um produto em queda tem média alta e futuro
+         * baixo, e comprar pela média empilha estoque justamente no item que
+         * está morrendo.
+         */
+        int horizon = TARGET_COVERAGE_DAYS + leadTimeDays;
+        boolean usingForecast = forecast != null && forecast.covers(horizon);
+        double expectedDailyDemand = usingForecast
+            ? forecast.dailyAverage().doubleValue()
+            : dailyVelocity;
+
+        double reorderPoint = expectedDailyDemand * leadTimeDays + safetyStock;
+        double targetStock = expectedDailyDemand * TARGET_COVERAGE_DAYS + safetyStock;
+
+        // Estoque em trânsito é estoque: pedido já enviado ao fornecedor não
+        // precisa ser comprado de novo. Sem descontar, a sugestão manda comprar
+        // duas vezes o mesmo item enquanto a entrega não chega.
         double currentUnits = inventoryUnits != null ? inventoryUnits.doubleValue() : 0.0;
-        double suggested = Math.max(0, targetStock - currentUnits);
+        double transit = inTransitUnits != null ? inTransitUnits.doubleValue() : 0.0;
+        double suggested = Math.max(0, targetStock - currentUnits - transit);
 
         BigDecimal suggestedUnits = BigDecimal.valueOf(suggested).setScale(3, RoundingMode.HALF_UP);
         BigDecimal suggestedValue = unitCost != null && unitCost.signum() > 0
@@ -443,6 +638,23 @@ public class WorkingCapitalService {
         String reason = buildReason(
             status, abcClass, xyzClass, gmroi, coverageDays, momentum,
             dailyVelocity, marginPercent, costSource, inventoryConfidence);
+
+        /*
+         * O usuário precisa saber de onde veio a quantidade sugerida: uma
+         * previsão de demanda e uma média de 90 dias merecem confianças
+         * diferentes na hora de assinar o pedido.
+         */
+        if (usingForecast) {
+            reason += String.format(
+                " Demanda projetada em %.1f un./dia pela previsão (e não pela média histórica).",
+                expectedDailyDemand);
+        }
+        if (leadTimeDays != DEFAULT_LEAD_TIME_DAYS) {
+            reason += String.format(" Prazo de entrega medido: %d dias.", leadTimeDays);
+        }
+        if (transit > 0) {
+            reason += String.format(" Já há %.0f un. em pedido aberto, descontadas da sugestão.", transit);
+        }
 
         return new CapitalMetric(
             sale.productId(), sale.name(), sale.category(), sale.ean(), sale.imageUrl(),

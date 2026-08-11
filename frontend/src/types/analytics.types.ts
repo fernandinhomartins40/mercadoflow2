@@ -26,9 +26,9 @@ export interface ProductPerformance {
   healthScore?: number | null;    // composite 0-100
 }
 
-export interface ProductBranchPerformance {
-  branchId?: string | null;
-  branchName: string;
+export interface ProductPdvPerformance {
+  pdvId?: string | null;
+  pdvName: string;
   revenue: number;
   quantitySold: number;
   averagePrice: number;
@@ -221,7 +221,7 @@ export interface ProductDashboard {
   specSheet?: ProductSpecSheet | null;
   salesTrend: SalesTrendPoint[];
   weekdaySeasonality: SeasonalityPoint[];
-  branchPerformance: ProductBranchPerformance[];
+  pdvPerformance: ProductPdvPerformance[];
   relatedPairs: ProductPairInsight[];
   priceTimeline?: ProductPriceTimeline | null;
   priceEvents?: ProductPriceEvent[];
@@ -425,4 +425,37 @@ export interface SupplierOrder {
   canCancel: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
+}
+
+/* ─── Central de Inteligência ─── */
+
+/**
+ * Oportunidade de negócio, independente da fonte que a detectou.
+ * Unifica alertas, vereditos de capital e candidatos a promoção.
+ */
+export interface Opportunity {
+  id: string;
+  type: string;
+  title: string;
+  description?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  productImage?: string | null;
+  priorityScore: number;
+  estimatedImpactValue?: number | null;
+  source: 'ALERTA' | 'CAPITAL' | 'PROMOCAO';
+  evidence?: Record<string, any> | null;
+}
+
+export interface FeedSummary {
+  total: number;
+  byType: Record<string, number>;
+  bySource: Record<string, number>;
+  totalEstimatedImpact: number;
+}
+
+export interface IntelligenceFeed {
+  opportunities: Opportunity[];
+  summary: FeedSummary;
+  totalAvailable: number;
 }

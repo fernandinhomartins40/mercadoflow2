@@ -2,6 +2,7 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.WorkingCapitalService.CapitalMetric;
+import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -33,10 +34,10 @@ public class PurchasePlanService {
     /** Sem custo registrado não dá para alocar orçamento com honestidade. */
     private static final BigDecimal MIN_ALLOCATABLE_VALUE = BigDecimal.valueOf(0.01);
 
-    private final WorkingCapitalService workingCapitalService;
+    private final CapitalMetricsReader capitalMetricsReader;
 
-    public PurchasePlanService(WorkingCapitalService workingCapitalService) {
-        this.workingCapitalService = workingCapitalService;
+    public PurchasePlanService(CapitalMetricsReader capitalMetricsReader) {
+        this.capitalMetricsReader = capitalMetricsReader;
     }
 
     /**
@@ -47,7 +48,7 @@ public class PurchasePlanService {
      */
     @Transactional(readOnly = true)
     public PurchasePlan buildPlan(UUID marketId, BigDecimal budget, int windowDays) {
-        List<CapitalMetric> portfolio = workingCapitalService.computePortfolio(marketId, windowDays);
+        List<CapitalMetric> portfolio = capitalMetricsReader.portfolio(marketId, windowDays);
         if (portfolio.isEmpty()) {
             return PurchasePlan.empty();
         }

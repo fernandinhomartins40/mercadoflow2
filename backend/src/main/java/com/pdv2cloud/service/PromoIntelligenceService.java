@@ -2,6 +2,7 @@ package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.WorkingCapitalService.CapitalMetric;
+import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -59,14 +60,14 @@ public class PromoIntelligenceService {
     private static final int MIN_SEASONAL_OBSERVATIONS = 3;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final WorkingCapitalService workingCapitalService;
+    private final CapitalMetricsReader capitalMetricsReader;
 
     public PromoIntelligenceService(
         NamedParameterJdbcTemplate jdbcTemplate,
-        WorkingCapitalService workingCapitalService
+        CapitalMetricsReader capitalMetricsReader
     ) {
         this.jdbcTemplate = jdbcTemplate;
-        this.workingCapitalService = workingCapitalService;
+        this.capitalMetricsReader = capitalMetricsReader;
     }
 
     // ── 1. Efeito halo ───────────────────────────────────────────────────────
@@ -415,7 +416,7 @@ public class PromoIntelligenceService {
      */
     @Transactional(readOnly = true)
     public PromoRecommendations recommend(UUID marketId, int windowDays) {
-        List<CapitalMetric> portfolio = workingCapitalService.computePortfolio(marketId, 90);
+        List<CapitalMetric> portfolio = capitalMetricsReader.portfolio(marketId, 90);
         Map<UUID, CapitalMetric> byProduct = new HashMap<>();
         for (CapitalMetric metric : portfolio) {
             byProduct.put(metric.productId(), metric);

@@ -5,7 +5,7 @@ import com.pdv2cloud.model.dto.CampaignImpactDTO;
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.ProductPairInsightDTO;
-import com.pdv2cloud.model.dto.ProductBranchPerformanceDTO;
+import com.pdv2cloud.model.dto.ProductPdvPerformanceDTO;
 import com.pdv2cloud.model.dto.ProductDashboardDTO;
 import com.pdv2cloud.model.dto.ProductPerformanceDTO;
 import com.pdv2cloud.model.dto.ProductPurchaseSignalDTO;
@@ -15,12 +15,16 @@ import com.pdv2cloud.model.dto.SalesTrendPointDTO;
 import com.pdv2cloud.model.dto.SeasonalProductCollectionDTO;
 import com.pdv2cloud.model.dto.SeasonalityPointDTO;
 import com.pdv2cloud.model.entity.Alert;
-import com.pdv2cloud.model.entity.Campaign;
 import com.pdv2cloud.model.entity.Product;
+import com.pdv2cloud.model.entity.ProductCapitalMetric;
 import com.pdv2cloud.repository.AlertRepository;
-import com.pdv2cloud.repository.CampaignRepository;
 import com.pdv2cloud.repository.InvoiceRepository;
 import com.pdv2cloud.repository.ProductRepository;
+import com.pdv2cloud.service.campaign.CampaignImpactService;
+import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
+import com.pdv2cloud.service.metric.MetricDefinitions;
+import com.pdv2cloud.service.seasonal.SeasonalCalendarService;
+import com.pdv2cloud.service.seasonal.SeasonalCalendarService.SeasonalWindow;
 import java.text.NumberFormat;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,6 +32,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -38,6 +44,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -61,9 +68,6 @@ public class AdvancedAnalyticsService {
     private AlertRepository alertRepository;
 
     @Autowired
-    private CampaignRepository campaignRepository;
-
-    @Autowired
     private MarketBasketService marketBasketService;
 
     @Autowired
@@ -78,6 +82,21 @@ public class AdvancedAnalyticsService {
     @Autowired
     private CatalogImageStorageService catalogImageStorageService;
 
+    @Autowired
+    private CapitalMetricsReader capitalMetricsReader;
+
+    @Autowired
+    private SeasonalCalendarService seasonalCalendarService;
+
+    @Autowired
+    private CampaignImpactService campaignImpactService;
+
+    /** Cobertura usada quando o capital não consegue sugerir quantidade. */
+    private static final double TARGET_COVERAGE_DAYS_FALLBACK = 14.0;
+
+    /** Cobertura estendida quando há alta temporada à vista. */
+    private static final double SEASONAL_COVERAGE_DAYS = 21.0;
+
     public MarketCockpitDTO getCockpit(UUID marketId, LocalDate startDate, LocalDate endDate) {
         Window window = resolveWindow(startDate, endDate, 90);
         List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null, null, null);
@@ -90,7 +109,7 @@ public class AdvancedAnalyticsService {
         cockpit.setActiveProducts(overview.activeProducts());
         cockpit.setGrowthPercentage(overview.growthPercentage());
         cockpit.setPromoRevenueShare(overview.promoRevenueShare());
-        cockpit.setCampaignsRunning(countRunningCampaigns(marketId));
+        cockpit.setCampaignsRunning(campaignImpactService.countRunningCampaigns(marketId));
         cockpit.setTopProducts(topProducts(performance, "REVENUE", 5));
         cockpit.setSlowMovers(topProducts(performance, "TREND_ASC", 5));
         cockpit.setTopTurnoverProducts(topProducts(performance, "TURNOVER", 5));
@@ -103,7 +122,7 @@ public class AdvancedAnalyticsService {
         cockpit.setMonthlySeasonality(fetchSeasonality(marketId, window, SeasonalityGranularity.MONTH));
         cockpit.setTopPairs(fetchBasketHighlights(marketId, 8));
         cockpit.setSeasonalCollections(fetchSeasonalCollections(marketId, window.end()));
-        cockpit.setCampaignImpacts(fetchCampaignImpacts(marketId));
+        cockpit.setCampaignImpacts(campaignImpactService.getCampaignImpacts(marketId));
         cockpit.setSalesTrend(fetchSalesTrend(marketId, window));
         cockpit.setRecentInvoices(invoiceRepository.findRecentInvoiceSummaries(marketId, PageRequest.of(0, 6)));
         cockpit.setRecentAlerts(alertRepository.findByMarketId(marketId).stream()
@@ -131,6 +150,7 @@ public class AdvancedAnalyticsService {
         }
 
         List<ProductPerformanceDTO> rows = loadProductPerformancePage(params, sortBy, pageable);
+        enrichPageWithScores(rows, marketId, window);
         return new PageImpl<>(rows, pageable, total);
     }
 
@@ -145,19 +165,19 @@ public class AdvancedAnalyticsService {
         dashboard.setSpecSheet(productSpecSheetService.buildForProduct(productId));
         dashboard.setSalesTrend(fetchProductSalesTrend(marketId, productId, window));
         dashboard.setWeekdaySeasonality(fetchProductWeekdaySeasonality(marketId, productId, window));
-        dashboard.setBranchPerformance(fetchProductBranchPerformance(marketId, productId, window));
+        dashboard.setPdvPerformance(fetchProductPdvPerformance(marketId, productId, window));
         dashboard.setRelatedPairs(fetchProductRelatedPairs(marketId, productId, 6));
         dashboard.setPriceTimeline(priceIntelligenceService.getProductPriceTimeline(marketId, productId, window.start(), window.end()));
         dashboard.setPriceEvents(priceIntelligenceService.getProductPriceEvents(marketId, productId, window.start(), window.end()));
         dashboard.setPromotionWindows(priceIntelligenceService.getProductPromotionWindows(marketId, productId, window.start(), window.end()));
         List<ProductSeasonalPerformanceDTO> seasonal = fetchProductSeasonalPerformance(marketId, productId, window.end());
         dashboard.setSeasonalPerformance(seasonal);
-        dashboard.setPurchaseSignal(buildPurchaseSignal(overview, seasonal, window.end()));
+        dashboard.setPurchaseSignal(buildPurchaseSignal(marketId, overview, seasonal, window.end(), window));
         return dashboard;
     }
 
     public List<CampaignImpactDTO> getCampaignImpacts(UUID marketId) {
-        return fetchCampaignImpacts(marketId);
+        return campaignImpactService.getCampaignImpacts(marketId);
     }
 
     public List<SeasonalityPointDTO> getWeekdaySeasonality(UUID marketId, LocalDate startDate, LocalDate endDate) {
@@ -242,11 +262,9 @@ public class AdvancedAnalyticsService {
             "       coalesce(cp.average_price, 0) as average_price, " +
             "       coalesce(cp.transaction_count, 0) as transaction_count, " +
             "       coalesce(cp.sales_days, 0) as sales_days, " +
-            "       case " +
-            "           when coalesce(cp.sales_days, 0) > 0 then round(coalesce(cp.quantity_sold, 0) / cp.sales_days, 3) " +
-            "           when coalesce(cp.quantity_sold, 0) > 0 then round(coalesce(cp.quantity_sold, 0), 3) " +
-            "           else 0 " +
-            "       end as sales_velocity, " +
+            // Velocity canônica: quantidade / dias da JANELA (MetricDefinitions).
+            // Antes dividia por dias-com-venda, divergindo do WorkingCapitalService.
+            "       round(coalesce(cp.quantity_sold, 0) / cast(:windowDays as numeric), 4) as sales_velocity, " +
             "       coalesce(cp.promo_revenue, 0) as promo_revenue, " +
             "       coalesce(cp.promo_quantity, 0) as promo_quantity, " +
             "       coalesce(cp.normal_revenue, 0) as normal_revenue, " +
@@ -261,12 +279,7 @@ public class AdvancedAnalyticsService {
             "           when coalesce(cp.revenue, 0) > 0 then 100 " +
             "           else 0 " +
             "       end as revenue_trend_percentage, " +
-            "       cp.last_sold_at, " +
-            "       case " +
-            "           when (case when coalesce(cp.sales_days, 0) > 0 then coalesce(cp.quantity_sold, 0) / cp.sales_days else coalesce(cp.quantity_sold, 0) end) >= 12 then 'HIGH' " +
-            "           when (case when coalesce(cp.sales_days, 0) > 0 then coalesce(cp.quantity_sold, 0) / cp.sales_days else coalesce(cp.quantity_sold, 0) end) >= 4 then 'MEDIUM' " +
-            "           else 'LOW' " +
-            "       end as turnover_band " +
+            "       cp.last_sold_at " +
             "from market_products mp " +
             "left join current_period cp on cp.product_id = mp.product_id " +
             "left join previous_period pp on pp.product_id = mp.product_id " +
@@ -301,11 +314,47 @@ public class AdvancedAnalyticsService {
                 defaultBigDecimal(rs.getBigDecimal("price_index")),
                 rs.getDouble("revenue_trend_percentage"),
                 localDateTime(rs, "last_sold_at"),
-                rs.getString("turnover_band"),
-                null, // momentumScore — not computed in paginated path for performance
-                null  // healthScore
+                null, // turnoverBand — relativo ao portfólio, preenchido abaixo
+                null, // momentumScore — preenchido abaixo
+                null  // healthScore — preenchido abaixo
             )
         );
+    }
+
+    /**
+     * Completa as linhas paginadas com as métricas que não saem do SQL:
+     * turnover band (percentil do portfólio), momentum (EMA7/SMA28) e health score.
+     *
+     * Antes estes três campos vinham {@code null} no caminho paginado "por
+     * performance", o que deixava a tela principal de produtos — justamente a
+     * ordenável — sem os dois scores mais ricos do sistema. O custo é uma query
+     * de série diária para a página inteira (não uma por produto).
+     */
+    private void enrichPageWithScores(
+        List<ProductPerformanceDTO> rows, UUID marketId, Window window
+    ) {
+        if (rows.isEmpty()) return;
+
+        Map<UUID, double[]> momentumScores = loadMomentumScores(marketId, window, null);
+        // Percentil contra o portfólio inteiro, não contra a página: senão o
+        // produto mais fraco da página 1 seria "HIGH" só por estar entre pares.
+        List<Double> portfolioVelocities = marketVelocitiesCached(marketId, window);
+
+        for (ProductPerformanceDTO row : rows) {
+            double velocity = row.getSalesVelocity() != null ? row.getSalesVelocity().doubleValue() : 0.0;
+            double[] ms = momentumScores.get(row.getProductId());
+            Double momentum = ms != null ? ms[0] : null;
+
+            row.setTurnoverBand(MetricDefinitions.turnoverBand(velocity, portfolioVelocities));
+            row.setMomentumScore(momentum);
+            row.setHealthScore(MetricDefinitions.healthScore(
+                row.getRevenueTrendPercentage() != null ? row.getRevenueTrendPercentage() : 0.0,
+                velocity,
+                row.getSalesDays() != null ? row.getSalesDays() : 0,
+                window.lengthDays(),
+                momentum
+            ));
+        }
     }
 
     private String buildPerformanceOrderByClause(String sortBy) {
@@ -358,11 +407,7 @@ public class AdvancedAnalyticsService {
                 baselinePrice = averagePrice;
             }
 
-            BigDecimal salesVelocity = salesDays > 0
-                ? quantitySold.divide(BigDecimal.valueOf(salesDays), 3, RoundingMode.HALF_UP)
-                : quantitySold.compareTo(BigDecimal.ZERO) > 0
-                    ? quantitySold.setScale(3, RoundingMode.HALF_UP)
-                    : zero(3);
+            BigDecimal salesVelocity = MetricDefinitions.dailyVelocity(quantitySold, window.lengthDays());
 
             BigDecimal promoRevenueShare = revenue.compareTo(BigDecimal.ZERO) > 0
                 ? promoRevenue.divide(revenue, 4, RoundingMode.HALF_UP)
@@ -375,7 +420,8 @@ public class AdvancedAnalyticsService {
             double trendPct = calculateGrowth(revenue, previousRevenues.get(product.productId()));
             double[] ms = momentumScores.get(product.productId());
             Double momentumScore = ms != null ? ms[0] : null;
-            Double healthScore = computeHealthScore(trendPct, salesVelocity, salesDays, window, ms);
+            Double healthScore = MetricDefinitions.healthScore(
+                trendPct, salesVelocity.doubleValue(), salesDays, window.lengthDays(), momentumScore);
 
             rows.add(new ProductPerformanceDTO(
                 product.productId(),
@@ -400,12 +446,91 @@ public class AdvancedAnalyticsService {
                 priceIndex,
                 trendPct,
                 lastSales.get(product.productId()),
-                resolveTurnoverBand(salesVelocity),
+                null, // turnoverBand — relativo ao portfólio, preenchido abaixo
                 momentumScore,
                 healthScore
             ));
         }
+
+        // Turnover band é percentil dentro do portfólio, então só pode ser
+        // resolvido depois que todas as velocities da janela são conhecidas.
+        //
+        // Quando a consulta é de um produto só (tela de detalhe), o conjunto
+        // carregado não é o portfólio: comparar o produto consigo mesmo daria
+        // sempre LOW. Nesse caso buscamos as velocities do mercado inteiro,
+        // para que a faixa continue significando "em relação a esta loja".
+        List<Double> portfolioVelocities = rows.size() > 1
+            ? rows.stream()
+                .map(r -> r.getSalesVelocity() != null ? r.getSalesVelocity().doubleValue() : 0.0)
+                .toList()
+            : marketVelocitiesCached(marketId, window);
+
+        for (ProductPerformanceDTO row : rows) {
+            double velocity = row.getSalesVelocity() != null ? row.getSalesVelocity().doubleValue() : 0.0;
+            row.setTurnoverBand(MetricDefinitions.turnoverBand(velocity, portfolioVelocities));
+        }
         return rows;
+    }
+
+    /**
+     * Velocities de todos os produtos do mercado na janela — base do percentil
+     * de turnover quando o conjunto consultado não representa o portfólio.
+     */
+    private List<Double> loadMarketVelocities(UUID marketId, Window window) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("marketId", marketId)
+            .addValue("startDate", window.start().atStartOfDay())
+            .addValue("endExclusive", window.end().plusDays(1).atStartOfDay())
+            .addValue("windowDays", Math.max(1, window.lengthDays()), Types.INTEGER);
+
+        return jdbcTemplate.queryForList(
+            "select coalesce(sum(it.quantidade), 0) / cast(:windowDays as numeric) as velocity " +
+            "from invoice_items it " +
+            "join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :marketId " +
+            "  and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
+            "  and it.product_id is not null " +
+            "group by it.product_id",
+            params,
+            Double.class
+        );
+    }
+
+    /**
+     * Cache curto das velocities do mercado, chaveado por mercado e janela.
+     *
+     * O AlertGenerationJob chama getProductPerformance 8× por mercado a cada
+     * hora, com janelas repetidas — sem cache, seriam 8 varreduras idênticas de
+     * `invoice_items` só para calcular o mesmo percentil de turnover. O TTL
+     * curto mantém a leitura fresca para o usuário e absorve a rajada do job.
+     */
+    private static final Duration VELOCITY_CACHE_TTL = Duration.ofMinutes(5);
+
+    private final ConcurrentHashMap<String, VelocityCacheEntry> velocityCache = new ConcurrentHashMap<>();
+
+    private List<Double> marketVelocitiesCached(UUID marketId, Window window) {
+        String key = marketId + ":" + window.start() + ":" + window.end();
+        VelocityCacheEntry cached = velocityCache.get(key);
+        if (cached != null && !cached.isExpired()) {
+            return cached.velocities;
+        }
+        List<Double> velocities = loadMarketVelocities(marketId, window);
+        velocityCache.put(key, new VelocityCacheEntry(velocities));
+        return velocities;
+    }
+
+    private static final class VelocityCacheEntry {
+        final List<Double> velocities;
+        final Instant expiresAt;
+
+        VelocityCacheEntry(List<Double> velocities) {
+            this.velocities = velocities;
+            this.expiresAt = Instant.now().plus(VELOCITY_CACHE_TTL);
+        }
+
+        boolean isExpired() {
+            return Instant.now().isAfter(expiresAt);
+        }
     }
 
     private Map<UUID, ProductSnapshot> loadMarketProducts(MapSqlParameterSource params) {
@@ -792,7 +917,7 @@ public class AdvancedAnalyticsService {
         );
     }
 
-    private List<ProductBranchPerformanceDTO> fetchProductBranchPerformance(UUID marketId, UUID productId, Window window) {
+    private List<ProductPdvPerformanceDTO> fetchProductPdvPerformance(UUID marketId, UUID productId, Window window) {
         String baselineSubquery =
             "select it2.product_id, avg(it2.valor_unitario) as baseline_price " +
             "from invoice_items it2 " +
@@ -801,7 +926,7 @@ public class AdvancedAnalyticsService {
             "group by it2.product_id";
 
         return jdbcTemplate.query(
-            "select pdv.id as branch_id, coalesce(pdv.name, 'Operacao sem PDV') as branch_name, " +
+            "select pdv.id as pdv_id, coalesce(pdv.name, 'Operacao sem PDV') as pdv_name, " +
             "coalesce(sum(it.valor_total), 0) as revenue, coalesce(sum(it.quantidade), 0) as quantity_sold, " +
             "coalesce(avg(it.valor_unitario), 0) as average_price, count(distinct i.id) as transaction_count, " +
             "coalesce(sum(case when it.valor_unitario <= coalesce(b.baseline_price, it.valor_unitario) * 0.95 then it.valor_total else 0 end), 0) as promo_revenue, " +
@@ -811,7 +936,7 @@ public class AdvancedAnalyticsService {
             "left join pdvs pdv on pdv.id = i.pdv_id " +
             "left join (" + baselineSubquery + ") b on b.product_id = it.product_id " +
             "where i.market_id = :marketId and it.product_id = :productId and i.data_emissao >= :startDate and i.data_emissao < :endExclusive " +
-            "group by pdv.id, pdv.name order by revenue desc, quantity_sold desc, branch_name asc",
+            "group by pdv.id, pdv.name order by revenue desc, quantity_sold desc, pdv_name asc",
             baseProductParams(marketId, window, null, null, productId),
             (rs, rowNum) -> {
                 BigDecimal revenue = defaultBigDecimal(rs.getBigDecimal("revenue"));
@@ -819,9 +944,9 @@ public class AdvancedAnalyticsService {
                 BigDecimal share = revenue.compareTo(BigDecimal.ZERO) > 0
                     ? promoRevenue.divide(revenue, 4, RoundingMode.HALF_UP)
                     : zero(4);
-                return new ProductBranchPerformanceDTO(
-                    uuid(rs, "branch_id"),
-                    rs.getString("branch_name"),
+                return new ProductPdvPerformanceDTO(
+                    uuid(rs, "pdv_id"),
+                    rs.getString("pdv_name"),
                     revenue,
                     defaultBigDecimal(rs.getBigDecimal("quantity_sold")),
                     defaultBigDecimal(rs.getBigDecimal("average_price")),
@@ -859,7 +984,7 @@ public class AdvancedAnalyticsService {
     }
 
     private List<SeasonalProductCollectionDTO> fetchSeasonalCollections(UUID marketId, LocalDate referenceDate) {
-        List<SeasonalWindow> windows = resolveSeasonalWindows(referenceDate);
+        List<SeasonalWindow> windows = seasonalCalendarService.resolveDisplayWindows(referenceDate);
         List<SeasonalProductCollectionDTO> collections = new ArrayList<>();
         for (SeasonalWindow window : windows) {
             List<ProductPerformanceDTO> performance = loadProductPerformanceRows(
@@ -903,78 +1028,6 @@ public class AdvancedAnalyticsService {
         return collections;
     }
 
-    private List<CampaignImpactDTO> fetchCampaignImpacts(UUID marketId) {
-        List<Campaign> campaigns = campaignRepository.findByMarketId(marketId);
-        return campaigns.stream()
-            .filter(c -> c.getStartDate() != null && c.getEndDate() != null)
-            .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-            .map(campaign -> computeCampaignImpact(marketId, campaign))
-            .toList();
-    }
-
-    private CampaignImpactDTO computeCampaignImpact(UUID marketId, Campaign campaign) {
-        LocalDateTime start = campaign.getStartDate();
-        LocalDateTime endExclusive = campaign.getEndDate().plusSeconds(1);
-        long durationDays = Math.max(1, ChronoUnit.DAYS.between(start.toLocalDate(), campaign.getEndDate().toLocalDate()) + 1);
-        LocalDateTime beforeStart = start.minusDays(durationDays);
-        LocalDateTime afterEnd = endExclusive.plusDays(durationDays);
-
-        Aggregate before = aggregateInvoices(marketId, beforeStart, start);
-        Aggregate during = aggregateInvoices(marketId, start, endExclusive);
-        Aggregate after = aggregateInvoices(marketId, endExclusive, afterEnd);
-
-        LocalDateTime now = LocalDateTime.now();
-        String status = now.isBefore(start) ? "SCHEDULED" : now.isAfter(campaign.getEndDate()) ? "ENDED" : "RUNNING";
-
-        return new CampaignImpactDTO(
-            campaign.getId(),
-            campaign.getName(),
-            campaign.getDescription(),
-            campaign.getStartDate(),
-            campaign.getEndDate(),
-            status,
-            (int) durationDays,
-            before.revenue(),
-            during.revenue(),
-            after.revenue(),
-            before.transactions(),
-            during.transactions(),
-            after.transactions(),
-            before.averageTicket(),
-            during.averageTicket(),
-            after.averageTicket(),
-            calculateGrowth(during.revenue(), before.revenue()),
-            calculateGrowth(BigDecimal.valueOf(during.transactions()), BigDecimal.valueOf(before.transactions()))
-        );
-    }
-
-    private Aggregate aggregateInvoices(UUID marketId, LocalDateTime start, LocalDateTime endExclusive) {
-        MapSqlParameterSource params = new MapSqlParameterSource()
-            .addValue("marketId", marketId)
-            .addValue("start", Timestamp.valueOf(start))
-            .addValue("end", Timestamp.valueOf(endExclusive));
-
-        return jdbcTemplate.queryForObject(
-            "select coalesce(sum(i.valor_total), 0) as revenue, count(*) as transactions, " +
-            "coalesce(sum(i.valor_total) / nullif(count(*), 0), 0) as average_ticket " +
-            "from invoices i where i.market_id = :marketId and i.data_emissao >= :start and i.data_emissao < :end",
-            params,
-            (rs, rowNum) -> new Aggregate(
-                defaultBigDecimal(rs.getBigDecimal("revenue")),
-                rs.getLong("transactions"),
-                defaultBigDecimal(rs.getBigDecimal("average_ticket"))
-            )
-        );
-    }
-
-    private long countRunningCampaigns(UUID marketId) {
-        LocalDateTime now = LocalDateTime.now();
-        return campaignRepository.findByMarketId(marketId).stream()
-            .filter(c -> c.getStartDate() != null && c.getEndDate() != null)
-            .filter(c -> !now.isBefore(c.getStartDate()) && !now.isAfter(c.getEndDate()))
-            .count();
-    }
-
     private MapSqlParameterSource baseProductParams(UUID marketId, Window window, String category) {
         return baseProductParams(marketId, window, category, null, null);
     }
@@ -995,6 +1048,8 @@ public class AdvancedAnalyticsService {
             .addValue("baselineStart", window.start().minusDays(Math.max(window.lengthDays(), 90)).atStartOfDay())
             .addValue("category", category == null || category.isBlank() ? null : category.trim(), Types.VARCHAR)
             .addValue("searchLike", normalizedSearch, Types.VARCHAR)
+            // Divisor da velocity canônica (quantidade / dias da janela).
+            .addValue("windowDays", Math.max(1, window.lengthDays()), Types.INTEGER)
             .addValue("productId", productId, Types.OTHER);
     }
 
@@ -1104,102 +1159,7 @@ public class AdvancedAnalyticsService {
         return catalogImageStorageService.resolveCatalogImageUrl(imageUrl, null);
     }
 
-    private List<SeasonalWindow> resolveSeasonalWindows(LocalDate referenceDate) {
-        List<SeasonalTemplate> templates = List.of(
-            new SeasonalTemplate("volta-aulas", "Volta às aulas", "Itens que costumam acelerar com a retomada escolar.", 1, 10, 2, 20),
-            new SeasonalTemplate("pascoa", "Páscoa", "Itens que ganham força no período pascal.", 3, 15, 4, 15),
-            new SeasonalTemplate("festa-junina", "Festa Junina", "Produtos que sobem com o calendário junino.", 6, 1, 6, 30),
-            new SeasonalTemplate("dia-criancas", "Dia das Crianças", "Itens que reagem melhor no calendário de outubro.", 9, 25, 10, 12),
-            new SeasonalTemplate("natal", "Natal", "Itens que puxam a venda no pico de dezembro.", 12, 1, 12, 25),
-            new SeasonalTemplate("ano-novo", "Ano Novo", "Produtos fortes na virada e no abastecimento imediato.", 12, 26, 1, 5)
-        );
-
-        return templates.stream()
-            .map(template -> resolveSeasonalWindow(template, referenceDate))
-            .sorted(Comparator.comparingInt(SeasonalWindow::priority).thenComparingLong(SeasonalWindow::distanceDays))
-            .limit(3)
-            .toList();
-    }
-
-    private SeasonalWindow resolveSeasonalWindow(SeasonalTemplate template, LocalDate referenceDate) {
-        List<SeasonalOccurrence> occurrences = List.of(
-            createSeasonalOccurrence(template, referenceDate.getYear() - 1),
-            createSeasonalOccurrence(template, referenceDate.getYear()),
-            createSeasonalOccurrence(template, referenceDate.getYear() + 1)
-        );
-
-        SeasonalOccurrence active = occurrences.stream()
-            .filter(occurrence -> !referenceDate.isBefore(occurrence.start()) && !referenceDate.isAfter(occurrence.end()))
-            .findFirst()
-            .orElse(null);
-
-        SeasonalOccurrence previous = occurrences.stream()
-            .filter(occurrence -> occurrence.end().isBefore(referenceDate))
-            .max(Comparator.comparing(SeasonalOccurrence::end))
-            .orElse(null);
-
-        SeasonalOccurrence next = occurrences.stream()
-            .filter(occurrence -> occurrence.start().isAfter(referenceDate))
-            .min(Comparator.comparing(SeasonalOccurrence::start))
-            .orElse(null);
-
-        SeasonalOccurrence displayOccurrence;
-        String status;
-        String proximityLabel;
-        int priority;
-        long distanceDays;
-
-        if (active != null) {
-            displayOccurrence = active;
-            status = "CURRENT";
-            distanceDays = Math.max(0L, ChronoUnit.DAYS.between(referenceDate, active.end()));
-            proximityLabel = distanceDays <= 1 ? "Acontecendo agora" : "Em andamento";
-            priority = 0;
-        } else if (previous == null || (next != null && ChronoUnit.DAYS.between(referenceDate, next.start()) <= ChronoUnit.DAYS.between(previous.end(), referenceDate))) {
-            displayOccurrence = next != null ? next : previous;
-            distanceDays = displayOccurrence != null ? Math.max(0L, ChronoUnit.DAYS.between(referenceDate, displayOccurrence.start())) : Long.MAX_VALUE;
-            status = "UPCOMING";
-            proximityLabel = distanceDays == 0 ? "Começa hoje" : distanceDays == 1 ? "Começa amanhã" : "Começa em " + distanceDays + " dias";
-            priority = 1;
-        } else {
-            displayOccurrence = previous;
-            distanceDays = Math.max(0L, ChronoUnit.DAYS.between(previous.end(), referenceDate));
-            status = "RECENT";
-            proximityLabel = distanceDays == 1 ? "Terminou ontem" : "Terminou há " + distanceDays + " dias";
-            priority = 2;
-        }
-
-        SeasonalOccurrence analysisOccurrence = ("RECENT".equals(status) || (active == null && next == null))
-            ? displayOccurrence
-            : previous != null ? previous : displayOccurrence;
-
-        return new SeasonalWindow(
-            template.key(),
-            template.title(),
-            template.subtitle(),
-            analysisOccurrence.start(),
-            analysisOccurrence.end(),
-            formatPeriodLabel(analysisOccurrence.start(), analysisOccurrence.end()),
-            proximityLabel,
-            status,
-            priority,
-            distanceDays
-        );
-    }
-
-    private SeasonalOccurrence createSeasonalOccurrence(SeasonalTemplate template, int startYear) {
-        LocalDate start = LocalDate.of(startYear, template.startMonth(), template.startDay());
-        int endYear = template.crossYear() ? startYear + 1 : startYear;
-        LocalDate end = LocalDate.of(endYear, template.endMonth(), template.endDay());
-        return new SeasonalOccurrence(start, end);
-    }
-
-    private String formatPeriodLabel(LocalDate start, LocalDate end) {
-        return start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-            + " a "
-            + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-    }
-
+    /** Texto de apoio da coleção sazonal exibida no cockpit. */
     private String buildSeasonalSubtitle(SeasonalWindow window, BigDecimal totalRevenue, long totalTransactions) {
         String timing = switch (window.status()) {
             case "CURRENT" -> window.title() + " está em andamento.";
@@ -1293,67 +1253,13 @@ public class AdvancedAnalyticsService {
         for (Map.Entry<UUID, java.util.TreeMap<LocalDate, Double>> entry : byProduct.entrySet()) {
             List<Double> series = new java.util.ArrayList<>(entry.getValue().values());
             if (series.isEmpty()) continue;
-            double ema7 = computeEma(series, 7);
-            double sma28 = computeSma(series, 28);
-            double momentum = sma28 > 0 ? Math.min(3.0, ema7 / sma28) : 1.0;
-            result.put(entry.getKey(), new double[]{ momentum });
+            result.put(entry.getKey(), new double[]{ MetricDefinitions.momentum(series) });
         }
         return result;
     }
 
-    private double computeEma(List<Double> series, int period) {
-        if (series.isEmpty()) return 0;
-        double k = 2.0 / (period + 1);
-        double ema = series.get(0);
-        int start = Math.max(0, series.size() - period * 3); // look-back window
-        for (int i = start; i < series.size(); i++) {
-            ema = series.get(i) * k + ema * (1 - k);
-        }
-        return ema;
-    }
-
-    private double computeSma(List<Double> series, int period) {
-        if (series.isEmpty()) return 0;
-        int from = Math.max(0, series.size() - period);
-        double sum = 0;
-        int count = 0;
-        for (int i = from; i < series.size(); i++) {
-            sum += series.get(i);
-            count++;
-        }
-        return count > 0 ? sum / count : 0;
-    }
-
-    /**
-     * Composite health score 0–100:
-     *  - 40 pts: revenue trend capped to [-50%, +50%] → mapped to [0, 40]
-     *  - 30 pts: sales velocity relative to window length → days active / window length * 30
-     *  - 20 pts: momentum (EMA/SMA ratio) → capped at 2.0 * 10
-     *  - 10 pts: trend direction bonus (positive trend)
-     */
-    private Double computeHealthScore(double trendPct, BigDecimal velocity, int salesDays, Window window, double[] ms) {
-        if (velocity == null || velocity.compareTo(BigDecimal.ZERO) == 0) return null;
-
-        double trendComponent = Math.min(40, Math.max(0, (trendPct + 50) / 100.0 * 40));
-        double consistencyComponent = window.lengthDays() > 0
-            ? Math.min(30, (double) salesDays / window.lengthDays() * 30)
-            : 0;
-        double momentumComponent = ms != null ? Math.min(20, ms[0] * 10) : 10;
-        double bonusComponent = trendPct > 0 ? 10 : 0;
-
-        double raw = trendComponent + consistencyComponent + momentumComponent + bonusComponent;
-        return Math.min(100, Math.max(0, raw));
-    }
-
-    private String resolveTurnoverBand(BigDecimal salesVelocity) {
-        if (salesVelocity.compareTo(BigDecimal.valueOf(12)) >= 0) {
-            return "HIGH";
-        }
-        if (salesVelocity.compareTo(BigDecimal.valueOf(4)) >= 0) {
-            return "MEDIUM";
-        }
-        return "LOW";
-    }
+    // EMA/SMA, health score e turnover band agora vivem em MetricDefinitions —
+    // ver a classe para as definições canônicas e o motivo da consolidação.
 
     private double calculateGrowth(BigDecimal current, BigDecimal previous) {
         if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
@@ -1418,64 +1324,6 @@ public class AdvancedAnalyticsService {
     ) {
     }
 
-    private record Aggregate(BigDecimal revenue, long transactions, BigDecimal averageTicket) {
-    }
-
-    private record SeasonalTemplate(
-        String key,
-        String title,
-        String subtitle,
-        int startMonth,
-        int startDay,
-        int endMonth,
-        int endDay
-    ) {
-        boolean crossYear() {
-            return endMonth < startMonth || (endMonth == startMonth && endDay < startDay);
-        }
-    }
-
-    private record SeasonalOccurrence(LocalDate start, LocalDate end) {
-    }
-
-    private record SeasonalWindow(
-        String key,
-        String title,
-        String subtitle,
-        LocalDate analysisStart,
-        LocalDate analysisEnd,
-        String periodLabel,
-        String proximityLabel,
-        String status,
-        int priority,
-        long distanceDays
-    ) {
-    }
-
-    // ── Product seasonal windows definition ──────────────────────────────────
-
-    private record ProductSeasonalWindowDef(
-        String key,
-        String title,
-        int monthStart, int dayStart,
-        int monthEnd, int dayEnd
-    ) {
-        LocalDate start(int year) { return LocalDate.of(year, monthStart, dayStart); }
-        LocalDate end(int year)   { return LocalDate.of(year, monthEnd, dayEnd); }
-    }
-
-    private static final List<ProductSeasonalWindowDef> SEASONAL_WINDOWS = List.of(
-        new ProductSeasonalWindowDef("natal",        "Natal",          12,  1, 12, 31),
-        new ProductSeasonalWindowDef("pascoa",       "Páscoa",          3,  1,  4, 30),
-        new ProductSeasonalWindowDef("carnaval",     "Carnaval",        2,  1,  2, 28),
-        new ProductSeasonalWindowDef("dia_maes",     "Dia das Mães",    5,  1,  5, 31),
-        new ProductSeasonalWindowDef("dia_pais",     "Dia dos Pais",    8,  1,  8, 31),
-        new ProductSeasonalWindowDef("dia_criancas", "Dia das Crianças",10, 1, 10, 31),
-        new ProductSeasonalWindowDef("black_friday", "Black Friday",   11, 20, 11, 30),
-        new ProductSeasonalWindowDef("ferias_jul",   "Férias Julho",    7,  1,  7, 31),
-        new ProductSeasonalWindowDef("ferias_jan",   "Férias Janeiro",  1,  1,  1, 31)
-    );
-
     private List<ProductSeasonalPerformanceDTO> fetchProductSeasonalPerformance(
         UUID marketId, UUID productId, LocalDate referenceDate
     ) {
@@ -1504,7 +1352,7 @@ public class AdvancedAnalyticsService {
         DateTimeFormatter ptBR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         List<ProductSeasonalPerformanceDTO> results = new ArrayList<>();
 
-        for (ProductSeasonalWindowDef sw : SEASONAL_WINDOWS) {
+        for (SeasonalCalendarService.MeasurementWindow sw : seasonalCalendarService.measurementWindows()) {
             // Try current year first, then previous year if window is in the future
             int year = referenceDate.getYear();
             LocalDate windowStart = sw.start(year);
@@ -1611,13 +1459,32 @@ public class AdvancedAnalyticsService {
         return results;
     }
 
+    /**
+     * Sinal de compra do produto.
+     *
+     * FONTE ÚNICA DA QUANTIDADE: o número sugerido vem de
+     * {@link WorkingCapitalService} (ponto de reposição com estoque teórico,
+     * safety stock por classe XYZ e cobertura-alvo). Antes este método calculava
+     * a própria quantidade com uma régua diferente — cobertura de 14 dias sobre
+     * a velocity —, então o mesmo produto podia mostrar "compre 120 un" aqui e
+     * outro número na tela de capital.
+     *
+     * O que este método continua fazendo, e o capital não faz: interpretar a
+     * SAZONALIDADE (uplift de Natal/Páscoa e projeções de estoque por temporada).
+     * Por isso ele enriquece a sugestão em vez de ser substituído por ela.
+     */
     private ProductPurchaseSignalDTO buildPurchaseSignal(
+        UUID marketId,
         ProductPerformanceDTO overview,
         List<ProductSeasonalPerformanceDTO> seasonal,
-        LocalDate referenceDate
+        LocalDate referenceDate,
+        Window window
     ) {
         double velocity = overview.getSalesVelocity() != null ? overview.getSalesVelocity().doubleValue() : 0;
         double trendPct = overview.getRevenueTrendPercentage() != null ? overview.getRevenueTrendPercentage() : 0;
+
+        WorkingCapitalService.CapitalMetric capital = capitalMetricsReader.forProduct(
+            marketId, overview.getProductId(), (int) window.lengthDays());
 
         // Dormancy: days since last sale
         long daysWithoutSale = 0;
@@ -1651,6 +1518,16 @@ public class AdvancedAnalyticsService {
             decision = "REDUCE";
             decisionLabel = "Reduzir pedido";
             decisionReason = "Velocidade de venda muito baixa e tendência de queda. Reduza o pedido até o produto ganhar tração novamente.";
+        } else if (capital != null
+                   && (capital.capitalStatus() == ProductCapitalMetric.CapitalStatus.REDUZIR
+                       || capital.capitalStatus() == ProductCapitalMetric.CapitalStatus.LIQUIDAR)) {
+            // O veredito do capital tem prioridade sobre a leitura de tendência:
+            // ele enxerga estoque e cobertura, que esta tela não vê.
+            decision = "REDUCE";
+            decisionLabel = capital.capitalStatus() == ProductCapitalMetric.CapitalStatus.LIQUIDAR
+                ? "Liquidar estoque"
+                : "Reduzir pedido";
+            decisionReason = capital.capitalReason();
         } else if (!highSeasonUpcoming.isEmpty() || (velocity >= 1.0 && trendPct >= 0)) {
             decision = "BUY";
             decisionLabel = "Comprar agora";
@@ -1669,17 +1546,34 @@ public class AdvancedAnalyticsService {
             );
         }
 
-        // Suggested order quantity (cover 14 days + seasonal uplift)
-        double coverDays = 14.0;
+        /*
+         * Quantidade sugerida: base vinda do WorkingCapitalService (mesma que a
+         * tela de capital e o plano de compra usam), com uplift sazonal aplicado
+         * por cima quando há alta temporada à vista.
+         *
+         * Fallback para velocity × cobertura só quando o capital não consegue
+         * calcular — produto sem histórico de compra registrado, por exemplo.
+         */
         double upliftMultiplier = 1.0;
+        double coverDays = TARGET_COVERAGE_DAYS_FALLBACK;
         if (!highSeasonUpcoming.isEmpty()) {
             double maxUplift = highSeasonUpcoming.stream()
-                .mapToDouble(s -> s.getIndexVsBaseline())
+                .mapToDouble(ProductSeasonalPerformanceDTO::getIndexVsBaseline)
                 .max().orElse(1.0);
             upliftMultiplier = Math.min(maxUplift, 3.0);
-            coverDays = 21.0; // extend coverage for season
+            coverDays = SEASONAL_COVERAGE_DAYS;
         }
-        double suggestedQty = Math.max(0, velocity * coverDays * upliftMultiplier);
+
+        double baseQty;
+        if (capital != null && capital.suggestedOrderUnits() != null) {
+            baseQty = capital.suggestedOrderUnits().doubleValue();
+            if (capital.coverageDays() != null && capital.coverageDays().signum() > 0) {
+                coverDays = capital.coverageDays().doubleValue();
+            }
+        } else {
+            baseQty = velocity * coverDays;
+        }
+        double suggestedQty = Math.max(0, baseQty * upliftMultiplier);
 
         // Stock projection periods (upcoming high-season windows only)
         List<ProductPurchaseSignalDTO.StockProjectionPeriod> projections = new ArrayList<>();

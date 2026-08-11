@@ -6,6 +6,8 @@ import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.PromoIntelligenceService;
 import com.pdv2cloud.service.PurchasePlanService;
 import com.pdv2cloud.service.WorkingCapitalService;
+import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
+import com.pdv2cloud.service.intelligence.HaloEffectsReader;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,20 +30,23 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
 public class WorkingCapitalController {
 
-    private final WorkingCapitalService workingCapitalService;
+    private final CapitalMetricsReader capitalMetricsReader;
+    private final HaloEffectsReader haloEffectsReader;
     private final PurchasePlanService purchasePlanService;
     private final PromoIntelligenceService promoIntelligenceService;
     private final MarketAccessService marketAccessService;
     private final PlanService planService;
 
     public WorkingCapitalController(
-        WorkingCapitalService workingCapitalService,
+        CapitalMetricsReader capitalMetricsReader,
+        HaloEffectsReader haloEffectsReader,
         PurchasePlanService purchasePlanService,
         PromoIntelligenceService promoIntelligenceService,
         MarketAccessService marketAccessService,
         PlanService planService
     ) {
-        this.workingCapitalService = workingCapitalService;
+        this.capitalMetricsReader = capitalMetricsReader;
+        this.haloEffectsReader = haloEffectsReader;
         this.purchasePlanService = purchasePlanService;
         this.promoIntelligenceService = promoIntelligenceService;
         this.marketAccessService = marketAccessService;
@@ -102,7 +107,7 @@ public class WorkingCapitalController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         List<WorkingCapitalService.CapitalMetric> all =
-            workingCapitalService.computePortfolio(marketId, windowDays);
+            capitalMetricsReader.portfolio(marketId, windowDays);
         return ResponseEntity.ok(GatedListDTO.of(planService.sliceInsights(limits, all), limits.plan()));
     }
 
@@ -163,7 +168,7 @@ public class WorkingCapitalController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         List<PromoIntelligenceService.TrafficDriver> all =
-            promoIntelligenceService.rankTrafficDrivers(marketId, windowDays);
+            haloEffectsReader.trafficDrivers(marketId, windowDays);
         return ResponseEntity.ok(GatedListDTO.of(planService.sliceInsights(limits, all), limits.plan()));
     }
 
@@ -175,7 +180,7 @@ public class WorkingCapitalController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(promoIntelligenceService.computeHaloEffects(marketId, windowDays));
+        return ResponseEntity.ok(haloEffectsReader.haloEffects(marketId, windowDays));
     }
 
     /**
