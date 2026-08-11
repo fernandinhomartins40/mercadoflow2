@@ -88,7 +88,13 @@ public class AiOrchestrator {
      * {@code deterministic} chega até a UI: o usuário tem direito de saber se
      * está lendo a análise da IA que ele configurou ou o texto do sistema.
      */
-    public record Interpretation(String content, boolean deterministic, String provider) { }
+    public record Interpretation(
+        String content,
+        boolean deterministic,
+        String provider,
+        /** Veio do cache — nenhuma chamada externa foi feita nem token gasto. */
+        boolean fromCache
+    ) { }
 
     /** O mercado tem alguma credencial habilitada? Usado para não tentar à toa. */
     public boolean isEnabledFor(UUID marketId) {
@@ -129,7 +135,8 @@ public class AiOrchestrator {
         if (cached.isPresent()) {
             AiInterpretation hit = cached.get();
             return new Interpretation(
-                hit.getContent(), Boolean.TRUE.equals(hit.getDeterministic()), hit.getProvider());
+                hit.getContent(), Boolean.TRUE.equals(hit.getDeterministic()),
+                hit.getProvider(), true);
         }
 
         if (!cipher.isConfigured()) {
@@ -185,7 +192,7 @@ public class AiOrchestrator {
                     credential.effectiveModel(), promptVersion, false);
 
                 return new Interpretation(
-                    response.content(), false, credential.getProvider().name());
+                    response.content(), false, credential.getProvider().name(), false);
             }
 
             lastError = response.errorMessage();
@@ -227,7 +234,7 @@ public class AiOrchestrator {
     }
 
     private Interpretation deterministic(String fallbackText) {
-        return new Interpretation(fallbackText, true, null);
+        return new Interpretation(fallbackText, true, null, false);
     }
 
     private boolean isOpen(UUID credentialId) {

@@ -592,16 +592,49 @@ mais provável aqui seria o modelo "melhorar" um valor, e isso destruiria
 exatamente a propriedade que as Fases 3 e 4 construíram: todo número exibido tem
 rastro de cálculo.
 
-**Validação:** backend compila em Java 17 (imagem do Dockerfile) e passa **108
-testes** (84 + 24 novos: cifra, allowlist LGPD e as garantias de fallback).
+**Validação:** backend compila em Java 17 (imagem do Dockerfile) e passa **116
+testes** (84 + 32 novos: cifra, allowlist LGPD, garantias de fallback e o teto de
+chamadas por rodada).
 Migration V50 aplicada num PostgreSQL 16 real com as 50 migrations em ordem — as
 3 tabelas criadas com RLS ativa e policy `tenant_isolation`, o FK em
 `opportunities` e as duas unique constraints confirmados. Build de produção do
 frontend OK, com os mesmos 124 erros de tipo pré-existentes e nenhum novo.
 
-**Pendente do lado da operação:** definir `AI_ENCRYPTION_KEY` no deploy. Sem
-ela, o BYOK aparece desabilitado na tela (com aviso) e todo o resto do produto
-segue funcionando com os textos determinísticos.
+**Chave mestra no deploy — resolvido.** O `deploy-web.sh` segue a ordem *secret
+do GitHub → `.env` do servidor → gerar nova*, e **só gera quando não existe
+nenhuma**. O cuidado não é cosmético: o script reescreve o `.env` inteiro a cada
+deploy, então sem isso um deploy sem o secret apagaria a chave e tornaria
+ilegíveis as credenciais já cadastradas — cada cliente teria de recadastrar sem
+entender por quê. Os três cenários foram testados isoladamente antes de subir.
+
+**Verificado em produção (11/08/2026):** V50 aplicada (`flyway_schema_history`),
+as 3 tabelas com `rowsecurity = t`, chave mestra de 64 caracteres gerada e
+visível tanto no `mercadoflow-backend` quanto no `mercadoflow-cron` — este
+último é quem interpreta no batch. Backend healthy, site HTTP 200.
+
+**Dois defeitos foram encontrados na revisão pós-implementação e corrigidos.**
+
+O primeiro (`92f4a5e`): o `interpret` era `@Transactional` e faz chamada HTTP de
+até 45 s por provedor. Uma cadeia de dois provedores lentos prenderia a conexão
+do pool por 90 s **por oportunidade**, vezes as dezenas do job noturno —
+bastaria um provedor degradado para o pool secar e derrubar o resto da
+aplicação. A anotação saiu e a gravação passou ao `AiUsageRecorder`, que tem
+transação própria.
+
+O segundo apareceu ao olhar os números reais de produção: **584 oportunidades
+abertas** no mercado de maior volume, cada uma com recomendação. O
+`interpretMarket` percorria todas sem teto e sem pausa — na primeira madrugada
+após o cliente cadastrar a chave, seriam 584 chamadas em rajada. O free tier
+morreria por volta da décima, o circuit breaker desligaria o provedor por 10
+minutos e o resto cairia em fallback de qualquer forma, tendo gasto a cota do
+cliente para nada. Agora há teto de **40 interpretações por mercado por rodada**
+e pausa de 1,5 s entre chamadas (os free tiers operam na casa de 30 req/min).
+
+O teto corta no lugar certo porque as oportunidades chegam ordenadas por
+prioridade: as 40 mais relevantes recebem a leitura da IA, e as demais entram
+nas rodadas seguintes — **resposta de cache não consome o teto**, então uma
+rodada em que tudo já foi interpretado avança para quem ainda não tem leitura,
+em vez de parar nas mesmas 40 para sempre.
 
 ---
 
