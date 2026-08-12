@@ -915,6 +915,60 @@ nenhum novo. Nenhuma migration — a régua é política de aplicação, não sc
 
 ---
 
+### ESCADA ESSENCIAL → PROFISSIONAL (12/08/2026)
+
+**O degrau do meio estava oco.** Entre Essencial (R$ 197) e Profissional
+(R$ 397) o preço dobrava e **nenhuma funcionalidade mudava** — só cinco
+contadores. No código, `PROFISSIONAL` aparecia em exatamente dois lugares: o
+checkout do Stripe e um contador de relatório. Nenhuma regra de produto o
+mencionava.
+
+A causa era de modelagem: `fullInsights` é **booleano** e já valia `true` no
+Essencial. Com ele não havia como expressar "o Essencial vê isto, o Profissional
+vê aquilo".
+
+**A troca:** `PlanType.IntelligenceTier` ordinal — `BASICO` (0), `COMPLETO` (1),
+`AVANCADO` (2) — comparado por `reaches()`. Cada recurso declara o nível que
+exige, e acrescentar um plano no meio da escada não obriga a revisar recurso
+nenhum. O `fullInsights` continua existindo para os limites numéricos legados.
+
+**O princípio:**
+
+> O Essencial responde **"como vai a minha loja"**.
+> O Profissional responde **"como vai o meu negócio, e o que ele vai virar"**.
+> A diferença é **horizonte de decisão**, não quantidade de loja.
+
+| Recurso | Gratuito | Essencial | Profissional |
+|---|---|---|---|
+| Previsão à frente | 7 dias | 30 dias | **90 dias** |
+| Inteligência de rede | — | — | **sim** |
+| Resultado das decisões | — | resumo | **histórico completo** |
+| Clientes e recompra | — | — | **sim** (regra pronta, tela pendente) |
+
+**Por que estes três.** A inteligência de rede já exigia 2+ lojas e o Essencial
+permite 1 — o bloqueio **existia de fato mas não estava nomeado**, então não
+vendia plano nenhum; era o argumento mais honesto da escada, invisível. O
+histórico decisão a decisão só rende com meses acumulados, que é o cliente
+maduro — e o Essencial continua vendo o resumo (taxa de acerto e acurácia da
+previsão), que responde "o sistema está me ajudando?". A previsão escala nos
+três degraus porque é a mesma métrica servindo a decisões de porte diferente:
+uma semana repõe a prateleira, um mês negocia com o fornecedor, um trimestre
+planeja a temporada.
+
+**O bloqueado continua aparecendo**, como no gratuito: a tela de rede mostra o
+que a comparação faria, e a aba de resultados diz quantas decisões já foram
+medidas antes de convidar ao upgrade. Recurso oculto não gera desejo.
+
+**Fica para depois:** tela de clientes/recompra (a regra de plano já existe),
+simulação de preço por elasticidade e exportação/webhook — os itens 3 a 5 da
+análise, que exigem construção e não só recorte.
+
+**Validação:** 158 testes (152 + 6 da escada, incluindo a garantia de que REDE
+alcança tudo do Profissional e de que o nível é ordinal). Build do frontend OK,
+mesmos 124 erros pré-existentes. Nenhuma migration.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação** — ✅ CONCLUÍDA. Ver §31-A.

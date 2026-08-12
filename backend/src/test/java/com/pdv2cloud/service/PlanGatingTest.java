@@ -183,6 +183,71 @@ class PlanGatingTest {
             planService.clampWindow(limits(PlanType.REDE, true, PlanType.UNLIMITED), 730));
     }
 
+    // ── Escada Essencial → Profissional (12/08/2026) ─────────────────────────
+    //
+    // Os dois planos eram funcionalmente IDÊNTICOS: o preço dobrava e nenhuma
+    // função mudava, só cinco contadores. `PROFISSIONAL` aparecia em exatamente
+    // dois lugares no código — o checkout do Stripe e um contador de relatório.
+
+    /**
+     * A inteligência de rede é o degrau mais honesto que a escada tem: já
+     * exigia 2+ lojas na prática, e o Essencial permite 1. O bloqueio existia
+     * de fato mas não estava NOMEADO, então não vendia plano nenhum.
+     */
+    @Test
+    void redeExigeOPlanoAvancado() {
+        assertFalse(planService.canUseNetworkIntelligence(limits(PlanType.ESSENCIAL, true, 365)));
+        assertTrue(planService.canUseNetworkIntelligence(limits(PlanType.PROFISSIONAL, true, 730)));
+        assertTrue(planService.canUseNetworkIntelligence(limits(PlanType.REDE, true, -1)));
+    }
+
+    /**
+     * O histórico decisão a decisão só rende com meses acumulados — quem tem
+     * isso é o cliente maduro. O Essencial continua vendo o RESUMO, que é o que
+     * responde "o sistema está me ajudando?".
+     */
+    @Test
+    void historicoCompletoDeDecisoesExigeOAvancado() {
+        assertFalse(planService.canSeeFullOutcomes(limits(PlanType.ESSENCIAL, true, 365)));
+        assertTrue(planService.canSeeFullOutcomes(limits(PlanType.PROFISSIONAL, true, 730)));
+    }
+
+    @Test
+    void clientesERecompraExigemOAvancado() {
+        assertFalse(planService.canUseCustomerIntelligence(limits(PlanType.ESSENCIAL, true, 365)));
+        assertTrue(planService.canUseCustomerIntelligence(limits(PlanType.PROFISSIONAL, true, 730)));
+    }
+
+    /**
+     * A previsão escala nos três degraus: uma semana repõe a prateleira, um mês
+     * negocia com o fornecedor, um trimestre planeja a temporada. É a mesma
+     * métrica servindo a decisões de porte diferente.
+     */
+    @Test
+    void previsaoEscalaNosTresDegraus() {
+        assertEquals(7, planService.forecastHorizonDays(limits(PlanType.FREE, false, 90), 365));
+        assertEquals(30, planService.forecastHorizonDays(limits(PlanType.ESSENCIAL, true, 365), 365));
+        assertEquals(90, planService.forecastHorizonDays(limits(PlanType.PROFISSIONAL, true, 730), 365));
+    }
+
+    /** O nível é ordinal: comparar por >= faz plano novo no meio não quebrar nada. */
+    @Test
+    void nivelEOrdinalEComparavel() {
+        assertTrue(PlanType.PROFISSIONAL.getIntelligenceTier()
+            .reaches(PlanType.ESSENCIAL.getIntelligenceTier()));
+        assertFalse(PlanType.ESSENCIAL.getIntelligenceTier()
+            .reaches(PlanType.PROFISSIONAL.getIntelligenceTier()));
+        assertTrue(PlanType.FREE.getIntelligenceTier()
+            .reaches(PlanType.FREE.getIntelligenceTier()));
+    }
+
+    /** REDE herda tudo do avançado: é o plano negociado, nunca o mais pobre. */
+    @Test
+    void redeAlcancaTudoQueOProfissionalAlcanca() {
+        assertTrue(PlanType.REDE.getIntelligenceTier()
+            .reaches(PlanType.PROFISSIONAL.getIntelligenceTier()));
+    }
+
     private PlanService.EffectiveLimits limits(PlanType plan, boolean full, int historyDays) {
         return new PlanService.EffectiveLimits(
             plan, 1_000, 1, 1, 1, 2, historyDays, full, UUID.randomUUID());

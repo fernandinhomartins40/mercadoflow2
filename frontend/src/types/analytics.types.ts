@@ -571,4 +571,15 @@ export interface OutcomesResponse {
   resultados: OutcomeItem[];
   porTipoDeAcao: Record<string, Record<string, number>>;
   acuraciaPrevisao: ForecastAccuracySummary;
+  /**
+   * O plano dá acesso ao histórico decisão a decisão.
+   *
+   * Falso no Essencial, que vê o RESUMO (taxa de acerto por tipo de ação e
+   * acurácia da previsão) — o suficiente para responder "o sistema está me
+   * ajudando?". O detalhe histórico é do Profissional.
+   */
+  historicoCompleto?: boolean;
+  /** Quantas decisões já foram medidas, mesmo sem acesso ao detalhe. */
+  decisoesMedidas?: number;
+  mensagemUpgrade?: string;
 }

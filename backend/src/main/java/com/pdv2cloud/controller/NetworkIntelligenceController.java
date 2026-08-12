@@ -1,6 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.intelligence.NetworkIntelligenceService;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +34,27 @@ public class NetworkIntelligenceController {
 
     private final NetworkIntelligenceService networkService;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public NetworkIntelligenceController(
         NetworkIntelligenceService networkService,
-        MarketAccessService marketAccessService
+        MarketAccessService marketAccessService,
+        PlanService planService
     ) {
         this.networkService = networkService;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
+    }
+
+    /**
+     * O plano deste mercado alcança a inteligência de rede?
+     *
+     * O recurso já exigia 2+ lojas na prática, e o Essencial permite 1 — o
+     * bloqueio existia de fato, mas não estava NOMEADO, então não vendia plano
+     * nenhum. Agora é recurso declarado do Profissional.
+     */
+    private boolean allowed(UUID marketId) {
+        return planService.canUseNetworkIntelligence(planService.limitsFor(marketId));
     }
 
     /**
@@ -54,10 +69,25 @@ public class NetworkIntelligenceController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+
+        if (!allowed(marketId)) {
+            // A tela mostra o convite em vez de sumir: quem tem mais de uma
+            // loja precisa DESCOBRIR que existe comparação entre elas.
+            return ResponseEntity.ok(Map.of(
+                "rede", false,
+                "filiais", 0,
+                "bloqueadoPorPlano", true,
+                "mensagem", "Comparar filiais, sugerir transferência de estoque e "
+                    + "acompanhar divergência de preço entre lojas fazem parte do "
+                    + "plano Profissional."
+            ));
+        }
+
         boolean isNetwork = networkService.isNetwork(marketId);
         return ResponseEntity.ok(Map.of(
             "rede", isNetwork,
-            "filiais", isNetwork ? networkService.branchOverview(marketId).size() : 0
+            "filiais", isNetwork ? networkService.branchOverview(marketId).size() : 0,
+            "bloqueadoPorPlano", false
         ));
     }
 
@@ -68,7 +98,7 @@ public class NetworkIntelligenceController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(networkService.branchOverview(marketId));
+        return ResponseEntity.ok(allowed(marketId) ? networkService.branchOverview(marketId) : List.of());
     }
 
     /** O mesmo produto lado a lado nas filiais, maior discrepância primeiro. */
@@ -79,7 +109,7 @@ public class NetworkIntelligenceController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(networkService.compareProducts(marketId, limit));
+        return ResponseEntity.ok(allowed(marketId) ? networkService.compareProducts(marketId, limit) : List.of());
     }
 
     /** Onde sobra estoque numa filial e falta em outra. */
@@ -90,7 +120,7 @@ public class NetworkIntelligenceController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(networkService.transferOpportunities(marketId, limit));
+        return ResponseEntity.ok(allowed(marketId) ? networkService.transferOpportunities(marketId, limit) : List.of());
     }
 
     /** Mesmo produto com preços diferentes entre as lojas. */
@@ -101,6 +131,6 @@ public class NetworkIntelligenceController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(networkService.priceDivergences(marketId, limit));
+        return ResponseEntity.ok(allowed(marketId) ? networkService.priceDivergences(marketId, limit) : List.of());
     }
 }

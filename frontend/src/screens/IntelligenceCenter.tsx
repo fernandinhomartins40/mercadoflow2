@@ -428,7 +428,8 @@ const IntelligenceCenter: React.FC = () => {
     { key: 'recomendacoes', label: 'O que fazer', count: recommendations.length },
     { key: 'oportunidades', label: 'O que está acontecendo', count: opportunities.length },
     { key: 'historico', label: 'Decisões tomadas', count: history.length },
-    { key: 'resultados', label: 'No que deu', count: outcomes?.resultados?.length || 0 },
+    { key: 'resultados', label: 'No que deu',
+      count: outcomes?.decisoesMedidas ?? outcomes?.resultados?.length ?? 0 },
   ];
 
   return (
@@ -596,6 +597,26 @@ const IntelligenceCenter: React.FC = () => {
             >
               {loading ? (
                 <Empty>Carregando...</Empty>
+              ) : outcomes?.historicoCompleto === false && (outcomes.decisoesMedidas || 0) > 0 ? (
+                /* O plano vê o RESUMO acima (taxa de acerto e acurácia); o
+                   detalhe decisão a decisão é do Profissional. Dizer quantas já
+                   foram medidas é o que dá peso ao convite. */
+                <Link
+                  to="/app/planos"
+                  className="flex flex-col gap-2 rounded-xl p-4 transition hover:opacity-90"
+                  style={{ border: '1px dashed var(--border-strong)', background: 'var(--surface-muted)' }}
+                >
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {fmt.int(outcomes.decisoesMedidas)} decisões já medidas
+                  </p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+                    {outcomes.mensagemUpgrade}
+                  </p>
+                  <span className="flex items-center gap-1 text-xs font-semibold"
+                    style={{ color: 'var(--brand-700)' }}>
+                    Ver planos <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
               ) : !outcomes?.resultados?.length ? (
                 <Empty>
                   Nenhum resultado medido ainda. As decisões aceitas são avaliadas 30 dias

@@ -82,6 +82,43 @@ public enum PlanType {
     /** Sentinela para "sem teto" / "sob consulta". */
     public static final int UNLIMITED = -1;
 
+    /**
+     * Nível de inteligência do plano — a escada de recursos.
+     *
+     * SUBSTITUI o antigo {@code fullInsights} booleano como régua de decisão.
+     * O booleano só sabia dizer "vê tudo" ou "não vê", e com ele era impossível
+     * expressar "o Essencial vê isto, o Profissional vê aquilo" — foi por isso
+     * que Essencial e Profissional acabaram funcionalmente idênticos, com o
+     * preço dobrando sem nenhuma função nova.
+     *
+     * Ordinal e comparado por {@code >=}: um recurso declara o nível mínimo que
+     * exige, e todo plano igual ou acima o enxerga. Acrescentar um plano no
+     * meio da escada não obriga a revisar recurso nenhum.
+     */
+    public enum IntelligenceTier {
+        /** Gratuito: descreve o presente da loja. */
+        BASICO(0),
+        /** Essencial: análise completa de uma loja. */
+        COMPLETO(1),
+        /** Profissional: rede, base de clientes, simulação e integração. */
+        AVANCADO(2);
+
+        private final int level;
+
+        IntelligenceTier(int level) {
+            this.level = level;
+        }
+
+        public int level() {
+            return level;
+        }
+
+        /** Este nível alcança o exigido pelo recurso? */
+        public boolean reaches(IntelligenceTier required) {
+            return this.level >= required.level;
+        }
+    }
+
     /** Quantos itens de cada lista de inteligência o plano gratuito enxerga. */
     public static final int FREE_INSIGHT_PREVIEW_SIZE = 5;
 
@@ -119,6 +156,22 @@ public enum PlanType {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    /**
+     * Nível de inteligência deste plano.
+     *
+     * Derivado do próprio enum em vez de virar mais um parâmetro do construtor:
+     * o catálogo do banco pode sobrescrever limites numéricos, mas a escada de
+     * recursos é decisão de produto e deve viver no código, onde é revisável
+     * junto das regras que a consomem.
+     */
+    public IntelligenceTier getIntelligenceTier() {
+        return switch (this) {
+            case FREE -> IntelligenceTier.BASICO;
+            case ESSENCIAL -> IntelligenceTier.COMPLETO;
+            case PROFISSIONAL, REDE -> IntelligenceTier.AVANCADO;
+        };
     }
 
     /** Preço mensal em centavos. -1 = sob consulta. */

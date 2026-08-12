@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   networkService, weeklyDigestService,
   BranchSummary, ProductAcrossBranches, TransferSuggestion, PriceDivergence, WeeklyDigest,
+  NetworkStatus,
 } from '../services/network.service';
 import {
   Store, ArrowRightLeft, Tag, TrendingUp, Loader2, CalendarDays, Sparkles, RefreshCw,
@@ -62,6 +63,8 @@ const NetworkView: React.FC = () => {
   const { marketId } = useAuth();
 
   const [isNetwork, setIsNetwork] = useState<boolean | null>(null);
+  /** O recurso existe mas o plano não alcança — convite diferente de "sem filial". */
+  const [planLocked, setPlanLocked] = useState<{ mensagem?: string } | null>(null);
   const [branches, setBranches] = useState<BranchSummary[]>([]);
   const [products, setProducts] = useState<ProductAcrossBranches[]>([]);
   const [transfers, setTransfers] = useState<TransferSuggestion[]>([]);
@@ -76,10 +79,12 @@ const NetworkView: React.FC = () => {
     try {
       // O resumo semanal serve a qualquer loja; o resto só a redes.
       const [status, weekly] = await Promise.all([
-        networkService.status(marketId).catch(() => ({ rede: false, filiais: 0 })),
+        networkService.status(marketId)
+          .catch((): NetworkStatus => ({ rede: false, filiais: 0 })),
         weeklyDigestService.list(marketId).catch(() => []),
       ]);
       setIsNetwork(status.rede);
+      setPlanLocked(status.bloqueadoPorPlano ? { mensagem: status.mensagem } : null);
       setDigests(weekly);
 
       if (status.rede) {
@@ -218,7 +223,47 @@ const NetworkView: React.FC = () => {
         </Section>
 
         {/* ── Rede: só para quem tem filiais ── */}
-        {isNetwork === false ? (
+        {planLocked ? (
+          /* O recurso está pronto; o que falta é o plano. Mostrar o que ele
+             faria é o que transforma a tela vazia em argumento de venda. */
+          <a
+            href="/app/planos"
+            className="flex flex-col gap-3 rounded-xl p-6 transition hover:opacity-90"
+            style={{ border: '1px dashed var(--border-strong)', background: 'var(--surface-soft)' }}
+          >
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4" style={{ color: 'var(--brand-500)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Compare suas lojas
+              </p>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              {planLocked.mensagem}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                'Quem fatura mais e onde há capital parado',
+                'Sobra numa loja, falta em outra',
+                'Mesmo produto com preços diferentes',
+              ].map(item => (
+                <span
+                  key={item}
+                  className="rounded-full px-3 py-1 text-xs"
+                  style={{
+                    background: 'var(--surface-base)',
+                    border: '1px solid var(--border-soft)',
+                    color: 'var(--text-soft)',
+                  }}
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+            <span className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+              Ver o plano Profissional
+            </span>
+          </a>
+        ) : isNetwork === false ? (
           <div className="rounded-xl p-6 text-center" style={card}>
             <Store className="mx-auto h-6 w-6" style={{ color: 'var(--text-soft)' }} />
             <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>

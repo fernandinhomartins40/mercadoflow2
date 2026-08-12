@@ -552,6 +552,59 @@ public class PlanService {
         "OPORTUNIDADE_DE_COMBO"
     );
 
+    // ── Escada de recursos (12/08/2026) ──────────────────────────────────────
+    //
+    // Essencial e Profissional eram funcionalmente IDÊNTICOS: o preço dobrava e
+    // nenhuma função mudava, só cinco contadores. Um lojista de loja única — a
+    // maioria da base — não tinha motivo algum para subir.
+    //
+    // A causa era de modelagem: `fullInsights` é booleano, e com ele não há
+    // como expressar "o Essencial vê isto, o Profissional vê aquilo". A escada
+    // passa a ser ordinal: cada recurso declara o nível que exige.
+    //
+    // O princípio: o Essencial responde "como vai a minha loja"; o Profissional,
+    // "como vai o meu negócio e o que ele vai virar" — horizonte de decisão, não
+    // quantidade de loja.
+
+    /** Nível de inteligência efetivo do mercado. */
+    public PlanType.IntelligenceTier tierOf(EffectiveLimits limits) {
+        return limits.plan().getIntelligenceTier();
+    }
+
+    /** O plano alcança o nível que o recurso exige? */
+    public boolean hasTier(EffectiveLimits limits, PlanType.IntelligenceTier required) {
+        return tierOf(limits).reaches(required);
+    }
+
+    /**
+     * Comparação entre filiais, transferência de estoque e benchmark de preço.
+     *
+     * Já exigia 2+ lojas na prática, e o Essencial permite 1 — o bloqueio
+     * existia de fato mas não estava NOMEADO em lugar nenhum, então não vendia
+     * plano. Agora é recurso declarado do Profissional.
+     */
+    public boolean canUseNetworkIntelligence(EffectiveLimits limits) {
+        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+    }
+
+    /**
+     * Histórico completo de decisões e acurácia da previsão.
+     *
+     * Só faz sentido com meses de decisões acumuladas — quem tem isso é o
+     * cliente maduro, não quem assinou semana passada. Responde "o sistema está
+     * me fazendo ganhar dinheiro?", que é a pergunta de quem já pagou um ano.
+     *
+     * O Essencial continua vendo o resumo; o detalhe histórico é do avançado.
+     */
+    public boolean canSeeFullOutcomes(EffectiveLimits limits) {
+        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+    }
+
+    /** Perfis de cliente, frequência e ciclo de recompra. */
+    public boolean canUseCustomerIntelligence(EffectiveLimits limits) {
+        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+    }
+
     /**
      * Teto de orçamento para o plano de compra.
      *
@@ -565,12 +618,26 @@ public class PlanService {
         return limits.fullInsights() ? null : FREE_PURCHASE_BUDGET_CAP;
     }
 
-    /** Horizonte de previsão que o plano permite ver. */
+    /** Previsão do plano completo: um mês, o suficiente para negociar compra. */
+    public static final int FULL_FORECAST_DAYS = 30;
+
+    /** Previsão do avançado: um trimestre, para quem planeja a temporada. */
+    public static final int ADVANCED_FORECAST_DAYS = 90;
+
+    /**
+     * Horizonte de previsão que o plano permite ver.
+     *
+     * Uma semana repõe a prateleira; um mês negocia com o fornecedor; um
+     * trimestre planeja a temporada. É a mesma métrica servindo a três
+     * decisões de porte diferente — por isso escala bem como degrau.
+     */
     public int forecastHorizonDays(EffectiveLimits limits, int requested) {
-        if (limits.fullInsights()) {
-            return requested;
-        }
-        return Math.min(requested, FREE_FORECAST_DAYS);
+        int cap = switch (tierOf(limits)) {
+            case BASICO -> FREE_FORECAST_DAYS;
+            case COMPLETO -> FULL_FORECAST_DAYS;
+            case AVANCADO -> ADVANCED_FORECAST_DAYS;
+        };
+        return Math.min(requested, cap);
     }
 
     /** Este tipo de oportunidade é visível no plano do mercado? */

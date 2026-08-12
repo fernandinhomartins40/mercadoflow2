@@ -62,9 +62,17 @@ export interface PriceDivergence {
 }
 
 export interface NetworkStatus {
-  /** Este mercado tem filiais. Sem isso a UI não mostra a seção. */
+  /** Este mercado tem filiais E o plano permite compará-las. */
   rede: boolean;
   filiais: number;
+  /**
+   * O recurso existe, mas o plano não o alcança.
+   *
+   * Distinto de `rede: false` por não ter filial: são convites diferentes —
+   * um chama para cadastrar loja, o outro para assinar o Profissional.
+   */
+  bloqueadoPorPlano?: boolean;
+  mensagem?: string;
 }
 
 const base = (marketId: string) => `/v1/markets/${marketId}/network`;

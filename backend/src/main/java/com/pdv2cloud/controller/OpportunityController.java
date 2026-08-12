@@ -274,11 +274,28 @@ public class OpportunityController {
                 .put(verdict, ((Number) row[2]).longValue());
         }
 
-        return ResponseEntity.ok(Map.of(
-            "resultados", measured,
-            "porTipoDeAcao", byAction,
-            "acuraciaPrevisao", forecastAccuracyService.summarize(marketId)
-        ));
+        /*
+         * O Essencial vê o RESUMO — taxa de acerto por tipo de ação e acurácia
+         * da previsão, que é o que responde "o sistema está me ajudando?". O
+         * histórico decisão a decisão fica no Profissional.
+         *
+         * O corte é por natureza do dado, não por castigo: o histórico completo
+         * só rende com meses de decisões acumuladas, e quem tem isso é o
+         * cliente maduro — não quem assinou semana passada.
+         */
+        boolean fullHistory = planService.canSeeFullOutcomes(planService.limitsFor(marketId));
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("resultados", fullHistory ? measured : List.of());
+        body.put("porTipoDeAcao", byAction);
+        body.put("acuraciaPrevisao", forecastAccuracyService.summarize(marketId));
+        body.put("historicoCompleto", fullHistory);
+        if (!fullHistory) {
+            body.put("decisoesMedidas", measured.size());
+            body.put("mensagemUpgrade", "O histórico decisão a decisão, com o previsto "
+                + "contra o realizado de cada uma, faz parte do plano Profissional.");
+        }
+        return ResponseEntity.ok(body);
     }
 
     /** Produtos em que a previsão de demanda mais erra. */
