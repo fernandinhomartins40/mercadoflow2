@@ -42,6 +42,33 @@ public interface MarketUsageCounterRepository extends JpaRepository<MarketUsageC
         @Param("items") int items
     );
 
+    /**
+     * Registra carga histórica: acervo anterior à instalação do agente.
+     *
+     * Contador próprio, separado de invoices_ingested, porque estas notas NÃO
+     * consomem cota — mas precisam ser medidas: o tamanho do acervo trazido é
+     * o que explica por que a análise tem lastro desde o primeiro dia.
+     */
+    @Modifying
+    @Query(value = """
+        insert into market_usage_counters
+            (id, market_id, cycle_start, historical_ingested, items_ingested,
+             first_ingest_at, last_ingest_at, updated_at)
+        values
+            (gen_random_uuid(), :marketId, :cycleStart, 1, :items, now(), now(), now())
+        on conflict (market_id, cycle_start) do update set
+            historical_ingested = market_usage_counters.historical_ingested + 1,
+            items_ingested      = market_usage_counters.items_ingested + :items,
+            first_ingest_at     = coalesce(market_usage_counters.first_ingest_at, now()),
+            last_ingest_at      = now(),
+            updated_at          = now()
+        """, nativeQuery = true)
+    void incrementHistorical(
+        @Param("marketId") UUID marketId,
+        @Param("cycleStart") LocalDate cycleStart,
+        @Param("items") int items
+    );
+
     @Modifying
     @Query(value = """
         insert into market_usage_counters

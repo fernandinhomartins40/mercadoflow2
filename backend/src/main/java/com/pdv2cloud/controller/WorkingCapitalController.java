@@ -1,6 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.dto.GatedListDTO;
+import com.pdv2cloud.service.InvoiceRejectionService;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.PromoIntelligenceService;
@@ -36,6 +37,7 @@ public class WorkingCapitalController {
     private final PromoIntelligenceService promoIntelligenceService;
     private final MarketAccessService marketAccessService;
     private final PlanService planService;
+    private final InvoiceRejectionService rejectionService;
 
     public WorkingCapitalController(
         CapitalMetricsReader capitalMetricsReader,
@@ -43,7 +45,8 @@ public class WorkingCapitalController {
         PurchasePlanService purchasePlanService,
         PromoIntelligenceService promoIntelligenceService,
         MarketAccessService marketAccessService,
-        PlanService planService
+        PlanService planService,
+        InvoiceRejectionService rejectionService
     ) {
         this.capitalMetricsReader = capitalMetricsReader;
         this.haloEffectsReader = haloEffectsReader;
@@ -51,6 +54,7 @@ public class WorkingCapitalController {
         this.promoIntelligenceService = promoIntelligenceService;
         this.marketAccessService = marketAccessService;
         this.planService = planService;
+        this.rejectionService = rejectionService;
     }
 
     /**
@@ -70,7 +74,14 @@ public class WorkingCapitalController {
         response.put("planName", usage.limits().plan().getDisplayName());
         response.put("cycleStart", usage.cycleStart());
         response.put("cycleEnd", usage.cycleEnd());
+        // A cota passou a ser SEMANAL (V52): o nome do campo do plano ainda diz
+        // "monthly" por compatibilidade, mas o período é a semana.
+        response.put("cycleType", "SEMANAL");
         response.put("invoiceLimit", usage.limits().monthlyInvoices());
+        // Acervo aceito fora da cota. Sem este número, o lojista que enviou
+        // 3.000 notas de histórico veria "0 usadas" e não entenderia o que
+        // aconteceu com o envio dele.
+        response.put("historicalIngested", usage.historicalIngested());
         response.put("invoicesUsed", usage.invoicesUsed());
         response.put("invoicesRejected", usage.invoicesRejected());
         response.put("invoicesRemaining", usage.remainingInvoices());
@@ -87,6 +98,8 @@ public class WorkingCapitalController {
         response.put("seatCount", usage.seatCount());
         response.put("historyDays", usage.limits().historyDays());
         response.put("fullInsights", usage.limits().fullInsights());
+        // O que ficou de fora e volta sozinho quando a cota renovar.
+        response.putAll(rejectionService.pendingSummary(marketId));
         return ResponseEntity.ok(response);
     }
 

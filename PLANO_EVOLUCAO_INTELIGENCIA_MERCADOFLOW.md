@@ -762,6 +762,76 @@ migrations em ordem, RLS ativa e a unique de idempotência confirmada.
 
 ---
 
+### CARGA HISTÓRICA LIVRE + COTA SEMANAL (11/08/2026)
+
+**O defeito, medido em produção.** Um mercado free instalou o agente e enviou o
+acervo que estava na pasta do PDV: ~3.600 notas. As 1.000 primeiras entraram, o
+teto mensal estourou e o resto foi recusado. O resultado não foi "faltam dados"
+— foi pior: **o sistema passou a analisar fevereiro em julho**, porque o recorte
+que coube era o COMEÇO do acervo, não a operação. A loja parecia vazia tendo
+enviado tudo.
+
+Dois problemas somados:
+
+1. **O limite não distinguia acervo de operação.** Um mercado com dois anos de
+   XML acumulado gastava a cota inteira no passado e ficava sem espaço para a
+   venda de hoje.
+2. **A nota recusada sumia.** Não havia fila nem registro. Como o agente
+   reenvia, o mesmo arquivo era contado a cada tentativa — foi o que produziu
+   "10.511 rejeitadas" sobre um acervo de ~2.600 notas, um número que não
+   descrevia nada e que me levou, na primeira leitura, a relatar ao dono um
+   volume de notas que não existia.
+
+**A regra nova** (decisão do dono):
+
+| Conceito | Regra |
+|---|---|
+| **Carga histórica** | Nota emitida ANTES do primeiro envio do mercado. Entra integralmente, sem consumir cota, para sempre |
+| **Operação** | Nota emitida depois do marco. Consome a cota |
+| **Cota** | Passa de 1.000/mês para **1.000/semana**, renovando toda segunda |
+
+**Por que o corte é a data de emissão contra o marco, e não uma janela de N dias
+após a instalação:** janela premiaria quem segura notas novas para entrarem de
+graça. A data de emissão não se burla sem falsificar o XML — e ainda resolve
+quem instala o agente meses depois de abrir a loja.
+
+**Por que semanal e não mensal:** com teto mensal, uma loja pequena que tem uma
+semana boa fica travada nas três seguintes — e travada aqui significa que a
+análise para de acompanhar a operação, que é justamente o que o produto vende.
+Semanal devolve a capacidade toda segunda e o volume total ainda é maior
+(~4.300/mês contra 1.000). O modelo free fica usável para o mercado pequeno, que
+é quem alimenta a base de dados para o produto pago dos fabricantes.
+
+**Um detalhe do backfill que quase passou.** A primeira versão da migration
+gravou o marco como a data da nota mais antiga. Testado contra o cenário real,
+isso classificava as notas de 2024 e 2025 como *operação* — reproduzindo o
+defeito que a migration existe para corrigir. O marco significa "quando o agente
+começou a enviar", não "quando a loja começou a vender": corrigido para `NOW()`,
+de modo que todo o acervo entra livre e só a venda futura consome.
+
+**Recusas persistidas** (`invoice_rejections`): uma nota é **uma linha**, com
+contador de tentativas ao lado. Guarda a chave, nunca o XML — o documento
+recusado traz CPF de consumidor, e armazená-lo seria acumular dado pessoal de
+algo que o sistema não aceitou. A tela passa a dizer quantas notas aguardam a
+renovação da cota.
+
+**Efeito medido no cenário de produção reproduzido:**
+
+| | Antes | Depois da V52 |
+|---|---|---|
+| Operação (consome cota) | 1.000 | **0** |
+| Acervo (livre) | — | **1.000** |
+| Recusadas | 10.511 (inflado) | **0** |
+| Cota travada | **sim** | **não** |
+
+**Validação:** 139 testes (130 + 9 cobrindo os dois lados da fronteira acervo /
+operação, inclusive o instante exato do marco). V52 aplicada num PostgreSQL 16
+real sobre o **estado reproduzido de produção** — não só sobre schema vazio —
+confirmando a reclassificação, o destravamento da cota e o upsert de recusa
+(dois envios da mesma nota = 1 linha, 2 tentativas).
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação** — ✅ CONCLUÍDA. Ver §31-A.

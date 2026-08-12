@@ -207,7 +207,7 @@ const PlanCatalogPanel: React.FC = () => {
             </div>
 
             <div className="grid gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              <span>{formatLimit(plan.monthlyInvoiceLimit)} notas/mês</span>
+              <span>{formatLimit(plan.monthlyInvoiceLimit)} notas/semana</span>
               <span>
                 {formatLimit(plan.branchLimit)} loja(s) · {formatLimit(plan.pdvPerBranchLimit)} PDV(s) por loja ·{' '}
                 {formatLimit(plan.pdvLimit)} no total

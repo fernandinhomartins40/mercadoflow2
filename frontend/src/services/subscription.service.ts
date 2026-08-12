@@ -117,6 +117,16 @@ export interface MarketUsage {
   limitReached: boolean;
   nearLimit: boolean;
   limitReachedAt?: string | null;
+  /** SEMANAL desde a V52. A cota renova toda segunda-feira. */
+  cycleType?: string | null;
+  /**
+   * Notas de acervo aceitas fora da cota — o histórico que já existia na pasta
+   * do PDV antes de o agente ser instalado. Nunca consome limite.
+   */
+  historicalIngested?: number | null;
+  /** Notas que ficaram de fora e voltam sozinhas quando a cota renovar. */
+  notasPendentes?: number | null;
+  maisAntigaPendente?: string | null;
   pdvLimit: number;
   pdvCount: number;
   seatLimit: number;

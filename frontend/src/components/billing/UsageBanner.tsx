@@ -55,15 +55,30 @@ const UsageBanner: React.FC = () => {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold" style={{ color: palette.text }}>
           {reached
-            ? `Limite do plano ${usage.planName} atingido`
-            : `Você já usou ${usage.usagePercent}% do plano ${usage.planName}`}
+            ? `Limite semanal do plano ${usage.planName} atingido`
+            : `Você já usou ${usage.usagePercent}% da cota desta semana`}
         </p>
         <p className="text-xs" style={{ color: palette.text, opacity: 0.85 }}>
-          {fmt(usage.invoicesUsed)} de {fmt(usage.invoiceLimit)} notas neste mês.{' '}
+          {fmt(usage.invoicesUsed)} de {fmt(usage.invoiceLimit)} notas nesta semana.{' '}
           {reached
-            ? 'Novas notas não estão sendo recebidas até a virada do ciclo. Tudo que já foi coletado continua disponível.'
-            : `Restam ${fmt(usage.invoicesRemaining)} notas até o fim do ciclo.`}
+            ? 'A cota renova na próxima segunda-feira e as notas que ficaram de fora entram automaticamente. Tudo que já foi coletado continua disponível.'
+            : `Restam ${fmt(usage.invoicesRemaining)} notas até segunda-feira.`}
         </p>
+        {/*
+          O acervo importa aparecer: quem enviou milhares de notas antigas e vê
+          "0 usadas" não entende o que aconteceu com o envio dele.
+        */}
+        {!!usage.historicalIngested && usage.historicalIngested > 0 && (
+          <p className="text-xs" style={{ color: palette.text, opacity: 0.7 }}>
+            {fmt(usage.historicalIngested)} notas do seu histórico entraram sem
+            consumir a cota.
+          </p>
+        )}
+        {!!usage.notasPendentes && usage.notasPendentes > 0 && (
+          <p className="text-xs" style={{ color: palette.text, opacity: 0.7 }}>
+            {fmt(usage.notasPendentes)} notas aguardando a renovação da cota.
+          </p>
+        )}
       </div>
 
       <a

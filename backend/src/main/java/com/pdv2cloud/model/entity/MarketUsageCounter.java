@@ -53,6 +53,16 @@ public class MarketUsageCounter {
     @Column(name = "invoices_rejected", nullable = false)
     private Integer invoicesRejected = 0;
 
+    /**
+     * Notas de carga histórica aceitas — acervo anterior ao primeiro envio.
+     *
+     * Contador separado de propósito: estas notas NÃO consomem cota, mas
+     * precisam ser medidas. Somá-las a invoices_ingested faria a loja parecer
+     * ter estourado o limite no dia da instalação.
+     */
+    @Column(name = "historical_ingested", nullable = false)
+    private Integer historicalIngested = 0;
+
     @Column(name = "items_ingested", nullable = false)
     private Integer itemsIngested = 0;
 

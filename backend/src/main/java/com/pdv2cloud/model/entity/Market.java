@@ -77,6 +77,20 @@ public class Market {
     @Column(name = "invoice_limit_override")
     private Integer invoiceLimitOverride;
 
+    /**
+     * Instante do primeiro envio aceito deste mercado.
+     *
+     * É o divisor entre acervo e operação: nota emitida ANTES disto é carga
+     * histórica e não consome cota. Gravado uma única vez e nunca alterado —
+     * se pudesse ser reescrito, bastaria reinstalar o agente para zerar a cota.
+     */
+    @Column(name = "first_ingest_at")
+    private java.time.LocalDateTime firstIngestAt;
+
+    /** Emissão da nota mais antiga recebida. Diagnóstico do acervo trazido. */
+    @Column(name = "oldest_invoice_date")
+    private java.time.LocalDate oldestInvoiceDate;
+
     @Column(name = "pdv_limit_override")
     private Integer pdvLimitOverride;
 

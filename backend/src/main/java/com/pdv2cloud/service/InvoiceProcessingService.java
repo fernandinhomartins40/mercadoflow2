@@ -47,6 +47,9 @@ public class InvoiceProcessingService {
     @Autowired
     private SubscriptionEventService subscriptionEventService;
 
+    @Autowired
+    private InvoiceRejectionService rejectionService;
+
     /**
      * Registra o estouro de cota na trilha de assinatura uma única vez por
      * ciclo. Sem isso, um agente com fila cheia geraria um evento por nota
@@ -72,15 +75,25 @@ public class InvoiceProcessingService {
                 return IngestResponse.duplicate(dto.getChaveNFe());
             }
 
-            // Limite do plano. A checagem vem depois da duplicidade de propósito:
-            // reenvio de nota já conhecida não deve consumir cota nem ser
-            // recusado por ela.
-            PlanService.QuotaDecision quota = planService.canIngest(marketId);
+            // A data de emissão decide se a nota é acervo ou operação: só a
+            // segunda consome cota. Sem passá-la aqui, a carga histórica
+            // gastaria o limite e a loja ficaria sem espaço para a venda de
+            // hoje — o defeito que a V52 corrige.
+            LocalDateTime dataEmissao = DateUtils.parseFlexible(dto.getDataEmissao());
+
+            // A checagem vem depois da duplicidade de propósito: reenvio de
+            // nota já conhecida não deve consumir cota nem ser recusado por ela.
+            PlanService.QuotaDecision quota = planService.canIngest(marketId, dataEmissao);
             if (!quota.allowed()) {
                 // Antes de recordRejected, que é quem grava limit_reached_at:
                 // invertido, o evento nunca seria registrado.
                 notifyLimitReachedOnce(marketId, quota);
                 planService.recordRejected(marketId);
+                // Guarda a CHAVE da nota recusada para que ela possa entrar
+                // quando a cota renovar. Antes disto o XML se perdia e o agente
+                // reenviava indefinidamente, inflando o contador de recusas com
+                // tentativas repetidas da mesma nota.
+                rejectionService.record(marketId, dto.getChaveNFe(), dataEmissao);
                 log.info(
                     "Nota recusada por limite de plano | market={} | limite={} | usado={}",
                     marketId, quota.limit(), quota.used()
@@ -108,10 +121,19 @@ public class InvoiceProcessingService {
             marketBasketService.invalidate(marketId);
 
             // Só conta o que de fato entrou: duplicatas e falhas não consomem cota.
+            // Carga histórica é medida em contador próprio e fica fora do limite.
             planService.recordIngested(
                 marketId,
-                savedInvoice.getItems() != null ? savedInvoice.getItems().size() : 0
+                savedInvoice.getItems() != null ? savedInvoice.getItems().size() : 0,
+                quota.historical()
             );
+
+            // Grava o marco do primeiro envio na primeira nota aceita. É ele
+            // que separa acervo de operação daqui em diante.
+            planService.markFirstIngest(marketId, dataEmissao);
+
+            // A nota entrou: se estava na lista de recusadas, sai dela.
+            rejectionService.resolve(marketId, dto.getChaveNFe());
 
             return IngestResponse.success(savedInvoice.getId(), dto.getChaveNFe());
         } catch (Exception e) {

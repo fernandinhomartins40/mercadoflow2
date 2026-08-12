@@ -139,9 +139,19 @@ public class PlanService {
 
     // ── Medição de uso ───────────────────────────────────────────────────────
 
-    /** Ciclo corrente: sempre o primeiro dia do mês em curso. */
+    /**
+     * Ciclo corrente: a segunda-feira da semana em curso.
+     *
+     * SEMANAL E NÃO MENSAL (decisão do dono, 11/08/2026, apoiada no que se viu
+     * em produção): com teto mensal, uma loja pequena que tem uma semana boa
+     * fica travada nas três seguintes — e "travada" aqui significa que a
+     * análise para de acompanhar a operação, que é justamente o que o produto
+     * vende. Semanal devolve a capacidade toda segunda, então o cliente nunca
+     * fica muito tempo cego, e ainda assim o volume total é maior
+     * (~4.300/mês contra 1.000).
+     */
     public LocalDate currentCycleStart() {
-        return LocalDate.now().withDayOfMonth(1);
+        return LocalDate.now().with(java.time.DayOfWeek.MONDAY);
     }
 
     /**
@@ -175,6 +185,7 @@ public class PlanService {
         int pdvCount = 0;
         int seatCount = 0;
         LocalDateTime limitReachedAt = null;
+        int historical = 0;
 
         for (Market member : network) {
             MarketUsageCounter counter = usageRepository
@@ -183,6 +194,8 @@ public class PlanService {
             if (counter != null) {
                 used += counter.getInvoicesIngested();
                 rejected += counter.getInvoicesRejected();
+                historical += counter.getHistoricalIngested() == null
+                    ? 0 : counter.getHistoricalIngested();
                 if (counter.getLimitReachedAt() != null
                     && (limitReachedAt == null || counter.getLimitReachedAt().isBefore(limitReachedAt))) {
                     limitReachedAt = counter.getLimitReachedAt();
@@ -192,9 +205,13 @@ public class PlanService {
             seatCount += (int) userRepository.countByMarket_IdAndIsActive(member.getId(), true);
         }
 
+        // A semana termina no domingo: o ciclo vira toda segunda, quando a
+        // cota renova. Somar um mês aqui (como era no ciclo mensal) faria a UI
+        // anunciar uma renovação que aconteceria muito antes.
         return new UsageSnapshot(
-            limits, cycle, cycle.plusMonths(1),
-            used, rejected, network.size(), pdvCount, seatCount, limitReachedAt
+            limits, cycle, cycle.plusWeeks(1),
+            used, rejected, network.size(), pdvCount, seatCount, limitReachedAt,
+            historical
         );
     }
 
@@ -203,7 +220,37 @@ public class PlanService {
      * ingestão, então evita trabalho quando o plano já é ilimitado.
      */
     @Transactional(readOnly = true)
+    /**
+     * Compatibilidade: sem data de emissão, trata como operação corrente.
+     *
+     * Só use quando a data for de fato desconhecida. O caminho de ingestão
+     * deve chamar {@link #canIngest(UUID, LocalDateTime)}, senão a carga
+     * histórica consome cota — que é exatamente o defeito que a V52 corrige.
+     */
     public QuotaDecision canIngest(UUID marketId) {
+        return canIngest(marketId, null);
+    }
+
+    /**
+     * Decide se a nota entra, considerando se ela é acervo ou operação.
+     *
+     * A REGRA QUE MUDA TUDO: nota emitida ANTES do primeiro envio do mercado é
+     * carga histórica e entra sempre, sem consumir cota. É o acervo que já
+     * estava na pasta do PDV quando o agente foi instalado.
+     *
+     * Sem esta separação, um mercado que instala o agente com dois anos de XML
+     * acumulado gasta a cota inteira no acervo e fica sem espaço para a venda
+     * de hoje — foi o que aconteceu em produção: o sistema analisava fevereiro
+     * em julho, porque as 1.000 notas que couberam eram o COMEÇO do acervo.
+     *
+     * O corte é a data de emissão contra o marco do primeiro envio, e não uma
+     * janela de dias após a instalação. A diferença importa: janela premiaria
+     * quem segura notas novas para entrarem de graça; a data de emissão não se
+     * burla sem falsificar o XML.
+     *
+     * @param dataEmissao data de emissão da nota; null trata como operação
+     */
+    public QuotaDecision canIngest(UUID marketId, LocalDateTime dataEmissao) {
         Market market = marketRepository.findById(marketId).orElse(null);
         if (market == null) {
             return QuotaDecision.allowed(PlanType.UNLIMITED, 0);
@@ -214,16 +261,36 @@ public class PlanService {
             return QuotaDecision.allowed(PlanType.UNLIMITED, 0);
         }
 
+        if (isHistorical(market, dataEmissao)) {
+            return QuotaDecision.historical(limits.monthlyInvoices(),
+                networkInvoicesThisCycle(limits.networkRootId()));
+        }
+
         int used = networkInvoicesThisCycle(limits.networkRootId());
         if (used >= limits.monthlyInvoices()) {
             return QuotaDecision.denied(limits.monthlyInvoices(), used, limits.plan(),
                 String.format(
-                    "Limite do plano %s atingido (%d notas por mês na rede). "
-                        + "Faça upgrade para continuar — seus dados já coletados seguem disponíveis.",
+                    "Limite semanal do plano %s atingido (%d notas por semana na rede). "
+                        + "A cota renova toda segunda-feira e seus dados seguem disponíveis. "
+                        + "Para enviar mais agora, faça upgrade.",
                     limits.plan().getDisplayName(), limits.monthlyInvoices()
                 ));
         }
         return QuotaDecision.allowed(limits.monthlyInvoices(), used);
+    }
+
+    /**
+     * A nota é do acervo anterior à instalação?
+     *
+     * Mercado sem marco ainda (primeiríssima nota) conta como histórico: é
+     * exatamente o momento da carga inicial, e é ela que grava o marco.
+     */
+    private boolean isHistorical(Market market, LocalDateTime dataEmissao) {
+        if (dataEmissao == null) {
+            return false;
+        }
+        LocalDateTime marco = market.getFirstIngestAt();
+        return marco == null || dataEmissao.isBefore(marco);
     }
 
     /**
@@ -235,11 +302,66 @@ public class PlanService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordIngested(UUID marketId, int itemCount) {
+        recordIngested(marketId, itemCount, false);
+    }
+
+    /**
+     * Registra uma nota aceita, separando acervo de operação.
+     *
+     * A carga histórica é medida num contador próprio: precisa aparecer (o
+     * tamanho do acervo trazido é informação útil) sem entrar na conta da cota.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordIngested(UUID marketId, int itemCount, boolean historical) {
         try {
-            usageRepository.incrementIngested(marketId, currentCycleStart(), Math.max(0, itemCount));
+            if (historical) {
+                usageRepository.incrementHistorical(
+                    marketId, currentCycleStart(), Math.max(0, itemCount));
+            } else {
+                usageRepository.incrementIngested(
+                    marketId, currentCycleStart(), Math.max(0, itemCount));
+            }
         } catch (Exception exc) {
             // Medição nunca deve derrubar a ingestão de uma nota válida.
             log.warn("Falha ao registrar uso do mercado {}: {}", marketId, exc.getMessage());
+        }
+    }
+
+    /**
+     * Grava o marco do primeiro envio, se ainda não existir.
+     *
+     * O marco é o QUE SEPARA acervo de operação, então é escrito uma única vez
+     * e nunca sobrescrito: se pudesse ser reescrito, reinstalar o agente
+     * zeraria a cota do cliente para sempre.
+     *
+     * Também acompanha a nota mais antiga já vista, que serve de diagnóstico do
+     * acervo trazido — essa sim pode recuar, porque o agente pode enviar XML
+     * mais antigo numa varredura posterior.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markFirstIngest(UUID marketId, LocalDateTime dataEmissao) {
+        try {
+            marketRepository.findById(marketId).ifPresent(market -> {
+                boolean changed = false;
+                if (market.getFirstIngestAt() == null) {
+                    market.setFirstIngestAt(LocalDateTime.now());
+                    changed = true;
+                }
+                if (dataEmissao != null) {
+                    LocalDate emissao = dataEmissao.toLocalDate();
+                    if (market.getOldestInvoiceDate() == null
+                        || emissao.isBefore(market.getOldestInvoiceDate())) {
+                        market.setOldestInvoiceDate(emissao);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    marketRepository.save(market);
+                }
+            });
+        } catch (Exception exc) {
+            log.warn("Falha ao marcar primeiro envio do mercado {}: {}",
+                marketId, exc.getMessage());
         }
     }
 
@@ -426,7 +548,13 @@ public class PlanService {
         int branchCount,
         int pdvCount,
         int seatCount,
-        LocalDateTime limitReachedAt
+        LocalDateTime limitReachedAt,
+        /**
+         * Notas de acervo aceitas fora da cota. Medidas porque o tamanho do
+         * histórico trazido explica por que a análise tem lastro desde o
+         * primeiro dia — mas nunca contam contra o limite.
+         */
+        int historicalIngested
     ) {
         /** 0..100; -1 quando o plano não tem teto. */
         public int usagePercent() {
@@ -457,14 +585,27 @@ public class PlanService {
         }
     }
 
-    public record QuotaDecision(boolean allowed, int limit, int used, PlanType plan, String message) {
+    /**
+     * @param historical a nota é acervo anterior à instalação do agente —
+     *                   entra, mas NÃO consome cota. Quem registra o uso
+     *                   precisa olhar este campo, senão a carga histórica
+     *                   volta a gastar o limite do cliente
+     */
+    public record QuotaDecision(
+        boolean allowed, int limit, int used, PlanType plan, String message, boolean historical
+    ) {
 
         static QuotaDecision allowed(int limit, int used) {
-            return new QuotaDecision(true, limit, used, null, null);
+            return new QuotaDecision(true, limit, used, null, null, false);
+        }
+
+        /** Acervo anterior ao primeiro envio: entra sempre, fora da cota. */
+        static QuotaDecision historical(int limit, int used) {
+            return new QuotaDecision(true, limit, used, null, null, true);
         }
 
         static QuotaDecision denied(int limit, int used, PlanType plan, String message) {
-            return new QuotaDecision(false, limit, used, plan, message);
+            return new QuotaDecision(false, limit, used, plan, message, false);
         }
     }
 
