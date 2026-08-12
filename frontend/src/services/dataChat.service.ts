@@ -9,10 +9,25 @@ import api from './api';
  * `recommendations`.
  */
 
+export interface DemoAnswer {
+  pergunta: string;
+  resposta: string;
+  /** Qual consulta produziu a resposta — a mesma marcação do chat real. */
+  consulta: string;
+}
+
 export interface ChatStatus {
-  /** Há chave de IA configurada. Sem isso a tela convida a configurar. */
+  /** Há chave de IA configurada E o plano permite perguntar. */
   disponivel: boolean;
-  sugestoes: string[];
+  sugestoes?: string[];
+  /**
+   * Plano gratuito: a tela mostra três perguntas já respondidas com os números
+   * REAIS da loja. Ver a resposta que teria gera desejo; uma tela trancada não,
+   * porque o lojista nem descobre o que está perdendo.
+   */
+  modoDemonstracao?: boolean;
+  exemplos?: DemoAnswer[];
+  mensagem?: string;
 }
 
 export interface ChatMessage {

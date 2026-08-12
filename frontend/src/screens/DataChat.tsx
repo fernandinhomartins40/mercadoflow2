@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import {
-  dataChatService, ChatMessage, CONSULTA_LABEL,
+  dataChatService, ChatMessage, DemoAnswer, CONSULTA_LABEL,
 } from '../services/dataChat.service';
 import {
   MessageSquare, Send, Loader2, Sparkles, Database, AlertTriangle, Settings,
@@ -22,6 +22,7 @@ const DataChat: React.FC = () => {
 
   const [available, setAvailable] = useState<boolean | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [demo, setDemo] = useState<{ exemplos: DemoAnswer[]; mensagem?: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -30,7 +31,15 @@ const DataChat: React.FC = () => {
   useEffect(() => {
     if (!marketId) return;
     dataChatService.status(marketId)
-      .then(s => { setAvailable(s.disponivel); setSuggestions(s.sugestoes || []); })
+      .then(s => {
+        setAvailable(s.disponivel);
+        setSuggestions(s.sugestoes || []);
+        // Plano gratuito: em vez de porta trancada, três respostas prontas com
+        // os números da própria loja.
+        setDemo(s.modoDemonstracao
+          ? { exemplos: s.exemplos || [], mensagem: s.mensagem }
+          : null);
+      })
       .catch(() => setAvailable(false));
   }, [marketId]);
 
@@ -71,6 +80,80 @@ const DataChat: React.FC = () => {
       setSending(false);
     }
   }, [marketId, messages, sending]);
+
+  /* ─── Plano gratuito: demonstração com dados reais ─── */
+  if (demo) {
+    return (
+      <Layout>
+        <div className="flex flex-col gap-4" style={{ maxWidth: '48rem' }}>
+          <div
+            className="rounded-xl p-5"
+            style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" style={{ color: 'var(--brand-500)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Veja como funciona, com os dados da sua loja
+              </p>
+            </div>
+            <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+              {demo.mensagem}
+            </p>
+          </div>
+
+          {demo.exemplos.map((ex, i) => (
+            <div key={i} className="flex flex-col gap-3">
+              <div className="flex justify-end">
+                <div
+                  className="max-w-[85%] rounded-xl px-4 py-2.5 text-sm"
+                  style={{ background: 'var(--brand-500)', color: '#fff' }}
+                >
+                  {ex.pergunta}
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div
+                  className="max-w-[85%] rounded-xl px-4 py-3"
+                  style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
+                >
+                  <span className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                    {ex.resposta}
+                  </span>
+                  <div
+                    className="mt-3 flex items-center gap-1.5 border-t pt-2"
+                    style={{ borderColor: 'var(--border-soft)' }}
+                  >
+                    <Database className="h-3 w-3" style={{ color: 'var(--text-soft)' }} />
+                    <span className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>
+                      {CONSULTA_LABEL[ex.consulta] || ex.consulta}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <Link
+            to="/app/planos"
+            className="flex items-center justify-between gap-3 rounded-xl p-4 transition hover:opacity-90"
+            style={{ border: '1px dashed var(--border-strong)', background: 'var(--surface-soft)' }}
+          >
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Pergunte o que quiser
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Nos planos pagos você conversa livremente com os dados da loja.
+              </p>
+            </div>
+            <span className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+              Ver planos
+            </span>
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
 
   /* ─── Sem chave configurada ─── */
   if (available === false) {

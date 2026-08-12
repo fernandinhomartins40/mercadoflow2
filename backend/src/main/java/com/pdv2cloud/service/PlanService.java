@@ -8,10 +8,12 @@ import com.pdv2cloud.repository.MarketUsageCounterRepository;
 import com.pdv2cloud.repository.PDVRepository;
 import com.pdv2cloud.repository.UserRepository;
 import com.pdv2cloud.util.CnpjUtils;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -494,6 +496,93 @@ public class PlanService {
      * A lista já chega ordenada por prioridade, então o recorte preserva o que
      * há de mais relevante.
      */
+    // ── Régua do plano gratuito (12/08/2026) ─────────────────────────────────
+    //
+    // MUDANÇA DE ESTRATÉGIA. Até aqui o gratuito via 5 itens de cada lista, o
+    // que impedia USAR o recurso — 5 produtos de 300 não planejam compra
+    // nenhuma. A frustração vinha no primeiro dia, antes de qualquer valor
+    // percebido, e o cliente concluía que o produto era quebrado, não que era
+    // uma versão gratuita.
+    //
+    // A régua nova limita ALCANCE em vez de QUANTIDADE:
+    //
+    //   passado é grátis, futuro é pago — o gratuito descreve o que já
+    //   aconteceu (e que o lojista poderia apurar sozinho com trabalho); o pago
+    //   antecipa o que vai acontecer, que é cálculo que ele nunca faria.
+    //
+    // O limite passa a incomodar só quem já está ganhando com o produto, e aí o
+    // upgrade não é pedágio: é a conta que fecha.
+
+    /** Teto de orçamento do plano de compra no gratuito, em reais. */
+    public static final BigDecimal FREE_PURCHASE_BUDGET_CAP = new BigDecimal("5000");
+
+    /** Dias de previsão à frente no gratuito. Uma semana repõe; um mês negocia. */
+    public static final int FREE_FORECAST_DAYS = 7;
+
+    /**
+     * Tipos de oportunidade reservados ao plano pago.
+     *
+     * São os três que ANTECIPAM. Os demais — capital parado, excesso de
+     * estoque, preço acima do mercado, queda e crescimento de vendas — descrevem
+     * o presente e ficam liberados, porque é o que prova que o sistema entende
+     * a loja.
+     */
+    public static final Set<String> PAID_OPPORTUNITY_TYPES = Set.of(
+        "RISCO_DE_RUPTURA",
+        "OPORTUNIDADE_DE_COMPRA",
+        "PRODUTO_TRACIONADOR"
+    );
+
+    /**
+     * Teto de orçamento para o plano de compra.
+     *
+     * Limitar o valor no lugar da lista é o que mantém o recurso utilizável:
+     * quem compra pouco opera 100%, e quem compra muito esbarra no teto
+     * justamente quando o plano está lhe rendendo dinheiro.
+     *
+     * @return null quando não há teto
+     */
+    public BigDecimal purchaseBudgetCap(EffectiveLimits limits) {
+        return limits.fullInsights() ? null : FREE_PURCHASE_BUDGET_CAP;
+    }
+
+    /** Horizonte de previsão que o plano permite ver. */
+    public int forecastHorizonDays(EffectiveLimits limits, int requested) {
+        if (limits.fullInsights()) {
+            return requested;
+        }
+        return Math.min(requested, FREE_FORECAST_DAYS);
+    }
+
+    /** Este tipo de oportunidade é visível no plano do mercado? */
+    public boolean canSeeOpportunityType(EffectiveLimits limits, String type) {
+        return limits.fullInsights() || !PAID_OPPORTUNITY_TYPES.contains(type);
+    }
+
+    /**
+     * Janela de análise em dias, limitada pela retenção do plano.
+     *
+     * O campo {@code historyDays} existia desde sempre no catálogo e era
+     * EXIBIDO na comparação de planos, mas nenhuma consulta o aplicava — um
+     * limite anunciado que não existia. Passa a valer aqui.
+     */
+    public int clampWindow(EffectiveLimits limits, int requestedDays) {
+        int retention = limits.historyDays();
+        if (PlanType.isUnlimited(retention) || retention <= 0) {
+            return requestedDays;
+        }
+        return Math.min(requestedDays, retention);
+    }
+
+    /**
+     * Recorte de listas — mantido para uso pontual, não mais como régua geral.
+     *
+     * @deprecated a régua de 12/08/2026 limita alcance, não quantidade. Cortar
+     *     a lista impede o lojista de usar o recurso e frustra antes de
+     *     convencer. Use {@link #purchaseBudgetCap}, {@link #clampWindow} ou
+     *     {@link #forecastHorizonDays}.
+     */
+    @Deprecated
     public <T> InsightSlice<T> sliceInsights(EffectiveLimits limits, List<T> items) {
         if (items == null || items.isEmpty()) {
             return new InsightSlice<>(List.of(), 0, 0, false);

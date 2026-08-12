@@ -161,6 +161,55 @@ const RecommendationCard: React.FC<{
   );
 };
 
+/* ─── O que o plano não destrava ─── */
+const LockedCard: React.FC<{
+  locked: { porTipo: Record<string, number>; total: number; impacto: number | null };
+}> = ({ locked }) => (
+  <Link
+    to="/app/planos"
+    className="flex flex-col gap-2 rounded-xl p-4 transition hover:opacity-90"
+    style={{ border: '1px dashed var(--border-strong)', background: 'var(--surface-muted)' }}
+  >
+    <div className="flex items-center gap-2">
+      <Sparkles className="h-4 w-4" style={{ color: 'var(--brand-500)' }} />
+      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        {locked.total === 1
+          ? '1 oportunidade que antecipa o que vem'
+          : `${fmt.int(locked.total)} oportunidades que antecipam o que vem`}
+      </p>
+    </div>
+
+    {/* Por tipo: dizer QUAL análise falta é mais concreto que um total. */}
+    <div className="flex flex-wrap gap-2">
+      {Object.entries(locked.porTipo).map(([type, count]) => (
+        <span
+          key={type}
+          className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-medium"
+          style={{
+            background: 'var(--surface-base)',
+            border: '1px solid var(--border-soft)',
+            color: 'var(--text-soft)',
+          }}
+        >
+          {count}× {typeConfig(type).label}
+        </span>
+      ))}
+    </div>
+
+    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+      Risco de ruptura, sugestão de compra por previsão e produtos que puxam a
+      venda de outros fazem parte dos planos pagos.
+      {locked.impacto ? (
+        <> O impacto estimado do que está aqui é de <strong>{fmt.money(locked.impacto)}</strong>.</>
+      ) : null}
+    </p>
+
+    <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+      Ver planos <ArrowRight className="h-3.5 w-3.5" />
+    </span>
+  </Link>
+);
+
 /* ─── Card de oportunidade ─── */
 const OpportunityCard: React.FC<{
   opp: OpportunityItem;
@@ -270,6 +319,18 @@ const IntelligenceCenter: React.FC = () => {
   const { marketId } = useAuth();
 
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
+  /**
+   * O que o plano não deixa ver, contado por tipo.
+   *
+   * Mostrado, não escondido: "3 riscos de ruptura detectados" é um argumento
+   * concreto sobre a loja do usuário. Um recurso oculto não gera desejo porque
+   * ele nem sabe que existe.
+   */
+  const [locked, setLocked] = useState<{
+    porTipo: Record<string, number>;
+    total: number;
+    impacto: number | null;
+  }>({ porTipo: {}, total: 0, impacto: null });
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [history, setHistory] = useState<RecommendationItem[]>([]);
   const [outcomes, setOutcomes] = useState<OutcomesResponse | null>(null);
@@ -290,14 +351,19 @@ const IntelligenceCenter: React.FC = () => {
         marketService.getDecisionHistory(marketId),
         marketService.getOutcomes(marketId).catch(() => null),
       ]);
-      setOpportunities(opps || []);
+      setOpportunities(opps?.oportunidades || []);
+      setLocked({
+        porTipo: opps?.bloqueadasPorTipo || {},
+        total: opps?.totalBloqueadas || 0,
+        impacto: opps?.impactoBloqueado ?? null,
+      });
       setRecommendations(recs || []);
       setHistory(hist || []);
       setOutcomes(outc);
 
       // Marca como vistas as que estavam NOVA — o sistema passa a saber o que
       // o usuário já conhece, e o feed para de repetir novidade velha.
-      const novas = (opps || []).filter((o: OpportunityItem) => o.status === 'NOVA');
+      const novas = (opps?.oportunidades || []).filter((o: OpportunityItem) => o.status === 'NOVA');
       if (novas.length > 0) {
         marketService
           .markOpportunitiesSeen(marketId, novas.map((o: OpportunityItem) => o.id))
@@ -471,6 +537,10 @@ const IntelligenceCenter: React.FC = () => {
                 ))}
               </div>
             )}
+
+            {/* O que o plano não deixa ver, contado. Mostrar é mais eficaz que
+                esconder: o número é sobre a loja dele, não sobre o produto. */}
+            {locked.total > 0 ? <LockedCard locked={locked} /> : null}
           </Section>
         ) : null}
 

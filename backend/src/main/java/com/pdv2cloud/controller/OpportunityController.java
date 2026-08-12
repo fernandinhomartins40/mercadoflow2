@@ -6,6 +6,7 @@ import com.pdv2cloud.repository.OpportunityRepository;
 import com.pdv2cloud.repository.RecommendationOutcomeRepository;
 import com.pdv2cloud.repository.RecommendationRepository;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.ai.OpportunityInterpreter;
 import com.pdv2cloud.service.intelligence.ForecastAccuracyService;
 import com.pdv2cloud.service.opportunity.OpportunityEngine;
@@ -13,6 +14,7 @@ import com.pdv2cloud.service.opportunity.RecommendationEngine;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -47,6 +49,7 @@ public class OpportunityController {
     private final ForecastAccuracyService forecastAccuracyService;
     private final OpportunityInterpreter opportunityInterpreter;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public OpportunityController(
         OpportunityEngine opportunityEngine,
@@ -56,7 +59,8 @@ public class OpportunityController {
         RecommendationOutcomeRepository outcomeRepository,
         ForecastAccuracyService forecastAccuracyService,
         OpportunityInterpreter opportunityInterpreter,
-        MarketAccessService marketAccessService
+        MarketAccessService marketAccessService,
+        PlanService planService
     ) {
         this.opportunityEngine = opportunityEngine;
         this.recommendationEngine = recommendationEngine;
@@ -66,11 +70,20 @@ public class OpportunityController {
         this.forecastAccuracyService = forecastAccuracyService;
         this.opportunityInterpreter = opportunityInterpreter;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
     }
 
-    /** Oportunidades abertas, mais relevantes primeiro. */
+    /**
+     * Oportunidades abertas, mais relevantes primeiro.
+     *
+     * A régua de 12/08/2026 divide os tipos entre os que DESCREVEM o presente
+     * (livres) e os que ANTECIPAM (pagos). O que fica de fora vem CONTADO na
+     * resposta, nunca simplesmente omitido: "3 riscos de ruptura detectados" é
+     * um argumento concreto sobre a loja do usuário, enquanto um recurso oculto
+     * não gera desejo porque ele nem sabe que existe.
+     */
     @GetMapping
-    public ResponseEntity<List<OpportunityDTO>> list(
+    public ResponseEntity<OpportunityFeedDTO> list(
         @PathVariable("marketId") UUID marketId,
         @RequestParam(value = "all", defaultValue = "false") boolean all,
         Authentication authentication
@@ -80,16 +93,53 @@ public class OpportunityController {
             ? opportunityRepository.findAllByMarket(marketId)
             : opportunityRepository.findOpenByMarket(marketId);
 
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
+
+        List<Opportunity> visible = new ArrayList<>();
+        Map<String, Long> lockedByType = new LinkedHashMap<>();
+        BigDecimal lockedImpact = BigDecimal.ZERO;
+
+        for (Opportunity o : rows) {
+            if (planService.canSeeOpportunityType(limits, o.getType())) {
+                visible.add(o);
+            } else {
+                lockedByType.merge(o.getType(), 1L, Long::sum);
+                if (o.getExpectedImpactValue() != null) {
+                    lockedImpact = lockedImpact.add(o.getExpectedImpactValue());
+                }
+            }
+        }
+
         // Só o que JÁ foi interpretado pelo job noturno. Montar o feed nunca
         // chama provedor externo: uma tela com 60 oportunidades faria o
         // usuário esperar minutos por algo que ele já podia ler.
         Map<UUID, String> interpretations = opportunityInterpreter.loadExisting(
-            marketId, rows.stream().map(Opportunity::getId).toList());
+            marketId, visible.stream().map(Opportunity::getId).toList());
 
-        return ResponseEntity.ok(rows.stream()
-            .map(o -> OpportunityDTO.from(o, interpretations.get(o.getId())))
-            .toList());
+        return ResponseEntity.ok(new OpportunityFeedDTO(
+            visible.stream()
+                .map(o -> OpportunityDTO.from(o, interpretations.get(o.getId())))
+                .toList(),
+            lockedByType,
+            lockedByType.values().stream().mapToLong(Long::longValue).sum(),
+            lockedImpact
+        ));
     }
+
+    /**
+     * O feed e o que o plano não deixa ver.
+     *
+     * @param bloqueadasPorTipo tipo → quantas, para a UI dizer exatamente o que
+     *                          o upgrade destravaria
+     * @param impactoBloqueado  soma do impacto estimado do que ficou de fora —
+     *                          o argumento em reais
+     */
+    public record OpportunityFeedDTO(
+        List<OpportunityDTO> oportunidades,
+        Map<String, Long> bloqueadasPorTipo,
+        long totalBloqueadas,
+        BigDecimal impactoBloqueado
+    ) { }
 
     /** Recomendações aguardando decisão. */
     @GetMapping("/recommendations")

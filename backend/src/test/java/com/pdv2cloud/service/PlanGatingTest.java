@@ -1,0 +1,174 @@
+package com.pdv2cloud.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+import com.pdv2cloud.model.entity.PlanCatalogEntry;
+import com.pdv2cloud.model.entity.PlanType;
+import com.pdv2cloud.repository.MarketRepository;
+import com.pdv2cloud.repository.MarketUsageCounterRepository;
+import com.pdv2cloud.repository.PDVRepository;
+import com.pdv2cloud.repository.UserRepository;
+import java.math.BigDecimal;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
+/**
+ * A régua do plano gratuito adotada em 12/08/2026.
+ *
+ * MUDANÇA DE ESTRATÉGIA que estes testes protegem: o gratuito deixou de ser
+ * limitado por QUANTIDADE (5 itens de cada lista, que impedia usar o recurso e
+ * frustrava antes de entregar valor) e passou a ser limitado por ALCANCE —
+ * janela de análise, horizonte de previsão, teto de orçamento e os tipos de
+ * oportunidade que antecipam o futuro.
+ *
+ * O princípio em uma linha: <b>passado é grátis, futuro é pago</b>.
+ */
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class PlanGatingTest {
+
+    @Mock private MarketRepository marketRepository;
+    @Mock private MarketUsageCounterRepository usageRepository;
+    @Mock private PDVRepository pdvRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private PlanCatalogService planCatalogService;
+
+    private PlanService planService;
+
+    @BeforeEach
+    void setUp() {
+        planService = new PlanService(marketRepository, usageRepository,
+            pdvRepository, userRepository, planCatalogService);
+        when(planCatalogService.entryFor(any())).thenReturn(new PlanCatalogEntry());
+    }
+
+    // ── Teto de orçamento ────────────────────────────────────────────────────
+
+    /**
+     * O gratuito planeja compras até o teto — com a lista INTEIRA.
+     *
+     * Limitar o valor no lugar da lista é o que mantém o recurso utilizável:
+     * quem compra pouco opera 100%, e quem compra muito esbarra no teto
+     * justamente quando o plano está lhe rendendo dinheiro.
+     */
+    @Test
+    void gratuitoTemTetoDeOrcamento() {
+        assertEquals(PlanService.FREE_PURCHASE_BUDGET_CAP,
+            planService.purchaseBudgetCap(limits(PlanType.FREE, false, 90)));
+    }
+
+    @Test
+    void planoPagoNaoTemTetoDeOrcamento() {
+        assertNull(planService.purchaseBudgetCap(limits(PlanType.ESSENCIAL, true, 365)));
+    }
+
+    // ── Horizonte de previsão ────────────────────────────────────────────────
+
+    /** Uma semana repõe a prateleira; um mês negocia com o fornecedor. */
+    @Test
+    void gratuitoVeUmaSemanaDePrevisao() {
+        assertEquals(7,
+            planService.forecastHorizonDays(limits(PlanType.FREE, false, 90), 30));
+    }
+
+    /** Pedir menos que o teto não é ampliado para o teto. */
+    @Test
+    void pedidoMenorQueOTetoEPreservado() {
+        assertEquals(3,
+            planService.forecastHorizonDays(limits(PlanType.FREE, false, 90), 3));
+    }
+
+    @Test
+    void planoPagoVeOHorizonteInteiro() {
+        assertEquals(30,
+            planService.forecastHorizonDays(limits(PlanType.ESSENCIAL, true, 365), 30));
+    }
+
+    // ── Tipos de oportunidade ────────────────────────────────────────────────
+
+    /**
+     * Os três tipos que ANTECIPAM ficam no pago. São o que o lojista não
+     * conseguiria apurar sozinho — e por isso o que justifica assinar.
+     */
+    @Test
+    void gratuitoNaoVeOsTiposQueAntecipam() {
+        PlanService.EffectiveLimits free = limits(PlanType.FREE, false, 90);
+
+        assertFalse(planService.canSeeOpportunityType(free, "RISCO_DE_RUPTURA"));
+        assertFalse(planService.canSeeOpportunityType(free, "OPORTUNIDADE_DE_COMPRA"));
+        assertFalse(planService.canSeeOpportunityType(free, "PRODUTO_TRACIONADOR"));
+    }
+
+    /**
+     * Os que DESCREVEM o presente ficam livres: é o que prova que o sistema
+     * entende a loja, e é o que o lojista poderia apurar sozinho com trabalho.
+     */
+    @Test
+    void gratuitoVeOsTiposQueDescrevemOPresente() {
+        PlanService.EffectiveLimits free = limits(PlanType.FREE, false, 90);
+
+        assertTrue(planService.canSeeOpportunityType(free, "CAPITAL_PARADO"));
+        assertTrue(planService.canSeeOpportunityType(free, "EXCESSO_DE_ESTOQUE"));
+        assertTrue(planService.canSeeOpportunityType(free, "PRECO_ACIMA_DO_MERCADO"));
+        assertTrue(planService.canSeeOpportunityType(free, "QUEDA_DE_VENDAS"));
+        assertTrue(planService.canSeeOpportunityType(free, "OPORTUNIDADE_DE_PROMOCAO"));
+        assertTrue(planService.canSeeOpportunityType(free, "ANOMALIA_DE_VENDAS"));
+    }
+
+    @Test
+    void planoPagoVeTodosOsTipos() {
+        PlanService.EffectiveLimits pago = limits(PlanType.ESSENCIAL, true, 365);
+
+        assertTrue(planService.canSeeOpportunityType(pago, "RISCO_DE_RUPTURA"));
+        assertTrue(planService.canSeeOpportunityType(pago, "OPORTUNIDADE_DE_COMPRA"));
+        assertTrue(planService.canSeeOpportunityType(pago, "PRODUTO_TRACIONADOR"));
+    }
+
+    /** Tipo desconhecido não pode ficar bloqueado por engano. */
+    @Test
+    void tipoNovoNasceLiberado() {
+        assertTrue(planService.canSeeOpportunityType(
+            limits(PlanType.FREE, false, 90), "TIPO_QUE_AINDA_NAO_EXISTE"));
+    }
+
+    // ── Janela de análise ────────────────────────────────────────────────────
+
+    /**
+     * A retenção do plano passa a valer de fato.
+     *
+     * O campo existia desde sempre no catálogo e era EXIBIDO na comparação de
+     * planos, mas nenhuma consulta o aplicava — um limite anunciado que não
+     * existia.
+     */
+    @Test
+    void janelaERecortadaPelaRetencaoDoPlano() {
+        assertEquals(90, planService.clampWindow(limits(PlanType.FREE, false, 90), 365));
+    }
+
+    @Test
+    void janelaMenorQueARetencaoEPreservada() {
+        assertEquals(30, planService.clampWindow(limits(PlanType.FREE, false, 90), 30));
+    }
+
+    @Test
+    void retencaoIlimitadaNaoRecorta() {
+        assertEquals(730,
+            planService.clampWindow(limits(PlanType.REDE, true, PlanType.UNLIMITED), 730));
+    }
+
+    private PlanService.EffectiveLimits limits(PlanType plan, boolean full, int historyDays) {
+        return new PlanService.EffectiveLimits(
+            plan, 1_000, 1, 1, 1, 2, historyDays, full, UUID.randomUUID());
+    }
+}

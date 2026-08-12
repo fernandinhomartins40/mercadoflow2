@@ -29,6 +29,7 @@ import com.pdv2cloud.service.AdvancedAnalyticsService;
 import com.pdv2cloud.service.AnalyticsService;
 import com.pdv2cloud.service.ForecastService;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.PriceIntelligenceService;
 import com.pdv2cloud.service.PromoEffectivenessService;
 import com.pdv2cloud.service.PurchasePriceService;
@@ -71,6 +72,9 @@ public class MarketController {
 
     @Autowired
     private ForecastService forecastService;
+
+    @Autowired
+    private PlanService planService;
 
     @Autowired
     private PriceIntelligenceService priceIntelligenceService;
@@ -343,6 +347,14 @@ public class MarketController {
         return ResponseEntity.ok(purchasePriceService.getHistory(id, productId));
     }
 
+    /**
+     * Previsão de demanda.
+     *
+     * O horizonte é o limite do plano gratuito desde 12/08/2026: uma semana
+     * basta para repor a prateleira, um mês é o que permite negociar com
+     * fornecedor. É o recurso mais caro de calcular e o mais fácil de explicar
+     * como pago — o gratuito reage, o pago antecipa.
+     */
     @GetMapping("/{id}/analytics/demand-forecast")
     public ResponseEntity<List<DemandForecastDTO>> getDemandForecast(
         @PathVariable("id") UUID id,
@@ -350,7 +362,8 @@ public class MarketController {
         Authentication authentication) {
 
         marketAccessService.assertCanAccessMarket(id, authentication);
-        return ResponseEntity.ok(forecastService.getForecast(id, days));
+        int horizon = planService.forecastHorizonDays(planService.limitsFor(id), days);
+        return ResponseEntity.ok(forecastService.getForecast(id, horizon));
     }
 
     @GetMapping("/{id}/analytics/campaign-impact")

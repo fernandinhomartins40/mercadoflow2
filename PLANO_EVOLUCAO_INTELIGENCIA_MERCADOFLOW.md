@@ -832,6 +832,70 @@ confirmando a reclassificação, o destravamento da cota e o upsert de recusa
 
 ---
 
+### RÉGUA DO PLANO GRATUITO — de quantidade para alcance (12/08/2026)
+
+**O que estava errado.** O gratuito via **5 itens** de cada lista de
+inteligência. Cinco produtos de trezentos não planejam compra nenhuma: o
+lojista não conseguia *usar* o recurso, só espiá-lo. A frustração chegava no
+primeiro dia, antes de qualquer valor percebido, e a leitura natural era "o
+produto é quebrado", não "esta é a versão gratuita".
+
+Havia um segundo problema, do lado oposto: todo o gating vivia no
+`WorkingCapitalController`, escrito antes das Fases 3–7. As entregas recentes —
+Central de Inteligência, chat, resumo semanal — **nasceram sem verificação de
+plano**. O gratuito via 5 produtos no plano de compra e, ao mesmo tempo, todas
+as oportunidades e recomendações da Central, que é onde a decisão de compra de
+fato acontece hoje.
+
+**O princípio adotado**, em uma linha:
+
+> **Passado é grátis, futuro é pago.** O gratuito descreve o que já aconteceu —
+> e que o lojista poderia apurar sozinho com trabalho. O pago antecipa o que vai
+> acontecer, que é cálculo que ele nunca faria.
+
+| Régua | Antes | Gratuito | Pago |
+|---|---|---|---|
+| Itens nas listas | 5 | **completo** | completo |
+| Janela de análise | sem efeito | 90 dias | 365 / 730 dias |
+| Previsão à frente | 30 dias | 7 dias | 30 dias |
+| Orçamento do plano de compra | sem teto | R$ 5.000 | sem teto |
+| Tipos de oportunidade | todos | 5 de 8 | todos |
+| Resumo semanal | série completa | semana atual | série completa |
+| Pergunte aos dados | aberto | 3 exemplos reais | ilimitado |
+
+**Por que limitar alcance em vez de quantidade.** O teto de orçamento só
+incomoda quem *já usou* o plano de compra para comprar melhor — e aí o upgrade
+não é pedágio, é a conta que fecha. O corte de lista incomodava antes de
+entregar qualquer coisa.
+
+**Os três tipos reservados ao pago** são os que ANTECIPAM: risco de ruptura,
+oportunidade de compra por previsão e produto tracionador. Os cinco livres —
+capital parado, excesso de estoque, preço acima do mercado, queda de vendas e
+candidato a promoção — descrevem o presente, e são o que prova que o sistema
+entende a loja.
+
+**O bloqueado aparece contado, nunca oculto.** O feed devolve
+`bloqueadasPorTipo` e o impacto somado, e a tela mostra "3× Risco de ruptura ·
+impacto estimado de R$ 4.200". Um recurso escondido não gera desejo porque o
+lojista nem sabe que existe; um número sobre a *própria loja* dele, sim.
+
+**A demonstração do chat não gasta a chave do cliente.** As três respostas de
+exemplo são montadas pelas mesmas `DataTool` do chat, com redação
+determinística e **zero chamadas a provedor de IA**. Além de o gratuito não ter
+chave configurada, gastar tokens do cliente para vender a ele o plano pago seria
+cobrar pela própria propaganda.
+
+**A retenção de histórico passou a existir.** O campo `historyDays` estava no
+catálogo desde sempre, era exibido na comparação de planos e **nenhuma consulta
+o aplicava** — um limite anunciado que não funcionava. Agora recorta a janela de
+análise via `PlanService.clampWindow`.
+
+**Validação:** 151 testes (139 + 12 cobrindo os dois lados de cada régua). Build
+de produção do frontend OK, com os mesmos 124 erros de tipo pré-existentes e
+nenhum novo. Nenhuma migration — a régua é política de aplicação, não schema.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação** — ✅ CONCLUÍDA. Ver §31-A.

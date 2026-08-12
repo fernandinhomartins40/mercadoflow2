@@ -1,9 +1,12 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.ai.LlmClient;
+import com.pdv2cloud.service.ai.chat.ChatDemoService;
 import com.pdv2cloud.service.ai.chat.DataChatService;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,14 +52,20 @@ public class DataChatController {
     private static final int MAX_QUESTION_CHARS = 500;
 
     private final DataChatService chatService;
+    private final ChatDemoService demoService;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public DataChatController(
         DataChatService chatService,
-        MarketAccessService marketAccessService
+        ChatDemoService demoService,
+        MarketAccessService marketAccessService,
+        PlanService planService
     ) {
         this.chatService = chatService;
+        this.demoService = demoService;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
     }
 
     /**
@@ -71,10 +80,27 @@ public class DataChatController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(Map.of(
-            "disponivel", chatService.isAvailable(marketId),
-            "sugestoes", chatService.suggestedQuestions()
-        ));
+
+        boolean paidPlan = planService.limitsFor(marketId).fullInsights();
+        Map<String, Object> body = new LinkedHashMap<>();
+
+        if (!paidPlan) {
+            // Gratuito: a tela não fica trancada. Mostra três perguntas já
+            // respondidas com os números REAIS da loja de quem está olhando —
+            // ver a resposta que teria gera desejo, enquanto uma parede não
+            // gera, porque o lojista nem descobre o que está perdendo.
+            body.put("disponivel", false);
+            body.put("modoDemonstracao", true);
+            body.put("exemplos", demoService.demoAnswers(marketId));
+            body.put("mensagem", "Estas respostas usam os dados da sua loja. "
+                + "No plano pago você pergunta o que quiser.");
+            return ResponseEntity.ok(body);
+        }
+
+        body.put("disponivel", chatService.isAvailable(marketId));
+        body.put("modoDemonstracao", false);
+        body.put("sugestoes", chatService.suggestedQuestions());
+        return ResponseEntity.ok(body);
     }
 
     /** Faz uma pergunta sobre os dados da loja. */
@@ -85,6 +111,17 @@ public class DataChatController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+
+        if (!planService.limitsFor(marketId).fullInsights()) {
+            // 200 e não 403: para a tela isto é um estado da conversa, não erro
+            // de aplicação — e a mensagem é o convite, não uma recusa seca.
+            return ResponseEntity.ok(Map.of(
+                "sucesso", false,
+                "modoDemonstracao", true,
+                "erro", "As perguntas livres fazem parte do plano pago. "
+                    + "Veja acima três respostas com os dados da sua loja."
+            ));
+        }
 
         String question = request.pergunta();
         if (question == null || question.isBlank()) {

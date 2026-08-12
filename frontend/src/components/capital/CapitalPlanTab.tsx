@@ -288,7 +288,6 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
     );
   }
 
-  const truncated = usage != null && !usage.fullInsights;
 
   return (
     <div className="flex flex-col gap-5">
@@ -439,15 +438,16 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
           </div>
         )}
 
-        {truncated && plan.selected.length > 0 && (
+        {/* Teto de orçamento: a lista vem inteira, o VALOR é que foi limitado.
+            Dizer isso evita que o total pareça um erro de cálculo. */}
+        {(plan as any).budgetCapped && (
           <a
             href="/app/planos"
             className="mt-2 flex items-center gap-2 rounded-lg p-2 text-xs"
             style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
           >
             <Info size={13} />
-            Mostrando os principais itens do plano {usage?.planName}. Faça upgrade para planejar a
-            compra com o portfólio inteiro.
+            {(plan as any).upgradeMessage}
           </a>
         )}
       </section>

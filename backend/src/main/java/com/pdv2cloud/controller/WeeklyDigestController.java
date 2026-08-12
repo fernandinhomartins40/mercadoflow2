@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.model.entity.WeeklyDigest;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.ai.WeeklyDigestService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,24 +32,38 @@ public class WeeklyDigestController {
 
     private final WeeklyDigestService digestService;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public WeeklyDigestController(
         WeeklyDigestService digestService,
-        MarketAccessService marketAccessService
+        MarketAccessService marketAccessService,
+        PlanService planService
     ) {
         this.digestService = digestService;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
     }
 
-    /** Os resumos das últimas semanas, do mais recente para o mais antigo. */
+    /**
+     * Os resumos das últimas semanas, do mais recente para o mais antigo.
+     *
+     * No plano gratuito vem apenas a semana corrente. Ver a EVOLUÇÃO — "estou
+     * melhorando?" — é o que transforma o resumo em hábito, e é justamente o
+     * que a assinatura entrega. Uma semana isolada informa; a série orienta.
+     */
     @GetMapping
     public ResponseEntity<List<DigestDTO>> list(
         @PathVariable("marketId") UUID marketId,
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(digestService.recent(marketId)
-            .stream().map(DigestDTO::from).toList());
+        List<DigestDTO> all = digestService.recent(marketId)
+            .stream().map(DigestDTO::from).toList();
+
+        boolean fullHistory = planService.limitsFor(marketId).fullInsights();
+        return ResponseEntity.ok(fullHistory || all.size() <= 1
+            ? all
+            : all.subList(0, 1));
     }
 
     /**

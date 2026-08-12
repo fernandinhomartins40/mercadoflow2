@@ -492,6 +492,22 @@ export interface OpportunityItem {
   aiInsight?: string | null;
 }
 
+/**
+ * O feed da Central e o que o plano do mercado não deixa ver.
+ *
+ * As bloqueadas vêm CONTADAS, não omitidas: "3 riscos de ruptura detectados" é
+ * um argumento concreto sobre a loja do usuário, enquanto um recurso oculto não
+ * gera desejo porque ele nem sabe que existe.
+ */
+export interface OpportunityFeed {
+  oportunidades: OpportunityItem[];
+  /** Tipo → quantas ficaram de fora pelo plano. */
+  bloqueadasPorTipo: Record<string, number>;
+  totalBloqueadas: number;
+  /** Soma do impacto estimado do que está bloqueado — o argumento em reais. */
+  impactoBloqueado?: number | null;
+}
+
 export type RecommendationStatus = 'PROPOSTA' | 'ACEITA' | 'REJEITADA' | 'EXECUTADA';
 
 export type RecommendationAction =

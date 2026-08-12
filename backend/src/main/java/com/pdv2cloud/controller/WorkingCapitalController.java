@@ -108,8 +108,10 @@ public class WorkingCapitalController {
     /**
      * Métricas por produto: ABC/XYZ, GMROI, cobertura e veredito de capital.
      *
-     * No plano gratuito a lista vem recortada nos principais itens — ver
-     * {@link GatedListDTO}.
+     * A LISTA VEM COMPLETA EM QUALQUER PLANO desde 12/08/2026. Antes o gratuito
+     * via 5 de centenas, o que impedia usar o recurso — o limite do plano passou
+     * a ser a JANELA de análise, que deixa a ferramenta funcionar e ainda dá
+     * motivo concreto de upgrade a quem precisa comparar com o ano passado.
      */
     @GetMapping("/capital/portfolio")
     public ResponseEntity<GatedListDTO<WorkingCapitalService.CapitalMetric>> portfolio(
@@ -120,8 +122,8 @@ public class WorkingCapitalController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         List<WorkingCapitalService.CapitalMetric> all =
-            capitalMetricsReader.portfolio(marketId, windowDays);
-        return ResponseEntity.ok(GatedListDTO.of(planService.sliceInsights(limits, all), limits.plan()));
+            capitalMetricsReader.portfolio(marketId, planService.clampWindow(limits, windowDays));
+        return ResponseEntity.ok(GatedListDTO.complete(all));
     }
 
     /**
@@ -131,7 +133,7 @@ public class WorkingCapitalController {
      * quanto precisaria investir para repor tudo que está abaixo do ideal.
      */
     @GetMapping("/capital/purchase-plan")
-    public ResponseEntity<PurchasePlanService.PurchasePlan> purchasePlan(
+    public ResponseEntity<?> purchasePlan(
         @PathVariable("marketId") UUID marketId,
         @RequestParam(value = "budget", required = false) BigDecimal budget,
         @RequestParam(value = "windowDays", defaultValue = "90") int windowDays,
@@ -139,34 +141,37 @@ public class WorkingCapitalController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
-        PurchasePlanService.PurchasePlan plan = purchasePlanService.buildPlan(marketId, budget, windowDays);
-        // O resumo do portfólio (capital total, parado, GMROI) permanece
-        // completo no gratuito: é o que mostra o tamanho do problema. Só as
-        // listas item a item — o que de fato operacionaliza a compra — são
-        // recortadas.
-        return ResponseEntity.ok(truncatePlanLists(plan, limits));
-    }
 
-    private PurchasePlanService.PurchasePlan truncatePlanLists(
-        PurchasePlanService.PurchasePlan plan,
-        PlanService.EffectiveLimits limits
-    ) {
-        if (limits.fullInsights()) {
-            return plan;
+        // O gratuito planeja compras até o teto de orçamento, com a lista
+        // INTEIRA. Limitar o valor em vez da lista mantém o recurso utilizável:
+        // quem compra pouco opera 100%, quem compra muito esbarra no teto
+        // justamente quando o plano está lhe rendendo dinheiro.
+        BigDecimal cap = planService.purchaseBudgetCap(limits);
+        BigDecimal effectiveBudget = budget;
+        boolean budgetCapped = false;
+        if (cap != null && budget != null && budget.compareTo(cap) > 0) {
+            effectiveBudget = cap;
+            budgetCapped = true;
         }
-        return new PurchasePlanService.PurchasePlan(
-            plan.budget(),
-            plan.allocatedValue(),
-            plan.remainingBudget(),
-            plan.totalNeededValue(),
-            plan.expectedMargin(),
-            plan.expectedReturnPercent(),
-            plan.frozenCapital(),
-            planService.sliceInsights(limits, plan.selected()).items(),
-            planService.sliceInsights(limits, plan.deferred()).items(),
-            planService.sliceInsights(limits, plan.frozen()).items(),
-            plan.summary()
-        );
+
+        PurchasePlanService.PurchasePlan plan = purchasePlanService.buildPlan(
+            marketId, effectiveBudget, planService.clampWindow(limits, windowDays));
+        if (!budgetCapped) {
+            return ResponseEntity.ok(plan);
+        }
+
+        // Teto aplicado: a tela precisa dizer POR QUE o plano não usou o valor
+        // pedido, senão o número parece errado.
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("plan", plan);
+        body.put("budgetCapped", true);
+        body.put("requestedBudget", budget);
+        body.put("appliedBudget", cap);
+        body.put("upgradeMessage", String.format(
+            "O plano %s planeja compras de até R$ %,.0f por vez. "
+                + "Faça upgrade para planejar com o orçamento inteiro.",
+            limits.plan().getDisplayName(), cap));
+        return ResponseEntity.ok(body);
     }
 
     // ── Inteligência de promoções ────────────────────────────────────────────
@@ -182,7 +187,7 @@ public class WorkingCapitalController {
         PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         List<PromoIntelligenceService.TrafficDriver> all =
             haloEffectsReader.trafficDrivers(marketId, windowDays);
-        return ResponseEntity.ok(GatedListDTO.of(planService.sliceInsights(limits, all), limits.plan()));
+        return ResponseEntity.ok(GatedListDTO.complete(all));
     }
 
     /** Detalhe do efeito halo par a par (driver → alvo). */
@@ -228,9 +233,9 @@ public class WorkingCapitalController {
         // candidatos de tração E de liquidação, em vez de perder um dos dois.
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("traction",
-            GatedListDTO.of(planService.sliceInsights(limits, recs.traction()), limits.plan()));
+            GatedListDTO.complete(recs.traction()));
         response.put("clearance",
-            GatedListDTO.of(planService.sliceInsights(limits, recs.clearance()), limits.plan()));
+            GatedListDTO.complete(recs.clearance()));
         return ResponseEntity.ok(response);
     }
 }

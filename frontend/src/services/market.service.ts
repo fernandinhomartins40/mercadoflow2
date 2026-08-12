@@ -1,4 +1,5 @@
 import api from './api';
+import type { OpportunityFeed } from '../types/analytics.types';
 
 export const marketService = {
   /**
@@ -14,11 +15,23 @@ export const marketService = {
 
   /* ─── Oportunidades e recomendações (com ciclo de vida) ─── */
 
-  async getOpportunities(marketId: string, all = false) {
+  /**
+   * O feed e o que o plano não deixa ver.
+   *
+   * Desde 12/08/2026 a resposta é um objeto, não uma lista: os tipos que
+   * antecipam o futuro ficam no plano pago e vêm CONTADOS, para a tela poder
+   * dizer o que o upgrade destravaria em vez de simplesmente omitir.
+   */
+  async getOpportunities(marketId: string, all = false): Promise<OpportunityFeed> {
     const response = await api.get(`/v1/markets/${marketId}/opportunities`, {
       params: { all },
     });
-    return response.data;
+    // Tolera o formato antigo (lista pura) para não quebrar durante o deploy,
+    // em que frontend e backend convivem por alguns segundos.
+    const data = response.data;
+    return Array.isArray(data)
+      ? { oportunidades: data, bloqueadasPorTipo: {}, totalBloqueadas: 0, impactoBloqueado: 0 }
+      : data;
   },
 
   async getPendingRecommendations(marketId: string) {

@@ -180,15 +180,32 @@ const getPortfolio = async (
   return data;
 };
 
+/**
+ * Plano de compra para o orçamento informado.
+ *
+ * Desde 12/08/2026 o plano gratuito tem TETO DE ORÇAMENTO, não corte de lista:
+ * a lista vem inteira e o valor é limitado. Quando o teto é aplicado, a
+ * resposta vem envelopada com o aviso — a tela precisa dizer por que o plano
+ * não usou o valor pedido, senão o número parece errado.
+ */
 const getPurchasePlan = async (
   marketId: string,
   budget?: number | null,
   windowDays = 90,
-): Promise<PurchasePlan> => {
-  const { data } = await api.get<PurchasePlan>(`${base(marketId)}/capital/purchase-plan`, {
+): Promise<PurchasePlan & {
+  budgetCapped?: boolean;
+  requestedBudget?: number;
+  appliedBudget?: number;
+  upgradeMessage?: string;
+}> => {
+  const { data } = await api.get<any>(`${base(marketId)}/capital/purchase-plan`, {
     params: { ...(budget && budget > 0 ? { budget } : {}), windowDays },
   });
-  return data;
+  // Sem teto aplicado o backend devolve o plano puro; com teto, envelopado.
+  return data?.budgetCapped
+    ? { ...data.plan, budgetCapped: true, requestedBudget: data.requestedBudget,
+        appliedBudget: data.appliedBudget, upgradeMessage: data.upgradeMessage }
+    : data;
 };
 
 const getTrafficDrivers = async (
