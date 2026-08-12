@@ -3,6 +3,7 @@ package com.pdv2cloud.service.ai.chat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.model.entity.AiUsageLog;
 import com.pdv2cloud.service.ai.AiOrchestrator;
+import com.pdv2cloud.service.ai.AiTaskProfile;
 import com.pdv2cloud.service.ai.AiUsageRecorder;
 import com.pdv2cloud.service.ai.LlmClient;
 import java.util.ArrayList;
@@ -50,14 +51,13 @@ public class DataChatService {
     /** Teto de ferramentas por volta, contra o modelo que pede dez de uma vez. */
     private static final int MAX_CALLS_PER_ROUND = 4;
 
-    private static final int MAX_OUTPUT_TOKENS = 900;
-
     /**
-     * Zero: a resposta deve ser reprodutível. Perguntada duas vezes, a mesma
-     * questão sobre os mesmos números deve dar a mesma resposta — variação
-     * estilística aqui pareceria inconsistência dos dados.
+     * Parâmetros da tarefa, vindos do roteamento da Fase 6
+     * ({@link AiTaskProfile}). Aqui a temperatura é zero: a mesma pergunta
+     * sobre os mesmos números deve dar a mesma resposta — variação
+     * estilística pareceria inconsistência dos dados.
      */
-    private static final double TEMPERATURE = 0.0;
+    private static final AiTaskProfile PROFILE = AiTaskProfile.PERGUNTE_AOS_DADOS;
 
     /** Teto de caracteres do resultado de uma ferramenta. */
     private static final int MAX_TOOL_RESULT_CHARS = 6_000;
@@ -167,7 +167,7 @@ public class DataChatService {
 
             LlmClient.LlmResponse response = llmClient.converse(
                 credential.baseUrl(), credential.apiKey(), credential.model(),
-                messages, offered, MAX_OUTPUT_TOKENS, TEMPERATURE
+                messages, offered, PROFILE.maxTokens(), PROFILE.temperature()
             );
 
             totalIn += value(response.inputTokens());

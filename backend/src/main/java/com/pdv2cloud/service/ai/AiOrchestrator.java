@@ -40,16 +40,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AiOrchestrator {
 
-    /** Teto de saída. A interpretação é um parágrafo; mais que isso é ruído. */
-    private static final int MAX_OUTPUT_TOKENS = 400;
-
-    /**
-     * Baixa de propósito: o modelo deve interpretar números, não criar
-     * variação estilística. Temperatura alta aqui produziria textos diferentes
-     * para a mesma situação, o que corroeria a confiança do usuário.
-     */
-    private static final double TEMPERATURE = 0.3;
-
     /** Quanto tempo uma credencial que falhou fica fora da cadeia. */
     private static final long BREAKER_MINUTES = 10;
 
@@ -171,14 +161,19 @@ public class AiOrchestrator {
                 continue;
             }
 
+            // Roteamento por tarefa (Fase 6): cada tarefa tem seu teto de
+            // tokens e sua temperatura. Um parágrafo de oportunidade e um
+            // resumo semanal não pedem os mesmos parâmetros.
+            AiTaskProfile profile = AiTaskProfile.forTask(task);
+
             LlmClient.LlmResponse response = llmClient.chat(
                 credential.effectiveBaseUrl(),
                 apiKey,
                 credential.effectiveModel(),
                 systemPrompt,
                 context.prompt(),
-                MAX_OUTPUT_TOKENS,
-                TEMPERATURE
+                profile.maxTokens(),
+                profile.temperature()
             );
 
             if (response.success()) {
@@ -228,8 +223,8 @@ public class AiOrchestrator {
             credential.effectiveModel(),
             "Responda apenas com a palavra OK.",
             "Teste de conexão.",
-            16,
-            0.0
+            AiTaskProfile.TESTE_DE_CONEXAO.maxTokens(),
+            AiTaskProfile.TESTE_DE_CONEXAO.temperature()
         );
     }
 

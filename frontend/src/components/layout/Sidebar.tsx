@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  CalendarDays,
   CreditCard,
   Database,
   Globe2,
@@ -44,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         { to: '/app', label: 'Painel do dia', hint: 'O que precisa da sua atenção agora', icon: Home, exact: true },
         { to: '/app/inteligencia', label: 'Central de Inteligência', hint: 'Oportunidades priorizadas da sua loja', icon: Sparkles },
         { to: '/app/perguntar', label: 'Pergunte aos dados', hint: 'Tire dúvidas sobre a sua loja em português', icon: MessageSquare },
+        { to: '/app/rede', label: 'Semana e rede', hint: 'Como foi sua semana e comparação entre lojas', icon: CalendarDays },
       ],
     },
     {

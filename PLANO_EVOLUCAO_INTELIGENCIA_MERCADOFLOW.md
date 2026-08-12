@@ -294,7 +294,7 @@ Todos os engines rodam por filial (como hoje) — os cortes já são relativos �
 | Parâmetros mortos da cesta | ✅ Feito | **Aplicados**, não removidos: os 5 chamadores usam thresholds distintos de propósito (mapa da loja 0,05; cockpit 0,15; job 0,5). Corrigido também um bug não previsto na auditoria — o cache era chaveado só por `marketId`, então os thresholds se contaminavam entre chamadores; agora o cache guarda o conjunto bruto e o filtro é aplicado na leitura |
 | Janelas sazonais | ✅ Feito (com desvio) | **Não unificadas.** As duas listas servem a propósitos diferentes (anunciar evento na UI vs medir venda histórica) e fundi-las degradaria ambas — ver comentários no código. O defeito real era Páscoa/Carnaval como datas fixas: criado `BrazilianHolidays` (algoritmo de Meeus, validado contra 6 datas reais). O Carnaval de 2025 caiu em 04/03, totalmente fora da janela "fevereiro 1–28" |
 | "Filial" → "caixa" | ✅ Feito | DTO renomeado para `ProductPdvPerformanceDTO`, aliases SQL, tipos do frontend e o rótulo visível ("Filiais e PDVs" → "Por caixa (PDV)") |
-| RLS efetiva | ⛔ Pendente | Troca de `DATABASE_USER` para o role da V41. É operação de deploy/VPS, não de código. **Continua sendo pré-requisito para qualquer feature de IA** |
+| RLS efetiva | ✅ Feito | **Status corrigido em 11/08/2026**: a verificação em produção mostrou que a troca de `DATABASE_USER` já estava feita — `mercadoflow_app` com `rolbypassrls=f`. Isolamento provado com o próprio role (tenant A 3.653 notas, tenant B 1.000, sem tenant 0). Ver a seção "RLS: resolvida" adiante |
 
 ### FASE 1 — concluída
 
@@ -308,7 +308,7 @@ Todos os engines rodam por filial (como hoje) — os cortes já são relativos �
 | Decompor `AdvancedAnalyticsService` | ✅ Feito | 1.832 → ~1.520 linhas. Extraídos `seasonal/SeasonalCalendarService` (janelas de exibição e de medição, datas móveis, resolução de status) e `campaign/CampaignImpactService` (impacto antes/durante/depois) |
 | Aposentar `AnalyticsService` | ✅ Marcado como `@Deprecated` | **Não deletado, de propósito.** O endpoint `/dashboard` é API pública e pode ter clientes fora do frontend. Além disso, três coisas vivem SÓ nele e o cockpit não cobre: status de ingestão (notas em 24h, última processada, notas recentes), alertas não lidos e a leitura de `market_basket_rules`. O Javadoc documenta o que precisa de destino antes da remoção. No frontend, o `getDashboard` morto foi removido |
 | Central de Inteligência v0 | ✅ Feito | `intelligence/IntelligenceCenterService` + `GET /markets/{id}/intelligence/feed` + tela `/app/inteligencia` no menu. Unifica alertas, vereditos de capital e candidatos a promoção num **modelo único de oportunidade** com prioridade comparável — o embrião do Opportunity Engine, sem tabela nova. Cada fonte é tolerante a falha: se a promo cair, o feed ainda entrega alertas e capital |
-| Momentum do WorkingCapital | ⚠️ Divergência aberta | Continua avg7/avg28 de **quantidade** enquanto a tela de produto usa EMA7/SMA28 de **receita**, e ele É exibido (vai para `momentumScore` e aparece no texto de `buildReason`). Unificar exige a série diária de cada SKU, e o método roda sobre todo o portfólio numa query só para não fazer 8 mil round-trips. **Resolve-se na Fase 2**, quando a materialização da V31 pré-calcular a série. Documentado no código |
+| Momentum do WorkingCapital | ✅ Resolvido (11/08/2026) | Era avg7/avg28 de **quantidade** contra EMA7/SMA28 de **receita** na tela de produto — o mesmo produto exibia dois momentums, e o do capital aparece no texto de `buildReason` que o lojista lê. O que destravou foi trazer a série diária junto do agregado com `array_agg` na mesma query: a objeção era o custo de uma consulta por produto, e agregar no banco resolve sem esse custo. 5 testes fixam a conversão do `numeric[]` e a sensibilidade à ordem da série |
 
 **Validação:** backend compila em Java 17 (imagem do Dockerfile) e passa 36 testes; frontend com build de produção do Vite OK e os mesmos 124 erros de tipo pré-existentes de antes das mudanças (verificado via `git stash`), nenhum introduzido.
 
@@ -678,6 +678,90 @@ foi despriorizada por um dado de produção: **não há nenhuma rede cadastrada*
 
 ---
 
+### FASES 6 e 7 — completadas + dívida da Fase 1 quitada (11/08/2026)
+
+Esta rodada fechou o que restava do roadmap.
+
+#### Momentum unificado (dívida aberta desde a Fase 1)
+
+O `WorkingCapitalService` calculava avg(7d)/avg(28d) de **quantidade** enquanto
+a tela de produto usava EMA(7)/SMA(28) de **receita**. O mesmo produto exibia
+dois momentums diferentes — e o do capital não é interno: vai para
+`momentumScore` e aparece no texto de `buildReason`, que o lojista lê.
+
+A objeção registrada era o custo: a fórmula canônica exige a série diária de
+cada SKU, e o método roda sobre todo o portfólio numa query só para não fazer
+milhares de round-trips. **A saída foi agregar a série no próprio banco**, com
+`array_agg(day_revenue order by sale_date)` na mesma consulta que já agrupava
+por produto e dia. Sem consulta extra, sem N+1.
+
+5 testes fixam a conversão do `numeric[]` do Postgres (verificada contra um
+PostgreSQL 16 real) e a sensibilidade da fórmula à ordem da série — para que
+remover aquele `order by` não passe despercebido.
+
+#### Resumo semanal (caso 2 do §22)
+
+`GET /intelligence/weekly` + job na madrugada de segunda (05:00, depois do
+ciclo noturno inteiro). Responde "como foi minha semana?", que nenhuma tela
+respondia: o cockpit mostra o agora, a Central mostra o que fazer, faltava o
+retrospecto — que é como o dono de loja pensa o negócio.
+
+**Guarda os números em jsonb junto do texto**, e não só o texto. Sem eles, uma
+troca de modelo ou de prompt tornaria os resumos antigos incomparáveis com os
+novos e a série perderia o sentido. Com eles, o texto é a leitura e o jsonb é o
+fato. É também por isso que este persiste e o chat não: o resumo existe para ser
+comparado com o da semana passada.
+
+Idempotente por (mercado, segunda-feira): um job que falha no meio será
+re-executado, e duplicar semanas quebraria a série. Loja sem venda na semana não
+gera resumo — um texto sobre o nada seria pior que a ausência dele.
+
+#### Inteligência de filiais (o achado mais crítico da auditoria, §12)
+
+A hierarquia rede→filial existe no banco desde a V34 e era usada **apenas para
+billing**: um grep por `parentMarket` nos serviços analíticos não retornava
+nada. `NetworkIntelligenceService` entrega:
+
+| Recurso | O que responde |
+|---|---|
+| Resumo por loja | Quem mais fatura, onde há mais capital parado |
+| Mesmo produto entre filiais | "Sua filial vende este produto 40% abaixo da irmã" — a pergunta que a auditoria registrou como impossível |
+| Transferência | Sobra numa loja + falta em outra, com a quantidade limitada pelo **menor** entre o excesso da origem e a necessidade do destino |
+| Divergência de preço | Mesmo produto com preços diferentes, corte em 10% |
+
+Lê `product_capital_metrics` (materializada na Fase 2), não `invoice_items` —
+comparar N filiais recalculando o portfólio de cada uma por request seria
+proibitivo. É por isso que a materialização vinha antes desta feature no plano.
+
+**Dois limites assumidos com honestidade:** o custo logístico da transferência
+é ignorado (frete e pessoa o sistema não conhece), então a sugestão traz o valor
+estimado para o dono julgar; e a checagem de `daily_velocity > 0` no destino é o
+que separa "está faltando" de "não vende mesmo" — mandar produto para uma loja
+que não o vende só transferiria o capital parado de lugar.
+
+Os 4 SQLs foram validados com `EXPLAIN` contra o schema real das 51 migrations.
+
+#### Fase 6 — roteamento por tarefa
+
+`AiTaskProfile`: cada tarefa tem seu teto de tokens e sua temperatura.
+Interpretar oportunidade é parágrafo curto em lote (400 tokens, onde cada token
+extra multiplica pelo tamanho da rodada); o resumo semanal cabe mais espaço para
+relacionar números (600); o chat responde a alguém esperando na tela (900,
+temperatura 0).
+
+**O que a Fase 6 previa e NÃO foi feito, por decisão de arquitetura:** rotear
+por *modelo* (provedor barato para tarefa simples, caro para análise profunda).
+No modelo BYOK a plataforma não escolhe o provedor — o cliente cadastra a chave
+dele e a ordem da cadeia é dele. Rotear por modelo seria decidir no lugar do
+dono da conta. O que cabe à plataforma é ajustar os parâmetros da chamada, que é
+o que o perfil faz.
+
+**Validação:** 130 testes, build de produção do frontend OK com os mesmos 124
+erros de tipo pré-existentes. V51 aplicada num PostgreSQL 16 real com as 51
+migrations em ordem, RLS ativa e a unique de idempotência confirmada.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**
@@ -698,11 +782,11 @@ Recomendações estruturadas (evidência/cálculo/confiança/impacto); ações e
 **FASE 5 — IA Generativa (função adicional, custo zero)** — ✅ CONCLUÍDA (11/08/2026), com desvio: BYOK por mercado em vez da cadeia free da plataforma. Ver §31-A.
 AI Orchestrator v1 sobre a **cadeia free** (§24: Cerebras → Groq → NVIDIA NIM → OpenRouter :free → texto determinístico); Context Builder com allowlist; interpretação de oportunidades (batch) + resumo semanal; contabilidade de cota free por provedor e por tenant. Nada do que foi entregue nas Fases 0–4 passa a depender disto.
 
-**FASE 6 — Orquestração**
-Provedores pagos opcionais por plano (Camadas 1/2); roteamento por tarefa; BYOK com endpoint customizado; OpenRouter provisioning keys opcional; observabilidade completa de IA.
+**FASE 6 — Orquestração** — ✅ CONCLUÍDA (11/08/2026). Ver §31-A.
+Roteamento por tarefa ✅; BYOK com endpoint customizado ✅ (antecipado na Fase 5); observabilidade completa de IA ✅. Roteamento por *modelo* dispensado por decisão de arquitetura: no BYOK quem escolhe o provedor é o cliente.
 
-**FASE 7 — Agente do Supermercadista** — 🔶 PARCIAL (11/08/2026): "Pergunte aos dados" concluído. Ver §31-A.
-"Pergunte aos dados" (tool calling) ✅; notificações proativas (resumo diário/semanal push); Branch Intelligence completa com transferências (adiada: não há redes cadastradas).
+**FASE 7 — Agente do Supermercadista** — ✅ CONCLUÍDA (11/08/2026). Ver §31-A.
+"Pergunte aos dados" (tool calling) ✅; resumo semanal ✅; inteligência de filiais com transferências ✅. O *push* das notificações (e-mail/WhatsApp) fica fora: exige canal de envio, que é decisão de produto e não de inteligência — o resumo já está pronto e visível na segunda de manhã.
 
 **FASE 8 — Aprendizado**
 OutcomeEvaluationJob; tela de resultados; calibração de scores; acurácia de forecast; contexto de histórico para o LLM.

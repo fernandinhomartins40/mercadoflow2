@@ -268,9 +268,11 @@ public class WorkingCapitalService {
             "       avg(d.day_qty)                           as avg_daily_qty, " +
             "       coalesce(stddev_pop(d.day_qty), 0)       as stddev_daily_qty, " +
             "       max(d.sale_date)                         as last_sale_date, " +
-            // Momentum: média dos últimos 7 dias contra a média dos últimos 28.
-            "       coalesce(avg(d.day_qty) filter (where d.sale_date >= :recentSince), 0) as recent_avg_qty, " +
-            "       coalesce(avg(d.day_qty) filter (where d.sale_date >= :baseSince), 0)   as base_avg_qty " +
+            // Série diária de RECEITA, ordenada por data, para o momentum
+            // canônico (EMA7/SMA28) do MetricDefinitions. Vem agregada na
+            // mesma query: uma consulta por produto seriam milhares de
+            // round-trips num portfólio real.
+            "       array_agg(d.day_revenue order by d.sale_date) as daily_revenue " +
             "from daily d " +
             "join products p on p.id = d.product_id " +
             "group by d.product_id, p.name, p.category, p.ean, p.image_url";
@@ -291,9 +293,7 @@ public class WorkingCapitalService {
         LocalDate windowEnd = since.plusDays(windowDays);
 
         MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId)
-            .addValue("since", since.atStartOfDay())
-            .addValue("recentSince", windowEnd.minusDays(7))
-            .addValue("baseSince", windowEnd.minusDays(28));
+            .addValue("since", since.atStartOfDay());
 
         List<SalesAggregate> out = new ArrayList<>();
         jdbcTemplate.query(sql, params, rs -> {
@@ -309,8 +309,7 @@ public class WorkingCapitalService {
                 rs.getDouble("avg_daily_qty"),
                 rs.getDouble("stddev_daily_qty"),
                 rs.getDate("last_sale_date") != null ? rs.getDate("last_sale_date").toLocalDate() : null,
-                rs.getDouble("recent_avg_qty"),
-                rs.getDouble("base_avg_qty"),
+                readDailySeries(rs.getArray("daily_revenue")),
                 windowDays
             ));
         });
@@ -561,23 +560,19 @@ public class WorkingCapitalService {
         String xyzClass = cv <= XYZ_X_CUTOFF ? "X" : cv <= XYZ_Y_CUTOFF ? "Y" : "Z";
 
         /*
-         * Momentum aproximado: avg(7d) / avg(28d) de QUANTIDADE, vindo do SQL
-         * agregado.
+         * Momentum canônico: EMA(7)/SMA(28) sobre a série diária de RECEITA.
          *
-         * DIVERGÊNCIA CONHECIDA E AINDA ABERTA: MetricDefinitions.momentum() é
-         * EMA(7)/SMA(28) sobre RECEITA e é o que a tela de produto mostra. Este
-         * valor vai para capitalMetric.momentumScore e aparece no texto de
-         * buildReason ("momentum %.2f"), então o mesmo produto ainda pode exibir
-         * dois momentums diferentes entre a tela de capital e a de produto.
+         * DIVERGÊNCIA RESOLVIDA. Este método usava avg(7d)/avg(28d) de
+         * QUANTIDADE enquanto a tela de produto usava a fórmula do
+         * MetricDefinitions — o mesmo produto exibia dois momentums diferentes,
+         * e este aparece no texto de buildReason que o lojista lê.
          *
-         * Não unificado aqui porque a fórmula canônica exige a série diária de
-         * cada produto, e este método roda sobre TODOS os SKUs da loja numa
-         * query só, justamente para não fazer 8 mil round-trips (ver
-         * computePortfolio). A consolidação real depende da materialização da
-         * V31 (Fase 2 do plano), quando a série passa a ser pré-calculada por
-         * job em vez de por request.
+         * O que destravou a unificação foi trazer a série diária junto do
+         * agregado, com array_agg na mesma query. A objeção anterior era o
+         * custo de uma consulta por produto (milhares de round-trips num
+         * portfólio real); agregar no banco resolve sem esse custo.
          */
-        double momentum = sale.baseAvgQty() > 0 ? sale.recentAvgQty() / sale.baseAvgQty() : 1.0;
+        double momentum = MetricDefinitions.momentum(sale.dailyRevenue());
 
         // ── Margem e GMROI ──
         BigDecimal unitCost = cost != null ? cost.unitCost() : null;
@@ -863,11 +858,40 @@ public class WorkingCapitalService {
         return value != null ? value : BigDecimal.ZERO;
     }
 
+    /**
+     * Converte o array do Postgres na série que o MetricDefinitions espera.
+     *
+     * Devolve lista vazia (não null) quando não há série: o momentum canônico
+     * já trata a lista vazia como neutro, e um null aqui viraria NPE dentro do
+     * cálculo de todo produto sem venda.
+     */
+    private static List<Double> readDailySeries(java.sql.Array array) throws java.sql.SQLException {
+        if (array == null) {
+            return List.of();
+        }
+        Object raw = array.getArray();
+        if (!(raw instanceof Object[] values)) {
+            return List.of();
+        }
+        List<Double> series = new ArrayList<>(values.length);
+        for (Object value : values) {
+            if (value instanceof Number n) {
+                series.add(n.doubleValue());
+            }
+        }
+        return series;
+    }
+
+    /**
+     * @param dailyRevenue série diária de receita, ordenada por data crescente,
+     *                     com um ponto por dia COM VENDA — o formato que
+     *                     {@link MetricDefinitions#momentum} espera
+     */
     private record SalesAggregate(
         UUID productId, String name, String category, String ean, String imageUrl,
         BigDecimal revenue, BigDecimal quantity, int salesDays,
         double avgDailyQty, double stddevDailyQty, LocalDate lastSaleDate,
-        double recentAvgQty, double baseAvgQty, int windowDays
+        List<Double> dailyRevenue, int windowDays
     ) {}
 
     private record CostInfo(
