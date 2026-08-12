@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Sparkles,
   Store,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
@@ -46,6 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         { to: '/app/inteligencia', label: 'Central de Inteligência', hint: 'Oportunidades priorizadas da sua loja', icon: Sparkles },
         { to: '/app/perguntar', label: 'Pergunte aos dados', hint: 'Tire dúvidas sobre a sua loja em português', icon: MessageSquare },
         { to: '/app/rede', label: 'Semana e rede', hint: 'Como foi sua semana e comparação entre lojas', icon: CalendarDays },
+        { to: '/app/clientes', label: 'Clientes', hint: 'Quem volta à sua loja e o que traz de volta', icon: Users },
       ],
     },
     {

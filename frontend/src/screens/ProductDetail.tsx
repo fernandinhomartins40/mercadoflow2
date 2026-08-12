@@ -8,6 +8,7 @@ import ButtonLink from '../components/common/ButtonLink';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import SalesChart from '../components/dashboard/SalesChart';
 import ProductImage from '../components/product/ProductImage';
+import PriceSimulator from '../components/product/PriceSimulator';
 import ProductSpecSheet from '../components/product/ProductSpecSheet';
 import PageHeader from '../components/layout/PageHeader';
 import { Section, DataRow, Stat, Chip, Empty, RailCard, StatGrid } from '../components/ui';
@@ -520,6 +521,19 @@ const ProductDetail: React.FC = () => {
             </p>
             <PurchaseSignalBanner signal={purchaseSignal} />
           </div>
+        )}
+
+        {/* ── Simulação de preço ──
+            Fica logo abaixo da decisão de compra porque é a outra metade da
+            mesma pergunta: quanto comprar e por quanto vender. */}
+        {marketId && productId && (
+          <Section
+            kicker="E se eu baixar o preço?"
+            title="Simulação de desconto"
+            subtitle="Projeção pelo histórico real deste produto na sua loja."
+          >
+            <PriceSimulator marketId={marketId} productId={productId} />
+          </Section>
         )}
 
         {/* ── KPIs ── */}

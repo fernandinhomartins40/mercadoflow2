@@ -969,6 +969,74 @@ mesmos 124 erros pré-existentes. Nenhuma migration.
 
 ---
 
+### OS TRÊS RECURSOS QUE FALTAVAM NO PROFISSIONAL (12/08/2026)
+
+Completa a escada iniciada na seção anterior. Eram os itens 3 a 5 da análise —
+os que exigiam construção, não só recorte.
+
+#### Base de clientes (item 3)
+
+A camada existia desde a Fase 2 — `customer_profiles` e
+`product_repurchase_stats`, alimentadas do CPF da nota com HMAC e salt por
+tenant — e **nunca teve tela**. Agora responde: quantos clientes voltam, com que
+frequência, qual o ticket de quem volta contra quem passa uma vez, e **quais
+produtos criam hábito** (maior taxa de recompra).
+
+LGPD inalterada: nada devolve documento, o hash é calculado dentro do banco e a
+estatística por produto só aparece acima do k-anonimato de 5.
+
+#### Simulação de preço (item 4)
+
+A auditoria (§19) registrou a elasticidade como "calculada e não usada para
+recomendação de preço". O `PriceSimulationService` fecha a lacuna: projeta
+volume, receita e margem para descontos de 5% a 30%, usando a elasticidade
+medida no **histórico real do produto naquela loja** — não uma tabela de
+categoria.
+
+**O risco deste recurso não é errar a conta — é dar aparência de certeza a uma
+decisão de margem.** Por isso as ressalvas são parte do resultado, não rodapé:
+
+| Situação | O que o sistema diz |
+|---|---|
+| Produto sem promoção anterior | Assume reação neutra e avisa que é estimativa grosseira |
+| Desconto acima do dobro do já praticado | "A loja nunca passou de X% — acima disso a reação é imprevisível" |
+| Sem custo cadastrado | **Não calcula margem.** Nunca estima — numa decisão de preço isso custa dinheiro real |
+| Preço abaixo do custo | "Cada unidade vendida dá prejuízo" |
+| Elasticidade < 0,5 | "Este produto reage pouco a desconto" |
+| Sempre | "A projeção não considera que o desconto pode roubar venda de produtos parecidos" |
+
+O caso que mais importa acertar é **receita subindo com margem caindo** — o modo
+de falha clássico do desconto, invisível para quem olha só o faturamento. O
+veredito o nomeia explicitamente.
+
+#### Exportação (item 5)
+
+CSV de capital de giro, oportunidades e decisões. Dois detalhes que decidem se o
+arquivo é usável: **ponto-e-vírgula** como separador e **BOM UTF-8** — sem eles
+o Excel em português abre tudo numa coluna só e exibe "Ação" como "AÃ§Ã£o".
+
+#### Régua final
+
+| Recurso | Gratuito | Essencial | Profissional |
+|---|---|---|---|
+| Previsão à frente | 7 dias | 30 dias | 90 dias |
+| Inteligência de rede | — | — | ✅ |
+| Resultado das decisões | — | resumo | completo |
+| Base de clientes | — | — | ✅ |
+| Simulação de preço | — | — | ✅ |
+| Exportação e CSV | — | — | ✅ |
+
+**Validação:** 168 testes (158 + 10 da simulação, cobrindo tanto o cálculo
+quanto cada ressalva). Build do frontend OK, mesmos 124 erros pré-existentes.
+Nenhuma migration — os três recursos leem tabelas que já existiam.
+
+**Fica pendente:** o webhook de oportunidade nova, que a análise listava junto
+da exportação. Exige entrega confiável (retentativa, assinatura do payload,
+tratamento de endpoint morto) e é mais infraestrutura que inteligência — vale
+como trabalho próprio, não como apêndice.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação** — ✅ CONCLUÍDA. Ver §31-A.

@@ -606,6 +606,28 @@ public class PlanService {
     }
 
     /**
+     * Simulação de preço por elasticidade.
+     *
+     * É decisão de MARGEM, não de reposição — quem a toma é quem já domina a
+     * operação. E é o tipo de cálculo que o lojista nunca faria à mão, que é o
+     * mesmo critério usado para separar o gratuito.
+     */
+    public boolean canUsePriceSimulation(EffectiveLimits limits) {
+        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+    }
+
+    /**
+     * Exportação de dados e webhook.
+     *
+     * Quem pede integração é quem tem outro sistema e equipe para consumi-la —
+     * operação madura, não análise. Sozinho justifica a diferença de plano para
+     * boa parte dos clientes maiores.
+     */
+    public boolean canUseDataExport(EffectiveLimits limits) {
+        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+    }
+
+    /**
      * Teto de orçamento para o plano de compra.
      *
      * Limitar o valor no lugar da lista é o que mantém o recurso utilizável:
