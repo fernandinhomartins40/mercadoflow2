@@ -764,19 +764,19 @@ migrations em ordem, RLS ativa e a unique de idempotência confirmada.
 
 ## 32. Roadmap
 
-**FASE 0 — Fundação (1–2 semanas de esforço)**
+**FASE 0 — Fundação** — ✅ CONCLUÍDA. Ver §31-A.
 RLS efetiva (troca de role); deletar telas órfãs; corrigir/remover parâmetros mortos da cesta; unificar as duas listas de janelas sazonais (e datas móveis de Páscoa/Carnaval); renomear "filial"→"caixa" na visão por PDV; documentar fórmulas atuais.
 
-**FASE 1 — Organização**
+**FASE 1 — Organização** — ✅ CONCLUÍDA. Ver §31-A.
 Metric Layer (fórmulas canônicas); decompor `AdvancedAnalyticsService`; aposentar dashboard antigo (`AnalyticsService`); um único sinal de compra; Central de Inteligência v0 (agregando alertas+candidatos existentes, sem motor novo).
 
-**FASE 2 — Inteligência determinística**
+**FASE 2 — Inteligência determinística** — ✅ CONCLUÍDA. Ver §31-A.
 Materializar V31 via jobs (capital, halo, sazonalidade, estoque); histórico de scores; forecast→compra + lead time real + estoque em trânsito; campanhas com produtos + canibalização + pós-janela; camada de cliente (hash); anomalias EWMA; detector de preço vs mercado estadual.
 
-**FASE 3 — Opportunity Engine**
+**FASE 3 — Opportunity Engine** — ✅ CONCLUÍDA. Ver §31-A.
 Tabela + detectores plugáveis migrando os 8 alertas e candidatos; ciclo de vida; feed na Central; alerts legados como notificação.
 
-**FASE 4 — Recommendation Engine**
+**FASE 4 — Recommendation Engine** — ✅ CONCLUÍDA. Ver §31-A.
 Recomendações estruturadas (evidência/cálculo/confiança/impacto); ações executáveis (compra→lista/pedido, promoção→campanha); registro de decisão.
 
 **FASE 5 — IA Generativa (função adicional, custo zero)** — ✅ CONCLUÍDA (11/08/2026), com desvio: BYOK por mercado em vez da cadeia free da plataforma. Ver §31-A.
@@ -788,8 +788,20 @@ Roteamento por tarefa ✅; BYOK com endpoint customizado ✅ (antecipado na Fase
 **FASE 7 — Agente do Supermercadista** — ✅ CONCLUÍDA (11/08/2026). Ver §31-A.
 "Pergunte aos dados" (tool calling) ✅; resumo semanal ✅; inteligência de filiais com transferências ✅. O *push* das notificações (e-mail/WhatsApp) fica fora: exige canal de envio, que é decisão de produto e não de inteligência — o resumo já está pronto e visível na segunda de manhã.
 
-**FASE 8 — Aprendizado**
+**FASE 8 — Aprendizado** — ✅ CONCLUÍDA. Ver §31-A.
 OutcomeEvaluationJob; tela de resultados; calibração de scores; acurácia de forecast; contexto de histórico para o LLM.
+
+> **Roadmap concluído em 11/08/2026.** As oito fases estão implementadas e em
+> produção. Dois itens foram deliberadamente descartados com justificativa
+> registrada: a importação de XML de NF de entrada (fora do foco — o produto
+> analisa as vendas) e o roteamento por modelo de IA (no BYOK quem escolhe o
+> provedor é o cliente). O *push* de notificações fica pendente por depender de
+> canal de envio, que é decisão de produto, não de inteligência.
+>
+> O que agora limita a evolução não é código, é **dado de operação real**: lead
+> time só existe quando houver pedido a fornecedor entregue e registrado; a
+> inteligência de filiais só rende com uma rede cadastrada; e a calibração do
+> feedback loop precisa de decisões acumuladas ao longo de semanas.
 
 ## 33. Priorização
 
