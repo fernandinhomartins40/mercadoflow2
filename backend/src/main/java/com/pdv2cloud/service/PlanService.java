@@ -522,15 +522,34 @@ public class PlanService {
     /**
      * Tipos de oportunidade reservados ao plano pago.
      *
-     * São os três que ANTECIPAM. Os demais — capital parado, excesso de
-     * estoque, preço acima do mercado, queda e crescimento de vendas — descrevem
-     * o presente e ficam liberados, porque é o que prova que o sistema entende
-     * a loja.
+     * CORRIGIDO em 12/08/2026 contra a distribuição real de produção, que
+     * desmentiu a classificação inicial:
+     *
+     *   OPORTUNIDADE_DE_COMPRA   484 de 715 (68%)   ← estava no pago
+     *   EXCESSO_DE_ESTOQUE       146
+     *   CAPITAL_PARADO            85
+     *   RISCO_DE_RUPTURA           0  (nenhum detector o gera)
+     *
+     * Dois erros na versão anterior. O primeiro: OPORTUNIDADE_DE_COMPRA é
+     * gerada por COBERTURA BAIXA — descreve o presente ("está acabando"), não
+     * previsão — e é a resposta literal para "o que eu preciso comprar", a
+     * pergunta central do produto. Bloqueá-la deixava o gratuito só com o que
+     * está errado na loja e cobrava pelo que fazer a respeito: entregar a má
+     * notícia e vender a boa. O segundo: RISCO_DE_RUPTURA está no vocabulário
+     * da UI mas nenhum detector o produz, então reservá-lo não gatilhava nada.
+     *
+     * A régua correta reserva o que o lojista NÃO conseguiria apurar sozinho:
+     * PRODUTO_TRACIONADOR (efeito halo — que produto puxa a venda de outros)
+     * exige cruzar cupons e comparar velocidade em dias de promoção contra dias
+     * normais. É cálculo, não observação.
+     *
+     * O limite do gratuito na compra continua existindo, e no lugar certo: o
+     * teto de orçamento do plano de compra, que só incomoda quem já está
+     * comprando muito.
      */
     public static final Set<String> PAID_OPPORTUNITY_TYPES = Set.of(
-        "RISCO_DE_RUPTURA",
-        "OPORTUNIDADE_DE_COMPRA",
-        "PRODUTO_TRACIONADOR"
+        "PRODUTO_TRACIONADOR",
+        "OPORTUNIDADE_DE_COMBO"
     );
 
     /**

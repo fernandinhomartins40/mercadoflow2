@@ -868,11 +868,30 @@ incomoda quem *já usou* o plano de compra para comprar melhor — e aí o upgra
 não é pedágio, é a conta que fecha. O corte de lista incomodava antes de
 entregar qualquer coisa.
 
-**Os três tipos reservados ao pago** são os que ANTECIPAM: risco de ruptura,
-oportunidade de compra por previsão e produto tracionador. Os cinco livres —
-capital parado, excesso de estoque, preço acima do mercado, queda de vendas e
-candidato a promoção — descrevem o presente, e são o que prova que o sistema
-entende a loja.
+**Os tipos reservados ao pago — corrigido no mesmo dia, contra o dado real.**
+A primeira versão reservou `OPORTUNIDADE_DE_COMPRA`, `RISCO_DE_RUPTURA` e
+`PRODUTO_TRACIONADOR`. A distribuição de produção desmentiu duas dessas
+escolhas:
+
+| Tipo | Ocorrências no mercado FREE |
+|---|---|
+| `OPORTUNIDADE_DE_COMPRA` | **484 de 715 (68%)** |
+| `EXCESSO_DE_ESTOQUE` | 146 |
+| `CAPITAL_PARADO` | 85 |
+| `RISCO_DE_RUPTURA` | **0** — nenhum detector o gera |
+
+`OPORTUNIDADE_DE_COMPRA` é gerada por **cobertura baixa de estoque** — descreve
+o presente ("está acabando"), não previsão — e é a resposta literal para "o que
+eu preciso comprar", a pergunta central do produto. Bloqueá-la deixaria o
+gratuito só com o que está errado na loja, cobrando pelo que fazer a respeito:
+entregar a má notícia e vender a boa. E `RISCO_DE_RUPTURA` existe apenas no
+vocabulário da UI, então reservá-lo não gatilhava nada.
+
+A régua correta reserva o que exige **cálculo cruzado** que o lojista não faria
+sozinho: `PRODUTO_TRACIONADOR` (efeito halo — cruzar cupons e comparar
+velocidade em dias de promoção contra dias normais) e `OPORTUNIDADE_DE_COMBO`.
+O limite do gratuito na compra continua existindo, e no lugar certo: o **teto de
+orçamento**, que só incomoda quem já está comprando muito.
 
 **O bloqueado aparece contado, nunca oculto.** O feed devolve
 `bloqueadasPorTipo` e o impacto somado, e a tela mostra "3× Risco de ruptura ·

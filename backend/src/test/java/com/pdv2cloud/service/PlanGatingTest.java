@@ -29,10 +29,11 @@ import org.mockito.quality.Strictness;
  * MUDANÇA DE ESTRATÉGIA que estes testes protegem: o gratuito deixou de ser
  * limitado por QUANTIDADE (5 itens de cada lista, que impedia usar o recurso e
  * frustrava antes de entregar valor) e passou a ser limitado por ALCANCE —
- * janela de análise, horizonte de previsão, teto de orçamento e os tipos de
- * oportunidade que antecipam o futuro.
+ * janela de análise, horizonte de previsão e teto de orçamento.
  *
- * O princípio em uma linha: <b>passado é grátis, futuro é pago</b>.
+ * O princípio: o gratuito responde <b>o que está acontecendo na loja</b>,
+ * inclusive o que comprar. O pago acrescenta o que exige <b>cálculo cruzado</b>
+ * (efeito halo, combos), mais alcance no tempo e volume sem teto.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -98,16 +99,30 @@ class PlanGatingTest {
     // ── Tipos de oportunidade ────────────────────────────────────────────────
 
     /**
-     * Os três tipos que ANTECIPAM ficam no pago. São o que o lojista não
-     * conseguiria apurar sozinho — e por isso o que justifica assinar.
+     * Ficam no pago apenas os tipos que exigem CÁLCULO que o lojista não faria:
+     * efeito halo (que produto puxa a venda de outros) e combos.
      */
     @Test
-    void gratuitoNaoVeOsTiposQueAntecipam() {
+    void gratuitoNaoVeOsTiposDeCalculoCruzado() {
         PlanService.EffectiveLimits free = limits(PlanType.FREE, false, 90);
 
-        assertFalse(planService.canSeeOpportunityType(free, "RISCO_DE_RUPTURA"));
-        assertFalse(planService.canSeeOpportunityType(free, "OPORTUNIDADE_DE_COMPRA"));
         assertFalse(planService.canSeeOpportunityType(free, "PRODUTO_TRACIONADOR"));
+        assertFalse(planService.canSeeOpportunityType(free, "OPORTUNIDADE_DE_COMBO"));
+    }
+
+    /**
+     * "O que eu preciso comprar" NÃO pode ser pago — é a pergunta central do
+     * produto e 68% de tudo que o motor detecta em produção (484 de 715).
+     *
+     * Este teste existe por causa de um erro real: a régua de 12/08/2026
+     * bloqueou este tipo por engano, o que deixaria o gratuito só com o que
+     * está errado na loja e cobraria pelo que fazer a respeito — entregar a má
+     * notícia e vender a boa.
+     */
+    @Test
+    void oQueComprarNuncaFicaBloqueado() {
+        assertTrue(planService.canSeeOpportunityType(
+            limits(PlanType.FREE, false, 90), "OPORTUNIDADE_DE_COMPRA"));
     }
 
     /**
@@ -124,15 +139,16 @@ class PlanGatingTest {
         assertTrue(planService.canSeeOpportunityType(free, "QUEDA_DE_VENDAS"));
         assertTrue(planService.canSeeOpportunityType(free, "OPORTUNIDADE_DE_PROMOCAO"));
         assertTrue(planService.canSeeOpportunityType(free, "ANOMALIA_DE_VENDAS"));
+        assertTrue(planService.canSeeOpportunityType(free, "RISCO_DE_RUPTURA"));
     }
 
     @Test
     void planoPagoVeTodosOsTipos() {
         PlanService.EffectiveLimits pago = limits(PlanType.ESSENCIAL, true, 365);
 
-        assertTrue(planService.canSeeOpportunityType(pago, "RISCO_DE_RUPTURA"));
-        assertTrue(planService.canSeeOpportunityType(pago, "OPORTUNIDADE_DE_COMPRA"));
         assertTrue(planService.canSeeOpportunityType(pago, "PRODUTO_TRACIONADOR"));
+        assertTrue(planService.canSeeOpportunityType(pago, "OPORTUNIDADE_DE_COMBO"));
+        assertTrue(planService.canSeeOpportunityType(pago, "OPORTUNIDADE_DE_COMPRA"));
     }
 
     /** Tipo desconhecido não pode ficar bloqueado por engano. */
