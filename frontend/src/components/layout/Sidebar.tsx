@@ -6,6 +6,7 @@ import {
   Home,
   Map,
   Megaphone,
+  MessageSquare,
   PackageSearch,
   Settings,
   ShoppingCart,
@@ -42,6 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { to: '/app', label: 'Painel do dia', hint: 'O que precisa da sua atenção agora', icon: Home, exact: true },
         { to: '/app/inteligencia', label: 'Central de Inteligência', hint: 'Oportunidades priorizadas da sua loja', icon: Sparkles },
+        { to: '/app/perguntar', label: 'Pergunte aos dados', hint: 'Tire dúvidas sobre a sua loja em português', icon: MessageSquare },
       ],
     },
     {

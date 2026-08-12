@@ -638,6 +638,46 @@ em vez de parar nas mesmas 40 para sempre.
 
 ---
 
+### FASE 7 (parte 1) — "Pergunte aos dados" (11/08/2026)
+
+O caso 3 do §22: chat com *tool calling* sobre as APIs internas. O lojista
+pergunta em português e recebe a resposta com os números da própria loja.
+
+**O que torna isto diferente de um chatbot:** o modelo **não recebe os dados no
+prompt e não tem permissão para inventar**. Ele recebe a lista de ferramentas,
+escolhe quais chamar, e nós executamos a consulta de verdade contra o banco.
+Todo número da resposta passou por uma dessas consultas — e a tela mostra
+**quais foram**, para o lojista conferir a origem.
+
+| Item | Status | Observação |
+|---|---|---|
+| Interface `DataTool` | ✅ Feito | Contrato com três regras que nenhuma implementação pode violar: somente leitura, sempre no escopo do mercado autenticado, nada de dado pessoal |
+| 10 ferramentas | ✅ Feito | Capital (comprar, capital parado, resumo do estoque, consultar produto), vendas (resumo com comparação de período, ranking, dia da semana), inteligência (oportunidades, recomendações, horário de movimento) |
+| Reuso, não reimplementação | ✅ Feito | Leem o `CapitalMetricsReader` (materializado da Fase 2), o `OpportunityRepository` (Fase 3), o `RecommendationRepository` (Fase 4) e o `StoreRhythmService`. Perguntar custa o mesmo que abrir a tela equivalente |
+| Tool calling no `LlmClient` | ✅ Feito | Método `converse` com histórico e ferramentas, no dialeto da OpenAI — os mesmos provedores da Fase 5, sem cliente novo. Trata o reenvio da mensagem `assistant` com as `tool_calls`, que a API exige e cuja ausência dá 400 em todos os provedores |
+| Laço com dois tetos | ✅ Feito | 4 voltas de ferramenta e 4 ferramentas por volta. Cada volta é uma chamada paga na conta do cliente, e um modelo indeciso pediria a mesma consulta indefinidamente |
+| Última volta sem ferramentas | ✅ Feito | Retirar a lista força o modelo a responder com o que já coletou. Sem isso o laço poderia terminar sem resposta nenhuma |
+| Isolamento entre lojas | ✅ Feito | O `marketId` vem do contexto autenticado, **nunca** dos argumentos do modelo — senão bastaria alucinar um UUID para ler os números de outra loja. Coberto por teste que simula exatamente esse ataque |
+| Allowlist LGPD reaproveitada | ✅ Feito | A evidência das oportunidades passa pelo mesmo `AiContextBuilder.filterEvidence` da Fase 5. Um segundo filtro escrito à parte divergiria do primeiro na primeira mudança |
+| Rastro na tela | ✅ Feito | Cada resposta lista as consultas que a alimentaram. Um chat de IA sobre dados de negócio sem essa marcação convida a confiar demais ou de menos |
+| Temperatura zero | ✅ Feito | A mesma pergunta sobre os mesmos números deve dar a mesma resposta; variação estilística aqui pareceria inconsistência dos dados |
+| Sem persistir conversa | ✅ Decisão | O histórico vem do cliente (últimas 6 mensagens). Guardar conversas criaria mais uma cópia dos números da loja sem que ninguém fosse consultá-la — o que importa registrar é a decisão, e isso já vive em `recommendations` |
+| Tela `/app/perguntar` | ✅ Feito | Com perguntas sugeridas, estado "configure uma chave" quando não há BYOK, e as consultas usadas sob cada resposta |
+
+**O que o prompt proíbe:** calcular, estimar ou completar número que a
+ferramenta não trouxe. "Não sei" é resposta correta; um número inventado faz o
+lojista decidir uma compra de dezenas de milhares de reais sobre ficção.
+
+**Validação:** 125 testes (116 + 9), incluindo o do isolamento entre lojas.
+Build de produção do frontend OK, com os mesmos 124 erros de tipo pré-existentes
+e nenhum novo. Nenhuma migration — o recurso não guarda estado.
+
+**Fica para depois:** notificações proativas e Branch Intelligence. Esta última
+foi despriorizada por um dado de produção: **não há nenhuma rede cadastrada**
+(4 mercados, 0 filiais), então o recurso nasceria dormente.
+
+---
+
 ## 32. Roadmap
 
 **FASE 0 — Fundação (1–2 semanas de esforço)**
@@ -661,8 +701,8 @@ AI Orchestrator v1 sobre a **cadeia free** (§24: Cerebras → Groq → NVIDIA N
 **FASE 6 — Orquestração**
 Provedores pagos opcionais por plano (Camadas 1/2); roteamento por tarefa; BYOK com endpoint customizado; OpenRouter provisioning keys opcional; observabilidade completa de IA.
 
-**FASE 7 — Agente do Supermercadista**
-"Pergunte aos dados" (tool calling); notificações proativas (resumo diário/semanal push); Branch Intelligence completa com transferências.
+**FASE 7 — Agente do Supermercadista** — 🔶 PARCIAL (11/08/2026): "Pergunte aos dados" concluído. Ver §31-A.
+"Pergunte aos dados" (tool calling) ✅; notificações proativas (resumo diário/semanal push); Branch Intelligence completa com transferências (adiada: não há redes cadastradas).
 
 **FASE 8 — Aprendizado**
 OutcomeEvaluationJob; tela de resultados; calibração de scores; acurácia de forecast; contexto de histórico para o LLM.

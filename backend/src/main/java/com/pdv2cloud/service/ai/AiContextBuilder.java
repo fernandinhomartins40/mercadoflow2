@@ -125,8 +125,13 @@ public class AiContextBuilder {
      *
      * A ordenação não é estética: sem ela, a mesma evidência produziria hashes
      * diferentes conforme a ordem de iteração do mapa, e o cache nunca acertaria.
+     *
+     * Público porque o "Pergunte aos dados" também expõe evidência de
+     * oportunidade ao modelo, por outro caminho. Toda saída de dado da loja
+     * para um provedor externo deve passar por AQUI — um segundo filtro,
+     * escrito à parte, divergiria do primeiro na primeira mudança.
      */
-    Map<String, Object> filterEvidence(Map<String, Object> evidence) {
+    public Map<String, Object> filterEvidence(Map<String, Object> evidence) {
         Map<String, Object> filtered = new TreeMap<>();
         if (evidence == null) {
             return filtered;

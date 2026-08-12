@@ -233,6 +233,57 @@ public class AiOrchestrator {
         );
     }
 
+    /**
+     * Credencial pronta para uso, com a chave já decifrada.
+     *
+     * @param apiKey a chave em claro — existe apenas durante a chamada e nunca
+     *               deve ser guardada, logada ou devolvida por API
+     */
+    public record ActiveCredential(
+        AiProvider provider, String baseUrl, String apiKey, String model, UUID credentialId
+    ) { }
+
+    /**
+     * Resolve a primeira credencial utilizável da cadeia do mercado.
+     *
+     * Existe para o chat "Pergunte aos dados", que precisa de um laço próprio
+     * (o modelo responde pedindo ferramentas, não texto) e por isso não passa
+     * pelo {@link #interpret}. Reaproveita a mesma cadeia de prioridade e o
+     * mesmo circuit breaker — um provedor derrubado pela rodada noturna
+     * continua fora aqui, e vice-versa.
+     *
+     * @return vazio quando não há credencial usável; o chamador decide o que
+     *         dizer ao usuário
+     */
+    public Optional<ActiveCredential> resolveCredential(UUID marketId) {
+        if (!cipher.isConfigured()) {
+            return Optional.empty();
+        }
+        for (AiProviderCredential credential : credentialRepository.findChain(marketId)) {
+            if (isOpen(credential.getId())) {
+                continue;
+            }
+            try {
+                return Optional.of(new ActiveCredential(
+                    credential.getProvider(),
+                    credential.effectiveBaseUrl(),
+                    cipher.decrypt(credential.getEncryptedApiKey()),
+                    credential.effectiveModel(),
+                    credential.getId()
+                ));
+            } catch (Exception e) {
+                // Cifrada com outra chave mestra: inútil insistir nesta rodada.
+                trip(credential.getId());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Marca uma credencial como falha, tirando-a da cadeia por alguns minutos. */
+    public void reportFailure(UUID credentialId) {
+        trip(credentialId);
+    }
+
     private Interpretation deterministic(String fallbackText) {
         return new Interpretation(fallbackText, true, null, false);
     }

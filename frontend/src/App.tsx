@@ -9,6 +9,7 @@ const Login = lazy(() => import('./screens/Login'));
 const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
 const IntelligenceCenter = lazy(() => import('./screens/IntelligenceCenter'));
+const DataChat = lazy(() => import('./screens/DataChat'));
 const Products = lazy(() => import('./screens/Products'));
 const ProductDetail = lazy(() => import('./screens/ProductDetail'));
 const PDVs = lazy(() => import('./screens/PDVs'));
@@ -121,6 +122,7 @@ const App: React.FC = () => {
 
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/inteligencia" element={secure(<IntelligenceCenter />)} />
+        <Route path="/app/perguntar" element={secure(<DataChat />)} />
         <Route path="/app/produtos" element={secure(<Products />)} />
         <Route path="/app/produtos/:productId" element={secure(<ProductDetail />)} />
         <Route path="/app/cesta" element={<Navigate to="/app/produtos" replace />} />
