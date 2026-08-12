@@ -1,6 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.campaign.CampaignProductIntelligenceService;
 import com.pdv2cloud.service.intelligence.CustomerIntelligenceService;
 import com.pdv2cloud.service.intelligence.IntelligenceCenterService;
@@ -11,6 +12,7 @@ import com.pdv2cloud.service.intelligence.SalesWindowResolver;
 import com.pdv2cloud.service.intelligence.StoreRhythmService;
 import com.pdv2cloud.service.intelligence.ProductIntelligenceMaterializer;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +46,7 @@ public class IntelligenceCenterController {
     private final ProductHistoryService productHistoryService;
     private final SalesWindowResolver salesWindowResolver;
     private final MarketAccessService marketAccessService;
+    private final PlanService planService;
 
     public IntelligenceCenterController(
         IntelligenceCenterService intelligenceCenterService,
@@ -55,7 +58,8 @@ public class IntelligenceCenterController {
         StoreRhythmService storeRhythmService,
         ProductHistoryService productHistoryService,
         SalesWindowResolver salesWindowResolver,
-        MarketAccessService marketAccessService
+        MarketAccessService marketAccessService,
+        PlanService planService
     ) {
         this.intelligenceCenterService = intelligenceCenterService;
         this.materializer = materializer;
@@ -67,6 +71,7 @@ public class IntelligenceCenterController {
         this.productHistoryService = productHistoryService;
         this.salesWindowResolver = salesWindowResolver;
         this.marketAccessService = marketAccessService;
+        this.planService = planService;
     }
 
     /**
@@ -110,12 +115,34 @@ public class IntelligenceCenterController {
      * individualizado — ver CustomerIntelligenceService para as decisões de LGPD.
      */
     @GetMapping("/customers")
-    public ResponseEntity<CustomerIntelligenceService.CustomerOverview> customers(
+    public ResponseEntity<Map<String, Object>> customers(
         @PathVariable("marketId") UUID marketId,
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(customerIntelligenceService.overview(marketId));
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        if (!allowedCustomers(marketId)) {
+            // Recurso do plano Profissional: análise de base exige base. Loja
+            // pequena tem poucos recorrentes e o dado não sustenta conclusão.
+            body.put("bloqueadoPorPlano", true);
+            body.put("mensagem", "Saber quem volta à sua loja, com que frequência e "
+                + "quais produtos trazem o cliente de volta faz parte do plano "
+                + "Profissional.");
+            return ResponseEntity.ok(body);
+        }
+
+        body.put("bloqueadoPorPlano", false);
+        body.put("resumo", customerIntelligenceService.overview(marketId));
+        body.put("observacao", "Clientes identificados pelo CPF informado na nota. "
+            + "Quem não informa não entra na conta — o número real de compradores "
+            + "é maior.");
+        return ResponseEntity.ok(body);
+    }
+
+    /** O plano alcança a análise de base de clientes? */
+    private boolean allowedCustomers(UUID marketId) {
+        return planService.canUseCustomerIntelligence(planService.limitsFor(marketId));
     }
 
     /** Produtos que mais trazem o cliente de volta à loja. */
@@ -126,7 +153,10 @@ public class IntelligenceCenterController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(customerIntelligenceService.topRepurchaseProducts(marketId, limit));
+        return ResponseEntity.ok(allowedCustomers(marketId)
+            ? customerIntelligenceService.topRepurchaseProducts(
+                marketId, Math.min(Math.max(limit, 1), 50))
+            : List.of());
     }
 
     /**
