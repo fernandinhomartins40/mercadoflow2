@@ -362,7 +362,19 @@ cleanup_docker_artifacts() {
   fi
 
   if [[ "${DOCKER_CLEANUP_BUILD_CACHE}" == "true" ]]; then
-    docker builder prune -af >/dev/null || log "WARN: nÃ£o foi possÃ­vel limpar cache de build Docker"
+    # Guarda 2 GB de cache em vez de apagar tudo com -af: sem isso o deploy
+    # seguinte recompila as dependencias Maven do zero e estoura a janela do
+    # workflow. Ha 63 GB livres, entao reter 2 GB e barato.
+    #
+    # A flag mudou de nome: --keep-storage saiu no Docker 28 e virou
+    # --reserved-space. A VPS roda 28.3.3; o fallback cobre hosts antigos.
+    if docker builder prune -f --reserved-space 2GB >/dev/null 2>&1; then
+      :
+    elif docker builder prune -f --keep-storage 2GB >/dev/null 2>&1; then
+      :
+    else
+      log "WARN: nao foi possivel limpar cache de build Docker"
+    fi
   fi
 }
 

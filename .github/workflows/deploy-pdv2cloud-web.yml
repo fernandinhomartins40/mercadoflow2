@@ -20,7 +20,11 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 60, nao 30: o pg_dump pre-migracao leva ~11 min (banco de 1 GB numa VPS
+    # com 50-63% de steal time) e o build Maven acontece na propria VPS. Com 30
+    # o job era morto no meio do build e o deploy terminava sem aplicar a
+    # migracao, com os containers de pe servindo a versao antiga.
+    timeout-minutes: 60
     env:
       VPS_HOST: 72.60.10.112
       VPS_APP_DIR: /root/mercadoflow-web
@@ -168,7 +172,12 @@ jobs:
           DOCKER_CLEANUP_ENABLED=true \
           DOCKER_CLEANUP_PROJECT_CONTAINERS=true \
           DOCKER_CLEANUP_DANGLING_IMAGES=true \
-          DOCKER_CLEANUP_BUILD_CACHE=true \
+          # false: cleanup_docker_artifacts roda no fim do deploy e o
+          # "docker builder prune -af" apagava o cache inteiro, obrigando o
+          # deploy seguinte a compilar do zero. As camadas de dependencia Maven
+          # nao mudam entre deploys; guardar esse cache e o que faz o build
+          # caber na janela. O prune de imagens dangling continua ligado.
+          DOCKER_CLEANUP_BUILD_CACHE=false \
           STRIPE_ENABLED='${{ secrets.STRIPE_ENABLED }}' \
           STRIPE_SECRET_KEY='${{ secrets.STRIPE_SECRET_KEY }}' \
           STRIPE_WEBHOOK_SECRET='${{ secrets.STRIPE_WEBHOOK_SECRET }}' \
