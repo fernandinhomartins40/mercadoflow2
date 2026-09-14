@@ -931,3 +931,40 @@ medir a producao. Da primeira vez eu medi o consumidor em vez do banco; desta,
 li o codigo em vez do ambiente. A regra que o pedido estabeleceu — nunca mudar
 nem concluir com base em suposicao — vale tambem para conclusoes que parecem
 conservadoras.
+
+## Validacao de memoria em janela de 20 minutos
+
+Oito amostras a cada 150 s apos o deploy, para separar o valor de boot do valor
+estavel:
+
+| Container | t+150 s | t+1200 s | Limite | Pico observado |
+|---|---|---|---|---|
+| backend | 390,8 MB | 412,2 MB | 1024 MB | 40% do limite |
+| cron | 356,1 MB | 359,0 MB | 640 MB | 56% do limite |
+| postgres | 372,8 MB | 329,8 MB | 640 MB | 65% do limite |
+
+O backend subiu 21 MB ao longo da janela e parou — heap sendo exercitado, que e
+o comportamento esperado e a razao de os limites terem folga em vez de estarem
+colados no uso de boot. O cron praticamente nao variou. O Postgres oscilou para
+baixo.
+
+Nenhum container passou de 65% do teto, nenhum reinicio, nenhum OOM kill em
+20 minutos. **A mudanca de memoria esta validada em producao**, nao apenas no
+instante do boot.
+
+CPU do backend e do cron caiu para cerca de 0,25% e ficou la: o trabalho pesado
+esta no Postgres, como o diagnostico do Seq Scan indicava, e nao no processo
+Java.
+
+### Composicao ruim observada durante o deploy
+
+O `deploy-web.sh` faz `pg_dump` antes de migrar, o que e correto. So que esse
+backup rodou junto com o job de reparo de imagem, no mesmo Postgres. Disputando
+I/O, a consulta do repair passou de 2,8 s para 10,6 s.
+
+Cada um dos dois isolado seria toleravel. O backup de um banco de 1 GB levou
+mais de 9 minutos, numa VPS com 50-63% de steal time. Isso nao e defeito de
+nenhum dos dois, e sim consequencia de rodar build, backup e job periodico na
+mesma maquina compartilhada — mais um argumento para o P1.1 (tirar o build da
+VPS), ja que o build ocupa a maquina justamente na janela em que o backup
+precisa de I/O.
