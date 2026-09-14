@@ -1398,3 +1398,25 @@ o deploy passaria de "40-60 min sujeitos a carga alheia" para "pull + up".
 
 Enquanto o backup de ~380 MB e o build Maven acontecerem na VPS, cada deploy
 desta aplicacao tambem **piora** o I/O dos outros 24 projetos durante 30-50 min.
+
+### Ciclo de backup verificado de ponta a ponta
+
+Deploy das 16:58, acompanhado ate o fim do backup:
+
+```
+pg_dump          ~44 min  (COPY product_enrichments, gargalo em DataFileRead)
+pg_restore -l    valida antes de copiar
+docker cp        379.344.372 bytes -> backups/backup_20260914_165900.dump
+rm temporario    /tmp/pdv2cloud_backup.dump: No such file or directory
+prune_backups    mantem 1 por dia
+pg_restore -l    709 objetos (inclui o indice V53)
+```
+
+Uma observacao de metodo: ao inspecionar durante a copia, o arquivo aparecia com
+**37,7 MB** — 10x menor que os demais. Parecia um dump truncado. Nao era: o
+`docker cp` estava a meio caminho, e quatro minutos depois o arquivo tinha os
+379 MB completos e passava na validacao.
+
+Vale registrar porque e a mesma armadilha das outras vezes: uma leitura pontual
+de um sistema em movimento parece um defeito. A diferenca aqui foi olhar duas
+vezes antes de concluir.
