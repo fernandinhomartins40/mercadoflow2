@@ -1,0 +1,18 @@
+# Contexto de build da raiz. Nenhum Dockerfile daqui precisa destes caminhos.
+.git
+.github
+node_modules
+frontend/node_modules
+frontend/dist
+backend/target
+data
+backups
+qa
+docs
+*.md
+.env
+.env.*
+.db_secret
+.jwt_secret
+.app_role_secret
+pdv2cloud-agent/installer/Output

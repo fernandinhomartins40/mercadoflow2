@@ -1,0 +1,8 @@
+# O build roda `npm ci` dentro da imagem: mandar node_modules (147 MB) para o
+# daemon so para o Dockerfile descarta-lo depois e desperdicio puro.
+node_modules
+dist
+.vite
+*.log
+.env
+.env.*

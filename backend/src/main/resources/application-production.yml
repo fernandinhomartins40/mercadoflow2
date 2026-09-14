@@ -3,6 +3,15 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://postgres:5432/pdv2cloud}
     username: ${DATABASE_USER:pdv2cloud}
     password: ${DATABASE_PASSWORD:pdv2cloud}
+    hikari:
+      # O PostgreSQL e compartilhado com outras aplicacoes desta VPS. O default
+      # do Spring Boot (10) mantinha 10 conexoes OCIOSAS o tempo todo, e cada
+      # conexao custa ~5-10 MB de RSS no servidor. Com minimum-idle baixo o pool
+      # encolhe fora do horario de uso e cresce sob demanda ate maximum-pool-size.
+      maximum-pool-size: ${DB_POOL_MAX:8}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      idle-timeout: 300000
+      max-lifetime: 1800000
   jpa:
     properties:
       hibernate:

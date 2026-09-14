@@ -250,6 +250,30 @@ EOF
   chmod 600 .env
 }
 
+prune_backups() {
+  # Mantem UM backup por dia (o mais recente daquele dia) nos ultimos 7 dias.
+  #
+  # A regra anterior ("os 3 mais recentes") guardava tres dumps de 338 MB do
+  # MESMO dia quando havia tres deploys, ou seja, 1 GB protegendo contra nada
+  # alem do ultimo deploy. Por dia, o mesmo espaco cobre uma semana.
+  local f dia
+  declare -A visto=()
+
+  while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    dia="$(basename "$f" | sed -n 's/^backup_\([0-9]\{8\}\)_.*/\1/p')"
+    [[ -n "$dia" ]] || continue
+    if [[ -n "${visto[$dia]:-}" ]]; then
+      rm -f "$f"
+    else
+      visto[$dia]=1
+    fi
+  done < <(ls -t "${APP_DIR}"/backups/backup_*.dump 2>/dev/null)
+
+  # Alem de sete dias distintos, descarta os mais antigos.
+  ls -t "${APP_DIR}"/backups/backup_*.dump 2>/dev/null | tail -n +8 | xargs -r rm -f
+}
+
 backup_database() {
   local container_name="mercadoflow-postgres"
   if ! docker ps --format '{{.Names}}' | grep -qx "$container_name"; then
@@ -268,7 +292,7 @@ backup_database() {
     docker exec "$container_name" rm -f "${container_dump}" >/dev/null 2>&1 || true
     if [[ -s "$backup_file" ]]; then
       log "Backup salvo em $backup_file"
-      ls -t "${APP_DIR}"/backups/backup_* 2>/dev/null | tail -n +4 | xargs -r rm -f
+      prune_backups
       return
     fi
   fi

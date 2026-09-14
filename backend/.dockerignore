@@ -1,0 +1,8 @@
+# `mvn package` recria target/ dentro da imagem.
+target
+*.log
+.env
+.env.*
+data
+logs
+uploads

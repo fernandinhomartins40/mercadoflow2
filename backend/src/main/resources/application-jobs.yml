@@ -1,6 +1,37 @@
+# Perfil dos JOBS (container mercadoflow-cron).
+#
+# Use SEMPRE junto do perfil de ambiente: SPRING_PROFILES_ACTIVE=production,jobs
+# Sozinho, o perfil jobs perde o application-production.yml e o processo sobe
+# com log verboso e sem as configuracoes de producao.
+#
+# POR QUE O TOMCAT CONTINUA LIGADO
+# Tentou-se `web-application-type: none` para economizar memoria. Nao funciona:
+# SecurityConfig (@EnableWebSecurity, HttpSecurity), os cinco filtros de
+# seguranca (OncePerRequestFilter) e os dois WebMvcConfigurer sao @Component /
+# @Configuration incondicionais. Sem contexto web o Spring nao consegue
+# instancia-los e o boot falha. Desligar exigiria anotar oito classes com
+# @Profile("!jobs") -- e qualquer classe web nova voltaria a quebrar os jobs.
+#
+# Em vez disso, o Tomcat sobe com o minimo: este processo nao recebe trafego
+# (nenhum upstream do nginx aponta para ele), entao duas threads bastam.
 spring:
   main:
     web-application-type: servlet
+  datasource:
+    hikari:
+      # Jobs rodam em serie, de madrugada. 10 conexoes ociosas o dia inteiro
+      # (o default do Spring Boot) so ocupavam slots do PostgreSQL compartilhado.
+      maximum-pool-size: 4
+      minimum-idle: 1
+      idle-timeout: 300000
+
+server:
+  tomcat:
+    threads:
+      max: 2
+      min-spare: 1
+    max-connections: 10
+    accept-count: 5
 
 jobs:
   enabled: true
