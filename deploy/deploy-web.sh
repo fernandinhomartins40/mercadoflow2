@@ -282,6 +282,20 @@ backup_database() {
   fi
 
   mkdir -p "${APP_DIR}/backups"
+
+  # Um dump deste banco leva ~11 min (1 GB, VPS com bastante steal time).
+  # Se ja existe um backup validado de menos de BACKUP_MAX_AGE_MIN minutos,
+  # reaproveita: em deploys seguidos (corrigir e reenviar) refazer o dump
+  # so consome I/O e empurra o build para fora da janela do workflow.
+  local max_age="${BACKUP_MAX_AGE_MIN:-45}"
+  local recente
+  recente="$(find "${APP_DIR}/backups" -maxdepth 1 -name "backup_*.dump" -mmin "-${max_age}" -size +1k 2>/dev/null | sort | tail -n 1)"
+  if [[ -n "$recente" ]]; then
+    log "Backup recente reaproveitado: $(basename "$recente") (< ${max_age} min)"
+    prune_backups
+    return
+  fi
+
   local backup_file="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).dump"
   local container_dump="/tmp/pdv2cloud_backup.dump"
 

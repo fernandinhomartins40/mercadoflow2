@@ -163,7 +163,13 @@ jobs:
           # Secrets ausentes viram string vazia, e o deploy-web.sh reaproveita o
           # que ja estiver no .env do servidor — um deploy sem eles nao desliga
           # a cobranca que ja funcionava.
-          sshpass -f ~/.ssh/vps_password ssh -o StrictHostKeyChecking=no root@${VPS_HOST} <<EOF
+          # ServerAlive*: o pg_dump pre-migracao fica ~11 min sem escrever nada
+          # no terminal. Sem keepalive a conexao ociosa era derrubada no meio do
+          # backup ("client_loop: send disconnect: Broken pipe", exit 255) e o
+          # Actions falhava enquanto o script seguia rodando orfao na VPS.
+          sshpass -f ~/.ssh/vps_password ssh -o StrictHostKeyChecking=no \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=120 \
+            root@${VPS_HOST} <<EOF
           set -euo pipefail
           cd /root/mercadoflow-web
           chmod +x deploy/deploy-web.sh
