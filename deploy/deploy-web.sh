@@ -326,6 +326,64 @@ ensure_catalog_volume() {
   docker volume create "${POSTGRES_VOLUME_NAME}" >/dev/null
 }
 
+# O "compose up" pode terminar deixando servico em "Created": quando um
+# depends_on/service_healthy nao e satisfeito, o compose cria o container e
+# desiste de inicia-lo. Foi o que aconteceu em 14/09 — frontend, cron, nginx e
+# os coletores ficaram criados e nunca iniciados, o site respondeu 502 por
+# horas, e o deploy nao acusou nada: wait_for_health testa /health, que o nginx
+# do host serve direto do backend, sem passar pelo container do frontend.
+#
+# Aqui a falha deixa de ser silenciosa. So faz sentido rodar DEPOIS do
+# wait_for_health, quando o backend ja esta saudavel e os dependentes ja
+# deveriam ter subido.
+verificar_containers_parados() {
+  local esperados=(
+    mercadoflow-postgres
+    mercadoflow-backend
+    mercadoflow-frontend
+    mercadoflow-cron
+    mercadoflow-nginx
+  )
+  local parados=()
+  local nome estado
+
+  for nome in "${esperados[@]}"; do
+    estado="$(docker inspect "$nome" --format '{{.State.Status}}' 2>/dev/null || echo ausente)"
+    if [[ "$estado" != "running" ]]; then
+      parados+=("${nome} (${estado})")
+      # Uma tentativa de subir: em "Created" o container esta pronto, so nao foi
+      # iniciado porque o compose desistiu de esperar a dependencia.
+      if [[ "$estado" == "created" || "$estado" == "exited" ]]; then
+        log "Container ${nome} em '${estado}'; tentando iniciar"
+        docker start "$nome" >/dev/null 2>&1 || true
+      fi
+    fi
+  done
+
+  if (( ${#parados[@]} == 0 )); then
+    log "Todos os containers essenciais estao em execucao"
+    return
+  fi
+
+  sleep 10
+
+  local ainda=()
+  for nome in "${esperados[@]}"; do
+    estado="$(docker inspect "$nome" --format '{{.State.Status}}' 2>/dev/null || echo ausente)"
+    [[ "$estado" != "running" ]] && ainda+=("${nome} (${estado})")
+  done
+
+  if (( ${#ainda[@]} > 0 )); then
+    echo "ERRO: containers essenciais fora de execucao apos o deploy:" >&2
+    printf '  - %s
+' "${ainda[@]}" >&2
+    compose ps || true
+    exit 1
+  fi
+
+  log "Containers recuperados: ${parados[*]}"
+}
+
 wait_for_health() {
   local attempt=1
   while (( attempt <= HEALTH_ATTEMPTS )); do
@@ -587,6 +645,8 @@ main() {
   ensure_host_nginx_proxy
 
   wait_for_health
+
+  verificar_containers_parados
 
   # Depois do boot: o Flyway acabou de rodar e pode ter criado tabelas nesta
   # execucao. O GRANT anterior nao as alcanca (ALTER DEFAULT PRIVILEGES so vale

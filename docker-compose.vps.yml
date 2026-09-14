@@ -98,7 +98,22 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 90s
+      # 600s, nao 90s. Medido no deploy de 14/09: "Started PDV2CloudApplication
+      # in 501.704 seconds". Nesta VPS o boot e lento por dois motivos somados —
+      # 50-63% de steal time e o Flyway rodando migracoes no start.
+      #
+      # Com 90s o healthcheck comecava a falhar aos 90s e, apos 5 retries de 30s,
+      # marcava o backend como unhealthy por volta de 240s — muito antes dos
+      # 501s reais. Como frontend, cron, nginx e os tres coletores tem
+      # "depends_on: mercadoflow-backend / condition: service_healthy", o
+      # "compose up" desistia e os deixava em "Created", nunca iniciados.
+      # Resultado: o backend acabava saudavel, mas o site ficava em 502 porque o
+      # container do frontend jamais subiu. Falha silenciosa — o deploy termina
+      # sem erro visivel e so o usuario final percebe.
+      #
+      # start_period nao atrasa nada quando o boot e rapido: o container e
+      # marcado healthy no primeiro wget que responde.
+      start_period: 600s
 
   mercadoflow-frontend:
     container_name: mercadoflow-frontend
