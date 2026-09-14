@@ -843,3 +843,49 @@ para medir.
 Isto tambem qualifica a secao anterior sobre steal time. O steal de 50-63% e
 real e externo. Mas ele nao explicava sozinho a CPU do Postgres: havia carga
 propria evitavel junto, e ela e nossa.
+
+### Dimensionando o ganho do indice com honestidade
+
+Depois de criar o V53 eu segui medindo, e e preciso corrigir a magnitude que a
+secao acima sugere.
+
+O job e limitado: `batch-size:200` e `max-items-per-run:1000`, ou seja **cinco
+paginas por execucao**, nao a tabela inteira. A 2,8 s de Seq Scan por pagina,
+isso da cerca de **14 s de banco por disparo**, nao os vinte e tantos minutos de
+CPU alta que eu observei.
+
+O ganho do indice e real e vale o commit — 14 s de Parallel Seq Scan a cada 6 h
+viram ~14 ms, e some o par de workers paralelos por pagina. Mas ele **nao**
+explica sozinho a CPU sustentada do Postgres. O restante do tempo e o trabalho
+de reparo propriamente dito (`ensureManagedImageAvailable`, que baixa imagem),
+que e o proposito do job e nao e desperdicio.
+
+Investigando as conexoes ativas durante esse periodo, apareceu ainda um
+`COPY public.product_enrichments` rodando havia 3 min 44 s: era o `pg_dump` do
+backup do proprio deploy. Legitimo e temporario, mas somava ao load no momento
+em que eu media.
+
+Ou seja, a CPU do Postgres naquele intervalo tinha tres componentes somados:
+o Seq Scan evitavel (corrigido), o download de imagens do job (legitimo) e o
+`pg_dump` do deploy (temporario). Atribuir tudo ao primeiro teria sido
+exagerar o proprio resultado.
+
+### Verificacao de que o problema era pontual, nao sistemico
+
+Medi tambem a outra consulta pesada do mesmo repositorio, a do painel
+super-admin, que faz `distinct on (product_id)` com filtros dinamicos:
+
+```
+Index Scan using idx_product_enrichment_product on product_enrichments
+Execution Time: 184.539 ms
+```
+
+Ela **ja usa** o indice existente `(product_id, fetched_at DESC)`, sem Seq Scan.
+Nao precisa de indice novo. So a consulta do job de reparo estava descoberta,
+porque ordena por `fetched_at` sem filtrar por `product_id`. Nenhum indice
+adicional foi criado alem do V53.
+
+### Retencao de backup: funcionando
+
+`prune_backups()` verificada em producao: restaram `backup_20260812_183547.dump`
+e `backup_20260914_020715.dump` — um por dia, sem acumulo.
