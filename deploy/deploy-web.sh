@@ -343,9 +343,22 @@ verificar_containers_parados() {
     mercadoflow-frontend
     mercadoflow-cron
     mercadoflow-nginx
+    mercadoflow-catalog-harvester
+    mercadoflow-barcode-enricher
   )
   local parados=()
   local nome estado
+
+  # Os dependentes so sobem com o backend saudavel. Numa VPS com 50-63% de
+  # steal time o boot medido foi de 501 s, entao esperar ate 12 min aqui e o
+  # que evita declarar falha num backend que ainda esta subindo normalmente.
+  local esperas=0
+  while (( esperas < 72 )); do
+    [[ "$(docker inspect mercadoflow-backend --format '{{.State.Health.Status}}' 2>/dev/null)" == "healthy" ]] && break
+    (( esperas % 12 == 0 )) && log "Aguardando backend ficar saudavel ($(( esperas * 10 ))s)"
+    sleep 10
+    ((esperas++))
+  done
 
   for nome in "${esperados[@]}"; do
     estado="$(docker inspect "$nome" --format '{{.State.Status}}' 2>/dev/null || echo ausente)"
@@ -642,11 +655,18 @@ main() {
   log "Status dos containers apÃ³s atualizaÃ§Ã£o"
   compose ps
 
+  # ANTES do wait_for_health, nao depois. Quem publica a porta 3300 e o
+  # container mercadoflow-nginx, e ele depende de "backend: service_healthy" +
+  # "frontend: service_started". Se o compose desistir e deixa-lo em "Created",
+  # nada escuta na 3300 e o wait_for_health esgota o timeout e mata o deploy —
+  # sem nunca chegar na recuperacao, se ela viesse depois. A dependencia e
+  # circular: o health check testa a porta que so existe se os containers
+  # subiram.
+  verificar_containers_parados
+
   ensure_host_nginx_proxy
 
   wait_for_health
-
-  verificar_containers_parados
 
   # Depois do boot: o Flyway acabou de rodar e pode ter criado tabelas nesta
   # execucao. O GRANT anterior nao as alcanca (ALTER DEFAULT PRIVILEGES so vale
