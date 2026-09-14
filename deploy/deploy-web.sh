@@ -1,6 +1,38 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Um deploy por vez.
+#
+# O workflow tem "concurrency: cancel-in-progress", mas isso cancela o job no
+# GitHub — nao o processo do outro lado do ssh. O script continua rodando orfao
+# na VPS. Em 14/09 dois deploys ficaram ativos ao mesmo tempo e os dois pg_dump
+# escreviam no MESMO /tmp/pdv2cloud_backup.dump, o que corrompe o backup
+# pre-migracao e deixa a ordem de termino decidir qual versao do codigo vence.
+#
+# Aqui o deploy novo TOMA o lugar do antigo, em vez de recusar-se a rodar: um
+# push mais recente representa a intencao mais atual, e desistir deixaria a
+# producao presa a um orfao que ninguem vai matar.
+DEPLOY_LOCK="${DEPLOY_LOCK:-/var/lock/mercadoflow-deploy.lock}"
+if [[ "${DEPLOY_LOCK_ACQUIRED:-}" != "1" ]]; then
+  exec 9>"$DEPLOY_LOCK"
+  if ! flock -n 9; then
+    anterior="$(cat "${DEPLOY_LOCK}.pid" 2>/dev/null || true)"
+    if [[ -n "$anterior" ]] && kill -0 "$anterior" 2>/dev/null; then
+      echo "[deploy] Ja ha um deploy em andamento (PID $anterior); encerrando-o para assumir."
+      # -TERM no grupo do processo: o script tem filhos de longa duracao
+      # (pg_dump, build) que precisam morrer junto, senao continuam competindo.
+      kill -TERM -- "-$(ps -o pgid= -p "$anterior" | tr -d ' ')" 2>/dev/null || kill -TERM "$anterior" 2>/dev/null || true
+      for _ in $(seq 1 30); do
+        kill -0 "$anterior" 2>/dev/null || break
+        sleep 1
+      done
+      kill -KILL "$anterior" 2>/dev/null || true
+    fi
+    flock -w 60 9 || { echo "[deploy] ERRO: nao foi possivel obter o lock de deploy" >&2; exit 1; }
+  fi
+  echo $$ > "${DEPLOY_LOCK}.pid"
+fi
+
 APP_DIR="${APP_DIR:-/root/mercadoflow-web}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.vps.yml}"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-mercadoflow-web}"
