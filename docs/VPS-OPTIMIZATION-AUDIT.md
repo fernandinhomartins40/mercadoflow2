@@ -1205,3 +1205,76 @@ observado a cada 6 h.
 
 Para fechar com numero medido de ponta a ponta seria preciso cronometrar uma
 execucao real do `CatalogImageRepairJob`, que roda a cada 6 h. **NAO MEDIDO.**
+
+---
+
+## A verificacao do deploy tinha uma dependencia circular
+
+A correcao `ce0472b` colocou `verificar_containers_parados` **depois** de
+`wait_for_health`. Nesse lugar ela nunca roda no unico caso em que seria util.
+
+Quem publica a porta que o `wait_for_health` testa nao e o backend:
+
+```yaml
+mercadoflow-nginx:
+  ports:
+    - "3300:3300"
+  depends_on:
+    mercadoflow-backend:  { condition: service_healthy }
+    mercadoflow-frontend: { condition: service_started }
+```
+
+Medido na VPS:
+
+```
+$ docker port mercadoflow-backend
+(vazio)
+
+$ docker exec mercadoflow-backend wget -qO- http://127.0.0.1:8080/health
+{"status":"ok"}
+
+$ curl http://127.0.0.1:3300/health
+000  (nada escutando)
+```
+
+O backend responde, mas **nao publica porta alguma no host**. A 3300 pertence ao
+container `mercadoflow-nginx`, que estava em `Created`.
+
+O ciclo:
+
+```
+wait_for_health testa 127.0.0.1:3300
+    |
+    v
+a 3300 so existe se mercadoflow-nginx subiu
+    |
+    v
+nginx so sobe se backend healthy E frontend iniciado
+    |
+    v
+se o compose desistiu, ninguem subiu -> 3300 morta
+    |
+    v
+wait_for_health esgota o timeout e mata o deploy
+    |
+    v
+a recuperacao, colocada depois, nunca executa
+```
+
+Corrigido em `d7bd9f5`:
+
+- `verificar_containers_parados` movida para **antes** de `wait_for_health`
+- espera ate 12 min pelo backend ficar `healthy` antes de julgar os dependentes,
+  compativel com o boot de 501 s medido
+- inclui `catalog-harvester` e `barcode-enricher`, que tambem ficaram parados
+
+### Observacao sobre o tempo de backup
+
+O `pg_dump` deste deploy levou **mais de 41 minutos**, contra os ~11 min
+estimados antes, com load 15,7 na VPS. O reaproveitamento de dump recente
+(`cee07dc`) nao se aplicou porque o backup mais novo era de 12 h atras — o
+`find` retornou vazio corretamente, como projetado.
+
+Isso reforca o P1.1: enquanto o deploy depender de dump e build feitos na
+propria VPS compartilhada, sua duracao fica refem da carga dos outros projetos e
+nao ha ajuste de timeout que a torne previsivel.
