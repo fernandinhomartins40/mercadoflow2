@@ -968,3 +968,76 @@ nenhum dos dois, e sim consequencia de rodar build, backup e job periodico na
 mesma maquina compartilhada — mais um argumento para o P1.1 (tirar o build da
 VPS), ja que o build ocupa a maquina justamente na janela em que o backup
 precisa de I/O.
+
+## O deploy do V53 falhou, e a causa e estrutural
+
+O commit `5680b94` (indice V53) foi enviado, o rsync levou o arquivo para a VPS
+as 02:35, e o deploy terminou **sem aplicar a migracao**. Estado observado:
+
+| Verificacao | Resultado |
+|---|---|
+| `V53...sql` no disco da VPS | presente (02:35) |
+| `V53` dentro de `/app/app.jar` | ausente |
+| `flyway_schema_history` | v52 |
+| Imagem `mercadoflow-web-mercadoflow-backend` | criada 02:17 (deploy anterior) |
+| Container backend | de pe desde 02:18, saudavel |
+| Processo `deploy-web.sh` | encerrado |
+
+Ou seja: o codigo chegou, mas nada foi recompilado nem recriado. Nao houve
+erro de Flyway — o Flyway nunca chegou a rodar, porque o jar em execucao e o
+antigo.
+
+### Por que
+
+Tres coisas se somam, e nenhuma delas e um bug isolado:
+
+1. **`timeout-minutes: 30`** no workflow (`deploy-pdv2cloud-web.yml:23`).
+2. **`backup_database` levou 11 minutos** (02:35 → 02:46, dump de 379 MB de um
+   banco de 1 GB) numa VPS com 50-63% de steal time.
+3. **`cleanup_docker_artifacts` roda na linha 576, no fim de cada deploy**, e
+   com `DOCKER_CLEANUP_BUILD_CACHE=true` (padrao, e explicito no workflow em
+   `deploy-pdv2cloud-web.yml:171`) executa `docker builder prune -af`.
+
+O item 3 e o que torna isso recorrente: **todo deploy termina apagando o cache
+de build, o que obriga o proximo a compilar Maven do zero.** Confirmado na VPS:
+`Build Cache 0B`. Sobraram 19 dos 30 minutos para um build completo sem cache
+numa maquina com metade da CPU roubada. Nao coube.
+
+Descartadas as hipoteses obvias antes de concluir: `docker pull` funciona, ha
+63 GB livres em disco, o backup terminou com exito e o dump temporario foi
+limpo corretamente.
+
+### Consequencia pratica
+
+Isto nao afeta so o V53. **Qualquer deploy desta aplicacao esta sujeito a
+terminar sem aplicar o que foi commitado**, silenciosamente do ponto de vista de
+quem olha so os containers: eles continuam de pe e saudaveis, servindo a versao
+antiga. Foi exatamente o que aconteceu aqui, e so apareceu porque eu estava
+verificando a criacao de um indice especifico.
+
+### Correcao proposta (nao aplicada ainda)
+
+Nao vou alterar o pipeline sem confirmacao, porque mexe na forma como a
+aplicacao vai para producao. Em ordem de retorno:
+
+1. **Nao apagar o cache de build ao fim do deploy.** Passar
+   `DOCKER_CLEANUP_BUILD_CACHE=false`, ou trocar `builder prune -af` por
+   `builder prune -f --keep-storage 2GB`. O `-a` e o que remove tudo, inclusive
+   as camadas de dependencia Maven que nao mudam entre deploys. Com 63 GB
+   livres, guardar 2 GB de cache e barato.
+2. **Aumentar `timeout-minutes`** de 30 para algo como 60, dando folga para o
+   backup lento.
+3. **P1.1, que resolve a raiz**: compilar no CI e enviar a imagem pronta (GHCR).
+   Elimina o build da VPS, e com ele o consumo de CPU na maquina compartilhada,
+   a dependencia de cache local e a maior parte do tempo do deploy.
+
+O item 1 e de baixo risco e resolve a recorrencia imediata. O item 3 continua
+sendo o ganho estrutural.
+
+### Estado atual de producao
+
+A aplicacao esta no ar e saudavel, servindo o commit `c061c74` com as
+otimizacoes de memoria do commit `3836756` ja ativas (essas foram aplicadas no
+deploy das 02:17, que completou). O que **nao** esta em producao e o indice
+V53. O Seq Scan de ~23 min a cada 6 h continua acontecendo ate o proximo deploy
+bem-sucedido.
