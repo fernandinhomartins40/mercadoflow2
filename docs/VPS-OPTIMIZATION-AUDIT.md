@@ -1278,3 +1278,83 @@ estimados antes, com load 15,7 na VPS. O reaproveitamento de dump recente
 Isso reforca o P1.1: enquanto o deploy depender de dump e build feitos na
 propria VPS compartilhada, sua duracao fica refem da carga dos outros projetos e
 nao ha ajuste de timeout que a torne previsivel.
+
+---
+
+## Auditoria: os deploys que falharam geraram lixo ou backup corrompido?
+
+Pergunta levantada em 14/09: se cada deploy gera backup e varios deploys
+falharam, o disco estaria acumulando dumps corrompidos.
+
+**Resposta medida: nao. Nenhum backup esta corrompido e nao ha lixo acumulado.**
+
+### Integridade de todos os dumps
+
+Validado com `pg_restore --list`, que le o indice do arquivo (um dump truncado
+falha aqui):
+
+```
+OK  backup_20260812_183547.dump          708 objetos
+OK  backup_20260914_023522.dump          708 objetos
+OK  backup_20260914_032110.dump          708 objetos
+OK  backup_20260914_161623.dump          709 objetos
+OK  catalog_only_20260714031424.dump      34 objetos
+OK  pre_rls_full_20260714031343.dump     315 objetos
+```
+
+O de 16:16 tem **709 objetos**, um a mais que os anteriores: e o indice V53.
+Confirma que o dump e integro e posterior a migracao.
+
+### Por que nada corrompeu, apesar dos dois pg_dump simultaneos
+
+Duas protecoes que ja existiam no script, e que eu nao havia examinado antes de
+supor corrupcao:
+
+```bash
+if docker exec "$c" sh -lc "pg_dump -Fc ... -f '${container_dump}'" \
+  && docker exec "$c" sh -lc "pg_restore -l '${container_dump}' >/dev/null"; then
+  docker cp "${c}:${container_dump}" "$backup_file"
+  docker exec "$c" rm -f "${container_dump}"
+```
+
+1. **O dump e validado com `pg_restore -l` antes de ser copiado.** Um arquivo
+   corrompido nunca chega a `backups/`.
+2. **O `pg_dump` escreve em `/tmp` DENTRO do container**; so depois o `docker cp`
+   o move para `backups/` com nome timestampado. Os dois deploys disputavam o
+   arquivo temporario, nao o backup final.
+3. O dump temporario e removido nos dois caminhos, sucesso e falha.
+
+O risco de corrupcao era **real mas nao se materializou** — se os dois
+`docker cp` tivessem caido em janelas diferentes, um arquivo parcialmente
+reescrito poderia ter sido copiado. O `flock` de `81feb3b` fecha essa janela.
+
+### Inventario de lixo (medido)
+
+| Item | Estado | Acao |
+|---|---|---|
+| `backups/` | 1,8 GB, 6 dumps, todos validos | nenhuma |
+| Retencao de backups | funcionando: 1/dia, 7 dias | nenhuma |
+| Dump temporario no container | removido pelo script; o de 379 MB visto era o deploy em curso | nenhuma |
+| Imagens dangling | 6 (~1,7 GB de 15 h atras + ~400 MB de 6-7 meses) | ja coberto pelo cleanup |
+| Containers `Exited` | **zero** em toda a VPS | nenhuma |
+| Volumes do projeto | 1 (`mercadoflow-web_mercadoflow_postgres_data`) | preservar |
+| Build cache | 409 MB (era 0 B apos o `prune -af`) | esperado, `fc81d65` |
+| `/tmp` do host | sem sobras de deploy | nenhuma |
+| `data/catalog` | 12 GB, 174.733 arquivos, **1** vazio/temporario | dado real, preservar |
+| `.env.bak-antes-rls` | 1 arquivo, 1,5 KB, de 10/08 | inofensivo |
+| Diretorios de release | **nao se aplica**: o deploy usa diretorio fixo | — |
+
+Nao existem releases versionadas neste projeto: o deploy sincroniza sempre em
+`/root/mercadoflow-web`. Isso elimina por construcao a classe de lixo mais comum
+nesta VPS (releases orfas com containers apontando para diretorios apagados).
+
+Disco: **36 GB de 97 GB (38%)**. Os 12 GB do catalogo sao o maior item e sao
+dados de producao.
+
+### Correcao de uma suposicao minha
+
+Ao ver dois `pg_dump` concorrentes eu afirmei que "o backup vai sair
+corrompido". Era uma inferencia plausivel e estava **errada**: o script tinha
+validacao e staging em arquivo temporario. O certo era ler o `backup_database`
+antes de afirmar — o mesmo erro de metodo das outras tres vezes registradas
+aqui, medir o que parece em vez de verificar o que e.
