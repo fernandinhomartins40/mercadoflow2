@@ -704,3 +704,83 @@ Seed: o projeto nao tem seed separado -- `ProductionSeeder` roda no startup, con
 4. **`effective_cache_size: 768MB`** muda planos de consulta. Nenhuma consulta ficou mais lenta em teste, mas o volume de dados de teste era pequeno.
 5. **A VPS continua sem swap**, com `Committed_AS` acima do `CommitLimit`. Os limites reduzem o risco de uma aplicacao derrubar as outras, mas **nao substituem** avaliar swap ou mais RAM.
 6. **O build ainda ocorre na VPS.** Enquanto isso durar, todo deploy causa um pico de CPU que afeta as outras cinco aplicacoes.
+
+## Medicao em producao apos o deploy (2026-09-14 02:20-02:30 UTC)
+
+Commit `3836756`. Os oito containers foram recriados com os limites novos.
+
+### Validacao funcional
+
+| Verificacao | Resultado |
+|---|---|
+| `https://mercadoflow.com/` | 200 |
+| `POST /api/v1/auth/login` com corpo invalido | 400 |
+| `POST /api/v1/auth/login` com credencial errada | 401 |
+| `/actuator/health` interno | 200, `{"status":"UP"}` |
+| `java.lang.OutOfMemoryError` no backend | 0 |
+| `java.lang.OutOfMemoryError` no cron | 0 |
+| Boot do cron com perfil `jobs` | 128,8 s, seguido de `Alert generation completed for 5 markets` |
+
+Nota de metodo: as primeiras tentativas usaram `/api/auth/login` e `/api/markets`
+e devolveram 403. Nao era regressao. O caminho real e `/api/v1/...`; o Spring
+Security nega rota inexistente sem vazar se ela existe, que e o comportamento
+correto. O erro estava no teste, nao na aplicacao.
+
+### Memoria: antes x depois
+
+| Container | Antes | Depois | Limite | % do limite |
+|---|---|---|---|---|
+| postgres | NAO MEDIDO isoladamente | 419 MB | 640 MB | 65% |
+| backend | ~1,5 GB | 389 MB | 1024 MB | 38% |
+| cron | ~1,5 GB | 356 MB | 640 MB | 56% |
+| state-price-sync | NAO MEDIDO | 65 MB | 320 MB | 20% |
+| catalog-harvester | NAO MEDIDO | 28 MB | 192 MB | 15% |
+| barcode-enricher | NAO MEDIDO | 20 MB | 192 MB | 10% |
+| frontend | NAO MEDIDO | 3,6 MB | 64 MB | 6% |
+| nginx | NAO MEDIDO | 3,4 MB | 64 MB | 5% |
+| **Total MercadoFlow** | **~4,9 GB** | **~1,28 GB** | 3,2 GB | 40% |
+
+A maquina inteira ficou em 3,3 GB de 7,9 GB usados, com 3,98 GB disponiveis.
+Nenhum container encostou no teto, que era o risco real da mudanca: um limite
+apertado demais nao economiza, apenas troca consumo por OOM kill.
+
+Conexoes no banco: 10 (4 ativas + 6 ociosas), contra 20 ociosas antes.
+
+Ressalva: sao numeros de um sistema recem-reiniciado. Heap de JVM tende a subir
+conforme e exercitado; por isso os limites tem folga em vez de serem colados no
+uso observado.
+
+### CPU: a descoberta que muda a leitura
+
+O load average apos o deploy ficou entre 10 e 13, e o Postgres apareceu com
+93% e depois 127% de CPU. A leitura ingenua seria culpar o tuning novo. Nao e
+isso. Cinco amostras de `top` seguidas:
+
+```
+steal: 58.2%   steal: 63.5%   steal: 50.8%   steal: 56.1%   steal: 52.5%
+```
+
+**Metade a dois tercos da CPU da VPS e steal time** — tempo em que o hypervisor
+tira a CPU desta maquina virtual para atender outros inquilinos do host fisico.
+Isso e externo a esta VPS e nao ha nada no MercadoFlow que o corrija.
+
+Consequencias praticas:
+
+1. O load alto **nao** e evidencia de que a aplicacao esta pesada. Com 50% de
+   steal, cada processo leva o dobro do tempo de parede para o mesmo trabalho,
+   e o load reflete a fila de espera por CPU roubada.
+2. Otimizar query ou cache **nao** resolveria esse load. Ja estava classificado
+   como despriorizado no relatorio por falta de trafego real; o steal reforca.
+3. O ganho de memoria e real e mensuravel; o de CPU nao e atribuivel a esta
+   auditoria e nao sera reivindicado. **Ganho de CPU: nao medido, e nao
+   atribuivel.**
+4. Se o steal persistir, o caminho e falar com o provedor ou trocar de host, nao
+   mexer na aplicacao.
+
+### Situacao do build na VPS (P1.1)
+
+Confirmado em producao: durante este deploy o load subiu porque o Maven compila
+na propria VPS compartilhada. Isso penaliza as outras cinco aplicacoes por
+alguns minutos a cada deploy. Continua pendente e permanece como o proximo ganho
+real, deliberadamente fora deste commit para nao confundir uma eventual
+regressao de memoria com uma mudanca de pipeline.
