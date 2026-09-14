@@ -1358,3 +1358,43 @@ corrompido". Era uma inferencia plausivel e estava **errada**: o script tinha
 validacao e staging em arquivo temporario. O certo era ler o `backup_database`
 antes de afirmar — o mesmo erro de metodo das outras tres vezes registradas
 aqui, medir o que parece em vez de verificar o que e.
+
+---
+
+## Quanto tempo leva o backup, de fato
+
+Estimativa inicial: ~11 min. Medicoes reais em 14/09:
+
+| Deploy | Duracao do pg_dump | Load da VPS |
+|---|---|---|
+| 02:35 | ~11 min | nao medido |
+| 03:21 | ~11 min (interrompido) | nao medido |
+| 16:15 | **>50 min** (encerrado) | 15,7 |
+| 16:58 | **>28 min** e contando | 16,8-18,8 |
+
+O que o Postgres estava fazendo aos 28 min:
+
+```
+pid   | state  | wait_event_type | wait_event    | query
+44316 | active | IO              | DataFileRead  | COPY public.product_enrichments (...)
+```
+
+Gargalo em **I/O de leitura de disco**, na mesma `product_enrichments` de 150.639
+linhas do V53. Nao e CPU e nao esta travado: progride, devagar.
+
+O tempo do backup varia 5x entre deploys sem que nada mude nesta aplicacao. A
+variavel e a carga dos outros ~24 projetos da VPS compartilhada.
+
+### Consequencia para o plano
+
+Isto encerra a discussao sobre ajustar `timeout-minutes`. Nao existe valor
+correto: 30 min era pouco, 60 min pode ser pouco, e qualquer numero escolhido e
+uma aposta na carga alheia no momento do deploy.
+
+O P1.1 (build no CI, imagem no GHCR) deixa de ser apenas economia de CPU e passa
+a ser **condicao para que o deploy seja previsivel**. Combinado com mover o
+backup para fora do caminho critico — um cron proprio, ou `pg_dump` incremental —
+o deploy passaria de "40-60 min sujeitos a carga alheia" para "pull + up".
+
+Enquanto o backup de ~380 MB e o build Maven acontecerem na VPS, cada deploy
+desta aplicacao tambem **piora** o I/O dos outros 24 projetos durante 30-50 min.
