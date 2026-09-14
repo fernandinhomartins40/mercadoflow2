@@ -1148,3 +1148,60 @@ Tres erros desta auditoria tem a mesma forma:
 Em todos, a medicao estava correta e respondia a pergunta errada. Medir o
 proxy conveniente em vez do efeito real e o modo de falha recorrente aqui — e
 ele nao aparece como erro, aparece como sucesso.
+
+---
+
+## Medicao do V53 em producao
+
+Com o indice aplicado, a mesma consulta do job medida em producao dentro de uma
+transacao revertida:
+
+```
+Limit  (actual time=5.022..4806.491 rows=300 loops=1)
+  ->  Index Scan using idx_pe_fetched_at_com_imagem on product_enrichments
+        Buffers: shared hit=155 read=125
+Execution Time: 4890.586 ms
+```
+
+O plano mudou de Parallel Seq Scan para Index Scan, que era o objetivo. Mas o
+tempo veio **pior** que os 2809 ms de antes do indice. Isso nao fazia sentido, e
+o motivo estava no proprio plano: `read=125`. Cento e vinte e cinco paginas
+vindas do disco, a ~38 ms cada — o indice acabara de ser criado e nada dele
+estava em cache.
+
+Repetindo com o cache quente (`hit=280 read=0` nas tres):
+
+| Execucao | Execution Time |
+|---|---|
+| 1 | 496,2 ms |
+| 2 | 191,0 ms |
+| 3 | 2,4 ms |
+
+A terceira bate com os 2,7 ms medidos antes do deploy. A dispersao entre as tres
+nao e ruido de medicao: e o steal time de 50-63% desta VPS — o mesmo trabalho
+leva tempos diferentes conforme o hipervisor devolve CPU.
+
+**Conclusao honesta desta medicao:**
+
+- O plano mudou como esperado, confirmado por `EXPLAIN`: Seq Scan -> Index Scan.
+- Os buffers caem de `hit=23156 read=12238` para `hit=280 read=0` por pagina.
+  Esse numero e estavel e nao depende de carga — e a evidencia mais confiavel
+  aqui, mais que o tempo.
+- O tempo por pagina com cache quente converge para ~2,4 ms, contra 2809 ms.
+- **A primeira execucao apos cada deploy sera lenta** enquanto o cache aquece.
+  Isso e esperado e nao indica problema.
+
+### O ganho no job
+
+Aqui e preciso separar o que foi medido do que foi calculado.
+
+**Medido:** o custo por pagina, acima.
+
+**Calculado, nao medido:** o job varre 150.639 linhas em paginas de 300, ou seja
+~502 paginas. A 2809 ms por pagina isso daria ~23 min por execucao, contra ~20 s
+com o indice. O calculo assume que todas as paginas custam o mesmo, o que nao e
+exato — mas a ordem de grandeza se sustenta e bate com o pico de CPU do Postgres
+observado a cada 6 h.
+
+Para fechar com numero medido de ponta a ponta seria preciso cronometrar uma
+execucao real do `CatalogImageRepairJob`, que roda a cada 6 h. **NAO MEDIDO.**
