@@ -889,3 +889,45 @@ adicional foi criado alem do V53.
 
 `prune_backups()` verificada em producao: restaram `backup_20260812_183547.dump`
 e `backup_20260914_020715.dump` — um por dia, sem acumulo.
+
+### Correcao da correcao: a producao nao usa os defaults do codigo
+
+A secao anterior ("Dimensionando o ganho do indice com honestidade") esta
+**errada** e fica registrada como erro em vez de ser apagada.
+
+Ali eu li `batch-size:200` e `max-items-per-run:1000` direto dos `@Value` do
+Java e conclui que o job varria cinco paginas por execucao. Nao verifiquei o
+ambiente. A producao sobrescreve os dois:
+
+```
+CATALOG_IMAGE_REPAIR_ENABLED=true
+CATALOG_IMAGE_REPAIR_BATCH_SIZE=300
+CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN=250000
+```
+
+`max-items-per-run=250000` e o **teto maximo que o codigo aceita**
+(`Math.min(maxItems, 250000)`), com a tabela em 150.639 linhas. Ou seja, o job
+varre a tabela **inteira**, nao um pedaco dela. Com lote de 300, sao cerca de
+**502 paginas por execucao**, nao cinco.
+
+Refazendo a conta com os numeros reais: 502 paginas x 2,8 s de Seq Scan da
+aproximadamente **23 minutos de banco por disparo**. E exatamente a ordem de
+grandeza da CPU alta observada, que durou mais de vinte minutos.
+
+O diagnostico original estava certo. Foi a minha "correcao" que introduziu o
+erro, ao trocar a configuracao efetiva pelo default do codigo-fonte.
+
+Efeito real do V53, agora com o dimensionamento correto: cerca de 23 minutos de
+Parallel Seq Scan a cada 6 h passam para a casa de poucos segundos, e somem os
+dois workers paralelos por pagina, vezes 502 paginas.
+
+Observacao complementar: durante a medicao a query do repair chegou a levar
+10,6 s em vez de 2,8 s, porque disputava I/O com o `pg_dump` do backup do
+deploy. Os dois componentes existem e se somam; o pg_dump e temporario, o Seq
+Scan era recorrente a cada 6 h.
+
+**Licao, pela segunda vez na mesma auditoria:** ler o default no codigo nao e
+medir a producao. Da primeira vez eu medi o consumidor em vez do banco; desta,
+li o codigo em vez do ambiente. A regra que o pedido estabeleceu — nunca mudar
+nem concluir com base em suposicao — vale tambem para conclusoes que parecem
+conservadoras.
