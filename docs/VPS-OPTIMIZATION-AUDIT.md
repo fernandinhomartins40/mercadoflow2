@@ -1041,3 +1041,110 @@ otimizacoes de memoria do commit `3836756` ja ativas (essas foram aplicadas no
 deploy das 02:17, que completou). O que **nao** esta em producao e o indice
 V53. O Seq Scan de ~23 min a cada 6 h continua acontecendo ate o proximo deploy
 bem-sucedido.
+
+---
+
+## O V53 foi aplicado — e o mesmo deploy derrubou o site
+
+Esta secao corrige a anterior. O deploy de 14/09 as 03:58 funcionou no que eu
+estava medindo e falhou no que eu nao estava.
+
+### O que deu certo
+
+```
+flyway_schema_history:
+  53 | index product enrichments fetched at | t | 2026-09-14 04:00:18
+idx_pe_fetched_at_com_imagem | 3328 kB
+```
+
+As correcoes de pipeline (`fc81d65`, `cee07dc`) fizeram o que deviam: o SSH
+sobreviveu ao backup, o build coube na janela, a migracao aplicou.
+
+### O que deu errado
+
+```
+mercadoflow-backend   | Up 12 hours (healthy)
+mercadoflow-postgres  | Up 12 hours (healthy)
+mercadoflow-frontend  | Created
+mercadoflow-nginx     | Created
+mercadoflow-cron      | Created
+mercadoflow-catalog-harvester | Created
+mercadoflow-barcode-enricher  | Created
+mercadoflow-state-price-sync  | Created
+
+curl https://mercadoflow.com/  -> 502
+```
+
+Seis containers criados e nunca iniciados. **O site ficou fora do ar por cerca
+de nove horas**, das 03:58 as 13:00, sem que nada acusasse.
+
+### Causa
+
+O boot do backend, medido no log deste deploy:
+
+```
+"Started PDV2CloudApplication in 501.704 seconds (process running for 515.992)"
+```
+
+O healthcheck do backend estava configurado com:
+
+```yaml
+interval: 30s
+timeout: 5s
+retries: 5
+start_period: 90s
+```
+
+Aos 90 s o healthcheck comeca a valer. O backend ainda tem ~410 s de boot pela
+frente, entao os wgets falham; apos 5 retries de 30 s, por volta de 240 s, o
+Docker marca o container como **unhealthy**.
+
+Todos os outros servicos declaram:
+
+```yaml
+depends_on:
+  mercadoflow-backend:
+    condition: service_healthy
+```
+
+O `compose up` cria os containers, espera a condicao, nao a obtem, e desiste —
+deixando-os em `Created`. O backend termina o boot depois e fica saudavel, mas
+o compose ja foi embora. Ninguem inicia o frontend.
+
+Por que o boot demora 501 s: os 50-63% de steal time medidos nesta auditoria,
+somados ao Flyway aplicando a migracao durante o start.
+
+### Por que o deploy nao percebeu
+
+`wait_for_health` consulta `http://127.0.0.1:3300/health`. Esse endereco e
+servido pelo nginx **do host**, que faz proxy direto para o backend. O caminho
+nunca passa pelo container do frontend. Backend saudavel, health check verde,
+deploy declarado bem-sucedido — e o site em 502.
+
+Esta e a segunda falha silenciosa desta mesma auditoria. A primeira foi o
+timeout do workflow, que terminava sem aplicar a migracao com os containers de
+pe servindo a versao antiga. O padrao se repete: **a verificacao de sucesso do
+deploy nao cobria o que o usuario final realmente acessa**.
+
+### Correcao (`ce0472b`)
+
+1. `start_period: 90s` -> `600s`. Cobre os 501 s medidos com margem. Nao atrasa
+   deploys rapidos: o container e marcado healthy no primeiro wget que responde.
+2. `verificar_containers_parados()` roda apos o `wait_for_health`: tenta subir
+   o que ficou em `created`/`exited` e **falha o deploy** se algum container
+   essencial nao estiver rodando. Testada com containers reais nos dois
+   caminhos — recupera o que sobe, sai com codigo 1 no que nao sobe.
+
+### Licao
+
+Tres erros desta auditoria tem a mesma forma:
+
+| Erro | O que medi | O que importava |
+|---|---|---|
+| Seq Scan despriorizado | CPU do backend (0,13%) | CPU do Postgres |
+| "Ganho superestimado" | default no codigo-fonte | variavel de ambiente em producao |
+| Deploy "bem-sucedido" | `/health` do backend | o site que o usuario abre |
+
+Em todos, a medicao estava correta e respondia a pergunta errada. Medir o
+proxy conveniente em vez do efeito real e o modo de falha recorrente aqui — e
+ele nao aparece como erro, aparece como sucesso.
