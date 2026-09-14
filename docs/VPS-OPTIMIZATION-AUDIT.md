@@ -784,3 +784,62 @@ na propria VPS compartilhada. Isso penaliza as outras cinco aplicacoes por
 alguns minutos a cada deploy. Continua pendente e permanece como o proximo ganho
 real, deliberadamente fora deste commit para nao confundir uma eventual
 regressao de memoria com uma mudanca de pipeline.
+
+## Correcao de uma conclusao errada desta auditoria: Seq Scan de 2,8 s
+
+Acompanhando a estabilizacao pos-deploy, o backend e o cron cairam para menos
+de 1% de CPU, mas o Postgres **nao** estabilizou: ficou entre 126% e 155%. Nao
+era warm-up.
+
+`pg_stat_activity` mostrava sempre tres conexoes JDBC executando a mesma
+consulta em `product_enrichments`, com `query_start` identico, reiniciando a
+cada poucos segundos. As tres sao o Postgres lancando dois workers paralelos
+mais o lider para uma unica consulta.
+
+### O que estava acontecendo
+
+`CatalogImageRepairJob` roda a cada 6 h (`fixed-delay-ms:21600000`) e chama
+`findLatestWithImageStorageKeyForRepair`, que pagina com OFFSET sobre
+`product_enrichments` ordenando por `fetched_at desc`.
+
+Nao existia indice para esse ORDER BY. O unico indice com `fetched_at` e
+`(product_id, fetched_at DESC)`, que so serve quando ha filtro por
+`product_id`. Resultado: **Parallel Seq Scan em 150.639 linhas, com dois
+workers, para devolver 24 registros** — e o loop repete isso pagina apos
+pagina, com OFFSET crescente.
+
+Medido em producao, em transacao revertida (nada foi alterado para medir):
+
+| | Sem indice | Com indice |
+|---|---|---|
+| Execution Time | 2809,887 ms | 2,719 ms |
+| Buffers | hit=23156 read=12238 | hit=16 read=10 |
+| Plano | Parallel Seq Scan + Gather Merge | Index Scan |
+
+Cerca de mil vezes mais rapido, e sem os dois workers paralelos por execucao.
+
+Correcao aplicada como `V53__index_product_enrichments_fetched_at.sql` (migracao
+nova; migracao aplicada nunca e editada).
+
+Nota sobre o indice ser parcial: 150.492 das 150.639 linhas satisfazem
+`coalesce(image_storage_key,'') <> ''`, ou seja, o filtro elimina 0,1% da
+tabela. A economia de espaco e marginal. O predicado esta no indice para que o
+planner o reconheca como aplicavel a esta consulta, nao para reduzir tamanho.
+
+### Por que isso contradiz o que este relatorio dizia antes
+
+Nas secoes anteriores eu despriorizei otimizacao de consulta com o argumento de
+que a CPU da aplicacao estava em 0,13% e nao havia trafego real. A medicao
+estava correta para o **backend**, e a conclusao mesmo assim estava errada: eu
+media o consumidor e nao o banco. O trabalho pesado nao aparecia na CPU do
+processo Java porque estava do outro lado da conexao, dentro do Postgres,
+disparado por um job agendado e nao por trafego de usuario.
+
+A licao concreta: "nao ha trafego" nao implica "nao ha carga". Um job periodico
+sobre uma tabela de 150 mil linhas gera carga sem nenhum usuario conectado. A
+regra de medir antes de concluir valeu — o erro foi escolher a metrica errada
+para medir.
+
+Isto tambem qualifica a secao anterior sobre steal time. O steal de 50-63% e
+real e externo. Mas ele nao explicava sozinho a CPU do Postgres: havia carga
+propria evitavel junto, e ela e nossa.
