@@ -20,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -251,7 +250,6 @@ public class AgentPairingService {
      * self para passar pelo proxy do Spring — auto-invocação direta ignoraria
      * o @Transactional.
      */
-    @Scheduled(fixedDelay = 3_600_000L)
     public void expireStaleSessions() {
         TenantContext.runAsSystem(() -> self.expireStaleSessionsTransacional());
     }

@@ -31,7 +31,8 @@ Status: implementada localmente e validada por sintaxe.
 
 ## Fase 2 — Primeiro deploy não produtivo
 
-Status: aguardando execução do GitHub Actions.
+Status: VERIFIED em 2026-09-24. O run `36074455045` concluiu os três builds,
+publicou os artefatos no GHCR e fez o deploy na VPS com sucesso.
 
 Pré-requisitos:
 
@@ -41,9 +42,9 @@ Pré-requisitos:
 
 Aceite:
 
-- Os três jobs de build publicam imagens e expõem digests.
-- A VPS faz `docker pull` dos três digests sem executar build.
-- PostgreSQL, migrations, healthcheck e serviços declarados sobem.
+- Os três jobs de build publicaram imagens e expuseram digests.
+- A VPS fez `docker pull` dos três digests sem executar build.
+- PostgreSQL, migrations, healthcheck e os oito serviços declarados subiram.
 - `.env.previous` conserva as referências anteriores de imagem para rollback.
 
 Rollback:
@@ -53,8 +54,31 @@ Rollback:
 
 ## Fase 3 — Medição
 
-Status: pendente do primeiro deploy.
+Status: baseline coletada após o deploy, em `2026-09-24T23:51:06Z`.
 
-- Medir tempo dos jobs, bytes das imagens, uso de disco, `docker stats`, health e duração total de deploy.
-- Comparar com a baseline existente sem tratar tamanho lógico de imagem como disco físico.
-- Ajustar RAM, CPU e concorrência somente após medições do ambiente alvo.
+- Host: 16 GiB RAM; 4.0 GiB usados, 11 GiB disponíveis; swap 132 MiB/2.0 GiB.
+- Disco raiz: 60 GiB/194 GiB; Docker reportou 42.52 GB de imagens (19.62 GB
+  reaproveitáveis) e 13.6 GB de build cache (11.59 GB reaproveitáveis).
+- MercadoFlow: backend 429.4 MiB/1 GiB; cron 436.7 MiB/640 MiB durante o
+  bootstrap; PostgreSQL 43.24 MiB/640 MiB; coletores 20-25 MiB; frontend e
+  proxy cerca de 5 MiB cada. Health local respondeu `ok`.
+- Não houve OOM registrado nas últimas 24 horas. O snapshot é pontual e não
+  prova pico, média nem economia de disco físico.
+
+## Fase 4 — Propriedade única dos agendamentos
+
+Status: candidata implementada localmente; aguardando o build/deploy do GitHub
+Actions e a medição pós-deploy.
+
+- Evidência: no baseline, `mercadoflow-cron` consumia 55.2% de CPU durante a
+  inicialização e 436.7 MiB de RAM. Catálogo, reparo de imagens, importação web,
+  expiração de pareamento e dunning podiam ser agendados no backend HTTP e no
+  cron, pois não tinham perfil exclusivo.
+- Mudança: jobs sem endpoint próprio passam a usar `@Profile("jobs")`. As
+  rotas de pareamento e cobrança preservam seus serviços no backend; foram
+  criados adaptadores de schedule exclusivos do perfil `jobs`.
+- Aceite: backend executa sem esses schedulers; cron executa cada agenda uma
+  vez; health, pareamento e operações administrativas de cobrança continuam
+  disponíveis; nenhum job perde execução.
+- Rollback: reverter este commit e redeployar os três digests anteriores. Não
+  altera schema, volume, dados ou credenciais.
