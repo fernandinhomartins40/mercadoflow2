@@ -237,7 +237,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${APP_DB_
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${APP_DB_ROLE};
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${APP_DB_ROLE};
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${APP_DB_ROLE};
-REVOKE ALL ON TABLE flyway_schema_history FROM ${APP_DB_ROLE};
+-- No primeiro deploy o Flyway ainda nao criou a tabela. O GRANT da role
+-- precisa acontecer antes do backend, portanto a revogacao so pode ocorrer
+-- quando a tabela ja existe.
+DO \$\$
+BEGIN
+  IF to_regclass('public.flyway_schema_history') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON TABLE public.flyway_schema_history FROM ${APP_DB_ROLE}';
+  END IF;
+END \$\$;
 SQL
 
   # Repetido a cada deploy de proposito: tabela criada por migracao nova so fica
