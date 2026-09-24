@@ -33,7 +33,7 @@ services:
 
   mercadoflow-backend:
     container_name: mercadoflow-backend
-    build: ./backend
+    image: ${MERCADOFLOW_BACKEND_IMAGE:?MERCADOFLOW_BACKEND_IMAGE is required}
     # Sem isto o container ficava com RestartPolicy "no": uma queda derrubava a
     # aplicacao ate o proximo deploy. Passa a importar mais agora que ha
     # mem_limit -- um OOM deve reiniciar, nao deixar o servico fora do ar.
@@ -118,11 +118,7 @@ services:
   mercadoflow-frontend:
     container_name: mercadoflow-frontend
     restart: unless-stopped
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: "${VITE_API_URL}"
-        VITE_SHOW_TEST_LOGINS: "${VITE_SHOW_TEST_LOGINS:-false}"
+    image: ${MERCADOFLOW_FRONTEND_IMAGE:?MERCADOFLOW_FRONTEND_IMAGE is required}
     mem_limit: 64m
     memswap_limit: 64m
     depends_on:
@@ -131,7 +127,7 @@ services:
 
   mercadoflow-cron:
     container_name: mercadoflow-cron
-    build: ./backend
+    image: ${MERCADOFLOW_BACKEND_IMAGE:?MERCADOFLOW_BACKEND_IMAGE is required}
     restart: unless-stopped
     command: java -jar /app/app.jar
     environment:
@@ -175,8 +171,7 @@ services:
 
   mercadoflow-catalog-harvester:
     container_name: mercadoflow-catalog-harvester
-    build: ./deploy/collectors
-    image: mercadoflow-collectors:latest
+    image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
     restart: unless-stopped
     working_dir: /workspace
     command: >
@@ -200,8 +195,7 @@ services:
 
   mercadoflow-barcode-enricher:
     container_name: mercadoflow-barcode-enricher
-    build: ./deploy/collectors
-    image: mercadoflow-collectors:latest
+    image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
     restart: unless-stopped
     working_dir: /workspace
     command: >
@@ -226,8 +220,7 @@ services:
     profiles:
       - state-price-sync
     container_name: mercadoflow-state-price-sync
-    build: ./deploy/collectors
-    image: mercadoflow-collectors:latest
+    image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
     restart: unless-stopped
     working_dir: /workspace
     command: >

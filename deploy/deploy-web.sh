@@ -36,6 +36,9 @@ fi
 APP_DIR="${APP_DIR:-/root/mercadoflow-web}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.vps.yml}"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-mercadoflow-web}"
+MERCADOFLOW_BACKEND_IMAGE="${MERCADOFLOW_BACKEND_IMAGE:-}"
+MERCADOFLOW_FRONTEND_IMAGE="${MERCADOFLOW_FRONTEND_IMAGE:-}"
+MERCADOFLOW_COLLECTORS_IMAGE="${MERCADOFLOW_COLLECTORS_IMAGE:-}"
 POSTGRES_VOLUME_NAME="${MERCADOFLOW_POSTGRES_VOLUME:-${PROJECT_NAME}_mercadoflow_postgres_data}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3300/health}"
 HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-24}"
@@ -77,6 +80,7 @@ DOCKER_CLEANUP_ENABLED="${DOCKER_CLEANUP_ENABLED:-true}"
 DOCKER_CLEANUP_PROJECT_CONTAINERS="${DOCKER_CLEANUP_PROJECT_CONTAINERS:-true}"
 DOCKER_CLEANUP_DANGLING_IMAGES="${DOCKER_CLEANUP_DANGLING_IMAGES:-true}"
 DOCKER_CLEANUP_BUILD_CACHE="${DOCKER_CLEANUP_BUILD_CACHE:-true}"
+BUILD_AGENT_INSTALLER="${BUILD_AGENT_INSTALLER:-false}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -92,6 +96,16 @@ require_file() {
     echo "ERRO: arquivo obrigatÃ³rio ausente: $path" >&2
     exit 1
   fi
+}
+
+require_runtime_images() {
+  local image_name
+  for image_name in "$MERCADOFLOW_BACKEND_IMAGE" "$MERCADOFLOW_FRONTEND_IMAGE" "$MERCADOFLOW_COLLECTORS_IMAGE"; do
+    if [[ -z "$image_name" || "$image_name" != ghcr.io/*@sha256:* ]]; then
+      echo "ERRO: imagens da aplicacao devem ser referencias imutaveis do GHCR por digest" >&2
+      exit 1
+    fi
+  done
 }
 
 ensure_secret_file() {
@@ -242,6 +256,9 @@ write_env_file() {
   cat > .env.tmp <<EOF
 NODE_ENV=production
 COMPOSE_PROJECT_NAME=${PROJECT_NAME}
+MERCADOFLOW_BACKEND_IMAGE=${MERCADOFLOW_BACKEND_IMAGE}
+MERCADOFLOW_FRONTEND_IMAGE=${MERCADOFLOW_FRONTEND_IMAGE}
+MERCADOFLOW_COLLECTORS_IMAGE=${MERCADOFLOW_COLLECTORS_IMAGE}
 POSTGRES_DB=${POSTGRES_DB}
 POSTGRES_USER=${POSTGRES_USER}
 POSTGRES_PASSWORD=${db_password}
@@ -278,6 +295,7 @@ MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
 
+  [[ ! -f .env ]] || cp -p .env .env.previous
   mv .env.tmp .env
   chmod 600 .env
 }
@@ -618,10 +636,9 @@ main() {
   cd "$APP_DIR"
 
   log "Validando estrutura do projeto"
-  require_file "backend/pom.xml"
-  require_file "frontend/package.json"
   require_file "$COMPOSE_FILE"
   require_file "deploy/nginx.vps.conf"
+  require_runtime_images
 
   mkdir -p data/catalog/images
   mkdir -p data/catalog/runs
@@ -633,9 +650,6 @@ main() {
   resolve_stripe_config
   resolve_ai_config
   write_env_file
-
-  export DOCKER_BUILDKIT=1
-  export COMPOSE_DOCKER_CLI_BUILD=1
 
   log "Validando docker compose"
   compose config -q
@@ -651,10 +665,16 @@ main() {
   docker pull postgres:16-alpine
   docker pull nginx:alpine
 
-  build_agent_installer
+  if [[ "$BUILD_AGENT_INSTALLER" == "true" ]]; then
+    build_agent_installer
+  else
+    log "Build do instalador desabilitado no deploy; mantendo artefato existente"
+  fi
 
-  log "Construindo imagens da aplicaÃ§Ã£o"
-  compose build --pull mercadoflow-backend mercadoflow-frontend mercadoflow-cron
+  log "Baixando imagens imutaveis publicadas pelo GitHub Actions"
+  docker pull "$MERCADOFLOW_BACKEND_IMAGE"
+  docker pull "$MERCADOFLOW_FRONTEND_IMAGE"
+  docker pull "$MERCADOFLOW_COLLECTORS_IMAGE"
 
   # O banco sobe sozinho primeiro: a role de aplicacao precisa existir ANTES de
   # o backend tentar conectar com ela, senao o boot falha com autenticacao
@@ -718,5 +738,3 @@ SQL
 }
 
 main "$@"
-
-

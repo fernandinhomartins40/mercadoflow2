@@ -21,7 +21,7 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pdv2cloud}
     user: ${FLYWAY_USER:${DATABASE_USER:pdv2cloud}}
     password: ${FLYWAY_PASSWORD:${DATABASE_PASSWORD:pdv2cloud}}
-  jackson:
+  jackson2:
     serialization:
       write-dates-as-timestamps: false
 

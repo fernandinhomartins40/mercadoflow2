@@ -18,17 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  validate-migrations:
     runs-on: ubuntu-latest
-    # 60, nao 30: o pg_dump pre-migracao leva ~11 min (banco de 1 GB numa VPS
-    # com 50-63% de steal time) e o build Maven acontece na propria VPS. Com 30
-    # o job era morto no meio do build e o deploy terminava sem aplicar a
-    # migracao, com os containers de pe servindo a versao antiga.
-    timeout-minutes: 60
-    env:
-      VPS_HOST: 72.60.10.112
-      VPS_APP_DIR: /root/mercadoflow-web
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -80,10 +71,113 @@ jobs:
           echo "inclua [migracao-revertida] na mensagem do commit."
           exit 1
 
+  build-backend:
+    needs: validate-migrations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: image
+        name: Define immutable GHCR repository
+        run: echo "name=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/mercadoflow-backend" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+
+  build-frontend:
+    needs: validate-migrations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: image
+        name: Define immutable GHCR repository
+        run: echo "name=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/mercadoflow-frontend" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            VITE_API_URL=https://mercadoflow.com/api
+            VITE_SHOW_TEST_LOGINS=false
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+
+  build-collectors:
+    needs: validate-migrations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: image
+        name: Define immutable GHCR repository
+        run: echo "name=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/mercadoflow-collectors" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./deploy/collectors
+          push: true
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+
+  deploy:
+    needs: [build-backend, build-frontend, build-collectors]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      VPS_HOST: srv953800.hstgr.cloud
+      VPS_APP_DIR: /root/mercadoflow-web
+      MERCADOFLOW_BACKEND_IMAGE: ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}
+      MERCADOFLOW_FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.image }}@${{ needs.build-frontend.outputs.digest }}
+      MERCADOFLOW_COLLECTORS_IMAGE: ${{ needs.build-collectors.outputs.image }}@${{ needs.build-collectors.outputs.digest }}
+
+    steps:
+      - name: Checkout deployment files
+        uses: actions/checkout@v4
+
       - name: Install SSH tools
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass rsync
+
+      - name: Install pinned VPS host key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          install -m 600 .github/vps_known_hosts ~/.ssh/known_hosts
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '$2 == "SHA256:qEkOWNaWFZykVFmF/pMUlWvXYssbO0byQTW4KfcnHPU" { found=1 } END { exit !found }'
 
       - name: Prepare SSH password file
         run: |
@@ -110,7 +204,8 @@ jobs:
         run: |
           set -euo pipefail
           if ! sshpass -f ~/.ssh/vps_password ssh \
-                 -o StrictHostKeyChecking=no \
+                 -o StrictHostKeyChecking=yes \
+                 -o "UserKnownHostsFile=$HOME/.ssh/known_hosts" \
                  -o ConnectTimeout=30 \
                  root@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"; then
             echo
@@ -130,6 +225,10 @@ jobs:
         run: |
           sshpass -f ~/.ssh/vps_password rsync -az --delete \
             --exclude='.git' \
+            --exclude='backend' \
+            --exclude='backend/**' \
+            --exclude='frontend' \
+            --exclude='frontend/**' \
             --exclude='node_modules' \
             --exclude='dist' \
             --exclude='build' \
@@ -141,17 +240,20 @@ jobs:
             --exclude='backend/uploads' \
             --exclude='.env' \
             --exclude='.env.local' \
+            --exclude='.env.previous' \
             --exclude='.db_secret' \
             --exclude='.jwt_secret' \
             --exclude='.app_role_secret' \
             --exclude='.env.bak-*' \
             --exclude='data/catalog' \
             --exclude='data/catalog/**' \
+            --exclude='data/offers' \
+            --exclude='data/offers/**' \
             --exclude='backups' \
             --exclude='pdv2cloud-agent/installer/Output' \
             --exclude='pdv2cloud-agent/installer/Output/**' \
             --exclude='tools' \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
             ./ root@${VPS_HOST}:${VPS_APP_DIR}/
 
       - name: Run deployment on VPS
@@ -167,22 +269,32 @@ jobs:
           # no terminal. Sem keepalive a conexao ociosa era derrubada no meio do
           # backup ("client_loop: send disconnect: Broken pipe", exit 255) e o
           # Actions falhava enquanto o script seguia rodando orfao na VPS.
-          sshpass -f ~/.ssh/vps_password ssh -o StrictHostKeyChecking=no \
+          sshpass -f ~/.ssh/vps_password ssh \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$HOME/.ssh/known_hosts" \
             -o ServerAliveInterval=30 -o ServerAliveCountMax=120 \
             root@${VPS_HOST} <<EOF
           set -euo pipefail
           cd /root/mercadoflow-web
           chmod +x deploy/deploy-web.sh
+          GHCR_USERNAME='${{ github.repository_owner }}'
+          GHCR_PULL_TOKEN='${{ secrets.GHCR_PULL_TOKEN }}'
+          if [ -z "\$GHCR_PULL_TOKEN" ]; then
+            echo "GHCR_PULL_TOKEN ausente: configure um token com packages:read para a VPS" >&2
+            exit 1
+          fi
+          printf '%s' "\$GHCR_PULL_TOKEN" | docker login ghcr.io --username "\$GHCR_USERNAME" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          # Preserva imagens de rollback e cache compartilhado ate medir
+          # ownership/retencao; nao execute prune de artefatos Docker no deploy.
           APP_DIR=/root/mercadoflow-web \
           COMPOSE_PROJECT_NAME=mercadoflow-web \
-          DOCKER_CLEANUP_ENABLED=true \
-          DOCKER_CLEANUP_PROJECT_CONTAINERS=true \
-          DOCKER_CLEANUP_DANGLING_IMAGES=true \
-          # false: cleanup_docker_artifacts roda no fim do deploy e o
-          # "docker builder prune -af" apagava o cache inteiro, obrigando o
-          # deploy seguinte a compilar do zero. As camadas de dependencia Maven
-          # nao mudam entre deploys; guardar esse cache e o que faz o build
-          # caber na janela. O prune de imagens dangling continua ligado.
+          MERCADOFLOW_BACKEND_IMAGE='${{ env.MERCADOFLOW_BACKEND_IMAGE }}' \
+          MERCADOFLOW_FRONTEND_IMAGE='${{ env.MERCADOFLOW_FRONTEND_IMAGE }}' \
+          MERCADOFLOW_COLLECTORS_IMAGE='${{ env.MERCADOFLOW_COLLECTORS_IMAGE }}' \
+          DOCKER_CLEANUP_ENABLED=false \
+          DOCKER_CLEANUP_PROJECT_CONTAINERS=false \
+          DOCKER_CLEANUP_DANGLING_IMAGES=false \
           DOCKER_CLEANUP_BUILD_CACHE=false \
           STRIPE_ENABLED='${{ secrets.STRIPE_ENABLED }}' \
           STRIPE_SECRET_KEY='${{ secrets.STRIPE_SECRET_KEY }}' \
