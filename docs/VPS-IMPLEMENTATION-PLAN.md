@@ -36,7 +36,7 @@ Status: aguardando execução do GitHub Actions.
 Pré-requisitos:
 
 - O repositório deve permitir publicação no GitHub Packages para `GITHUB_TOKEN`.
-- Configurar o secret `GHCR_PULL_TOKEN` com permissão mínima `packages:read` para a VPS baixar imagens privadas, se os pacotes não forem públicos.
+- Os pacotes GHCR criados pelo workflow devem permanecer vinculados a este repositório, para que o job `deploy` use seu `GITHUB_TOKEN` temporário com `packages:read` durante o `docker pull` na VPS.
 - Manter `VPS_PASSWORD` e os secrets já usados pelo deploy.
 
 Aceite:

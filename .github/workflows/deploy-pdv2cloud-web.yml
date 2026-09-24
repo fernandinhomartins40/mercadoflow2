@@ -156,6 +156,9 @@ jobs:
     needs: [build-backend, build-frontend, build-collectors]
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: read
     env:
       VPS_HOST: srv953800.hstgr.cloud
       VPS_APP_DIR: /root/mercadoflow-web
@@ -278,9 +281,9 @@ jobs:
           cd /root/mercadoflow-web
           chmod +x deploy/deploy-web.sh
           GHCR_USERNAME='${{ github.repository_owner }}'
-          GHCR_PULL_TOKEN='${{ secrets.GHCR_PULL_TOKEN }}'
+          GHCR_PULL_TOKEN='${{ github.token }}'
           if [ -z "\$GHCR_PULL_TOKEN" ]; then
-            echo "GHCR_PULL_TOKEN ausente: configure um token com packages:read para a VPS" >&2
+            echo "GITHUB_TOKEN indisponivel para leitura no GHCR" >&2
             exit 1
           fi
           printf '%s' "\$GHCR_PULL_TOKEN" | docker login ghcr.io --username "\$GHCR_USERNAME" --password-stdin
