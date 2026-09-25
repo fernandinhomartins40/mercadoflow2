@@ -94,3 +94,21 @@ imagens no GitHub, fez pull por digest na VPS e concluiu o deploy com sucesso.
   MiB durante esta execução. Como são momentos de carga diferentes, a redução
   não é atribuída como economia definitiva; é uma hipótese a confirmar com
   séries comparáveis de repouso e pico.
+
+## Fase 5 — Imagem runtime do backend
+
+Status: VERIFIED em 2026-09-25. O run `36076086922` publicou a imagem e a VPS
+fez pull por digest antes de recriar os serviços.
+
+- A camada do pacote Ubuntu `ffmpeg` instalava dependências de codecs e render
+  que elevavam a imagem a 1,196,303,624 bytes. Fontes e FFmpeg são necessários
+  ao renderizador de ofertas e foram preservados.
+- A imagem agora copia `ffmpeg` e `ffprobe` estáticos, versão 9.0, e mantém
+  `fontconfig` e `fonts-dejavu-core` no runtime Java.
+- Tamanho medido na VPS: 985,366,597 bytes, redução de 210,937,027 bytes
+  (aproximadamente 211 MB) contra a imagem anterior. A diferença é o tamanho
+  lógico da imagem; economia física depende das camadas compartilhadas.
+- Aceite: `ffmpeg -version` respondeu versão 9.0 dentro do backend; os oito
+  containers ficaram em execução e `/health` respondeu `ok`.
+- Rollback: restaurar o digest anterior registrado em `.env.previous` e
+  executar o deploy; volumes e schema não foram modificados.
