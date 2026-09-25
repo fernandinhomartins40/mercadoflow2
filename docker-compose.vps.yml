@@ -73,6 +73,9 @@ services:
       - APP_SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - APP_SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
       - APP_SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
+      # Contas de teste (TestUsersSeeder). Vazias = seeder nao cria.
+      - TEST_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD:-}
+      - TEST_SUPER_ADMIN_PASSWORD=${TEST_SUPER_ADMIN_PASSWORD:-}
       # Cobranca de assinaturas. Com STRIPE_ENABLED=false (padrao) a aplicacao
       # sobe sem cobranca e o upgrade permanece manual no painel super admin.
       - STRIPE_ENABLED=${STRIPE_ENABLED:-false}

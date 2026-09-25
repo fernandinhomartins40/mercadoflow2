@@ -313,6 +313,8 @@ jobs:
           STRIPE_WEBHOOK_SECRET='${{ secrets.STRIPE_WEBHOOK_SECRET }}' \
           STRIPE_PRICE_ESSENCIAL='${{ secrets.STRIPE_PRICE_ESSENCIAL }}' \
           STRIPE_PRICE_PROFISSIONAL='${{ secrets.STRIPE_PRICE_PROFISSIONAL }}' \
+          TEST_ADMIN_PASSWORD='${{ secrets.TEST_ADMIN_PASSWORD }}' \
+          TEST_SUPER_ADMIN_PASSWORD='${{ secrets.TEST_SUPER_ADMIN_PASSWORD }}' \
           ./deploy/deploy-web.sh
           EOF
 

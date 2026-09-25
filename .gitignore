@@ -46,3 +46,6 @@ debug-backend.sh
 .DS_Store
 Thumbs.db
 .m2/
+
+# Credenciais de teste locais (repositorio publico)
+CREDENCIAIS-TESTE.md

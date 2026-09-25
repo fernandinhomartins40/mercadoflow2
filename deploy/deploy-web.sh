@@ -70,6 +70,11 @@ STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
 STRIPE_PRICE_ESSENCIAL="${STRIPE_PRICE_ESSENCIAL:-}"
 STRIPE_PRICE_PROFISSIONAL="${STRIPE_PRICE_PROFISSIONAL:-}"
+# Contas de teste (TestUsersSeeder): vem dos GitHub Secrets, com fallback para o
+# .env do servidor (ver resolve_test_users_config). Nunca sao geradas aqui: uma
+# senha sorteada no servidor nao bateria com a documentada para o time.
+TEST_ADMIN_PASSWORD="${TEST_ADMIN_PASSWORD:-}"
+TEST_SUPER_ADMIN_PASSWORD="${TEST_SUPER_ADMIN_PASSWORD:-}"
 # Chave mestra que cifra as chaves de IA que os CLIENTES cadastram (BYOK).
 #
 # NAO PODE MUDAR entre deploys: as chaves ja cadastradas foram cifradas com ela
@@ -182,6 +187,25 @@ resolve_stripe_config() {
   else
     log "Stripe desabilitado; upgrade de plano permanece manual no painel"
   fi
+}
+
+resolve_test_users_config() {
+  # Mesma precedencia do Stripe: secret do CI > valor ja gravado no .env.
+  local key
+  for key in TEST_ADMIN_PASSWORD TEST_SUPER_ADMIN_PASSWORD; do
+    if [[ -z "${!key}" && -f .env ]]; then
+      local existing
+      existing="$(sed -n "s/^${key}=//p" .env | head -n 1)"
+      if [[ -n "$existing" ]]; then
+        printf -v "$key" '%s' "$existing"
+      fi
+    fi
+    if [[ -n "${!key}" ]]; then
+      log "${key} presente; conta de teste sera semeada no boot do backend"
+    else
+      log "${key} ausente; conta de teste correspondente nao sera semeada"
+    fi
+  done
 }
 
 # Preserva (ou gera na primeira vez) a chave mestra de criptografia da IA.
@@ -298,6 +322,8 @@ STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
 STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
 STRIPE_PRICE_ESSENCIAL=${STRIPE_PRICE_ESSENCIAL}
 STRIPE_PRICE_PROFISSIONAL=${STRIPE_PRICE_PROFISSIONAL}
+TEST_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD}
+TEST_SUPER_ADMIN_PASSWORD=${TEST_SUPER_ADMIN_PASSWORD}
 AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY}
 MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
@@ -656,6 +682,7 @@ main() {
   ensure_secret_file ".app_role_secret" 24 "senha da role de aplicacao"
   resolve_super_admin_password
   resolve_stripe_config
+  resolve_test_users_config
   resolve_ai_config
   write_env_file
 

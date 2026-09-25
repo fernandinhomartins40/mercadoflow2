@@ -3,6 +3,7 @@ package com.pdv2cloud.repository;
 import com.pdv2cloud.model.entity.MarketBillingStatus;
 import com.pdv2cloud.model.entity.PlanType;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.time.LocalDateTime;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,8 @@ import com.pdv2cloud.model.entity.Market;
 public interface MarketRepository extends JpaRepository<Market, UUID> {
     @Query("select m from Market m where m.isActive = true")
     List<Market> findAllActive();
+
+    Optional<Market> findByCnpj(String cnpj);
 
     @Query("""
         select m

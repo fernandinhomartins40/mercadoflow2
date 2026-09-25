@@ -27,3 +27,12 @@ app:
     # Sem default: se vazio, o seeder NAO cria o usuario admin (ver ProductionSeeder)
     password: ${ADMIN_PASSWORD:}
     name: ${ADMIN_NAME:Administrador}
+  # Contas de teste realinhadas a cada deploy (ver TestUsersSeeder).
+  # Senha vazia = conta nao e criada nem alterada.
+  test-users:
+    admin:
+      email: ${TEST_ADMIN_EMAIL:admin.teste@mercadoflow.com}
+      password: ${TEST_ADMIN_PASSWORD:}
+    super-admin:
+      email: ${TEST_SUPER_ADMIN_EMAIL:superadmin.teste@mercadoflow.com}
+      password: ${TEST_SUPER_ADMIN_PASSWORD:}
