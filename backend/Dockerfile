@@ -6,11 +6,9 @@ RUN mvn -q -DskipTests package
 
 FROM mwader/static-ffmpeg:9.0 AS ffmpeg
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache fontconfig font-dejavu
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=ffmpeg /ffprobe /usr/local/bin/ffprobe
 RUN ffmpeg -version >/dev/null && ffprobe -version >/dev/null
