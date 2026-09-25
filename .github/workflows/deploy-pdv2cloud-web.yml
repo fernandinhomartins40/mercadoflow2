@@ -94,6 +94,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
+          cache-from: type=gha,scope=mercadoflow-backend
+          cache-to: type=gha,mode=max,scope=mercadoflow-backend
           push: true
           tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
 
@@ -120,6 +122,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
+          cache-from: type=gha,scope=mercadoflow-frontend
+          cache-to: type=gha,mode=max,scope=mercadoflow-frontend
           push: true
           build-args: |
             VITE_API_URL=https://mercadoflow.com/api
@@ -149,6 +153,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./deploy/collectors
+          cache-from: type=gha,scope=mercadoflow-collectors
+          cache-to: type=gha,mode=max,scope=mercadoflow-collectors
           push: true
           tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
 
