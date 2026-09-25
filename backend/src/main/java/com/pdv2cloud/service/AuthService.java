@@ -1,5 +1,7 @@
 package com.pdv2cloud.service;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.RegisterRequest;
@@ -27,6 +29,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Profile("!jobs")
 @Service
 public class AuthService {
 
