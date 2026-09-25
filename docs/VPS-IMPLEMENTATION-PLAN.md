@@ -272,3 +272,21 @@ A amostra registrou mais de 500 rein?cios e at? 195% de CPU em uma VPS de
 - Rollback: reverter `ddcc951` e `060b457`, depois redeployar os digests
   anteriores. N?o houve migration, altera??o de volume ou exclus?o de dados.
 
+## Fase 13 ? Baseline operacional da VPS srv953808
+
+Status: VERIFIED (snapshot de 2026-09-25T03:25Z; n?o representa pico).
+
+- Host x86_64 com 2 vCPU, 7,8 GiB de RAM, swap desabilitada e raiz ext4 com
+  35/97 GiB utilizados (37%). Docker reportou 7,44 GiB de imagens, 5,61 GiB de
+  volumes e zero build cache local; imagens e volumes n?o s?o candidatos a
+  remo??o com esta evid?ncia.
+- A persist?ncia MercadoFlow observada ocupa 12 GiB em `data/` e 5,0 GiB no
+  volume PostgreSQL. S?o caminhos montados por servi?os ativos; nenhuma
+  limpeza, prune ou altera??o de reten??o foi executada.
+- No PostgreSQL havia 11 conex?es em observa??o, abaixo do limite de 50. N?o
+  h? evid?ncia de satura??o para reduzir pools ou `max_connections`.
+- `vmstat` registrou 49?83% idle na janela curta e zero swap-in/out. PSI de
+  CPU tinha `some avg300=34,30`; como a VPS hospeda outros projetos, n?o se
+  atribui esse valor ao MercadoFlow. PSI de mem?ria e I/O foi baixo no instante
+  observado. Pico, p95/p99, throughput, lat?ncia e taxa de crescimento seguem
+  NOT MEASURED.
