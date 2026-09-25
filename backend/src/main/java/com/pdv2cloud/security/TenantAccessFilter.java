@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -34,6 +35,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * MarketAccessService.assertCanAccessMarket.
  */
 @Component
+@Profile("!jobs")
 @Slf4j
 public class TenantAccessFilter extends OncePerRequestFilter {
 

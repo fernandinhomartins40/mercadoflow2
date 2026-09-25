@@ -16,7 +16,10 @@
 # (nenhum upstream do nginx aponta para ele), entao duas threads bastam.
 spring:
   main:
-    web-application-type: servlet
+    # O processo cron nao recebe HTTP. As configuracoes MVC e filtros de
+    # seguranca ficam fora deste perfil, permitindo eliminar Tomcat, sockets e
+    # threads web sem remover nenhum endpoint do backend principal.
+    web-application-type: none
   datasource:
     hikari:
       # Jobs rodam em serie, de madrugada. 10 conexoes ociosas o dia inteiro

@@ -11,6 +11,7 @@ import java.security.MessageDigest;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,6 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * - Secret used is the agent API key (pdv2_...).
  */
 @Component
+@Profile("!jobs")
 public class HmacSignatureFilter extends OncePerRequestFilter {
 
     private static final String HEADER_SIGNATURE = "X-Signature";
