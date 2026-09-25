@@ -112,3 +112,18 @@ fez pull por digest antes de recriar os serviços.
   containers ficaram em execução e `/health` respondeu `ok`.
 - Rollback: restaurar o digest anterior registrado em `.env.previous` e
   executar o deploy; volumes e schema não foram modificados.
+
+## Fase 6 — Base runtime Alpine
+
+Status: VERIFIED em 2026-09-25. O run `36076402951` publicou a imagem, e a
+VPS puxou o digest `sha256:8d55c46f…` antes de recriar os containers.
+
+- O runtime Java passou de Ubuntu para Alpine, preservando `fontconfig`,
+  `font-dejavu` e os binários estáticos de FFmpeg.
+- A imagem caiu de 985,366,597 para 818,610,920 bytes: redução de
+  166,755,677 bytes, aproximadamente 166 MB.
+- Aceite na VPS: `java`, FFmpeg 9.0 e `fc-match SansSerif` responderam; o
+  backend e PostgreSQL ficaram saudáveis, os oito serviços executaram e
+  `/health` respondeu `ok`.
+- Rollback: usar o digest Ubuntu anterior preservado em `.env.previous` e
+  executar o deploy. Não há mudança de schema, volume ou dado persistente.
