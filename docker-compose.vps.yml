@@ -3,6 +3,11 @@ services:
     container_name: mercadoflow-postgres
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: &mercadoflow_logging
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "3"
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -38,6 +43,7 @@ services:
     # aplicacao ate o proximo deploy. Passa a importar mais agora que ha
     # mem_limit -- um OOM deve reiniciar, nao deixar o servico fora do ar.
     restart: unless-stopped
+    logging: *mercadoflow_logging
     environment:
       - SPRING_PROFILES_ACTIVE=production
       # Sem mem_limit a JVM enxergava os 8 GB da VPS e reservava 25% (~2 GB) de
@@ -118,6 +124,7 @@ services:
   mercadoflow-frontend:
     container_name: mercadoflow-frontend
     restart: unless-stopped
+    logging: *mercadoflow_logging
     image: ${MERCADOFLOW_FRONTEND_IMAGE:?MERCADOFLOW_FRONTEND_IMAGE is required}
     mem_limit: 64m
     memswap_limit: 64m
@@ -129,6 +136,7 @@ services:
     container_name: mercadoflow-cron
     image: ${MERCADOFLOW_BACKEND_IMAGE:?MERCADOFLOW_BACKEND_IMAGE is required}
     restart: unless-stopped
+    logging: *mercadoflow_logging
     command: java -jar /app/app.jar
     environment:
       # production,jobs (nao so "jobs"): sozinho, o perfil jobs perdia o
@@ -157,6 +165,7 @@ services:
     container_name: mercadoflow-nginx
     image: nginx:alpine
     restart: unless-stopped
+    logging: *mercadoflow_logging
     ports:
       - "3300:3300"
     volumes:
@@ -173,6 +182,7 @@ services:
     container_name: mercadoflow-catalog-harvester
     image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
     restart: unless-stopped
+    logging: *mercadoflow_logging
     working_dir: /workspace
     command: >
       sh -c "python /workspace/scripts/catalog/market_catalog_dispatcher.py
@@ -197,6 +207,7 @@ services:
     container_name: mercadoflow-barcode-enricher
     image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
     restart: unless-stopped
+    logging: *mercadoflow_logging
     working_dir: /workspace
     command: >
       python /workspace/scripts/catalog/barcode_enrichment_service.py
@@ -222,6 +233,7 @@ services:
     container_name: mercadoflow-state-price-sync
     image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
     restart: unless-stopped
+    logging: *mercadoflow_logging
     working_dir: /workspace
     command: >
       python /workspace/scripts/state_prices/sync_state_price_portals.py
