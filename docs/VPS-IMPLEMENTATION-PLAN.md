@@ -203,3 +203,21 @@ com `nginx -t` e implantada no run `36078366017`, concluído em 2m06s.
   amostra é curta e logs podem atender auditoria e diagnóstico. Crescimento por
   dia e sobreposição de retenção continuam **NOT MEASURED**; nenhuma limpeza
   ou alteração de logs foi feita.
+
+## Fase 10 — Bases Docker imutáveis
+
+Status: VERIFIED em 2026-09-25. O run `36078753513` concluiu em 2m09s,
+com builds em cache (backend 24s, frontend 24s, coletores 17s) e deploy em
+1m28s.
+
+- As imagens oficiais PostgreSQL e Nginx passaram de tags mutáveis para
+  referências com tag e digest, usando os digests linux/amd64 efetivamente
+  observados na VPS.
+- A verificação pós deploy confirmou PostgreSQL e Nginx nas referências
+  esperadas; PostgreSQL ficou saudável e `/health` respondeu `{"status":"ok"}`.
+- Efeito esperado: um novo deploy não muda silenciosamente essas bases nem
+  baixa camadas diferentes sob a mesma tag. Atualizações de segurança passam a
+  ser uma mudança revisada de digest, com teste e rollback explícitos.
+- Rollback: restaurar as referências anteriores pelo commit `3d3b614` revertido
+  ou pelo Compose anterior; não há alteração de volume PostgreSQL, schema ou
+  dados.
