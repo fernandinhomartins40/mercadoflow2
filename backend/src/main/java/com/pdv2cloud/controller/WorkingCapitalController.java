@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.GatedListDTO;
 import com.pdv2cloud.service.InvoiceRejectionService;
 import com.pdv2cloud.service.MarketAccessService;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
  * analytics. O prefixo /markets/{marketId} é mantido para que o TenantAccessFilter
  * continue validando o tenant pela URL automaticamente.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")

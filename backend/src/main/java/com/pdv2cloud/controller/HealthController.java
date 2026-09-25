@@ -1,10 +1,13 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Profile("!jobs")
 @RestController
 public class HealthController {
 

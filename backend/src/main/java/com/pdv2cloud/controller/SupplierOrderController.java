@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.SupplierOrderDTO;
 import com.pdv2cloud.model.dto.SupplierOrderItemDTO;
 import com.pdv2cloud.service.MarketAccessService;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/supplier-orders")
 public class SupplierOrderController {

@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.AgentApiKeyCreateRequest;
 import com.pdv2cloud.model.dto.AgentApiKeyResponse;
 import com.pdv2cloud.model.entity.AgentApiKey;
@@ -17,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/agent-keys")
 public class AgentApiKeyController {

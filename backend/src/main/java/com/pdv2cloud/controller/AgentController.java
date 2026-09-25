@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.AgentProfileResponse;
 import com.pdv2cloud.model.dto.AgentInvoicePresenceRequest;
 import com.pdv2cloud.model.dto.AgentInvoicePresenceResponse;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/agent")
 public class AgentController {

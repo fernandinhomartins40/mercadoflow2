@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.ai.AiCredentialService;
 import com.pdv2cloud.service.ai.AiProvider;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Nenhuma resposta deste controller contém a chave em claro. O máximo que sai
  * daqui é o {@code keyHint} — os últimos 4 caracteres.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/ai")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")

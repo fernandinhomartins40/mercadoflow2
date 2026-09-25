@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.service.CatalogImageStorageService;
 import java.net.URI;
 import java.time.Duration;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/catalog/images")
 public class CatalogImageController {

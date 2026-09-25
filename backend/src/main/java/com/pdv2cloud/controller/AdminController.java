@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.CatalogRecordsImportRequestDTO;
 import com.pdv2cloud.model.dto.CatalogWebImportResponseDTO;
@@ -23,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/admin")
 @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")

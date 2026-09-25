@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.repository.StripeProcessedEventRepository;
 import com.pdv2cloud.model.entity.StripeProcessedEvent;
 import com.pdv2cloud.service.InvoiceReconciliationService;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
  * retorno de erro faz o Stripe reenviar em backoff por dias, e um evento que
  * falha por bug nosso continuaria falhando a cada tentativa.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/stripe")
 @Slf4j

@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.PlanCatalogEntry;
 import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.service.PlanCatalogService;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Lê do catálogo editável pelo painel, então um preço alterado ali aparece aqui
  * sem deploy.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/plans")
 public class PublicPlanController {

@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.campaign.CampaignProductIntelligenceService;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * O prefixo /markets/{marketId} é mantido para que o TenantAccessFilter valide o
  * tenant pela URL, como nas demais rotas de inteligência.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/intelligence")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")

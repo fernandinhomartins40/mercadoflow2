@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.BatchIngestResponse;
 import com.pdv2cloud.model.dto.IngestResponse;
 import com.pdv2cloud.model.dto.InvoiceDTO;
@@ -18,6 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/ingest")
 @Validated

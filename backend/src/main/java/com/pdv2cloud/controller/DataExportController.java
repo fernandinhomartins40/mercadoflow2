@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.Opportunity;
 import com.pdv2cloud.repository.OpportunityRepository;
 import com.pdv2cloud.repository.RecommendationRepository;
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <b>BOM UTF-8 no início:</b> sem ele o Excel lê "Ação" como "AÃ§Ã£o". É um
  * detalhe de três bytes que decide se o arquivo é usável.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/export")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")

@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.model.dto.MarketSummaryDTO;
 import java.util.List;
@@ -8,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/industries")
 @PreAuthorize("hasAnyRole('INDUSTRY_USER', 'ADMIN')")

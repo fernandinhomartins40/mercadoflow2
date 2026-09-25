@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.intelligence.NetworkIntelligenceService;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Restrito ao dono e ao admin: comparar filiais é informação de rede, e o
  * gerente de uma loja não deve ver os números da irmã por padrão.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/network")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")

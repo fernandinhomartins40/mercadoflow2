@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.StripeService;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
  * Restrito a MARKET_OWNER: contratar plano e alterar cobrança é decisão do dono
  * da conta, não de qualquer usuário do mercado.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/billing")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")

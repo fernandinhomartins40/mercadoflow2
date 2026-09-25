@@ -15,11 +15,10 @@
 # Em vez disso, o Tomcat sobe com o minimo: este processo nao recebe trafego
 # (nenhum upstream do nginx aponta para ele), entao duas threads bastam.
 spring:
-  # O contexto web permanece ativo. AuthController e SecurityConfig sao beans
-  # compartilhados com a API e exigem AuthenticationManager; definir `none`
-  # faz o cron falhar no boot e reiniciar continuamente.
+  # O cron nao expoe HTTP. Controllers e configuracoes web usam o perfil
+  # complementar `!jobs`; mantemos somente beans necessarios aos agendamentos.
   main:
-    web-application-type: servlet
+    web-application-type: none
   datasource:
     hikari:
       # Jobs rodam em serie, de madrugada. 10 conexoes ociosas o dia inteiro

@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
 import com.pdv2cloud.model.dto.MeResponse;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/super-admin/auth")
 public class SuperAdminAuthController {

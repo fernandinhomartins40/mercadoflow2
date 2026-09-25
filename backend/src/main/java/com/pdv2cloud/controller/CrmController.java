@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.CustomerActivity;
 import com.pdv2cloud.model.entity.CustomerTask;
 import com.pdv2cloud.model.entity.DunningLog;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
  * aqui fica o trabalho sobre a conta — ficha do cliente, histórico do
  * relacionamento, follow-ups, régua de cobrança e exportações.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/super-admin/crm")
 @PreAuthorize("hasRole('SUPER_ADMIN')")

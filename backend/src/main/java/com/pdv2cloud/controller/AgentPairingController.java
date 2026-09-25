@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.zxing.WriterException;
 import com.pdv2cloud.tenancy.TenantContext;
@@ -35,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
  * Rota autenticada (usada pela pagina web onde o usuario faz login):
  *   POST /api/v1/agent-pairing/approve — cria o PDV e emite a chave
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/agent-pairing")
 @RequiredArgsConstructor

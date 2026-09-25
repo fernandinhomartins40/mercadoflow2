@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.CatalogAdminProductDTO;
 import com.pdv2cloud.model.dto.CatalogImageRepairResponseDTO;
 import com.pdv2cloud.model.dto.SuperAdminCatalogProductUpsertRequest;
@@ -52,6 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.multipart.MultipartFile;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/super-admin")
 @PreAuthorize("hasRole('SUPER_ADMIN')")

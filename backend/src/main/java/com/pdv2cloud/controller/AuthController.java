@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.tenancy.TenantContext;
 import com.pdv2cloud.model.dto.LoginRequest;
 import com.pdv2cloud.model.dto.LoginResponse;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import com.pdv2cloud.model.dto.MeResponse;
 import com.pdv2cloud.service.UserProfileService;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {

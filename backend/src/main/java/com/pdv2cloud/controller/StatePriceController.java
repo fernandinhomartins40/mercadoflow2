@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.dto.StatePriceComparisonStatsDTO;
 import com.pdv2cloud.model.dto.StatePriceImportRequestDTO;
 import com.pdv2cloud.model.dto.StatePriceImportResponseDTO;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/state-prices")
 @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")

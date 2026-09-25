@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.MarketBillingStatus;
 import com.pdv2cloud.model.entity.MarketUsageCounter;
 import com.pdv2cloud.model.entity.NetworkContract;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.*;
  * e de CRUD de usuários/mercados. Aqui fica tudo referente a plano, limites,
  * consumo e histórico de cobrança.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/super-admin/subscriptions")
 @PreAuthorize("hasRole('SUPER_ADMIN')")

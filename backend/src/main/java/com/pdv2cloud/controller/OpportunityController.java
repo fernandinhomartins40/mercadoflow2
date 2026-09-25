@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.Opportunity;
 import com.pdv2cloud.model.entity.Recommendation;
 import com.pdv2cloud.repository.OpportunityRepository;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
  * (market, product, opportunity) que serializadas direto causariam
  * LazyInitializationException ou payload gigante.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/opportunities")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")

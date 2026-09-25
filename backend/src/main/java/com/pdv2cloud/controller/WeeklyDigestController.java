@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.model.entity.WeeklyDigest;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PlanService;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code /generate} existe para quem não quer esperar a próxima segunda —
  * loja recém-instalada, ou quem acabou de configurar a chave de IA.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/intelligence/weekly")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")

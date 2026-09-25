@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -35,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * Parâmetro ?arch=x86 seleciona o instalador 32-bit em todos os endpoints.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/downloads")
 public class DownloadController {

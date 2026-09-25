@@ -1,5 +1,7 @@
 package com.pdv2cloud.controller;
 
+import org.springframework.context.annotation.Profile;
+
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PlanService;
 import com.pdv2cloud.service.ai.LlmClient;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  * já vê os mesmos números nas telas. Diferente de cadastrar chave de IA, que
  * é compromisso financeiro e fica restrito ao dono.
  */
+@Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/ai/chat")
 @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
