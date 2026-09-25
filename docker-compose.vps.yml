@@ -1,7 +1,9 @@
 services:
   mercadoflow-postgres:
     container_name: mercadoflow-postgres
-    image: postgres:16-alpine
+    # Digest observado na VPS linux/amd64 em 2026-09-25. A tag é mantida para
+    # legibilidade, mas o pull e o rollback passam a ser imutáveis.
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     logging: &mercadoflow_logging
       driver: local
@@ -163,7 +165,9 @@ services:
 
   mercadoflow-nginx:
     container_name: mercadoflow-nginx
-    image: nginx:alpine
+    # Mesmo critério do PostgreSQL: não atualizar a base silenciosamente no
+    # próximo deploy; mudanças de base entram como release explícito.
+    image: nginx:alpine@sha256:1ed1b0e1d7652937d6cbdaf4018c7b6fc009a7dd6c3047351e2eddda745de43f
     restart: unless-stopped
     logging: *mercadoflow_logging
     ports:
