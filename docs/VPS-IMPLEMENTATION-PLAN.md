@@ -193,3 +193,13 @@ com `nginx -t` e implantada no run `36078366017`, concluído em 2m06s.
   1m27s.
 - Rollback: reverter `335588d` e redeployar o release anterior por digest;
   nenhum volume, migration ou dado foi alterado.
+
+### Addendum de logs — 2026-09-25T00:40:18Z
+
+- Leitura sem conteúdo dos arquivos: `/app/logs` ocupava 12 KiB no backend e
+  36 KiB no cron após o deploy. Ambos os containers usam o driver Docker
+  `local` com limite de 20 MiB por arquivo e três arquivos.
+- Não houve evidência suficiente para remover o appender JSON interno: a
+  amostra é curta e logs podem atender auditoria e diagnóstico. Crescimento por
+  dia e sobreposição de retenção continuam **NOT MEASURED**; nenhuma limpeza
+  ou alteração de logs foi feita.
