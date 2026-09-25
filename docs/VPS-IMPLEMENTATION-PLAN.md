@@ -168,3 +168,28 @@ Status: VERIFIED em 2026-09-25. O run `36077791283` concluiu com sucesso em
   pois este foi o primeiro build após a criação da camada.
 - Rollback: reverter o commit `ad1dafd` e redeployar o digest anterior de
   backend preservado em `.env.previous`; não há mudança de schema ou volume.
+
+## Fase 9 — Gate de saúde e baseline efetivo da VPS
+
+Status: VERIFIED em 2026-09-25. A correção `335588d` foi validada localmente
+com `nginx -t` e implantada no run `36078366017`, concluído em 2m06s.
+
+- O proxy agora envia `GET /health` para o endpoint `/health` do backend. Antes,
+  a rota caía no fallback do frontend e devolvia `index.html` com HTTP 200,
+  permitindo um falso positivo no gate de deploy.
+- Após o deploy, a VPS respondeu `HTTP 200`, `Content-Type: application/json`
+  e corpo `{"status":"ok"}`. Backend e PostgreSQL estavam `running` e
+  `healthy`.
+- Baseline de leitura em `2026-09-25T00:35:42Z`: host com 15 GiB de RAM,
+  11 GiB disponíveis e 161 MiB de swap em uso; disco raiz 64/194 GiB.
+  Os oito containers MercadoFlow tinham limites cgroup v2 efetivos, zero
+  eventos `oom`/`oom_kill` e zero uso de swap no momento observado.
+- O backend usava 392,8 MiB de seu limite de 1 GiB; o cron estava executando
+  trabalho (321,78% de CPU), portanto esta amostra não autoriza reduzir seus
+  limites. Não havia quota de CPU declarada (`cpu.max=max`) nem throttling
+  observado na amostra.
+- O cache GHA foi comprovado no mesmo run: backend 24s, frontend 17s e
+  coletores 23s. Isso mede reutilização de cache após a Fase 8; o deploy levou
+  1m27s.
+- Rollback: reverter `335588d` e redeployar o release anterior por digest;
+  nenhum volume, migration ou dado foi alterado.
