@@ -150,3 +150,21 @@ Status: VERIFIED em 2026-09-25. O run `36077401108` concluiu com sucesso em
   anterior de backend de cache incompatível.
 - Rollback: reverter o commit `508fe14`; os digests anteriores continuam
   preservados em `.env.previous` para a aplicação na VPS.
+
+## Fase 8 — Reuso de dependências Maven no build
+
+Status: VERIFIED em 2026-09-25. O run `36077791283` concluiu com sucesso em
+3m37s: validação 7s, backend 1m45s, frontend 20s, coletores 27s e deploy 1m39s.
+
+- O Dockerfile baixa o grafo Maven a partir de `pom.xml` em uma camada anterior
+  à cópia de `src`. Alterações de código não invalidam essa camada enquanto as
+  dependências e plugins permanecerem os mesmos.
+- A primeira execução criou a camada, compilou o JAR, publicou os três digests
+  no GHCR e aplicou-os na VPS sem build local ou remoto na VPS.
+- Aceite: jobs de build e deploy concluídos com sucesso; artefato backend
+  iniciou pela sequência de deploy e healthcheck existente.
+- Métrica esperada: o próximo build que altere apenas `backend/src` deve
+  reaproveitar a camada Maven. A economia de tempo ainda está NOT MEASURED,
+  pois este foi o primeiro build após a criação da camada.
+- Rollback: reverter o commit `ad1dafd` e redeployar o digest anterior de
+  backend preservado em `.env.previous`; não há mudança de schema ou volume.
