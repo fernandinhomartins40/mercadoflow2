@@ -67,8 +67,8 @@ Status: baseline coletada após o deploy, em `2026-09-24T23:51:06Z`.
 
 ## Fase 4 — Propriedade única dos agendamentos
 
-Status: candidata implementada localmente; aguardando o build/deploy do GitHub
-Actions e a medição pós-deploy.
+Status: VERIFIED em 2026-09-25. O run `36075503043` compilou e publicou as
+imagens no GitHub, fez pull por digest na VPS e concluiu o deploy com sucesso.
 
 - Evidência: no baseline, `mercadoflow-cron` consumia 55.2% de CPU durante a
   inicialização e 436.7 MiB de RAM. Catálogo, reparo de imagens, importação web,
@@ -82,3 +82,15 @@ Actions e a medição pós-deploy.
   disponíveis; nenhum job perde execução.
 - Rollback: reverter este commit e redeployar os três digests anteriores. Não
   altera schema, volume, dados ou credenciais.
+
+### Medição pós-deploy
+
+- Em `2026-09-25T00:06:27Z`, backend estava saudável em 441.5 MiB e o cron
+  em 243.7 MiB/640 MiB. A amostra capturou 280.24% de CPU no cron, portanto
+  representa execução natural de manutenção, não repouso.
+- O cron não registrou `Tomcat started`, `Tomcat initialized` nem threads
+  `http-nio` nos últimos 10 minutos. O endpoint de health respondeu `ok`.
+- O RSS do cron caiu de 394.5 MiB na amostra pós deploy anterior para 243.7
+  MiB durante esta execução. Como são momentos de carga diferentes, a redução
+  não é atribuída como economia definitiva; é uma hipótese a confirmar com
+  séries comparáveis de repouso e pico.
