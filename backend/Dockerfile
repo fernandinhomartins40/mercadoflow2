@@ -1,6 +1,9 @@
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY pom.xml .
+# Esta camada so muda quando o grafo Maven muda. Assim, alteracoes em src nao
+# baixam novamente dependencias e plugins no runner do GitHub Actions.
+RUN mvn -q -DskipTests dependency:go-offline
 COPY src ./src
 RUN mvn -q -DskipTests package
 
