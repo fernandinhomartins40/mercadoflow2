@@ -169,7 +169,7 @@ jobs:
       contents: read
       packages: read
     env:
-      VPS_HOST: srv953800.hstgr.cloud
+      VPS_HOST: 72.60.10.112
       VPS_APP_DIR: /root/mercadoflow-web
       MERCADOFLOW_BACKEND_IMAGE: ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}
       MERCADOFLOW_FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.image }}@${{ needs.build-frontend.outputs.digest }}
@@ -189,7 +189,7 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           install -m 600 .github/vps_known_hosts ~/.ssh/known_hosts
-          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '$2 == "SHA256:qEkOWNaWFZykVFmF/pMUlWvXYssbO0byQTW4KfcnHPU" { found=1 } END { exit !found }'
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '$2 == "SHA256:6ZU1oyYcSKKrodyE2uYKme3ciSkCWFxfniTKCGn7NW8" { found=1 } END { exit !found }'
 
       - name: Prepare SSH password file
         run: |
