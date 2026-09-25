@@ -249,3 +249,26 @@ publicadas no GHCR; a VPS recebeu imagens por pull e n?o compilou a aplica??o.
 - Rollback: restaurar o commit de infraestrutura anterior e redeployar o
   conjunto de digests preservado em `.env.previous`; volumes e dados n?o foram
   modificados por esta fase.
+
+## Fase 12 ? Corre??o do loop do cron na VPS de destino
+
+Status: VERIFIED em 2026-09-25. O cron `mercadoflow-cron` reiniciava em loop
+por falha de bootstrap do perfil `production,jobs`: a configura??o de seguran?a
+web era exclu?da, enquanto controllers e `AuthService` ainda eram instanciados.
+A amostra registrou mais de 500 rein?cios e at? 195% de CPU em uma VPS de
+2 vCPU, sem evento OOM.
+
+- `060b457` exclui controllers HTTP do perfil `jobs`; `ddcc951` exclui tamb?m
+  `AuthService`, que ? consumidor exclusivo desses controllers. O perfil de
+  jobs voltou a usar `web-application-type: none`; backend HTTP continua com o
+  perfil complementar `!jobs` e todas as rotas.
+- Ap?s o deploy de `ddcc951`, em 2026-09-25T03:25:23Z, o container novo tinha
+  `restarts=0`, `running=true`, `oom=false`, um marcador de startup completo e
+  zero marcadores `APPLICATION FAILED TO START`. O gate `/health` do backend
+  respondeu `{"status":"ok"}`.
+- Snapshot p?s-estabiliza??o: cron 0,15% CPU e 337,9 MiB/640 MiB; backend
+  0,17% CPU e 384,2 MiB/1 GiB; PostgreSQL 3,40% CPU e 288,5 MiB/640 MiB.
+  Esta medi??o ? pontual e n?o representa pico de jobs.
+- Rollback: reverter `ddcc951` e `060b457`, depois redeployar os digests
+  anteriores. N?o houve migration, altera??o de volume ou exclus?o de dados.
+
