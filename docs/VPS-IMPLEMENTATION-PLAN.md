@@ -136,3 +136,17 @@ VPS puxou o digest `sha256:8d55c46f…` antes de recriar os containers.
 - O cron consumia 152.28% de CPU, então esta amostra prova execução de job,
   não repouso. Não há série de pico equivalente para autorizar reduzir limites
   de heap, pool ou memória sem risco de regressão.
+
+## Fase 7 — Cache de build no GitHub Actions
+
+Status: VERIFIED em 2026-09-25. O run `36077401108` concluiu com sucesso em
+3m28s: validação 6s, backend 1m36s, frontend 50s, coletores 30s e deploy 1m39s.
+
+- Cada job de imagem agora inicializa seu próprio Buildx antes de usar o cache
+  `type=gha`; isso torna o cache compatível com o builder usado no GitHub Actions.
+- A execução publicou os três artefatos no GHCR e o deploy aplicou seus digests
+  imutáveis na VPS. Não houve build de aplicação na VPS.
+- Aceite: os três builds e o deploy concluíram; o pipeline não apresentou o erro
+  anterior de backend de cache incompatível.
+- Rollback: reverter o commit `508fe14`; os digests anteriores continuam
+  preservados em `.env.previous` para a aplicação na VPS.
