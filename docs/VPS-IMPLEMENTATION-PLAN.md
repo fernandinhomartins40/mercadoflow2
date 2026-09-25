@@ -221,3 +221,31 @@ com builds em cache (backend 24s, frontend 24s, coletores 17s) e deploy em
 - Rollback: restaurar as referências anteriores pelo commit `3d3b614` revertido
   ou pelo Compose anterior; não há alteração de volume PostgreSQL, schema ou
   dados.
+
+## Fase 11 ? Migra??o do destino de deploy para srv953808
+
+Status: VERIFIED em 2026-09-25. O commit `1f5babc` mudou o destino do workflow
+para `72.60.10.112` e fixou a chave p?blica SSH Ed25519 apresentada pelo host.
+O run `36079512923` concluiu com sucesso: valida??o de migrations (7 s), builds
+independentes de backend (15 s), frontend (16 s) e coletores (26 s), seguidos
+de deploy (3 m 56 s). As imagens foram constru?das no GitHub Actions e
+publicadas no GHCR; a VPS recebeu imagens por pull e n?o compilou a aplica??o.
+
+- Valida??o SSH por Paramiko com a chave esperada em 2026-09-25T00:56:48Z:
+  autentica??o como `root` aprovada, hostname `srv953808` e Docker dispon?vel.
+- Baseline de leitura em 2026-09-25T00:57:44Z: host com 7,8 GiB de RAM total,
+  3,9 GiB dispon?vel, swap desabilitada e disco raiz com 35/97 GiB utilizados.
+  A carga observada foi 3,67/1,90/0,93; este ? um ?nico snapshot, portanto n?o
+  representa pico nem permite inferir capacidade sustentada.
+- O release MercadoFlow iniciou oito containers. No snapshot, backend estava
+  saud?vel (410,3 MiB / 1 GiB), PostgreSQL saud?vel (569,4 MiB / 640 MiB) e
+  cron consumia 92,28% de CPU (251,6 MiB / 640 MiB). O cron ? trabalho ativo;
+  a amostra n?o autoriza reduzir seu limite.
+- A VPS tamb?m hospeda servi?os de outros projetos. Eles permanecem fora do
+  escopo do deploy e de qualquer otimiza??o MercadoFlow at? que sejam
+  inventariados com seus respectivos consumidores e respons?veis.
+- Aceite: run conclu?do, acesso SSH com chave validada e backend/PostgreSQL
+  saud?veis no `docker ps` observado ap?s o deploy.
+- Rollback: restaurar o commit de infraestrutura anterior e redeployar o
+  conjunto de digests preservado em `.env.previous`; volumes e dados n?o foram
+  modificados por esta fase.
