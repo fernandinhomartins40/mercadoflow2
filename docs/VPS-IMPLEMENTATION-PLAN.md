@@ -290,3 +290,26 @@ Status: VERIFIED (snapshot de 2026-09-25T03:25Z; n?o representa pico).
   atribui esse valor ao MercadoFlow. PSI de mem?ria e I/O foi baixo no instante
   observado. Pico, p95/p99, throughput, lat?ncia e taxa de crescimento seguem
   NOT MEASURED.
+
+## Fase 14 ? Auditoria de persist?ncia, logs e refer?ncias de cat?logo
+
+Status: AUDITED em 2026-09-25; qualquer limpeza permanece PENDING.
+
+- `data/catalog/images` ocupa 12 GiB, com 174.733 arquivos; 159.372 t?m mais
+  de 90 dias. O backend os exp?e em `/api/v1/catalog/images/**` e consegue
+  restaurar imagens ausentes a partir de `product_enrichments`. Idade n?o prova
+  orfandade e n?o foi executada exclus?o.
+- A tabela `product_enrichments` tem 150.639 registros, 150.492 com chave de
+  armazenamento e 147.997 chaves distintas. A diferen?a para a quantidade de
+  arquivos ? somente um limite superior de candidatos; h? outras refer?ncias
+  poss?veis em uploads e tabelas de ofertas.
+- O volume PostgreSQL observado tem 5,0 GiB. Backups locais ocupam 1,5 GiB;
+  dumps autom?ticos s?o validados com `pg_restore` e a rotina preserva um por
+  dia por at? sete dias. Dumps hist?ricos com nomes especiais n?o s?o tocados.
+- Logs Docker usam driver `local`, limitado a 20 MiB e tr?s arquivos por
+  container. No instante observado, diret?rios de containers MercadoFlow
+  estavam entre 44 e 76 KiB; n?o h? justificativa para reduzir reten??o.
+- Aceite para uma futura limpeza: relat?rio dry run que reconcilie todos os
+  caminhos do filesystem com cada refer?ncia persistida, per?odo de quarentena
+  recuper?vel, verifica??o de URLs e rollback por restaura??o. Economia de
+  disco esperada: NOT MEASURED at? essa reconcilia??o.
