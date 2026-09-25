@@ -127,3 +127,12 @@ VPS puxou o digest `sha256:8d55c46f…` antes de recriar os containers.
   `/health` respondeu `ok`.
 - Rollback: usar o digest Ubuntu anterior preservado em `.env.previous` e
   executar o deploy. Não há mudança de schema, volume ou dado persistente.
+
+### Baseline pós Alpine
+
+- Em `2026-09-25T00:17:50Z`, o host tinha 11 GiB disponíveis e swap de
+  149 MiB/2 GiB. Backend: 381.4 MiB/1 GiB; cron: 51.11 MiB/640 MiB;
+  PostgreSQL: 33.34 MiB/640 MiB; banco com oito conexões observadas.
+- O cron consumia 152.28% de CPU, então esta amostra prova execução de job,
+  não repouso. Não há série de pico equivalente para autorizar reduzir limites
+  de heap, pool ou memória sem risco de regressão.
