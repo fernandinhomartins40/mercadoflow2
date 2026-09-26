@@ -351,3 +351,15 @@ Status: IMPLEMENTADA e validada localmente em 2026-09-26; efeito na VPS
   `Content-Encoding: gzip` e cache imutável, zero reinício inesperado do cron.
 - Rollback: reverter o commit e redeployar; nenhuma migration, volume ou dado
   é alterado.
+
+### Deploy da Fase 15 — 2026-09-26
+
+- Run `36267885595` concluído com sucesso: validação 5s, frontend 34s,
+  coletores 24s, backend 1m44s, deploy 4m02s.
+- Verificação externa via HTTPS: `/health` → `{"status":"ok"}`; `index.html`
+  com `Cache-Control: no-cache` e gzip; `/assets/index-*.js` com
+  `Content-Encoding: gzip` e `max-age=31536000, immutable`, 219.673 → 73.865
+  bytes (-66%). API respondeu 401 JSON no login inválido pelo Nginx do host
+  com o novo upstream keep-alive.
+- Pendente (NOT MEASURED): `docker inspect` de `NanoCpus`/`CpuShares` na VPS,
+  CPU do cron em ciclo de job e contagem de reinícios após 24h.
