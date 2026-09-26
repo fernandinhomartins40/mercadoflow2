@@ -32,6 +32,9 @@ services:
       -c max_connections=50
     mem_limit: 640m
     memswap_limit: 640m
+    # Sem teto de CPU (consultas do usuario competem com o boot do backend), mas
+    # com peso cheio: sob disputa ele e servido antes dos jobs e coletores.
+    cpu_shares: 1024
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -101,6 +104,10 @@ services:
       - ./data/offers:/opt/pdv2cloud/offers-data
     mem_limit: 1024m
     memswap_limit: 1024m
+    # Sem teto de CPU: o boot com Flyway ja leva minutos nesta VPS e um teto o
+    # alongaria. O peso cheio garante prioridade sobre cron e coletores quando
+    # ha disputa pelas 2 vCPU; sem disputa, peso nao limita nada.
+    cpu_shares: 1024
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
       # 30s em vez de 10s: o backend leva semanas no ar sem oscilar, e o
@@ -150,7 +157,9 @@ services:
       # e o pool do banco a 4 conexoes -- este container nunca recebe requisicao.
       - SPRING_PROFILES_ACTIVE=production,jobs
       # Heap menor que o do backend: os jobs rodam em serie e de madrugada.
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=60.0 -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m
+      # ExitOnOutOfMemoryError: sem ele um OOM de heap deixa a JVM viva e sem
+      # agendamentos; saindo, o restart policy sobe um processo limpo.
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=60.0 -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:+ExitOnOutOfMemoryError
       - DATABASE_URL=${DATABASE_URL}
       # Jobs operam sobre todos os tenants: usam a role dona do schema (nao sujeita a RLS)
       - DATABASE_USER=${POSTGRES_USER}
@@ -162,6 +171,13 @@ services:
       - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
     mem_limit: 640m
     memswap_limit: 640m
+    # Medido em 2026-09-25: o cron chegou a 195% de CPU numa VPS de 2 vCPU
+    # (loop de boot) e a 280-320% durante jobs, disputando CPU com o backend e
+    # com as outras aplicacoes do host. Os jobs rodam em serie numa unica thread
+    # de agendamento, entao 1 vCPU nao reduz paralelismo util: limita o pico de
+    # JIT/GC do boot. Peso 512 cede a vez ao backend/PostgreSQL sob disputa.
+    cpus: 1.0
+    cpu_shares: 512
     depends_on:
       mercadoflow-backend:
         condition: service_healthy
@@ -206,6 +222,10 @@ services:
       - ./data/catalog:/workspace/data/catalog
     mem_limit: 192m
     memswap_limit: 192m
+    # Coletor em lote, sem usuario esperando: meia vCPU e peso baixo impedem
+    # que um ciclo de coleta dispute CPU com requisicoes interativas.
+    cpus: 0.5
+    cpu_shares: 256
     depends_on:
       mercadoflow-backend:
         condition: service_healthy
@@ -230,6 +250,10 @@ services:
       - ./data/catalog:/workspace/data/catalog
     mem_limit: 192m
     memswap_limit: 192m
+    # Coletor em lote, sem usuario esperando: meia vCPU e peso baixo impedem
+    # que um ciclo de coleta dispute CPU com requisicoes interativas.
+    cpus: 0.5
+    cpu_shares: 256
     depends_on:
       mercadoflow-backend:
         condition: service_healthy
@@ -261,6 +285,8 @@ services:
     # custas das outras aplicacoes da VPS.
     mem_limit: 320m
     memswap_limit: 320m
+    cpus: 0.5
+    cpu_shares: 256
     depends_on:
       mercadoflow-backend:
         condition: service_healthy

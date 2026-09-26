@@ -313,3 +313,41 @@ Status: AUDITED em 2026-09-25; qualquer limpeza permanece PENDING.
   caminhos do filesystem com cada refer?ncia persistida, per?odo de quarentena
   recuper?vel, verifica??o de URLs e rollback por restaura??o. Economia de
   disco esperada: NOT MEASURED at? essa reconcilia??o.
+
+## Fase 15 — Prioridade de CPU, compressão e keep-alive
+
+Status: IMPLEMENTADA e validada localmente em 2026-09-26; efeito na VPS
+**NOT MEASURED** até a coleta pós-deploy.
+
+- Evidência: nenhum serviço tinha quota ou peso de CPU (`cpu.max=max`). O cron
+  chegou a 195% de CPU na VPS de 2 vCPU (loop de boot) e a 280-320% durante
+  jobs, disputando CPU com backend, PostgreSQL e as outras aplicações do host.
+  Nenhum proxy comprimia JS/CSS/JSON, os assets com hash eram revalidados a cada
+  navegação, e o Nginx do host forçava `Connection: upgrade` em toda requisição
+  (a aplicação não usa WebSocket), abrindo um TCP novo até a porta 3300.
+- CPU (`docker-compose.vps.yml`): cron `cpus: 1.0` e `cpu_shares: 512`;
+  coletores `cpus: 0.5` e `cpu_shares: 256`; backend e PostgreSQL sem teto e
+  com peso 1024. Os jobs rodam em série numa única thread de agendamento, então
+  1 vCPU não reduz paralelismo útil. Peso só age sob disputa.
+- Cron ganhou `-XX:+ExitOnOutOfMemoryError`, como o backend.
+- Frontend: `.gz` gerados no build (gzip -9) e servidos com `gzip_static`;
+  `/assets/` com `Cache-Control: public, max-age=31536000, immutable` e
+  `index.html` com `no-cache`. Medido no dist local: JS+CSS de 1.317.646 para
+  338.801 bytes (-74%).
+- Proxy da stack: gzip nível 4 para JSON da API (amostra de 15.317 → 2.346
+  bytes) e keep-alive para backend/frontend (`keepalive_timeout 15s`, abaixo do
+  keep-alive do Tomcat).
+- Nginx do host: upstream `mercadoflow_stack_proxy` com keep-alive, sem
+  `Upgrade/Connection: upgrade`. O deploy guarda a config anterior e a restaura
+  se `nginx -t` falhar, para não deixar arquivo inválido no Nginx compartilhado.
+- Backend: `server.tomcat.threads.max` 200 → 64 (`TOMCAT_MAX_THREADS`); o pool
+  de banco tem no máximo 8 conexões.
+- Validação local: `docker compose config` renderizou os limites; `nginx -t`
+  aprovado nas três configs (stack, frontend, host HTTP e HTTPS); cadeia
+  proxy → frontend/backend fake entregou asset com gzip único e íntegro, JSON
+  comprimido, `/health` ok, SPA com fallback e 404 para asset inexistente.
+- Aceite na VPS: deploy verde, `/health` ok, `docker inspect` com
+  `NanoCpus`/`CpuShares` esperados, resposta HTTPS de `/assets/*.js` com
+  `Content-Encoding: gzip` e cache imutável, zero reinício inesperado do cron.
+- Rollback: reverter o commit e redeployar; nenhuma migration, volume ou dado
+  é alterado.

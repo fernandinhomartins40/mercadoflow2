@@ -17,6 +17,15 @@ spring:
       hibernate:
         show_sql: false
 
+server:
+  tomcat:
+    threads:
+      # Default do Tomcat e 200. Com no maximo 8 conexoes de banco, uma rajada
+      # alem disso so empilharia threads (pilha + buffers dentro do limite de
+      # 1 GiB do container) esperando o pool. Requisicoes excedentes aguardam na
+      # fila de accept em vez de virar threads.
+      max: ${TOMCAT_MAX_THREADS:64}
+
 logging:
   level:
     root: INFO

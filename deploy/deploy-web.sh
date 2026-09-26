@@ -576,8 +576,25 @@ ensure_host_nginx_proxy() {
   local fullchain="${cert_dir}/fullchain.pem"
   local privkey="${cert_dir}/privkey.pem"
 
+  # Guarda a config atual: se a nova nao passar no nginx -t, ela e restaurada
+  # e o Nginx do host (compartilhado com outras aplicacoes) nao fica com um
+  # arquivo invalido no disco esperando o proximo reload de terceiros.
+  local backup_path=""
+  if [[ -f "$config_path" ]]; then
+    backup_path="$(mktemp)"
+    cp -p "$config_path" "$backup_path"
+  fi
+
   if [[ -f "$fullchain" && -f "$privkey" ]]; then
     cat > "$config_path" <<EOF
+# Keep-alive ate o proxy da stack: sem ele cada requisicao abria um TCP novo
+# ate a porta 3300 (e o docker-proxy). A aplicacao nao usa WebSocket, entao nao
+# ha motivo para forcar "Connection: upgrade" em toda requisicao.
+upstream mercadoflow_stack_proxy {
+    server 127.0.0.1:3300;
+    keepalive 16;
+}
+
 server {
     listen 80;
     listen [::]:80;
@@ -600,12 +617,10 @@ server {
     client_body_timeout 600s;
 
     location / {
-        proxy_pass http://127.0.0.1:3300;
+        proxy_pass http://mercadoflow_stack_proxy;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection "";
         proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
@@ -615,8 +630,9 @@ server {
     }
 
     location /health {
-        proxy_pass http://127.0.0.1:3300/health;
+        proxy_pass http://mercadoflow_stack_proxy/health;
         proxy_http_version 1.1;
+        proxy_set_header Connection "";
         proxy_set_header Host \$host;
         access_log off;
     }
@@ -624,6 +640,11 @@ server {
 EOF
   else
     cat > "$config_path" <<'EOF'
+upstream mercadoflow_stack_proxy {
+    server 127.0.0.1:3300;
+    keepalive 16;
+}
+
 server {
     listen 80;
     listen [::]:80;
@@ -636,20 +657,19 @@ server {
     client_body_timeout 600s;
 
     location / {
-        proxy_pass http://127.0.0.1:3300;
+        proxy_pass http://mercadoflow_stack_proxy;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection "";
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /health {
-        proxy_pass http://127.0.0.1:3300/health;
+        proxy_pass http://mercadoflow_stack_proxy/health;
         proxy_http_version 1.1;
+        proxy_set_header Connection "";
         proxy_set_header Host $host;
         access_log off;
     }
@@ -662,7 +682,20 @@ EOF
   rm -f /etc/nginx/sites-enabled/default
 
   log "Validando e recarregando Nginx do host"
-  nginx -t
+  if ! nginx -t; then
+    if [[ -n "$backup_path" ]]; then
+      log "ERRO: nova config do Nginx do host invalida; restaurando a anterior"
+      cp -p "$backup_path" "$config_path"
+      rm -f "$backup_path"
+    else
+      log "ERRO: config do Nginx do host invalida; removendo a config nova"
+      rm -f /etc/nginx/sites-enabled/mercadoflow.conf "$config_path"
+    fi
+    return 1
+  fi
+  if [[ -n "$backup_path" ]]; then
+    rm -f "$backup_path"
+  fi
   systemctl reload nginx
 }
 
