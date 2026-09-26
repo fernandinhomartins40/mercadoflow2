@@ -157,3 +157,21 @@ Nenhum valor real existe: não há piloto (D-009). Os números do mercado de tes
 3. `DESCONHECIDO` — Com que frequência o dono de loja independente decide compra (diária, semanal, por visita do representante)? Define se o canal certo é o painel ou uma notificação.
 4. `DECISÃO NECESSÁRIA` — Com D-007, o encarte deve nascer **da oportunidade de promoção** (fluxo guiado) ou ficar como ferramenta independente no menu?
 5. `DESCONHECIDO` — Quem instala o agente na loja: o dono, o técnico do PDV ou o MercadoFlow? Isso muda o onboarding.
+
+---
+
+## Correções do Gate 1 (owner, 2026-09-26 — D-015…D-023)
+
+Estas correções **prevalecem** sobre o texto acima onde houver conflito.
+
+| Tema | Antes (leitura do código) | Correção do owner | Efeito |
+|---|---|---|---|
+| Quem opera | dono como usuário principal | **comprador/encarregado** opera; dono paga e acompanha (D-016) | persona operacional muda |
+| Público | loja única; rede como extensão | **redes pequenas no núcleo** (D-017) | consolidação multiloja entra no core |
+| Dispositivo | não definido | **celular primeiro** (D-018) | 360 px é o alvo principal |
+| Estoque | recomendações de compra, excesso e capital parado derivam de **estoque teórico = compras − vendas** (`V31`, `CapitalOpportunityDetector`) | **sem NF de entrada; não é controle de estoque**; é inteligência de compra por **desempenho de venda** (D-019) | a base das oportunidades mais frequentes (compra = 68% no mercado de teste) conflita com a direção e precisa ser refeita sobre sinais de venda |
+| Gargalo | decisão → ação | **ativação primeiro**, depois **excesso de informação**; decisão → ação continua válida (D-011, D-021) | ordem de prioridade muda |
+| Atenção | Alertas × Oportunidades | **Alertas acabam**; Painel + Central viram **uma tela** (D-021) | um único feed |
+| Notificação | nenhum canal externo | **somente push via app/PWA** (D-020); hoje **não há PWA** (sem manifest nem service worker) | PWA vira pré-requisito da recorrência |
+| Mapa da loja | "majoritariamente cadastro" | **importante**; precisa ser **reinventado**, simples e visual (D-022) | frente própria |
+| Planos | escada documentada | preços mantidos; o Gratuito **não pode ser fachada** (D-023). Achados: teto de **1.000 notas/semana** com rejeição do excedente (`PlanService:271-280`) — o corte tende a cair no fim de semana, quando a loja mais vende; página pública diz "por mês" (`PublicPlanController:74`); recorte de 5 itens ainda existe (`PlanService:701`) | a escada será reavaliada no Prompt 2 |

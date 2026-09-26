@@ -74,3 +74,14 @@ anterior (§10: "COMPRAR → adiciona à Lista de Compras"). Não é requisito a
 Conclusão preliminar: a hipótese **combina com o domínio**. O gargalo não é inventar inteligência
 nova, e sim **fechar o último metro**: decisão → ação → resultado. A ativação (J7) é a segunda lacuna.
 `INFERIDO`: a decisão final é do owner no Gate 2.
+
+---
+
+## Correções do Gate 1 (owner, 2026-09-26 — D-015…D-023)
+
+- **Personas:** (1) **Comprador/encarregado**, que opera a compra diariamente pelo celular; (2) **Dono**, que paga, acompanha resultado e decide promoção; (3) **Dono de rede pequena** (2–3 lojas), que compara lojas. D-016, D-017, D-018.
+- **J1 reescrito:** "Quando vou fazer o pedido, quero saber o que e quanto comprar **com base em como cada produto está vendendo** (velocidade, tendência, sazonalidade, cesta), sem precisar controlar estoque." D-019.
+- **J2 reescrito:** "o que está parado" passa a significar **produto com venda caindo ou sem giro na loja**, não "estoque parado". O conceito de capital parado sem estoque confiável é DECISÃO NECESSÁRIA no Prompt 2.
+- **J7 é prioridade 1:** ativação autoexplicativa, feita pelo próprio dono (D-014, D-021).
+- **Recorrência:** o valor chega por **push no celular** (D-020); pedido sai por WhatsApp/PDF/portal/lista para o representante (D-012).
+- **Jornada:** a etapa "Primeiro contato" deixa de ser o Painel vazio e passa a ser um checklist de ativação até a primeira recomendação.

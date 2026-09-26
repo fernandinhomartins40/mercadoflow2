@@ -4,9 +4,9 @@ Atualizado em: 2026-09-26
 
 | Campo | Valor |
 |---|---|
-| Fase atual | Prompt 1 — Descoberta do produto atual |
-| Último gate aprovado | Gate 0 (2026-09-26, D-010) |
-| Gate pendente | **Gate 1**: validação do diagnóstico |
+| Fase atual | Prompt 2 — Tese de produto |
+| Último gate aprovado | Gate 1 com correções (2026-09-26, D-015) |
+| Gate pendente | **Gate 2**: escolha da direção de produto |
 | Escopo autorizado | somente leitura e criação de documentos em `docs/mercadoflow-product/` |
 | Código alterado nesta fase | nenhum |
 
@@ -20,6 +20,7 @@ Atualizado em: 2026-09-26
 | Mapear schema, entidades, tenancy e papéis | DONE (estático); migrations não relidas |
 | Mapear UI: componentes, tokens, fontes, ícones | DONE (estático) |
 | Prompt 1: `01-CURRENT-PRODUCT.md` e `03-USERS-JOBS-JOURNEYS.md` | DONE (inspeção de código; nenhum fluxo executado) |
+| Prompt 2: `02-PRODUCT-THESIS.md` (3 direções, matriz, recomendação A + fundação, arquitetura de informação com 5 destinos, escada de planos) | DONE |
 | Executar a aplicação e observar fluxos | NOT_STARTED: fica para o Prompt 3, se autorizado |
 | Executar testes do backend | NOT_STARTED: não é comando de inventário; proposto para o Prompt 4 |
 
@@ -34,6 +35,7 @@ Nenhum. Foram executados apenas comandos de leitura (`git status`, `grep`, `find
 - `docs/mercadoflow-product/00-REPOSITORY-INVENTORY.md`
 - `docs/mercadoflow-product/01-CURRENT-PRODUCT.md`
 - `docs/mercadoflow-product/03-USERS-JOBS-JOURNEYS.md`
+- `docs/mercadoflow-product/02-PRODUCT-THESIS.md`
 
 ## Riscos abertos (a aprofundar nas fases seguintes, sem conclusão ainda)
 
@@ -48,6 +50,9 @@ Nenhum. Foram executados apenas comandos de leitura (`git status`, `grep`, `find
 9. **Sem onboarding**: o Painel de uma loja sem agente e sem notas diz "Todos os produtos em dia".
 10. Dois conceitos de atenção (Alert × Opportunity) e sobreposição entre Painel do dia e Central de Inteligência.
 11. Pedido "ENVIADO" não é enviado a ninguém; não há canal de notificação fora do app.
+12. Oportunidades de compra, excesso e capital parado derivam de estoque teórico, o que conflita com D-019.
+13. A cota do Gratuito rejeita notas excedentes por semana e distorce a análise; a página pública fala "por mês".
+14. Não há PWA (manifest/service worker), pré-requisito do push (D-020).
 
 ## Respostas do owner já registradas
 
@@ -55,4 +60,4 @@ D-006 cliente = mercado independente · D-007 estúdio de ofertas volta ao produ
 
 ## Próxima ação exata
 
-Aguardar a validação do **Gate 1** (diagnóstico + perguntas de `01-CURRENT-PRODUCT.md` §12). Se aprovado, executar **somente o Prompt 2** (tese de produto, 3 direções → `02-PRODUCT-THESIS.md`).
+Aguardar a escolha do **Gate 2** (direção + decisões do §11 de `02-PRODUCT-THESIS.md`). Se aprovado, executar **somente os Prompts 3 e 4** (auditorias de UX/UI e técnica), parando nos gates 3A e 3B.
