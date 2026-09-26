@@ -1,0 +1,9 @@
+# DECISION_LOG — Evolução de produto MercadoFlow
+
+| ID | Data | Decisão | Evidência | Alternativas | Consequência | Aprovador | Status |
+|---|---|---|---|---|---|---|---|
+| D-001 | 2026-09-26 | Adotar `MERCADOFLOW_PRODUTO_CLAUDE_CODE.md` como protocolo, uma fase por vez, parando em cada gate | pedido do owner; seção 2 do protocolo | implementar direto um plano inteiro (vedado pelo próprio protocolo) | nenhuma mudança de código antes do Gate 5 | owner (pedido) | ATIVA |
+| D-002 | 2026-09-26 | Tratar a stack real (Spring Boot 4 / Java 17, React 18 + Vite, JPA + Flyway, npm/Maven) como base das fases técnicas, no lugar de Next.js/Prisma/pnpm | `backend/pom.xml`, `frontend/package.json` | seguir o texto do protocolo literalmente | prompts 4, 6 e 7 serão adaptados (ex.: "Prisma" → JPA/Flyway; "Server Actions" → controllers) | pendente (Gate 0) | PROPOSTA |
+| D-003 | 2026-09-26 | Considerar como já confirmado pelo owner, em conversas anteriores: o foco do produto é analisar **vendas** (NFC-e do PDV) para orientar a decisão de compra; NF de entrada não é foco | memória do projeto (`foco-analisar-vendas-nao-compras`) | tratar como hipótese | será a âncora do Prompt 1; o owner pode corrigir | owner (anterior) | CONFIRMADO — revalidar no Gate 1 |
+| D-004 | 2026-09-26 | Divisão para fabricantes (`INDUSTRY_USER`): planejada, não implementada; opt-out só em plano pago | memória do projeto (`divisao-fabricantes-decisoes`) + 1 endpoint sem UI | — | fica fora do core loop inicial até decisão no Gate 2 | owner (anterior) | CONFIRMADO |
+| D-005 | 2026-09-26 | IA: BYOK por mercado, sem chave da plataforma; IA nunca é caminho crítico | memória (`ia-byok-por-mercado`), `application.yml` | chave da plataforma | preservar fallback determinístico em qualquer fatia | owner (anterior) | CONFIRMADO |
