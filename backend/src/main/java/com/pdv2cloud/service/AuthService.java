@@ -136,7 +136,7 @@ public class AuthService {
             MarketBillingStatus.ACTIVE.name(),
             String.format(
                 "Conta criada no plano %s. Voce ja pode entrar e instalar o Agente Mercado Flow. "
-                    + "Inclui %d notas fiscais por mes, sem cartao de credito.",
+                    + "Inclui %d notas fiscais por semana, sem cartao de credito.",
                 PlanType.FREE.getDisplayName(),
                 PlanType.FREE.getMonthlyInvoiceLimit()
             )

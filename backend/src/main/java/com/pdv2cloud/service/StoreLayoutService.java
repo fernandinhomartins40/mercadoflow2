@@ -69,8 +69,12 @@ public class StoreLayoutService {
         LocalDate since = LocalDate.now().minusDays(30);
         String sql =
             "select coalesce(p.category, 'Sem categoria') as category, " +
-            "       sum(ii.quantity * ii.unit_price) as revenue, " +
-            "       sum(ii.quantity) as quantity, " +
+            // Colunas reais de invoice_items (quantidade/valor_total). Com os
+            // nomes em ingles a consulta nunca rodou: o mapa de calor sempre
+            // respondia 500. Quantidade arredondada porque itens por kg sao
+            // fracionados e o resultado e lido com getLong.
+            "       sum(ii.valor_total) as revenue, " +
+            "       round(sum(ii.quantidade))::bigint as quantity, " +
             "       count(distinct i.id) as transactions " +
             "from invoice_items ii " +
             "join invoices i on i.id = ii.invoice_id " +

@@ -16,7 +16,6 @@ import {
   Shield,
   ShoppingCart,
   Sparkles,
-  Star,
   Store,
   Tag,
   TrendingDown,
@@ -123,30 +122,6 @@ const steps = [
     title: 'Decisões melhores a cada dia',
     text: 'Saiba o que comprar, o que promover e o que retirar da gôndola. Cada decisão baseada no que realmente acontece na sua loja, não no feeling.',
     icon: TrendingUp,
-  },
-];
-
-const testimonials = [
-  {
-    name: 'Carlos Mendes',
-    role: 'Proprietário — Supermercado Bom Preço',
-    text: 'Antes eu decidia no feeling. Agora sei exatamente o que comprar e quanto. Reduzi o desperdício em 40% no primeiro mês e o pedido inteligente me economiza horas toda semana.',
-    stars: 5,
-    highlight: 'Redução de 40% no desperdício',
-  },
-  {
-    name: 'Ana Paula Silva',
-    role: 'Gerente Comercial — Rede Economia',
-    text: 'A análise de combos mudou nosso jogo. Colocamos os produtos certos lado a lado e as vendas de fim de semana subiram 28%. O alerta de momentum nos avisou antes mesmo da queda acontecer.',
-    stars: 5,
-    highlight: '+28% nas vendas de fim de semana',
-  },
-  {
-    name: 'Roberto Almeida',
-    role: 'Comprador — Atacadão Central',
-    text: 'A lista de compras inteligente acabou com o excesso de estoque. Economizamos R$ 12 mil por mês em produtos parados. O HealthScore nos ajuda a identificar o que tirar antes de virar prejuízo.',
-    stars: 5,
-    highlight: 'R$ 12 mil/mês economizados',
   },
 ];
 
@@ -330,7 +305,6 @@ const Landing: React.FC = () => {
             {[
               { href: '#funcionalidades', label: 'Funcionalidades' },
               { href: '#como-funciona', label: 'Como funciona' },
-              { href: '#depoimentos', label: 'Resultados' },
               { href: '#planos', label: 'Planos' },
             ].map((n) => (
               <a key={n.href} href={n.href} className="text-sm font-medium no-underline transition-colors" style={{ color: '#64748b' }}
@@ -403,9 +377,9 @@ const Landing: React.FC = () => {
               {/* Trust badges */}
               <div className="rv mt-10 flex flex-wrap gap-5">
                 {[
-                  { val: '+32%', label: 'aumento de margem' },
-                  { val: '−45%', label: 'menos ruptura' },
-                  { val: '500+', label: 'supermercados' },
+                  { val: 'R$ 0', label: 'para começar' },
+                  { val: 'NFC-e', label: 'lida direto do caixa' },
+                  { val: 'Sem ERP', label: 'não depende de outro sistema' },
                 ].map((s) => (
                   <div key={s.label} className="flex flex-col">
                     <span className="text-2xl font-extrabold" style={{ color: '#16a34a' }}>{s.val}</span>
@@ -427,10 +401,10 @@ const Landing: React.FC = () => {
       <section style={{ borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }} className="py-8">
         <div className="rv mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-10 px-6 sm:gap-16">
           {[
-            { icon: Store, value: '500+', label: 'Supermercados ativos' },
-            { icon: Users, value: '2.800+', label: 'Usuários' },
-            { icon: PackageSearch, value: '12M+', label: 'Produtos analisados' },
-            { icon: Heart, value: '98,5%', label: 'Satisfação' },
+            { icon: Store, value: 'Loja e rede', label: 'uma loja ou várias' },
+            { icon: Users, value: 'Dono e comprador', label: 'acessos separados' },
+            { icon: PackageSearch, value: 'Item a item', label: 'de cada nota do caixa' },
+            { icon: Heart, value: 'Sem cartão', label: 'no plano Gratuito' },
           ].map((t) => (
             <div key={t.label} className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: '#f0fdf4' }}>
@@ -670,39 +644,6 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* ══════ DEPOIMENTOS ══════ */}
-      <section id="depoimentos" className="py-20 lg:py-28" style={{ background: '#f8fafc' }}>
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="rv mx-auto max-w-2xl text-center">
-            <SectionLabel><Star className="h-3 w-3" /> Resultados reais</SectionLabel>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: '#0f172a' }}>
-              Quem usa, recomenda
-            </h2>
-          </div>
-
-          <div className="rv mt-14 grid gap-6 lg:grid-cols-3">
-            {testimonials.map((t) => (
-              <article key={t.name} className="flex flex-col rounded-2xl p-6 shadow-sm" style={{ background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                {/* Highlight result */}
-                <div className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold" style={{ background: '#f0fdf4', color: '#16a34a' }}>
-                  <TrendingUp className="h-3 w-3" /> {t.highlight}
-                </div>
-                <div className="mt-4 flex gap-0.5">
-                  {Array.from({ length: t.stars }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <p className="mt-3 flex-1 text-sm leading-relaxed" style={{ color: '#475569' }}>"{t.text}"</p>
-                <div className="mt-5 border-t pt-4" style={{ borderColor: '#e2e8f0' }}>
-                  <p className="text-sm font-bold" style={{ color: '#0f172a' }}>{t.name}</p>
-                  <p className="text-xs" style={{ color: '#94a3b8' }}>{t.role}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ══════ PLANOS ══════ */}
       <section id="planos" className="py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6">
@@ -725,7 +666,7 @@ const Landing: React.FC = () => {
               >
                 {p.highlight && (
                   <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-bold text-white shadow-md" style={{ background: '#16a34a' }}>
-                    Mais popular
+                    Recomendado
                   </span>
                 )}
                 <h3 className="text-base font-bold" style={{ color: '#0f172a' }}>{p.name}</h3>
@@ -767,7 +708,7 @@ const Landing: React.FC = () => {
             Pronto para decidir com dados, não com achismo?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base" style={{ color: '#94a3b8' }}>
-            Junte-se a mais de 500 supermercados que já usam o MercadoFlow para crescer com inteligência todos os dias.
+            Comece grátis com as vendas reais da sua loja e veja o que comprar e o que promover.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ButtonLink to="/register" className="!h-12 !min-h-0 !max-h-none !px-8 !text-base">
@@ -823,7 +764,6 @@ const Landing: React.FC = () => {
             <ul className="mt-4 flex flex-col gap-2.5">
               {[
                 { href: '#como-funciona', label: 'Como funciona' },
-                { href: '#depoimentos', label: 'Resultados' },
               ].map((l) => (
                 <li key={l.label}>
                   <a href={l.href} className="text-sm no-underline transition-colors" style={{ color: '#64748b' }}

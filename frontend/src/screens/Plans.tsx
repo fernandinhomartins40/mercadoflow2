@@ -104,10 +104,10 @@ const Plans: React.FC = () => {
             style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
           >
             <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-              SEU CONSUMO NESTE CICLO
+              SEU CONSUMO NESTA SEMANA
             </p>
             <p className="mt-1 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-              {fmt(usage.invoicesUsed)} de {formatLimit(usage.invoiceLimit)} notas fiscais
+              {fmt(usage.invoicesUsed)} de {formatLimit(usage.invoiceLimit)} notas fiscais · renova toda segunda-feira
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               Plano {usage.planName} · {usage.branchCount} de {formatLimit(usage.branchLimit)} loja(s) ·{' '}

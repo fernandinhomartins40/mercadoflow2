@@ -71,7 +71,7 @@ public class PublicPlanController {
     private List<String> highlightsFor(PlanCatalogEntry entry) {
         List<String> items = new ArrayList<>();
 
-        items.add(limitText(entry.getMonthlyInvoiceLimit(), "notas fiscais por mês", "Notas fiscais ilimitadas"));
+        items.add(limitText(entry.getMonthlyInvoiceLimit(), "notas fiscais por semana", "Notas fiscais ilimitadas"));
 
         boolean singleBranch = entry.getBranchLimit() != null && entry.getBranchLimit() == 1;
         if (singleBranch) {
