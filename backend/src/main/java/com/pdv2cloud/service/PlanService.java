@@ -339,8 +339,15 @@ public class PlanService {
      * Também acompanha a nota mais antiga já vista, que serve de diagnóstico do
      * acervo trazido — essa sim pode recuar, porque o agente pode enviar XML
      * mais antigo numa varredura posterior.
+     *
+     * Roda na transação da nota (REQUIRED), NÃO em REQUIRES_NEW: a transação
+     * da nota já segura lock na linha do mercado (FKs dos inserts), e um
+     * UPDATE em transação própria na mesma thread esperava por ela para
+     * sempre — a primeira nota de todo mercado novo travava a ingestão e
+     * prendia duas conexões do pool. Se a nota falhar, o marco é desfeito
+     * junto, o que é coerente: a nota não entrou.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void markFirstIngest(UUID marketId, LocalDateTime dataEmissao) {
         try {
             marketRepository.findById(marketId).ifPresent(market -> {

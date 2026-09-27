@@ -50,7 +50,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
-        LoginResponse response = authService.login(request);
+        // Escopo de sistema, como no cadastro: o login grava last_login_at em
+        // users, e sem tenant na sessao a policy users_modify recusa a linha de
+        // qualquer usuario ligado a um mercado (UPDATE afeta 0 linhas -> 500).
+        LoginResponse response = TenantContext.runAsSystem(() -> authService.login(request));
         boolean keepConnected = request.getKeepConnected() != null && request.getKeepConnected();
         ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), keepConnected);
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);

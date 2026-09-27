@@ -103,9 +103,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Throwable.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Throwable ex) {
         log.error("Erro nao tratado: {}", ex.toString(), ex);
+        // O detalhe fica so no log: ex.getMessage() de erro interno pode trazer
+        // SQL, nomes de tabela e colunas, e ja vazou um UPDATE inteiro no login.
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody(
             "internal_error",
-            ex.getMessage(),
+            "Ocorreu um erro no servidor.",
             "Ocorreu um erro no servidor. O sistema tentara novamente automaticamente. Se persistir, contacte o suporte."
         ));
     }
