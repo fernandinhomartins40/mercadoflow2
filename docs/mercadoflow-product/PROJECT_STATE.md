@@ -1,14 +1,14 @@
 # PROJECT_STATE — Evolução de produto MercadoFlow
 
-Atualizado em: 2026-09-26
+Atualizado em: 2026-09-27
 
 | Campo | Valor |
 |---|---|
-| Fase atual | Prompt 4 — Arquitetura, segurança, desempenho e operação |
-| Último gate aprovado | Gate 3A (2026-09-26, D-030) |
-| Gate pendente | **Gate 3B** (riscos críticos e quick wins) |
+| Fase atual | Prompt 5 — Requisitos e roadmap priorizado (concluído) |
+| Último gate aprovado | Gate 3B (2026-09-26, D-031) |
+| Gate pendente | **Gate 4** (roadmap e escopo exato da primeira fatia) |
 | Escopo autorizado | somente leitura e criação de documentos em `docs/mercadoflow-product/` |
-| Código alterado nesta fase | hotfixes D-028 (login, erro 500, primeira nota) e D-029 (landing, cota semanal, mapa de calor), autorizados fora dos gates e publicados |
+| Código alterado nesta fase | hotfixes D-028 (login, erro 500, primeira nota), D-029 (landing, cota semanal, mapa de calor) e D-032 (SSRF, limite de login/cadastro, porta 3300), autorizados fora dos gates e publicados |
 
 ## Tarefas
 
@@ -26,7 +26,10 @@ Atualizado em: 2026-09-26
 | Hotfix D-029 (landing, cota semanal, mapa de calor) | DONE: 169 testes; build ok; publicado (`c345766`); conferido em produção |
 | Gate 3A: fluxos clicados e teclado (local) | DONE (04 §5.1) |
 | Prompt 4: `06-TECHNICAL-ARCHITECTURE.md` e `07-SECURITY-PERFORMANCE-OPERATIONS.md` | DONE |
-| Executar testes do backend | DONE: 169 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
+| Hotfix D-032 (SSRF, limite de tentativas, IP real, porta 3300) | DONE: 189 testes; publicado (`66c6869`); conferido em produção |
+| Desligar ambiente local de auditoria | DONE: 4 containers e rede `mfaudit` removidos; imagens mantidas |
+| Prompt 5: `08-PRODUCT-REQUIREMENTS.md` e `09-PRIORITIZED-ROADMAP.md` | DONE: 27 requisitos, 21 fatias + V1, cobertura 63/63 |
+| Executar testes do backend | DONE: 189 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
 
 ## Testes executados
 
@@ -45,6 +48,8 @@ Prompt 0–2: somente leitura. Prompt 3: Playwright/axe em produção (páginas 
 - código (hotfix D-028): `AuthController.java`, `GlobalExceptionHandler.java`, `PlanService.java`
 - código (hotfix D-029): `Landing.tsx` (só a parte do hotfix), `Plans.tsx`, `PublicPlanController.java`, `AuthService.java`, `StoreLayoutService.java`
 - `docs/mercadoflow-product/06-TECHNICAL-ARCHITECTURE.md`, `07-SECURITY-PERFORMANCE-OPERATIONS.md`
+- código (hotfix D-032): `OutboundUrlGuard.java` (+ teste), `LlmClient.java`, `AiCredentialService.java`, `RateLimitFilter.java` (+ teste), `deploy/nginx.vps.conf`, `docker-compose.vps.yml`
+- `docs/mercadoflow-product/08-PRODUCT-REQUIREMENTS.md`, `09-PRIORITIZED-ROADMAP.md`
 
 ## Riscos abertos (a aprofundar nas fases seguintes, sem conclusão ainda)
 
@@ -63,7 +68,7 @@ Prompt 0–2: somente leitura. Prompt 3: Playwright/axe em produção (páginas 
 13. A cota do Gratuito rejeita notas excedentes por semana e distorce a análise; a página pública fala "por mês".
 14. Não há PWA (manifest/service worker), pré-requisito do push (D-020).
 15. ~~Landing com números falsos~~ e ~~mapa de calor 500~~: corrigidos (D-029).
-16. SSRF pelo provedor de IA `CUSTOM` (SEC-01) e login sem limite de tentativas (SEC-02).
+16. ~~SSRF pelo provedor de IA e login sem limite~~: corrigidos (D-032).
 20. Testes fora do CI e sem teste de integração com RLS (OPS-01/02).
 21. CPF do consumidor em claro no banco e nos backups; backup sem cópia externa (SEC-04, OPS-03).
 17. Contas de teste do `CREDENCIAIS-TESTE.md` retornam 401 em produção; provável secret ausente no GitHub.
@@ -76,4 +81,6 @@ D-006 cliente = mercado independente · D-007 estúdio de ofertas volta ao produ
 
 ## Próxima ação exata
 
-Aguardar o **Gate 3B** (riscos críticos e quick wins do §5 do 07). Se aprovado, executar **somente o Prompt 5** (requisitos e roadmap priorizado) e parar no Gate 4.
+Aguardar o **Gate 4**. Recomendação: autorizar somente a fatia **F1 — Ativação guiada + testes no CI**
+(`09-PRIORITIZED-ROADMAP.md` §2). Se aprovada, executar **somente o Prompt 6** (plano técnico e de testes da F1) e
+parar no Gate 5.

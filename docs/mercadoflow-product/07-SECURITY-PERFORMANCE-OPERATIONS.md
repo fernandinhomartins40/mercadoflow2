@@ -10,9 +10,9 @@ Legenda: `MEDIDO` (com data/ambiente) · `ESTIMADO` · `NÃO MEDIDO`.
 | ID | Tema (OWASP) | Achado | Evidência | Risco | Prioridade | Status |
 |---|---|---|---|---|---|---|
 | SEC-00 | A01/A04 | login de mercado 500 sob RLS; 500 expunha SQL; 1ª nota travava a ingestão | 04 UX-C01/C02/C07 | indisponibilidade total, vazamento de estrutura | P0 | **corrigido** (D-028) |
-| SEC-01 | A10 SSRF | provedor de IA `CUSTOM` aceita **qualquer URL**; não há checagem de IP interno/loopback/link-local em todo o backend (`AiCredentialService:109-153`, sem `InetAddress` no código) | código | dono de mercado faz o backend chamar serviços internos da VPS compartilhada (outras stacks, portas do host, metadados) | **P0** | aberto |
-| SEC-02 | A07 | **login, cadastro e login do super admin sem limite de tentativas**: 12 logins errados seguidos → 12 × 401, nenhum 429; o `RateLimitFilter` só cobre `/agent`, `/ingest` e pareamento | produção, 2026-09-26 | força bruta de senha; cadastro em massa | **P0** | aberto |
-| SEC-03 | A07 | o rate limit identifica o cliente pelo **primeiro valor de `X-Forwarded-For`**, que o cliente controla (o proxy do host acrescenta, não substitui) | `RateLimitFilter:86-91`, `deploy-web.sh` | limite do pareamento contornável | P1 | aberto |
+| SEC-01 | A10 SSRF | provedor de IA `CUSTOM` aceita **qualquer URL**; não há checagem de IP interno/loopback/link-local em todo o backend (`AiCredentialService:109-153`, sem `InetAddress` no código) | código | dono de mercado faz o backend chamar serviços internos da VPS compartilhada (outras stacks, portas do host, metadados) | **P0** | **corrigido** (D-032) |
+| SEC-02 | A07 | **login, cadastro e login do super admin sem limite de tentativas**: 12 logins errados seguidos → 12 × 401, nenhum 429; o `RateLimitFilter` só cobre `/agent`, `/ingest` e pareamento | produção, 2026-09-26 | força bruta de senha; cadastro em massa | **P0** | **corrigido** (D-032) |
+| SEC-03 | A07 | o rate limit identifica o cliente pelo **primeiro valor de `X-Forwarded-For`**, que o cliente controla (o proxy do host acrescenta, não substitui) | `RateLimitFilter:86-91`, `deploy-web.sh` | limite do pareamento contornável | P1 | **corrigido** (D-032) |
 | SEC-04 | LGPD | **CPF do consumidor final em claro** em `invoices.cpf_cnpj_destinatario` (2.227/2.227 no ambiente sintético); a análise usa HMAC na consulta, mas o dado bruto fica em repouso e nos dumps de backup | banco local, `InvoiceProcessingService:191` | minimização (LGPD art. 6º III); exposição em backup | P1 | aberto |
 | SEC-05 | A05 | páginas sem `Strict-Transport-Security`, `Content-Security-Policy`, `X-Frame-Options`, `Referrer-Policy`; servidor anuncia `nginx/1.18.0 (Ubuntu)` | `curl -I` em produção | clickjacking, downgrade, fingerprint | P1 | aberto |
 | SEC-06 | A05 | Swagger e actuator liberados no `SecurityConfig`, mas **não expostos**: o proxy só encaminha `/api/` e `/health` (as rotas devolvem o `index.html`) | produção | baixo | P2 | mitigado pelo proxy |
@@ -74,13 +74,13 @@ Consultas N+1: NÃO VERIFICADO de forma sistemática; os tempos acima indicam ag
 
 ## 5. Riscos críticos e quick wins (Gate 3B)
 
-**Riscos críticos abertos:** SEC-01 (SSRF pelo provedor de IA), SEC-02 (login sem limite), OPS-01/OPS-02 (testes fora do CI,
+**Riscos críticos abertos:** ~~SEC-01 (SSRF pelo provedor de IA), SEC-02 (login sem limite)~~ corrigidos em D-032; OPS-01/OPS-02 (testes fora do CI,
 sem teste com RLS), e, do lado de produto, o núcleo de compra baseado em estoque teórico (04 §4.1).
 
 **Quick wins comprovados (pequenos, reversíveis, sem arquitetura nova):**
 1. Rodar `mvn test` no workflow antes do build (OPS-01).
-2. Limitar login/cadastro por IP real (`X-Real-IP` definido pelo proxy) e por e-mail (SEC-02, SEC-03).
-3. Validar a URL do provedor `CUSTOM`: só `https`, resolver o host e recusar faixas privadas/loopback/link-local (SEC-01).
+2. ~~Limitar login/cadastro por IP real~~ FEITO (D-032): limitar login/cadastro por IP real (`X-Real-IP` definido pelo proxy) e por e-mail (SEC-02, SEC-03).
+3. ~~Validar a URL do provedor `CUSTOM`~~ FEITO (D-032): validar a URL do provedor `CUSTOM`: só `https`, resolver o host e recusar faixas privadas/loopback/link-local (SEC-01).
 4. Cabeçalhos de segurança e `server_tokens off` no Nginx do host/stack (SEC-05).
 5. `/auth/me` não chamado em páginas públicas; ingest com 400 para cabeçalho ausente (SEC-07, SEC-08).
 6. Desativar as duas contas de auditoria (SEC-10).
