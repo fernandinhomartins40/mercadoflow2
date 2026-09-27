@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.ai;
 
+import com.pdv2cloud.util.OutboundUrlGuard;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -47,7 +49,10 @@ public class LlmClient {
 
     private final HttpClient http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
-        .followRedirects(HttpClient.Redirect.NORMAL)
+        // NEVER: um endpoint público podia redirecionar para um endereço
+        // interno e contornar o OutboundUrlGuard. Provedores de IA não
+        // redirecionam chamadas de API.
+        .followRedirects(HttpClient.Redirect.NEVER)
         .build();
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -161,6 +166,10 @@ public class LlmClient {
         double temperature
     ) {
         long started = System.currentTimeMillis();
+        LlmResponse blocked = rejectInternal(baseUrl);
+        if (blocked != null) {
+            return blocked;
+        }
         try {
             String body = buildRequestBody(model, systemPrompt, userPrompt, maxTokens, temperature);
 
@@ -217,6 +226,10 @@ public class LlmClient {
         double temperature
     ) {
         long started = System.currentTimeMillis();
+        LlmResponse blocked = rejectInternal(baseUrl);
+        if (blocked != null) {
+            return blocked;
+        }
         try {
             String body = buildConversationBody(model, messages, tools, maxTokens, temperature);
 
@@ -437,5 +450,19 @@ public class LlmClient {
 
     private static String trimTrailingSlash(String url) {
         return url != null && url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    }
+
+    /**
+     * Revalida a URL antes de cada chamada: cobre credenciais gravadas antes da
+     * regra do OutboundUrlGuard e troca de DNS depois do cadastro.
+     */
+    private LlmResponse rejectInternal(String baseUrl) {
+        try {
+            OutboundUrlGuard.assertPublicHttps(baseUrl);
+            return null;
+        } catch (IllegalArgumentException e) {
+            log.warn("Chamada de IA bloqueada: {}", e.getMessage());
+            return LlmResponse.fail(e.getMessage(), false, 0);
+        }
     }
 }

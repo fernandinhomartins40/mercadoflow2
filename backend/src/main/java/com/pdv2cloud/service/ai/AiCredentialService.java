@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.ai;
 
+import com.pdv2cloud.util.OutboundUrlGuard;
+
 import com.pdv2cloud.model.entity.AiProviderCredential;
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.AiProviderCredentialRepository;
@@ -120,6 +122,10 @@ public class AiCredentialService {
         if (provider.requiresBaseUrl() && (baseUrl == null || baseUrl.isBlank())) {
             throw new IllegalArgumentException(
                 "Para endpoint próprio é obrigatório informar a URL do serviço.");
+        }
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            // SSRF: sem isto o mercado apontava a chamada para a rede interna da VPS.
+            OutboundUrlGuard.assertPublicHttps(baseUrl);
         }
 
         Optional<AiProviderCredential> existing =
