@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import OrderSendOptions from '../components/orders/OrderSendOptions';
 import ProductImage from '../components/product/ProductImage';
 import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
@@ -626,13 +627,6 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
     finally { setLoading(false); }
   };
 
-  const doSend = async () => {
-    setLoading(true); setErr(null);
-    try { const u = await marketService.sendSupplierOrder(marketId, order.id); setOrder(u); onUpdated(u); setConfirm(null); }
-    catch (e: any) { setErr(e?.message || 'Erro ao enviar'); }
-    finally { setLoading(false); }
-  };
-
   const doCancel = async () => {
     setLoading(true); setErr(null);
     try { const u = await marketService.cancelSupplierOrder(marketId, order.id, cancelReason.trim() || undefined); setOrder(u); onUpdated(u); setConfirm(null); }
@@ -704,14 +698,17 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
 
           {order.notes && <div className="mx-5 mb-3 rounded-xl px-4 py-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}><p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Observações</p><p className="text-sm" style={{ color: 'var(--text-primary)' }}>{order.notes}</p></div>}
 
-          {confirm === 'send' && (
-            <div className="mx-5 mb-3 rounded-xl p-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <p className="mb-1 text-sm font-semibold text-blue-700">Confirmar envio?</p>
-              <p className="mb-3 text-xs text-blue-600">O pedido passará para ENVIADO e não poderá mais ser editado.</p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setConfirm(null)} className="flex-1 rounded-lg py-2 text-sm font-medium" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>Voltar</button>
-                <button type="button" onClick={doSend} disabled={loading} className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-50" style={{ background: '#2563eb', color: '#fff' }}><Send className="h-3.5 w-3.5" />{loading ? 'Enviando...' : 'Confirmar envio'}</button>
-              </div>
+          {/* Mesma posição e chave antes e depois do envio: a confirmação do canal continua visível. */}
+          {((confirm === 'send' && order.canSend) || order.status === 'ENVIADO') && (
+            <div className="mx-5 mb-3">
+              <OrderSendOptions
+                key="send-options"
+                order={order}
+                marketId={marketId}
+                markAsSent={order.canSend}
+                onSent={(u) => { setOrder(u); onUpdated(u); setConfirm(null); }}
+                onCancel={() => setConfirm(null)}
+              />
             </div>
           )}
 
@@ -1340,6 +1337,18 @@ const ShoppingListPage: React.FC = () => {
     try { setDetailOrder(await marketService.getSupplierOrder(marketId, order.id)); }
     catch { setDetailOrder(order); }
   }, [marketId]);
+
+  // `?pedido=<id>`: quem chega da Central depois de aceitar uma compra cai direto no pedido.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedOrderId = searchParams.get('pedido');
+  useEffect(() => {
+    if (!marketId || !linkedOrderId) return;
+    setTab('pedidos');
+    marketService.getSupplierOrder(marketId, linkedOrderId)
+      .then((o: SupplierOrder) => setDetailOrder(o))
+      .catch(() => { /* pedido apagado ou de outra loja: fica na lista */ })
+      .finally(() => setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete('pedido'); return next; }, { replace: true }));
+  }, [marketId, linkedOrderId, setSearchParams]);
 
   const handleOrderUpdated = useCallback((updated: SupplierOrder) => {
     setOrders(prev => {

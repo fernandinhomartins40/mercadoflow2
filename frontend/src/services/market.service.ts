@@ -70,6 +70,23 @@ export const marketService = {
     return response.data;
   },
 
+  /** Compra aceita sem fornecedor conhecido: leva ao rascunho do fornecedor escolhido. */
+  async addRecommendationToOrder(marketId: string, recommendationId: string, supplierId: string) {
+    const response = await api.post(
+      `/v1/markets/${marketId}/opportunities/recommendations/${recommendationId}/order`,
+      { supplierId },
+    );
+    return response.data;
+  },
+
+  /** Desfaz a decisão e o item de pedido que ela criou, enquanto o pedido for rascunho. */
+  async undoRecommendationDecision(marketId: string, recommendationId: string) {
+    const response = await api.post(
+      `/v1/markets/${marketId}/opportunities/recommendations/${recommendationId}/undo`,
+    );
+    return response.data as { recommendation: unknown; orderKept: boolean };
+  },
+
   async getOutcomes(marketId: string) {
     const response = await api.get(`/v1/markets/${marketId}/opportunities/outcomes`);
     return response.data;

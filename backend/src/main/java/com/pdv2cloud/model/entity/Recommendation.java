@@ -124,6 +124,14 @@ public class Recommendation {
     @Column(name = "decision_note", length = 500)
     private String decisionNote;
 
+    /** Item de pedido criado ou ajustado ao aceitar uma compra (D-011); base do desfazer. */
+    @Column(name = "order_item_id")
+    private UUID orderItemId;
+
+    /** Quantidade do item antes da aceitação; {@code null} = o item nasceu dela. */
+    @Column(name = "order_item_previous_qty", precision = 14, scale = 3)
+    private BigDecimal orderItemPreviousQty;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

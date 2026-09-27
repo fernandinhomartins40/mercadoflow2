@@ -380,6 +380,7 @@ export interface Supplier {
   cnaePrincipal?: string | null;
   descricaoCnae?: string | null;
   porte?: string | null;
+  isActive?: boolean | null;
 }
 
 export interface SupplierOrderItem {
@@ -533,6 +534,17 @@ export interface RecommendationItem {
   decidedAt?: string | null;
   decisionNote?: string | null;
   createdAt?: string | null;
+  /** Só na resposta da decisão: o que aconteceu com o pedido (D-011). */
+  orderLink?: RecommendationOrderLink | null;
+}
+
+export interface RecommendationOrderLink {
+  status: 'ADDED' | 'UPDATED' | 'ALREADY_IN_ORDER' | 'NEEDS_SUPPLIER';
+  orderId?: string | null;
+  orderNumber?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  quantity?: number | null;
 }
 
 /* ─── Feedback loop (Fase 8) ─── */

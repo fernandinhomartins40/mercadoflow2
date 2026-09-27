@@ -5,9 +5,11 @@ import com.pdv2cloud.model.entity.Recommendation;
 import com.pdv2cloud.repository.OpportunityRepository;
 import com.pdv2cloud.repository.RecommendationRepository;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -105,7 +107,7 @@ public class RecommendationEngine {
                 + "− pedidos já em trânsito.%n"
                 + "Confiança do estoque estimado: %s (0 a 1). Quanto menor, mais o número depende "
                 + "de compras que não foram registradas no sistema.",
-            velocity, coverage, o.getConfidence());
+            num(velocity), num(coverage), num(o.getConfidence()));
 
         return newRecommendation(o, Recommendation.ActionType.COMPRAR,
             "Comprar " + fmtQty(qty) + " un. de " + productName(o),
@@ -126,8 +128,8 @@ public class RecommendationEngine {
                 + "para escoar no ritmo de venda observado.%n"
                 + "Risco de estagnação: %s (0 a 1).%n"
                 + "GMROI: %s. Capital parado aqui é capital que não está girando em outro item.",
-            ev.get("classeAbc"), ev.get("classeXyz"), ev.get("coberturaDias"),
-            ev.get("giroDiario"), ev.get("riscoEstagnacao"), ev.get("gmroi"));
+            ev.get("classeAbc"), ev.get("classeXyz"), num(ev.get("coberturaDias")),
+            num(ev.get("giroDiario")), num(ev.get("riscoEstagnacao")), num(ev.get("gmroi")));
 
         return newRecommendation(o, Recommendation.ActionType.LIQUIDAR,
             "Liquidar estoque de " + productName(o),
@@ -145,7 +147,7 @@ public class RecommendationEngine {
             "Cobertura de %s dia(s) acima do necessário para o giro de %s un./dia.%n"
                 + "Não é caso de liquidação: o produto vende, mas o volume comprado está à frente "
                 + "da demanda. Reduzir o próximo pedido corrige sem sacrificar margem.",
-            ev.get("coberturaDias"), ev.get("giroDiario"));
+            num(ev.get("coberturaDias")), num(ev.get("giroDiario")));
 
         return newRecommendation(o, Recommendation.ActionType.COMPRAR,
             "Reduzir próxima compra de " + productName(o),
@@ -169,17 +171,17 @@ public class RecommendationEngine {
                     + "Receita incremental estimada na cesta: %s.%n"
                     + "Desconto sugerido de %s%% respeita o teto de 70%% da margem atual (%s%%).%n"
                     + "O ganho não está neste item — está na cesta que ele arrasta.",
-                ev.get("produtosAfetados"), o.getExpectedImpactValue(), desconto, ev.get("margemPercent"))
+                num(ev.get("produtosAfetados")), money(o.getExpectedImpactValue()), num(desconto), num(ev.get("margemPercent")))
             : String.format(
                 "Capital exposto: %s, com cobertura de %s dia(s) e giro de %s un./dia.%n"
                     + "Desconto sugerido de %s%% sobre o preço de %s, respeitando o teto de 70%% "
                     + "da margem (%s%%).%n"
                     + "Aqui o desconto é o custo de recuperar dinheiro parado, não de ganhar cesta.",
-                ev.get("capitalEmRisco"), ev.get("coberturaDias"), ev.get("giroDiario"),
-                desconto, ev.get("precoAtual"), ev.get("margemPercent"));
+                money(ev.get("capitalEmRisco")), num(ev.get("coberturaDias")), num(ev.get("giroDiario")),
+                num(desconto), money(ev.get("precoAtual")), num(ev.get("margemPercent")));
 
         return newRecommendation(o, Recommendation.ActionType.PROMOVER,
-            "Promover " + productName(o) + (desconto != null ? " com " + desconto + "% de desconto" : ""),
+            "Promover " + productName(o) + (desconto != null ? " com " + num(desconto) + "% de desconto" : ""),
             o.getDescription(), params, trace, o.getExpectedImpactValue());
     }
 
@@ -198,8 +200,8 @@ public class RecommendationEngine {
                 + "distorça a referência.%n"
                 + "ATENÇÃO: as observações podem ser de outra região e não consideram o "
                 + "posicionamento da sua loja. Trate como sinal para conferir, não como veredito.",
-            ev.get("precoPraticado"), ev.get("medianaMercado"),
-            ev.get("observacoes"), ev.get("acimaPercent"));
+            money(ev.get("precoPraticado")), money(ev.get("medianaMercado")),
+            num(ev.get("observacoes")), num(ev.get("acimaPercent")));
 
         return newRecommendation(o, Recommendation.ActionType.AJUSTAR_PRECO,
             "Revisar preço de " + productName(o),
@@ -218,8 +220,8 @@ public class RecommendationEngine {
                 + "recente da loja em vez de comparar com um passado distante.%n"
                 + "Z-score de %s: quanto mais longe de zero, menos o dia se explica por variação "
                 + "normal.",
-            ev.get("receitaRealizada"), ev.get("receitaEsperada"),
-            ev.get("desvioPercent"), ev.get("zScore"));
+            money(ev.get("receitaRealizada")), money(ev.get("receitaEsperada")),
+            num(ev.get("desvioPercent")), num(ev.get("zScore")));
 
         return newRecommendation(o, Recommendation.ActionType.INVESTIGAR,
             o.getTitle(), o.getDescription(), params, trace, o.getExpectedImpactValue());
@@ -297,6 +299,42 @@ public class RecommendationEngine {
 
     private String productName(Opportunity o) {
         return o.getProduct() != null ? o.getProduct().getName() : "produto";
+    }
+
+    private static final Locale PT_BR = Locale.forLanguageTag("pt-BR");
+
+    /**
+     * Número como o lojista lê (UX-07): vírgula decimal, milhar com ponto e no
+     * máximo 2 casas. "0.416666" virava parte do texto e minava a confiança no
+     * cálculo que o trace existe para mostrar.
+     */
+    static String num(Object value) {
+        BigDecimal b = toDecimal(value);
+        if (b == null) return value == null ? "—" : value.toString();
+        NumberFormat nf = NumberFormat.getNumberInstance(PT_BR);
+        nf.setMinimumFractionDigits(0);
+        nf.setMaximumFractionDigits(2);
+        return nf.format(b);
+    }
+
+    /** Valor em reais: "R$ 5.893,50". */
+    static String money(Object value) {
+        BigDecimal b = toDecimal(value);
+        if (b == null) return value == null ? "—" : value.toString();
+        NumberFormat nf = NumberFormat.getNumberInstance(PT_BR);
+        nf.setMinimumFractionDigits(2);
+        nf.setMaximumFractionDigits(2);
+        return "R$ " + nf.format(b);
+    }
+
+    private static BigDecimal toDecimal(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigDecimal b) return b;
+        try {
+            return new BigDecimal(value.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private String fmtQty(Object qty) {

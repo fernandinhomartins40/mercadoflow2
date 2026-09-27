@@ -13,6 +13,7 @@ import com.pdv2cloud.service.ai.OpportunityInterpreter;
 import com.pdv2cloud.service.intelligence.ForecastAccuracyService;
 import com.pdv2cloud.service.opportunity.OpportunityEngine;
 import com.pdv2cloud.service.opportunity.RecommendationEngine;
+import com.pdv2cloud.service.opportunity.RecommendationOrderService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +54,7 @@ public class OpportunityController {
     private final OpportunityInterpreter opportunityInterpreter;
     private final MarketAccessService marketAccessService;
     private final PlanService planService;
+    private final RecommendationOrderService recommendationOrderService;
 
     public OpportunityController(
         OpportunityEngine opportunityEngine,
@@ -63,7 +65,8 @@ public class OpportunityController {
         ForecastAccuracyService forecastAccuracyService,
         OpportunityInterpreter opportunityInterpreter,
         MarketAccessService marketAccessService,
-        PlanService planService
+        PlanService planService,
+        RecommendationOrderService recommendationOrderService
     ) {
         this.opportunityEngine = opportunityEngine;
         this.recommendationEngine = recommendationEngine;
@@ -74,6 +77,7 @@ public class OpportunityController {
         this.opportunityInterpreter = opportunityInterpreter;
         this.marketAccessService = marketAccessService;
         this.planService = planService;
+        this.recommendationOrderService = recommendationOrderService;
     }
 
     /**
@@ -220,9 +224,58 @@ public class OpportunityController {
             return ResponseEntity.badRequest().build();
         }
 
-        Recommendation r = recommendationEngine.decide(
-            marketId, recommendationId, decision, authentication.getName(), body.get("note"));
-        return ResponseEntity.ok(RecommendationDTO.from(r));
+        // Aceitar uma compra já coloca o produto no rascunho do fornecedor (D-011).
+        RecommendationOrderService.DecisionResult result = recommendationOrderService.decide(
+            marketId, recommendationId, decision, authentication.getName(), body.get("note"),
+            parseUuid(body.get("supplierId")));
+        return ResponseEntity.ok(RecommendationDTO.from(result.recommendation(), result.orderLink()));
+    }
+
+    /** Leva ao pedido uma compra aceita sem fornecedor conhecido; a tela informa qual. */
+    @PostMapping("/recommendations/{recommendationId}/order")
+    public ResponseEntity<?> addToOrder(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("recommendationId") UUID recommendationId,
+        @RequestBody Map<String, String> body,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        try {
+            RecommendationOrderService.DecisionResult result = recommendationOrderService.addToOrder(
+                marketId, recommendationId, parseUuid(body.get("supplierId")));
+            return ResponseEntity.ok(RecommendationDTO.from(result.recommendation(), result.orderLink()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /** Desfaz a decisão: volta para PROPOSTA e reverte o item do rascunho, se ainda for rascunho. */
+    @PostMapping("/recommendations/{recommendationId}/undo")
+    public ResponseEntity<?> undo(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("recommendationId") UUID recommendationId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        try {
+            RecommendationOrderService.UndoResult result = recommendationOrderService.undo(
+                marketId, recommendationId, authentication.getName());
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("recommendation", RecommendationDTO.from(result.recommendation()));
+            response.put("orderKept", result.orderKept());
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    private static UUID parseUuid(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Fornecedor inválido");
+        }
     }
 
     /**
@@ -380,9 +433,15 @@ public class OpportunityController {
         BigDecimal confidence, BigDecimal expectedImpactValue,
         UUID productId, String productName, String productImage,
         String decidedBy, LocalDateTime decidedAt, String decisionNote,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        /** Só na resposta da decisão: o que aconteceu com o pedido. */
+        RecommendationOrderService.OrderLink orderLink
     ) {
         static RecommendationDTO from(Recommendation r) {
+            return from(r, null);
+        }
+
+        static RecommendationDTO from(Recommendation r, RecommendationOrderService.OrderLink orderLink) {
             Opportunity o = r.getOpportunity();
             return new RecommendationDTO(
                 r.getId(), o.getId(), r.getActionType().name(), r.getStatus().name(),
@@ -393,7 +452,7 @@ public class OpportunityController {
                 o.getProduct() != null ? o.getProduct().getName() : null,
                 o.getProduct() != null ? o.getProduct().getImageUrl() : null,
                 r.getDecidedBy(), r.getDecidedAt(), r.getDecisionNote(),
-                r.getCreatedAt()
+                r.getCreatedAt(), orderLink
             );
         }
     }

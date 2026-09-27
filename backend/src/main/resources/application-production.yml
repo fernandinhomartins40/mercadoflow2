@@ -30,6 +30,15 @@ logging:
   level:
     root: INFO
 
+# Documentação da API só fora de produção (SEC-06). Hoje o proxy já não
+# encaminha /swagger-ui nem /v3/api-docs; isto fecha a porta no próprio backend
+# caso uma rota nova do Nginx passe a expô-los.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 app:
   admin:
     email: ${ADMIN_EMAIL:admin@mercadoflow.com}

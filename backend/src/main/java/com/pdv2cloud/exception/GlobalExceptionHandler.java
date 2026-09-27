@@ -35,6 +35,31 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    /**
+     * Os serviços sinalizam "não existe neste mercado" com NoSuchElementException
+     * ("Pedido não encontrado", "Item não encontrado"). Sem este mapeamento a
+     * resposta caía no 500 genérico e a tela dizia que o servidor falhou.
+     */
+    @ExceptionHandler(java.util.NoSuchElementException.class)
+    public ResponseEntity<Map<String, Object>> handleNoSuchElement(java.util.NoSuchElementException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(
+            "not_found",
+            ex.getMessage(),
+            "O recurso solicitado nao foi encontrado."
+        ));
+    }
+
+    /** Rota inexistente (inclui /v3/api-docs com o Swagger desligado em produção): 404, não 500. */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(
+        org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(
+            "not_found",
+            "Recurso inexistente",
+            "O recurso solicitado nao foi encontrado."
+        ));
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody(

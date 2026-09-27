@@ -7,6 +7,7 @@ import Button from '../components/common/Button';
 import { useMarketData } from '../hooks/useMarketData';
 import { useAlerts } from '../hooks/useAlerts';
 import { useActivation } from '../hooks/useActivation';
+import { last7VsPrevious7, todayVsLastWeek } from '../utils/salesPeriods';
 import ActivationChecklist from '../components/activation/ActivationChecklist';
 import CollectingBanner from '../components/activation/CollectingBanner';
 import { useAuth } from '../context/AuthContext';
@@ -45,7 +46,8 @@ const formatCompact = (value?: number | null) =>
 
 const formatSignedPercent = (value?: number | null) => {
   const n = Number(value || 0);
-  return `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+  const text = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+  return `${n > 0 ? '+' : ''}${text}%`;
 };
 
 const getGreeting = () => {
@@ -70,7 +72,16 @@ const TrendIcon: React.FC<{ value: number }> = ({ value }) => {
   return <Minus className="h-3.5 w-3.5" style={{ color: 'var(--text-soft)' }} />;
 };
 
-const KPICard: React.FC<{ label: string; value: string; change?: number; color: 'green' | 'amber' | 'red' | 'blue' | 'purple' }> = ({ label, value, change, color }) => {
+const KPICard: React.FC<{
+  label: string;
+  value: string;
+  change?: number | null;
+  /** Contra o que a variação compara; sem ele a variação não aparece. */
+  changeLabel?: string;
+  /** Mostrado quando não há base de comparação. */
+  note?: string;
+  color: 'green' | 'amber' | 'red' | 'blue' | 'purple';
+}> = ({ label, value, change, changeLabel, note, color }) => {
   const colorMap = {
     green:  { bg: 'bg-green-500',  sub: 'text-green-100' },
     amber:  { bg: 'bg-amber-500',  sub: 'text-amber-100' },
@@ -83,9 +94,11 @@ const KPICard: React.FC<{ label: string; value: string; change?: number; color: 
     <div className={`flex flex-col gap-2 rounded-xl p-4 ${c.bg}`}>
       <span className={`text-[0.65rem] font-semibold uppercase tracking-widest ${c.sub}`}>{label}</span>
       <p className={`text-2xl font-bold tracking-tight text-white`}>{value}</p>
-      {change !== undefined && (
-        <span className={`text-xs font-medium ${c.sub}`}>{formatSignedPercent(change)} vs semana passada</span>
-      )}
+      {change != null && changeLabel ? (
+        <span className={`text-xs font-medium ${c.sub}`}>{formatSignedPercent(change)} {changeLabel}</span>
+      ) : note ? (
+        <span className={`text-xs font-medium ${c.sub}`}>{note}</span>
+      ) : null}
     </div>
   );
 };
@@ -503,7 +516,16 @@ const PainelTab: React.FC<{
   dashboard: NonNullable<ReturnType<typeof useMarketData>['dashboard']>;
   collecting?: boolean;
 }> = ({ dashboard, collecting = false }) => {
-  const growth = Number(dashboard.growthPercentage || 0);
+  // Período explícito em cada número (UX-01): a janela do cockpit é de 90 dias,
+  // e "Faturamento" sem período parecia ser do dia.
+  const today = useMemo(() => todayVsLastWeek(dashboard.salesTrend || []), [dashboard.salesTrend]);
+  const week = useMemo(() => last7VsPrevious7(dashboard.salesTrend || []), [dashboard.salesTrend]);
+  const lastSameWeekday = useMemo(() => {
+    const now = new Date();
+    const name = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(now);
+    // sábado e domingo são masculinos; segunda a sexta-feira, femininos.
+    return `${name} ${now.getDay() === 0 || now.getDay() === 6 ? 'passado' : 'passada'}`;
+  }, []);
   const topProducts = dashboard.topProducts || [];
   const slowMovers = dashboard.slowMovers || [];
 
@@ -517,10 +539,24 @@ const PainelTab: React.FC<{
     <div className="flex flex-col gap-5">
       {/* KPI strip */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard label="Faturamento" value={formatMoney(dashboard.totalRevenue)} change={growth} color={ragColor(growth, 0, -5) as any} />
-        <KPICard label="Ticket médio" value={formatMoney(dashboard.averageTicket)} color="blue" />
-        <KPICard label="Transações" value={formatCompact(dashboard.totalTransactions)} color="purple" />
-        <KPICard label="Produtos ativos" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
+        <KPICard
+          label="Vendas hoje"
+          value={formatMoney(today.value)}
+          change={today.change}
+          changeLabel={`vs ${lastSameWeekday}`}
+          note="sem venda no mesmo dia da semana passada"
+          color={today.change == null ? 'blue' : ragColor(today.change, 0, -5) as any}
+        />
+        <KPICard
+          label="Últimos 7 dias"
+          value={formatMoney(week.value)}
+          change={week.change}
+          changeLabel="vs 7 dias anteriores"
+          note="sem vendas nos 7 dias anteriores"
+          color={week.change == null ? 'blue' : ragColor(week.change, 0, -5) as any}
+        />
+        <KPICard label="Ticket médio · 90 dias" value={formatMoney(dashboard.averageTicket)} note={`${formatCompact(dashboard.totalTransactions)} vendas`} color="purple" />
+        <KPICard label="Produtos vendidos · 90 dias" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
       </div>
 
       {/* Two columns */}
@@ -528,9 +564,9 @@ const PainelTab: React.FC<{
         <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-green-500" />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vendas da semana</h3>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vendas por dia da semana</h3>
           </div>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>Faturamento por dia</p>
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>Faturamento por dia da semana · últimos 90 dias</p>
           {weekData.days.length > 0 ? (
             <div className="mt-4 grid grid-cols-7 gap-1.5">
               {weekData.days.map((day) => (

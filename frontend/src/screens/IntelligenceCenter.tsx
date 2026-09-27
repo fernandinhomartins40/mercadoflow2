@@ -5,6 +5,7 @@ import PageHeader from '../components/layout/PageHeader';
 import ProductImage from '../components/product/ProductImage';
 import { Section, Empty, StatGrid, Stat } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import DecisionFeedback, { DecisionFeedbackState } from '../components/intelligence/DecisionFeedback';
 import { marketService } from '../services/market.service';
 import { OpportunityItem, OutcomesResponse, RecommendationItem } from '../types/analytics.types';
 import {
@@ -60,6 +61,12 @@ const TONE: Record<string, { bg: string; border: string; text: string }> = {
 
 const typeConfig = (type: string) => TYPE_CONFIG[type] ?? TYPE_CONFIG.ATENCAO;
 const toneOf = (type: string) => TONE[typeConfig(type).tone] ?? TONE.slate;
+
+/** Compra com quantidade: aceitar já coloca o produto no rascunho de pedido (D-011). */
+const goesToOrder = (rec: RecommendationItem) =>
+  rec.actionType === 'COMPRAR'
+  && rec.parameters?.acao !== 'reduzir_proxima_compra'
+  && Number(rec.parameters?.quantidade) > 0;
 
 /* ─── Card de recomendação: o que fazer, por quê e com que confiança ─── */
 const RecommendationCard: React.FC<{
@@ -145,7 +152,7 @@ const RecommendationCard: React.FC<{
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
           style={{ background: 'var(--brand-500)', color: '#fff' }}
         >
-          <Check className="h-3.5 w-3.5" /> Aceitar
+          <Check className="h-3.5 w-3.5" /> {goesToOrder(rec) ? 'Aceitar e pôr no pedido' : 'Aceitar'}
         </button>
         <button
           type="button"
@@ -337,6 +344,7 @@ const IntelligenceCenter: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [detecting, setDetecting] = useState(false);
   const [deciding, setDeciding] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<DecisionFeedbackState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('recomendacoes');
 
@@ -394,8 +402,16 @@ const IntelligenceCenter: React.FC = () => {
   const handleDecide = async (id: string, decision: 'ACEITA' | 'REJEITADA') => {
     if (!marketId) return;
     setDeciding(id);
+    setFeedback(null);
     try {
-      await marketService.decideRecommendation(marketId, id, decision);
+      const decided = await marketService.decideRecommendation(marketId, id, decision);
+      const rec = recommendations.find((r) => r.id === id);
+      setFeedback({
+        recommendationId: id,
+        title: rec?.title || decided?.title || 'Recomendação',
+        decision,
+        orderLink: decided?.orderLink ?? null,
+      });
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Não foi possível registrar a decisão.');
@@ -488,6 +504,10 @@ const IntelligenceCenter: React.FC = () => {
           >
             {error}
           </div>
+        ) : null}
+
+        {feedback && marketId ? (
+          <DecisionFeedback feedback={feedback} marketId={marketId} onChange={setFeedback} onUndone={load} />
         ) : null}
 
         {tab === 'recomendacoes' ? (
