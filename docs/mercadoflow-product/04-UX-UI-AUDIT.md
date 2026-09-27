@@ -20,10 +20,10 @@ Roteiros e capturas: `scratchpad/ux_audit.py`, `gen_sales.py` (fora do repositó
 |---|---|---|---|---|---|
 | UX-C01 | Login de mercado | **Todo usuário ligado a um mercado recebe 500 ao entrar**: o login grava `last_login_at` sem tenant na sessão e a policy `users_modify` (V43, 10/08) recusa a linha | reproduzido localmente com RLS; **confirmado em produção** em 2026-09-26 com conta descartável criada pelo `/register` (cadastro 202, login 500) | nenhum lojista consegue usar o produto | **corrigido e publicado** (D-028, commit 10d601c; login 200 em produção) |
 | UX-C02 | Qualquer erro 500 | Resposta devolve `ex.getMessage()`: o login expôs o `UPDATE users …` inteiro | resposta de produção acima | vazamento de estrutura interna (OWASP A05) | **corrigido e publicado** (D-028) |
-| UX-C03 | Landing `/` | Afirma "500+ supermercados ativos", "+32% de margem" e depoimento com "Reduzi o desperdício em 40%", **sem nenhum cliente** (D-009); o depoimento ainda fala de desperdício/estoque, fora da tese (D-019) | `Landing.tsx:133-135, 406-430, 770` no commit publicado | propaganda enganosa (CDC art. 37), quebra de confiança no primeiro contato | aberto |
+| UX-C03 | Landing `/` | Afirma "500+ supermercados ativos", "+32% de margem" e depoimento com "Reduzi o desperdício em 40%", **sem nenhum cliente** (D-009); o depoimento ainda fala de desperdício/estoque, fora da tese (D-019) | `Landing.tsx:133-135, 406-430, 770` no commit publicado | propaganda enganosa (CDC art. 37), quebra de confiança no primeiro contato | **corrigido e publicado** (D-029, commit c345766) |
 | UX-C04 | Painel do dia, loja vazia | Quatro cartões de "R$ 0,00 / 0" ocupam a primeira tela no celular; "Precisam de atenção: Todos os produtos em dia!"; **nenhuma orientação para instalar o agente** | captura local 360 px, loja sem notas | a ativação (D-014, D-021) falha no primeiro minuto | aberto |
-| UX-C05 | Mapa da loja | **Mapa de calor sempre em erro 500**: a SQL usa `ii.quantity`/`ii.unit_price`, colunas que não existem (`quantidade`/`valor_unitario`) | log do backend local; `StoreLayoutService.java:89` | o módulo que o owner quer reinventar (D-022) nunca mostrou o calor | aberto |
-| UX-C06 | Cadastro e planos | Página pública e cadastro dizem **"1.000 notas fiscais por mês"**; o sistema aplica **por semana** | captura do `/register` a 360 px; `PublicPlanController:74`; `PlanService:275` | promessa diferente do comportamento (D-027 manda corrigir o texto) | aberto |
+| UX-C05 | Mapa da loja | **Mapa de calor sempre em erro 500**: a SQL usa `ii.quantity`/`ii.unit_price`, colunas que não existem (`quantidade`/`valor_unitario`) | log do backend local; `StoreLayoutService.java:89` | o módulo que o owner quer reinventar (D-022) nunca mostrou o calor | **corrigido e publicado** (D-029); categorias vazias nos produtos vindos da nota reduzem o calor a "Sem categoria" |
+| UX-C06 | Cadastro e planos | Página pública e cadastro dizem **"1.000 notas fiscais por mês"**; o sistema aplica **por semana** | captura do `/register` a 360 px; `PublicPlanController:74`; `PlanService:275` | promessa diferente do comportamento (D-027 manda corrigir o texto) | **corrigido e publicado** (D-029) |
 | UX-C07 | Ativação: 1ª nota | A **primeira nota de todo mercado novo** (e nota mais antiga que a já vista) travava a ingestão para sempre: `markFirstIngest` em `REQUIRES_NEW` esperava o lock da própria transação da nota; 2 conexões presas por tentativa, pool de 8 | local com RLS: timeout de 25 s e sessões `idle in transaction`/`Lock` | o agente reenviaria e derrubaria o backend inteiro | **corrigido e publicado** (D-028) |
 
 ## 2. Páginas públicas (produção, medido)
@@ -91,10 +91,12 @@ Carga: 6.398 notas, 34.022 itens, 145 produtos, 35% das notas com CPF (350 clien
 | UX-11 | Promoções | tela mais sólida (halo, prioridade, efeito medido), mas mostra "0 dias de estoque" e "Margem 25%" presumida; abas cortadas; título da barra "Efetividade de prom…" ≠ "Promoções" | captura | ruído e inconsistência | tirar estoque; margem só quando informada | análise de halo e efetividade | P1 |
 | UX-12 | Promoções | LCP 5,7 s; `promo-intelligence/recommendations` 4,8 s | resource timing | lentidão | materializar | — | P1 |
 | UX-13 | Mapa da loja | instrução "**Alt+clique**: marcar corredor" (impossível no celular); 4ª coluna cortada a 360 px; 4 botões sem nome; calor sempre 500 (UX-C05) | captura, axe, log | inviável no uso principal (D-018/D-022) | reinvenção "montar a loja andando" (tese §4) | vínculo categoria → posição, sugestões de vizinhança | **P0** para D-022 |
-| UX-14 | Catálogo | cartão é `<article onClick>`: **não abre pelo teclado** (WCAG 2.1.1); 10.029 px de altura; LCP 7,2 s (`products/performance` 2,3 s) | código, métricas | acessibilidade, lentidão | cartão como link; paginação | desempenho, combos, previsão | P1 |
+| UX-14 | Catálogo | cartão é `<article onClick>` (o detalhe abre pelo clique no cartão, que não é link nem botão; pelo teclado o foco só entra em controles internos); 10.029 px de altura; LCP 7,2 s (`products/performance` 2,3 s) | código, métricas | acessibilidade, lentidão | cartão como link; paginação | desempenho, combos, previsão | P1 |
 | UX-15 | Detalhe do produto | LCP 8 s; **130 nós com contraste insuficiente** (pior da aplicação); 3 regiões roláveis sem foco | métricas, axe | leitura difícil | tokens de contraste (DS-01/DS-09) | histórico e previsão | P1 |
 | UX-16 | Todas as telas do app | 80–95% dos interativos < 44 px; `landmark-unique` em todas; 4 telas sem h1 | axe, métricas | toque e leitor de tela | DS-08, DS-11 | — | P1 |
 | UX-17 | Painel | aba "Alertas" ainda presente, contra D-021 | captura | conceito duplicado | fundir em Hoje | — | P1 |
+| UX-19 | Pedido inteligente → Fornecedores | cadastro em dois passos (modal de lista → Novo); sem `role="dialog"`; Esc não fecha; busca cortada; fundo deslocado a 360 px | fluxo clicado | fricção e acessibilidade | `Sheet` único com foco preso e Esc (DS-05) | busca por CNPJ | P1 |
+| UX-20 | Promoções → Nova campanha | placeholder como rótulo | fluxo clicado | leitor de tela e memória do campo | rótulo visível (DS formulários) | — | P1 |
 | UX-18 | Super admin (7 telas) | sem falhas de rede; contraste (Crawler 90–95 nós); 5 `select` sem nome em SaaS | axe | ferramenta interna | tokens | tudo | P2 |
 
 ## 5. Fluxos (entrada → contexto → decisão → ação → confirmação → resultado → recuperação)
@@ -107,6 +109,18 @@ Carga: 6.398 notas, 34.022 itens, 145 produtos, 35% das notas com CPF (350 clien
 | Promoção | "O que promover" | halo bem explicado | escolher produto | criar campanha — NÃO VERIFICADO (somente leitura) | NÃO VERIFICADO | efetividade medida | NÃO VERIFICADO | parcial |
 | Mapa da loja | menu | grade | — | editar seção (Alt+clique) | — | calor 500 | — | **inviável no celular** |
 
+## 5.1 Fluxos clicados no ambiente local (Gate 3A)
+
+| Fluxo | Resultado | Status |
+|---|---|---|
+| Aceitar recomendação de compra | recomendação → ACEITA, oportunidade → EM_ACAO; **itens de lista e de pedido 0 → 0**; selo "Aceita"; **sem Desfazer** | CONFIRMADO por clique: decisão não vira ação (D-011 pendente) |
+| Pedido inteligente: abas | as 4 abas navegam sem estouro horizontal | OK |
+| Cadastrar fornecedor | abre modal "Fornecedores" (lista + busca + "Novo"): dois passos para cadastrar; sem `role="dialog"`; **Esc não fecha**; placeholder da busca cortado; ao abrir, o conteúdo de fundo aparece deslocado à esquerda a 360 px | UX-19 (P1) |
+| Nova campanha | formulário inline; **placeholder usado como rótulo** ("Nome da campanha", "Descrição"); só as datas têm `<label>` | UX-20 (P1) |
+| Mapa da loja: editar seção | células não são botões (sem foco por teclado); tocar no texto "seção" não abriu editor a 360 px | UX-13 reforçado |
+| Teclado (30 Tabs no Painel, 1440 px) | ordem lógica (menu → conteúdo); **não há "pular para o conteúdo"**; anel de foco inconclusivo (sombra dos cartões confunde a medição) | parcial |
+| Teclado no Catálogo | o foco entra no cartão por um elemento interno; abrir o detalhe pelo teclado **não verificado** | UX-14 ajustado |
+
 ## 6. Cobertura (Gate 3A)
 
 | Item | Coberto | Total | Como |
@@ -117,9 +131,10 @@ Carga: 6.398 notas, 34.022 itens, 145 produtos, 35% das notas com CPF (350 clien
 | Rotas atrás de flag desligada (ofertas, preços estaduais) | 0 | 13 | inacessíveis por design; estúdio volta ao produto (D-013) e será auditado religado |
 | Redirects legados | 0 | 16 | sem tela própria |
 | Formulários | 2 exercidos (login, cadastro) | ≥ 6 com `<form>` + outros sem `<form>` | demais só vistos, sem envio |
-| Fluxos de ação (aceitar, pedido, campanha, mapa) | 0 clicados | 5 | somente leitura; evidência por código |
-| Teclado / leitor de tela | axe em todas as telas; teclado por inspeção (DS-04, UX-14) | — | **navegação real por teclado NÃO VERIFICADA** |
+| Fluxos de ação (aceitar, pedido, campanha, mapa) | 5 clicados | 5 | ambiente local descartável (§5.1) |
+| Teclado / leitor de tela | axe em todas as telas; Tab real no Painel e no Catálogo | — | leitor de tela NÃO VERIFICADO; anel de foco inconclusivo |
 | Desempenho | LCP/CLS em todas; API em 4 telas | — | máquina local, **não a VPS** |
 
-**Itens críticos não verificados:** (1) fluxos de ação clicados; (2) navegação real por teclado;
-(3) desempenho na VPS; (4) estúdio de ofertas (desligado).
+**Lacunas declaradas (aceitas pelo owner no Gate 3A):** (1) desempenho medido na VPS (sem clientes reais,
+fica para o Prompt 4 e pós-lançamento); (2) estúdio de ofertas (desligado; auditar quando religado, D-013);
+(3) leitor de tela real.
