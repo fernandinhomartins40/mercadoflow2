@@ -1,817 +1,522 @@
-import React, { useMemo, useState } from 'react';
-import { formatDecimal } from '../utils/formatters';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  CheckCircle2,
+  ClipboardList,
+  Eye,
+  Minus,
+  Send,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import UsageBanner from '../components/billing/UsageBanner';
 import ProductImage from '../components/product/ProductImage';
-import Button from '../components/common/Button';
-import { useMarketData } from '../hooks/useMarketData';
-import { useAlerts } from '../hooks/useAlerts';
-import { useActivation } from '../hooks/useActivation';
-import { last7VsPrevious7, todayVsLastWeek } from '../utils/salesPeriods';
 import ActivationChecklist from '../components/activation/ActivationChecklist';
 import CollectingBanner from '../components/activation/CollectingBanner';
+import RecommendationCard from '../components/intelligence/RecommendationCard';
+import DecisionFeedback from '../components/intelligence/DecisionFeedback';
+import { useMarketData } from '../hooks/useMarketData';
+import { useActivation } from '../hooks/useActivation';
+import { useRecommendationDecision } from '../hooks/useRecommendationDecision';
 import { useAuth } from '../context/AuthContext';
-import { AlertItem, AlertType } from '../types/alert.types';
-import { ProductPerformance } from '../types/analytics.types';
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  AlertTriangle,
-  ShoppingCart,
-  ArrowRight,
-  Sparkles,
-  CheckCircle2,
-  Map,
-  Activity,
-  Bell,
-  Clock,
-  Eye,
-  ChevronDown,
-  ChevronUp,
-  Zap,
-  PackageSearch,
-  Tag,
-  Link2,
-  Heart,
-  BarChart2,
-  XCircle,
-} from 'lucide-react';
+import { marketService } from '../services/market.service';
+import { formatDecimal, formatMoney } from '../utils/formatters';
+import { last7VsPrevious7, todayVsLastWeek } from '../utils/salesPeriods';
+import type {
+  OpportunityItem,
+  OutcomesResponse,
+  ProductPerformance,
+  RecommendationItem,
+  SupplierOrder,
+} from '../types/analytics.types';
 
-const formatMoney = (value?: number | null) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+/**
+ * Hoje (R-08, D-021): Painel do dia e Central de Inteligência numa tela só.
+ *
+ * A ordem é a da decisão, não a dos relatórios: primeiro o que decidir agora
+ * (as 5 de maior impacto, aceitáveis aqui mesmo), depois o que está pronto
+ * para sair (pedidos em rascunho), o que está sendo acompanhado e o resultado
+ * do que já foi decidido. Os números de venda vêm por último, como apoio.
+ * Alertas deixaram de existir como conceito separado.
+ */
 
-const formatCompact = (value?: number | null) =>
-  new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value || 0));
+const TOP_DECISIONS = 5;
+const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 
-const formatSignedPercent = (value?: number | null) => {
-  const n = Number(value || 0);
-  const text = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
-  return `${n > 0 ? '+' : ''}${text}%`;
-};
+const signedPercent = (value: number) => `${value > 0 ? '+' : ''}${formatDecimal(value, 1)}%`;
 
-const getGreeting = () => {
+const greeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'Bom dia';
   if (hour < 18) return 'Boa tarde';
   return 'Boa noite';
 };
 
-const getDayOfWeek = () =>
-  new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-const ragColor = (value: number, good: number, bad: number) => {
-  if (value >= good) return 'green';
-  if (value >= bad) return 'amber';
-  return 'red';
+/** "Domingo, 27 de setembro": maiúscula só no início (o capitalize do CSS faria "27 De Setembro"). */
+const todayLabel = () => {
+  const text = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
-const TrendIcon: React.FC<{ value: number }> = ({ value }) => {
-  if (value > 1) return <TrendingUp className="h-3.5 w-3.5 text-green-500" />;
-  if (value < -1) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
-  return <Minus className="h-3.5 w-3.5" style={{ color: 'var(--text-soft)' }} />;
+/** "vs sábado passado" / "vs segunda-feira passada". */
+const lastSameWeekday = () => {
+  const now = new Date();
+  const name = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(now);
+  return `${name} ${now.getDay() === 0 || now.getDay() === 6 ? 'passado' : 'passada'}`;
 };
 
-const KPICard: React.FC<{
+// ── Dados da tela ───────────────────────────────────────────────────────────
+
+interface TodayFeed {
+  recommendations: RecommendationItem[];
+  tracking: OpportunityItem[];
+  drafts: SupplierOrder[];
+  outcomes: OutcomesResponse | null;
+  loading: boolean;
+  reload: () => Promise<void>;
+}
+
+const useTodayFeed = (marketId: string | null, enabled: boolean): TodayFeed => {
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [tracking, setTracking] = useState<OpportunityItem[]>([]);
+  const [drafts, setDrafts] = useState<SupplierOrder[]>([]);
+  const [outcomes, setOutcomes] = useState<OutcomesResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(async () => {
+    if (!marketId || !enabled) { setLoading(false); return; }
+    // Cada bloco é independente: uma falha não apaga a tela inteira.
+    const [recs, opps, orders, outc] = await Promise.allSettled([
+      marketService.getPendingRecommendations(marketId),
+      marketService.getOpportunities(marketId),
+      marketService.listSupplierOrders(marketId, 'RASCUNHO'),
+      marketService.getOutcomes(marketId),
+    ]);
+    if (recs.status === 'fulfilled') setRecommendations(recs.value || []);
+    if (opps.status === 'fulfilled') {
+      setTracking((opps.value?.oportunidades || []).filter((o: OpportunityItem) => o.status === 'EM_ACAO'));
+    }
+    if (orders.status === 'fulfilled') setDrafts(orders.value || []);
+    if (outc.status === 'fulfilled') setOutcomes(outc.value);
+    setLoading(false);
+  }, [marketId, enabled]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  return { recommendations, tracking, drafts, outcomes, loading, reload };
+};
+
+// ── Peças visuais ───────────────────────────────────────────────────────────
+
+const Panel: React.FC<{
+  title: string;
+  icon: React.ElementType;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+}> = ({ title, icon: Icon, action, children, id }) => (
+  <section
+    id={id}
+    aria-labelledby={id ? `${id}-title` : undefined}
+    className="flex min-w-0 flex-col gap-3 rounded-2xl p-4 sm:p-5"
+    style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
+  >
+    <div className="flex items-center justify-between gap-3">
+      <h2 id={id ? `${id}-title` : undefined} className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <Icon className="h-4 w-4 shrink-0" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />
+        {title}
+      </h2>
+      {action}
+    </div>
+    {children}
+  </section>
+);
+
+const Stat: React.FC<{
   label: string;
   value: string;
   change?: number | null;
-  /** Contra o que a variação compara; sem ele a variação não aparece. */
   changeLabel?: string;
-  /** Mostrado quando não há base de comparação. */
   note?: string;
-  color: 'green' | 'amber' | 'red' | 'blue' | 'purple';
-}> = ({ label, value, change, changeLabel, note, color }) => {
-  const colorMap = {
-    green:  { bg: 'bg-green-500',  sub: 'text-green-100' },
-    amber:  { bg: 'bg-amber-500',  sub: 'text-amber-100' },
-    red:    { bg: 'bg-red-500',    sub: 'text-red-100' },
-    blue:   { bg: 'bg-blue-500',   sub: 'text-blue-100' },
-    purple: { bg: 'bg-violet-500', sub: 'text-violet-100' },
-  };
-  const c = colorMap[color];
-  return (
-    <div className={`flex flex-col gap-2 rounded-xl p-4 ${c.bg}`}>
-      <span className={`text-[0.65rem] font-semibold uppercase tracking-widest ${c.sub}`}>{label}</span>
-      <p className={`text-2xl font-bold tracking-tight text-white`}>{value}</p>
+  to?: string;
+  tone?: 'default' | 'attention';
+}> = ({ label, value, change, changeLabel, note, to, tone = 'default' }) => {
+  const up = change != null && change > 0.05;
+  const down = change != null && change < -0.05;
+  const DeltaIcon = up ? ArrowUpRight : down ? ArrowDownRight : Minus;
+  const body = (
+    <>
+      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-soft)' }}>{label}</span>
+      <span className="text-2xl font-bold tracking-tight" style={{ color: tone === 'attention' ? 'var(--brand-700)' : 'var(--text-primary)' }}>{value}</span>
       {change != null && changeLabel ? (
-        <span className={`text-xs font-medium ${c.sub}`}>{formatSignedPercent(change)} {changeLabel}</span>
+        <span className="flex flex-wrap items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span
+            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold"
+            style={{
+              background: up ? 'var(--surface-success)' : down ? '#fef2f2' : 'var(--surface-muted)',
+              color: up ? 'var(--brand-700)' : down ? '#b91c1c' : 'var(--text-muted)',
+            }}
+          >
+            <DeltaIcon className="h-3 w-3" aria-hidden="true" />
+            {signedPercent(change)}
+          </span>
+          {changeLabel}
+        </span>
       ) : note ? (
-        <span className={`text-xs font-medium ${c.sub}`}>{note}</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{note}</span>
+      ) : null}
+    </>
+  );
+  const className = `flex min-w-0 flex-col gap-1 rounded-2xl p-4 no-underline ${FOCUS}`;
+  const style: React.CSSProperties = {
+    border: `1px solid ${tone === 'attention' ? 'var(--border-success)' : 'var(--border-soft)'}`,
+    background: tone === 'attention' ? 'var(--surface-success)' : 'var(--surface-base)',
+  };
+  if (to?.startsWith('#')) {
+    // Âncora na própria tela: rola até o bloco em vez de navegar.
+    return (
+      <a
+        href={to}
+        className={`${className} transition hover:shadow-sm`}
+        style={style}
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById(to.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+      >
+        {body}
+      </a>
+    );
+  }
+  return to
+    ? <Link to={to} className={`${className} transition hover:shadow-sm`} style={style}>{body}</Link>
+    : <div className={className} style={style}>{body}</div>;
+};
+
+const ProductLine: React.FC<{ product: ProductPerformance }> = ({ product }) => {
+  const trend = Number(product.revenueTrendPercentage || 0);
+  const Trend = trend > 1 ? TrendingUp : trend < -1 ? TrendingDown : Minus;
+  return (
+    <li>
+      <Link
+        to={`/app/produtos/${product.productId}`}
+        className={`flex min-h-[48px] items-center gap-3 rounded-lg px-2 py-1.5 no-underline transition hover:bg-[var(--surface-soft)] ${FOCUS}`}
+      >
+        <span className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
+          <ProductImage src={product.imageUrl} alt="" className="h-full w-full object-contain" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{product.name}</span>
+          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{formatMoney(product.revenue)}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-xs font-semibold" style={{ color: trend > 1 ? 'var(--brand-700)' : trend < -1 ? '#b91c1c' : 'var(--text-muted)' }}>
+          <Trend className="h-3.5 w-3.5" aria-hidden="true" />
+          {signedPercent(trend)}
+        </span>
+      </Link>
+    </li>
+  );
+};
+
+const WeekChart: React.FC<{ days: Array<{ label?: string; revenue?: number | null }> }> = ({ days }) => {
+  const max = Math.max(...days.map((d) => Number(d.revenue || 0)), 1);
+  const best = days.reduce((a, b) => (Number(b.revenue || 0) > Number(a.revenue || 0) ? b : a), days[0]);
+  return (
+    <div>
+      <div className="grid grid-cols-7 items-end gap-1.5" style={{ height: 120 }} aria-hidden="true">
+        {days.map((d) => {
+          const pct = (Number(d.revenue || 0) / max) * 100;
+          const isBest = d === best;
+          return (
+            <div key={d.label} className="flex h-full flex-col items-center justify-end gap-1">
+              <div className="w-full max-w-[28px] rounded-t-md" style={{ height: `${Math.max(pct, 4)}%`, background: isBest ? 'var(--brand-700)' : 'var(--brand-500)', opacity: isBest ? 1 : 0.55 }} />
+              <span className="text-[11px] font-medium capitalize" style={{ color: 'var(--text-muted)' }}>{(d.label || '').slice(0, 3)}</span>
+            </div>
+          );
+        })}
+      </div>
+      {best ? (
+        <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+          Seu melhor dia é <strong style={{ color: 'var(--text-primary)' }}>{(best.label || '').toLowerCase()}</strong>: bom dia para ter o estoque cheio e a promoção na vitrine.
+        </p>
       ) : null}
     </div>
   );
 };
 
-
-const ProductRow: React.FC<{ product: ProductPerformance; rank: number }> = ({ product, rank }) => {
-  const trend = Number(product.revenueTrendPercentage || 0);
-  return (
-    <Link
-      to={`/app/produtos/${product.productId}`}
-      className="flex items-center gap-3 rounded-lg p-2 no-underline transition"
-      style={{ ['--tw-bg-opacity' as any]: 1 }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-soft)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
-    >
-      <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-        style={{ background: 'var(--surface-muted)', color: 'var(--text-soft)' }}
-      >
-        {rank}
-      </span>
-      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
-        <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
-        <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{formatMoney(product.revenue)}</p>
-      </div>
-      <div className="flex items-center gap-1">
-        <TrendIcon value={trend} />
-        <span className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-500' : ''}`} style={!trend ? { color: 'var(--text-soft)' } : {}}>
-          {formatSignedPercent(trend)}
-        </span>
-      </div>
-    </Link>
-  );
-};
-
-const WeekBar: React.FC<{ label: string; value: number; maxValue: number }> = ({ label, value, maxValue }) => {
-  const pct = maxValue > 0 ? (value / maxValue) * 100 : 0;
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative flex h-24 w-full items-end justify-center">
-        <div className="w-5 rounded-t-sm bg-green-500 transition-all" style={{ height: `${Math.max(pct, 4)}%` }} />
-      </div>
-      <span className="text-[10px] font-medium" style={{ color: 'var(--text-soft)' }}>{label}</span>
-    </div>
-  );
-};
-
-// ── Alert type config ─────────────────────────────────────────────────────────
-
-const ALERT_TYPE_CFG: Record<AlertType, {
-  icon: React.ReactNode;
-  accentClass: string;        // border-l color
-  bgClass: string;            // card background when unread
-  label: string;
-  labelStyle: React.CSSProperties;
-  ctas: (alert: AlertItem) => { label: string; to: string }[];
-}> = {
-  ZERO_SALES: {
-    icon: <XCircle className="h-4 w-4 text-red-500" />,
-    accentClass: 'border-l-red-500',
-    bgClass: 'bg-red-50',
-    label: 'Sem vendas',
-    labelStyle: { background: '#fee2e2', color: '#991b1b' },
-    ctas: (a) => [
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-      { label: 'Criar promoção', to: '/app/promocoes' },
-    ],
-  },
-  LOW_STOCK: {
-    icon: <ShoppingCart className="h-4 w-4 text-orange-500" />,
-    accentClass: 'border-l-orange-500',
-    bgClass: 'bg-orange-50',
-    label: 'Reposição',
-    labelStyle: { background: '#ffedd5', color: '#9a3412' },
-    ctas: (a) => [
-      { label: 'Pedido inteligente', to: '/app/lista-compras' },
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-    ],
-  },
-  DEMAND_SPIKE: {
-    icon: <Zap className="h-4 w-4 text-orange-600" />,
-    accentClass: 'border-l-orange-600',
-    bgClass: 'bg-orange-50',
-    label: 'Pico de demanda',
-    labelStyle: { background: '#fed7aa', color: '#7c2d12' },
-    ctas: (a) => [
-      { label: 'Pedido urgente', to: '/app/lista-compras' },
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-    ],
-  },
-  HIGH_PERFORMING: {
-    icon: <TrendingUp className="h-4 w-4 text-green-600" />,
-    accentClass: 'border-l-green-500',
-    bgClass: 'bg-green-50',
-    label: 'Em alta',
-    labelStyle: { background: '#dcfce7', color: '#14532d' },
-    ctas: (a) => [
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-      { label: 'Pedido inteligente', to: '/app/lista-compras' },
-    ],
-  },
-  SLOW_MOVING: {
-    icon: <TrendingDown className="h-4 w-4 text-red-500" />,
-    accentClass: 'border-l-red-400',
-    bgClass: 'bg-red-50',
-    label: 'Giro baixo',
-    labelStyle: { background: '#fee2e2', color: '#991b1b' },
-    ctas: (a) => [
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-      { label: 'Criar promoção', to: '/app/promocoes' },
-    ],
-  },
-  HEALTH_CRITICAL: {
-    icon: <Heart className="h-4 w-4 text-red-600" />,
-    accentClass: 'border-l-red-600',
-    bgClass: 'bg-red-50',
-    label: 'Crítico',
-    labelStyle: { background: '#fecaca', color: '#7f1d1d' },
-    ctas: (a) => [
-      ...(a.productId ? [{ label: 'Analisar produto', to: `/app/produtos/${a.productId}` }] : []),
-      { label: 'Ver promoções', to: '/app/promocoes' },
-    ],
-  },
-  MOMENTUM_REVERSAL: {
-    icon: <BarChart2 className="h-4 w-4 text-amber-500" />,
-    accentClass: 'border-l-amber-500',
-    bgClass: 'bg-amber-50',
-    label: 'Desacelerando',
-    labelStyle: { background: '#fef3c7', color: '#92400e' },
-    ctas: (a) => [
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-      { label: 'Ajustar pedido', to: '/app/lista-compras' },
-    ],
-  },
-  PROMOTION_OPPORTUNITY: {
-    icon: <Tag className="h-4 w-4 text-violet-600" />,
-    accentClass: 'border-l-violet-500',
-    bgClass: 'bg-violet-50',
-    label: 'Promoção',
-    labelStyle: { background: '#ede9fe', color: '#4c1d95' },
-    ctas: (a) => [
-      { label: 'Criar campanha', to: '/app/promocoes' },
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-    ],
-  },
-  BASKET_OPPORTUNITY: {
-    icon: <Link2 className="h-4 w-4 text-blue-600" />,
-    accentClass: 'border-l-blue-500',
-    bgClass: 'bg-blue-50',
-    label: 'Combo',
-    labelStyle: { background: '#dbeafe', color: '#1e3a8a' },
-    ctas: (a) => [
-      { label: 'Ver combos', to: '/app/produtos' },
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-    ],
-  },
-  EXPIRATION_RISK: {
-    icon: <Clock className="h-4 w-4 text-amber-600" />,
-    accentClass: 'border-l-amber-600',
-    bgClass: 'bg-amber-50',
-    label: 'Vencimento',
-    labelStyle: { background: '#fef3c7', color: '#92400e' },
-    ctas: (a) => [
-      { label: 'Criar promoção', to: '/app/promocoes' },
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-    ],
-  },
-  PRICE_ABOVE_MARKET: {
-    icon: <PackageSearch className="h-4 w-4 text-slate-600" />,
-    accentClass: 'border-l-slate-400',
-    bgClass: 'bg-slate-50',
-    label: 'Preço alto',
-    labelStyle: { background: '#f1f5f9', color: '#334155' },
-    ctas: (a) => [
-      ...(a.productId ? [{ label: 'Ver produto', to: `/app/produtos/${a.productId}` }] : []),
-    ],
-  },
-};
-
-const PRIORITY_ORDER: Record<string, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-
-const PRIORITY_BADGE: Record<string, React.CSSProperties> = {
-  URGENT: { background: '#fecaca', color: '#7f1d1d' },
-  HIGH:   { background: '#fee2e2', color: '#991b1b' },
-  MEDIUM: { background: '#fef3c7', color: '#92400e' },
-  LOW:    { background: 'var(--surface-muted)', color: 'var(--text-muted)' },
-};
-
-const PRIORITY_LABEL: Record<string, string> = { URGENT: 'Urgente', HIGH: 'Alto', MEDIUM: 'Atenção', LOW: 'Info' };
-
-// ── Metric chips ──────────────────────────────────────────────────────────────
-
-const MetricChip: React.FC<{ label: string; value: string; highlight?: boolean }> = ({ label, value, highlight }) => (
-  <span
-    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold"
-    style={highlight
-      ? { background: '#fee2e2', color: '#991b1b' }
-      : { background: 'var(--surface-muted)', color: 'var(--text-soft)' }}
-  >
-    <span style={{ color: 'var(--text-soft)', fontWeight: 400 }}>{label}</span> {value}
-  </span>
-);
-
-const AlertMetricChips: React.FC<{ alert: AlertItem }> = ({ alert }) => {
-  const m = alert.metadata;
-  if (!m) return null;
-  const chips: React.ReactNode[] = [];
-
-  if (alert.type === 'ZERO_SALES' && m.daysSilent) {
-    chips.push(<MetricChip key="ds" label="Dias sem venda" value={String(m.daysSilent)} highlight />);
-    if (m.previousTransactions) chips.push(<MetricChip key="pt" label="Transações anteriores" value={String(m.previousTransactions)} />);
-  }
-  if ((alert.type === 'LOW_STOCK' || alert.type === 'DEMAND_SPIKE') && m.salesVelocity) {
-    chips.push(<MetricChip key="sv" label="Giro" value={`${formatDecimal(m.salesVelocity as number, 1)} un./dia`} highlight />);
-    if (m.velocityRatio) chips.push(<MetricChip key="vr" label="vs. portfólio" value={`${formatDecimal(m.velocityRatio as number, 1)}×`} />);
-    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={formatDecimal(m.momentumScore as number, 2)} />);
-  }
-  if ((alert.type === 'SLOW_MOVING' || alert.type === 'HEALTH_CRITICAL') && m.revenueTrend !== undefined) {
-    chips.push(<MetricChip key="rt" label="Tendência receita" value={`${formatDecimal(m.revenueTrend as number, 1)}%`} highlight />);
-    if (m.healthScore !== undefined) chips.push(<MetricChip key="hs" label="Health" value={`${formatDecimal(m.healthScore as number, 0)}/100`} highlight={(m.healthScore as number) < 25} />);
-    if (m.velocityRatio !== undefined) chips.push(<MetricChip key="vr" label="Giro vs. média" value={`${formatDecimal(((m.velocityRatio as number) * 100), 0)}%`} />);
-  }
-  if (alert.type === 'MOMENTUM_REVERSAL' && m.momentumScore) {
-    chips.push(<MetricChip key="ms" label="Momentum" value={formatDecimal(m.momentumScore as number, 2)} highlight={(m.momentumScore as number) < 0.7} />);
-    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro atual" value={`${formatDecimal(m.salesVelocity as number, 1)} un./dia`} />);
-  }
-  if (alert.type === 'PROMOTION_OPPORTUNITY' && m.priceAboveBaselinePercent) {
-    chips.push(<MetricChip key="pa" label="Preço acima base" value={`+${formatDecimal(m.priceAboveBaselinePercent as number, 1)}%`} highlight />);
-    if (m.revenueTrend !== undefined) chips.push(<MetricChip key="rt" label="Queda receita" value={`${formatDecimal(m.revenueTrend as number, 1)}%`} />);
-    if (m.promoRevenueShare !== undefined) chips.push(<MetricChip key="ps" label="Receita promo" value={`${formatDecimal(((m.promoRevenueShare as number) * 100), 0)}%`} />);
-  }
-  if (alert.type === 'BASKET_OPPORTUNITY' && m.lift) {
-    chips.push(<MetricChip key="li" label="Lift" value={`${formatDecimal(m.lift as number, 1)}×`} highlight />);
-    if (m.antecedentName) chips.push(<MetricChip key="an" label="Acompanha" value={String(m.antecedentName)} />);
-    if (m.consequentTrend !== undefined) chips.push(<MetricChip key="ct" label="Tendência" value={`${formatDecimal(m.consequentTrend as number, 1)}%`} />);
-  }
-  if (alert.type === 'HIGH_PERFORMING' && m.revenueTrend !== undefined) {
-    chips.push(<MetricChip key="rt" label="Crescimento" value={`+${formatDecimal(m.revenueTrend as number, 1)}%`} highlight />);
-    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro" value={`${formatDecimal(m.salesVelocity as number, 1)} un./dia`} />);
-    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={formatDecimal(m.momentumScore as number, 2)} />);
-  }
-
-  if (chips.length === 0) return null;
-  return <div className="mt-2 flex flex-wrap gap-1.5">{chips}</div>;
-};
-
-// ── Alert card ────────────────────────────────────────────────────────────────
-
-const AlertCard: React.FC<{ alert: AlertItem; onMarkRead: (id: string) => void }> = ({ alert, onMarkRead }) => {
-  const navigate = useNavigate();
-  const cfg = ALERT_TYPE_CFG[alert.type] ?? ALERT_TYPE_CFG['LOW_STOCK'];
-  const isUrgent = alert.priority === 'URGENT' || alert.priority === 'HIGH';
-
-  return (
-    <div
-      className={`rounded-xl border-l-4 transition ${cfg.accentClass} ${alert.isRead ? 'opacity-50' : ''}`}
-      style={{ border: '1px solid var(--border-soft)', borderLeftWidth: 4, background: alert.isRead ? 'var(--surface-soft)' : 'var(--surface-base)' }}
-    >
-      <div className="flex items-start gap-3 p-3">
-        {/* Product image or type icon */}
-        {alert.productImage ? (
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
-            <ProductImage src={alert.productImage} alt={alert.productName || ''} className="h-full w-full object-contain" />
-          </div>
-        ) : (
-          <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${alert.isRead ? '' : cfg.bgClass}`}>
-            {cfg.icon}
-          </span>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={PRIORITY_BADGE[alert.priority] ?? PRIORITY_BADGE['LOW']}>
-              {PRIORITY_LABEL[alert.priority] ?? alert.priority}
-            </span>
-            <span className="rounded-md px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-muted)', color: 'var(--text-soft)' }}>
-              {cfg.label}
-            </span>
-            {!alert.isRead && isUrgent && (
-              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-            )}
-          </div>
-
-          {alert.productName && (
-            <p className="mt-1 text-xs font-semibold" style={{ color: 'var(--text-soft)' }}>{alert.productName}</p>
-          )}
-          <h4 className="mt-0.5 text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>{alert.title}</h4>
-          <p className="mt-0.5 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{alert.message}</p>
-
-          <AlertMetricChips alert={alert} />
-
-          {/* CTAs */}
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            {cfg.ctas(alert).map((cta) => (
-              <button
-                key={cta.to}
-                type="button"
-                onClick={() => navigate(cta.to)}
-                className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition hover:opacity-80"
-                style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-              >
-                {cta.label} <ArrowRight className="h-3 w-3" />
-              </button>
-            ))}
-            {!alert.isRead && (
-              <button
-                type="button"
-                onClick={() => onMarkRead(alert.id)}
-                className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition hover:opacity-70"
-                style={{ color: 'var(--text-soft)' }}
-              >
-                <Eye className="h-3 w-3" /> Lido
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Alerts section (collapsible, in Dashboard) ────────────────────────────────
-
-const AlertsSection: React.FC = () => {
-  const { alerts, loading, onlyUnread, setOnlyUnread, refresh, markRead, markAllRead } = useAlerts();
-  const [expanded, setExpanded] = useState(false);
-
-  const sorted = useMemo(() => [...alerts].sort((a, b) => {
-    if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-    return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
-  }), [alerts]);
-
-  const unreadCount = alerts.filter((a) => !a.isRead).length;
-  const urgentCount = alerts.filter((a) => a.priority === 'URGENT' || a.priority === 'HIGH').length;
-  const visible = expanded ? sorted : sorted.slice(0, 3);
-
-  return (
-    <div className="rounded-xl" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 p-4 text-left"
-      >
-        <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4" style={{ color: unreadCount > 0 ? '#d97706' : 'var(--text-soft)' }} />
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Alertas de desempenho</span>
-          {unreadCount > 0 && (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount} novos</span>
-          )}
-          {urgentCount > 0 && (
-            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{urgentCount} urgente{urgentCount > 1 ? 's' : ''}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs" style={{ color: 'var(--text-soft)' }}>{alerts.length} total</span>
-          {expanded ? <ChevronUp className="h-4 w-4" style={{ color: 'var(--text-soft)' }} /> : <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-soft)' }} />}
-        </div>
-      </button>
-
-      <div className={`overflow-hidden transition-all ${expanded ? 'max-h-[4000px]' : 'max-h-0'}`} style={{ borderTop: expanded ? '1px solid var(--border-soft)' : 'none' }}>
-        <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setOnlyUnread(!onlyUnread)}
-              className="rounded-full px-3 py-1 text-xs font-semibold transition"
-              style={onlyUnread
-                ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
-                : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
-            >
-              {onlyUnread ? 'Somente não lidos' : 'Todos'}
-            </button>
-            <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
-            <Button variant="ghost" onClick={markAllRead} disabled={loading || unreadCount === 0}>Marcar todos lidos</Button>
-          </div>
-
-          {loading ? (
-            <div className="flex h-16 items-center justify-center">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-            </div>
-          ) : sorted.length === 0 ? (
-            <div className="flex items-center gap-2 rounded-xl p-4" style={{ background: 'var(--surface-soft)' }}>
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Todos os produtos em dia. Nenhum alerta pendente.</p>
-            </div>
-          ) : (
-            <>
-              {visible.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} onMarkRead={markRead} />
-              ))}
-              {sorted.length > 3 && !expanded && (
-                <button
-                  type="button"
-                  onClick={() => setExpanded(true)}
-                  className="rounded-lg px-3 py-2 text-xs font-semibold transition hover:opacity-80"
-                  style={{ background: 'var(--surface-soft)', color: 'var(--brand-600)' }}
-                >
-                  Ver mais {sorted.length - 3} alertas
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Tab: Painel ───────────────────────────────────────────────────────────────
-
-const PainelTab: React.FC<{
-  dashboard: NonNullable<ReturnType<typeof useMarketData>['dashboard']>;
-  collecting?: boolean;
-}> = ({ dashboard, collecting = false }) => {
-  // Período explícito em cada número (UX-01): a janela do cockpit é de 90 dias,
-  // e "Faturamento" sem período parecia ser do dia.
-  const today = useMemo(() => todayVsLastWeek(dashboard.salesTrend || []), [dashboard.salesTrend]);
-  const week = useMemo(() => last7VsPrevious7(dashboard.salesTrend || []), [dashboard.salesTrend]);
-  const lastSameWeekday = useMemo(() => {
-    const now = new Date();
-    const name = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(now);
-    // sábado e domingo são masculinos; segunda a sexta-feira, femininos.
-    return `${name} ${now.getDay() === 0 || now.getDay() === 6 ? 'passado' : 'passada'}`;
-  }, []);
-  const topProducts = dashboard.topProducts || [];
-  const slowMovers = dashboard.slowMovers || [];
-
-  const weekData = useMemo(() => {
-    const days = dashboard.weekdaySeasonality || [];
-    const maxRevenue = Math.max(...days.map((d) => Number(d.revenue || 0)), 1);
-    return { days, maxRevenue };
-  }, [dashboard.weekdaySeasonality]);
-
-  return (
-    <div className="flex flex-col gap-5">
-      {/* KPI strip */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          label="Vendas hoje"
-          value={formatMoney(today.value)}
-          change={today.change}
-          changeLabel={`vs ${lastSameWeekday}`}
-          note="sem venda no mesmo dia da semana passada"
-          color={today.change == null ? 'blue' : ragColor(today.change, 0, -5) as any}
-        />
-        <KPICard
-          label="Últimos 7 dias"
-          value={formatMoney(week.value)}
-          change={week.change}
-          changeLabel="vs 7 dias anteriores"
-          note="sem vendas nos 7 dias anteriores"
-          color={week.change == null ? 'blue' : ragColor(week.change, 0, -5) as any}
-        />
-        <KPICard label="Ticket médio · 90 dias" value={formatMoney(dashboard.averageTicket)} note={`${formatCompact(dashboard.totalTransactions)} vendas`} color="purple" />
-        <KPICard label="Produtos vendidos · 90 dias" value={formatCompact(dashboard.activeProducts)} color={Number(dashboard.activeProducts || 0) > 50 ? 'green' : 'amber'} />
-      </div>
-
-      {/* Two columns */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-green-500" />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vendas por dia da semana</h3>
-          </div>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>Faturamento por dia da semana · últimos 90 dias</p>
-          {weekData.days.length > 0 ? (
-            <div className="mt-4 grid grid-cols-7 gap-1.5">
-              {weekData.days.map((day) => (
-                <WeekBar key={day.label} label={day.label?.slice(0, 3) || ''} value={Number(day.revenue || 0)} maxValue={weekData.maxRevenue} />
-              ))}
-            </div>
-          ) : (
-            <p className="py-8 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Sem dados de sazonalidade semanal.</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Mais vendidos</h3>
-              <Link to="/app/produtos" className="text-xs font-medium text-green-600 no-underline hover:text-green-700">
-                Ver todos <ArrowRight className="inline h-3 w-3" />
-              </Link>
-            </div>
-            <div className="mt-2 flex flex-col">
-              {topProducts.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-              {topProducts.length === 0 && <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Sem dados.</p>}
-            </div>
-          </div>
-          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Precisam de atenção</h3>
-              <Link to="/app/produtos" className="text-xs font-medium text-red-500 no-underline hover:text-red-600">
-                Ver catálogo <ArrowRight className="inline h-3 w-3" />
-              </Link>
-            </div>
-            <div className="mt-2 flex flex-col">
-              {slowMovers.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-              {slowMovers.length === 0 && (
-                <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>
-                  {/* Com poucos dias de venda, "em dia" seria uma conclusão sem base. */}
-                  {collecting ? 'Ainda coletando vendas.' : 'Todos os produtos em dia!'}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick links */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { to: '/app/lista-compras', icon: ShoppingCart, title: 'Pedido inteligente', sub: 'Compra guiada por dados', color: 'bg-blue-50 border-blue-200 text-blue-600' },
-          { to: '/app/produtos',      icon: Sparkles,     title: 'Combos',             sub: 'Produtos que vendem juntos', color: 'bg-violet-50 border-violet-200 text-violet-600' },
-          { to: '/app/promocoes',     icon: TrendingUp,   title: 'Promoções',          sub: 'Crie e meça campanhas', color: 'bg-green-50 border-green-200 text-green-600' },
-          { to: '/app/mapa-loja',     icon: Map,          title: 'Mapa da loja',       sub: 'Organize para vender mais', color: 'bg-amber-50 border-amber-200 text-amber-600' },
-        ].map((link) => (
-          <Link key={link.to} to={link.to} className={`flex items-center gap-3 rounded-xl border p-3.5 no-underline transition hover:opacity-80 ${link.color}`}>
-            <link.icon className="h-5 w-5 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{link.title}</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{link.sub}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ── Tab: Alertas ──────────────────────────────────────────────────────────────
-
-const AlertasTab: React.FC<{ collecting?: boolean }> = ({ collecting = false }) => {
-  const { alerts, loading, onlyUnread, setOnlyUnread, refresh, markRead, markAllRead } = useAlerts();
-
-  const sorted = useMemo(() => [...alerts].sort((a, b) => {
-    if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-    return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
-  }), [alerts]);
-
-  const unreadCount = alerts.filter((a) => !a.isRead).length;
-
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setOnlyUnread(!onlyUnread)}
-          className="rounded-full px-3 py-1.5 text-xs font-semibold transition"
-          style={onlyUnread
-            ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
-            : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
-        >
-          {onlyUnread ? 'Somente não lidos' : 'Todos'}
-        </button>
-        <Button variant="secondary" onClick={refresh} disabled={loading}>Atualizar</Button>
-        <Button variant="ghost" onClick={markAllRead} disabled={loading || unreadCount === 0}>Marcar todos lidos</Button>
-        <span className="ml-auto text-xs" style={{ color: 'var(--text-soft)' }}>{alerts.length} alerta{alerts.length !== 1 ? 's' : ''}</span>
-      </div>
-
-      {/* List */}
-      {loading ? (
-        <div className="flex h-32 items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-        </div>
-      ) : sorted.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl py-16" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}>
-          <CheckCircle2 className="h-10 w-10 text-green-400" />
-          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-            {collecting ? 'Ainda coletando vendas. Nenhum alerta pendente.' : 'Todos os produtos em dia. Nenhum alerta pendente.'}
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {sorted.map((alert) => (
-            <AlertCard key={alert.id} alert={alert} onMarkRead={markRead} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ── Tab switcher ──────────────────────────────────────────────────────────────
-
-type DashTab = 'painel' | 'alertas';
-
-const TabBar: React.FC<{
-  active: DashTab;
-  onChange: (t: DashTab) => void;
-  unreadAlerts: number;
-  urgentAlerts: number;
-}> = ({ active, onChange, unreadAlerts, urgentAlerts }) => (
-  <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'var(--surface-muted)', width: 'fit-content' }}>
-    {([
-      { key: 'painel',  label: 'Painel do dia', icon: Activity },
-      { key: 'alertas', label: 'Alertas',       icon: Bell },
-    ] as { key: DashTab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
-      <button
-        key={key}
-        type="button"
-        onClick={() => onChange(key)}
-        className="relative inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all"
-        style={active === key
-          ? { background: 'var(--surface-base)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-          : { color: 'var(--text-soft)' }}
-      >
-        <Icon className="h-4 w-4" />
-        {label}
-        {key === 'alertas' && urgentAlerts > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {urgentAlerts}
-          </span>
-        )}
-        {key === 'alertas' && urgentAlerts === 0 && unreadAlerts > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
-            {unreadAlerts}
-          </span>
-        )}
-      </button>
-    ))}
-  </div>
-);
-
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+// ── Tela ────────────────────────────────────────────────────────────────────
 
 const Dashboard: React.FC = () => {
-  const { name } = useAuth();
-  const { dashboard, loading, error } = useMarketData();
-  const { alerts } = useAlerts();
+  const { name, marketId } = useAuth();
   const activation = useActivation();
-  const [tab, setTab] = useState<DashTab>('painel');
+  const { dashboard, loading: salesLoading } = useMarketData();
+  const feedEnabled = !activation.loading && !activation.showChecklist;
+  const feed = useTodayFeed(marketId, feedEnabled);
+  const { deciding, feedback, setFeedback, error: decisionError, decide } =
+    useRecommendationDecision(marketId, feed.recommendations, feed.reload);
 
-  const unreadAlerts = alerts.filter((a) => !a.isRead).length;
-  const urgentAlerts = alerts.filter((a) => (a.priority === 'URGENT' || a.priority === 'HIGH') && !a.isRead).length;
+  const today = useMemo(() => todayVsLastWeek(dashboard?.salesTrend || []), [dashboard?.salesTrend]);
+  const week = useMemo(() => last7VsPrevious7(dashboard?.salesTrend || []), [dashboard?.salesTrend]);
+  const pendingImpact = useMemo(
+    () => feed.recommendations.reduce((sum, r) => sum + Number(r.expectedImpactValue || 0), 0),
+    [feed.recommendations],
+  );
+  const results = useMemo(() => {
+    let measured = 0;
+    let worked = 0;
+    Object.values(feed.outcomes?.porTipoDeAcao || {}).forEach((byVerdict) => {
+      Object.entries(byVerdict).forEach(([verdict, count]) => {
+        if (verdict === 'SEM_DADOS') return;
+        measured += Number(count || 0);
+        if (verdict === 'ACERTOU') worked += Number(count || 0);
+      });
+    });
+    return { measured, worked };
+  }, [feed.outcomes]);
 
-  if (loading || activation.loading) {
+  const header = (
+    <div>
+      <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        {greeting()}, {name || 'gestor'}!
+      </h1>
+      <p className="mt-0.5 text-sm" style={{ color: 'var(--text-muted)' }}>{todayLabel()}</p>
+    </div>
+  );
+
+  if (activation.loading) {
     return (
       <Layout>
-        <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex min-h-[400px] items-center justify-center" role="status">
           <div className="text-center">
             <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-            <p className="mt-3 text-sm" style={{ color: 'var(--text-soft)' }}>Carregando painel...</p>
+            <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando o dia...</p>
           </div>
         </div>
       </Layout>
     );
   }
 
-  // Loja ainda sem a primeira análise: o checklist ocupa o lugar dos KPIs, que
-  // mostrariam zeros e "Todos os produtos em dia" sem nenhum dado (UX-C04).
+  // Loja ainda sem a primeira análise: o checklist ocupa o lugar do feed (UX-C04).
   if (activation.showChecklist && activation.status) {
     return (
       <Layout>
         <div className="flex flex-col gap-5">
           <UsageBanner />
-          <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              {getGreeting()}, {name || 'gestor'}!
-            </h1>
-            <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-muted)' }}>{getDayOfWeek()}</p>
-          </div>
+          {header}
           <ActivationChecklist status={activation.status} />
         </div>
       </Layout>
     );
   }
 
-  if (error || !dashboard) {
-    return (
-      <Layout>
-        <div className="flex min-h-[300px] items-center justify-center">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-            <AlertTriangle className="mx-auto h-7 w-7 text-red-400" />
-            <p className="mt-2 text-sm text-red-600">{error || 'Não foi possível carregar o painel.'}</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  const top = feed.recommendations.slice(0, TOP_DECISIONS);
+  const more = feed.recommendations.length - top.length;
+  const topProducts = (dashboard?.topProducts || []).slice(0, 5);
+  const slowMovers = (dashboard?.slowMovers || []).slice(0, 5);
+  const weekdays = dashboard?.weekdaySeasonality || [];
 
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        {/* Aviso de limite do plano: so aparece perto do teto ou apos estourar */}
         <UsageBanner />
-
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              {getGreeting()}, {name || 'gestor'}!
-            </h1>
-            <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-soft)' }}>{getDayOfWeek()}</p>
-          </div>
-          <TabBar active={tab} onChange={setTab} unreadAlerts={unreadAlerts} urgentAlerts={urgentAlerts} />
-        </div>
+        {header}
 
         {activation.collecting && activation.status && (
-          <CollectingBanner
-            salesDays={activation.status.invoices.salesDays}
-            targetDays={activation.status.invoices.targetDays}
-          />
+          <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
         )}
 
-        {/* Tab content */}
-        {tab === 'painel'  && <PainelTab dashboard={dashboard} collecting={activation.collecting} />}
-        {tab === 'alertas' && <AlertasTab collecting={activation.collecting} />}
+        {/* Números do dia: dois de venda, dois de ação. */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat
+            label="Vendas hoje"
+            value={salesLoading ? '…' : formatMoney(today.value)}
+            change={today.change}
+            changeLabel={`vs ${lastSameWeekday()}`}
+            note={salesLoading ? undefined : 'sem venda no mesmo dia da semana passada'}
+          />
+          <Stat
+            label="Últimos 7 dias"
+            value={salesLoading ? '…' : formatMoney(week.value)}
+            change={week.change}
+            changeLabel="vs 7 dias anteriores"
+            note={salesLoading ? undefined : 'sem vendas nos 7 dias anteriores'}
+          />
+          <Stat
+            label="Para decidir"
+            value={feed.loading ? '…' : String(feed.recommendations.length)}
+            note={pendingImpact > 0 ? `${formatMoney(pendingImpact)} de impacto estimado` : 'nada pendente'}
+            to="#fazer-agora"
+            tone={feed.recommendations.length > 0 ? 'attention' : 'default'}
+          />
+          <Stat
+            label="Pedidos para enviar"
+            value={feed.loading ? '…' : String(feed.drafts.length)}
+            note={feed.drafts.length > 0 ? 'em rascunho, prontos para o fornecedor' : 'nenhum rascunho aberto'}
+            to="/app/lista-compras"
+            tone={feed.drafts.length > 0 ? 'attention' : 'default'}
+          />
+        </div>
+
+        {feedback && marketId ? (
+          <DecisionFeedback feedback={feedback} marketId={marketId} onChange={setFeedback} onUndone={feed.reload} />
+        ) : null}
+        {decisionError ? (
+          <p role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>{decisionError}</p>
+        ) : null}
+
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+          {/* Coluna principal: decidir. */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <Panel
+              id="fazer-agora"
+              title="O que decidir agora"
+              icon={Sparkles}
+              action={feed.recommendations.length > 0 ? (
+                <Link to="/app/inteligencia" className={`shrink-0 text-sm font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
+                  Ver todas
+                </Link>
+              ) : undefined}
+            >
+              {feed.loading ? (
+                <div className="flex flex-col gap-3" aria-hidden="true">
+                  {[0, 1].map((i) => <div key={i} className="h-36 animate-pulse rounded-xl" style={{ background: 'var(--surface-muted)' }} />)}
+                </div>
+              ) : top.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl px-4 py-8 text-center" style={{ background: 'var(--surface-soft)' }}>
+                  <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--brand-500)' }} aria-hidden="true" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {activation.collecting ? 'Ainda coletando vendas' : 'Nada para decidir agora'}
+                  </p>
+                  <p className="max-w-sm text-sm" style={{ color: 'var(--text-muted)' }}>
+                    A análise roda toda madrugada com as vendas do dia. Quando algo pedir sua decisão, aparece aqui, do maior impacto para o menor.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Ordenadas pelo impacto em reais. Aceitar uma compra já coloca o produto no pedido do fornecedor.
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    {top.map((rec) => (
+                      <RecommendationCard key={rec.id} rec={rec} onDecide={decide} deciding={deciding === rec.id} />
+                    ))}
+                  </div>
+                  {more > 0 ? (
+                    <Link
+                      to="/app/inteligencia"
+                      className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg text-sm font-semibold no-underline ${FOCUS}`}
+                      style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
+                    >
+                      Ver mais {more} {more === 1 ? 'decisão' : 'decisões'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  ) : null}
+                </>
+              )}
+            </Panel>
+
+            <Panel title="Como a loja está vendendo" icon={Activity}>
+              {weekdays.length > 0 ? (
+                <>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Faturamento por dia da semana · últimos 90 dias</p>
+                  <WeekChart days={weekdays} />
+                </>
+              ) : (
+                <p className="py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Ainda sem vendas suficientes para mostrar o padrão da semana.</p>
+              )}
+            </Panel>
+          </div>
+
+          {/* Coluna lateral: o que já está andando. */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <Panel title="Pedidos para enviar" icon={ClipboardList}>
+              {feed.drafts.length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Nenhum pedido em rascunho. Ao aceitar uma compra, o pedido do fornecedor aparece aqui.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {feed.drafts.slice(0, 4).map((order) => (
+                    <li key={order.id}>
+                      <Link
+                        to={`/app/lista-compras?pedido=${order.id}`}
+                        className={`flex min-h-[56px] items-center gap-3 rounded-xl px-3 py-2 no-underline transition hover:shadow-sm ${FOCUS}`}
+                        style={{ border: '1px solid var(--border-soft)' }}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {order.supplierFantasia || order.supplierName}
+                          </span>
+                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {order.orderNumber} · {order.itemCount} {order.itemCount === 1 ? 'item' : 'itens'} · {formatMoney(order.totalValue)}
+                          </span>
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>
+                          <Send className="h-4 w-4" aria-hidden="true" /> Enviar
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+
+            <Panel
+              title="Acompanhando"
+              icon={Eye}
+              action={(
+                <Link to="/app/inteligencia" className={`shrink-0 text-sm font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
+                  Detalhes
+                </Link>
+              )}
+            >
+              <dl className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3" style={{ background: 'var(--surface-soft)' }}>
+                  <dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Em andamento</dt>
+                  <dd className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{feed.tracking.length}</dd>
+                </div>
+                <div className="rounded-xl p-3" style={{ background: 'var(--surface-soft)' }}>
+                  <dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Deu certo</dt>
+                  <dd className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {results.measured > 0 ? `${results.worked} de ${results.measured}` : '—'}
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                {results.measured > 0
+                  ? 'Cada decisão aceita é medida 30 dias depois, contra a situação do dia da escolha.'
+                  : 'As decisões aceitas são medidas 30 dias depois. O resultado aparece aqui.'}
+              </p>
+            </Panel>
+
+            <Panel
+              title="Mais vendidos"
+              icon={TrendingUp}
+              action={<Link to="/app/produtos" className={`shrink-0 text-sm font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>Produtos</Link>}
+            >
+              {topProducts.length === 0
+                ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem vendas no período.</p>
+                : <ul className="flex flex-col">{topProducts.map((p) => <ProductLine key={p.productId} product={p} />)}</ul>}
+            </Panel>
+
+            <Panel title="Vendendo menos" icon={AlertTriangle}>
+              {slowMovers.length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {/* Com poucos dias de venda, "em dia" seria uma conclusão sem base. */}
+                  {activation.collecting ? 'Ainda coletando vendas.' : 'Nenhum produto com queda relevante.'}
+                </p>
+              ) : (
+                <ul className="flex flex-col">{slowMovers.map((p) => <ProductLine key={p.productId} product={p} />)}</ul>
+              )}
+            </Panel>
+          </div>
+        </div>
       </div>
     </Layout>
   );

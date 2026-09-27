@@ -179,7 +179,7 @@ const PDVs: React.FC = () => {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>PDVs e agente</h1>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Caixas e agente</h1>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Caixas, chaves do coletor local e instalador
             </p>

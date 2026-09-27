@@ -126,6 +126,29 @@ Testes deste ciclo (ambiente descartável com PostgreSQL 16, RLS e perfil `produ
 Bloqueado: o plano de otimização da VPS (`docs/VPS-OPT-MASTER-PLAN.md`) depende de acesso ao host. A regra do
 projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, não executado.
 
+## Ciclo 3 — organização do produto
+
+- **Navegação em 5 destinos** (R-14): Hoje · Comprar · Produtos · Vender · Loja, no lugar de 14 itens de menu.
+  - no celular, barra inferior sempre visível;
+  - no desktop, lateral com as páginas do destino aberto;
+  - "Perguntar aos dados" virou botão no topo de todas as telas.
+- **Tela Hoje** (R-08): Painel do dia e Central de Inteligência viraram uma tela, e a aba Alertas saiu. A ordem é a
+  da decisão:
+  1. números do dia;
+  2. o que decidir agora (as 5 de maior impacto, aceitáveis ali mesmo);
+  3. pedidos para enviar;
+  4. acompanhamento e resultados;
+  5. como a loja está vendendo.
+- **Alertas**: a geração de hora em hora fica desligada por padrão (sem uso de CPU); dá para religar por ambiente.
+- **Testes**:
+  - navegação + Hoje a 360 e 1440 px: 28/28 (inclui aceitar compra de produto nunca comprado, escolhendo o
+    fornecedor na própria faixa);
+  - Painel: 24/24;
+  - compra e envio: 24/24;
+  - varredura de 19 telas × 4 larguras: 112/112;
+  - backend: 218/218;
+  - typecheck: 0 erro.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

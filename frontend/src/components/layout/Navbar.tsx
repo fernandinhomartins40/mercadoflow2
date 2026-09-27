@@ -1,64 +1,86 @@
-import React, { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
-import Button from '../common/Button';
-import WorkspaceTopbar from './WorkspaceTopbar';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { LogOut, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { resolveLocation } from '../../config/navigation';
 
-const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/app': { title: 'Hoje no mercado', subtitle: 'O que precisa da sua atenção agora', section: 'Visão do negócio' },
-  '/app/inteligencia': { title: 'Central de Inteligência', subtitle: 'O que está acontecendo e o que fazer a respeito', section: 'Visão do negócio' },
-  '/app/perguntar': { title: 'Pergunte aos dados', subtitle: 'Respostas com os números reais da sua loja', section: 'Visão do negócio' },
-  '/app/rede': { title: 'Semana e rede', subtitle: 'O retrospecto da semana e a comparação entre suas lojas', section: 'Visão do negócio' },
-  '/app/clientes': { title: 'Clientes', subtitle: 'Quem volta à sua loja, com que frequência e o que traz de volta', section: 'Visão do negócio' },
-  '/app/produtos': { title: 'Produtos', subtitle: 'Como seus produtos estão vendendo', section: 'Visão do negócio' },
-  '/app/lista-compras': { title: 'Pedido inteligente', subtitle: 'Compra guiada por vendas reais', section: 'Análise e operação' },
-  '/app/ofertas': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },
-  '/app/ofertas/campanhas': { title: 'Campanhas de ofertas', subtitle: 'Gerencie suas campanhas promocionais', section: 'Análise e operação' },
-  '/app/ofertas/inicio': { title: 'Campanhas de ofertas', subtitle: 'Gerencie suas campanhas promocionais', section: 'Análise e operação' },
-  '/app/ofertas/designer': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },
-  '/app/ofertas/modelos': { title: 'Estúdio de ofertas', subtitle: 'Crie encartes com base no catálogo real', section: 'Análise e operação' },
-  '/app/ofertas/jobs': { title: 'Arquivos de ofertas', subtitle: 'Histórico de publicações e saídas', section: 'Análise e operação' },
-  '/app/cesta': { title: 'Combos', subtitle: 'Produtos que vendem juntos', section: 'Análise e operação' },
-  '/app/previsao-demanda': { title: 'Previsão de vendas', subtitle: 'Antecipe a demanda dos próximos dias', section: 'Análise e operação' },
-  '/app/campanhas': { title: 'Promoções', subtitle: 'Acompanhe o resultado das suas ações', section: 'Análise e operação' },
-  '/app/promocoes': { title: 'Efetividade de promoções', subtitle: 'Quais promoções realmente vendem mais — com base nas notas reais', section: 'Estratégia' },
-  '/app/alertas': { title: 'Alertas', subtitle: 'O que precisa de ação imediata', section: 'Análise e operação' },
-  '/app/pdvs': { title: 'Pontos de venda', subtitle: 'Resultado por caixa e filial', section: 'Análise e operação' },
-  '/app/mapa-loja': { title: 'Mapa da loja', subtitle: 'Organize seus produtos para vender mais', section: 'Análise e operação' },
-  '/app/admin/catalogo': { title: 'Catálogo global', subtitle: 'Base unificada de produtos', section: 'Configuração' },
-  '/app/admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação de preços entre estados', section: 'Configuração' },
-  '/app/configuracoes': { title: 'Configurações', subtitle: 'Acessos e integrações da conta', section: 'Configuração' },
-  '/app/download-agente': { title: 'Download do agente', subtitle: 'Instalação do coletor local', section: 'Configuração' },
+/** Títulos das telas; o destino (Hoje, Comprar…) vem da navegação. */
+const TITLES: Record<string, string> = {
+  '/app': 'Hoje no mercado',
+  '/app/inteligencia': 'Todas as decisões',
+  '/app/perguntar': 'Pergunte aos dados',
+  '/app/rede': 'Semana e rede',
+  '/app/clientes': 'Clientes',
+  '/app/produtos': 'Produtos',
+  '/app/lista-compras': 'Pedido inteligente',
+  '/app/promocoes': 'Promoções',
+  '/app/mapa-loja': 'Mapa da loja',
+  '/app/pdvs': 'Caixas e agente',
+  '/app/download-agente': 'Baixar o agente',
+  '/app/planos': 'Plano e consumo',
+  '/app/configuracoes': 'Conta',
+  '/app/admin/catalogo': 'Catálogo global',
+  '/app/admin/precos-estaduais': 'Preços estaduais',
+  '/app/ofertas': 'Estúdio de ofertas',
 };
 
-interface NavbarProps {
-  onToggleSidebar: () => void;
-  desktopPinned: boolean;
-}
+const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 
-const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, desktopPinned }) => {
+/**
+ * Topo das telas do mercado: onde estou (destino + tela) e duas ações que
+ * valem em qualquer lugar — perguntar aos dados (R-14: ação global, não um
+ * destino) e sair (no celular; no desktop fica na lateral).
+ */
+const Navbar: React.FC<{ desktopPinned: boolean }> = ({ desktopPinned }) => {
   const { logout } = useAuth();
-  const location = useLocation();
-
-  const header = useMemo(() => {
-    if (location.pathname.startsWith('/app/produtos/')) {
-      return {
-        section: 'Visão do negócio',
-        title: 'Painel do produto',
-        subtitle: 'Visão completa do item com comparação por PDV e tendência',
-      };
-    }
-    return TITLES[location.pathname] || TITLES['/app'];
-  }, [location.pathname]);
+  const { pathname } = useLocation();
+  const { destination } = resolveLocation(pathname);
+  const title = pathname.startsWith('/app/produtos/') ? 'Ficha do produto' : TITLES[pathname] ?? destination.label;
+  const asking = pathname === '/app/perguntar';
 
   return (
-    <WorkspaceTopbar
-      section={header.section}
-      title={header.title}
-      onToggleSidebar={onToggleSidebar}
-      showMenuToggle={!desktopPinned}
-      actionSlot={<Button className="min-w-[104px]" variant="secondary" onClick={logout}>Sair</Button>}
-    />
+    <header className="sticky top-0 z-20" style={{ borderBottom: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+      <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {!desktopPinned && (
+            <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">MF</span>
+          )}
+          <div className="min-w-0">
+            <span className="block text-[0.7rem] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
+              {asking ? 'Qualquer tela' : destination.label}
+            </span>
+            {/* Não é h1: o título principal é o da própria tela. */}
+            <p className="truncate text-base font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{title}</p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {!asking && (
+            <Link
+              to="/app/perguntar"
+              className={`inline-flex min-h-[40px] items-center gap-2 rounded-lg px-3 text-sm font-semibold no-underline ${FOCUS}`}
+              style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}
+            >
+              <MessageSquare className="h-4 w-4" aria-hidden="true" />
+              {/* Em telas estreitas só o ícone: o título da tela precisa do espaço. */}
+              <span className="hidden sm:inline">Perguntar aos dados</span>
+              <span className="sr-only sm:hidden">Perguntar aos dados</span>
+            </Link>
+          )}
+          {!desktopPinned && (
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Sair da conta"
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${FOCUS}`}
+              style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+    </header>
   );
 };
 

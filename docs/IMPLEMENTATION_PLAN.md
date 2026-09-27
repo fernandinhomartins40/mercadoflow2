@@ -85,6 +85,20 @@ repositório sem diff pendente, com a aplicação coerente como produto.
 | C-08 | P3 | documentos de auditoria de VPS com acentuação corrompida e prompts soltos na raiz | codificação reparada; prompts em `docs/prompts/`; pasta vazia `backend;C` removida | `docs/` | baixo | inspeção | DONE |
 | C-09 | — | `VPS-OPT-MASTER-PLAN` (otimização da VPS) | não executável daqui: tarefas dependem de acesso ao host e a regra do projeto é não alterar a VPS fora do GitHub Actions | — | — | — | BLOCKED |
 
+## Ciclo 3 — organização do produto: Hoje e 5 destinos (2026-09-27)
+
+Pedido do owner: melhoria visível de organização nos painéis. Base: decisões já tomadas por ele (D-021 Painel +
+Central numa tela e fim de Alertas; D-018 celular primeiro) e requisitos R-08 e R-14.
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| N-01 | P1 | menu com 14 itens em 4 seções; no celular escondido atrás de um botão | 5 destinos (Hoje · Comprar · Produtos · Vender · Loja) de uma fonte única (`config/navigation.ts`): barra inferior no celular, lateral com páginas aninhadas no desktop, sub-navegação do destino abaixo do topo; rotas mantidas | `components/layout/*`, `config/navigation.ts` | médio | teste de navegação 360/1440 px | DONE |
+| N-02 | P1 | "Pergunte aos dados" era um destino entre 14 | ação global no topo de todas as telas | `Navbar.tsx` | baixo | idem | DONE |
+| N-03 | P1 | Painel do dia e Central competiam; Painel abria com 4 KPIs coloridos, gráfico e aba Alertas; as decisões ficavam em outra tela | tela **Hoje**: números do dia (vendas hoje, 7 dias, para decidir, pedidos para enviar), as 5 decisões de maior impacto aceitáveis ali, pedidos em rascunho a um toque do envio, acompanhamento e resultados, e as vendas como apoio | `screens/Dashboard.tsx` | médio | teste da Hoje + Painel | DONE |
+| N-04 | P1 | Alertas duplicavam oportunidades (UX-17) | aba Alertas removida; `AlertGenerationJob` desligado por padrão (`APP_ALERTS_GENERATION_ENABLED`), tabela preservada | `Dashboard.tsx`, `AlertGenerationJob.java` | baixo | suíte + varredura | DONE |
+| N-05 | P2 | cartão de recomendação e lógica de decidir só existiam na Central | `RecommendationCard` e `useRecommendationDecision` compartilhados; botões de 44 px, empilhados no celular | `components/intelligence`, `hooks` | baixo | testes de tela | DONE |
+| N-06 | P3 | acabamentos: "27 De Setembro", dicas cortadas, título cortado a 360 px, "PDVs" × "Caixas", dois `h1` por tela, destino ativo não anunciado ao leitor de tela | corrigidos | layout, Hoje, PDVs | baixo | varredura | DONE |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive

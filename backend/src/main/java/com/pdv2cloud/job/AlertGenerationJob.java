@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -19,8 +20,20 @@ public class AlertGenerationJob {
     @Autowired private AlertService alertService;
     @Autowired private MarketRepository marketRepository;
 
+    /**
+     * Alertas deixaram de existir como conceito separado (D-021, R-08): o que
+     * pede atenção chega pelas oportunidades na tela Hoje. Desligado por padrão
+     * para não gastar CPU de hora em hora gerando o que ninguém vê; religável
+     * por ambiente (APP_ALERTS_GENERATION_ENABLED=true). A tabela fica intacta.
+     */
+    @Value("${app.alerts.generation-enabled:false}")
+    private boolean generationEnabled;
+
     @Scheduled(fixedRate = 3600000)
     public void generateAlerts() {
+        if (!generationEnabled) {
+            return;
+        }
         log.info("Starting alert generation");
         List<Market> markets = marketRepository.findAllActive();
 
