@@ -4,11 +4,11 @@ Atualizado em: 2026-09-26
 
 | Campo | Valor |
 |---|---|
-| Fase atual | Prompt 2 — Tese de produto |
-| Último gate aprovado | Gate 1 com correções (2026-09-26, D-015) |
-| Gate pendente | **Gate 2**: escolha da direção de produto |
+| Fase atual | Prompt 3 — Auditoria de UX, UI e fluxos |
+| Último gate aprovado | Gate 2 (2026-09-26, D-024…D-027) |
+| Gate pendente | **Gate 3A** (cobertura da auditoria de UX/UI), depois **Gate 3B** |
 | Escopo autorizado | somente leitura e criação de documentos em `docs/mercadoflow-product/` |
-| Código alterado nesta fase | nenhum |
+| Código alterado nesta fase | hotfix D-028 (login, erro 500, primeira nota), autorizado fora dos gates |
 
 ## Tarefas
 
@@ -21,12 +21,13 @@ Atualizado em: 2026-09-26
 | Mapear UI: componentes, tokens, fontes, ícones | DONE (estático) |
 | Prompt 1: `01-CURRENT-PRODUCT.md` e `03-USERS-JOBS-JOURNEYS.md` | DONE (inspeção de código; nenhum fluxo executado) |
 | Prompt 2: `02-PRODUCT-THESIS.md` (3 direções, matriz, recomendação A + fundação, arquitetura de informação com 5 destinos, escada de planos) | DONE |
-| Executar a aplicação e observar fluxos | NOT_STARTED: fica para o Prompt 3, se autorizado |
-| Executar testes do backend | NOT_STARTED: não é comando de inventário; proposto para o Prompt 4 |
+| Prompt 3: `04-UX-UI-AUDIT.md` + `05-DESIGN-SYSTEM-AUDIT.md` (produção pública + ambiente local sintético, 4 larguras, axe, LCP/CLS) | DONE, com lacunas declaradas no §6 do 04 |
+| Hotfix D-028 (login, erro 500, 1ª nota) | DONE: 169 testes; validado local com RLS; publicado (run verde); login 200 em produção |
+| Executar testes do backend | DONE: 169 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
 
 ## Testes executados
 
-Nenhum. Foram executados apenas comandos de leitura (`git status`, `grep`, `find`, `ls`).
+Prompt 0–2: somente leitura. Prompt 3: Playwright/axe em produção (páginas públicas) e em ambiente local descartável; suíte do backend 169/169; validação do hotfix com RLS.
 
 ## Arquivos criados
 
@@ -36,6 +37,9 @@ Nenhum. Foram executados apenas comandos de leitura (`git status`, `grep`, `find
 - `docs/mercadoflow-product/01-CURRENT-PRODUCT.md`
 - `docs/mercadoflow-product/03-USERS-JOBS-JOURNEYS.md`
 - `docs/mercadoflow-product/02-PRODUCT-THESIS.md`
+- `docs/mercadoflow-product/04-UX-UI-AUDIT.md`
+- `docs/mercadoflow-product/05-DESIGN-SYSTEM-AUDIT.md`
+- código (hotfix D-028): `AuthController.java`, `GlobalExceptionHandler.java`, `PlanService.java`
 
 ## Riscos abertos (a aprofundar nas fases seguintes, sem conclusão ainda)
 
@@ -53,6 +57,11 @@ Nenhum. Foram executados apenas comandos de leitura (`git status`, `grep`, `find
 12. Oportunidades de compra, excesso e capital parado derivam de estoque teórico, o que conflita com D-019.
 13. A cota do Gratuito rejeita notas excedentes por semana e distorce a análise; a página pública fala "por mês".
 14. Não há PWA (manifest/service worker), pré-requisito do push (D-020).
+15. Landing afirma "500+ supermercados" e depoimentos sem clientes (UX-C03).
+16. Mapa de calor do Mapa da loja sempre em 500 (SQL com colunas inexistentes, UX-C05).
+17. Contas de teste do `CREDENCIAIS-TESTE.md` retornam 401 em produção; provável secret ausente no GitHub.
+18. `DevSeeder` quebra sob RLS (ferramental de desenvolvimento).
+19. Conta descartável criada em produção para confirmar UX-C01: ver `scratchpad/prod_audit_account.json` (mercado `d563f027…`), desativar depois.
 
 ## Respostas do owner já registradas
 
@@ -60,4 +69,4 @@ D-006 cliente = mercado independente · D-007 estúdio de ofertas volta ao produ
 
 ## Próxima ação exata
 
-Aguardar a escolha do **Gate 2** (direção + decisões do §11 de `02-PRODUCT-THESIS.md`). Se aprovado, executar **somente os Prompts 3 e 4** (auditorias de UX/UI e técnica), parando nos gates 3A e 3B.
+Aguardar o **Gate 3A** (cobertura da auditoria de UX/UI e itens críticos não verificados, §6 do 04). Se aprovado, executar **somente o Prompt 4** (arquitetura, segurança, desempenho e operação) e parar no Gate 3B.
