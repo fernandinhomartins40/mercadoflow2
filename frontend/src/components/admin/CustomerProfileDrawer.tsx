@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import useModalBehavior from '../../hooks/useModalBehavior';
 import {
   AlertTriangle,
   Building2,
@@ -81,6 +82,7 @@ interface Props {
 }
 
 const CustomerProfileDrawer: React.FC<Props> = ({ marketId, onClose, onChanged }) => {
+  useModalBehavior(true, onClose);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [tab, setTab] = useState<Tab>('resumo');
   const [loading, setLoading] = useState(true);

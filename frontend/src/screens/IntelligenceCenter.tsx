@@ -7,6 +7,7 @@ import { Section, Empty, StatGrid, Stat } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import DecisionFeedback, { DecisionFeedbackState } from '../components/intelligence/DecisionFeedback';
 import { marketService } from '../services/market.service';
+import { formatDecimal } from '../utils/formatters';
 import { OpportunityItem, OutcomesResponse, RecommendationItem } from '../types/analytics.types';
 import {
   AlertTriangle, TrendingDown, TrendingUp, Package, Tag as TagIcon,
@@ -114,7 +115,7 @@ const RecommendationCard: React.FC<{
           <span>Impacto estimado: <strong style={{ color: tone.text }}>{fmt.money(rec.expectedImpactValue)}</strong></span>
         ) : null}
         {rec.confidence != null ? (
-          <span>Confiança: <strong>{(Number(rec.confidence) * 100).toFixed(0)}%</strong></span>
+          <span>Confiança: <strong>{formatDecimal((Number(rec.confidence) * 100), 0)}%</strong></span>
         ) : null}
       </div>
 
@@ -580,7 +581,7 @@ const IntelligenceCenter: React.FC = () => {
                     label="Erro médio (MAPE)"
                     value={
                       outcomes.acuraciaPrevisao.mape != null
-                        ? `${Number(outcomes.acuraciaPrevisao.mape).toFixed(0)}%`
+                        ? `${formatDecimal(Number(outcomes.acuraciaPrevisao.mape), 0)}%`
                         : '--'
                     }
                     variant={
@@ -598,7 +599,7 @@ const IntelligenceCenter: React.FC = () => {
                     label="Dentro do intervalo"
                     value={
                       outcomes.acuraciaPrevisao.confidenceIntervalCoverage != null
-                        ? `${Number(outcomes.acuraciaPrevisao.confidenceIntervalCoverage).toFixed(0)}%`
+                        ? `${formatDecimal(Number(outcomes.acuraciaPrevisao.confidenceIntervalCoverage), 0)}%`
                         : '--'
                     }
                     sub="Ideal próximo de 90%"

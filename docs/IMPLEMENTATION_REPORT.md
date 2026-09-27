@@ -97,6 +97,35 @@ Falhas encontradas e corrigidas no caminho: dois erros de stubbing no teste novo
 handler); `formatSignedPercent` em formato americano. Falhas do meu ambiente de teste (segredo JWT, CNPJ repetido,
 limite de cadastro por IP) foram ajustadas no próprio ambiente. O limite de cadastro por IP funcionou como previsto.
 
+## Ciclo 2 — integração e acabamento
+
+O que mudou para o usuário:
+- **Celular**: diálogos viram folha presa ao rodapé, formulários passam a 1 coluna e as barras de abas não cortam
+  mais a 360 px. Esses são os 21 arquivos de UX de outra sessão, revisados e integrados, somados ao `SegmentedTabs`.
+- **Diálogos previsíveis**: todos fecham com Esc (só o de cima, quando há um sobre outro) e liberam a rolagem ao
+  fechar. Antes, o modal de fornecedor deixava a tela bloqueada.
+- **Números em pt-BR em todo o app**: "8,0/dia", "+100,0%", "1,00×", margens e quantidades.
+- **Requisição malformada** responde 400 com mensagem clara, não "Ocorreu um erro no servidor".
+
+Qualidade interna:
+- **Typecheck**: de 132 linhas de erro para **0**. O `npm run build` agora roda `tsc`, e o CI barra o deploy com
+  erro de tipo.
+- **Código morto**: 15 arquivos sem nenhuma referência foram removidos (~3.000 linhas). A lista está no plano (C-07).
+- **Documentação**: acentuação dos documentos de VPS reparada; prompts organizados em `docs/prompts/`.
+
+Testes deste ciclo (ambiente descartável com PostgreSQL 16, RLS e perfil `production`):
+- **Varredura visual**: 19 telas (mercado + super admin), abas e modais, a 360/768/1024/1440 px. **112
+  verificações, 0 problemas**: sem rolagem horizontal, sem erro de JavaScript, sem resposta 5xx, Esc e rolagem OK.
+- **E2E de API**: 24/24.
+- **Tela de compra/envio**: 24/24.
+- **Painel**: 24/24.
+- **JSON malformado**: 400.
+- **Suíte do backend**: 218/218.
+- **Frontend**: `tsc` 0 erro e `npm run build` OK.
+
+Bloqueado: o plano de otimização da VPS (`docs/VPS-OPT-MASTER-PLAN.md`) depende de acesso ao host. A regra do
+projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, não executado.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em
@@ -110,11 +139,10 @@ limite de cadastro por IP) foram ajustadas no próprio ambiente. O limite de cad
   O comprador revisa no rascunho.
 - Desfazer apaga um rascunho que ficou vazio e sem observação. Se ele já existia vazio antes da aceitação, também
   some. O efeito é pequeno e está documentado no código.
-- Os 132 erros de tipo preexistentes continuam, porque o projeto não roda `tsc` no build (R-27g).
 
 ## Próximas melhorias recomendadas
 
 - F4/F5: reposição pelo vendido e sinais de venda no lugar do estoque teórico, depois da validação V1 com compradores.
 - F8: feed único Hoje (Painel + Central) e fim de Alertas (D-021).
 - F10: PWA + push "hora de pedir".
-- Typecheck do frontend no CI, depois de zerar os erros preexistentes.
+- Plano de otimização da VPS, quando houver acesso de leitura ao host.

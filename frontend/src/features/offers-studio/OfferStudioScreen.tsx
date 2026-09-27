@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { useOfferStudioController } from './useOfferStudioController';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Boxes,
@@ -99,8 +100,11 @@ import {
   type StudioTool,
 } from './model';
 
+/** Estado e ações do estúdio, vindos de `useOfferStudioController` (tipados na origem). */
+export type OfferStudioContext = ReturnType<typeof useOfferStudioController>;
+
 type OfferStudioScreenProps = {
-  context: any;
+  context: OfferStudioContext;
 };
 
 const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
@@ -479,6 +483,7 @@ const OfferStudioScreen: React.FC<OfferStudioScreenProps> = ({ context }) => {
 
 <OfferStudioBuilderPanel
   context={{
+    ...context,
     activeCustomLayer,
     activeCustomLayerSupportsFont,
     activeCustomLayerSupportsImage,

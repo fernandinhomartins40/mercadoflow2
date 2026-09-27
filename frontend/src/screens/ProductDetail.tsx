@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
 import { useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { buildOffersUrl } from '../lib/offersApp';
@@ -31,12 +32,12 @@ import { AlertTriangle, TrendingUp, TrendingDown, Minus, ShoppingCart, Calendar,
 const fmt = {
   money: (v?: number | null) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0)),
-  pct: (v?: number | null) => `${Number(v || 0).toFixed(1)}%`,
+  pct: (v?: number | null) => `${formatDecimal(Number(v || 0), 1)}%`,
   signedPct: (v?: number | null) => {
     const n = Number(v || 0);
-    return `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+    return `${n > 0 ? '+' : ''}${formatDecimal(n, 1)}%`;
   },
-  qty: (v?: number | null) => Number(v || 0).toFixed(0),
+  qty: (v?: number | null) => formatDecimal(Number(v || 0), 0),
   date: (v?: string | null) => {
     if (!v) return '--';
     const d = new Date(v);
@@ -111,7 +112,7 @@ const PurchaseSignalBanner: React.FC<{ signal: ProductPurchaseSignal }> = ({ sig
         <div>
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas atuais</p>
           <p className="text-lg font-bold" style={{ color: cfg.text }}>
-            {Number(signal.salesVelocity || 0).toFixed(1)}<span className="text-sm font-normal"> un/dia</span>
+            {formatDecimal(Number(signal.salesVelocity || 0), 1)}<span className="text-sm font-normal"> un/dia</span>
           </p>
         </div>
         <div>
@@ -185,7 +186,7 @@ const SeasonalCard: React.FC<{ season: ProductSeasonalPerformance }> = ({ season
         )}
         <span className="text-xs font-semibold" style={{ color: cfg.badge }}>{cfg.label}</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {season.indexVsBaseline > 0 ? `${(season.indexVsBaseline * 100).toFixed(0)}% do baseline` : '—'}
+          {season.indexVsBaseline > 0 ? `${formatDecimal(season.indexVsBaseline * 100, 0)}% do baseline` : '—'}
         </span>
       </div>
 
@@ -229,7 +230,7 @@ const StockProjectionSection: React.FC<{ signal: ProductPurchaseSignal }> = ({ s
             </div>
             <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-soft)' }}>
               <Zap className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--brand-500)' }} />
-              <span>Uplift esperado: <strong style={{ color: 'var(--brand-700)' }}>{proj.upliftFactor.toFixed(1)}×</strong></span>
+              <span>Uplift esperado: <strong style={{ color: 'var(--brand-700)' }}>{formatDecimal(proj.upliftFactor, 1)}×</strong></span>
             </div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{proj.action}</p>
             <p className="text-xs italic font-medium" style={{ color: 'var(--brand-600)' }}>{proj.daysUntil}</p>
@@ -301,7 +302,7 @@ const PairCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
     </div>
     <div className="flex flex-col gap-2.5 p-3">
       <div className="flex flex-wrap gap-1.5">
-        <Chip variant="success">Afinidade {Number(pair.lift || 0).toFixed(2)}</Chip>
+        <Chip variant="success">Afinidade {formatDecimal(Number(pair.lift || 0), 2)}</Chip>
         <Chip>{pair.pairCount || 0} cestas</Chip>
       </div>
       <div>
@@ -507,7 +508,7 @@ const ProductDetail: React.FC = () => {
 
             <div className="grid gap-2 sm:grid-cols-3">
               <DataRow label="Receita no período" value={fmt.money(overview.revenue)} />
-              <DataRow label="Vendas/dia"            value={`${Number(overview.salesVelocity || 0).toFixed(1)}/dia`} />
+              <DataRow label="Vendas/dia"            value={`${formatDecimal(Number(overview.salesVelocity || 0), 1)}/dia`} />
               <DataRow label="Participação em promo" value={fmt.pct((overview.promoRevenueShare || 0) * 100)} />
             </div>
           </div>
@@ -541,7 +542,7 @@ const ProductDetail: React.FC = () => {
           <MetricsCard title="Receita"         value={fmt.money(overview.revenue)}       icon="R$" />
           <MetricsCard title="Preço médio"     value={fmt.money(overview.averagePrice)}  icon="PM" />
           <MetricsCard title="Transações"      value={fmt.qty(overview.transactionCount)} icon="NF" />
-          <MetricsCard title="Índice de preço" value={`${Number(overview.priceIndex || 0).toFixed(2)}x`} icon="PX" />
+          <MetricsCard title="Índice de preço" value={`${formatDecimal(Number(overview.priceIndex || 0), 2)}x`} icon="PX" />
         </StatGrid>
 
         {/* ── Insights rápidos ── */}
@@ -549,7 +550,7 @@ const ProductDetail: React.FC = () => {
           <Stat label="Melhor dia"    value={bestWeekday?.label || '--'}     sub={bestWeekday ? fmt.money(bestWeekday.revenue) : 'Sem dados'} variant="success" />
           <Stat label="Dia mais fraco" value={weakestWeekday?.label || '--'} sub={weakestWeekday ? fmt.money(weakestWeekday.revenue) : 'Sem comparação'} />
           <Stat label="PDV mais forte" value={bestPdv?.pdvName || '--'} sub={bestPdv ? `${fmt.qty(bestPdv.quantitySold)} unidades` : 'Sem PDV dominante'} />
-          <Stat label="Compra casada"  value={strongestPair ? `Afinidade ${Number(strongestPair.lift || 0).toFixed(2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
+          <Stat label="Compra casada"  value={strongestPair ? `Afinidade ${formatDecimal(Number(strongestPair.lift || 0), 2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
         </div>
 
         {/* ── Gráfico de vendas + Decisões ── */}
@@ -564,10 +565,10 @@ const ProductDetail: React.FC = () => {
 
           <Section kicker="Leitura rápida" title="O que decidir agora" subtitle="Compra, preço, promoção e mix em um bloco.">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Stat label="Compra"    value={`${Number(overview.salesVelocity || 0).toFixed(1)}/dia`}     sub={Number(overview.salesVelocity || 0) >= 1 ? 'Mantenha reposição curta.' : 'Compre com cautela.'} />
+              <Stat label="Compra"    value={`${formatDecimal(Number(overview.salesVelocity || 0), 1)}/dia`}     sub={Number(overview.salesVelocity || 0) >= 1 ? 'Mantenha reposição curta.' : 'Compre com cautela.'} />
               <Stat label="Preço"     value={fmt.signedPct(deltaPrice)}         sub="Variação no período" variant={deltaPrice > 5 ? 'danger' : deltaPrice < -5 ? 'success' : 'default'} />
               <Stat label="Promoção"  value={fmt.pct((overview.promoRevenueShare || 0) * 100)} sub="Participação em ação promo" />
-              <Stat label="Mix"       value={strongestPair ? Number(strongestPair.lift || 0).toFixed(2) : '--'} sub={strongestPair ? 'Sinal de venda casada.' : 'Sem venda casada forte.'} />
+              <Stat label="Mix"       value={strongestPair ? formatDecimal(Number(strongestPair.lift || 0), 2) : '--'} sub={strongestPair ? 'Sinal de venda casada.' : 'Sem venda casada forte.'} />
             </div>
           </Section>
         </div>

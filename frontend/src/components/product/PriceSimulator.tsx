@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatDecimal } from '../../utils/formatters';
 import { Link } from 'react-router-dom';
 import { Percent, Loader2, Lock, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { priceSimulationService, PriceScenario } from '../../services/advanced.service';
@@ -25,7 +26,7 @@ const fmt = {
   pct: (v?: number | null) => {
     if (v == null) return '--';
     const n = Number(v);
-    return `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+    return `${n > 0 ? '+' : ''}${formatDecimal(n, 1)}%`;
   },
 };
 
@@ -118,7 +119,7 @@ const PriceSimulator: React.FC<{ marketId: string; productId: string }> = ({
         <span>
           Reação medida: cada 1% de desconto vende{' '}
           <strong style={{ color: 'var(--text-primary)' }}>
-            {first.elasticidade.toFixed(1)}%
+            {formatDecimal(first.elasticidade, 1)}%
           </strong> a mais
         </span>
         {!first.confiavel && (

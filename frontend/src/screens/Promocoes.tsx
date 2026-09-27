@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
+import SegmentedTabs from '../components/ui/SegmentedTabs';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
@@ -17,7 +19,7 @@ const fmtMoney = (v?: number | null) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
 const fmtPct = (v?: number | null, sign = true) => {
   const n = Number(v || 0);
-  return `${sign && n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+  return `${sign && n > 0 ? '+' : ''}${formatDecimal(n, 1)}%`;
 };
 const fmtDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') : '—');
 
@@ -95,7 +97,7 @@ const CampanhasTab: React.FC<{ marketId: string }> = ({ marketId }) => {
           {[
             { label: 'Campanhas', value: items.length },
             { label: 'Com resultado', value: impacts.length },
-            { label: 'Melhor resultado', value: bestImpact ? `+${Number(bestImpact.revenueLiftPercent || 0).toFixed(1)}%` : '—' },
+            { label: 'Melhor resultado', value: bestImpact ? `+${formatDecimal(Number(bestImpact.revenueLiftPercent || 0), 1)}%` : '—' },
           ].map((k) => (
             <div key={k.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
               <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{k.label}</span>
@@ -182,7 +184,7 @@ const CampanhasTab: React.FC<{ marketId: string }> = ({ marketId }) => {
                       <div className="flex items-center gap-1">
                         <TrendingUp className={`h-4 w-4 ${lift > 0 ? 'text-green-600' : 'text-red-500'}`} />
                         <p className={`text-sm font-bold ${lift > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                          {lift > 0 ? '+' : ''}{lift.toFixed(1)}% vendas
+                          {lift > 0 ? '+' : ''}{formatDecimal(lift, 1)}% vendas
                         </p>
                       </div>
                     </div>
@@ -303,12 +305,12 @@ const ProductCard: React.FC<{ item: ProductPromoEffectiveness; maxQtyLift: numbe
           </div>
           <div>
             <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas/dia normal</p>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(item.normalDailyQty || 0).toFixed(1)} un</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(item.normalDailyQty || 0), 1)} un</p>
             <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{fmtMoney(item.normalDailyRevenue)}/dia</p>
           </div>
           <div>
             <p className="text-[0.62rem] font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas/dia em promo</p>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(item.promoDailyQty || 0).toFixed(1)} un</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(item.promoDailyQty || 0), 1)} un</p>
             <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{fmtMoney(item.promoDailyRevenue)}/dia</p>
           </div>
         </div>
@@ -318,7 +320,7 @@ const ProductCard: React.FC<{ item: ProductPromoEffectiveness; maxQtyLift: numbe
       </div>
       {item.classification !== 'INSUFFICIENT_DATA' && (
         <div className="flex flex-wrap items-center gap-4 border-t px-4 py-2.5 text-xs" style={{ borderColor: cfg.border, color: 'var(--text-soft)' }}>
-          {item.priceElasticity != null && <span>Elasticidade <strong style={{ color: 'var(--text-primary)' }}>{Number(item.priceElasticity).toFixed(2)}</strong></span>}
+          {item.priceElasticity != null && <span>Elasticidade <strong style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(item.priceElasticity), 2)}</strong></span>}
           <span>{item.promoDays}d em promo · {item.normalDays}d normal · {item.promoWindowCount} {item.promoWindowCount === 1 ? 'janela' : 'janelas'}</span>
           <Link to={`/app/produtos/${item.productId}`} className="ml-auto flex items-center gap-1 font-semibold no-underline hover:opacity-70" style={{ color: cfg.badge }}>
             Ver produto <ArrowRight className="h-3 w-3" />
@@ -446,8 +448,8 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
             </button>
           ))}
         </div>
-        <input type="text" placeholder="Buscar produto..." className="ml-auto h-9 rounded-lg px-3 text-sm outline-none"
-          style={{ ...inputStyle, minWidth: '180px' }} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input type="text" placeholder="Buscar produto..." className="h-9 w-full min-w-0 rounded-lg px-3 text-sm outline-none sm:ml-auto sm:w-auto sm:basis-48"
+          style={inputStyle} value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>}
@@ -502,17 +504,7 @@ const Promocoes: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Descubra o que promover, crie campanhas e meça se cada promoção realmente traciona vendas</p>
         </div>
 
-        <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}>
-          {TABS.map((t) => (
-            <button key={t.key} type="button" onClick={() => setTab(t.key)}
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition"
-              style={tab === t.key
-                ? { background: 'var(--surface-base)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                : { color: 'var(--text-muted)' }}>
-              {t.icon}{t.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 
         {marketId && tab === 'inteligencia' && <PromoIntelligenceTab marketId={marketId} />}
         {marketId && tab === 'campanhas' && <CampanhasTab marketId={marketId} />}

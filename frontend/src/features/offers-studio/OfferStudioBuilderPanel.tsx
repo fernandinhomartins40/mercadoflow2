@@ -1,4 +1,5 @@
 import React from 'react';
+import type { OfferStudioContext } from './OfferStudioScreen';
 import { BoxSelect, LayoutTemplate, Layers3, Plus, RefreshCw, Target } from 'lucide-react';
 import Button from '../../components/common/Button';
 import OfferProductImage from '../../components/offers/OfferProductImage';
@@ -14,13 +15,17 @@ import {
 } from './StudioPrimitives';
 
 type OfferStudioBuilderPanelProps = {
-  context: any;
+  /**
+   * Estado completo do controlador (tipado) + valores derivados calculados na
+   * tela, que continuam soltos.
+   */
+  context: OfferStudioContext & Record<string, any>;
 };
 
 const formatMoney = (value?: number | null) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 
-const normalizeHexColor = (value: string, fallback = '#ffffff') => {
+const normalizeHexColor = (value: string | null | undefined, fallback = '#ffffff') => {
   const normalized = String(value || '').trim();
   if (/^#[0-9a-f]{6}$/i.test(normalized)) return normalized;
   if (/^#[0-9a-f]{3}$/i.test(normalized)) {

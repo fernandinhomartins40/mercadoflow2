@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import UsageBanner from '../components/billing/UsageBanner';
@@ -315,33 +316,33 @@ const AlertMetricChips: React.FC<{ alert: AlertItem }> = ({ alert }) => {
     if (m.previousTransactions) chips.push(<MetricChip key="pt" label="Transações anteriores" value={String(m.previousTransactions)} />);
   }
   if ((alert.type === 'LOW_STOCK' || alert.type === 'DEMAND_SPIKE') && m.salesVelocity) {
-    chips.push(<MetricChip key="sv" label="Giro" value={`${(m.salesVelocity as number).toFixed(1)} un./dia`} highlight />);
-    if (m.velocityRatio) chips.push(<MetricChip key="vr" label="vs. portfólio" value={`${(m.velocityRatio as number).toFixed(1)}×`} />);
-    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={(m.momentumScore as number).toFixed(2)} />);
+    chips.push(<MetricChip key="sv" label="Giro" value={`${formatDecimal(m.salesVelocity as number, 1)} un./dia`} highlight />);
+    if (m.velocityRatio) chips.push(<MetricChip key="vr" label="vs. portfólio" value={`${formatDecimal(m.velocityRatio as number, 1)}×`} />);
+    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={formatDecimal(m.momentumScore as number, 2)} />);
   }
   if ((alert.type === 'SLOW_MOVING' || alert.type === 'HEALTH_CRITICAL') && m.revenueTrend !== undefined) {
-    chips.push(<MetricChip key="rt" label="Tendência receita" value={`${(m.revenueTrend as number).toFixed(1)}%`} highlight />);
-    if (m.healthScore !== undefined) chips.push(<MetricChip key="hs" label="Health" value={`${(m.healthScore as number).toFixed(0)}/100`} highlight={(m.healthScore as number) < 25} />);
-    if (m.velocityRatio !== undefined) chips.push(<MetricChip key="vr" label="Giro vs. média" value={`${((m.velocityRatio as number) * 100).toFixed(0)}%`} />);
+    chips.push(<MetricChip key="rt" label="Tendência receita" value={`${formatDecimal(m.revenueTrend as number, 1)}%`} highlight />);
+    if (m.healthScore !== undefined) chips.push(<MetricChip key="hs" label="Health" value={`${formatDecimal(m.healthScore as number, 0)}/100`} highlight={(m.healthScore as number) < 25} />);
+    if (m.velocityRatio !== undefined) chips.push(<MetricChip key="vr" label="Giro vs. média" value={`${formatDecimal(((m.velocityRatio as number) * 100), 0)}%`} />);
   }
   if (alert.type === 'MOMENTUM_REVERSAL' && m.momentumScore) {
-    chips.push(<MetricChip key="ms" label="Momentum" value={(m.momentumScore as number).toFixed(2)} highlight={(m.momentumScore as number) < 0.7} />);
-    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro atual" value={`${(m.salesVelocity as number).toFixed(1)} un./dia`} />);
+    chips.push(<MetricChip key="ms" label="Momentum" value={formatDecimal(m.momentumScore as number, 2)} highlight={(m.momentumScore as number) < 0.7} />);
+    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro atual" value={`${formatDecimal(m.salesVelocity as number, 1)} un./dia`} />);
   }
   if (alert.type === 'PROMOTION_OPPORTUNITY' && m.priceAboveBaselinePercent) {
-    chips.push(<MetricChip key="pa" label="Preço acima base" value={`+${(m.priceAboveBaselinePercent as number).toFixed(1)}%`} highlight />);
-    if (m.revenueTrend !== undefined) chips.push(<MetricChip key="rt" label="Queda receita" value={`${(m.revenueTrend as number).toFixed(1)}%`} />);
-    if (m.promoRevenueShare !== undefined) chips.push(<MetricChip key="ps" label="Receita promo" value={`${((m.promoRevenueShare as number) * 100).toFixed(0)}%`} />);
+    chips.push(<MetricChip key="pa" label="Preço acima base" value={`+${formatDecimal(m.priceAboveBaselinePercent as number, 1)}%`} highlight />);
+    if (m.revenueTrend !== undefined) chips.push(<MetricChip key="rt" label="Queda receita" value={`${formatDecimal(m.revenueTrend as number, 1)}%`} />);
+    if (m.promoRevenueShare !== undefined) chips.push(<MetricChip key="ps" label="Receita promo" value={`${formatDecimal(((m.promoRevenueShare as number) * 100), 0)}%`} />);
   }
   if (alert.type === 'BASKET_OPPORTUNITY' && m.lift) {
-    chips.push(<MetricChip key="li" label="Lift" value={`${(m.lift as number).toFixed(1)}×`} highlight />);
+    chips.push(<MetricChip key="li" label="Lift" value={`${formatDecimal(m.lift as number, 1)}×`} highlight />);
     if (m.antecedentName) chips.push(<MetricChip key="an" label="Acompanha" value={String(m.antecedentName)} />);
-    if (m.consequentTrend !== undefined) chips.push(<MetricChip key="ct" label="Tendência" value={`${(m.consequentTrend as number).toFixed(1)}%`} />);
+    if (m.consequentTrend !== undefined) chips.push(<MetricChip key="ct" label="Tendência" value={`${formatDecimal(m.consequentTrend as number, 1)}%`} />);
   }
   if (alert.type === 'HIGH_PERFORMING' && m.revenueTrend !== undefined) {
-    chips.push(<MetricChip key="rt" label="Crescimento" value={`+${(m.revenueTrend as number).toFixed(1)}%`} highlight />);
-    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro" value={`${(m.salesVelocity as number).toFixed(1)} un./dia`} />);
-    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={(m.momentumScore as number).toFixed(2)} />);
+    chips.push(<MetricChip key="rt" label="Crescimento" value={`+${formatDecimal(m.revenueTrend as number, 1)}%`} highlight />);
+    if (m.salesVelocity) chips.push(<MetricChip key="sv" label="Giro" value={`${formatDecimal(m.salesVelocity as number, 1)} un./dia`} />);
+    if (m.momentumScore) chips.push(<MetricChip key="ms" label="Momentum" value={formatDecimal(m.momentumScore as number, 2)} />);
   }
 
   if (chips.length === 0) return null;

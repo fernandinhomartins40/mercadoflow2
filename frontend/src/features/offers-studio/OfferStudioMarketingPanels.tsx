@@ -28,7 +28,7 @@ type OfferStudioMarketingPanelsProps = {
   setSelectedCampaignKitId: (value: string) => void;
   campaignKitOptions: SelectOption[];
   marketProfile: OfferMarketProfile | null;
-  handleMarketProfileField: (field: string, value: string) => void;
+  handleMarketProfileField: (field: keyof OfferMarketProfile, value: string) => void;
   handleUploadMarketLogo: (slot: 'PRIMARY' | 'SECONDARY', file?: File) => void;
   uploadingAsset: string | null;
   handleSaveMarketProfile: () => void;

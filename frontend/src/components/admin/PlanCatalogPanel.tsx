@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import useModalBehavior from '../../hooks/useModalBehavior';
 import {
   AlertTriangle,
   Check,
@@ -49,6 +50,8 @@ const PlanCatalogPanel: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
   const [dialog, setDialog] = useState<PriceDialogState | null>(null);
+  const closeDialog = useCallback(() => setDialog(null), []);
+  useModalBehavior(!!dialog, closeDialog);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -321,12 +324,12 @@ const PlanCatalogPanel: React.FC = () => {
       {/* Diálogo de alteração de preço */}
       {dialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{ background: 'rgba(15,23,42,0.5)' }}
           onClick={() => setDialog(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl p-5"
+            className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl p-4 sm:max-w-md sm:rounded-xl sm:p-5"
             style={{ background: 'var(--surface-base)' }}
             onClick={(e) => e.stopPropagation()}
           >

@@ -28,4 +28,14 @@ class GlobalExceptionHandlerTest {
         assertEquals(404, response.getStatusCode().value());
         assertFalse(String.valueOf(response.getBody()).contains("api-docs"));
     }
+
+    @Test
+    @DisplayName("JSON malformado e cabeçalho ausente viram 400, não 500 (SEC-08)")
+    void malformedRequestIs400() {
+        var notReadable = new org.springframework.http.converter.HttpMessageNotReadableException(
+            "JSON parse error", new org.springframework.mock.http.MockHttpInputMessage(new byte[0]));
+        var response = handler.handleBadRequest(notReadable);
+        assertEquals(400, response.getStatusCode().value());
+        assertFalse(String.valueOf(response.getBody()).contains("JSON parse"));
+    }
 }

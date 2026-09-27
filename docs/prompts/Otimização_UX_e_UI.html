@@ -1,0 +1,438 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Auditoria UI/UX — Prompts</title><style>
+*{box-sizing:border-box}body{margin:0;background:#eef2f8;color:#172033;font:16px/1.6 system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:40px 20px}h1{font-size:clamp(28px,5vw,46px);line-height:1.15}h2{font-size:18px;margin:0}nav{display:flex;flex-wrap:wrap;gap:8px;margin:25px 0}a{color:#274cc4}nav a{padding:6px 12px;background:white;border-radius:8px;text-decoration:none}article{background:white;border-radius:14px;overflow:hidden;margin:24px 0;box-shadow:0 3px 15px #17203310;scroll-margin-top:15px}header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px;background:#172033;color:white}button{background:#5272ff;color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:700;cursor:pointer;white-space:nowrap}button:focus-visible,a:focus-visible{outline:3px solid #ffbc58;outline-offset:3px}textarea{display:block;width:100%;resize:vertical;border:0;padding:24px;background:#fff;color:#172033;font:14px/1.6 ui-monospace,monospace;min-height:320px}aside{background:white;border-left:4px solid #5272ff;padding:18px 22px;border-radius:8px}#status{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#172033;color:white;padding:12px 20px;border-radius:8px;max-width:90%;display:none}@media(max-width:600px){header{align-items:flex-start;flex-direction:column}main{padding:20px 12px}}@media print{button,nav,#status{display:none}article{box-shadow:none}textarea{height:auto}}
+html{scroll-behavior:smooth}.back-to-top{position:fixed;right:20px;bottom:20px;z-index:10;background:#274cc4;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;box-shadow:0 3px 15px #17203330}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{.back-to-top{display:none}}
+</style><main id="topo"><p>GUIA PRÁTICO • CLAUDE CODE / CODEX</p><h1>Auditoria UI/UX com cobertura verificável</h1><p>Descobrir tudo, auditar por domínio, consolidar os achados, implementar por fases e verificar o resultado com evidências.</p><aside><b>Como usar</b><br>Baixe este HTML e abra-o no Chrome, Edge ou Firefox. Clique em “Copiar prompt” e cole na IA que está trabalhando no seu repositório. Execute um prompt por vez. O prompt 9 pode ser repetido para cada fase.<br><br><b>Conclusão com evidência</b><br>Inventário → sete auditorias → plano mestre → implementação por fase → auditoria final. DONE exige verificação. BLOCKED e NOT VERIFIED devem trazer o motivo. A cobertura deve informar auditados, aplicáveis, pendentes e não aplicáveis separadamente.</aside><nav><a href="#p0">00 · Inventário Obrigatório</a><a href="#p1">01 · Responsividade</a><a href="#p2">02 · Componentes</a><a href="#p3">03 · Formulários</a><a href="#p4">04 · Listas, Tabelas E Dados</a><a href="#p5">05 · Navegação E Arquitetura De Telas</a><a href="#p6">06 · Ux E Fluxos</a><a href="#p7">07 · Acessibilidade</a><a href="#p8">08 · Plano Mestre</a><a href="#p9">09 · Implementação Por Fase</a><a href="#p10">10 · Auditoria Final Independente</a></nav><article id="p0"><header><h2>PROMPT 0 — INVENTÁRIO OBRIGATÓRIO</h2><button type="button" onclick="copyPrompt(0,this)">Copiar prompt</button></header><textarea id="text0" readonly aria-label="PROMPT 0 — INVENTÁRIO OBRIGATÓRIO">Antes de alterar qualquer código, faça somente a descoberta e o inventário completo do projeto.
+
+OBJETIVO
+Mapear tudo que existe na aplicação para que as próximas auditorias não dependam de suposições.
+
+REGRAS
+- Não implemente correções nesta etapa.
+- Não delete, mova ou renomeie arquivos.
+- Não considere documentação como prova de que algo existe: inspecione o código e as rotas reais.
+- Percorra o repositório inteiro.
+- Identifique a estrutura real do projeto, tecnologias, apps, packages e entrypoints.
+- Descubra todas as rotas e páginas, incluindo áreas públicas, autenticadas, administrativas e fluxos especiais.
+- Identifique layouts, shells, navegação, menus, headers, sidebars, bottom navigation e páginas de erro/loading/empty states.
+- Catalogue componentes reutilizáveis e componentes locais.
+- Catalogue todos os formulários, tabelas, listas, cards, filtros, buscas, abas, drawers, dialogs/modais e ações.
+- Catalogue os principais fluxos de usuário ponta a ponta.
+- Inclua landing pages e frontend público.
+- Identifique possíveis duplicações, componentes parecidos e arquivos aparentemente obsoletos, mas NÃO os remova.
+- Para cada item, registre arquivo(s), rota/tela, dependências e observações.
+
+CRIE
+docs/UI-UX-INVENTORY.md
+
+O documento deve conter uma matriz completa com:
+ID | Área | Rota | Tela/Componente | Arquivos | Tipo | Público/Privado | Responsivo? | Formulário? | Lista/Tabela? | Fluxos relacionados | Estado da auditoria
+
+Separe o estado de descoberta (FOUND / NOT VERIFIED / NOT APPLICABLE) do estado de auditoria por domínio (PENDING / AUDITED / NOT APPLICABLE). A auditoria começa PENDING; isso não impede a conclusão do inventário.
+
+REGRA DE COBERTURA
+No final informe:
+- total de rotas encontradas;
+- total de páginas/telas;
+- total de componentes relevantes;
+- total de formulários;
+- total de listas/tabelas;
+- total de modais/drawers;
+- total de fluxos;
+- itens PENDING.
+
+Não escreva “inventário completo” enquanto houver lacunas de descoberta ou áreas não verificadas. Itens ainda PENDING na auditoria são esperados nesta etapa.
+
+Pare ao terminar o inventário. Não implemente nada ainda.</textarea></article><article id="p1"><header><h2>PROMPT 1 — RESPONSIVIDADE</h2><button type="button" onclick="copyPrompt(1,this)">Copiar prompt</button></header><textarea id="text1" readonly aria-label="PROMPT 1 — RESPONSIVIDADE">Leia primeiro docs/UI-UX-INVENTORY.md e audite a responsividade usando-o como checklist obrigatório.
+
+OBJETIVO
+Encontrar problemas reais de responsividade em TODAS as páginas, componentes e fluxos inventariados.
+
+AUDITE
+- mobile pequeno;
+- mobile grande;
+- tablet portrait;
+- tablet landscape;
+- notebook pequeno;
+- notebook intermediário;
+- desktop;
+- telas largas;
+- larguras intermediárias que não coincidem com breakpoints tradicionais.
+
+Não limite a análise a media queries. Verifique também:
+- overflow horizontal;
+- grids que aumentam colunas quando o espaço útil diminui;
+- sidebars;
+- headers;
+- menus;
+- tabelas;
+- cards;
+- formulários;
+- botões;
+- modais/dialogs;
+- tabs;
+- filtros;
+- ações agrupadas;
+- navegação;
+- espaçamentos;
+- tipografia;
+- áreas de toque;
+- conteúdo cortado;
+- textos que quebram layout;
+- componentes com DOM diferente por JavaScript;
+- conflitos entre largura da viewport e largura real do conteúdo.
+
+Sempre que possível, execute a aplicação e faça medições reais no navegador. Registre viewport e largura útil quando isso for relevante.
+
+CRIE
+docs/RESPONSIVENESS-AUDIT.md
+
+Para cada problema:
+ID | item do inventário | rota/componente | viewport | evidência | causa | severidade | solução proposta
+
+Use severidade:
+CRITICAL / HIGH / MEDIUM / LOW.
+
+No final informe exatamente:
+- itens inventariados;
+- itens auditados;
+- itens PENDING;
+- problemas encontrados;
+- problemas críticos/altos;
+- áreas que não puderam ser verificadas e por quê.
+
+Não implemente nesta etapa.
+Não declare 100% de cobertura se existir PENDING.</textarea></article><article id="p2"><header><h2>PROMPT 2 — COMPONENTES</h2><button type="button" onclick="copyPrompt(2,this)">Copiar prompt</button></header><textarea id="text2" readonly aria-label="PROMPT 2 — COMPONENTES">Leia docs/UI-UX-INVENTORY.md e faça uma auditoria completa do sistema de componentes.
+
+OBJETIVO
+Verificar se a aplicação possui um sistema coerente, reutilizável, responsivo e sustentável de componentes.
+
+AUDITE
+- componentes globais;
+- componentes compartilhados;
+- componentes locais;
+- duplicações;
+- componentes quase duplicados;
+- componentes com mesma função e APIs diferentes;
+- variantes;
+- composição;
+- props;
+- estados;
+- acessibilidade;
+- responsividade;
+- consistência visual;
+- componentes que deveriam ser compartilhados mas não são;
+- componentes genéricos demais;
+- componentes específicos demais;
+- dependências desnecessárias;
+- componentes antigos/obsoletos;
+- uso inconsistente de bibliotecas existentes;
+- padrões repetidos em páginas.
+
+Não remova nada nesta etapa.
+
+CRIE
+docs/COMPONENT-AUDIT.md
+
+Para cada achado:
+ID | componente | arquivo | usado por | problema | evidência | impacto | solução proposta | dependências
+
+Separe:
+- duplicação real;
+- quase duplicação;
+- oportunidade de reutilização;
+- componente legítimo que deve permanecer separado;
+- código possivelmente obsoleto.
+
+Use o inventário para confirmar cobertura e informe PENDING no que não foi verificado.
+
+Não implemente.</textarea></article><article id="p3"><header><h2>PROMPT 3 — FORMULÁRIOS</h2><button type="button" onclick="copyPrompt(3,this)">Copiar prompt</button></header><textarea id="text3" readonly aria-label="PROMPT 3 — FORMULÁRIOS">Leia docs/UI-UX-INVENTORY.md e audite TODOS os formulários encontrados.
+
+OBJETIVO
+Analisar não apenas aparência, mas a experiência completa de preenchimento.
+
+VERIFIQUE
+- organização dos campos;
+- agrupamento lógico;
+- ordem;
+- quantidade de etapas;
+- campos desnecessários;
+- validação;
+- mensagens de erro;
+- estados loading/sucesso/falha;
+- ações primária/secundária;
+- salvar/cancelar/voltar;
+- persistência quando aplicável;
+- responsividade;
+- teclado e toque em mobile;
+- labels e acessibilidade;
+- selects, comboboxes, datas, uploads;
+- formulários dentro de modais;
+- formulários longos;
+- repetição de dados;
+- fluxos que poderiam ser resolvidos com menos telas sem remover funcionalidade;
+- diferenças desnecessárias entre formulários equivalentes.
+
+CRIE
+docs/FORM-AUDIT.md
+
+Matriz:
+ID | formulário | rota | arquivo | problema | evidência | impacto UX | solução proposta | prioridade
+
+Não altere o código.
+Não remova funcionalidades.
+Não declare cobertura total com itens PENDING.</textarea></article><article id="p4"><header><h2>PROMPT 4 — LISTAS, TABELAS E DADOS</h2><button type="button" onclick="copyPrompt(4,this)">Copiar prompt</button></header><textarea id="text4" readonly aria-label="PROMPT 4 — LISTAS, TABELAS E DADOS">Leia docs/UI-UX-INVENTORY.md e audite todas as formas de apresentação e manipulação de dados.
+
+Inclua:
+- tabelas;
+- listas;
+- cards de dados;
+- grids;
+- filtros;
+- busca;
+- ordenação;
+- paginação;
+- seleção em massa;
+- ações por item;
+- menus de contexto;
+- estados vazio/loading/error;
+- grandes volumes;
+- conteúdo longo;
+- mobile/tablet/notebook;
+- overflow;
+- colunas que deveriam virar cards ou rolagem controlada;
+- redundâncias entre telas de consulta e detalhe;
+- ações que poderiam estar contextualizadas no próprio item.
+
+CRIE
+docs/DATA-VIEW-AUDIT.md
+
+Para cada achado:
+ID | tela/componente | tipo | problema | evidência | impacto | solução | prioridade
+
+Não implemente nesta etapa.</textarea></article><article id="p5"><header><h2>PROMPT 5 — NAVEGAÇÃO E ARQUITETURA DE TELAS</h2><button type="button" onclick="copyPrompt(5,this)">Copiar prompt</button></header><textarea id="text5" readonly aria-label="PROMPT 5 — NAVEGAÇÃO E ARQUITETURA DE TELAS">Leia docs/UI-UX-INVENTORY.md e audite a arquitetura de navegação.
+
+OBJETIVO
+Encontrar fragmentação, caminhos desnecessariamente longos e funcionalidades espalhadas sem necessidade.
+
+AUDITE
+- menus;
+- sidebar;
+- topbar;
+- bottom navigation;
+- breadcrumbs;
+- tabs;
+- links;
+- ações de voltar;
+- entrada e saída das páginas;
+- hierarquia de informação;
+- páginas que poderiam agrupar funcionalidades relacionadas;
+- telas duplicadas;
+- caminhos que exigem navegação desnecessária;
+- ações importantes escondidas;
+- inconsistências entre áreas públicas e privadas;
+- estados após criar/editar/excluir;
+- deep links e rotas relevantes.
+
+Não confunda “menos telas” com remoção de funcionalidades. A meta é avaliar agrupamento e fluxo, preservando capacidade.
+
+CRIE
+docs/NAVIGATION-AUDIT.md
+
+Para cada achado:
+ID | fluxo/rota | caminho atual | problema | evidência | proposta | impacto | prioridade
+
+Não implemente.</textarea></article><article id="p6"><header><h2>PROMPT 6 — UX E FLUXOS</h2><button type="button" onclick="copyPrompt(6,this)">Copiar prompt</button></header><textarea id="text6" readonly aria-label="PROMPT 6 — UX E FLUXOS">Leia docs/UI-UX-INVENTORY.md e execute uma auditoria de UX baseada em fluxos reais.
+
+Para cada fluxo relevante, analise:
+entrada → navegação → descoberta → decisão → preenchimento → ação → confirmação → resultado → próxima ação.
+
+Procure:
+- passos desnecessários;
+- telas intermediárias sem valor;
+- modais usados onde uma página/contexto seria melhor;
+- páginas usadas apenas para uma ação;
+- informações repetidas;
+- ações fora do contexto;
+- perda de contexto;
+- confirmação excessiva;
+- feedback insuficiente;
+- estados de erro;
+- estados vazios;
+- ações difíceis de encontrar;
+- inconsistências entre fluxos semelhantes;
+- oportunidades de agrupar funções relacionadas;
+- problemas específicos de mobile, tablet e notebook.
+
+IMPORTANTE
+Não faça julgamento baseado apenas em gosto visual. Descreva o comportamento atual, a evidência e o impacto para o usuário.
+
+CRIE
+docs/UX-FLOW-AUDIT.md
+
+Matriz:
+ID | fluxo | rota(s) | etapas atuais | problema | evidência | impacto | proposta | prioridade
+
+No final informe quantos fluxos foram executados/analisados e quantos ficaram PENDING.
+
+Não implemente.</textarea></article><article id="p7"><header><h2>PROMPT 7 — ACESSIBILIDADE</h2><button type="button" onclick="copyPrompt(7,this)">Copiar prompt</button></header><textarea id="text7" readonly aria-label="PROMPT 7 — ACESSIBILIDADE">Leia docs/UI-UX-INVENTORY.md e audite a acessibilidade da aplicação.
+
+Verifique:
+- teclado;
+- foco;
+- foco visível;
+- labels;
+- nomes acessíveis;
+- botões e links;
+- áreas de toque;
+- contraste;
+- hierarquia de headings;
+- formulários;
+- mensagens de erro;
+- modais/dialogs;
+- tabs;
+- menus;
+- tabelas;
+- estados loading/error/empty;
+- responsividade e zoom;
+- elementos que dependem apenas de cor;
+- semântica HTML;
+- ARIA somente quando necessária.
+
+Use referências técnicas reconhecidas quando apropriado, mas avalie primeiro o código e o comportamento real.
+
+CRIE
+docs/ACCESSIBILITY-AUDIT.md
+
+Para cada problema:
+ID | item | arquivo/rota | critério | evidência | impacto | solução | prioridade
+
+Não implemente.</textarea></article><article id="p8"><header><h2>PROMPT 8 — PLANO MESTRE</h2><button type="button" onclick="copyPrompt(8,this)">Copiar prompt</button></header><textarea id="text8" readonly aria-label="PROMPT 8 — PLANO MESTRE">Agora leia TODOS os documentos criados pelas auditorias:
+
+- docs/UI-UX-INVENTORY.md
+- docs/RESPONSIVENESS-AUDIT.md
+- docs/COMPONENT-AUDIT.md
+- docs/FORM-AUDIT.md
+- docs/DATA-VIEW-AUDIT.md
+- docs/NAVIGATION-AUDIT.md
+- docs/UX-FLOW-AUDIT.md
+- docs/ACCESSIBILITY-AUDIT.md
+
+NÃO implemente ainda.
+
+Crie docs/UI-UX-MASTER-PLAN.md.
+
+REGRA PRINCIPAL
+Cada problema encontrado em qualquer auditoria precisa aparecer no plano mestre ou ser explicitamente marcado como:
+- duplicado de outro problema;
+- falso positivo justificado;
+- não aplicável;
+- bloqueado por dependência externa.
+
+Para cada tarefa:
+ID | origem | problema | arquivos afetados | solução | prioridade | dependências | risco | status
+
+Organize em fases lógicas, evitando alterar muitas partes independentes ao mesmo tempo.
+
+Inclua:
+1. objetivos;
+2. princípios de implementação;
+3. ordem das fases;
+4. dependências;
+5. riscos;
+6. critérios de aceite;
+7. testes necessários;
+8. tarefas não autorizadas/que exigem confirmação;
+9. matriz de rastreabilidade auditoria → plano.
+
+No final faça uma conferência matemática:
+problemas identificados nas auditorias = problemas mapeados no plano + exceções justificadas.
+
+Não declare que todos foram cobertos sem demonstrar a conferência.</textarea></article><article id="p9"><header><h2>PROMPT 9 — IMPLEMENTAÇÃO POR FASE</h2><button type="button" onclick="copyPrompt(9,this)">Copiar prompt</button></header><textarea id="text9" readonly aria-label="PROMPT 9 — IMPLEMENTAÇÃO POR FASE">Leia docs/UI-UX-MASTER-PLAN.md.
+
+Implemente SOMENTE a próxima fase ainda não concluída.
+
+ANTES
+- leia o código afetado;
+- confirme dependências;
+- confirme que a alteração não remove funcionalidades;
+- preserve as funções e integrações existentes;
+- evite criar abstrações desnecessárias;
+- não faça refatorações fora do escopo da fase.
+
+DURANTE
+- implemente as mudanças;
+- mantenha nomenclatura e padrões existentes;
+- corrija causas estruturais quando isso fizer parte da tarefa;
+- não substitua funcionalidade real por mock;
+- não use localStorage/cache como substituto de persistência real;
+- não remova modelos, rotas ou recursos sem justificativa documentada.
+
+DEPOIS
+Execute os testes adequados ao projeto, incluindo quando aplicável:
+- lint;
+- typecheck;
+- testes automatizados;
+- build;
+- execução no navegador;
+- verificação responsiva nos principais breakpoints;
+- verificação dos fluxos afetados.
+
+Atualize docs/UI-UX-MASTER-PLAN.md:
+- DONE somente para tarefas realmente verificadas;
+- BLOCKED quando houver impedimento;
+- PENDING quando ainda não executadas.
+
+Atualize também os documentos de auditoria quando a evidência tiver mudado.
+
+Não avance para outra fase automaticamente.</textarea></article><article id="p10"><header><h2>PROMPT 10 — AUDITORIA FINAL INDEPENDENTE</h2><button type="button" onclick="copyPrompt(10,this)">Copiar prompt</button></header><textarea id="text10" readonly aria-label="PROMPT 10 — AUDITORIA FINAL INDEPENDENTE">Faça agora uma auditoria final INDEPENDENTE do trabalho realizado.
+
+Leia:
+- docs/UI-UX-INVENTORY.md
+- todas as auditorias;
+- docs/UI-UX-MASTER-PLAN.md;
+- o código atual;
+- as rotas reais;
+- a aplicação executando, quando possível.
+
+Não presuma que o plano foi cumprido apenas porque está marcado como DONE.
+
+VERIFIQUE NOVAMENTE
+- todas as rotas;
+- todas as páginas;
+- componentes relevantes;
+- formulários;
+- listas/tabelas;
+- navegação;
+- fluxos;
+- responsividade;
+- acessibilidade;
+- público e privado;
+- notebook/intermediários;
+- regressões;
+- funcionalidades removidas acidentalmente;
+- inconsistências introduzidas durante a implementação.
+
+Procure também problemas que as auditorias anteriores tenham deixado passar.
+
+CRIE
+docs/UI-UX-FINAL-AUDIT.md
+
+Informe separadamente:
+- inventário total;
+- itens auditados;
+- itens implementados;
+- itens verificados;
+- itens PENDING;
+- itens BLOCKED;
+- regressões encontradas;
+- novos problemas encontrados;
+- tarefas do plano que não correspondem ao código atual;
+- problemas auditados que não foram implementados;
+- testes executados e resultados.
+
+REGRA
+Não escreva “100% concluído” se existir qualquer item relevante PENDING, BLOCKED, não verificado ou regressão.</textarea></article><p>O PDF é destinado à leitura e seleção de texto. Os botões de cópia funcionam nesta versão HTML. Se o navegador bloquear a cópia, o texto será selecionado e uma instrução aparecerá.</p></main><a class="back-to-top" href="#topo" aria-label="Voltar ao topo da página">↑ Voltar ao topo</a><div id="status" role="status" aria-live="polite"></div><script>
+function notify(text){const s=document.getElementById('status');s.textContent=text;s.style.display='block';clearTimeout(window.noticeTimer);window.noticeTimer=setTimeout(()=>s.style.display='none',5000)}
+async function copyPrompt(i,button){const t=document.getElementById('text'+i);let copied=false;try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t.value);copied=true}}catch(e){}if(!copied){t.focus();t.select();t.setSelectionRange(0,t.value.length);try{copied=document.execCommand('copy')}catch(e){}}if(copied){button.textContent='Copiado!';notify('Prompt completo copiado.');setTimeout(()=>button.textContent='Copiar prompt',2000)}else{notify('Texto selecionado. Pressione Ctrl+C (ou Command+C no Mac) para copiar.')}}
+for(const t of document.querySelectorAll('textarea')){t.style.height='auto';t.style.height=(t.scrollHeight+4)+'px'}
+</script></html>

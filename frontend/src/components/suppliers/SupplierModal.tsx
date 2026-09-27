@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Building2, Loader2, Search, X, Trash2, CheckCircle2, AlertTriangle, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { marketService } from '../../services/market.service';
+import useModalBehavior from '../../hooks/useModalBehavior';
 import { Supplier } from '../../types/analytics.types';
 import { useSuppliers } from '../../hooks/useSuppliers';
 
@@ -288,6 +289,7 @@ interface SupplierModalProps {
 }
 
 const SupplierModal: React.FC<SupplierModalProps> = ({ marketId, onClose, onSelect }) => {
+  useModalBehavior(true, onClose);
   const { suppliers, loading, save, remove } = useSuppliers(marketId);
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
@@ -309,14 +311,10 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ marketId, onClose, onSele
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.5)' }}
+      className="app-modal-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        className="flex w-full max-w-md flex-col gap-0 overflow-hidden rounded-2xl shadow-2xl"
-        style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)', maxHeight: '85vh' }}
-      >
+      <div className="app-modal-panel sm:max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 p-5" style={{ borderBottom: '1px solid var(--border-soft)' }}>
           <div className="flex items-center gap-2">

@@ -68,6 +68,23 @@ P-06 → P-07 → validação final (suíte completa, `tsc`, build, revisão do 
 - Estúdio de ofertas, preços estaduais, mapa da loja, rede: fora deste ciclo.
 - Deploy: não há push nem alteração na VPS sem autorização (deploy só via GitHub Actions).
 
+## Ciclo 2 — integração e acabamento (2026-09-27)
+
+Pedido do owner: integrar o trabalho das outras sessões (UX responsiva local, auditoria de VPS) e deixar o
+repositório sem diff pendente, com a aplicação coerente como produto.
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| C-01 | P1 | 21 arquivos de UX responsiva (modais em folha no celular, grades de 1 coluna, design system consolidado) sem commit | revisados; `Button` com `type="button"` como padrão conferido: nenhum botão de formulário dependia do envio implícito | `components/common`, `components/ui`, telas | médio | varredura 19 telas × 4 larguras | DONE |
+| C-02 | P1 | vários diálogos montados à mão não fechavam com Esc e o overlay continuava bloqueando a tela; Esc em diálogo empilhado fecharia os dois | `useModalBehavior` com pilha (Esc fecha só o de cima; scroll volta no último) usado também pelo `Modal` padrão e aplicado a fornecedor, contratos de rede, catálogo de planos, assinaturas, ficha do cliente | `hooks/useModalBehavior.ts` + 6 componentes | baixo | varredura com Esc + scroll | DONE |
+| C-03 | P1 | barras de abas cortadas a 360 px ("Efe…", "Pre…", 4ª aba fora da tela) em 4 telas, com markup copiado | `SegmentedTabs` no design system: grade no celular, barra em linha a partir de 640 px, alvo de 44 px, `aria-pressed` | Pedido inteligente, Promoções, Produtos, PDVs | baixo | varredura + capturas | DONE |
+| C-04 | P2 | ~85 números em formato americano (`toFixed`: "8.0/dia", "+100.0%", "1.00×"), inclusive no formatador compartilhado que prometia pt-BR | `formatDecimal`/`formatQuantityTrim` em `utils/formatters` e troca mecânica revisada nos usos de exibição | 16 telas/componentes | baixo | typecheck + testes de tela | DONE |
+| C-05 | P2 | 132 linhas de erro de tipo; o build não rodava `tsc` (R-27g) | causa raiz no estúdio (`context: any`) tipada pelo retorno do controlador; 6 tipos ajustados ao que o código passa; `npm run build` passa a rodar `tsc`, então erro de tipo barra o deploy | estúdio de ofertas, serviços, `package.json` | baixo | `tsc` = 0 erro | DONE |
+| C-06 | P2 | requisição malformada (JSON inválido, cabeçalho ausente) respondia 500 (SEC-08) | 400 com mensagem genérica no `GlobalExceptionHandler` | backend | baixo | unitário + curl | DONE |
+| C-07 | P3 | código morto: 5 telas órfãs (pedidos duplicado, 4 telas antigas de ofertas), 7 componentes/utilitários e 3 arquivos de tipo sem nenhuma referência | removidos depois de confirmar ausência de import, barrel e rota | `screens`, `components`, `types`, `utils` | baixo | typecheck + build + varredura | DONE |
+| C-08 | P3 | documentos de auditoria de VPS com acentuação corrompida e prompts soltos na raiz | codificação reparada; prompts em `docs/prompts/`; pasta vazia `backend;C` removida | `docs/` | baixo | inspeção | DONE |
+| C-09 | — | `VPS-OPT-MASTER-PLAN` (otimização da VPS) | não executável daqui: tarefas dependem de acesso ao host e a regra do projeto é não alterar a VPS fora do GitHub Actions | — | — | — | BLOCKED |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive

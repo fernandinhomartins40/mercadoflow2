@@ -329,7 +329,7 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
         style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
       >
         <div className="flex flex-wrap items-end gap-3">
-          <div className="flex-1" style={{ minWidth: '220px' }}>
+          <div className="w-full min-w-0 flex-1 sm:w-auto sm:basis-56">
             <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
               <Wallet size={13} className="mr-1 inline" />
               Quanto você tem para comprar?

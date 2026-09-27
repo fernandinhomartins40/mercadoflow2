@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { cn } from '../../lib/cn';
+import useModalBehavior from '../../hooks/useModalBehavior';
 
 /**
  * Modal reutilizável com backdrop, cabeçalho e corpo scrollável.
@@ -29,7 +30,16 @@ interface ModalProps {
   className?: string;
   /** Classe extra para o body do modal */
   bodyClassName?: string;
+  /** Largura máxima do painel em telas grandes */
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
+
+const SIZE_CLASS: Record<NonNullable<ModalProps['size']>, string> = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-2xl',
+  lg: 'sm:max-w-4xl',
+  xl: 'sm:max-w-6xl',
+};
 
 const Modal: React.FC<ModalProps> = ({
   open,
@@ -42,56 +52,50 @@ const Modal: React.FC<ModalProps> = ({
   children,
   className,
   bodyClassName,
+  size = 'md',
 }) => {
-  useEffect(() => {
-    if (!open) return undefined;
-    const originalOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !preventClose) {
-        onClose();
-      }
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [open, preventClose, onClose]);
+  // Mesmo comportamento dos overlays montados à mão: Esc fecha só o diálogo
+  // de cima e o scroll volta quando o último fecha.
+  useModalBehavior(open, onClose, { preventClose });
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       role="presentation"
       onClick={() => { if (!preventClose) onClose(); }}
     >
       <div
-        className={cn('mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.15)]', className)}
+        className={cn(
+          // Mobile: folha colada ao rodape, ocupando a largura toda.
+          // sm+: cartao centralizado com largura maxima por `size`.
+          'flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.15)]',
+          'sm:max-h-[90vh] sm:rounded-xl',
+          SIZE_CLASS[size],
+          className,
+        )}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
             {kicker ? <span className="text-xs font-medium uppercase tracking-wider text-slate-400">{kicker}</span> : null}
             {typeof title === 'string' ? (
-              <h3 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h3>
+              <h3 id={titleId} className="text-base font-semibold text-slate-900 sm:text-lg">{title}</h3>
             ) : (
               title
             )}
           </div>
           {headerActions ? (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               {headerActions}
             </div>
           ) : null}
         </div>
-        <div className={cn('flex-1 overflow-y-auto px-6 py-4', bodyClassName)}>
+        <div className={cn('flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 sm:px-6 sm:py-4', bodyClassName)}>
           {children}
         </div>
       </div>

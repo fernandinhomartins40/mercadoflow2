@@ -177,7 +177,7 @@ const SuperAdminCustomers: React.FC = () => {
 
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1" style={{ minWidth: '240px' }}>
+          <div className="relative w-full min-w-0 flex-1 sm:w-auto sm:basis-60">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
             <input
               value={search}

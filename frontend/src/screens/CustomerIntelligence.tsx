@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -28,8 +29,8 @@ const fmt = {
   money: (v?: number | null) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
       .format(Number(v || 0)),
-  pct: (v?: number | null) => v == null ? '--' : `${Number(v).toFixed(1)}%`,
-  days: (v?: number | null) => v == null ? '--' : `${Number(v).toFixed(0)} dias`,
+  pct: (v?: number | null) => v == null ? '--' : `${formatDecimal(Number(v), 1)}%`,
+  days: (v?: number | null) => v == null ? '--' : `${formatDecimal(Number(v), 0)} dias`,
 };
 
 const card: React.CSSProperties = {

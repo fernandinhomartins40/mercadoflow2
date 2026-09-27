@@ -91,7 +91,7 @@ import {
   emptyZoneDraft,
   readHeadline
 } from './model';
-import { getCampaignState, parseStringList } from './StudioPrimitives';
+import { getCampaignState, parseStringList, type StudioToolOption } from './StudioPrimitives';
 import { useOffersAppSession } from '../../hooks/useOffersAppSession';
 import { useOffersService } from '../../hooks/useOffersService';
 import api from '../../services/api';
@@ -327,7 +327,9 @@ export const useOfferStudioController = () => {
     [superAdminMarkets],
   );
   const visibleToolOptions = useMemo(
-    () => (isSuperAdminMode ? [...TOOL_OPTIONS, { key: 'builder', icon: Paintbrush, label: 'Construtor' } as any] : TOOL_OPTIONS),
+    (): StudioToolOption[] => (isSuperAdminMode
+      ? [...TOOL_OPTIONS, { key: 'builder', icon: Paintbrush, label: 'Construtor' }]
+      : [...TOOL_OPTIONS]),
     [isSuperAdminMode],
   );
   const stageProducts = useMemo(

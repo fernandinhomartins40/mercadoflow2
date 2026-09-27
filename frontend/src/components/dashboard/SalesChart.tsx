@@ -1,8 +1,9 @@
 import React from 'react';
+import { formatDecimal } from '../../utils/formatters';
 import Card from '../common/Card';
 import Chart from '../common/Chart';
 
-const formatMoney = (value?: number | null) => `R$ ${Number(value || 0).toFixed(2)}`;
+const formatMoney = (value?: number | null) => `R$ ${formatDecimal(Number(value || 0), 2)}`;
 
 interface SalesChartProps {
   data: { date: string; revenue: number }[];

@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatDecimal, formatQuantityTrim } from '../utils/formatters';
+import SegmentedTabs from '../components/ui/SegmentedTabs';
 import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import useModalBehavior from '../hooks/useModalBehavior';
 import OrderSendOptions from '../components/orders/OrderSendOptions';
 import ProductImage from '../components/product/ProductImage';
 import { useMarketData } from '../hooks/useMarketData';
@@ -55,7 +58,7 @@ const fmtDate = (v?: string | null) => {
 };
 const fmtPct = (v?: number | null) => {
   const n = Number(v || 0);
-  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+  return `${n >= 0 ? '+' : ''}${formatDecimal(n, 1)}%`;
 };
 
 const SOURCE_TAG_PT: Record<string, string> = {
@@ -83,6 +86,7 @@ const STATUS_CFG: Record<string, { label: string; bg: string; text: string; dot:
 ════════════════════════════════════════════════════════════════════ */
 
 const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; onClose: () => void; onSaved: () => void }> = ({ item, marketId, onClose, onSaved }) => {
+  useModalBehavior(true, onClose);
   const [unitCost, setUnitCost] = useState('');
   const [unitSalePrice, setUnitSalePrice] = useState('');
   const [qty, setQty] = useState(String(item.quantityTarget || 1));
@@ -122,8 +126,8 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl shadow-2xl" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)', maxHeight: '90vh' }}>
+    <div className="app-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="app-modal-panel sm:max-w-lg">
         <div className="flex items-center justify-between gap-3 p-5" style={{ borderBottom: '1px solid var(--border-soft)' }}>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
@@ -144,14 +148,14 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
               <div className="flex flex-wrap gap-4">
                 <div><p className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Custo</p><p className="text-sm font-bold">{fmtMoney(lastEntry.unitCost)}</p></div>
                 {lastEntry.unitSalePrice && <div><p className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Venda</p><p className="text-sm font-bold">{fmtMoney(lastEntry.unitSalePrice)}</p></div>}
-                {lastEntry.marginPercent && <div><p className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Margem</p><p className="text-sm font-bold" style={{ color: 'var(--brand-600)' }}>{Number(lastEntry.marginPercent).toFixed(1)}%</p></div>}
+                {lastEntry.marginPercent && <div><p className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Margem</p><p className="text-sm font-bold" style={{ color: 'var(--brand-600)' }}>{formatDecimal(Number(lastEntry.marginPercent), 1)}%</p></div>}
               </div>
               {lastEntry.supplierName && <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Fornecedor: {lastEntry.supplierName}</p>}
             </div>
           )}
 
-          <div className="flex flex-col gap-4 p-5">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-4 p-4 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo unitário <span style={{ color: '#ef4444' }}>*</span></label>
                 <div className="relative">
@@ -163,7 +167,7 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
                 {delta !== null && cost > 0 && (
                   <p className="mt-1 flex items-center gap-1 text-xs font-semibold" style={{ color: delta > 1 ? '#dc2626' : delta < -1 ? '#16a34a' : 'var(--text-soft)' }}>
                     {delta > 1 ? <TrendingUp className="h-3 w-3" /> : delta < -1 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                    {delta > 0 ? '+' : ''}{delta.toFixed(1)}% vs. última
+                    {delta > 0 ? '+' : ''}{formatDecimal(delta, 1)}% vs. última
                   </p>
                 )}
               </div>
@@ -175,11 +179,11 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
                     className="h-10 w-full rounded-lg pl-8 pr-3 text-sm outline-none"
                     style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }} />
                 </div>
-                {margin !== null && <p className="mt-1 text-xs font-semibold" style={{ color: margin >= 20 ? '#16a34a' : margin >= 10 ? '#d97706' : '#dc2626' }}>Margem: {margin.toFixed(1)}%</p>}
+                {margin !== null && <p className="mt-1 text-xs font-semibold" style={{ color: margin >= 20 ? '#16a34a' : margin >= 10 ? '#d97706' : '#dc2626' }}>Margem: {formatDecimal(margin, 1)}%</p>}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Qtd. comprada</label>
                 <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
@@ -254,7 +258,7 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
   );
 };
 
-const CatalogSearch: React.FC<{ marketId: string; productIds: Set<string>; onAdd: (p: ProductPerformance) => Promise<void> }> = ({ marketId, productIds, onAdd }) => {
+const CatalogSearch: React.FC<{ marketId: string; productIds: Set<string>; onAdd: (p: ProductPerformance) => Promise<unknown> }> = ({ marketId, productIds, onAdd }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ProductPerformance[]>([]);
   const [loading, setLoading] = useState(false);
@@ -290,7 +294,7 @@ const CatalogSearch: React.FC<{ marketId: string; productIds: Set<string>; onAdd
               </Link>
               <div className="min-w-0 flex-1">
                 <Link to={`/app/produtos/${p.productId}`} className="block truncate text-sm font-medium no-underline hover:underline" style={{ color: 'var(--text-primary)' }}>{p.name}</Link>
-                <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{Number(p.salesVelocity || 0).toFixed(1)} un./dia</p>
+                <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{formatDecimal(Number(p.salesVelocity || 0), 1)} un./dia</p>
               </div>
               {productIds.has(p.productId)
                 ? <span className="text-[10px] font-semibold" style={{ color: 'var(--brand-700)' }}>Na lista</span>
@@ -415,7 +419,7 @@ const ListItem: React.FC<{
                     <div>
                       <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                         {fmtMoney(h.unitCost)}{h.unitSalePrice && <span className="ml-1.5 font-normal" style={{ color: 'var(--text-soft)' }}>· venda {fmtMoney(h.unitSalePrice)}</span>}
-                        {h.marginPercent && <span className="ml-1.5 font-semibold" style={{ color: 'var(--brand-600)' }}>({Number(h.marginPercent).toFixed(1)}%)</span>}
+                        {h.marginPercent && <span className="ml-1.5 font-semibold" style={{ color: 'var(--brand-600)' }}>({formatDecimal(Number(h.marginPercent), 1)}%)</span>}
                       </p>
                       <p className="text-[10px]" style={{ color: 'var(--text-soft)' }}>{fmtDate(h.purchasedAt)}{h.supplierName ? ` · ${h.supplierName}` : ''}</p>
                     </div>
@@ -580,7 +584,7 @@ const AddItemForm: React.FC<{
               className="h-9 w-full rounded-lg pl-7 pr-2 text-sm outline-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
           </div>
-          {margin !== null && <p className="mt-0.5 text-xs font-semibold" style={{ color: margin >= 20 ? '#16a34a' : margin >= 10 ? '#d97706' : '#dc2626' }}>Margem: {margin.toFixed(1)}%</p>}
+          {margin !== null && <p className="mt-0.5 text-xs font-semibold" style={{ color: margin >= 20 ? '#16a34a' : margin >= 10 ? '#d97706' : '#dc2626' }}>Margem: {formatDecimal(margin, 1)}%</p>}
         </div>
         <div className={needsPack ? 'sm:col-span-2' : 'sm:col-span-4'}>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observação</label>
@@ -607,6 +611,7 @@ const AddItemForm: React.FC<{
 };
 
 const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClose: () => void; onUpdated: (o: SupplierOrder) => void }> = ({ order: init, marketId, onClose, onUpdated }) => {
+  useModalBehavior(true, onClose);
   const [order, setOrder] = useState<SupplierOrder>(init);
   const [addProd, setAddProd] = useState<ProductPerformance | null>(null);
   const [loading, setLoading] = useState(false);
@@ -635,8 +640,8 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl shadow-2xl" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)', maxHeight: '92vh' }}>
+    <div className="app-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="app-modal-panel sm:max-w-2xl">
         <div className="flex items-center justify-between gap-3 p-5" style={{ borderBottom: '1px solid var(--border-soft)' }}>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
@@ -672,11 +677,11 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{item.productName}</p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>
-                          <span>{Number(item.quantityRequested).toFixed(3).replace(/\.?0+$/, '')} {UNIT_LABELS[item.unitType] || item.unitType}</span>
+                          <span>{formatQuantityTrim(Number(item.quantityRequested))} {UNIT_LABELS[item.unitType] || item.unitType}</span>
                           <span>· custo {fmtMoney(item.unitCost)}</span>
                           {item.unitSalePrice && <span>· venda {fmtMoney(item.unitSalePrice)}</span>}
-                          {item.marginPercent != null && <span className="font-semibold" style={{ color: Number(item.marginPercent) >= 20 ? '#16a34a' : Number(item.marginPercent) >= 10 ? '#d97706' : '#dc2626' }}>· {Number(item.marginPercent).toFixed(1)}%</span>}
-                          {item.quantityReceived != null && <span className="font-medium" style={{ color: 'var(--brand-700)' }}>· recebido: {Number(item.quantityReceived).toFixed(3).replace(/\.?0+$/, '')}</span>}
+                          {item.marginPercent != null && <span className="font-semibold" style={{ color: Number(item.marginPercent) >= 20 ? '#16a34a' : Number(item.marginPercent) >= 10 ? '#d97706' : '#dc2626' }}>· {formatDecimal(Number(item.marginPercent), 1)}%</span>}
+                          {item.quantityReceived != null && <span className="font-medium" style={{ color: 'var(--brand-700)' }}>· recebido: {formatQuantityTrim(Number(item.quantityReceived))}</span>}
                         </div>
                         {item.note && <p className="mt-0.5 text-xs italic" style={{ color: 'var(--text-muted)' }}>{item.note}</p>}
                       </div>
@@ -741,6 +746,7 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
 };
 
 const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onClose: () => void; onReceived: (o: SupplierOrder) => void }> = ({ order, marketId, onClose, onReceived }) => {
+  useModalBehavior(true, onClose);
   const [qtys, setQtys] = useState<Record<string, string>>(() => Object.fromEntries(order.items.map(i => [i.id, String(i.quantityRequested)])));
   const [receivedAt, setReceivedAt] = useState(() => new Date().toISOString().slice(0, 16));
   const [saving, setSaving] = useState(false);
@@ -759,8 +765,8 @@ const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl shadow-2xl" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)', maxHeight: '92vh' }}>
+    <div className="app-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="app-modal-panel sm:max-w-lg">
         <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-soft)' }}>
           <div>
             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Receber {order.orderNumber}</p>
@@ -782,7 +788,7 @@ const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onCl
                 <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-base)' }}><ProductImage src={item.imageUrl} alt={item.productName} className="h-full w-full object-contain" /></div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.productName}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Pedido: {Number(item.quantityRequested).toFixed(3).replace(/\.?0+$/, '')} {UNIT_LABELS[item.unitType] || item.unitType}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Pedido: {formatQuantityTrim(Number(item.quantityRequested))} {UNIT_LABELS[item.unitType] || item.unitType}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <input type="number" min="0" step="any" value={qtys[item.id] ?? String(item.quantityRequested)} onChange={(e) => setQtys(p => ({ ...p, [item.id]: e.target.value }))}
@@ -1128,11 +1134,11 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.productName}</p>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0 text-xs" style={{ color: 'var(--text-soft)' }}>
-                          <span>{Number(item.quantityRequested).toFixed(3).replace(/\.?0+$/, '')} {UNIT_LABELS[item.unitType] || item.unitType}</span>
+                          <span>{formatQuantityTrim(Number(item.quantityRequested))} {UNIT_LABELS[item.unitType] || item.unitType}</span>
                           {item.unitsPerPack && <span>· {item.unitsPerPack} un./emb.</span>}
                           <span>· {fmtMoney(item.unitCost)}</span>
                           {item.marginPercent != null && (
-                            <span className="font-semibold" style={{ color: Number(item.marginPercent) >= 20 ? '#16a34a' : Number(item.marginPercent) >= 10 ? '#d97706' : '#dc2626' }}>· {Number(item.marginPercent).toFixed(1)}%</span>
+                            <span className="font-semibold" style={{ color: Number(item.marginPercent) >= 20 ? '#16a34a' : Number(item.marginPercent) >= 10 ? '#d97706' : '#dc2626' }}>· {formatDecimal(Number(item.marginPercent), 1)}%</span>
                           )}
                         </div>
                       </div>
@@ -1240,10 +1246,10 @@ const SuggestionRow: React.FC<{
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0 text-xs" style={{ color: 'var(--text-soft)' }}>
           <span className="flex items-center gap-1">
             {momentum >= 1.1 ? <TrendingUp className="h-3 w-3 text-green-600" /> : momentum <= 0.7 ? <TrendingDown className="h-3 w-3 text-red-500" /> : null}
-            <span style={{ color: velocity >= 4 ? '#16a34a' : velocity >= 1 ? 'var(--text-soft)' : '#dc2626' }}>{velocity.toFixed(1)} un./dia</span>
+            <span style={{ color: velocity >= 4 ? '#16a34a' : velocity >= 1 ? 'var(--text-soft)' : '#dc2626' }}>{formatDecimal(velocity, 1)} un./dia</span>
           </span>
           {health != null && (
-            <span style={{ color: health >= 70 ? '#16a34a' : health >= 40 ? '#d97706' : '#dc2626' }}>saúde {health.toFixed(0)}</span>
+            <span style={{ color: health >= 70 ? '#16a34a' : health >= 40 ? '#d97706' : '#dc2626' }}>saúde {formatDecimal(health, 0)}</span>
           )}
           {perf.category && <span>{perf.category}</span>}
           {listItem && <span>meta: {listItem.quantityTarget} un.</span>}
@@ -1435,18 +1441,7 @@ const ShoppingListPage: React.FC = () => {
         </div>
 
         {/* Abas */}
-        <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}>
-          {TABS.map(t => (
-            <button key={t.key} type="button" onClick={() => setTab(t.key)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition"
-              style={tab === t.key
-                ? { background: 'var(--surface-base)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                : { color: 'var(--text-muted)' }}>
-              {t.icon}{t.label}
-              {t.badge ? <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: 'var(--brand-500)', color: '#fff' }}>{t.badge}</span> : null}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
 
         {/* ── ABA: ONDE INVESTIR ── */}
         {tab === 'capital' && marketId && (
@@ -1510,7 +1505,7 @@ const ShoppingListPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <CatalogSearch marketId={marketId} productIds={productIds} onAdd={async p => addItem({ productId: p.productId, quantityTarget: suggestedQuantity(p), sourceTag: 'MANUAL', reasonSummary: `${Number(p.salesVelocity || 0).toFixed(1)} un./dia · adicionado via busca` })} />
+                <CatalogSearch marketId={marketId} productIds={productIds} onAdd={async p => addItem({ productId: p.productId, quantityTarget: suggestedQuantity(p), sourceTag: 'MANUAL', reasonSummary: `${formatDecimal(Number(p.salesVelocity || 0), 1)} un./dia · adicionado via busca` })} />
               </div>
             )}
 
@@ -1548,7 +1543,7 @@ const ShoppingListPage: React.FC = () => {
                       <Link to={`/app/produtos/${p.productId}`} className="h-10 w-10 shrink-0 overflow-hidden rounded-lg no-underline" style={{ display: 'block' }}><ProductImage src={p.imageUrl} alt={p.name} className="h-full w-full object-contain" /></Link>
                       <div className="min-w-0 flex-1">
                         <Link to={`/app/produtos/${p.productId}`} className="block truncate text-sm font-medium no-underline hover:underline" style={{ color: 'var(--text-primary)' }}>{p.name}</Link>
-                        <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{Number(p.salesVelocity || 0).toFixed(1)} un./dia</p>
+                        <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{formatDecimal(Number(p.salesVelocity || 0), 1)} un./dia</p>
                       </div>
                       {productIds.has(p.productId)
                         ? <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Na lista</span>

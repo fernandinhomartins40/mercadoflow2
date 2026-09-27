@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -376,11 +377,11 @@ const SectionForm: React.FC<{
 
   return (
     /* Full-screen overlay so the form floats above the grid regardless of cell position */
-    <div className="fixed inset-0 z-50 flex items-center justify-center"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(2px)' }}
       onClick={onCancel}>
-      <div className="rounded-xl p-4 shadow-2xl"
-        style={{ width: 280, background: '#fff', border: '1.5px solid var(--brand-500)' }}
+      <div className="w-full max-w-[280px] rounded-xl p-4 shadow-2xl"
+        style={{ background: '#fff', border: '1.5px solid var(--brand-500)' }}
         onClick={e => e.stopPropagation()}>
         <p className="mb-3 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Editar seção</p>
         <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
@@ -860,7 +861,7 @@ const StoreMap: React.FC = () => {
                         {ins.antecedentCategory} + {ins.consequentCategory}
                       </p>
                       <p className="mt-0.5 text-[10px]" style={{ color: '#166534' }}>
-                        {Math.round(ins.confidence * 100)}% das cestas levam os dois · afinidade {ins.lift.toFixed(1)}x
+                        {Math.round(ins.confidence * 100)}% das cestas levam os dois · afinidade {formatDecimal(ins.lift, 1)}x
                       </p>
                     </div>
                   ))}
@@ -878,7 +879,7 @@ const StoreMap: React.FC = () => {
                         <span className="text-xs font-semibold" style={{ color: '#c2410c' }}>{ins.consequentCategory}</span>
                       </div>
                       <p className="mt-0.5 text-[10px]" style={{ color: '#9a3412' }}>
-                        {ins.pairCount} cestas · lift {ins.lift.toFixed(1)}x · estão longe no mapa
+                        {ins.pairCount} cestas · lift {formatDecimal(ins.lift, 1)}x · estão longe no mapa
                       </p>
                     </div>
                   ))}

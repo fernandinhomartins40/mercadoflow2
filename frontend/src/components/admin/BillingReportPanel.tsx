@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatDecimal } from '../../utils/formatters';
 import { AlertTriangle, Ban, Clock, DollarSign, RefreshCw, TrendingUp, Users } from 'lucide-react';
 import subscriptionService, { BillingReport, formatPrice } from '../../services/subscription.service';
 
@@ -176,7 +177,7 @@ const BillingReportPanel: React.FC = () => {
                       {formatPrice(row.mrrCents)}
                     </td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
-                      {share.toFixed(1)}%
+                      {formatDecimal(share, 1)}%
                     </td>
                   </tr>
                 );

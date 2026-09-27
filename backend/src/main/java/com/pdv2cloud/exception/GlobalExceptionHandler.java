@@ -60,6 +60,28 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    /**
+     * Requisição malformada é erro de quem chamou, não do servidor (SEC-08):
+     * corpo que não é JSON válido, cabeçalho obrigatório ausente (ex.: ingest
+     * sem assinatura), parâmetro com tipo errado. Antes caíam no 500 genérico,
+     * que dispara alerta e esconde as falhas reais. O detalhe técnico fica no
+     * log; a resposta não ecoa o conteúdo recebido.
+     */
+    @ExceptionHandler({
+        org.springframework.http.converter.HttpMessageNotReadableException.class,
+        org.springframework.web.bind.MissingRequestHeaderException.class,
+        org.springframework.web.bind.MissingServletRequestParameterException.class,
+        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleBadRequest(Exception ex) {
+        log.debug("Requisicao invalida: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(
+            "bad_request",
+            "Requisicao invalida",
+            "Os dados enviados estao incompletos ou em formato invalido."
+        ));
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody(

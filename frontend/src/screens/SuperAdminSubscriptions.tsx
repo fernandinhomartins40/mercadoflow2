@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
+import useModalBehavior from '../hooks/useModalBehavior';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
@@ -124,6 +126,8 @@ const SuperAdminSubscriptions: React.FC = () => {
   const [suspected, setSuspected] = useState<SuspectedNetwork[]>([]);
   const [showSuspected, setShowSuspected] = useState(false);
   const [detail, setDetail] = useState<SubscriptionRow | null>(null);
+  const closeDetail = useCallback(() => setDetail(null), []);
+  useModalBehavior(!!detail, closeDetail);
   const [history, setHistory] = useState<SubscriptionEvent[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -303,7 +307,7 @@ const SuperAdminSubscriptions: React.FC = () => {
               <StatTile
                 icon={<TrendingUp size={13} />}
                 label="Conversão"
-                value={`${Number(metrics?.conversionRatePercent || 0).toFixed(1)}%`}
+                value={`${formatDecimal(Number(metrics?.conversionRatePercent || 0), 1)}%`}
                 hint="pagantes / total"
               />
               <StatTile
@@ -445,7 +449,7 @@ const SuperAdminSubscriptions: React.FC = () => {
 
             {/* Filtros */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1" style={{ minWidth: '220px' }}>
+              <div className="relative w-full min-w-0 flex-1 sm:w-auto sm:basis-56">
                 <Search
                   size={14}
                   className="absolute left-3 top-1/2 -translate-y-1/2"
@@ -608,12 +612,12 @@ const SuperAdminSubscriptions: React.FC = () => {
       {/* Ficha do cliente */}
       {detail && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{ background: 'rgba(15,23,42,0.5)' }}
           onClick={() => setDetail(null)}
         >
           <div
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl p-5"
+            className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl p-4 sm:max-w-lg sm:rounded-xl sm:p-5"
             style={{ background: 'var(--surface-base)' }}
             onClick={(e) => e.stopPropagation()}
           >

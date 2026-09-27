@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../../lib/cn';
+import EmptyState from '../common/EmptyState';
 
 interface EmptyProps {
   children: React.ReactNode;
@@ -7,15 +7,14 @@ interface EmptyProps {
 }
 
 /**
- * Área vazia com borda tracejada. Substitui panel-empty e sales-empty-card.
+ * Açúcar sintático sobre EmptyState para quando só há uma mensagem.
+ *
+ * Mantido porque a forma `<Empty>texto</Empty>` é mais direta que a prop
+ * `message`, mas a aparência vem toda de EmptyState — não duplique estilo aqui.
+ * Para ícone ou ação, use EmptyState diretamente.
  */
 const Empty: React.FC<EmptyProps> = ({ children, className }) => (
-  <div
-    className={cn('flex min-h-[100px] items-center justify-center rounded-xl border border-dashed px-6 py-8 text-center text-sm leading-6', className)}
-    style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)', background: 'var(--surface-soft)' }}
-  >
-    {children}
-  </div>
+  <EmptyState message={children} className={className} compact />
 );
 
 export default Empty;

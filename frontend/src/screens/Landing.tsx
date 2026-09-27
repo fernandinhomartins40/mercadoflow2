@@ -621,7 +621,7 @@ const Landing: React.FC = () => {
             </div>
 
             {/* Metric cards grid */}
-            <div className="rv grid grid-cols-2 gap-4">
+            <div className="rv grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 { label: 'Faturamento do dia', val: 'R$ 24.380', note: '+12% vs semana passada', good: true, icon: TrendingUp },
                 { label: 'Alertas ativos', val: '7', note: '3 urgentes, 4 atenção', good: false, icon: AlertTriangle },
@@ -726,7 +726,7 @@ const Landing: React.FC = () => {
 
       {/* ══════ FOOTER ══════ */}
       <footer style={{ borderTop: '1px solid #1e293b', background: '#0f172a' }} className="py-14">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 sm:grid-cols-4">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <img src="/logomercadoflow-branco.png" alt="MercadoFlow" className="h-7 w-auto" />
             <p className="mt-3 text-xs leading-relaxed" style={{ color: '#64748b' }}>
@@ -778,7 +778,7 @@ const Landing: React.FC = () => {
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#475569' }}>Contato</h4>
             <ul className="mt-4 flex flex-col gap-2.5">
-              <li><span className="text-sm" style={{ color: '#64748b' }}>contato@mercadoflow.com</span></li>
+              <li><span className="text-sm break-all" style={{ color: '#64748b' }}>contato@mercadoflow.com</span></li>
               <li>
                 <Link to="/super-admin/login" className="text-sm no-underline transition-colors" style={{ color: '#334155' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#64748b')}

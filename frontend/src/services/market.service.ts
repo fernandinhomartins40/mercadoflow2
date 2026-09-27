@@ -338,11 +338,11 @@ export const marketService = {
   },
 
   async saveSupplier(marketId: string, payload: {
-    cnpj: string; razaoSocial: string; nomeFantasia?: string;
-    email?: string; telefone?: string; logradouro?: string;
-    municipio?: string; uf?: string; cep?: string;
-    situacaoCadastral?: string; cnaePrincipal?: string;
-    descricaoCnae?: string; porte?: string;
+    cnpj: string; razaoSocial: string; nomeFantasia?: string | null;
+    email?: string | null; telefone?: string | null; logradouro?: string | null;
+    municipio?: string | null; uf?: string | null; cep?: string | null;
+    situacaoCadastral?: string | null; cnaePrincipal?: string | null;
+    descricaoCnae?: string | null; porte?: string | null;
   }) {
     const response = await api.post(`/v1/markets/${marketId}/suppliers`, payload);
     return response.data;

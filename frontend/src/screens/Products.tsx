@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
+import SegmentedTabs from '../components/ui/SegmentedTabs';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { marketService } from '../services/market.service';
@@ -153,7 +155,7 @@ const DesempenhoTab: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <TrendIcon value={trend} />
                       <span className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-500' : ''}`} style={!trend ? { color: 'var(--text-soft)' } : {}}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        {trend > 0 ? '+' : ''}{formatDecimal(trend, 1)}%
                       </span>
                     </div>
                   </div>
@@ -161,7 +163,7 @@ const DesempenhoTab: React.FC = () => {
                   <p className="line-clamp-1 text-xs" style={{ color: 'var(--text-soft)' }}>{product.category || 'Sem categoria'}</p>
                   <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-2" style={{ borderColor: 'var(--border-soft)' }}>
                     <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Receita</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(product.revenue)}</p></div>
-                    <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Vendas/dia</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Number(product.salesVelocity || 0).toFixed(1)}/dia</p></div>
+                    <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Vendas/dia</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(product.salesVelocity || 0), 1)}/dia</p></div>
                     {product.momentumScore != null && (
                       <div className="col-span-2">
                         <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Momentum</span>
@@ -173,7 +175,7 @@ const DesempenhoTab: React.FC = () => {
                             }} />
                           </div>
                           <span className="text-[11px] font-semibold shrink-0" style={{ color: Number(product.momentumScore) >= 1.1 ? '#166534' : Number(product.momentumScore) >= 0.85 ? '#92400e' : '#991b1b' }}>
-                            {Number(product.momentumScore).toFixed(2)}×
+                            {formatDecimal(Number(product.momentumScore), 2)}×
                           </span>
                         </div>
                       </div>
@@ -183,7 +185,7 @@ const DesempenhoTab: React.FC = () => {
                     <div className="mt-1">
                       <div className="mb-0.5 flex items-center justify-between">
                         <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Saúde</span>
-                        <span className="text-[10px] font-semibold" style={{ color: Number(product.healthScore) >= 60 ? 'var(--brand-700)' : Number(product.healthScore) >= 35 ? '#92400e' : '#991b1b' }}>{Number(product.healthScore).toFixed(0)}</span>
+                        <span className="text-[10px] font-semibold" style={{ color: Number(product.healthScore) >= 60 ? 'var(--brand-700)' : Number(product.healthScore) >= 35 ? '#92400e' : '#991b1b' }}>{formatDecimal(Number(product.healthScore), 0)}</span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
                         <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Number(product.healthScore))}%`, background: Number(product.healthScore) >= 60 ? 'var(--brand-500)' : Number(product.healthScore) >= 35 ? '#f59e0b' : '#ef4444' }} />
@@ -241,7 +243,7 @@ function comboInsight(r: BasketRule): string {
   if (conf >= 0.5 && lift >= 2)
     return `Quem compra um, compra o outro em ${Math.round(conf * 100)}% das vezes — posicione lado a lado ou crie combo de preço.`;
   if (lift >= 2)
-    return `${lift.toFixed(1)}× mais provável de serem comprados juntos do que separados — vale destacar na gôndola.`;
+    return `${formatDecimal(lift, 1)}× mais provável de serem comprados juntos do que separados — vale destacar na gôndola.`;
   if (pairs >= 20)
     return `Já foram comprados juntos ${pairs} vezes — um dos combos mais frequentes da loja.`;
   return `Aparecem juntos em ${Math.round(conf * 100)}% das cestas — teste posicionamento próximo por 30 dias.`;
@@ -499,7 +501,7 @@ const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
                   <div className="flex flex-col items-center py-2.5 px-1"
                     style={{ borderLeft: '1px solid var(--border-soft)', borderRight: '1px solid var(--border-soft)' }}>
                     <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Afinidade</span>
-                    <span className="mt-0.5 text-base font-black" style={{ color: cfg.metricColor }}>{lift.toFixed(1)}x</span>
+                    <span className="mt-0.5 text-base font-black" style={{ color: cfg.metricColor }}>{formatDecimal(lift, 1)}x</span>
                   </div>
                   <div className="flex flex-col items-center py-2.5 px-1">
                     <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Juntos</span>
@@ -613,8 +615,8 @@ const PrevisaoTab: React.FC<{ marketId: string }> = ({ marketId }) => {
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: 'Produtos previstos', value: rows.length },
-          { label: 'Volume estimado', value: `${totalPredicted.toFixed(0)} un` },
-          { label: 'Maior demanda', value: rows[0] ? `${Number(rows[0].predictedQuantity).toFixed(0)} un` : '—', sub: rows[0]?.productName, highlight: true },
+          { label: 'Volume estimado', value: `${formatDecimal(totalPredicted, 0)} un` },
+          { label: 'Maior demanda', value: rows[0] ? `${formatDecimal(Number(rows[0].predictedQuantity), 0)} un` : '—', sub: rows[0]?.productName, highlight: true },
         ].map((k) => (
           <div key={k.label} className="rounded-xl p-4" style={{ border: `1px solid ${(k as any).highlight && rows[0] ? 'var(--border-success)' : 'var(--border-soft)'}`, background: (k as any).highlight && rows[0] ? 'var(--surface-success)' : 'var(--surface-base)' }}>
             <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{k.label}</span>
@@ -655,10 +657,10 @@ const PrevisaoTab: React.FC<{ marketId: string }> = ({ marketId }) => {
                           <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
                         </div>
                         {row.confidenceLow != null && row.confidenceHigh != null && (
-                          <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-soft)' }}>Intervalo: {Number(row.confidenceLow).toFixed(0)}–{Number(row.confidenceHigh).toFixed(0)} un</p>
+                          <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-soft)' }}>Intervalo: {formatDecimal(Number(row.confidenceLow), 0)}–{formatDecimal(Number(row.confidenceHigh), 0)} un</p>
                         )}
                       </div>
-                      <span className="shrink-0 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{Number(row.predictedQuantity || 0).toFixed(0)} un</span>
+                      <span className="shrink-0 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(row.predictedQuantity || 0), 0)} un</span>
                     </div>
                   );
                 })}
@@ -695,17 +697,7 @@ const Products: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Desempenho, combos e previsão de demanda</p>
         </div>
 
-        <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}>
-          {TABS.map((t) => (
-            <button key={t.key} type="button" onClick={() => setTab(t.key)}
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition"
-              style={tab === t.key
-                ? { background: 'var(--surface-base)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                : { color: 'var(--text-muted)' }}>
-              {t.icon}{t.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 
         {tab === 'desempenho' && <DesempenhoTab />}
         {tab === 'combos' && marketId && <CombosTab marketId={marketId} />}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatDecimal } from '../utils/formatters';
 import { useNavigate, useParams } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
@@ -105,8 +106,8 @@ const formatRate = (value?: number | null) => {
 const formatBytes = (value?: number | null) => {
   const bytes = Number(value || 0);
   if (!Number.isFinite(bytes) || bytes <= 0) return '--';
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes >= 1024 * 1024) return `${formatDecimal((bytes / (1024 * 1024)), 1)} MB`;
+  if (bytes >= 1024) return `${formatDecimal(bytes / 1024, 1)} KB`;
   return `${bytes} B`;
 };
 

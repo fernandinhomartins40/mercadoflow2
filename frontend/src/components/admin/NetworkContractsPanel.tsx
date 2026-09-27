@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import useModalBehavior from '../../hooks/useModalBehavior';
 import {
   AlertTriangle,
   Building2,
@@ -105,6 +106,11 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
   const [message, setMessage] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
   const [form, setForm] = useState<ContractFormState | null>(null);
   const [invoicesOf, setInvoicesOf] = useState<{ name: string; rows: NetworkInvoice[] } | null>(null);
+  // Esc fecha e o fundo não rola, como nos demais diálogos.
+  const closeForm = useCallback(() => setForm(null), []);
+  const closeInvoices = useCallback(() => setInvoicesOf(null), []);
+  useModalBehavior(!!form, closeForm);
+  useModalBehavior(!!invoicesOf, closeInvoices);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -448,12 +454,12 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
       {/* Formulário de contrato */}
       {form && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{ background: 'rgba(15,23,42,0.5)' }}
           onClick={() => setForm(null)}
         >
           <div
-            className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-xl p-5"
+            className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl p-4 sm:max-w-lg sm:rounded-xl sm:p-5"
             style={{ background: 'var(--surface-base)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -466,7 +472,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
             </p>
 
             <div className="mt-4 grid gap-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Valor mensal (R$) *
@@ -498,7 +504,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
               <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Limites contratados
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {([
                   ['invoiceLimit', 'Notas/mês'],
                   ['branchLimit', 'Lojas'],
@@ -521,7 +527,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
                     Contato
@@ -588,12 +594,12 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
       {/* Faturas da rede */}
       {invoicesOf && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{ background: 'rgba(15,23,42,0.5)' }}
           onClick={() => setInvoicesOf(null)}
         >
           <div
-            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl p-5"
+            className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl p-4 sm:max-w-2xl sm:rounded-xl sm:p-5"
             style={{ background: 'var(--surface-base)' }}
             onClick={(e) => e.stopPropagation()}
           >

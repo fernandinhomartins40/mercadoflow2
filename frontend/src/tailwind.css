@@ -873,7 +873,9 @@
 
   .table-shell,
   .catalog-admin-table-wrap {
-    @apply overflow-hidden rounded-xl;
+    /* overflow-x-auto (nao -hidden): em telas estreitas a tabela rola
+       horizontalmente dentro do proprio card em vez de ter colunas cortadas. */
+    @apply overflow-x-auto rounded-xl;
     border: 1px solid var(--border-soft);
     background: var(--surface-base);
     box-shadow: none;
@@ -8888,4 +8890,48 @@
 .product-nutrition-table th {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Overlays montados à mão (telas com cabeçalho próprio)
+   ─────────────────────────────────────────────────────────────────────────
+   O componente Modal cobre o caso padrão. Estas classes dão o mesmo
+   enquadramento responsivo às telas que mantêm o overlay local: no mobile o
+   painel vira uma folha colada ao rodapé e ocupa a largura toda; a partir de
+   640px volta a ser um cartão centralizado.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.app-modal-panel {
+  display: flex;
+  width: 100%;
+  max-height: 92vh;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1rem 1rem 0 0;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-base);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+}
+
+@media (min-width: 640px) {
+  .app-modal-overlay {
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .app-modal-panel {
+    max-height: 90vh;
+    border-radius: 1rem;
+  }
 }

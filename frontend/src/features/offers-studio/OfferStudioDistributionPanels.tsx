@@ -1,4 +1,5 @@
 import React from 'react';
+import type { StudioTool } from './model';
 import {
   Boxes,
   Check,
@@ -58,7 +59,7 @@ type OfferStudioDistributionPanelsProps = {
   portalEnabled: boolean;
   togglePublishTarget: (target: string) => void;
   marketProfile: OfferMarketProfile | null;
-  setActiveTool: (tool: string) => void;
+  setActiveTool: (tool: StudioTool) => void;
   publishTargets: string[];
   publishTargetOptions: SelectOption[];
   draftCampaignCount: number;

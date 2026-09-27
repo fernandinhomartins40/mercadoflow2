@@ -19,20 +19,32 @@ export const formatCurrency = (value: number): string =>
 export const formatCompact = (value?: number | null): string =>
   new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value || 0));
 
+/**
+ * Número com casas fixas no formato brasileiro: `formatDecimal(1234.5, 1)` → "1.234,5".
+ * Substitui `toFixed`, que sempre usa ponto decimal (UX-07).
+ */
+export const formatDecimal = (value?: number | string | null, digits = 1): string =>
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+    .format(Number(value ?? 0));
+
+/** Quantidade sem zeros sobrando: 12 → "12", 2.5 → "2,5", 0.125 → "0,125". */
+export const formatQuantityTrim = (value?: number | string | null, maxDigits = 3): string =>
+  new Intl.NumberFormat('pt-BR', { maximumFractionDigits: maxDigits }).format(Number(value ?? 0));
+
 /** Retorna o valor como percentual com sinal (+12,3% / -4,5%). */
 export const formatSignedPercent = (value?: number | null): string => {
   const numeric = Number(value || 0);
   const prefix = numeric > 0 ? '+' : '';
-  return `${prefix}${numeric.toFixed(1)}%`;
+  return `${prefix}${formatDecimal(numeric, 1)}%`;
 };
 
 /** Retorna o valor como percentual inteiro (85%). */
 export const formatPercent = (value?: number | null): string =>
-  `${Number(value || 0).toFixed(0)}%`;
+  `${formatDecimal(value, 0)}%`;
 
 /** Retorna o valor como quantidade inteira. */
 export const formatQuantity = (value?: number | null): string =>
-  Number(value || 0).toFixed(0);
+  formatDecimal(value, 0);
 
 /** Retorna data/hora formatada em pt-BR ou '--' se inválida. */
 export const formatDateTime = (value?: string | null): string => {

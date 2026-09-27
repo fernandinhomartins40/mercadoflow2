@@ -3,7 +3,7 @@ import Button from './Button';
 
 interface ShoppingListButtonProps {
   inList?: boolean;
-  onAdd: () => Promise<void>;
+  onAdd: () => Promise<unknown>;
   label?: string;
   className?: string;
   stopPropagation?: boolean;
