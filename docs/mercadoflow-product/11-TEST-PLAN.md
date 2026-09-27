@@ -67,7 +67,7 @@ backend + frontend + Nginx descartáveis, recriados das imagens mantidas, com a 
 |---|---|---|
 | T-70 | anônimo em `/activation` | 401/403, sem dado |
 | T-71 | `props` dos eventos | sem e-mail, CPF, IP, nome (inspeção das 4 chamadas + consulta à tabela) |
-| T-72 | SUPER_ADMIN lê qualquer mercado | permitido (regra atual) |
+| T-72 | SUPER_ADMIN | fora: a regra da classe `MarketController` não inclui SUPER_ADMIN (inalterada) |
 
 ## 6. CI
 

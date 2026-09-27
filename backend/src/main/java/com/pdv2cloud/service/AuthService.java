@@ -51,6 +51,9 @@ public class AuthService {
     @Autowired
     private SubscriptionEventService subscriptionEventService;
 
+    @Autowired
+    private ProductEventService productEventService;
+
     /**
      * O cadastro público cria o mercado e o primeiro usuário sem que exista
      * tenant na sessão — é ele que dá origem ao tenant.
@@ -129,6 +132,10 @@ public class AuthService {
         marketRepository.save(market);
 
         subscriptionEventService.recordSignup(market, user);
+        // O evento vai por JDBC e referencia markets por FK; o JPA ainda não
+        // enviou o INSERT do mercado (só no flush do commit).
+        marketRepository.flush();
+        productEventService.record(market.getId(), ProductEventService.ACTIVATION_REGISTERED);
 
         return new RegisterResponse(
             user.getId(),

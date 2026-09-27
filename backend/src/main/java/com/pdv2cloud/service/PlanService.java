@@ -48,19 +48,22 @@ public class PlanService {
     private final PDVRepository pdvRepository;
     private final UserRepository userRepository;
     private final PlanCatalogService planCatalogService;
+    private final ProductEventService productEventService;
 
     public PlanService(
         MarketRepository marketRepository,
         MarketUsageCounterRepository usageRepository,
         PDVRepository pdvRepository,
         UserRepository userRepository,
-        PlanCatalogService planCatalogService
+        PlanCatalogService planCatalogService,
+        ProductEventService productEventService
     ) {
         this.marketRepository = marketRepository;
         this.usageRepository = usageRepository;
         this.pdvRepository = pdvRepository;
         this.userRepository = userRepository;
         this.planCatalogService = planCatalogService;
+        this.productEventService = productEventService;
     }
 
     // ── Rede ─────────────────────────────────────────────────────────────────
@@ -355,6 +358,8 @@ public class PlanService {
                 if (market.getFirstIngestAt() == null) {
                     market.setFirstIngestAt(LocalDateTime.now());
                     changed = true;
+                    // Mesma transação da nota; ON CONFLICT faz a repetição virar no-op.
+                    productEventService.record(marketId, ProductEventService.ACTIVATION_FIRST_INVOICE);
                 }
                 if (dataEmissao != null) {
                     LocalDate emissao = dataEmissao.toLocalDate();

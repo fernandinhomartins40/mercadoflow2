@@ -198,3 +198,13 @@ de integração; a F1 não precisa de banco no CI.
 CPU/RAM: uma chamada leve por abertura do Painel (4 consultas indexadas por `market_id`, a de dias com `LIMIT 8`);
 enquanto a ativação está incompleta e a tela aberta, repete a cada 30 s; depois de `complete`, não repete. Banco: 1 tabela com ~4 linhas
 por mercado nesta fatia. Imagem: sem mudança. Actions: +1 job de ~2–4 min por push. Sem container novo.
+
+## 14. Desvios encontrados na implementação (Prompt 7)
+
+| Desvio | Motivo | Efeito |
+|---|---|---|
+| `marketRepository.flush()` antes do evento de cadastro | a auditoria local deu 500 no `/register`: o JPA só envia o INSERT do mercado no commit, e o evento (JDBC) violava a FK | cadastro 202 com o evento gravado; regra geral: escrita JDBC dentro de transação JPA precisa de flush do que ela referencia |
+| Datas do contrato com fuso (`OffsetDateTime`) | o container roda em UTC sem `TZ`; `LocalDateTime` chegava ao navegador sem fuso e era lido como hora local ("último sinal há 0 min" com agente fora do ar há 2 h) | horários corretos no fuso do usuário; o job das 03:30 aparece como **00:30** em Brasília, que é o horário real |
+| Fallback de erro sem aviso | um aviso "não foi possível verificar a ativação" não dá ação ao lojista | o Painel antigo aparece normalmente; o erro fica no log |
+| SUPER_ADMIN não lê `/activation` | a classe `MarketController` aceita só MARKET_OWNER, MARKET_MANAGER e ADMIN; a F1 não muda a regra | T-72 ajustado |
+| Texto da faixa "coletando" em `--text-primary` | `--text-muted` sobre `--surface-info` dá 4,37:1 (axe) | AA atendido |

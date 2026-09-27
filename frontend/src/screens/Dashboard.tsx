@@ -6,6 +6,9 @@ import ProductImage from '../components/product/ProductImage';
 import Button from '../components/common/Button';
 import { useMarketData } from '../hooks/useMarketData';
 import { useAlerts } from '../hooks/useAlerts';
+import { useActivation } from '../hooks/useActivation';
+import ActivationChecklist from '../components/activation/ActivationChecklist';
+import CollectingBanner from '../components/activation/CollectingBanner';
 import { useAuth } from '../context/AuthContext';
 import { AlertItem, AlertType } from '../types/alert.types';
 import { ProductPerformance } from '../types/analytics.types';
@@ -498,7 +501,8 @@ const AlertsSection: React.FC = () => {
 
 const PainelTab: React.FC<{
   dashboard: NonNullable<ReturnType<typeof useMarketData>['dashboard']>;
-}> = ({ dashboard }) => {
+  collecting?: boolean;
+}> = ({ dashboard, collecting = false }) => {
   const growth = Number(dashboard.growthPercentage || 0);
   const topProducts = dashboard.topProducts || [];
   const slowMovers = dashboard.slowMovers || [];
@@ -560,7 +564,12 @@ const PainelTab: React.FC<{
             </div>
             <div className="mt-2 flex flex-col">
               {slowMovers.slice(0, 5).map((p, i) => <ProductRow key={p.productId} product={p} rank={i + 1} />)}
-              {slowMovers.length === 0 && <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>Todos os produtos em dia!</p>}
+              {slowMovers.length === 0 && (
+                <p className="py-4 text-center text-sm" style={{ color: 'var(--text-soft)' }}>
+                  {/* Com poucos dias de venda, "em dia" seria uma conclusão sem base. */}
+                  {collecting ? 'Ainda coletando vendas.' : 'Todos os produtos em dia!'}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -589,7 +598,7 @@ const PainelTab: React.FC<{
 
 // ── Tab: Alertas ──────────────────────────────────────────────────────────────
 
-const AlertasTab: React.FC = () => {
+const AlertasTab: React.FC<{ collecting?: boolean }> = ({ collecting = false }) => {
   const { alerts, loading, onlyUnread, setOnlyUnread, refresh, markRead, markAllRead } = useAlerts();
 
   const sorted = useMemo(() => [...alerts].sort((a, b) => {
@@ -626,7 +635,9 @@ const AlertasTab: React.FC = () => {
       ) : sorted.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl py-16" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}>
           <CheckCircle2 className="h-10 w-10 text-green-400" />
-          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Todos os produtos em dia. Nenhum alerta pendente.</p>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+            {collecting ? 'Ainda coletando vendas. Nenhum alerta pendente.' : 'Todos os produtos em dia. Nenhum alerta pendente.'}
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -686,12 +697,13 @@ const Dashboard: React.FC = () => {
   const { name } = useAuth();
   const { dashboard, loading, error } = useMarketData();
   const { alerts } = useAlerts();
+  const activation = useActivation();
   const [tab, setTab] = useState<DashTab>('painel');
 
   const unreadAlerts = alerts.filter((a) => !a.isRead).length;
   const urgentAlerts = alerts.filter((a) => (a.priority === 'URGENT' || a.priority === 'HIGH') && !a.isRead).length;
 
-  if (loading) {
+  if (loading || activation.loading) {
     return (
       <Layout>
         <div className="flex min-h-[400px] items-center justify-center">
@@ -699,6 +711,25 @@ const Dashboard: React.FC = () => {
             <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
             <p className="mt-3 text-sm" style={{ color: 'var(--text-soft)' }}>Carregando painel...</p>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Loja ainda sem a primeira análise: o checklist ocupa o lugar dos KPIs, que
+  // mostrariam zeros e "Todos os produtos em dia" sem nenhum dado (UX-C04).
+  if (activation.showChecklist && activation.status) {
+    return (
+      <Layout>
+        <div className="flex flex-col gap-5">
+          <UsageBanner />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              {getGreeting()}, {name || 'gestor'}!
+            </h1>
+            <p className="mt-0.5 text-sm capitalize" style={{ color: 'var(--text-muted)' }}>{getDayOfWeek()}</p>
+          </div>
+          <ActivationChecklist status={activation.status} />
         </div>
       </Layout>
     );
@@ -734,9 +765,16 @@ const Dashboard: React.FC = () => {
           <TabBar active={tab} onChange={setTab} unreadAlerts={unreadAlerts} urgentAlerts={urgentAlerts} />
         </div>
 
+        {activation.collecting && activation.status && (
+          <CollectingBanner
+            salesDays={activation.status.invoices.salesDays}
+            targetDays={activation.status.invoices.targetDays}
+          />
+        )}
+
         {/* Tab content */}
-        {tab === 'painel'  && <PainelTab dashboard={dashboard} />}
-        {tab === 'alertas' && <AlertasTab />}
+        {tab === 'painel'  && <PainelTab dashboard={dashboard} collecting={activation.collecting} />}
+        {tab === 'alertas' && <AlertasTab collecting={activation.collecting} />}
       </div>
     </Layout>
   );

@@ -47,6 +47,7 @@ class PlanServiceQuotaTest {
     @Mock private PDVRepository pdvRepository;
     @Mock private UserRepository userRepository;
     @Mock private PlanCatalogService planCatalogService;
+    @Mock private ProductEventService productEventService;
 
     private PlanService planService;
     private final UUID marketId = UUID.randomUUID();
@@ -57,7 +58,7 @@ class PlanServiceQuotaTest {
     @BeforeEach
     void setUp() {
         planService = new PlanService(marketRepository, usageRepository,
-            pdvRepository, userRepository, planCatalogService);
+            pdvRepository, userRepository, planCatalogService, productEventService);
 
         // O catálogo é editável pelo painel; a entidade já nasce com os
         // defaults do plano FREE (1.000 notas), que é o cenário destes testes.

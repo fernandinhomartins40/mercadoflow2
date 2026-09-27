@@ -26,6 +26,9 @@ public class AgentApiKeyService {
     @Autowired
     private MarketRepository marketRepository;
 
+    @Autowired
+    private ProductEventService productEventService;
+
     @Transactional
     public GeneratedKey createKey(UUID marketId, String name) {
         return createKey(marketId, name, null);
@@ -50,6 +53,8 @@ public class AgentApiKeyService {
         entity.setKeyHash(hash);
         entity.setKeyPrefix(prefix);
         apiKeyRepository.save(entity);
+        productEventService.record(marketId, ProductEventService.ACTIVATION_AGENT_PAIRED,
+            java.util.Map.of("via", pdv != null ? "pairing" : "manual"));
 
         return new GeneratedKey(entity, rawKey);
     }

@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import org.springframework.context.annotation.Profile;
 
+import com.pdv2cloud.model.dto.ActivationStatusDTO;
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.dto.MarketCockpitDTO;
 import com.pdv2cloud.model.dto.ProductPromoEffectivenessDTO;
@@ -26,6 +27,7 @@ import com.pdv2cloud.model.dto.DemandForecastDTO;
 import com.pdv2cloud.model.entity.AlertPriority;
 import com.pdv2cloud.model.entity.AlertType;
 import com.pdv2cloud.repository.MarketRepository;
+import com.pdv2cloud.service.ActivationService;
 import com.pdv2cloud.service.AlertService;
 import com.pdv2cloud.service.AdvancedAnalyticsService;
 import com.pdv2cloud.service.AnalyticsService;
@@ -94,6 +96,9 @@ public class MarketController {
     @Autowired
     private StoreLayoutService storeLayoutService;
 
+    @Autowired
+    private ActivationService activationService;
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<MarketSummaryDTO>> listMarkets() {
@@ -113,6 +118,16 @@ public class MarketController {
         marketAccessService.assertCanAccessMarket(id, authentication);
         MarketDashboardDTO dashboard = analyticsService.getMarketDashboard(id, startDate, endDate);
         return ResponseEntity.ok(dashboard);
+    }
+
+    /** Checklist de ativação do Painel: agente, primeira nota, primeira análise (R-03). */
+    @GetMapping("/{id}/activation")
+    public ResponseEntity<ActivationStatusDTO> getActivation(
+        @PathVariable("id") UUID id,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(activationService.getStatus(id));
     }
 
     @GetMapping("/{id}/analytics/cockpit")

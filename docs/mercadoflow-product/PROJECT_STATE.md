@@ -4,9 +4,9 @@ Atualizado em: 2026-09-27
 
 | Campo | Valor |
 |---|---|
-| Fase atual | Prompt 6 — Plano técnico da F1 (concluído) |
-| Último gate aprovado | Gate 4 (2026-09-27, D-034) |
-| Gate pendente | **Gate 5** (autorizar a implementação da F1) |
+| Fase atual | Prompt 7 — Implementação da F1 (concluída; deploy em conferência) |
+| Último gate aprovado | Gate 5 (2026-09-27, D-036) |
+| Gate pendente | **Gate 6** (aceite da F1; não iniciar a próxima fatia) |
 | Escopo autorizado | somente leitura e criação de documentos em `docs/mercadoflow-product/` |
 | Código alterado nesta fase | hotfixes D-028 (login, erro 500, primeira nota), D-029 (landing, cota semanal, mapa de calor) e D-032 (SSRF, limite de login/cadastro, porta 3300), autorizados fora dos gates e publicados |
 
@@ -30,7 +30,8 @@ Atualizado em: 2026-09-27
 | Desligar ambiente local de auditoria | DONE: 4 containers e rede `mfaudit` removidos; imagens mantidas |
 | Prompt 5: `08-PRODUCT-REQUIREMENTS.md` e `09-PRIORITIZED-ROADMAP.md` | DONE: 27 requisitos, 21 fatias + V1, cobertura 63/63 |
 | Prompt 6: `10-IMPLEMENTATION-PLAN.md` e `11-TEST-PLAN.md` (F1) | DONE |
-| Executar testes do backend | DONE: 189 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
+| F1 — ativação guiada + eventos + `mvn test` no CI | DONE local (D-037); deploy e conferência em produção a seguir |
+| Executar testes do backend | DONE: 202 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
 
 ## Testes executados
 
@@ -83,5 +84,5 @@ D-006 cliente = mercado independente · D-007 estúdio de ofertas volta ao produ
 
 ## Próxima ação exata
 
-Aguardar o **Gate 5**. Se autorizado, executar o **Prompt 7** somente para a F1, na ordem do §11 do
-`10-IMPLEMENTATION-PLAN.md`, sem tocar os 21 arquivos locais do owner.
+Conferir o deploy da F1 (job `test-backend` verde, `/health`, conta descartável nova vendo o checklist) e parar no
+**Gate 6**. Próxima fatia recomendada: F2 (PostgreSQL + RLS no CI) ou F3 (números verdadeiros no Painel) — escolha do owner.

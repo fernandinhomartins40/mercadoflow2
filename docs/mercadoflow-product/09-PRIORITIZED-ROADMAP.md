@@ -61,7 +61,7 @@ ACHADO → REQUISITO → FATIA → ARQUIVOS PROVÁVEIS → TESTE → MÉTRICA �
 | UX-C01 login 500 | R-02 | F2 | `AuthController` | integração RLS login | login 200 | FEITO (D-028); regressão em F2 |
 | UX-C02 SQL no 500 | R-02 | F2 | `GlobalExceptionHandler` | unitário | 0 SQL em resposta | FEITO (D-028) |
 | UX-C03 landing falsa | — | F0 | `Landing.tsx` | visual | — | FEITO (D-029) |
-| UX-C04 painel vazio sem guia | R-03 | F1 | `Dashboard.tsx`, novo `ActivationService` | E2E 360 px | tempo cadastro → 1ª nota | PLANEJADO |
+| UX-C04 painel vazio sem guia | R-03 | F1 | `Dashboard.tsx`, `ActivationService` | E2E 360 px | tempo cadastro → 1ª nota | FEITO (D-037) |
 | UX-C05 calor 500 | R-24 | F17 | `StoreLayoutService` | integração | % sem categoria | SQL FEITO (D-029); categorias em F17 |
 | UX-C06 "por mês" | R-21 | F14 | `PublicPlanController` | visual | — | FEITO (D-029) |
 | UX-C07 1ª nota trava | R-02 | F2 | `PlanService` | integração RLS 1ª/2ª nota | tempo da 1ª nota | FEITO (D-028); regressão em F2 |
@@ -114,7 +114,7 @@ ACHADO → REQUISITO → FATIA → ARQUIVOS PROVÁVEIS → TESTE → MÉTRICA �
 | PERF-04 ingestão lenta | R-18 | F12 | `InvoiceProcessingService` | tempo por nota | ≤ 0,1 s | PLANEJADO |
 | PERF-05 147 cards | R-08 | F8 | `IntelligenceCenter.tsx` | nós DOM | < 800 | PLANEJADO |
 | PERF-06 bundle | — | — | — | build | ≤ 120 KB | OK (manter no orçamento) |
-| OPS-01 testes fora do CI | R-02 | F1 | `deploy-pdv2cloud-web.yml` | pipeline vermelho com teste quebrado | — | PLANEJADO |
+| OPS-01 testes fora do CI | R-02 | F1 | `deploy-pdv2cloud-web.yml` | pipeline vermelho com teste quebrado | — | FEITO (D-037) |
 | OPS-02 sem teste com RLS | R-02 | F2 | novo módulo de teste | idem | — | PLANEJADO |
 | OPS-03 backup | R-22 | F15 | `deploy-web.sh` | ensaio de restauração | tempo de restauração | PLANEJADO |
 | OPS-04 observabilidade | R-22 | F15 | filtro de correlação, logback | log | — | PLANEJADO |
@@ -124,7 +124,7 @@ ACHADO → REQUISITO → FATIA → ARQUIVOS PROVÁVEIS → TESTE → MÉTRICA �
 | Risco 2 frontend sem lint/typecheck | R-27g | F20 | `package.json`, workflow | CI | — | PLANEJADO (P2) |
 | Risco 3 módulos desligados | R-23 / NÃO FAZER | F16 | ofertas; preços estaduais fica | — | — | ofertas PLANEJADO; preços estaduais NÃO FAZER |
 | Risco 4 telas órfãs | R-14 | F9 | `App.tsx`, `SupplierOrders.tsx` | navegação | 5 destinos | PLANEJADO |
-| Risco 7 sem telemetria | R-05 | F1 (ativação), fatias seguintes | `product_events` | E2E de eventos | funil | PLANEJADO |
+| Risco 7 sem telemetria | R-05 | F1 (ativação), fatias seguintes | `product_events` | E2E de eventos | funil | PARCIAL (eventos de ativação, D-037) |
 | Risco 8 decisão sem ação | R-11 | F6 | `RecommendationEngine` | integração RLS | aceite → item | PLANEJADO |
 | Risco 11 pedido não enviado | R-12 | F7, F13 | `SupplierOrderService` | E2E | pedidos enviados/semana | PLANEJADO |
 | Risco 12 estoque teórico | R-07 | F5 | `CapitalOpportunityDetector` | unitário por sinal | — | PLANEJADO |

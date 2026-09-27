@@ -44,13 +44,14 @@ class PlanGatingTest {
     @Mock private PDVRepository pdvRepository;
     @Mock private UserRepository userRepository;
     @Mock private PlanCatalogService planCatalogService;
+    @Mock private ProductEventService productEventService;
 
     private PlanService planService;
 
     @BeforeEach
     void setUp() {
         planService = new PlanService(marketRepository, usageRepository,
-            pdvRepository, userRepository, planCatalogService);
+            pdvRepository, userRepository, planCatalogService, productEventService);
         when(planCatalogService.entryFor(any())).thenReturn(new PlanCatalogEntry());
     }
 

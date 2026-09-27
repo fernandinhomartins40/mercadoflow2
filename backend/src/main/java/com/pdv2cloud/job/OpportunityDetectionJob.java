@@ -3,6 +3,7 @@ package com.pdv2cloud.job;
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.OpportunityRepository;
+import com.pdv2cloud.service.ProductEventService;
 import com.pdv2cloud.service.ai.OpportunityInterpreter;
 import com.pdv2cloud.service.opportunity.OpportunityEngine;
 import com.pdv2cloud.service.opportunity.OpportunityEngine.DetectionResult;
@@ -35,19 +36,22 @@ public class OpportunityDetectionJob {
     private final MarketRepository marketRepository;
     private final OpportunityRepository opportunityRepository;
     private final OpportunityInterpreter opportunityInterpreter;
+    private final ProductEventService productEventService;
 
     public OpportunityDetectionJob(
         OpportunityEngine opportunityEngine,
         RecommendationEngine recommendationEngine,
         MarketRepository marketRepository,
         OpportunityRepository opportunityRepository,
-        OpportunityInterpreter opportunityInterpreter
+        OpportunityInterpreter opportunityInterpreter,
+        ProductEventService productEventService
     ) {
         this.opportunityEngine = opportunityEngine;
         this.recommendationEngine = recommendationEngine;
         this.marketRepository = marketRepository;
         this.opportunityRepository = opportunityRepository;
         this.opportunityInterpreter = opportunityInterpreter;
+        this.productEventService = productEventService;
     }
 
     /**
@@ -73,6 +77,13 @@ public class OpportunityDetectionJob {
                     () -> opportunityEngine.detectForMarket(market.getId()));
                 int recs = TenantContext.runAsSystem(
                     () -> recommendationEngine.generateForMarket(market.getId()));
+
+                // Marco do checklist de ativação: só conta como "primeira
+                // análise" quando já havia nota. Repetição é no-op.
+                if (market.getFirstIngestAt() != null) {
+                    TenantContext.runAsSystem(() -> productEventService.record(
+                        market.getId(), ProductEventService.ACTIVATION_FIRST_ANALYSIS));
+                }
 
                 // Interpretação por IA: falha aqui não invalida a detecção,
                 // que é o produto real deste job. A IA é acréscimo.
