@@ -4,7 +4,7 @@ Atualizado em: 2026-09-27
 
 | Campo | Valor |
 |---|---|
-| Fase atual | Prompt 7 — Implementação da F1 (concluída; deploy em conferência) |
+| Fase atual | Prompt 7 — Implementação da F1 (concluída e publicada) |
 | Último gate aprovado | Gate 5 (2026-09-27, D-036) |
 | Gate pendente | **Gate 6** (aceite da F1; não iniciar a próxima fatia) |
 | Escopo autorizado | somente leitura e criação de documentos em `docs/mercadoflow-product/` |
@@ -30,7 +30,7 @@ Atualizado em: 2026-09-27
 | Desligar ambiente local de auditoria | DONE: 4 containers e rede `mfaudit` removidos; imagens mantidas |
 | Prompt 5: `08-PRODUCT-REQUIREMENTS.md` e `09-PRIORITIZED-ROADMAP.md` | DONE: 27 requisitos, 21 fatias + V1, cobertura 63/63 |
 | Prompt 6: `10-IMPLEMENTATION-PLAN.md` e `11-TEST-PLAN.md` (F1) | DONE |
-| F1 — ativação guiada + eventos + `mvn test` no CI | DONE local (D-037); deploy e conferência em produção a seguir |
+| F1 — ativação guiada + eventos + `mvn test` no CI | DONE (D-037): commit `25d80af`, deploy com `test-backend`; produção 27/09: cadastro 202, `/activation` 200, checklist no passo 1 a 360 px, sem "Todos os produtos em dia"; 3ª conta descartável criada (lista no scratchpad) |
 | Executar testes do backend | DONE: 202 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
 
 ## Testes executados
@@ -84,5 +84,4 @@ D-006 cliente = mercado independente · D-007 estúdio de ofertas volta ao produ
 
 ## Próxima ação exata
 
-Conferir o deploy da F1 (job `test-backend` verde, `/health`, conta descartável nova vendo o checklist) e parar no
-**Gate 6**. Próxima fatia recomendada: F2 (PostgreSQL + RLS no CI) ou F3 (números verdadeiros no Painel) — escolha do owner.
+Aguardar o **Gate 6** (aceite da F1). Próxima fatia recomendada: F2 (PostgreSQL + RLS no CI) ou F3 (números verdadeiros no Painel) — escolha do owner.
