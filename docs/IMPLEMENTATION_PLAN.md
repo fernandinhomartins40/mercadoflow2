@@ -112,6 +112,24 @@ Central numa tela e fim de Alertas; D-018 celular primeiro) e requisitos R-08 e 
 | P4-07 | P2 | Mapa: "Alt+clique" impossível no celular (UX-13); mapa vazio sem orientação | botão "É um corredor" no formulário, campos de 44 px, guia de 3 passos no mapa vazio | `StoreMap.tsx` | baixo | varredura | DONE |
 | P4-08 | P3 | Todas as decisões com pílulas pequenas; Clientes e Semana sem título | `SegmentedTabs` e cabeçalhos de página | `IntelligenceCenter.tsx`, `CustomerIntelligence.tsx`, `NetworkView.tsx` | baixo | varredura | DONE |
 
+## Ciclo 5 — Loja Viva: mapa da loja reinventado (F17, D-022) (2026-09-27)
+
+Pedido do owner: mapa inovador, fácil para leigo, que defina onde está cada produto, mostre o calor de vendas e
+sugira realocações por desempenho e por compras feitas juntas.
+
+Conceito: o dono não cadastra produto. Toda NFC-e traz o NCM de cada item, que diz o que o produto é; o sistema
+classifica cada venda em um setor (Açougue, Bebidas, Limpeza…) e o dono só diz em que móvel fica cada setor, e
+nem isso começa do zero: ele escolhe o tamanho da loja e recebe a planta típica com os setores que ele vende.
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| M-01 | P1 | grade abstrata em que o dono digitava nome e categoria de cada quadrado | planta vista de cima com móveis reais (gôndola, ponta, geladeira, freezer, ilha, banca, balcão, caixa, entrada); arrastar com encaixe de 0,5 m, setas do teclado, girar, duplicar, redimensionar; gravação automática | `features/store-map/*`, `StoreMap.tsx` | médio | Playwright 390/1440 | DONE |
+| M-02 | P1 | "onde está cada produto" exigia cadastro | `DepartmentClassifier`: NCM (prefixo mais longo) → setor, com a categoria do catálogo como reserva; busca "Onde fica?" destaca o móvel | `service/storemap`, `StoreMapController` | baixo | `StoreMapTest` | DONE |
+| M-03 | P1 | começar do zero confundia | assistente com a prévia de 3 plantas típicas (mercadinho, supermercado, grande), com setores de destino no fundo, frios em móvel refrigerado, hortifruti na entrada e só os setores que a loja vende | `model.ts`, `SetupWizard.tsx` | baixo | script de sobreposição + Playwright | DONE |
+| M-04 | P1 | calor por categoria digitada | calor por móvel (venda de 30 dias do setor dividida entre os móveis que o expõem), ranking e produtos de cada móvel | `revenuePerFixture`, `HeatPanel` | baixo | Playwright | DONE |
+| M-05 | P1 | pares só "perto/longe" em grade | sugestões explicadas com os números da loja: setor sem lugar, frio em móvel seco, setores comprados juntos longe um do outro (afinidade calculada nas notas), setor de destino na entrada, móvel que vende pouco em lugar de passagem, candidatos a ponta de gôndola, móveis sem setor; "Ver no mapa" destaca e liga os móveis | `StoreMapInsights` | baixo | 7 testes + Playwright | DONE |
+| M-06 | P2 | endpoints e serviço do mapa antigo sem uso | removidos; coluna `plan` nova (V56), a antiga `cells` fica intacta | `MarketController`, `StoreLayoutService` | baixo | suíte | DONE |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive

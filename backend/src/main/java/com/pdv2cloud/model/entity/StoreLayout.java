@@ -49,6 +49,11 @@ public class StoreLayout {
     @Column(name = "cells", columnDefinition = "jsonb", nullable = false)
     private List<Map<String, Object>> cells;
 
+    /** Planta da Loja Viva (V56): {version, width, height, fixtures[]}; ver StorePlan. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "plan", columnDefinition = "jsonb")
+    private Map<String, Object> plan;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

@@ -174,12 +174,40 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
   - varredura de 19 telas × 4 larguras: 112/112;
   - typecheck: 0 erro.
 
+## Ciclo 5 — Loja Viva (mapa da loja)
+
+- **Montar em um toque:** o dono escolhe entre 3 plantas típicas, com prévia real, já com os setores que ele vende
+  distribuídos em cada móvel, e só ajusta: arrasta, gira, troca o setor. Tudo é salvo sozinho.
+- **Cada produto é localizado sem cadastro:** a classificação usa o NCM da nota fiscal. Com a loja de teste, 13
+  setores foram reconhecidos sozinhos, e "Onde fica? detergente" apontou a gôndola de Limpeza.
+- **Calor por móvel e sugestões explicadas:** com vendas realistas, o sistema encontrou que açougue e cerveja saem
+  juntos 3× mais que o acaso (71% das compras com açougue levam cerveja) e sugeriu aproximá-los, desenhando a
+  linha entre os dois móveis. Também indica móveis que vendem pouco em lugar de passagem e os candidatos a ponta de
+  gôndola.
+- **Testes:**
+  - backend: 229/229 (classificação, validação da planta e cada regra de sugestão);
+  - plantas geradas: sem sobreposição e sem móvel fora da loja, nos 3 tamanhos;
+  - Playwright a 390 e 1440 px: 19/19 cada (assistente, planta, editar, arrastar, gravação automática, calor,
+    sugestões, "Onde fica?", persistência).
+- **Achado de desempenho:** logo após uma carga grande de notas, antes de o PostgreSQL atualizar as estatísticas, a
+  primeira leitura de vendas pode levar dezenas de segundos. A causa é a política de isolamento dos itens de nota.
+  Vale para todas as telas; o mapa passou a mostrar a planta antes das vendas.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em
   produção, e o working tree mistura estas mudanças com 21 arquivos de trabalho local do owner.
 
 ## Riscos restantes
+
+- **Escala da leitura de vendas (prioridade alta antes de ter muitos clientes):** num banco de teste com 28 lojas e
+  85 mil itens, o cockpit do Painel levou 19–33 s até para uma loja com 20 notas; com o banco limpo, é instantâneo.
+  A política RLS de `invoice_items` não tem `market_id` no próprio item, então consultas analíticas podem percorrer
+  itens de todas as lojas. Correção recomendada (fatia F11): coluna `market_id` em `invoice_items` com índice,
+  preenchida na ingestão, e a política passando a usá-la diretamente.
+- Primeira leitura depois de uma carga grande de notas (ex.: histórico enviado pelo agente) pode ficar lenta até o
+  autovacuum atualizar as estatísticas: a política RLS de `invoice_items` confere a nota de cada item. Mitigação
+  futura: `ANALYZE` ao fim da carga histórica ou política apoiada em `market_id` no próprio item.
 
 - As recomendações de compra ainda nascem do estoque teórico (D-019/D-026). O fluxo "aceitar → pedido" vale para
   qualquer recomendação COMPRAR, então continua servindo quando a F4/F5 trocar a fonte por sinais de venda.

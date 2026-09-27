@@ -49,7 +49,8 @@ function SegmentedTabs<K extends string>({ tabs, value, onChange, fit = false, c
             aria-pressed={active}
             onClick={() => onChange(tab.key)}
             className={cn(
-              'flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-center text-sm font-medium leading-tight transition',
+              // flex-wrap: em coluna estreita o contador desce em vez de cobrir o texto.
+              'flex min-h-[44px] min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg px-2 py-2 text-center text-sm font-medium leading-tight transition sm:px-3',
               'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]',
               !fit && 'sm:flex-1',
               fit && 'sm:px-4',

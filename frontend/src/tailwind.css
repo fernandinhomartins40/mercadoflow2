@@ -8935,3 +8935,14 @@
     border-radius: 1rem;
   }
 }
+
+/* Loja Viva: móvel destacado (sugestão ou "Onde fica?") pulsa; foco de teclado visível. */
+@keyframes store-fixture-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.store-fixture-pulse { animation: store-fixture-pulse 1.4s ease-in-out infinite; }
+.store-fixture:focus-visible > rect:first-child { stroke: #15803d; stroke-width: 0.22; }
+@media (prefers-reduced-motion: reduce) {
+  .store-fixture-pulse { animation: none; }
+}

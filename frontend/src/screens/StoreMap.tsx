@@ -1,926 +1,545 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatDecimal } from '../utils/formatters';
-import Layout from '../components/layout/Layout';
-import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
-import { marketService } from '../services/market.service';
 import {
-  Save, RefreshCw, Plus, Minus, X, Check, ChevronRight,
-  Search, TrendingUp, Lightbulb, AlertTriangle, ArrowRight,
-  Package, Eye, Layers, Map,
+  AlertTriangle, ArrowRightLeft, CheckCircle2, Flame, Hammer, LayoutGrid, Lightbulb, MapPin, Minus, Plus, Search,
+  Snowflake, Star, Store,
 } from 'lucide-react';
+import Layout from '../components/layout/Layout';
+import SegmentedTabs from '../components/ui/SegmentedTabs';
+import ProductImage from '../components/product/ProductImage';
+import { useAuth } from '../context/AuthContext';
+import { storeMapService } from '../services/storeMap.service';
+import { formatMoney } from '../utils/formatters';
+import type {
+  DepartmentsReport, Fixture, FixtureType, InsightKind, LocatedProduct, StoreInsight, StorePlan,
+} from '../types/storeMap.types';
+import PlanView from '../features/store-map/PlanView';
+import FixtureEditor from '../features/store-map/FixtureEditor';
+import SetupWizard from '../features/store-map/SetupWizard';
+import { DEPT_BY_KEY, FIXTURES, deptLabel, fixtureName, newId, revenuePerFixture } from '../features/store-map/model';
 
-/* ══════════════════════════════════════════════════════════════════════════
-   TYPES
-══════════════════════════════════════════════════════════════════════════ */
+/**
+ * Loja Viva (F17, D-022): a planta da loja vista de cima, montada em um toque
+ * a partir do tamanho da loja, com cada produto localizado sozinho pelo NCM da
+ * nota. Três modos: Montar, Calor de vendas e Sugestões — mais "Onde fica?".
+ */
 
-interface ShelfProduct {
-  productId: string;
-  name: string;
-  imageUrl?: string | null;
-  position: number; // 0 = left
-}
+type Mode = 'montar' | 'calor' | 'sugestoes';
+const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
+const SAVE_DELAY_MS = 1200;
 
-interface Shelf {
-  shelfNum: number; // 1 = top
-  products: ShelfProduct[];
-}
+const compactMoney = (v: number) =>
+  v >= 1000 ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${Math.round(v).toLocaleString('pt-BR')}`;
 
-interface GridCell {
-  row: number;
-  col: number;
-  type: 'gondola' | 'aisle' | 'empty';
-  // gondola fields
-  gondolaId?: string;
-  gondolaNum?: number;
-  sectionName?: string;
-  categorySlug?: string;
-  color?: string;
-  shelves?: Shelf[];
-}
-
-interface CategoryHeat {
-  category: string;
-  revenue: number;
-  score: number;
-  heat: 'hot' | 'warm' | 'cold';
-}
-
-interface NeighborInsight {
-  antecedentCategory: string;
-  consequentCategory: string;
-  confidence: number;
-  lift: number;
-  pairCount: number;
-  adjacency: 'adjacent' | 'far' | 'unmapped';
-}
-
-type ViewMode = 'map' | 'analysis';
-
-/* ══════════════════════════════════════════════════════════════════════════
-   CONSTANTS
-══════════════════════════════════════════════════════════════════════════ */
-
-const PRESET_COLORS = [
-  '#dbeafe', '#dcfce7', '#fef9c3', '#fce7f3', '#ede9fe',
-  '#ffedd5', '#cffafe', '#d1fae5', '#fef3c7', '#f1f5f9',
-  '#fee2e2', '#fdf4ff', '#ecfdf5', '#fff7ed', '#f0f9ff',
-];
-
-const SHELF_COUNT_DEFAULT = 4;
-
-function heatStyle(score: number) {
-  if (score >= 66) return { bg: '#dcfce7', text: '#15803d', bar: '#22c55e', label: 'Alta venda' };
-  if (score >= 33) return { bg: '#fef9c3', text: '#854d0e', bar: '#f59e0b', label: 'Média' };
-  return { bg: '#fee2e2', text: '#991b1b', bar: '#ef4444', label: 'Baixa venda' };
-}
-
-function contrastText(hex: string): string {
-  // Simple luminance check — return dark or light text
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.55 ? '#1e293b' : '#ffffff';
-}
-
-let _gondolaCounter = 1;
-function nextGondolaId() { return `g${++_gondolaCounter}`; }
-
-/* ══════════════════════════════════════════════════════════════════════════
-   API HELPERS
-══════════════════════════════════════════════════════════════════════════ */
-
-const layoutApi = {
-  get: (mid: string) => api.get(`/v1/markets/${mid}/store-layout`).then(r => r.data),
-  save: (mid: string, body: object) => api.put(`/v1/markets/${mid}/store-layout`, body).then(r => r.data),
-  heatmap: (mid: string) => api.get(`/v1/markets/${mid}/store-layout/heatmap`).then(r => r.data),
-  neighborInsights: (mid: string, body: object) =>
-    api.post(`/v1/markets/${mid}/store-layout/neighbor-insights`, body).then(r => r.data),
+const INSIGHT_ICON: Record<InsightKind, React.ElementType> = {
+  PLACE: MapPin, COLD: Snowflake, CLOSER: ArrowRightLeft, MAGNET: Store, SLOW_SPOT: Flame, END_CAP: Star, EMPTY: LayoutGrid,
 };
 
-/* ══════════════════════════════════════════════════════════════════════════
-   SUB-COMPONENTS
-══════════════════════════════════════════════════════════════════════════ */
-
-// ── Color Picker ──────────────────────────────────────────────────────────
-const ColorPicker: React.FC<{
-  value: string;
-  onChange: (c: string) => void;
-}> = ({ value, onChange }) => {
-  const nativeRef = useRef<HTMLInputElement>(null);
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {PRESET_COLORS.map(c => (
-        <button key={c} type="button" onClick={() => onChange(c)}
-          className="h-5 w-5 rounded-full transition hover:scale-110"
-          style={{ background: c, border: value === c ? '2px solid #334155' : '1px solid #cbd5e1', outline: value === c ? '2px solid #94a3b8' : 'none', outlineOffset: 1 }} />
-      ))}
-      {/* Native color picker for custom colors */}
-      <button type="button" onClick={() => nativeRef.current?.click()}
-        className="relative flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold"
-        style={{ background: value, border: '2px solid #334155', color: contrastText(value) }}
-        title="Cor personalizada">
-        +
-        <input ref={nativeRef} type="color" value={value} onChange={e => onChange(e.target.value)}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
-      </button>
+const Panel: React.FC<{ title: string; children: React.ReactNode; action?: React.ReactNode }> = ({ title, children, action }) => (
+  <section className="flex flex-col gap-3 rounded-2xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+      {action}
     </div>
-  );
-};
-
-// ── Shelf Product Slot ────────────────────────────────────────────────────
-const ProductSlot: React.FC<{
-  product?: ShelfProduct;
-  onAdd: () => void;
-  onRemove: () => void;
-}> = ({ product, onAdd, onRemove }) => {
-  const [imgBroken, setImgBroken] = useState(false);
-  return product ? (
-    <div className="group relative flex flex-col items-center" style={{ width: 64 }}>
-      <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg"
-        style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-        {product.imageUrl && !imgBroken ? (
-          <img src={product.imageUrl} alt={product.name} onError={() => setImgBroken(true)}
-            loading="lazy" className="max-h-full max-w-full object-contain p-1" />
-        ) : (
-          <Package className="h-6 w-6 opacity-30" style={{ color: '#94a3b8' }} />
-        )}
-        <button type="button" onClick={onRemove}
-          className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full opacity-0 transition group-hover:opacity-100"
-          style={{ background: '#ef4444', color: '#fff' }}>
-          <X className="h-2.5 w-2.5" />
-        </button>
-      </div>
-      <p className="mt-0.5 w-full text-center text-[9px] leading-tight line-clamp-2"
-        style={{ color: '#475569' }}>{product.name}</p>
-    </div>
-  ) : (
-    <button type="button" onClick={onAdd}
-      className="flex h-14 w-14 flex-col items-center justify-center rounded-lg transition hover:bg-slate-100"
-      style={{ border: '1.5px dashed #cbd5e1' }}>
-      <Plus className="h-4 w-4" style={{ color: '#94a3b8' }} />
-    </button>
-  );
-};
-
-// ── Gondola Panel (right drawer) ──────────────────────────────────────────
-const GondolaPanel: React.FC<{
-  cell: GridCell;
-  marketId: string;
-  onUpdate: (cell: GridCell) => void;
-  onClose: () => void;
-}> = ({ cell, marketId, onUpdate, onClose }) => {
-  const [shelves, setShelves] = useState<Shelf[]>(() => {
-    const existing = cell.shelves || [];
-    if (existing.length > 0) return existing;
-    return Array.from({ length: SHELF_COUNT_DEFAULT }, (_, i) => ({ shelfNum: i + 1, products: [] }));
-  });
-  const [shelfCount, setShelfCount] = useState(shelves.length);
-  const [searchQ, setSearchQ] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [addingTo, setAddingTo] = useState<{ shelfNum: number; position: number } | null>(null);
-
-  // Persist shelves up whenever they change
-  useEffect(() => {
-    onUpdate({ ...cell, shelves });
-  }, [shelves]); // eslint-disable-line
-
-  // Resize shelves when count changes
-  useEffect(() => {
-    setShelves(prev => {
-      if (shelfCount > prev.length) {
-        return [...prev, ...Array.from({ length: shelfCount - prev.length }, (_, i) => ({
-          shelfNum: prev.length + i + 1, products: [],
-        }))];
-      }
-      return prev.slice(0, shelfCount);
-    });
-  }, [shelfCount]);
-
-  const searchProducts = async (q: string) => {
-    if (!q.trim() || !marketId) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      const data = await marketService.getProductPerformance(marketId, 0, 12, undefined, q);
-      setSearchResults(data?.content || []);
-    } catch { setSearchResults([]); }
-    finally { setSearching(false); }
-  };
-
-  useEffect(() => {
-    const t = setTimeout(() => searchProducts(searchQ), 400);
-    return () => clearTimeout(t);
-  }, [searchQ]); // eslint-disable-line
-
-  const addProduct = (shelfNum: number, position: number, product: any) => {
-    setShelves(prev => prev.map(s => {
-      if (s.shelfNum !== shelfNum) return s;
-      const withoutPos = s.products.filter(p => p.position !== position);
-      return {
-        ...s, products: [...withoutPos, {
-          productId: product.productId,
-          name: product.name,
-          imageUrl: product.imageUrl || null,
-          position,
-        }].sort((a, b) => a.position - b.position),
-      };
-    }));
-    setAddingTo(null);
-    setSearchQ('');
-    setSearchResults([]);
-  };
-
-  const removeProduct = (shelfNum: number, position: number) => {
-    setShelves(prev => prev.map(s =>
-      s.shelfNum !== shelfNum ? s : { ...s, products: s.products.filter(p => p.position !== position) }
-    ));
-  };
-
-  const SLOTS_PER_SHELF = 5;
-
-  return (
-    <div className="flex h-full flex-col" style={{ width: 380 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3"
-        style={{ borderColor: 'var(--border-soft)', background: cell.color || '#f1f5f9' }}>
-        <div>
-          <p className="text-sm font-bold" style={{ color: contrastText(cell.color || '#f1f5f9') }}>
-            Gôndola {cell.gondolaNum ?? '?'}
-          </p>
-          <p className="text-xs" style={{ color: contrastText(cell.color || '#f1f5f9'), opacity: 0.75 }}>
-            {cell.sectionName || 'Sem seção'} · {shelfCount} prateleiras
-          </p>
-        </div>
-        <button type="button" onClick={onClose}
-          className="rounded-lg p-1.5 transition hover:bg-black/10">
-          <X className="h-4 w-4" style={{ color: contrastText(cell.color || '#f1f5f9') }} />
-        </button>
-      </div>
-
-      {/* Shelf count control */}
-      <div className="flex items-center gap-3 border-b px-4 py-2.5"
-        style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-soft)' }}>
-        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Prateleiras</span>
-        <div className="flex items-center gap-1 rounded-lg" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
-          <button type="button" onClick={() => setShelfCount(s => Math.max(1, s - 1))}
-            className="px-2 py-1" style={{ color: 'var(--text-muted)' }}><Minus className="h-3 w-3" /></button>
-          <span className="min-w-[1.5ch] text-center text-xs font-bold">{shelfCount}</span>
-          <button type="button" onClick={() => setShelfCount(s => Math.min(8, s + 1))}
-            className="px-2 py-1" style={{ color: 'var(--text-muted)' }}><Plus className="h-3 w-3" /></button>
-        </div>
-        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Clique + para adicionar produto</span>
-      </div>
-
-      {/* Search (only visible when addingTo is set) */}
-      {addingTo && (
-        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-success)' }}>
-          <p className="mb-2 text-[11px] font-semibold" style={{ color: 'var(--brand-700)' }}>
-            Adicionando na prateleira {addingTo.shelfNum}, posição {addingTo.position + 1}
-          </p>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--text-soft)' }} />
-            <input
-              autoFocus
-              value={searchQ}
-              onChange={e => setSearchQ(e.target.value)}
-              placeholder="Buscar produto..."
-              className="h-8 w-full rounded-lg pl-8 pr-3 text-xs outline-none"
-              style={{ border: '1px solid var(--border-strong)', background: '#fff', color: '#1e293b' }}
-            />
-          </div>
-          {searching && <p className="mt-1.5 text-[10px]" style={{ color: 'var(--text-soft)' }}>Buscando...</p>}
-          {searchResults.length > 0 && (
-            <div className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto">
-              {searchResults.map(p => (
-                <button key={p.productId} type="button"
-                  onClick={() => addProduct(addingTo.shelfNum, addingTo.position, p)}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-white"
-                  style={{ border: '1px solid var(--border-soft)' }}>
-                  {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} className="h-7 w-7 object-contain rounded" />
-                  ) : (
-                    <div className="flex h-7 w-7 items-center justify-center rounded" style={{ background: '#e2e8f0' }}>
-                      <Package className="h-3.5 w-3.5" style={{ color: '#94a3b8' }} />
-                    </div>
-                  )}
-                  <span className="flex-1 truncate text-[11px] font-medium" style={{ color: '#1e293b' }}>{p.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <button type="button" onClick={() => { setAddingTo(null); setSearchQ(''); setSearchResults([]); }}
-            className="mt-2 text-[10px] underline" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-        </div>
-      )}
-
-      {/* Gondola visual — shelves top to bottom */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        {/* Gondola frame */}
-        <div className="rounded-lg overflow-hidden"
-          style={{ border: '2px solid #cbd5e1', background: '#f8fafc' }}>
-          {/* Top cap */}
-          <div className="h-2.5 w-full" style={{ background: 'linear-gradient(to bottom, #e2e8f0, #cbd5e1)' }} />
-
-          {shelves.map((shelf) => (
-            <div key={shelf.shelfNum}>
-              {/* Products row */}
-              <div className="flex items-end gap-2 px-3 py-2" style={{ minHeight: 80 }}>
-                <span className="shrink-0 text-[9px] font-bold" style={{ color: '#94a3b8', width: 12 }}>
-                  P{shelf.shelfNum}
-                </span>
-                <div className="flex flex-1 gap-2 flex-wrap">
-                  {Array.from({ length: SLOTS_PER_SHELF }, (_, pos) => {
-                    const prod = shelf.products.find(p => p.position === pos);
-                    return (
-                      <ProductSlot
-                        key={pos}
-                        product={prod}
-                        onAdd={() => setAddingTo({ shelfNum: shelf.shelfNum, position: pos })}
-                        onRemove={() => removeProduct(shelf.shelfNum, pos)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Shelf plank */}
-              <div className="h-2.5 w-full" style={{ background: 'linear-gradient(to bottom, #e2e8f0, #cbd5e1)' }} />
-            </div>
-          ))}
-
-          {/* Base */}
-          <div className="h-3 w-full" style={{ background: 'linear-gradient(to bottom, #94a3b8, #64748b)' }} />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Section Edit Form ─────────────────────────────────────────────────────
-interface SectionFormValues {
-  sectionName: string;
-  categorySlug: string;
-  color: string;
-}
-
-const SectionForm: React.FC<{
-  initial: SectionFormValues;
-  onConfirm: (v: SectionFormValues) => void;
-  onCancel: () => void;
-  onClear: () => void;
-  /** Marca/desmarca o quadrado como corredor (antes só com Alt+clique, impossível no celular). */
-  onAisle: () => void;
-  inputRef: React.RefObject<HTMLInputElement>;
-}> = ({ initial, onConfirm, onCancel, onClear, onAisle, inputRef }) => {
-  const [name, setName] = useState(initial.sectionName);
-  const [slug, setSlug] = useState(initial.categorySlug);
-  const [color, setColor] = useState(initial.color || PRESET_COLORS[0]);
-
-  return (
-    /* Full-screen overlay so the form floats above the grid regardless of cell position */
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(2px)' }}
-      onClick={onCancel}>
-      <div className="w-full max-w-[340px] rounded-xl p-4 shadow-2xl"
-        style={{ background: '#fff', border: '1.5px solid var(--brand-500)' }}
-        onClick={e => e.stopPropagation()}>
-        <p className="mb-1 text-base font-bold" style={{ color: 'var(--text-primary)' }}>O que tem neste lugar?</p>
-        <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>Dê um nome à seção (ex.: Bebidas) ou marque como corredor.</p>
-        <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') onConfirm({ sectionName: name, categorySlug: slug, color }); if (e.key === 'Escape') onCancel(); }}
-          placeholder="Nome da seção (ex.: Bebidas)"
-          aria-label="Nome da seção"
-          className="mb-2 h-11 w-full rounded-lg px-3 text-sm outline-none"
-          style={{ border: '1px solid var(--border-strong)', color: '#1e293b', background: '#f8fafc' }} />
-        <input value={slug} onChange={e => setSlug(e.target.value)}
-          placeholder="Categoria dos produtos (ex.: bebidas)"
-          aria-label="Categoria dos produtos"
-          className="mb-2 h-11 w-full rounded-lg px-3 text-sm outline-none"
-          style={{ border: '1px solid var(--border-strong)', color: '#64748b', background: '#f8fafc' }} />
-        <div className="mb-3">
-          <p className="mb-1.5 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Cor</p>
-          <ColorPicker value={color} onChange={setColor} />
-        </div>
-        <button type="button" onClick={onAisle}
-          className="mb-2 flex min-h-[44px] w-full items-center justify-center rounded-lg text-sm font-medium"
-          style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-soft)' }}>
-          É um corredor (sem produtos)
-        </button>
-        <div className="flex gap-1.5">
-          <button type="button" onClick={() => onConfirm({ sectionName: name, categorySlug: slug, color })}
-            className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold"
-            style={{ background: 'var(--brand-500)', color: '#fff' }}>
-            <Check className="h-3 w-3" /> Salvar
-          </button>
-          <button type="button" onClick={onClear}
-            className="min-h-[44px] rounded-lg px-3 text-sm"
-            style={{ border: '1px solid #fecaca', color: '#ef4444', background: '#fff1f2' }}>
-            Limpar
-          </button>
-          <button type="button" onClick={onCancel} aria-label="Fechar"
-            className="min-h-[44px] rounded-lg px-3 text-sm"
-            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ══════════════════════════════════════════════════════════════════════════
-   MAIN SCREEN
-══════════════════════════════════════════════════════════════════════════ */
+    {children}
+  </section>
+);
 
 const StoreMap: React.FC = () => {
   const { marketId } = useAuth();
+  const [plan, setPlan] = useState<StorePlan | null>(null);
+  const [report, setReport] = useState<DepartmentsReport | null>(null);
+  const [insights, setInsights] = useState<StoreInsight[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reportLoading, setReportLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('montar');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<{ ids: string[]; connect?: [string, string] | null; note?: string } | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
+  const [justCreated, setJustCreated] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const latestPlan = useRef<StorePlan | null>(null);
 
-  const [gridCols, setGridCols] = useState(6);
-  const [gridRows, setGridRows] = useState(6);
-  const [cells, setCells] = useState<GridCell[]>([]);
-  const [heatmap, setHeatmap] = useState<CategoryHeat[]>([]);
-  const [insights, setInsights] = useState<NeighborInsight[]>([]);
-  const [showHeat, setShowHeat] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('map');
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [loadingHeat, setLoadingHeat] = useState(false);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-
-  // Editing
-  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
-  const editInputRef = useRef<HTMLInputElement>(null);
-
-  // Gondola panel
-  const [openGondola, setOpenGondola] = useState<GridCell | null>(null);
-
-  // ── Load layout ──
+  // ── Carga ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!marketId) return;
-    layoutApi.get(marketId).then((d: any) => {
-      setGridCols(d.gridCols || 6);
-      setGridRows(d.gridRows || 6);
-      const loaded: GridCell[] = (d.cells || []).map((c: any) => ({
-        ...c,
-        shelves: c.shelves || [],
-      }));
-      setCells(loaded);
-      // Sync gondola counter
-      const maxNum = loaded.reduce((m: number, c: GridCell) => Math.max(m, c.gondolaNum || 0), 0);
-      _gondolaCounter = maxNum;
-    }).catch(() => {});
+    let cancelled = false;
+    // A planta aparece assim que chega; as vendas (mais pesadas) completam depois.
+    storeMapService.getPlan(marketId)
+      .then((p) => { if (!cancelled) setPlan(p); })
+      .catch(() => { if (!cancelled) setError('Não foi possível abrir a planta da loja.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    storeMapService.getDepartments(marketId)
+      .then((r) => { if (!cancelled) setReport(r); })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) setReportLoading(false); });
+    return () => { cancelled = true; };
   }, [marketId]);
 
-  // ── Load heatmap ──
-  useEffect(() => {
+  const loadInsights = useCallback(async () => {
     if (!marketId) return;
-    setLoadingHeat(true);
-    layoutApi.heatmap(marketId).then((d: any) => setHeatmap(d || [])).catch(() => {}).finally(() => setLoadingHeat(false));
+    try { setInsights(await storeMapService.getInsights(marketId)); } catch { setInsights([]); }
   }, [marketId]);
 
-  // ── Neighbor insights (debounced on cell changes) ──
-  useEffect(() => {
-    if (!marketId || cells.filter(c => c.type === 'gondola').length < 2) { setInsights([]); return; }
-    const t = setTimeout(() => {
-      setLoadingInsights(true);
-      layoutApi.neighborInsights(marketId, { cells, gridCols })
-        .then((d: any) => setInsights(d || []))
-        .catch(() => {})
-        .finally(() => setLoadingInsights(false));
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [marketId, cells, gridCols]);
+  useEffect(() => { if (mode === 'sugestoes' && plan && insights === null) loadInsights(); }, [mode, plan, insights, loadInsights]);
 
-  // ── Focus form input ──
-  useEffect(() => {
-    if (editingCell) setTimeout(() => editInputRef.current?.focus(), 60);
-  }, [editingCell]);
-
-  // ── Helpers ──
-  const getCell = useCallback((row: number, col: number) =>
-    cells.find(c => c.row === row && c.col === col) ?? null, [cells]);
-
-  const heatBySlug = useMemo(() => {
-    const m: Record<string, CategoryHeat> = {};
-    heatmap.forEach(h => { m[h.category.toLowerCase()] = h; });
-    return m;
-  }, [heatmap]);
-
-  const gondolaCount = useMemo(() => cells.filter(c => c.type === 'gondola').length, [cells]);
-
-  // ── Cell click ──
-  const handleCellClick = (row: number, col: number) => {
-    const cell = getCell(row, col);
-    // If it's a gondola with products, open panel
-    if (cell?.type === 'gondola' && openGondola?.row !== row) {
-      setOpenGondola(cell);
-      return;
-    }
-    // Otherwise open edit form
-    setOpenGondola(null);
-    setEditingCell({ row, col });
-  };
-
-  const handleAisleToggle = (row: number, col: number) => {
-    const cell = getCell(row, col);
-    if (cell?.type === 'aisle') {
-      setCells(prev => prev.filter(c => !(c.row === row && c.col === col)));
-    } else if (!cell || cell.type === 'empty') {
-      setCells(prev => {
-        const without = prev.filter(c => !(c.row === row && c.col === col));
-        return [...without, { row, col, type: 'aisle' }];
-      });
-    }
-    setDirty(true);
-  };
-
-  const confirmSectionEdit = (values: SectionFormValues) => {
-    if (!editingCell) return;
-    const { row, col } = editingCell;
-    const existing = getCell(row, col);
-    if (!values.sectionName.trim()) {
-      setCells(prev => prev.filter(c => !(c.row === row && c.col === col)));
-    } else {
-      const gondolaId = existing?.gondolaId || nextGondolaId();
-      const gondolaNum = existing?.gondolaNum || _gondolaCounter;
-      setCells(prev => {
-        const without = prev.filter(c => !(c.row === row && c.col === col));
-        return [...without, {
-          row, col, type: 'gondola',
-          gondolaId, gondolaNum,
-          sectionName: values.sectionName.trim(),
-          categorySlug: values.categorySlug.trim().toLowerCase(),
-          color: values.color,
-          shelves: existing?.shelves || [],
-        }];
-      });
-    }
-    setEditingCell(null);
-    setDirty(true);
-  };
-
-  const clearCell = (row: number, col: number) => {
-    setCells(prev => prev.filter(c => !(c.row === row && c.col === col)));
-    setEditingCell(null);
-    if (openGondola?.row === row && openGondola?.col === col) setOpenGondola(null);
-    setDirty(true);
-  };
-
-  const updateGondolaCell = useCallback((updated: GridCell) => {
-    setCells(prev => {
-      const without = prev.filter(c => !(c.row === updated.row && c.col === updated.col));
-      return [...without, updated];
-    });
-    setOpenGondola(updated);
-    setDirty(true);
-  }, []);
-
-  const resizeGrid = (newCols: number, newRows: number) => {
-    setGridCols(newCols);
-    setGridRows(newRows);
-    setCells(prev => prev.filter(c => c.row < newRows && c.col < newCols));
-    setDirty(true);
-  };
-
-  const save = async () => {
-    if (!marketId) return;
-    setSaving(true);
+  // ── Gravação automática ─────────────────────────────────────────────────
+  const persist = useCallback(async () => {
+    if (!marketId || !latestPlan.current) return;
+    setSaveState('saving');
     try {
-      await layoutApi.save(marketId, { gridCols, gridRows, cells });
-      setDirty(false);
-    } finally { setSaving(false); }
+      await storeMapService.savePlan(marketId, latestPlan.current);
+      setSaveState('saved');
+      setInsights(null); // sugestões dependem da planta: recalcula ao abrir
+    } catch {
+      setSaveState('error');
+    }
+  }, [marketId]);
+
+  const update = useCallback((next: StorePlan, immediate = false) => {
+    setPlan(next);
+    latestPlan.current = next;
+    setSaveState('pending');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(persist, immediate ? 0 : SAVE_DELAY_MS);
+  }, [persist]);
+
+  useEffect(() => () => {
+    // Saiu da tela com alteração pendente: grava na hora.
+    if (saveTimer.current) { clearTimeout(saveTimer.current); persist(); }
+  }, [persist]);
+
+  const patchFixture = (id: string, patch: Partial<Fixture>) => {
+    if (!plan) return;
+    update({ ...plan, fixtures: plan.fixtures.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
   };
 
-  const adjacentInsights = useMemo(() => insights.filter(i => i.adjacency === 'adjacent').slice(0, 5), [insights]);
-  const farInsights = useMemo(() => insights.filter(i => i.adjacency === 'far' && i.lift >= 1.5).slice(0, 5), [insights]);
+  const addFixture = (type: FixtureType) => {
+    if (!plan) return;
+    const m = FIXTURES[type];
+    const offset = (plan.fixtures.length % 6) * 0.5;
+    const f: Fixture = {
+      id: newId(), type, label: `${m.label} ${plan.fixtures.filter((x) => x.type === type).length + 1}`,
+      x: Math.max(0, plan.width / 2 - m.w / 2 + offset), y: Math.max(0, plan.height / 2 - m.h / 2 + offset),
+      w: m.w, h: m.h, departments: [],
+    };
+    update({ ...plan, fixtures: [...plan.fixtures, f] });
+    setSelectedId(f.id);
+  };
 
-  const editingInitial = useMemo(() => {
-    if (!editingCell) return { sectionName: '', categorySlug: '', color: PRESET_COLORS[0] };
-    const cell = getCell(editingCell.row, editingCell.col);
-    if (!cell || cell.type !== 'gondola') return { sectionName: '', categorySlug: '', color: PRESET_COLORS[0] };
-    return { sectionName: cell.sectionName || '', categorySlug: cell.categorySlug || '', color: cell.color || PRESET_COLORS[0] };
-  }, [editingCell, cells]); // eslint-disable-line
+  const createPlan = async (next: StorePlan) => {
+    if (!marketId) return;
+    setCreating(true);
+    try {
+      const saved = await storeMapService.savePlan(marketId, next);
+      setPlan(saved);
+      latestPlan.current = saved;
+      setJustCreated(true);
+      setSaveState('saved');
+    } catch {
+      setError('Não foi possível salvar a planta. Tente de novo.');
+    } finally {
+      setCreating(false);
+    }
+  };
 
-  /* ── Render ───────────────────────────────────────────────────────────── */
+  // ── Derivados ────────────────────────────────────────────────────────────
+  const heat = useMemo(() => (plan ? revenuePerFixture(plan, report) : {}), [plan, report]);
+  const selected = plan?.fixtures.find((f) => f.id === selectedId) ?? null;
+  const placed = useMemo(() => new Set(plan?.fixtures.flatMap((f) => f.departments) ?? []), [plan]);
+  const departments = (report?.departments ?? []).filter((d) => d.key !== 'OUTROS');
+  const unplacedSelling = departments.filter((d) => !placed.has(d.key) && d.revenueShare >= 0.02);
+  const highlightSet = useMemo(() => new Set(highlight?.ids ?? []), [highlight]);
+
+  const showDepartment = (key: string) => {
+    const ids = plan?.fixtures.filter((f) => f.departments.includes(key)).map((f) => f.id) ?? [];
+    setHighlight({ ids, note: ids.length ? `${deptLabel(key)}: ${ids.length === 1 ? '1 móvel' : `${ids.length} móveis`}` : `${deptLabel(key)} ainda não tem lugar no mapa` });
+  };
+
+  const saveLabel = { idle: '', pending: 'Alterações não salvas…', saving: 'Salvando…', saved: 'Salvo', error: 'Não salvou — tente de novo' }[saveState];
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  if (loading) {
+    return <Layout><div className="flex min-h-[300px] items-center justify-center" role="status"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /><span className="sr-only">Carregando o mapa</span></div></Layout>;
+  }
 
   return (
     <Layout>
-      {/* Section edit form — rendered as fixed overlay, above everything */}
-      {editingCell && (
-        <SectionForm
-          initial={editingInitial}
-          inputRef={editInputRef}
-          onConfirm={confirmSectionEdit}
-          onCancel={() => setEditingCell(null)}
-          onClear={() => clearCell(editingCell.row, editingCell.col)}
-          onAisle={() => { handleAisleToggle(editingCell.row, editingCell.col); setEditingCell(null); }}
-        />
-      )}
-      <div className="flex flex-col gap-4">
-
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Mapa da loja</h1>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {gondolaCount} gôndola{gondolaCount !== 1 ? 's' : ''} mapeada{gondolaCount !== 1 ? 's' : ''}
-            </p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Onde fica cada setor, onde a loja mais vende e o que mudar de lugar.</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* View mode toggle */}
-            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
-              {([['map', Map, 'Mapa'], ['analysis', TrendingUp, 'Análise']] as const).map(([m, Icon, label]) => (
-                <button key={m} type="button" onClick={() => setViewMode(m as ViewMode)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition"
-                  style={viewMode === m
-                    ? { background: 'var(--brand-500)', color: '#fff' }
-                    : { background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
-                  <Icon className="h-3.5 w-3.5" />{label}
-                </button>
-              ))}
-            </div>
-            {viewMode === 'map' && (
-              <button type="button" onClick={() => setShowHeat(v => !v)}
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition"
-                style={showHeat
-                  ? { borderColor: 'var(--brand-500)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
-                  : { borderColor: 'var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
-                <Eye className="h-3.5 w-3.5" /> Calor
-              </button>
-            )}
-            <button type="button" onClick={save} disabled={saving || !dirty}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-40"
-              style={{ background: dirty ? 'var(--brand-500)' : 'var(--surface-soft)', color: dirty ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border-strong)' }}>
-              {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              {dirty ? 'Salvar' : 'Salvo'}
-            </button>
-          </div>
+          {plan && saveLabel && (
+            <span className="text-sm" role="status" style={{ color: saveState === 'error' ? '#b91c1c' : 'var(--text-muted)' }}>
+              {saveState === 'saved' && <CheckCircle2 className="mr-1 inline h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />}
+              {saveLabel}
+              {saveState === 'error' && <button type="button" onClick={persist} className="ml-2 font-semibold underline">Tentar de novo</button>}
+            </span>
+          )}
         </div>
 
-        {viewMode === 'map' && gondolaCount === 0 && (
-          <div className="rounded-2xl p-4" style={{ background: 'var(--surface-info)', border: '1px solid var(--border-info)' }}>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monte o mapa em 3 passos</p>
-            <ol className="mt-1 list-decimal pl-5 text-sm" style={{ color: 'var(--text-muted)' }}>
-              <li>Ajuste corredores e linhas para ficar parecido com a planta da loja.</li>
-              <li>Toque em cada quadrado e diga o que tem nele (Bebidas, Mercearia…).</li>
-              <li>Salve e abra o Calor para ver onde a loja mais vende.</li>
-            </ol>
-          </div>
-        )}
+        {error && <p role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>{error}</p>}
 
-        {/* ── MAP VIEW ─────────────────────────────────────────────────── */}
-        {viewMode === 'map' && (
-          <div className="flex gap-4 items-start">
-
-            {/* Grid area */}
-            <div className="flex-1 min-w-0">
-              {/* Grid controls */}
-              <div className="mb-3 flex flex-wrap items-center gap-4">
-                {[['Corredores (col)', gridCols, (v: number) => resizeGrid(v, gridRows), 2, 10],
-                  ['Linhas', gridRows, (v: number) => resizeGrid(gridCols, v), 2, 12]
-                ].map(([label, val, setter, min, max]) => (
-                  <div key={label as string} className="flex items-center gap-2">
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{label as string}</span>
-                    <div className="flex items-center rounded-lg" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
-                      <button type="button" onClick={() => (setter as Function)(Math.max(min as number, (val as number) - 1))} className="px-2 py-1.5" style={{ color: 'var(--text-muted)' }}><Minus className="h-3 w-3" /></button>
-                      <span className="min-w-[1.5ch] text-center text-xs font-bold px-1" style={{ color: 'var(--text-primary)' }}>{val as number}</span>
-                      <button type="button" onClick={() => (setter as Function)(Math.min(max as number, (val as number) + 1))} className="px-2 py-1.5" style={{ color: 'var(--text-muted)' }}><Plus className="h-3 w-3" /></button>
-                    </div>
-                  </div>
-                ))}
-                <span className="text-[11px]" style={{ color: 'var(--text-soft)' }}>
-                  Toque num quadrado para dizer o que há nele ou marcar como corredor
-                </span>
-              </div>
-
-              {/* Legend */}
-              <div className="mb-2 flex items-center gap-4 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block h-3 w-5 rounded" style={{ background: '#dbeafe', border: '1px solid #bfdbfe' }} /> Seção
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block h-3 w-5 rounded" style={{ background: 'repeating-linear-gradient(45deg, #f1f5f9 0px, #f1f5f9 4px, #e2e8f0 4px, #e2e8f0 8px)' }} /> Corredor
-                </span>
-                {showHeat && <>
-                  {(['hot','warm','cold'] as const).map(h => {
-                    const s = heatStyle(h === 'hot' ? 80 : h === 'warm' ? 50 : 15);
-                    return <span key={h} className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full" style={{ background: s.bar }} />{s.label}</span>;
-                  })}
-                </>}
-              </div>
-
-              {/* THE GRID */}
-              <div className="overflow-auto rounded-xl" style={{ border: '1px solid var(--border-soft)' }}>
-                <div className="flex items-center justify-center border-b py-1.5 text-[10px] font-bold uppercase tracking-wider"
-                  style={{ borderColor: 'var(--border-soft)', color: 'var(--brand-600)', background: 'var(--surface-success)' }}>
-                  ENTRADA
+        {!plan ? (
+          <SetupWizard report={report} onPick={createPlan} busy={creating} reading={reportLoading} />
+        ) : (
+          <>
+            {justCreated && (
+              <div className="flex items-start gap-3 rounded-2xl p-4" style={{ background: 'var(--surface-success)', border: '1px solid var(--border-success)' }}>
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />
+                <div className="min-w-0 flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <p className="font-semibold">Planta pronta, com os setores já no lugar.</p>
+                  <p style={{ color: 'var(--text-muted)' }}>Confira com a sua loja: arraste o que estiver em outro lugar e toque num móvel para trocar o setor. Tudo é salvo sozinho.</p>
                 </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${gridCols}, minmax(100px, 1fr))`,
-                  gap: 3,
-                  padding: 3,
-                  background: 'var(--surface-soft)',
-                }}>
-                  {Array.from({ length: gridRows }, (_, row) =>
-                    Array.from({ length: gridCols }, (_, col) => {
-                      const cell = getCell(row, col);
-                      const isEditing = editingCell?.row === row && editingCell?.col === col;
-                      const isOpen = openGondola?.row === row && openGondola?.col === col;
-                      const isAisle = cell?.type === 'aisle';
-                      const slug = cell?.categorySlug ?? '';
-                      const heat = showHeat && slug ? heatBySlug[slug] : null;
-                      const cellColor = heat ? heatStyle(heat.score).bg : (cell?.color ?? '');
-                      const tColor = cell?.color ? contrastText(cellColor || '#f1f5f9') : 'var(--text-muted)';
-                      const productCount = cell?.shelves?.reduce((n, s) => n + s.products.length, 0) ?? 0;
-
-                      return (
-                        <div key={`${row}-${col}`}
-                          onClick={e => {
-                            if (e.altKey) { handleAisleToggle(row, col); return; }
-                            handleCellClick(row, col);
-                          }}
-                          className="relative flex min-h-[80px] cursor-pointer flex-col items-center justify-center rounded-lg transition hover:brightness-95"
-                          style={isAisle ? {
-                            background: 'repeating-linear-gradient(45deg, #f1f5f9 0px, #f1f5f9 4px, #e2e8f0 4px, #e2e8f0 8px)',
-                            border: '1px dashed #94a3b8',
-                            cursor: 'pointer',
-                          } : {
-                            background: cellColor || 'var(--surface-base)',
-                            border: isOpen ? '2px solid var(--brand-500)' : isEditing ? '2px solid #6366f1' : '1px solid var(--border-soft)',
-                            boxShadow: isOpen ? '0 0 0 3px rgba(34,197,94,0.15)' : undefined,
-                          }}>
-
-                          {isAisle ? (
-                            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>
-                              corredor
-                            </span>
-                          ) : cell?.type === 'gondola' ? (
-                            <>
-                              <span className="absolute left-1.5 top-1 text-[9px] font-bold" style={{ color: tColor, opacity: 0.6 }}>
-                                G{cell.gondolaNum}
-                              </span>
-                              {/* Open gondola indicator */}
-                              {isOpen && (
-                                <span className="absolute right-1 top-1 flex h-3 w-3 items-center justify-center rounded-full"
-                                  style={{ background: 'var(--brand-500)' }}>
-                                  <ChevronRight className="h-2 w-2 text-white" />
-                                </span>
-                              )}
-                              <span className="px-2 text-center text-xs font-bold leading-tight" style={{ color: tColor }}>
-                                {cell.sectionName}
-                              </span>
-                              {cell.categorySlug && (
-                                <span className="mt-0.5 text-[9px]" style={{ color: tColor, opacity: 0.65 }}>{cell.categorySlug}</span>
-                              )}
-                              {productCount > 0 && (
-                                <span className="absolute bottom-1 right-1.5 flex items-center gap-0.5 text-[8px] font-bold"
-                                  style={{ color: tColor, opacity: 0.7 }}>
-                                  <Layers className="h-2.5 w-2.5" />{productCount}
-                                </span>
-                              )}
-                              {showHeat && heat && (
-                                <div className="absolute bottom-1 left-2 right-2">
-                                  <div className="h-1 overflow-hidden rounded-full" style={{ background: 'rgba(0,0,0,0.15)' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${heat.score}%`, background: heatStyle(heat.score).bar }} />
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="flex flex-col items-center gap-0.5 opacity-25">
-                              <Plus className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
-                              <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>seção</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                <div className="flex items-center justify-center border-t py-1.5 text-[10px] font-bold uppercase tracking-wider"
-                  style={{ borderColor: 'var(--border-soft)', color: 'var(--text-soft)', background: 'var(--surface-soft)' }}>
-                  SAÍDA / CAIXAS
-                </div>
-              </div>
-            </div>
-
-            {/* Gondola panel (right drawer) */}
-            {openGondola && (
-              <div className="shrink-0 overflow-hidden rounded-xl"
-                style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)', width: 380, maxHeight: '80vh', overflowY: 'auto' }}>
-                <GondolaPanel
-                  cell={openGondola}
-                  marketId={marketId!}
-                  onUpdate={updateGondolaCell}
-                  onClose={() => setOpenGondola(null)}
-                />
+                <button type="button" onClick={() => setJustCreated(false)} className={`text-sm font-semibold ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>Entendi</button>
               </div>
             )}
-          </div>
-        )}
 
-        {/* ── ANALYSIS VIEW ────────────────────────────────────────────── */}
-        {viewMode === 'analysis' && (
-          <div className="grid gap-4 lg:grid-cols-2">
+            <SegmentedTabs<Mode>
+              tabs={[
+                { key: 'montar', label: 'Montar', icon: <Hammer className="h-4 w-4" /> },
+                { key: 'calor', label: 'Calor de vendas', icon: <Flame className="h-4 w-4" /> },
+                { key: 'sugestoes', label: 'Sugestões', icon: <Lightbulb className="h-4 w-4" />, badge: insights?.filter((i) => i.priority >= 60).length || undefined },
+              ]}
+              value={mode}
+              onChange={(m) => { setMode(m); setHighlight(null); if (m !== 'montar') setSelectedId(null); }}
+              label="Modo do mapa"
+            />
 
-            {/* Category heatmap */}
-            <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Calor por categoria</h3>
-                <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>últimos 30 dias</span>
+            <LocateSearch marketId={marketId!} plan={plan} onFound={(ids, note) => setHighlight({ ids, note })} />
+
+            {highlight?.note && (
+              <p className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm" role="status" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" /> {highlight.note}
+                <button type="button" onClick={() => setHighlight(null)} className="ml-auto font-semibold underline">Limpar</button>
+              </p>
+            )}
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+              {/* No desktop a planta fica à vista enquanto o painel ao lado rola. */}
+              <div className="min-w-0 self-start rounded-2xl p-2 sm:p-3 lg:sticky lg:top-20" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+                <PlanView
+                  plan={plan}
+                  mode={mode === 'montar' ? 'edit' : mode === 'calor' ? 'heat' : 'view'}
+                  selectedId={selectedId}
+                  highlightIds={highlightSet}
+                  connect={highlight?.connect ?? null}
+                  heat={heat}
+                  heatLabel={(id) => (heat[id] != null ? compactMoney(heat[id]) : 'sem setor')}
+                  onSelect={setSelectedId}
+                  onMove={(id, x, y) => patchFixture(id, { x, y })}
+                />
+                {mode === 'montar' && (
+                  <p className="px-2 pb-1 pt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Toque num móvel para dizer o que tem nele. Arraste para mover.
+                  </p>
+                )}
+                {mode === 'calor' && <HeatLegend />}
               </div>
-              {loadingHeat ? (
-                <div className="flex justify-center py-6"><div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>
-              ) : heatmap.length === 0 ? (
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum dado disponível.</p>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {heatmap.slice(0, 12).map((h, i) => {
-                    const hs = heatStyle(h.score);
-                    return (
-                      <div key={h.category} className="flex items-center gap-2">
-                        <span className="w-4 text-[10px] font-bold text-right" style={{ color: 'var(--text-soft)' }}>{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="truncate text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{h.category}</span>
-                            <span className="ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
-                              style={{ background: hs.bg, color: hs.text }}>{hs.label}</span>
-                          </div>
-                          <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
-                            <div className="h-full rounded-full" style={{ width: `${h.score}%`, background: hs.bar }} />
+
+              <div className="flex min-w-0 flex-col gap-4">
+                {mode === 'montar' && (selected ? (
+                  <Panel title={fixtureName(selected)}>
+                    <FixtureEditor
+                      fixture={selected}
+                      report={report}
+                      onChange={(patch) => patchFixture(selected.id, patch)}
+                      onDuplicate={() => {
+                        const copy = { ...selected, id: newId(), x: Math.min(plan.width - selected.w, selected.x + 1.5), label: `${fixtureName(selected)} (cópia)` };
+                        update({ ...plan, fixtures: [...plan.fixtures, copy] });
+                        setSelectedId(copy.id);
+                      }}
+                      onRemove={() => { update({ ...plan, fixtures: plan.fixtures.filter((f) => f.id !== selected.id) }); setSelectedId(null); }}
+                      onClose={() => setSelectedId(null)}
+                    />
+                  </Panel>
+                ) : (
+                  <>
+                    <Panel title="Setores da loja">
+                      {departments.length === 0 ? (
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Os setores aparecem aqui assim que as vendas chegarem.</p>
+                      ) : (
+                        <>
+                          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                            {unplacedSelling.length === 0
+                              ? 'Todos os setores que vendem já têm lugar no mapa.'
+                              : `${unplacedSelling.length} ${unplacedSelling.length === 1 ? 'setor ainda sem lugar' : 'setores ainda sem lugar'}. Toque num móvel e marque o setor.`}
+                          </p>
+                          <ul className="flex flex-col gap-1">
+                            {departments.map((d) => (
+                              <li key={d.key}>
+                                <button type="button" onClick={() => showDepartment(d.key)}
+                                  className={`flex min-h-[44px] w-full items-center gap-2 rounded-lg px-2 text-left text-sm transition hover:bg-[var(--surface-soft)] ${FOCUS}`}>
+                                  <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: DEPT_BY_KEY[d.key]?.color }} />
+                                  <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{d.label}</span>
+                                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{Math.round(d.revenueShare * 100)}%</span>
+                                  {placed.has(d.key)
+                                    ? <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: 'var(--brand-700)' }} aria-label="no mapa" />
+                                    : <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: '#fffbeb', color: '#92400e' }}>sem lugar</span>}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </Panel>
+
+                    <Panel title="Adicionar móvel">
+                      <div className="grid grid-cols-2 gap-2">
+                        {(Object.keys(FIXTURES) as FixtureType[])
+                          .filter((t) => t !== 'entrada' || !plan.fixtures.some((f) => f.type === 'entrada'))
+                          .map((t) => {
+                            const m = FIXTURES[t];
+                            return (
+                              <button key={t} type="button" onClick={() => addFixture(t)} title={m.hint}
+                                className={`flex min-h-[48px] items-center gap-2 rounded-lg px-2 text-left text-sm font-medium ${FOCUS}`}
+                                style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
+                                <span aria-hidden="true" className="h-5 w-5 shrink-0 rounded" style={{ background: m.fill, border: `1.5px solid ${m.stroke}` }} />
+                                <span className="min-w-0"><span className="block">{m.label}</span><span className="block truncate text-[11px] font-normal" style={{ color: 'var(--text-muted)' }}>{m.hint}</span></span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </Panel>
+
+                    <Panel title="Tamanho da loja">
+                      {([['Largura', 'width'], ['Profundidade', 'height']] as const).map(([label, key]) => (
+                        <div key={key} className="flex items-center justify-between gap-2">
+                          <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{label}</span>
+                          <div className="flex items-center gap-1">
+                            <button type="button" aria-label={`Diminuir ${label.toLowerCase()}`} onClick={() => update({ ...plan, [key]: Math.max(6, plan[key] - 1) })}
+                              className={`inline-flex h-11 w-11 items-center justify-center rounded-lg ${FOCUS}`} style={{ border: '1px solid var(--border-strong)' }}><Minus className="h-4 w-4" /></button>
+                            <span className="min-w-[3.5rem] text-center text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{plan[key]} m</span>
+                            <button type="button" aria-label={`Aumentar ${label.toLowerCase()}`} onClick={() => update({ ...plan, [key]: Math.min(80, plan[key] + 1) })}
+                              className={`inline-flex h-11 w-11 items-center justify-center rounded-lg ${FOCUS}`} style={{ border: '1px solid var(--border-strong)' }}><Plus className="h-4 w-4" /></button>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      ))}
+                      <button type="button" onClick={() => { if (window.confirm('Apagar a planta e escolher outra de novo?')) { setPlan(null); latestPlan.current = null; setSelectedId(null); } }}
+                        className="self-start text-sm font-medium underline" style={{ color: 'var(--text-muted)' }}>
+                        Recomeçar com outra planta
+                      </button>
+                    </Panel>
+                  </>
+                ))}
 
-            {/* Neighbor insights */}
-            <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-              <div className="mb-3 flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-amber-500" />
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vizinhança inteligente</h3>
+                {mode === 'calor' && (
+                  <HeatPanel plan={plan} report={report} heat={heat} selectedId={selectedId} onSelect={setSelectedId} />
+                )}
+
+                {mode === 'sugestoes' && (
+                  <InsightsPanel
+                    insights={insights}
+                    onShow={(ins) => setHighlight({
+                      ids: ins.fixtureIds,
+                      connect: ins.kind === 'CLOSER' && ins.fixtureIds.length === 2 ? [ins.fixtureIds[0], ins.fixtureIds[1]] : null,
+                      note: ins.title,
+                    })}
+                    onFix={(ins) => {
+                      setMode('montar');
+                      setHighlight(null);
+                      if (ins.fixtureIds[0]) setSelectedId(ins.fixtureIds[0]);
+                    }}
+                  />
+                )}
               </div>
-
-              {loadingInsights && <div className="flex justify-center py-4"><div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" /></div>}
-
-              {!loadingInsights && cells.filter(c => c.type === 'gondola').length < 2 && (
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  Preencha pelo menos 2 seções no mapa para ver insights de vizinhança.
-                </p>
-              )}
-
-              {adjacentInsights.length > 0 && (
-                <div className="mb-3">
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: '#15803d' }}>Vizinhos que vendem juntos</p>
-                  {adjacentInsights.map((ins, i) => (
-                    <div key={i} className="mb-2 rounded-lg p-2.5" style={{ background: '#dcfce7', border: '1px solid #bbf7d0' }}>
-                      <p className="text-xs font-semibold" style={{ color: '#15803d' }}>
-                        {ins.antecedentCategory} + {ins.consequentCategory}
-                      </p>
-                      <p className="mt-0.5 text-[10px]" style={{ color: '#166534' }}>
-                        {Math.round(ins.confidence * 100)}% das cestas levam os dois · afinidade {formatDecimal(ins.lift, 1)}x
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {farInsights.length > 0 && (
-                <div>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: '#c2410c' }}>Oportunidades de aproximar</p>
-                  {farInsights.map((ins, i) => (
-                    <div key={i} className="mb-2 rounded-lg p-2.5" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-semibold" style={{ color: '#c2410c' }}>{ins.antecedentCategory}</span>
-                        <ArrowRight className="h-3 w-3 shrink-0" style={{ color: '#f97316' }} />
-                        <span className="text-xs font-semibold" style={{ color: '#c2410c' }}>{ins.consequentCategory}</span>
-                      </div>
-                      <p className="mt-0.5 text-[10px]" style={{ color: '#9a3412' }}>
-                        {ins.pairCount} cestas · lift {formatDecimal(ins.lift, 1)}x · estão longe no mapa
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!loadingInsights && insights.length > 0 && insights.some(i => i.adjacency === 'unmapped') && (
-                <div className="mt-2 flex items-start gap-1.5 rounded-lg p-2.5" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border-soft)' }}>
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
-                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Preencha o campo "categoria" nas seções para mapear mais pares.
-                  </p>
-                </div>
-              )}
             </div>
-          </div>
+          </>
         )}
       </div>
     </Layout>
+  );
+};
+
+// ── Onde fica? ─────────────────────────────────────────────────────────────
+
+const LocateSearch: React.FC<{ marketId: string; plan: StorePlan; onFound: (ids: string[], note: string) => void }> = ({ marketId, plan, onFound }) => {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<LocatedProduct[] | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (q.trim().length < 2) { setResults(null); return; }
+    const t = setTimeout(() => {
+      storeMapService.locate(marketId, q.trim()).then(setResults).catch(() => setResults([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, marketId]);
+
+  const pick = (p: LocatedProduct) => {
+    const fixtures = plan.fixtures.filter((f) => f.departments.includes(p.department));
+    const names = fixtures.map(fixtureName);
+    onFound(
+      fixtures.map((f) => f.id),
+      fixtures.length
+        ? `${p.name} fica em ${p.departmentLabel}: ${names.slice(0, 3).join(', ')}${names.length > 3 ? '…' : ''}`
+        : `${p.name} é de ${p.departmentLabel}, que ainda não tem lugar no mapa`,
+    );
+    setOpen(false);
+    setQ(p.name);
+  };
+
+  return (
+    <div className="relative">
+      <label htmlFor="locate" className="sr-only">Onde fica um produto?</label>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
+      <input
+        id="locate"
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Onde fica? Digite um produto (ex.: detergente)"
+        autoComplete="off"
+        className={`h-12 w-full rounded-xl pl-9 pr-3 text-sm ${FOCUS}`}
+        style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
+      />
+      {open && results && (
+        <ul className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-xl p-1 shadow-lg" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}>
+          {results.length === 0 ? (
+            <li className="px-3 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum produto vendido com esse nome nos últimos 90 dias.</li>
+          ) : results.map((p) => (
+            <li key={p.id}>
+              <button type="button" onClick={() => pick(p)} className={`flex min-h-[48px] w-full items-center gap-3 rounded-lg px-2 text-left transition hover:bg-[var(--surface-soft)] ${FOCUS}`}>
+                <span className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
+                  <ProductImage src={p.imageUrl} alt="" className="h-full w-full object-contain" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+                  <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{p.departmentLabel}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+// ── Calor ──────────────────────────────────────────────────────────────────
+
+const HeatLegend: React.FC = () => (
+  <div className="flex items-center gap-2 px-2 pb-1 pt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+    <span>Vende menos</span>
+    <span aria-hidden="true" className="h-2.5 flex-1 rounded-full" style={{ background: 'linear-gradient(90deg, rgb(219,234,254), rgb(253,230,138), rgb(248,113,113), rgb(220,38,38))' }} />
+    <span>Vende mais</span>
+  </div>
+);
+
+const HeatPanel: React.FC<{
+  plan: StorePlan; report: DepartmentsReport | null; heat: Record<string, number>;
+  selectedId: string | null; onSelect: (id: string | null) => void;
+}> = ({ plan, report, heat, selectedId, onSelect }) => {
+  const ranked = plan.fixtures.filter((f) => heat[f.id] != null).sort((a, b) => heat[b.id] - heat[a.id]);
+  const max = Math.max(1, ...ranked.map((f) => heat[f.id]));
+  const selected = plan.fixtures.find((f) => f.id === selectedId);
+  const deptStats = new Map((report?.departments ?? []).map((d) => [d.key, d]));
+
+  if (!report || report.invoices === 0) {
+    return <Panel title="Calor de vendas"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>O calor aparece assim que houver vendas dos últimos 30 dias.</p></Panel>;
+  }
+
+  return (
+    <>
+      {selected && heat[selected.id] != null && (
+        <Panel title={fixtureName(selected)} action={<button type="button" onClick={() => onSelect(null)} className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>Fechar</button>}>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Vendeu cerca de <strong style={{ color: 'var(--text-primary)' }}>{formatMoney(heat[selected.id])}</strong> nos últimos {report.days} dias.
+          </p>
+          {selected.departments.map((key) => {
+            const d = deptStats.get(key);
+            if (!d) return <p key={key} className="text-sm" style={{ color: 'var(--text-muted)' }}>{deptLabel(key)}: sem vendas no período.</p>;
+            return (
+              <div key={key} className="flex flex-col gap-1.5">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{d.label} · {Math.round(d.revenueShare * 100)}% da loja · em {Math.round(d.basketShare * 100)}% das compras</p>
+                <ul className="flex flex-col">
+                  {d.topProducts.slice(0, 5).map((p) => (
+                    <li key={p.id} className="flex items-center gap-2 py-1 text-sm">
+                      <span className="h-8 w-8 shrink-0 overflow-hidden rounded" style={{ background: 'var(--surface-soft)' }}><ProductImage src={p.imageUrl} alt="" className="h-full w-full object-contain" /></span>
+                      <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatMoney(p.revenue)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </Panel>
+      )}
+      <Panel title="Onde a loja mais vende">
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Últimos {report.days} dias. Quando um setor está em mais de um móvel, a venda é dividida entre eles.</p>
+        <ol className="flex flex-col gap-1">
+          {ranked.map((f, i) => (
+            <li key={f.id}>
+              <button type="button" onClick={() => onSelect(f.id)} aria-pressed={selectedId === f.id}
+                className={`flex min-h-[44px] w-full flex-col justify-center gap-1 rounded-lg px-2 py-1 text-left transition hover:bg-[var(--surface-soft)] ${FOCUS}`}>
+                <span className="flex w-full items-center gap-2 text-sm">
+                  <span className="w-5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{fixtureName(f)} <span style={{ color: 'var(--text-muted)' }}>· {f.departments.map(deptLabel).join(', ')}</span></span>
+                  <span className="shrink-0 font-semibold" style={{ color: 'var(--text-primary)' }}>{compactMoney(heat[f.id])}</span>
+                </span>
+                <span aria-hidden="true" className="ml-7 h-1.5 rounded-full" style={{ width: `calc(${Math.max(4, (heat[f.id] / max) * 100)}% - 1.75rem)`, background: 'var(--brand-500)' }} />
+              </button>
+            </li>
+          ))}
+        </ol>
+      </Panel>
+    </>
+  );
+};
+
+// ── Sugestões ──────────────────────────────────────────────────────────────
+
+const InsightsPanel: React.FC<{
+  insights: StoreInsight[] | null;
+  onShow: (i: StoreInsight) => void;
+  onFix: (i: StoreInsight) => void;
+}> = ({ insights, onShow, onFix }) => {
+  if (insights === null) {
+    return <Panel title="Sugestões"><div className="h-24 animate-pulse rounded-xl" style={{ background: 'var(--surface-muted)' }} aria-hidden="true" /><span className="sr-only">Calculando sugestões</span></Panel>;
+  }
+  if (insights.length === 0) {
+    return (
+      <Panel title="Sugestões">
+        <p className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />
+          Nada a mudar agora. As sugestões usam o que o cliente leva junto em cada compra e voltam a ser calculadas a cada alteração no mapa.
+        </p>
+      </Panel>
+    );
+  }
+  return (
+    <Panel title="Sugestões para a loja vender mais">
+      <ul className="flex flex-col gap-2">
+        {insights.map((ins, i) => {
+          const Icon = INSIGHT_ICON[ins.kind] ?? AlertTriangle;
+          return (
+            <li key={`${ins.kind}-${i}`} className="flex flex-col gap-2 rounded-xl p-3" style={{ border: '1px solid var(--border-soft)', background: ins.priority >= 60 ? 'var(--surface-soft)' : 'var(--surface-base)' }}>
+              <p className="flex items-start gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: ins.priority >= 60 ? '#b45309' : 'var(--brand-700)' }} aria-hidden="true" />
+                {ins.title}
+              </p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{ins.text}</p>
+              <div className="flex flex-wrap gap-2">
+                {ins.fixtureIds.length > 0 && (
+                  <button type="button" onClick={() => onShow(ins)} className={`inline-flex min-h-[40px] items-center rounded-lg px-3 text-sm font-semibold ${FOCUS}`} style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+                    Ver no mapa
+                  </button>
+                )}
+                {(ins.kind === 'COLD' || ins.kind === 'EMPTY' || ins.kind === 'MAGNET' || ins.kind === 'SLOW_SPOT' || ins.kind === 'PLACE') && (
+                  <button type="button" onClick={() => onFix(ins)} className={`inline-flex min-h-[40px] items-center rounded-lg px-3 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>
+                    Ajustar
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Panel>
   );
 };
 
