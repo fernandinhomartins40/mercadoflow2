@@ -4,9 +4,9 @@ Atualizado em: 2026-09-27
 
 | Campo | Valor |
 |---|---|
-| Fase atual | Prompt 5 — Requisitos e roadmap priorizado (concluído) |
-| Último gate aprovado | Gate 3B (2026-09-26, D-031) |
-| Gate pendente | **Gate 4** (roadmap e escopo exato da primeira fatia) |
+| Fase atual | Prompt 6 — Plano técnico da F1 (concluído) |
+| Último gate aprovado | Gate 4 (2026-09-27, D-034) |
+| Gate pendente | **Gate 5** (autorizar a implementação da F1) |
 | Escopo autorizado | somente leitura e criação de documentos em `docs/mercadoflow-product/` |
 | Código alterado nesta fase | hotfixes D-028 (login, erro 500, primeira nota), D-029 (landing, cota semanal, mapa de calor) e D-032 (SSRF, limite de login/cadastro, porta 3300), autorizados fora dos gates e publicados |
 
@@ -29,6 +29,7 @@ Atualizado em: 2026-09-27
 | Hotfix D-032 (SSRF, limite de tentativas, IP real, porta 3300) | DONE: 189 testes; publicado (`66c6869`); conferido em produção |
 | Desligar ambiente local de auditoria | DONE: 4 containers e rede `mfaudit` removidos; imagens mantidas |
 | Prompt 5: `08-PRODUCT-REQUIREMENTS.md` e `09-PRIORITIZED-ROADMAP.md` | DONE: 27 requisitos, 21 fatias + V1, cobertura 63/63 |
+| Prompt 6: `10-IMPLEMENTATION-PLAN.md` e `11-TEST-PLAN.md` (F1) | DONE |
 | Executar testes do backend | DONE: 189 testes, 0 falhas (Java 17, maven:3.9.6-eclipse-temurin-17) |
 
 ## Testes executados
@@ -50,6 +51,7 @@ Prompt 0–2: somente leitura. Prompt 3: Playwright/axe em produção (páginas 
 - `docs/mercadoflow-product/06-TECHNICAL-ARCHITECTURE.md`, `07-SECURITY-PERFORMANCE-OPERATIONS.md`
 - código (hotfix D-032): `OutboundUrlGuard.java` (+ teste), `LlmClient.java`, `AiCredentialService.java`, `RateLimitFilter.java` (+ teste), `deploy/nginx.vps.conf`, `docker-compose.vps.yml`
 - `docs/mercadoflow-product/08-PRODUCT-REQUIREMENTS.md`, `09-PRIORITIZED-ROADMAP.md`
+- `docs/mercadoflow-product/10-IMPLEMENTATION-PLAN.md`, `11-TEST-PLAN.md`
 
 ## Riscos abertos (a aprofundar nas fases seguintes, sem conclusão ainda)
 
@@ -81,6 +83,5 @@ D-006 cliente = mercado independente · D-007 estúdio de ofertas volta ao produ
 
 ## Próxima ação exata
 
-Aguardar o **Gate 4**. Recomendação: autorizar somente a fatia **F1 — Ativação guiada + testes no CI**
-(`09-PRIORITIZED-ROADMAP.md` §2). Se aprovada, executar **somente o Prompt 6** (plano técnico e de testes da F1) e
-parar no Gate 5.
+Aguardar o **Gate 5**. Se autorizado, executar o **Prompt 7** somente para a F1, na ordem do §11 do
+`10-IMPLEMENTATION-PLAN.md`, sem tocar os 21 arquivos locais do owner.
