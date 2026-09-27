@@ -7,14 +7,17 @@ interface ShoppingListButtonProps {
   label?: string;
   className?: string;
   stopPropagation?: boolean;
+  /** `subtle` para listas longas, em que um botão verde por linha competiria com o conteúdo. */
+  tone?: 'primary' | 'subtle';
 }
 
 const ShoppingListButton: React.FC<ShoppingListButtonProps> = ({
   inList = false,
   onAdd,
-  label = 'Adicionar a lista',
+  label = 'Adicionar à lista',
   className,
   stopPropagation = true,
+  tone = 'primary',
 }) => {
   const [saving, setSaving] = useState(false);
 
@@ -37,7 +40,7 @@ const ShoppingListButton: React.FC<ShoppingListButtonProps> = ({
   return (
     <Button
       type="button"
-      variant={inList ? 'secondary' : 'primary'}
+      variant={inList || tone === 'subtle' ? 'secondary' : 'primary'}
       className={`shopping-list-button ${inList ? 'is-added' : ''} ${className || ''}`.trim()}
       onClick={handleClick}
       disabled={saving}

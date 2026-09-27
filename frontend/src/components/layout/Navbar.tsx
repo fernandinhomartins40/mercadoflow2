@@ -4,26 +4,6 @@ import { LogOut, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { resolveLocation } from '../../config/navigation';
 
-/** Títulos das telas; o destino (Hoje, Comprar…) vem da navegação. */
-const TITLES: Record<string, string> = {
-  '/app': 'Hoje no mercado',
-  '/app/inteligencia': 'Todas as decisões',
-  '/app/perguntar': 'Pergunte aos dados',
-  '/app/rede': 'Semana e rede',
-  '/app/clientes': 'Clientes',
-  '/app/produtos': 'Produtos',
-  '/app/lista-compras': 'Pedido inteligente',
-  '/app/promocoes': 'Promoções',
-  '/app/mapa-loja': 'Mapa da loja',
-  '/app/pdvs': 'Caixas e agente',
-  '/app/download-agente': 'Baixar o agente',
-  '/app/planos': 'Plano e consumo',
-  '/app/configuracoes': 'Conta',
-  '/app/admin/catalogo': 'Catálogo global',
-  '/app/admin/precos-estaduais': 'Preços estaduais',
-  '/app/ofertas': 'Estúdio de ofertas',
-};
-
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 
 /**
@@ -35,7 +15,6 @@ const Navbar: React.FC<{ desktopPinned: boolean }> = ({ desktopPinned }) => {
   const { logout } = useAuth();
   const { pathname } = useLocation();
   const { destination } = resolveLocation(pathname);
-  const title = pathname.startsWith('/app/produtos/') ? 'Ficha do produto' : TITLES[pathname] ?? destination.label;
   const asking = pathname === '/app/perguntar';
 
   return (
@@ -45,13 +24,10 @@ const Navbar: React.FC<{ desktopPinned: boolean }> = ({ desktopPinned }) => {
           {!desktopPinned && (
             <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">MF</span>
           )}
-          <div className="min-w-0">
-            <span className="block text-[0.7rem] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
-              {asking ? 'Qualquer tela' : destination.label}
-            </span>
-            {/* Não é h1: o título principal é o da própria tela. */}
-            <p className="truncate text-base font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{title}</p>
-          </div>
+          {/* Só o destino: o título da tela já aparece na própria página. */}
+          <p className="min-w-0 truncate text-base font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            {asking ? 'Pergunte aos dados' : destination.label}
+          </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

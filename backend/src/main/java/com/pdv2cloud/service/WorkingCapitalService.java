@@ -335,7 +335,19 @@ public class WorkingCapitalService {
             "), " +
             "order_costs as ( " +
             "  select distinct on (soi.product_id) " +
-            "         soi.product_id, soi.unit_cost, soi.unit_sale_price, soi.margin_percent, so.order_date " +
+            // Custo do item é por embalagem pedida; aqui interessa por unidade vendida.
+            "         soi.product_id, " +
+            "         case when soi.unit_type not in ('UN', 'KG') and soi.units_per_pack > 0 " +
+            "              then soi.unit_cost / soi.units_per_pack else soi.unit_cost end as unit_cost, " +
+            "         soi.unit_sale_price, " +
+            // Margem recalculada sobre o custo por unidade: a gravada em itens
+            // antigos por caixa comparava o custo da caixa com o preço da unidade.
+            "         case when soi.unit_sale_price > 0 then " +
+            "              (soi.unit_sale_price - (case when soi.unit_type not in ('UN', 'KG') and soi.units_per_pack > 0 " +
+            "                   then soi.unit_cost / soi.units_per_pack else soi.unit_cost end)) * 100.0 " +
+            "              / nullif(case when soi.unit_type not in ('UN', 'KG') and soi.units_per_pack > 0 " +
+            "                   then soi.unit_cost / soi.units_per_pack else soi.unit_cost end, 0) " +
+            "         end as margin_percent, so.order_date " +
             "  from supplier_order_items soi " +
             "  join supplier_orders so on so.id = soi.supplier_order_id " +
             "  where so.market_id = :marketId and soi.unit_cost > 0 " +

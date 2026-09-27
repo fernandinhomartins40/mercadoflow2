@@ -99,6 +99,19 @@ Central numa tela e fim de Alertas; D-018 celular primeiro) e requisitos R-08 e 
 | N-05 | P2 | cartão de recomendação e lógica de decidir só existiam na Central | `RecommendationCard` e `useRecommendationDecision` compartilhados; botões de 44 px, empilhados no celular | `components/intelligence`, `hooks` | baixo | testes de tela | DONE |
 | N-06 | P3 | acabamentos: "27 De Setembro", dicas cortadas, título cortado a 360 px, "PDVs" × "Caixas", dois `h1` por tela, destino ativo não anunciado ao leitor de tela | corrigidos | layout, Hoje, PDVs | baixo | varredura | DONE |
 
+## Ciclo 4 — páginas internas organizadas como produto (2026-09-27)
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| P4-01 | P1 | título repetido em toda página (topo + página) | topo mostra só o destino; a página tem o título | `Navbar.tsx` | baixo | varredura | DONE |
+| P4-02 | P1 | Comprar: "o que comprar" espalhado em 3 lugares; abria na aba mais técnica | abre em **Pedidos**: "Sugestões para comprar" (aceitar põe no pedido) + pedidos agrupados em Para enviar · Aguardando entrega · Concluídos, com a ação principal de cada grupo | `ShoppingList.tsx`, `PurchaseSuggestions.tsx` | médio | testes de tela | DONE |
+| P4-03 | P1 | margem de −705% e histórico de compra em caixas contadas como unidades | custo convertido para unidade vendida (margem, leitura do custo na análise, histórico ao receber); formulário diz "Custo por caixa" e calcula a margem por unidade | `SupplierOrderService`, `WorkingCapitalService`, `ShoppingList.tsx` | médio | `SupplierOrderPackCostTest` + suíte | DONE |
+| P4-04 | P2 | "GMROI", "capital parado" e "Onde investir" como jargão | "O que comprar", "Retorno do estoque: R$ x por R$ 1", "Parado na prateleira" | `CapitalPlanTab.tsx` | baixo | varredura | DONE |
+| P4-05 | P1 | Caixas e agente mostrava "com/sem serial" e não respondia se as vendas estão chegando | cartão de conexão (agente on-line, último sinal, caixas, notas recebidas e recusadas); abas Caixas · Chaves do agente · Instalar agente; "PDV" → "caixa" | `PDVs.tsx`, `ConnectionStatus.tsx` | baixo | varredura | DONE |
+| P4-06 | P2 | Produtos: cartões grandes com imagem vazia, "Momentum"/"Saúde"; cartão clicável sem ser link (UX-14) | lista compacta com link, situação em palavras, receita · vende por dia · tendência; botão de lista discreto | `Products.tsx`, `ShoppingListButton.tsx` | baixo | varredura | DONE |
+| P4-07 | P2 | Mapa: "Alt+clique" impossível no celular (UX-13); mapa vazio sem orientação | botão "É um corredor" no formulário, campos de 44 px, guia de 3 passos no mapa vazio | `StoreMap.tsx` | baixo | varredura | DONE |
+| P4-08 | P3 | Todas as decisões com pílulas pequenas; Clientes e Semana sem título | `SegmentedTabs` e cabeçalhos de página | `IntelligenceCenter.tsx`, `CustomerIntelligence.tsx`, `NetworkView.tsx` | baixo | varredura | DONE |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive

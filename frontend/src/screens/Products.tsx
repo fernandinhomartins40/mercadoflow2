@@ -107,15 +107,15 @@ const DesempenhoTab: React.FC = () => {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <form onSubmit={(e) => { e.preventDefault(); const n = new URLSearchParams(searchParams); setPage(0); searchInput.trim() ? n.set('search', searchInput.trim()) : n.delete('search'); setSearchParams(n); }} className="flex gap-2">
-          <div className="relative">
+        <form onSubmit={(e) => { e.preventDefault(); const n = new URLSearchParams(searchParams); setPage(0); searchInput.trim() ? n.set('search', searchInput.trim()) : n.delete('search'); setSearchParams(n); }} className="flex w-full gap-2 sm:w-auto">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-soft)' }} />
-            <input className="h-10 rounded-lg pl-9 pr-4 text-sm outline-none" style={{ ...inputStyle, width: 240 }} placeholder="Buscar produto..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+            <input className="h-10 w-full rounded-lg pl-9 pr-4 text-sm outline-none sm:w-60" style={inputStyle} placeholder="Buscar produto..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
           </div>
           <Button type="submit">Buscar</Button>
           {querySearch && <Button variant="ghost" type="button" onClick={() => { setSearchInput(''); setPage(0); const n = new URLSearchParams(searchParams); n.delete('search'); setSearchParams(n); }}>Limpar</Button>}
         </form>
-        <input className="h-10 rounded-lg px-3 text-sm outline-none" style={{ ...inputStyle, width: 180 }} placeholder="Filtrar categoria" value={category} onChange={(e) => { setPage(0); setCategory(e.target.value); }} />
+        <input className="h-10 w-full rounded-lg px-3 text-sm outline-none sm:w-44" style={inputStyle} placeholder="Filtrar categoria" value={category} onChange={(e) => { setPage(0); setCategory(e.target.value); }} />
         <p className="ml-auto text-sm" style={{ color: 'var(--text-muted)' }}>{totalElements} produtos</p>
       </div>
 
@@ -138,68 +138,52 @@ const DesempenhoTab: React.FC = () => {
       ) : products.length === 0 ? (
         <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}><p style={{ color: 'var(--text-muted)' }}>Nenhum produto encontrado.</p></div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className="flex flex-col gap-2">
+          {/* Lista, não grade de cartões: comparar dezenas de produtos exige
+              ler as mesmas colunas de relance, não rolar fotos. */}
           {products.map((product) => {
             const status = statusLabel(product);
             const trend = Number(product.revenueTrendPercentage || 0);
             return (
-              <article key={product.productId} onClick={() => navigate(`/app/produtos/${product.productId}`)}
-                className="flex cursor-pointer flex-col rounded-xl transition hover:-translate-y-0.5"
-                style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <div className="flex h-40 items-center justify-center overflow-hidden rounded-t-xl p-4">
-                  <ProductImage src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain" />
+              <li key={product.productId} className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+                <Link
+                  to={`/app/produtos/${product.productId}`}
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]"
+                >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
+                    <ProductImage src={product.imageUrl} alt="" className="max-h-full max-w-full object-contain" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{product.name}</span>
+                    <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" style={status.style}>{status.text}</span>
+                      {product.category || 'Sem categoria'}
+                    </span>
+                  </span>
+                </Link>
+                <dl className="grid grid-cols-3 gap-3 text-left sm:w-[360px] sm:shrink-0 sm:text-right">
+                  <div>
+                    <dt className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Receita · 90 dias</dt>
+                    <dd className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(product.revenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Vende por dia</dt>
+                    <dd className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(product.salesVelocity || 0), 1)} un.</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Tendência</dt>
+                    <dd className="flex items-center gap-1 text-sm font-semibold sm:justify-end" style={{ color: trend > 3 ? 'var(--brand-700)' : trend < -3 ? '#b91c1c' : 'var(--text-muted)' }}>
+                      <TrendIcon value={trend} />{trend > 0 ? '+' : ''}{formatDecimal(trend, 1)}%
+                    </dd>
+                  </div>
+                </dl>
+                <div className="sm:shrink-0">
+                  <ShoppingListButton tone="subtle" inList={productIds.has(product.productId)} onAdd={async () => addItem({ productId: product.productId, quantityTarget: Math.max(1, Math.round(Number(product.salesVelocity || 0) || 1)), sourceTag: 'PRODUTOS', reasonSummary: `Adicionar ${product.name} à lista.` })} />
                 </div>
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={status.style}>{status.text}</span>
-                    <div className="flex items-center gap-1">
-                      <TrendIcon value={trend} />
-                      <span className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-500' : ''}`} style={!trend ? { color: 'var(--text-soft)' } : {}}>
-                        {trend > 0 ? '+' : ''}{formatDecimal(trend, 1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <h3 className="line-clamp-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{product.name}</h3>
-                  <p className="line-clamp-1 text-xs" style={{ color: 'var(--text-soft)' }}>{product.category || 'Sem categoria'}</p>
-                  <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-2" style={{ borderColor: 'var(--border-soft)' }}>
-                    <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Receita</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(product.revenue)}</p></div>
-                    <div><span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Vendas/dia</span><p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(product.salesVelocity || 0), 1)}/dia</p></div>
-                    {product.momentumScore != null && (
-                      <div className="col-span-2">
-                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Momentum</span>
-                        <div className="flex items-center gap-1.5">
-                          <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
-                            <div className="h-full rounded-full transition-all" style={{
-                              width: `${Math.min(100, Math.max(4, (Number(product.momentumScore) / 2) * 100))}%`,
-                              background: Number(product.momentumScore) >= 1.1 ? '#22c55e' : Number(product.momentumScore) >= 0.85 ? '#f59e0b' : '#ef4444',
-                            }} />
-                          </div>
-                          <span className="text-[11px] font-semibold shrink-0" style={{ color: Number(product.momentumScore) >= 1.1 ? '#166534' : Number(product.momentumScore) >= 0.85 ? '#92400e' : '#991b1b' }}>
-                            {formatDecimal(Number(product.momentumScore), 2)}×
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {product.healthScore != null && (
-                    <div className="mt-1">
-                      <div className="mb-0.5 flex items-center justify-between">
-                        <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Saúde</span>
-                        <span className="text-[10px] font-semibold" style={{ color: Number(product.healthScore) >= 60 ? 'var(--brand-700)' : Number(product.healthScore) >= 35 ? '#92400e' : '#991b1b' }}>{formatDecimal(Number(product.healthScore), 0)}</span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Number(product.healthScore))}%`, background: Number(product.healthScore) >= 60 ? 'var(--brand-500)' : Number(product.healthScore) >= 35 ? '#f59e0b' : '#ef4444' }} />
-                      </div>
-                    </div>
-                  )}
-                  <div className="mt-1 flex justify-end" onClick={(e) => e.stopPropagation()}>
-                    <ShoppingListButton inList={productIds.has(product.productId)} onAdd={async () => addItem({ productId: product.productId, quantityTarget: Math.max(1, Math.round(Number(product.salesVelocity || 0) || 1)), sourceTag: 'PRODUTOS', reasonSummary: `Adicionar ${product.name} à lista.` })} />
-                  </div>
-                </div>
-              </article>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       {!loading && pageData && totalPages > 1 && (

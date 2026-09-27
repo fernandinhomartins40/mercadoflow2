@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ConnectionStatus from '../components/activation/ConnectionStatus';
+import { useActivation } from '../hooks/useActivation';
 import SegmentedTabs from '../components/ui/SegmentedTabs';
 import Layout from '../components/layout/Layout';
 import { marketService } from '../services/market.service';
@@ -52,6 +54,7 @@ type Tab = 'pdvs' | 'agente' | 'download';
 const PDVs: React.FC = () => {
   const { marketId, role } = useAuth();
   const [tab, setTab] = useState<Tab>('pdvs');
+  const activation = useActivation();
 
   /* ── PDVs state ── */
   const [pdvs, setPdvs] = useState<PDVItem[]>([]);
@@ -163,14 +166,13 @@ const PDVs: React.FC = () => {
     finally { setBusyKeyId(null); }
   };
 
-  const withSerial = useMemo(() => pdvs.filter(p => Boolean(p.serialNumber)).length, [pdvs]);
   const activeKeys = keys.filter(k => k.isActive !== false);
   const freshKeys = keys.filter(k => k.isActive !== false && isHeartbeatFresh(k.lastHeartbeatAt));
 
   const TABS: Array<{ key: Tab; label: string }> = [
-    { key: 'pdvs', label: `PDVs (${pdvs.length})` },
-    { key: 'agente', label: `Agente (${activeKeys.length} chave${activeKeys.length !== 1 ? 's' : ''})` },
-    { key: 'download', label: 'Download' },
+    { key: 'pdvs', label: `Caixas (${pdvs.length})` },
+    { key: 'agente', label: 'Chaves do agente' },
+    { key: 'download', label: 'Instalar agente' },
   ];
 
   return (
@@ -181,10 +183,12 @@ const PDVs: React.FC = () => {
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Caixas e agente</h1>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Caixas, chaves do coletor local e instalador
+              Veja se as vendas estão chegando e conecte novos caixas.
             </p>
           </div>
         </div>
+
+        {activation.status && <ConnectionStatus status={activation.status} onInstall={() => setTab('download')} />}
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
@@ -192,25 +196,12 @@ const PDVs: React.FC = () => {
         {/* ── ABA: PDVs ── */}
         {tab === 'pdvs' && (
           <div className="flex flex-col gap-5">
-            {/* Métricas */}
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { label: 'Total de PDVs', value: pdvs.length, color: 'var(--text-primary)' },
-                { label: 'Com serial', value: withSerial, color: 'var(--brand-700)' },
-                { label: 'Sem serial', value: pdvs.length - withSerial, color: 'var(--text-muted)' },
-              ].map(m => (
-                <div key={m.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                  <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{m.label}</p>
-                  <p className="mt-1 text-2xl font-bold" style={{ color: m.color }}>{m.value}</p>
-                </div>
-              ))}
-            </div>
 
             <div className="grid gap-5 lg:grid-cols-[1fr_300px] lg:items-start">
               {/* Lista */}
               <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                 <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>PDVs cadastrados</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Caixas cadastrados</p>
                   <button type="button" onClick={loadPdvs} disabled={pdvsLoading}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition hover:opacity-80"
                     style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
@@ -222,7 +213,7 @@ const PDVs: React.FC = () => {
                 ) : pdvs.length === 0 ? (
                   <div className="py-10 text-center">
                     <Monitor className="mx-auto mb-2 h-8 w-8 opacity-20" style={{ color: 'var(--text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum PDV cadastrado.</p>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum caixa cadastrado. Ao conectar o agente, o caixa aparece aqui.</p>
                   </div>
                 ) : (
                   <table className="w-full text-sm">
@@ -249,9 +240,9 @@ const PDVs: React.FC = () => {
 
               {/* Formulário novo PDV */}
               <div className="rounded-xl p-4 flex flex-col gap-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Cadastrar PDV</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Cadastrar caixa</p>
                 <input
-                  placeholder="Nome do PDV (ex: Caixa 1)"
+                  placeholder="Nome do caixa (ex.: Caixa 1)"
                   value={pdvName} onChange={e => setPdvName(e.target.value)}
                   className="h-9 w-full rounded-lg px-3 text-sm outline-none"
                   style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
@@ -264,7 +255,7 @@ const PDVs: React.FC = () => {
                 <button type="button" onClick={createPdv} disabled={pdvSaving || !pdvName.trim()}
                   className="flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
                   style={{ background: 'var(--brand-500)', color: '#fff' }}>
-                  <Plus className="h-4 w-4" /> {pdvSaving ? 'Salvando...' : 'Criar PDV'}
+                  <Plus className="h-4 w-4" /> {pdvSaving ? 'Salvando...' : 'Adicionar caixa'}
                 </button>
               </div>
             </div>

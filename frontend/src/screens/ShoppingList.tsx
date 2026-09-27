@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import useModalBehavior from '../hooks/useModalBehavior';
 import OrderSendOptions from '../components/orders/OrderSendOptions';
+import PurchaseSuggestions from '../components/orders/PurchaseSuggestions';
 import ProductImage from '../components/product/ProductImage';
 import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
@@ -513,9 +514,11 @@ const AddItemForm: React.FC<{
 
   const cost = parseFloat(unitCost.replace(',', '.')) || 0;
   const sale = parseFloat(unitSalePrice.replace(',', '.')) || 0;
-  const margin = cost > 0 && sale > 0 ? ((sale - cost) / cost) * 100 : null;
   const needsPack = UNIT_NEEDS_PACK.has(unitType);
   const upp = parseFloat(unitsPerPack) || null;
+  // O custo é por embalagem pedida; o preço de venda, por unidade no caixa.
+  const unitCostPerItem = needsPack && upp ? cost / upp : cost;
+  const margin = unitCostPerItem > 0 && sale > 0 ? ((sale - unitCostPerItem) / unitCostPerItem) * 100 : null;
   const totalUnits = needsPack && upp ? (parseFloat(qty) || 0) * upp : null;
 
   const handleSave = async () => {
@@ -568,7 +571,7 @@ const AddItemForm: React.FC<{
           </div>
         )}
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo unit. *</label>
+          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo por {(UNIT_LABELS[unitType] || 'unidade').toLowerCase()} *</label>
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-soft)' }}>R$</span>
             <input type="text" inputMode="decimal" placeholder="0,00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
@@ -577,7 +580,7 @@ const AddItemForm: React.FC<{
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Preço venda</label>
+          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Preço de venda (un.)</label>
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-soft)' }}>R$</span>
             <input type="text" inputMode="decimal" placeholder="0,00" value={unitSalePrice} onChange={(e) => setUnitSalePrice(e.target.value)}
@@ -1286,9 +1289,9 @@ const ShoppingListPage: React.FC = () => {
   const { dashboard, loading: dLoading } = useMarketData();
   const { overview, items, productIds, loading, error, addItem, updateItem, removeItem } = useShoppingList();
 
-  // Abre em "Onde investir": é a decisão que o supermercadista precisa tomar
-  // antes de montar a lista, não depois.
-  const [tab, setTab] = useState<Tab>('capital');
+  // Abre em Pedidos: é o que o comprador faz todo dia (enviar, receber) e onde
+  // as compras sugeridas pela análise já aparecem prontas para o pedido.
+  const [tab, setTab] = useState<Tab>('pedidos');
 
   // Lista
   const [recordModal, setRecordModal] = useState<ShoppingListItem | null>(null);
@@ -1309,7 +1312,8 @@ const ShoppingListPage: React.FC = () => {
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter] = useState('');
+  const [showAllDone, setShowAllDone] = useState(false);
   const [newOrder, setNewOrder] = useState<NewOrderState | null>(null); // null = fechado
   const [detailOrder, setDetailOrder] = useState<SupplierOrder | null>(null);
   const [receiveOrder, setReceiveOrder] = useState<SupplierOrder | null>(null);
@@ -1371,15 +1375,17 @@ const ShoppingListPage: React.FC = () => {
   );
 
   const TABS: Array<{ key: Tab; label: string; icon: React.ReactNode; badge?: number }> = [
-    { key: 'capital', label: 'Onde investir', icon: <Zap className="h-4 w-4" /> },
+    { key: 'pedidos', label: 'Pedidos', icon: <ClipboardList className="h-4 w-4" />, badge: orders.filter(o => o.status === 'RASCUNHO').length || undefined },
+    { key: 'capital', label: 'O que comprar', icon: <Zap className="h-4 w-4" /> },
     { key: 'lista', label: 'Lista de compras', icon: <ShoppingCart className="h-4 w-4" />, badge: overview.pendingItems || undefined },
-    { key: 'pedidos', label: 'Pedidos', icon: <ClipboardList className="h-4 w-4" />, badge: orders.filter(o => o.status === 'ENVIADO').length || undefined },
     { key: 'fornecedores', label: 'Fornecedores', icon: <Building2 className="h-4 w-4" /> },
   ];
 
-  const STATUS_TABS = [
-    { key: '', label: 'Todos' }, { key: 'RASCUNHO', label: 'Rascunho' },
-    { key: 'ENVIADO', label: 'Enviados' }, { key: 'ENTREGUE', label: 'Entregues' }, { key: 'CANCELADO', label: 'Cancelados' },
+  // Agrupados pelo que falta fazer, não por filtro: o que enviar vem primeiro.
+  const ORDER_GROUPS: Array<{ key: string; title: string; hint: string; statuses: string[] }> = [
+    { key: 'send', title: 'Para enviar', hint: 'Rascunhos prontos para o fornecedor', statuses: ['RASCUNHO'] },
+    { key: 'wait', title: 'Aguardando entrega', hint: 'Enviados; registre quando a mercadoria chegar', statuses: ['ENVIADO'] },
+    { key: 'done', title: 'Concluídos', hint: 'Entregues e cancelados', statuses: ['ENTREGUE', 'CANCELADO'] },
   ];
 
   if (loading || dLoading) {
@@ -1437,7 +1443,7 @@ const ShoppingListPage: React.FC = () => {
         {/* Header */}
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pedido inteligente</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Onde investir seu capital de giro, lista de compras e pedidos a fornecedores</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Do que comprar ao pedido enviado e recebido do fornecedor.</p>
         </div>
 
         {/* Abas */}
@@ -1595,87 +1601,93 @@ const ShoppingListPage: React.FC = () => {
 
         {/* ── ABA: PEDIDOS ── */}
         {tab === 'pedidos' && !newOrder && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
+            {marketId && <PurchaseSuggestions marketId={marketId} onOrdersChanged={fetchOrders} />}
+
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Gerencie pedidos de compra por fornecedor. Registre custo, venda e margem de cada produto.</p>
-              <button type="button" onClick={() => setNewOrder({})} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Um pedido por fornecedor: monte, envie pelo WhatsApp ou PDF e registre a entrega.</p>
+              <button type="button" onClick={() => setNewOrder({})} className="flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}>
                 <Plus className="h-4 w-4" /> Novo pedido
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {STATUS_TABS.map(t => {
-                const active = statusFilter === t.key;
-                const cfg = t.key ? STATUS_CFG[t.key] : null;
-                const count = t.key ? orders.filter(o => o.status === t.key).length : orders.length;
-                return (
-                  <button key={t.key} type="button" onClick={() => setStatusFilter(t.key)}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition"
-                    style={active
-                      ? { background: cfg?.bg || 'var(--surface-success)', color: cfg?.text || 'var(--brand-700)', border: `1px solid ${cfg?.dot || 'var(--brand-600)'}` }
-                      : { background: 'var(--surface-base)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}>
-                    {t.label}
-                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: active ? 'rgba(0,0,0,0.1)' : 'var(--surface-muted)', color: active ? 'inherit' : 'var(--text-muted)' }}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {ordersLoading
+            {ordersLoading && !ordersLoaded
               ? <div className="flex min-h-[160px] items-center justify-center"><div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>
               : orders.length === 0
                 ? <div className="rounded-xl py-12 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                     <ClipboardList className="mx-auto mb-3 h-9 w-9 opacity-20" style={{ color: 'var(--text-muted)' }} />
-                    <p className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Nenhum pedido</p>
-                    <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>{statusFilter ? `Sem pedidos com status "${STATUS_CFG[statusFilter]?.label}".` : 'Crie seu primeiro pedido a um fornecedor.'}</p>
-                    {!statusFilter && <button type="button" onClick={() => setNewOrder({})} className="inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}><Plus className="h-4 w-4" /> Criar pedido</button>}
+                    <p className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Nenhum pedido ainda</p>
+                    <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Aceite uma sugestão de compra ou crie um pedido para um fornecedor.</p>
+                    <button type="button" onClick={() => setNewOrder({})} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl px-5 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}><Plus className="h-4 w-4" /> Criar pedido</button>
                   </div>
-                : <div className="flex flex-col gap-3">
-                    {orders.map(order => {
-                      const sup = order.supplierFantasia || order.supplierName;
-                      return (
-                        <div key={order.id} className="flex flex-col rounded-xl" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
-                          <div className="flex items-start gap-3 p-4">
-                            <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-soft)' }}>
-                              <Building2 className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{order.orderNumber}</span>
-                                <StatusBadge status={order.status} />
-                              </div>
-                              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{sup}</p>
-                              <p className="text-xs" style={{ color: 'var(--text-soft)' }}>
-                                {order.itemCount} {order.itemCount === 1 ? 'produto' : 'produtos'} · {fmtDate(order.orderDate)}
-                                {order.sentAt ? ` · enviado ${fmtDate(order.sentAt)}` : ''}
-                                {order.deliveredAt ? ` · entregue ${fmtDate(order.deliveredAt)}` : ''}
-                              </p>
-                              {order.cancelReason && <p className="mt-0.5 text-xs italic text-red-500">{order.cancelReason}</p>}
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(order.totalValue)}</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border-soft)' }}>
-                            <button type="button" onClick={() => openOrderDetail(order)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
-                              {order.canEdit ? <><Edit2 className="h-3 w-3" /> Editar pedido</> : <><ClipboardList className="h-3 w-3" /> Ver detalhes</>}
-                            </button>
-                            {order.canReceive && (
-                              <button type="button" onClick={() => setReceiveOrder(order)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-80" style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
-                                <Truck className="h-3 w-3" /> Receber mercadoria
-                              </button>
-                            )}
-                            {order.status === 'RASCUNHO' && (
-                              <button type="button" onClick={async () => { if (!window.confirm(`Excluir ${order.orderNumber}?`)) return; await marketService.deleteSupplierOrder(marketId!, order.id); fetchOrders(); }}
-                                className="ml-auto text-xs transition hover:opacity-70" style={{ color: '#ef4444' }}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
+                : ORDER_GROUPS.map(group => {
+                    const groupOrders = orders.filter(o => group.statuses.includes(o.status));
+                    if (groupOrders.length === 0) return null;
+                    const visible = group.key === 'done' && !showAllDone ? groupOrders.slice(0, 5) : groupOrders;
+                    return (
+                      <section key={group.key} aria-labelledby={`orders-${group.key}`} className="flex flex-col gap-3">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <h2 id={`orders-${group.key}`} className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {group.title} <span className="font-normal" style={{ color: 'var(--text-muted)' }}>({groupOrders.length})</span>
+                          </h2>
+                          <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>{group.hint}</span>
                         </div>
-                      );
-                    })}
-                  </div>}
+                        <div className="flex flex-col gap-3">
+                          {visible.map(order => {
+                            const sup = order.supplierFantasia || order.supplierName;
+                            return (
+                              <div key={order.id} className="flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
+                                <div className="flex min-w-0 flex-1 items-start gap-3">
+                                  <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-soft)' }}>
+                                    <Building2 className="h-5 w-5" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{sup}</p>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                      {order.orderNumber} · {order.itemCount} {order.itemCount === 1 ? 'produto' : 'produtos'} · {fmtMoney(order.totalValue)}
+                                    </p>
+                                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-soft)' }}>
+                                      <StatusBadge status={order.status} />
+                                      {order.deliveredAt ? `entregue ${fmtDate(order.deliveredAt)}` : order.sentAt ? `enviado ${fmtDate(order.sentAt)}` : `criado ${fmtDate(order.orderDate)}`}
+                                    </p>
+                                    {order.cancelReason && <p className="mt-0.5 text-xs italic text-red-600">{order.cancelReason}</p>}
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                  {order.status === 'RASCUNHO' && (
+                                    <button type="button" onClick={() => openOrderDetail(order)} className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-white transition hover:opacity-90 sm:flex-none" style={{ background: 'var(--brand-700)' }}>
+                                      <Send className="h-4 w-4" aria-hidden="true" /> Revisar e enviar
+                                    </button>
+                                  )}
+                                  {order.canReceive && (
+                                    <button type="button" onClick={() => setReceiveOrder(order)} className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition hover:opacity-90 sm:flex-none" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)', border: '1px solid var(--border-success)' }}>
+                                      <Truck className="h-4 w-4" aria-hidden="true" /> Receber mercadoria
+                                    </button>
+                                  )}
+                                  {order.status !== 'RASCUNHO' && (
+                                    <button type="button" onClick={() => openOrderDetail(order)} className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
+                                      Ver pedido
+                                    </button>
+                                  )}
+                                  {order.status === 'RASCUNHO' && (
+                                    <button type="button" aria-label={`Excluir ${order.orderNumber}`} onClick={async () => { if (!window.confirm(`Excluir ${order.orderNumber}?`)) return; await marketService.deleteSupplierOrder(marketId!, order.id); fetchOrders(); }}
+                                      className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition hover:opacity-70" style={{ color: '#dc2626', border: '1px solid var(--border-soft)' }}>
+                                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {group.key === 'done' && groupOrders.length > 5 && !showAllDone && (
+                          <button type="button" onClick={() => setShowAllDone(true)} className="self-start text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>
+                            Ver os {groupOrders.length} pedidos concluídos
+                          </button>
+                        )}
+                      </section>
+                    );
+                  })}
           </div>
         )}
 

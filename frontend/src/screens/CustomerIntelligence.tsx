@@ -145,6 +145,10 @@ const CustomerIntelligence: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5" style={{ maxWidth: '64rem' }}>
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Clientes</h1>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Quem volta à loja, com que frequência e o que traz o cliente de volta.</p>
+        </div>
 
         {locked ? (
           <PlanInvite

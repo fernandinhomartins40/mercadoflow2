@@ -151,7 +151,7 @@ const LineRow: React.FC<{ line: PurchaseLine; showUnits?: boolean }> = ({ line, 
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
         {line.gmroi != null && (
           <span title="Margem bruta por real investido no estoque">
-            GMROI <strong style={{ color: 'var(--text-primary)' }}>{fmtNumber(line.gmroi, 2)}</strong>
+            Retorno <strong style={{ color: 'var(--text-primary)' }}>R$ {fmtNumber(line.gmroi, 2)}</strong> por R$ 1
           </span>
         )}
         {line.marginPercent != null && <span>Margem {fmtNumber(line.marginPercent, 1)}%</span>}
@@ -297,27 +297,27 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
           icon={<Package size={13} />}
-          label="Capital em estoque"
+          label="Dinheiro em estoque"
           value={fmtMoney(summary?.totalInventoryValue)}
           hint={`${summary?.productCount ?? 0} produtos analisados`}
         />
         <StatTile
           icon={<Snowflake size={13} />}
-          label="Capital parado"
+          label="Parado na prateleira"
           value={fmtMoney(summary?.frozenCapital)}
           hint={`${fmtNumber(summary?.frozenCapitalPercent, 1)}% do estoque`}
           tone={Number(summary?.frozenCapitalPercent || 0) > 25 ? 'warn' : 'neutral'}
         />
         <StatTile
           icon={<Coins size={13} />}
-          label="GMROI do portfólio"
-          value={summary?.portfolioGmroi != null ? fmtNumber(summary.portfolioGmroi, 2) : '—'}
-          hint="Margem por R$ 1 investido"
+          label="Retorno do estoque"
+          value={summary?.portfolioGmroi != null ? `R$ ${fmtNumber(summary.portfolioGmroi, 2)}` : '—'}
+          hint="de margem por R$ 1 investido"
           tone={Number(summary?.portfolioGmroi || 0) >= 2 ? 'good' : 'neutral'}
         />
         <StatTile
           icon={<TrendingUp size={13} />}
-          label="Repor para o ideal"
+          label="Para repor tudo"
           value={fmtMoney(plan.totalNeededValue)}
           hint={`${plan.selected.length} itens sugeridos`}
         />
@@ -399,7 +399,7 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
         <header className="mb-2 flex items-center gap-2">
           <TrendingUp size={16} style={{ color: 'var(--brand-600, #16a34a)' }} />
           <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            Onde investir agora
+            Onde colocar o dinheiro da compra
           </h2>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             ordenado pelo retorno de cada real

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import SegmentedTabs from '../components/ui/SegmentedTabs';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/layout/PageHeader';
@@ -350,23 +351,12 @@ const IntelligenceCenter: React.FC = () => {
           <Stat label="Decisões tomadas" value={fmt.int(accepted)} sub={`${history.length} no total`} />
         </StatGrid>
 
-        <div className="flex flex-wrap gap-1.5">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
-              style={
-                tab === t.key
-                  ? { background: 'var(--brand-500)', color: '#fff' }
-                  : { background: 'var(--surface-muted)', color: 'var(--text-soft)' }
-              }
-            >
-              {t.label} ({t.count})
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          tabs={tabs.map((t) => ({ key: t.key, label: `${t.label} (${t.count})` }))}
+          value={tab}
+          onChange={setTab}
+          label="Seções das decisões"
+        />
 
         {error ? (
           <div

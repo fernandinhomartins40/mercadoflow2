@@ -149,6 +149,31 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
   - backend: 218/218;
   - typecheck: 0 erro.
 
+## Ciclo 4 — páginas internas
+
+- **Comprar abre no que o comprador faz todo dia:**
+  - "Sugestões para comprar" com "Pôr no pedido";
+  - pedidos agrupados em Para enviar (com "Revisar e enviar"), Aguardando entrega (com "Receber mercadoria") e
+    Concluídos.
+- **Correção de cálculo:** item comprado por caixa tinha margem de −705%, e o histórico registrava caixas como
+  unidades. Agora tudo é convertido para a unidade vendida no caixa.
+- **Caixas e agente responde "as vendas estão chegando?":** agente on-line ou sem sinal há quanto tempo, notas
+  recebidas e recusadas.
+- **Produtos virou uma lista escaneável:** a situação aparece em palavras, e o jargão (Momentum, Saúde, GMROI) saiu.
+- **Mapa da loja:**
+  - marcar corredor passou a funcionar no celular;
+  - o mapa vazio ganhou um guia de 3 passos.
+- **Consistência:**
+  - título só uma vez por página;
+  - mesmas abas e cabeçalhos em todas as telas.
+- **Testes:**
+  - backend: 220/220;
+  - navegação + Hoje: 28/28;
+  - Painel: 24/24;
+  - compra e envio: 24/24;
+  - varredura de 19 telas × 4 larguras: 112/112;
+  - typecheck: 0 erro.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

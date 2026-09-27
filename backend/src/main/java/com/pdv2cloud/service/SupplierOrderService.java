@@ -109,7 +109,7 @@ public class SupplierOrderService {
         item.setUnitsPerPack(unitsPerPack);
         item.setUnitCost(unitCost.setScale(4, RoundingMode.HALF_UP));
         item.setUnitSalePrice(unitSalePrice != null ? unitSalePrice.setScale(4, RoundingMode.HALF_UP) : null);
-        item.setMarginPercent(calcMargin(unitCost, unitSalePrice));
+        item.setMarginPercent(calcMargin(costPerUnit(item), unitSalePrice));
         item.setSubtotal(quantityRequested.multiply(unitCost).setScale(4, RoundingMode.HALF_UP));
         item.setNote(note);
 
@@ -133,14 +133,10 @@ public class SupplierOrderService {
         if (quantityRequested != null) item.setQuantityRequested(quantityRequested.setScale(3, RoundingMode.HALF_UP));
         if (unitType != null) item.setUnitType(unitType);
         if (unitsPerPack != null) item.setUnitsPerPack(unitsPerPack);
-        if (unitCost != null) {
-            item.setUnitCost(unitCost.setScale(4, RoundingMode.HALF_UP));
-            item.setMarginPercent(calcMargin(unitCost, unitSalePrice != null ? unitSalePrice : item.getUnitSalePrice()));
-        }
-        if (unitSalePrice != null) {
-            item.setUnitSalePrice(unitSalePrice.setScale(4, RoundingMode.HALF_UP));
-            item.setMarginPercent(calcMargin(item.getUnitCost(), unitSalePrice));
-        }
+        if (unitCost != null) item.setUnitCost(unitCost.setScale(4, RoundingMode.HALF_UP));
+        if (unitSalePrice != null) item.setUnitSalePrice(unitSalePrice.setScale(4, RoundingMode.HALF_UP));
+        // Recalcula sempre: mudar embalagem ou quantidade por caixa também muda a margem.
+        item.setMarginPercent(calcMargin(costPerUnit(item), item.getUnitSalePrice()));
         if (note != null) item.setNote(note);
         item.setSubtotal(item.getQuantityRequested().multiply(item.getUnitCost()).setScale(4, RoundingMode.HALF_UP));
 
@@ -210,8 +206,11 @@ public class SupplierOrderService {
             PurchasePriceHistory history = new PurchasePriceHistory();
             history.setMarket(order.getMarket());
             history.setProduct(item.getProduct());
-            history.setQuantityPurchased(qtyReceived);
-            history.setUnitCost(item.getUnitCost());
+            // O histórico é por unidade vendida no caixa: 10 caixas de 6 a R$ 120
+            // viram 60 un. a R$ 20 — é assim que se compara com as vendas.
+            BigDecimal factor = packFactor(item);
+            history.setQuantityPurchased(qtyReceived.multiply(factor));
+            history.setUnitCost(costPerUnit(item));
             history.setUnitSalePrice(item.getUnitSalePrice());
             history.setMarginPercent(item.getMarginPercent());
             history.setSupplierName(supplierName);
@@ -277,6 +276,25 @@ public class SupplierOrderService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         order.setTotalValue(total.setScale(4, RoundingMode.HALF_UP));
         orderRepo.save(order);
+    }
+
+    /**
+     * Unidades de venda por unidade pedida. O custo do item é por embalagem
+     * pedida (caixa, fardo…), o preço de venda é por unidade vendida no caixa;
+     * sem converter, uma caixa de R$ 120 com 6 un. vendidas a R$ 15 dava
+     * margem de -705% em vez de -25%.
+     */
+    static BigDecimal packFactor(SupplierOrderItem item) {
+        String unit = item.getUnitType();
+        BigDecimal pack = item.getUnitsPerPack();
+        boolean sellsAsIs = unit == null || "UN".equals(unit) || "KG".equals(unit);
+        if (sellsAsIs || pack == null || pack.signum() <= 0) return BigDecimal.ONE;
+        return pack;
+    }
+
+    static BigDecimal costPerUnit(SupplierOrderItem item) {
+        if (item.getUnitCost() == null) return null;
+        return item.getUnitCost().divide(packFactor(item), 4, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calcMargin(BigDecimal cost, BigDecimal sale) {

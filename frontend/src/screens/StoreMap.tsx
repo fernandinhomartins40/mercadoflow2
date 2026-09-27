@@ -369,8 +369,10 @@ const SectionForm: React.FC<{
   onConfirm: (v: SectionFormValues) => void;
   onCancel: () => void;
   onClear: () => void;
+  /** Marca/desmarca o quadrado como corredor (antes só com Alt+clique, impossível no celular). */
+  onAisle: () => void;
   inputRef: React.RefObject<HTMLInputElement>;
-}> = ({ initial, onConfirm, onCancel, onClear, inputRef }) => {
+}> = ({ initial, onConfirm, onCancel, onClear, onAisle, inputRef }) => {
   const [name, setName] = useState(initial.sectionName);
   const [slug, setSlug] = useState(initial.categorySlug);
   const [color, setColor] = useState(initial.color || PRESET_COLORS[0]);
@@ -380,36 +382,44 @@ const SectionForm: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(2px)' }}
       onClick={onCancel}>
-      <div className="w-full max-w-[280px] rounded-xl p-4 shadow-2xl"
+      <div className="w-full max-w-[340px] rounded-xl p-4 shadow-2xl"
         style={{ background: '#fff', border: '1.5px solid var(--brand-500)' }}
         onClick={e => e.stopPropagation()}>
-        <p className="mb-3 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Editar seção</p>
+        <p className="mb-1 text-base font-bold" style={{ color: 'var(--text-primary)' }}>O que tem neste lugar?</p>
+        <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>Dê um nome à seção (ex.: Bebidas) ou marque como corredor.</p>
         <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') onConfirm({ sectionName: name, categorySlug: slug, color }); if (e.key === 'Escape') onCancel(); }}
-          placeholder="Nome da seção (ex: Bebidas)"
-          className="mb-2 h-8 w-full rounded px-2 text-xs outline-none"
+          placeholder="Nome da seção (ex.: Bebidas)"
+          aria-label="Nome da seção"
+          className="mb-2 h-11 w-full rounded-lg px-3 text-sm outline-none"
           style={{ border: '1px solid var(--border-strong)', color: '#1e293b', background: '#f8fafc' }} />
         <input value={slug} onChange={e => setSlug(e.target.value)}
-          placeholder="Categoria (ex: bebidas)"
-          className="mb-2 h-8 w-full rounded px-2 text-[11px] outline-none"
+          placeholder="Categoria dos produtos (ex.: bebidas)"
+          aria-label="Categoria dos produtos"
+          className="mb-2 h-11 w-full rounded-lg px-3 text-sm outline-none"
           style={{ border: '1px solid var(--border-strong)', color: '#64748b', background: '#f8fafc' }} />
         <div className="mb-3">
           <p className="mb-1.5 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Cor</p>
           <ColorPicker value={color} onChange={setColor} />
         </div>
+        <button type="button" onClick={onAisle}
+          className="mb-2 flex min-h-[44px] w-full items-center justify-center rounded-lg text-sm font-medium"
+          style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-soft)' }}>
+          É um corredor (sem produtos)
+        </button>
         <div className="flex gap-1.5">
           <button type="button" onClick={() => onConfirm({ sectionName: name, categorySlug: slug, color })}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold"
+            className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold"
             style={{ background: 'var(--brand-500)', color: '#fff' }}>
             <Check className="h-3 w-3" /> Salvar
           </button>
           <button type="button" onClick={onClear}
-            className="rounded-lg px-2 py-1.5 text-xs"
+            className="min-h-[44px] rounded-lg px-3 text-sm"
             style={{ border: '1px solid #fecaca', color: '#ef4444', background: '#fff1f2' }}>
             Limpar
           </button>
-          <button type="button" onClick={onCancel}
-            className="rounded-lg px-2 py-1.5 text-xs"
+          <button type="button" onClick={onCancel} aria-label="Fechar"
+            className="min-h-[44px] rounded-lg px-3 text-sm"
             style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>
             <X className="h-3 w-3" />
           </button>
@@ -604,6 +614,7 @@ const StoreMap: React.FC = () => {
           onConfirm={confirmSectionEdit}
           onCancel={() => setEditingCell(null)}
           onClear={() => clearCell(editingCell.row, editingCell.col)}
+          onAisle={() => { handleAisleToggle(editingCell.row, editingCell.col); setEditingCell(null); }}
         />
       )}
       <div className="flex flex-col gap-4">
@@ -647,6 +658,17 @@ const StoreMap: React.FC = () => {
           </div>
         </div>
 
+        {viewMode === 'map' && gondolaCount === 0 && (
+          <div className="rounded-2xl p-4" style={{ background: 'var(--surface-info)', border: '1px solid var(--border-info)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monte o mapa em 3 passos</p>
+            <ol className="mt-1 list-decimal pl-5 text-sm" style={{ color: 'var(--text-muted)' }}>
+              <li>Ajuste corredores e linhas para ficar parecido com a planta da loja.</li>
+              <li>Toque em cada quadrado e diga o que tem nele (Bebidas, Mercearia…).</li>
+              <li>Salve e abra o Calor para ver onde a loja mais vende.</li>
+            </ol>
+          </div>
+        )}
+
         {/* ── MAP VIEW ─────────────────────────────────────────────────── */}
         {viewMode === 'map' && (
           <div className="flex gap-4 items-start">
@@ -668,7 +690,7 @@ const StoreMap: React.FC = () => {
                   </div>
                 ))}
                 <span className="text-[11px]" style={{ color: 'var(--text-soft)' }}>
-                  Clique: editar seção · Alt+clique: marcar corredor
+                  Toque num quadrado para dizer o que há nele ou marcar como corredor
                 </span>
               </div>
 
