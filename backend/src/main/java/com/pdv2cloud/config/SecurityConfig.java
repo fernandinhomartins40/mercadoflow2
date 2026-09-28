@@ -63,6 +63,10 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/downloads/**").permitAll()
                 .requestMatchers("/api/v1/catalog/images/**").permitAll()
+                // Estúdio de encartes: fundos, selos, logos e artes publicadas
+                // (nomes UUID) e a página de ofertas que o mercado divulga.
+                .requestMatchers(HttpMethod.GET, "/api/v1/art-files/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/public/encartes/*").permitAll()
                 // Catalogo de planos: a pagina de cadastro precisa exibir os
                 // limites antes de existir conta. Nao expoe dado de cliente.
                 .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()

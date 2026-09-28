@@ -223,6 +223,36 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
 - **Correção feita nos testes:** no celular, as alças do meio de um móvel fino cobriam o corpo e atrapalhavam o
   arrasto. Agora elas somem quando o móvel fica pequeno na tela.
 
+## Ciclo 7 — Estúdio de encartes (temas com IA)
+
+- **Por que o editor antigo não servia:** a prévia era desenhada em HTML e o arquivo final redesenhado em Java,
+  com resultados diferentes; a grade tinha espaços fixos; o PDF era uma foto. Ele continua desligado e intacto.
+- **Superadmin, "Temas de encarte":**
+  - cartão da chave do DeepSeek: a chave é cifrada, nunca volta para a tela, e há botões de testar e remover;
+  - tema com fundo PNG por formato (a proporção é conferida), selo 3D transparente, cores da etiqueta, ocasião e
+    publicar;
+  - ao subir o fundo, o navegador mede as áreas livres, e o DeepSeek (se tiver chave) escolhe logo, produtos,
+    rodapé e selo entre elas e sugere nome, ocasião e cores. Sem chave ou com erro, fica a sugestão da medição,
+    com aviso;
+  - as áreas são ajustáveis com alças e setas, e a prévia mostra o tema com 1 a 16 produtos de exemplo.
+- **Mercado, "Vender → Encartes":**
+  - produtos pela sugestão das vendas (puxam clientes, precisam girar, em alta), busca por nome ou código de
+    barras, colar lista ou item avulso; o preço vem da última venda;
+  - por produto: nome na arte, detalhe, unidade, preço, preço de antes, condição ("Leve 3 pague 2") e destaque;
+  - a arte se monta sozinha no tema escolhido, em cada formato pronto, e clicar num produto da arte abre a edição;
+  - o tema "Básico", desenhado pelo código, existe para o mercado nunca ficar sem tema;
+  - exporta PNG, PDF A4 e cartazes de gôndola; publicar gera um link `/encarte/...` para o WhatsApp.
+- **Testes:**
+  - Playwright: 41/41 a 1440 px (superadmin + mercado) e 24/24 a 390 px (mercado e página pública), com PNG, PDF e
+    cartazes baixados e conferidos, sem rolagem horizontal e sem erro JS;
+  - fotos de outro site passam pelo proxy e a exportação não é bloqueada;
+  - segurança (curl e psql): 16/16. Outro mercado não lê nem apaga encarte (403/404), mercado não chama o
+    superadmin, rascunho não é público, o proxy recusa endereço interno, http e página que não é imagem, travessia
+    de pasta é recusada, arquivo falso como imagem é recusado, o RLS isola as campanhas e a chave não fica em claro;
+  - regressão: navegação 28/28, fluxo de compra 24/24, painel Hoje 24/24, mapa 39/39.
+- **Não testado:** a resposta real do DeepSeek (não havia chave válida no teste). Testei o caminho de erro (chave
+  recusada → aviso e áreas da medição mantidas). Validar com a chave do owner depois do deploy.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, CreditCard, Database, Globe2, Home, Receipt, Sparkles, UserSquare2, Users } from 'lucide-react';
+import { Bot, CreditCard, Database, Globe2, Home, Palette, Receipt, Sparkles, UserSquare2, Users } from 'lucide-react';
 import Button from '../common/Button';
 import WorkspaceSidebar, { WorkspaceNavSection } from './WorkspaceSidebar';
 import WorkspaceTopbar from './WorkspaceTopbar';
@@ -15,6 +15,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/super-admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação dos preços praticados entre estados e fontes oficiais', section: 'Dados' },
   '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualização de dados dos supermercados', section: 'Dados' },
   '/super-admin/ofertas': { title: 'Templates de ofertas', subtitle: 'Base visual compartilhada para as contas da plataforma', section: 'Dados' },
+  '/super-admin/temas': { title: 'Temas de encarte', subtitle: 'Fundos, selos e áreas que o editor dos mercados usa para montar as artes', section: 'Conteúdo' },
 };
 
 const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -33,7 +34,11 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     }
   }, [desktopPinned]);
 
-  const header = useMemo(() => TITLES[location.pathname] || TITLES['/super-admin'], [location.pathname]);
+  const header = useMemo(() => {
+    if (TITLES[location.pathname]) return TITLES[location.pathname];
+    const prefix = Object.keys(TITLES).find((key) => key !== '/super-admin' && location.pathname.startsWith(`${key}/`));
+    return prefix ? TITLES[prefix] : TITLES['/super-admin'];
+  }, [location.pathname]);
 
   const navSections: WorkspaceNavSection[] = [
     {
@@ -58,6 +63,12 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         { to: '/super-admin/precos-estaduais', label: 'Preços estaduais', hint: 'Comparação entre estados', icon: Globe2 },
         { to: '/ofertas?workspace=super-admin', label: 'Templates de ofertas', hint: 'Base visual por conta', icon: Sparkles },
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
+      ],
+    },
+    {
+      title: 'Conteúdo',
+      items: [
+        { to: '/super-admin/temas', label: 'Temas de encarte', hint: 'Fundos, selos e áreas com IA', icon: Palette },
       ],
     },
   ].map((section) => ({

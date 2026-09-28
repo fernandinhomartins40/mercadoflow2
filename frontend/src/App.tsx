@@ -18,6 +18,9 @@ const PDVs = lazy(() => import('./screens/PDVs'));
 const Settings = lazy(() => import('./screens/Settings'));
 const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
+const ArtStudio = lazy(() => import('./screens/ArtStudio'));
+const PublicEncarte = lazy(() => import('./screens/PublicEncarte'));
+const SuperAdminArtThemes = lazy(() => import('./screens/SuperAdminArtThemes'));
 const Landing = lazy(() => import('./screens/Landing'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
 const AgentPairing = lazy(() => import('./screens/AgentPairing'));
@@ -121,6 +124,7 @@ const App: React.FC = () => {
         <Route path="/download-agente" element={<PublicAgentDownload />} />
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
         <Route path="/parear-agente" element={<AgentPairing />} />
+        <Route path="/encarte/:slug" element={<PublicEncarte />} />
 
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/inteligencia" element={secure(<IntelligenceCenter />)} />
@@ -134,6 +138,8 @@ const App: React.FC = () => {
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
         <Route path="/app/pedidos" element={<Navigate to="/app/lista-compras" replace />} />
         <Route path="/app/mapa-loja" element={secure(<StoreMap />)} />
+        <Route path="/app/encartes" element={secure(<ArtStudio />)} />
+        <Route path="/app/encartes/:campaignId" element={secure(<ArtStudio />)} />
         <Route path="/app/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="admin" /> : disabledModuleRedirect} />
         <Route path="/app/ofertas/campanhas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" /> : disabledModuleRedirect} />
         <Route path="/app/ofertas/inicio" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersSheetRedirect sheet="campaigns" defaultWorkspace="admin" /> : disabledModuleRedirect} />
@@ -161,6 +167,8 @@ const App: React.FC = () => {
         <Route path="/super-admin/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? secureSuperAdmin(<StatePriceComparison />) : disabledSuperAdminModuleRedirect} />
         <Route path="/super-admin/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="super-admin" /> : disabledSuperAdminModuleRedirect} />
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
+        <Route path="/super-admin/temas" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
+        <Route path="/super-admin/temas/:themeId" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
 
         <Route path="/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? secureOffers(<OfferDesigner />) : disabledModuleRedirect} />

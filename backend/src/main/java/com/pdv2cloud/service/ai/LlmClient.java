@@ -207,6 +207,78 @@ public class LlmClient {
     }
 
     /**
+     * Uma pergunta com imagem (visão). A imagem vai como data URL no bloco
+     * {@code image_url}, o formato que DeepSeek, OpenAI e Gemini aceitam.
+     *
+     * @param imageDataUrl {@code data:image/jpeg;base64,...}; quem chama reduz
+     *                     a imagem antes — o provedor cobra por tamanho
+     */
+    public LlmResponse chatWithImage(
+        String baseUrl,
+        String apiKey,
+        String model,
+        String systemPrompt,
+        String userPrompt,
+        String imageDataUrl,
+        int maxTokens,
+        double temperature
+    ) {
+        long started = System.currentTimeMillis();
+        LlmResponse blocked = rejectInternal(baseUrl);
+        if (blocked != null) {
+            return blocked;
+        }
+        try {
+            ObjectNode root = mapper.createObjectNode();
+            root.put("model", model);
+            root.put("max_tokens", maxTokens);
+            root.put("temperature", temperature);
+            root.put("stream", false);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode system = messages.addObject();
+            system.put("role", "system");
+            system.put("content", systemPrompt);
+            ObjectNode user = messages.addObject();
+            user.put("role", "user");
+            ArrayNode parts = user.putArray("content");
+            ObjectNode text = parts.addObject();
+            text.put("type", "text");
+            text.put("text", userPrompt);
+            ObjectNode image = parts.addObject();
+            image.put("type", "image_url");
+            image.putObject("image_url").put("url", imageDataUrl);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(trimTrailingSlash(baseUrl) + "/chat/completions"))
+                .timeout(REQUEST_TIMEOUT)
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(root.toString()))
+                .build();
+
+            HttpResponse<String> response =
+                http.send(request, HttpResponse.BodyHandlers.ofString());
+            long elapsed = System.currentTimeMillis() - started;
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return parseSuccess(response.body(), elapsed);
+            }
+            return LlmResponse.fail(
+                describeHttpError(response.statusCode(), response.body()),
+                isRetryable(response.statusCode()),
+                elapsed
+            );
+        } catch (java.net.http.HttpTimeoutException e) {
+            return LlmResponse.fail("Tempo esgotado ao chamar o provedor de IA",
+                true, System.currentTimeMillis() - started);
+        } catch (Exception e) {
+            log.warn("Falha na chamada de IA com imagem para {}: {}", baseUrl, e.getMessage());
+            return LlmResponse.fail("Falha de comunicação com o provedor de IA",
+                true, System.currentTimeMillis() - started);
+        }
+    }
+
+    /**
      * Conversa com histórico e ferramentas disponíveis.
      *
      * A diferença para o {@link #chat} não é só de assinatura: aqui o modelo

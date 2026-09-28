@@ -5,6 +5,7 @@ import {
   Globe2,
   Map,
   Megaphone,
+  Newspaper,
   PackageSearch,
   Settings,
   ShoppingCart,
@@ -76,10 +77,11 @@ export const DESTINATIONS: Destination[] = [
   {
     key: 'vender',
     label: 'Vender',
-    hint: 'Promoções e mapa da loja',
+    hint: 'Promoções, encartes e mapa da loja',
     icon: Tag,
     pages: [
       { to: '/app/promocoes', label: 'Promoções', icon: Megaphone },
+      { to: '/app/encartes', label: 'Encartes', icon: Newspaper },
       { to: '/app/mapa-loja', label: 'Mapa da loja', icon: Map },
     ],
   },

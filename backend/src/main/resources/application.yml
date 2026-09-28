@@ -1,4 +1,9 @@
 spring:
+  servlet:
+    # Fundos de tema em A4 (2480x3508 PNG) passam fácil de 1 MB, o padrão do Spring.
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 60MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pdv2cloud}
     username: ${DATABASE_USER:pdv2cloud}

@@ -150,6 +150,32 @@ não muda (continua `version 2`).
 | M-12 | P1 | sem 3D | vista 3D isométrica em SVG, girável, com altura real de cada móvel; no calor, a altura mostra a venda | `view3d/IsoView.tsx` | baixo | Playwright | DONE |
 | M-13 | P2 | não dava para "ver" o corredor | caminhada no corredor em CSS 3D: corredores achados sozinhos na planta, prateleiras com a placa do setor e os produtos mais vendidos, aviso de corredor apertado | `view3d/AisleWalk.tsx`, `aisles.ts` | baixo | Playwright | DONE |
 
+## Ciclo 7 — Estúdio de encartes: temas inteligentes com IA (F18) (2026-09-28)
+
+Pedido do owner: fazer o editor de artes (desligado) funcionar de verdade, como o QR Ofertas, com temas criados no
+superadmin a partir de PNGs de fundo e selo 3D, e um criador de temas inteligente que prevê onde vão logo,
+produtos e rodapé, usando IA do DeepSeek com chave cadastrada por formulário no superadmin.
+
+Diagnóstico do editor antigo (`offers-studio`, desligado por `FEATURE_OFFER_TEMPLATES_ENABLED`): dois desenhistas
+(prévia em HTML e arquivo final em Java2D) que davam resultados diferentes; grade com número fixo de espaços; fonte
+genérica; PDF como foto; conceitos de designer (zonas, variantes, kits). Ele fica como está; o novo estúdio é
+separado.
+
+Decisões do owner: chave do DeepSeek pelo formulário do superadmin; um fundo por formato; selo fixo do tema, que o
+mercado pode esconder. Limite do DeepSeek: enxerga imagem (`deepseek-flash`), mas não devolve coordenadas nem
+gera imagem. Por isso o código mede o fundo e propõe áreas; a IA só escolhe entre elas (e sugere nome, ocasião e
+cores); o superadmin confirma arrastando.
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| E-01 | P1 | prévia diferente do arquivo final | um só desenhista em canvas no navegador para prévia, PNG, PDF e publicação | `features/art-studio/render.ts`, `export.ts` | médio | Playwright + conferência visual | DONE |
+| E-02 | P1 | grade fixa | montagem automática para 1 a 80 produtos: até 2 destaques numa faixa (em cima ou à esquerda na TV), grade com a melhor proporção e última linha centrada | `layout.ts` | baixo | Playwright | DONE |
+| E-03 | P1 | sem temas da plataforma | superadmin: temas com fundo PNG por formato (story, post, quadrado, A4, TV), selo 3D, cores da etiqueta, ocasião, publicar/despublicar | `SuperAdminArtThemes.tsx`, `ArtThemeService`, V57 | médio | Playwright | DONE |
+| E-04 | P1 | áreas marcadas à mão | análise dos pixels (áreas calmas → candidatas) + DeepSeek com visão escolhendo logo, produtos, rodapé e selo; ajuste com alças e teclado | `analyze.ts`, `RegionEditor.tsx`, `PlatformAiService`, `LlmClient.chatWithImage` | médio | Playwright (sem chave real) | DONE |
+| E-05 | P1 | lojista não sabe o que ofertar | sugestão pelas vendas: puxam clientes, precisam girar, em alta; preço atual pela última venda; busca por nome/EAN; colar lista | `ArtStudioService.suggestions` | médio (consulta de 56 dias) | Playwright | DONE |
+| E-06 | P1 | exportação | PNG no tamanho real, PDF A4 a 300 dpi, cartazes de gôndola em lote (1, 2 ou 4 por folha) | `export.ts` | baixo | Playwright (arquivos conferidos) | DONE |
+| E-07 | P2 | divulgação | publicar: artes enviadas ao servidor e página pública `/encarte/:slug` com lista em texto e botão de WhatsApp | `PublicArtController`, `PublicEncarte.tsx` | baixo | Playwright + curl | DONE |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive
