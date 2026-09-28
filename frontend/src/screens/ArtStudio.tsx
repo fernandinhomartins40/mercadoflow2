@@ -69,8 +69,39 @@ const tidyName = (name: string) => {
 };
 
 const fromProduct = (p: ArtProduct): CampaignItem => ({
-  key: newKey(), productId: p.productId, name: tidyName(p.name), price: p.price, unit: p.unit || 'un', imageUrl: p.imageUrl,
+  key: newKey(), productId: p.productId, name: tidyName(p.name), detail: p.detail ?? undefined, price: p.price,
+  unit: p.unit || 'un', imageUrl: p.imageUrl,
 });
+
+const GENERIC_NAMES = ['', 'novo produto'];
+
+/**
+ * Produto escolhido no catálogo para um item que já está no encarte: traz
+ * foto, código e, no que o lojista ainda não preencheu, nome, embalagem,
+ * unidade e o preço da loja. O que ele já digitou não é trocado.
+ */
+const applyCatalog = (item: CampaignItem, p: ArtProduct): Partial<CampaignItem> => {
+  const generic = GENERIC_NAMES.includes(item.name.trim().toLowerCase());
+  const patch: Partial<CampaignItem> = { imageUrl: p.imageUrl, productId: p.productId };
+  if (generic) patch.name = tidyName(p.name);
+  if (generic || !item.detail) patch.detail = p.detail ?? (generic ? undefined : item.detail);
+  if (item.price == null && p.price != null) {
+    patch.price = p.price;
+    patch.unit = p.unit || item.unit;
+  } else if (generic) {
+    patch.unit = p.unit || item.unit;
+  }
+  return patch;
+};
+
+/** Linha de informação do produto na busca: código, embalagem, marca e o preço da loja. */
+const productInfo = (p: ArtProduct) => [
+  p.detail, p.brand && !p.name.toLowerCase().includes(p.brand.toLowerCase()) ? p.brand : null, p.ean,
+].filter(Boolean).join(', ');
+
+const priceInfo = (p: ArtProduct) => (p.price != null
+  ? `${formatPrice(p.price)}${p.unit === 'kg' ? ' o kg' : ''}${p.priceNote ? ` (${p.priceNote.toLowerCase()})` : ''}`
+  : 'Sem venda na loja: defina o preço');
 
 const MoneyField: React.FC<{ value: number | null | undefined; onChange: (v: number | null) => void; label: string; id: string; placeholder?: string }> = ({
   value, onChange, label, id, placeholder,
@@ -109,7 +140,7 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
     const term = q.trim();
     if (term.length < 2) { setHits(null); return undefined; }
     const t = setTimeout(() => {
-      artService.searchCatalog(marketId, term).then((r) => setHits(r.filter((p) => p.imageUrl))).catch(() => setHits([]));
+      artService.searchCatalog(marketId, term).then(setHits).catch(() => setHits([]));
     }, 300);
     return () => clearTimeout(t);
   }, [q, open, marketId]);
@@ -139,7 +170,7 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
         </span>
         <div className="flex flex-col items-start gap-1.5 text-sm font-semibold">
           <button type="button" onClick={() => { setOpen((v) => !v); if (!q) setQ(item.name.split(' ').slice(0, 3).join(' ')); }}
-            className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }} aria-expanded={open}>
+            className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }} aria-expanded={open} title="Traz foto, nome, embalagem e o preço da loja">
             <Search className="h-4 w-4" />Buscar no catálogo
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
@@ -158,17 +189,25 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
       {open && (
         <div className="flex flex-col gap-2 rounded-xl p-2" style={{ background: 'var(--surface-soft)' }}>
           <input className={INPUT} style={inputStyle} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome ou código de barras"
-            aria-label="Buscar foto no catálogo global" />
+            aria-label="Buscar produto no catálogo global" />
           {hits === null ? null : hits.length === 0 ? (
-            <p className="px-1 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma foto no catálogo para essa busca.</p>
+            <p className="px-1 text-sm" style={{ color: 'var(--text-muted)' }}>Nada no catálogo para essa busca.</p>
           ) : (
-            <ul className="grid grid-cols-4 gap-2" aria-label="Fotos do catálogo">
-              {hits.slice(0, 12).map((p) => (
+            <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto" aria-label="Produtos do catálogo">
+              {hits.slice(0, 16).map((p) => (
                 <li key={p.productId}>
-                  <button type="button" title={p.name} aria-label={`Usar a foto de ${p.name}`}
-                    onClick={() => { onChange({ imageUrl: p.imageUrl, productId: item.productId ?? p.productId }); setOpen(false); }}
-                    className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-white p-1 transition hover:ring-2 hover:ring-[var(--brand-600)] ${FOCUS}`}>
-                    <img src={p.imageUrl ?? ''} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                  <button type="button" aria-label={`Usar ${p.name}`}
+                    onClick={() => { onChange(applyCatalog(item, p)); setOpen(false); }}
+                    className={`flex w-full items-center gap-3 rounded-lg bg-white p-2 text-left transition hover:ring-2 hover:ring-[var(--brand-600)] ${FOCUS}`}>
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded">
+                      {p.imageUrl ? <img src={p.imageUrl} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                        : <ImagePlus className="h-4 w-4" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{tidyName(p.name)}</span>
+                      <span className="block truncate text-xs" style={{ color: 'var(--text-muted)' }}>{productInfo(p)}</span>
+                      <span className="block truncate text-xs font-medium tabular-nums" style={{ color: p.price != null ? 'var(--brand-700)' : '#b45309' }}>{priceInfo(p)}</span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -245,7 +284,7 @@ const ItemRow: React.FC<{
 
 // ── Aba Produtos ─────────────────────────────────────────────────────────
 
-const ResultRow: React.FC<{ p: ArtProduct; added: boolean; onAdd: () => void; sub: string }> = ({ p, added, onAdd, sub }) => (
+const ResultRow: React.FC<{ p: ArtProduct; added: boolean; onAdd: () => void }> = ({ p, added, onAdd }) => (
   <li>
     <button type="button" onClick={onAdd} disabled={added}
       className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-[var(--surface-soft)] disabled:opacity-50 ${FOCUS}`}>
@@ -254,7 +293,10 @@ const ResultRow: React.FC<{ p: ArtProduct; added: boolean; onAdd: () => void; su
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{tidyName(p.name)}</span>
-        <span className="block truncate text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{sub}</span>
+        {productInfo(p) && <span className="block truncate text-xs" style={{ color: 'var(--text-muted)' }}>{productInfo(p)}</span>}
+        <span className="block truncate text-xs font-medium tabular-nums" style={{ color: p.price != null ? 'var(--brand-700)' : '#b45309' }}>
+          {priceInfo(p)}{p.baskets > 0 ? `, ${p.baskets} compras` : ''}
+        </span>
       </span>
       {added ? <Check className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-label="Já está no encarte" /> : <Plus className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />}
     </button>
@@ -270,6 +312,7 @@ const ProductsTab: React.FC<{
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ArtProduct[] | null>(null);
   const [catalog, setCatalog] = useState<ArtProduct[] | null>(null);
+  const [catalogFailed, setCatalogFailed] = useState(false);
   const [searching, setSearching] = useState(false);
   const [groups, setGroups] = useState<SuggestionGroup[] | null>(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -287,12 +330,13 @@ const ProductsTab: React.FC<{
       // Vendidos na loja (com preço da última venda) e o catálogo global da plataforma.
       Promise.all([
         artService.searchProducts(marketId, q).catch(() => [] as ArtProduct[]),
-        artService.searchCatalog(marketId, q).catch(() => [] as ArtProduct[]),
+        artService.searchCatalog(marketId, q).catch(() => null),
       ]).then(([sold, global]) => {
         if (cancelled) return;
         const soldIds = new Set(sold.map((p) => p.productId));
         setResults(sold);
-        setCatalog(global.filter((p) => !soldIds.has(p.productId)));
+        setCatalogFailed(global === null);
+        setCatalog((global ?? []).filter((p) => !soldIds.has(p.productId)));
       }).finally(() => { if (!cancelled) setSearching(false); });
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
@@ -336,7 +380,7 @@ const ProductsTab: React.FC<{
         const term = item.name.split(' ').slice(0, 3).join(' ');
         let [hit] = await artService.searchProducts(marketId, term);
         if (!hit) [hit] = (await artService.searchCatalog(marketId, term)).filter((p) => p.imageUrl);
-        return hit ? { ...item, productId: hit.productId, imageUrl: hit.imageUrl, price: item.price ?? hit.price, unit: item.unit === 'un' ? hit.unit : item.unit } : item;
+        return hit ? { ...item, productId: hit.productId, imageUrl: hit.imageUrl, detail: hit.detail ?? undefined, price: item.price ?? hit.price, unit: item.unit === 'un' ? hit.unit : item.unit } : item;
       } catch { return item; }
     }));
     onItems([...items, ...enriched]);
@@ -355,7 +399,10 @@ const ProductsTab: React.FC<{
       {(results || catalog) && (
         <div className="flex max-h-96 flex-col gap-1 overflow-y-auto rounded-xl p-1" style={{ border: '1px solid var(--border-soft)' }}>
           {searching && !results?.length && !catalog?.length && <p className="p-3 text-sm" style={{ color: 'var(--text-muted)' }}>Buscando…</p>}
-          {!searching && !results?.length && !catalog?.length && (
+          {catalogFailed && !searching && (
+            <p role="alert" className="px-3 pt-2 text-sm" style={{ color: '#b45309' }}>A busca no catálogo global não respondeu. Tente de novo em instantes.</p>
+          )}
+          {!searching && !catalogFailed && !results?.length && !catalog?.length && (
             <p className="p-3 text-sm" style={{ color: 'var(--text-muted)' }}>Nada encontrado na loja nem no catálogo global. Use &quot;Item avulso&quot;.</p>
           )}
           {!!results?.length && (
@@ -363,8 +410,7 @@ const ProductsTab: React.FC<{
               <h3 className="px-2 pt-1 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Vendidos na loja</h3>
               <ul aria-label="Vendidos na loja">
                 {results.map((p) => (
-                  <ResultRow key={p.productId} p={p} added={inList.has(p.productId)} onAdd={() => add([p])}
-                    sub={`${p.price != null ? `${formatPrice(p.price)} na última venda` : 'sem preço'}, ${p.baskets} compras`} />
+                  <ResultRow key={p.productId} p={p} added={inList.has(p.productId)} onAdd={() => add([p])} />
                 ))}
               </ul>
             </>
@@ -374,8 +420,7 @@ const ProductsTab: React.FC<{
               <h3 className="px-2 pt-2 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Catálogo global</h3>
               <ul aria-label="Catálogo global">
                 {catalog.map((p) => (
-                  <ResultRow key={p.productId} p={p} added={inList.has(p.productId)} onAdd={() => add([p])}
-                    sub={[p.ean, p.price != null ? `${formatPrice(p.price)} na última venda` : 'defina o preço'].filter(Boolean).join(', ')} />
+                  <ResultRow key={p.productId} p={p} added={inList.has(p.productId)} onAdd={() => add([p])} />
                 ))}
               </ul>
             </>

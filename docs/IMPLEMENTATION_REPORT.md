@@ -270,6 +270,23 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
   vieram do mesmo fundo, então coincidem com as automáticas); troca de cores com o tema em outra cor: ok;
   segurança das rotas novas 12/12.
 
+### Ciclo 7.2 — busca no catálogo global de verdade e dados completos do produto
+
+- **Por que a busca não achava em produção:** o catálogo real está em maiúsculas e acentuado ("AÇÚCAR REF
+  UNIÃO"). A busca comparava só em minúsculas, então "acucar" dava 0 resultados, e exigia o texto seguido ("coca
+  2l" não achava "REFRIG COCA COLA 2L"). Ela também podia tentar baixar a foto de novo para cada resultado, o
+  que estourava o tempo com o catálogo grande. Reproduzido num catálogo de teste com 200 mil produtos.
+- **Busca nova:** ignora acento e maiúsculas, exige cada palavra em qualquer ordem, acha o código de barras pelo
+  índice (com e sem zeros), põe primeiro o nome que começa com o que foi digitado e monta a foto sem baixar nada.
+  Leva de 0,7 a 3,5 s nos 200 mil produtos. Se o catálogo falhar, a tela avisa em vez de dizer "nada encontrado".
+- **Dados completos ao escolher:** nome canônico, embalagem (quando o nome não diz), marca, unidade, código de
+  barras, foto e preço do mercado, com a origem: última venda na loja no último ano, senão o preço médio
+  registrado pela loja. Preço de outros mercados não entra (é dado de outro cliente). Escolher no botão do cartão
+  preenche o que está vazio e mantém o nome que o lojista digitou.
+- **Rodapé:** sombra no tom oposto para o texto continuar legível quando o fundo muda de cor dentro do rodapé.
+- **Testes:** encartes 41/41 (1440 px) e 24/24 (390 px); informações do produto 12/12; novidades 13/14 (a falha é
+  a esperada, já explicada no 7.1).
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

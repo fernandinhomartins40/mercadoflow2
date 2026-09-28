@@ -2,6 +2,7 @@ package com.pdv2cloud.service.art;
 
 import com.pdv2cloud.exception.CustomExceptions;
 import com.pdv2cloud.service.CatalogImageStorageService;
+import com.pdv2cloud.service.CatalogImageUrlResolver;
 import com.pdv2cloud.tenancy.TenantContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -42,12 +43,15 @@ public class ArtStudioService {
     private final NamedParameterJdbcTemplate jdbc;
     private final ArtFileStorage storage;
     private final CatalogImageStorageService catalogImages;
+    private final CatalogImageUrlResolver imageUrls;
     private final SecureRandom random = new SecureRandom();
 
-    public ArtStudioService(NamedParameterJdbcTemplate jdbc, ArtFileStorage storage, CatalogImageStorageService catalogImages) {
+    public ArtStudioService(NamedParameterJdbcTemplate jdbc, ArtFileStorage storage, CatalogImageStorageService catalogImages,
+                            CatalogImageUrlResolver imageUrls) {
         this.jdbc = jdbc;
         this.storage = storage;
         this.catalogImages = catalogImages;
+        this.imageUrls = imageUrls;
     }
 
     // ── Marca ──────────────────────────────────────────────────────────────
@@ -126,8 +130,12 @@ public class ArtStudioService {
      * @param unit     "kg" quando o produto sai fracionado na nota, senão "un"
      * @param reason   por que foi sugerido (só nas sugestões)
      */
+    /**
+     * @param detail    embalagem/gramatura ("395 g"), quando não está no nome
+     * @param priceNote de onde veio o preço ("Última venda na loja em 12/09")
+     */
     public record ArtProduct(UUID productId, String name, String ean, String imageUrl, BigDecimal price, String unit,
-                             int baskets, String reason) {}
+                             int baskets, String reason, String detail, String brand, String priceNote) {}
 
     @Transactional(readOnly = true)
     public List<ArtProduct> searchProducts(UUID marketId, String query) {
@@ -135,23 +143,27 @@ public class ArtStudioService {
         if (q.length() < 2) {
             return List.of();
         }
-        String digits = q.replaceAll("\\D", "");
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("marketId", marketId)
+            .addValue("since", LocalDate.now().minusDays(90).atStartOfDay());
+        String ean = ArtSearch.asEan(q);
+        String match;
+        if (ean != null) {
+            match = "p.ean in (:eans)";
+            params.addValue("eans", ArtSearch.eanVariants(ean));
+        } else {
+            match = ArtSearch.allWordsIn(ArtSearch.words(q), List.of("p.name"), params);
+        }
         String sql =
-            "select p.id, p.name, p.ean, p.image_url, count(distinct ii.invoice_id) as baskets, " +
+            "select p.id, p.name, p.ean, p.image_url, count(distinct ii.invoice_id) as baskets, max(i.data_emissao) as last_sold, " +
             "  (array_agg(ii.valor_unitario order by i.data_emissao desc))[1] as last_price, " +
             "  bool_or(ii.quantidade <> trunc(ii.quantidade)) as fractional " +
             "from invoice_items ii " +
             "join invoices i on i.id = ii.invoice_id " +
             "join products p on p.id = ii.product_id " +
-            "where i.market_id = :marketId and i.data_emissao >= :since " +
-            "  and (p.name ilike :term" + (digits.length() >= 8 ? " or p.ean = :ean" : "") + ") " +
+            "where i.market_id = :marketId and i.data_emissao >= :since and " + match + " " +
             "group by p.id, p.name, p.ean, p.image_url " +
             "order by baskets desc limit 24";
-        MapSqlParameterSource params = new MapSqlParameterSource()
-            .addValue("marketId", marketId)
-            .addValue("since", LocalDate.now().minusDays(90).atStartOfDay())
-            .addValue("term", "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
-            .addValue("ean", digits);
         return withImages(jdbc.query(sql, params, (rs, i) -> mapProduct(rs, null)));
     }
 
@@ -177,7 +189,7 @@ public class ArtStudioService {
         List<Row> rows = jdbc.query(
             "select p.id, p.name, p.ean, p.image_url, " +
             "  count(distinct ii.invoice_id) filter (where i.data_emissao >= :cut) as baskets, " +
-            "  count(distinct ii.invoice_id) filter (where i.data_emissao < :cut) as baskets_before, " +
+            "  count(distinct ii.invoice_id) filter (where i.data_emissao < :cut) as baskets_before, max(i.data_emissao) as last_sold, " +
             "  (array_agg(ii.valor_unitario order by i.data_emissao desc))[1] as last_price, " +
             "  bool_or(ii.quantidade <> trunc(ii.quantidade)) as fractional " +
             "from invoice_items ii " +
@@ -422,13 +434,34 @@ public class ArtStudioService {
     private ArtProduct mapProduct(ResultSet rs, String reason) throws SQLException {
         BigDecimal price = rs.getBigDecimal("last_price");
         boolean fractional = rs.getBoolean("fractional");
+        Timestamp lastSold = rs.getTimestamp("last_sold");
         return new ArtProduct((UUID) rs.getObject("id"), rs.getString("name"), rs.getString("ean"),
             rs.getString("image_url"), price == null ? null : price.setScale(2, RoundingMode.HALF_UP),
-            fractional ? "kg" : "un", rs.getInt("baskets"), reason);
+            fractional ? "kg" : "un", rs.getInt("baskets"), reason, null, null,
+            price == null ? null : "Última venda na loja" + onDate(lastSold));
+    }
+
+    private static String onDate(Timestamp t) {
+        return t == null ? "" : " em " + java.time.format.DateTimeFormatter.ofPattern("dd/MM").format(t.toLocalDateTime());
     }
 
     private static ArtProduct withReason(ArtProduct p, String reason) {
-        return new ArtProduct(p.productId(), p.name(), p.ean(), p.imageUrl(), p.price(), p.unit(), p.baskets(), reason);
+        return new ArtProduct(p.productId(), p.name(), p.ean(), p.imageUrl(), p.price(), p.unit(), p.baskets(), reason,
+            p.detail(), p.brand(), p.priceNote());
+    }
+
+    /** Embalagem só quando o nome ainda não diz ("Leite Moça" + "395 g"; não "Açúcar 1kg" + "1 kg"). */
+    static String detailFor(String packageDescription, String name) {
+        if (packageDescription == null || packageDescription.isBlank()) {
+            return null;
+        }
+        String pkg = packageDescription.trim();
+        String compactPkg = ArtSearch.normalize(pkg).replaceAll("[^a-z0-9]", "");
+        String compactName = ArtSearch.normalize(name == null ? "" : name).replaceAll("[^a-z0-9]", "");
+        if (compactPkg.isEmpty() || compactName.contains(compactPkg)) {
+            return null;
+        }
+        return pkg.length() > 40 ? pkg.substring(0, 40) : pkg;
     }
 
     private List<ArtProduct> withImages(List<ArtProduct> products) {
@@ -436,7 +469,7 @@ public class ArtStudioService {
     }
 
     /** Foto e nome do catálogo enriquecido (o mais recente) de cada produto. */
-    private record CatalogInfo(String imageUrl, String name) {}
+    private record CatalogInfo(String imageUrl, String name, String packageDescription, String brand) {}
 
     private Map<UUID, CatalogInfo> imagesFor(List<ArtProduct> products) {
         Map<UUID, CatalogInfo> out = new HashMap<>();
@@ -446,26 +479,24 @@ public class ArtStudioService {
         List<UUID> ids = products.stream().map(ArtProduct::productId).distinct().toList();
         Map<UUID, String[]> enriched = new HashMap<>();
         jdbc.query(
-            "select distinct on (pe.product_id) pe.product_id, pe.image_url, pe.image_storage_key, pe.canonical_name " +
+            "select distinct on (pe.product_id) pe.product_id, pe.image_url, pe.image_storage_key, pe.canonical_name, " +
+            "  pe.package_description, pe.brand " +
             "from product_enrichments pe where pe.product_id in (:ids) " +
             "order by pe.product_id, pe.fetched_at desc, pe.id desc",
             Map.of("ids", ids),
             rs -> {
                 enriched.put((UUID) rs.getObject("product_id"),
-                    new String[] {rs.getString("image_url"), rs.getString("image_storage_key"), rs.getString("canonical_name")});
+                    new String[] {rs.getString("image_url"), rs.getString("image_storage_key"), rs.getString("canonical_name"),
+                        rs.getString("package_description"), rs.getString("brand")});
             });
         for (ArtProduct p : products) {
             String[] e = enriched.get(p.productId());
             String url = e != null && e[0] != null ? e[0] : p.imageUrl();
             String key = e == null ? null : e[1];
-            String resolved = null;
-            try {
-                resolved = catalogImages.resolveCatalogImageUrl(url, key);
-            } catch (RuntimeException ignored) {
-                // Sem foto o cartão sai com o nome em destaque.
-            }
+            String resolved = quickImage(key, url);
             String name = e != null && e[2] != null && !e[2].isBlank() ? e[2] : null;
-            out.put(p.productId(), new CatalogInfo(resolved == null || resolved.isBlank() ? null : resolved, name));
+            out.put(p.productId(), new CatalogInfo(resolved == null || resolved.isBlank() ? null : resolved, name,
+                e == null ? null : e[3], e == null ? null : e[4]));
         }
         return out;
     }
@@ -473,8 +504,10 @@ public class ArtStudioService {
     private static List<ArtProduct> applyImages(List<ArtProduct> products, Map<UUID, CatalogInfo> info) {
         return products.stream().map(p -> {
             CatalogInfo i = info.get(p.productId());
-            return new ArtProduct(p.productId(), i != null && i.name() != null ? i.name() : p.name(), p.ean(),
-                i == null ? null : i.imageUrl(), p.price(), p.unit(), p.baskets(), p.reason());
+            String name = i != null && i.name() != null ? i.name() : p.name();
+            return new ArtProduct(p.productId(), name, p.ean(), i == null ? null : i.imageUrl(), p.price(), p.unit(),
+                p.baskets(), p.reason(), i == null ? null : detailFor(i.packageDescription(), name),
+                i == null ? null : i.brand(), p.priceNote());
         }).toList();
     }
 
@@ -491,55 +524,98 @@ public class ArtStudioService {
         if (q.length() < 2) {
             return List.of();
         }
-        String digits = q.replaceAll("\\D", "");
-        boolean byEan = digits.length() >= 8 && digits.length() == q.replaceAll("\\s", "").length();
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("marketId", marketId)
-            .addValue("since", LocalDate.now().minusDays(90).atStartOfDay());
-        String where;
-        if (byEan) {
-            // EAN com ou sem zeros à esquerda (GTIN-13 x GTIN-14).
-            where = "ltrim(p.ean, '0') = ltrim(:ean, '0')";
-            params.addValue("ean", digits);
+            .addValue("since", LocalDate.now().minusDays(365).atStartOfDay());
+        String ean = ArtSearch.asEan(q);
+        String match;
+        if (ean != null) {
+            // Pelo índice de products.ean, com as variações de zeros à esquerda.
+            match = "p.ean in (:eans)";
+            params.addValue("eans", ArtSearch.eanVariants(ean));
         } else {
-            where = "(lower(coalesce(le.canonical_name, '')) like :term or lower(p.name) like :term or lower(coalesce(le.brand, p.brand, '')) like :term)";
-            params.addValue("term", "%" + q.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
+            match = ArtSearch.allWordsIn(ArtSearch.words(q),
+                List.of("pe.canonical_name", "p.name", "pe.brand", "p.brand"), params);
         }
+        // Relevância: o nome que começa com o que foi digitado vem primeiro
+        // ("refrigerante coca" antes de "sal coca cola").
+        params.addValue("prefix", ArtSearch.normalize(q).replaceAll("[^a-z0-9 ]", " ").trim().replaceAll("\\s+", " ") + "%");
+        // Um passo só por products x product_enrichments (junção comum, sem
+        // subconsulta por linha); o preço da loja só para os 30 escolhidos.
         String sql =
-            "with candidates as ( " +
-            "  select p.id, p.name, p.ean, p.image_url, le.canonical_name, le.image_url as e_url, le.image_storage_key " +
+            "with hits as ( " +
+            "  select distinct on (p.id) p.id, p.name, p.ean, p.image_url, pe.canonical_name, " +
+            "    pe.image_url as e_url, pe.image_storage_key, coalesce(pe.package_description, p.package_description) as package_description, " +
+            "    coalesce(pe.brand, p.brand) as brand, coalesce(pe.unit, p.unit) as catalog_unit " +
             "  from products p " +
-            "  left join lateral (select pe.canonical_name, pe.brand, pe.image_url, pe.image_storage_key from product_enrichments pe " +
-            "    where pe.product_id = p.id order by pe.fetched_at desc, pe.id desc limit 1) le on true " +
-            "  where p.ean is not null and " + where + " " +
-            "  order by (coalesce(le.image_storage_key, le.image_url, p.image_url) is null), length(coalesce(le.canonical_name, p.name)) " +
+            "  left join product_enrichments pe on pe.product_id = p.id " +
+            "  where " + match + " " +
+            "  order by p.id, (coalesce(pe.image_storage_key, pe.image_url) is null), pe.fetched_at desc nulls last " +
+            "), top as ( " +
+            "  select *, (" + ArtSearch.norm("coalesce(canonical_name, name)") + " like :prefix) as starts from hits " +
+            "  order by starts desc, (coalesce(image_storage_key, e_url, image_url) is null), length(coalesce(canonical_name, name)) " +
             "  limit 30 " +
             ") " +
-            "select c.*, s.last_price, coalesce(s.baskets, 0) as baskets, coalesce(s.fractional, false) as fractional " +
-            "from candidates c left join lateral ( " +
-            "  select (array_agg(ii.valor_unitario order by i.data_emissao desc))[1] as last_price, " +
+            "select t.*, s.last_price, s.last_sold, coalesce(s.baskets, 0) as baskets, s.fractional, " +
+            "  ds.median_price as stat_price, ds.stat_date " +
+            "from top t left join lateral ( " +
+            "  select (array_agg(ii.valor_unitario order by i.data_emissao desc))[1] as last_price, max(i.data_emissao) as last_sold, " +
             "    count(distinct ii.invoice_id) as baskets, bool_or(ii.quantidade <> trunc(ii.quantidade)) as fractional " +
             "  from invoice_items ii join invoices i on i.id = ii.invoice_id " +
-            "  where ii.product_id = c.id and i.market_id = :marketId and i.data_emissao >= :since " +
+            "  where ii.product_id = t.id and i.market_id = :marketId and i.data_emissao >= :since " +
             ") s on true " +
-            "order by coalesce(s.baskets, 0) desc limit 24";
+            "left join lateral ( " +
+            "  select d.median_price, d.stat_date from product_price_daily_stats d " +
+            "  where d.product_id = t.id and d.market_id = :marketId order by d.stat_date desc limit 1 " +
+            ") ds on true " +
+            "order by t.starts desc, coalesce(s.baskets, 0) desc, (coalesce(t.image_storage_key, t.e_url, t.image_url) is null), " +
+            "  length(coalesce(t.canonical_name, t.name)) " +
+            "limit 24";
         return jdbc.query(sql, params, (rs, i) -> {
-            String image = null;
-            try {
-                image = catalogImages.resolveCatalogImageUrl(
-                    rs.getString("e_url") != null ? rs.getString("e_url") : rs.getString("image_url"),
-                    rs.getString("image_storage_key"));
-            } catch (RuntimeException ignored) {
-                // sem foto
-            }
             String canonical = rs.getString("canonical_name");
+            String name = canonical != null && !canonical.isBlank() ? canonical : rs.getString("name");
             BigDecimal price = rs.getBigDecimal("last_price");
-            return new ArtProduct((UUID) rs.getObject("id"),
-                canonical != null && !canonical.isBlank() ? canonical : rs.getString("name"),
-                rs.getString("ean"), image == null || image.isBlank() ? null : image,
+            String note = null;
+            if (price != null) {
+                note = "Última venda na loja" + onDate(rs.getTimestamp("last_sold"));
+            } else if (rs.getBigDecimal("stat_price") != null) {
+                price = rs.getBigDecimal("stat_price");
+                java.sql.Date d = rs.getDate("stat_date");
+                note = "Preço médio da loja" + (d == null ? "" : onDate(new Timestamp(d.getTime())));
+            }
+            // Unidade: pela venda (fracionada = kg) ou pelo cadastro do catálogo.
+            Object fractional = rs.getObject("fractional");
+            String catalogUnit = ArtSearch.normalize(rs.getString("catalog_unit"));
+            String unit = fractional != null
+                ? (Boolean.TRUE.equals(fractional) ? "kg" : "un")
+                : (catalogUnit.equals("kg") || catalogUnit.startsWith("quilo") ? "kg" : "un");
+            return new ArtProduct((UUID) rs.getObject("id"), name, rs.getString("ean"),
+                quickImage(rs.getString("image_storage_key"),
+                    rs.getString("e_url") != null ? rs.getString("e_url") : rs.getString("image_url")),
                 price == null ? null : price.setScale(2, RoundingMode.HALF_UP),
-                rs.getBoolean("fractional") ? "kg" : "un", rs.getInt("baskets"), null);
+                unit, rs.getInt("baskets"), null,
+                detailFor(rs.getString("package_description"), name), rs.getString("brand"), note);
         });
+    }
+
+    /**
+     * URL da foto sem baixar nada: arquivo guardado no nosso disco vira a URL
+     * gerenciada; senão, a URL de origem (o navegador busca pelo proxy).
+     * Recuperar foto perdida fica para o fluxo do catálogo, não para a busca.
+     */
+    private String quickImage(String storageKey, String url) {
+        try {
+            if (storageKey != null && !storageKey.isBlank() && catalogImages.hasStoredImage(storageKey)) {
+                return imageUrls.managedUrl(storageKey);
+            }
+            String normalized = imageUrls.normalizeUrl(url);
+            if (normalized != null) {
+                return normalized;
+            }
+            return storageKey == null || storageKey.isBlank() ? null : imageUrls.managedUrl(storageKey);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /** Foto própria para um item do encarte (o mercado fotografou o produto). */

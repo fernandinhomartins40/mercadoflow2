@@ -82,6 +82,11 @@ export interface ArtProduct {
   unit: string;
   baskets: number;
   reason: string | null;
+  /** Embalagem/gramatura ("395 g"), quando o nome não diz. */
+  detail: string | null;
+  brand: string | null;
+  /** De onde veio o preço: "Última venda na loja em 12/09", "Preço médio da loja em 10/09". */
+  priceNote: string | null;
 }
 
 export interface SuggestionGroup {

@@ -482,7 +482,13 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
     const lines = s.footerLines.filter(Boolean).slice(0, 3);
     const lineH = box.h / lines.length;
     ctx.save();
-    ctx.fillStyle = inkFor(s, 'footer');
+    const ink = inkFor(s, 'footer');
+    ctx.fillStyle = ink;
+    // Fundo de designer muda de cor dentro do rodapé (faixas, ondas): uma
+    // sombra no tom oposto mantém o texto legível sobre qualquer trecho.
+    ctx.shadowColor = ink === '#ffffff' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
+    ctx.shadowBlur = Math.max(2, box.h * 0.06);
+    ctx.shadowOffsetY = Math.max(1, box.h * 0.012);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     lines.forEach((line, i) => {
