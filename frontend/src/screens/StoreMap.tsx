@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArrowRightLeft, CheckCircle2, Flame, Hammer, LayoutGrid, Lightbulb, MapPin, Minus, Plus, Search,
-  Snowflake, Star, Store,
+  AlertTriangle, ArrowRightLeft, Box, CheckCircle2, Copy, Flame, Footprints, Hammer, Hand, Keyboard, LayoutGrid, Lightbulb,
+  Map as MapIcon, MapPin, MousePointer2, Redo2, RotateCw, Search, Snowflake, Star, Store, Trash2, Undo2,
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import SegmentedTabs from '../components/ui/SegmentedTabs';
@@ -10,22 +10,31 @@ import { useAuth } from '../context/AuthContext';
 import { storeMapService } from '../services/storeMap.service';
 import { formatMoney } from '../utils/formatters';
 import type {
-  DepartmentsReport, Fixture, FixtureType, InsightKind, LocatedProduct, StoreInsight, StorePlan,
+  DepartmentsReport, FixtureType, InsightKind, LocatedProduct, StoreInsight, StorePlan,
 } from '../types/storeMap.types';
-import PlanView from '../features/store-map/PlanView';
-import FixtureEditor from '../features/store-map/FixtureEditor';
 import SetupWizard from '../features/store-map/SetupWizard';
-import { DEPT_BY_KEY, FIXTURES, deptLabel, fixtureName, newId, revenuePerFixture } from '../features/store-map/model';
+import { DEPT_BY_KEY, FIXTURES, deptLabel, fixtureName, revenuePerFixture } from '../features/store-map/model';
+import PlanCanvas, { FIXTURE_MIME, Tool } from '../features/store-map/editor/PlanCanvas';
+import Inspector, { MeterField } from '../features/store-map/editor/Inspector';
+import AisleGenerator from '../features/store-map/editor/AisleGenerator';
+import { usePlanHistory } from '../features/store-map/editor/usePlanHistory';
+import { addFixture, duplicate, moveBy, remove, rotate } from '../features/store-map/editor/actions';
+import IsoView from '../features/store-map/view3d/IsoView';
+import AisleWalk, { describeSide } from '../features/store-map/view3d/AisleWalk';
+import { findAisles, longestAisle } from '../features/store-map/view3d/aisles';
 
 /**
- * Loja Viva (F17, D-022): a planta da loja vista de cima, montada em um toque
- * a partir do tamanho da loja, com cada produto localizado sozinho pelo NCM da
- * nota. Três modos: Montar, Calor de vendas e Sugestões — mais "Onde fica?".
+ * Loja Viva (F17, D-022): a planta da loja, montada em um toque a partir do
+ * tamanho da loja ou desenhada do zero, com cada produto localizado sozinho
+ * pelo NCM da nota. Três tarefas (Montar, Calor de vendas, Sugestões) e três
+ * jeitos de ver (planta, 3D e andando no corredor).
  */
 
 type Mode = 'montar' | 'calor' | 'sugestoes';
+type View = 'planta' | '3d' | 'corredor';
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 const SAVE_DELAY_MS = 1200;
+const TOOL = `inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition hover:bg-[var(--surface-soft)] disabled:pointer-events-none disabled:opacity-35 ${FOCUS}`;
 
 const compactMoney = (v: number) =>
   v >= 1000 ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${Math.round(v).toLocaleString('pt-BR')}`;
@@ -44,48 +53,42 @@ const Panel: React.FC<{ title: string; children: React.ReactNode; action?: React
   </section>
 );
 
+const SHORTCUTS: Array<[string, string]> = [
+  ['Arrastar o fundo ou segurar espaço', 'andar pela planta'],
+  ['Roda do mouse, + e −', 'aproximar e afastar'],
+  ['0', 'ver a loja inteira'],
+  ['Shift + clique ou laço', 'selecionar vários'],
+  ['Setas (Shift: 1 m)', 'mover 25 cm'],
+  ['R', 'girar 90°'],
+  ['Ctrl + D', 'duplicar'],
+  ['Delete', 'remover'],
+  ['Ctrl + Z / Ctrl + Y', 'desfazer e refazer'],
+  ['Alt ao arrastar', 'soltar sem grudar'],
+];
+
 const StoreMap: React.FC = () => {
   const { marketId } = useAuth();
-  const [plan, setPlan] = useState<StorePlan | null>(null);
   const [report, setReport] = useState<DepartmentsReport | null>(null);
   const [insights, setInsights] = useState<StoreInsight[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('montar');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [highlight, setHighlight] = useState<{ ids: string[]; connect?: [string, string] | null; note?: string } | null>(null);
+  const [view, setView] = useState<View>('planta');
+  const [tool, setTool] = useState<Tool>('select');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [highlight, setHighlight] = useState<{ ids: string[]; connect?: [string, string] | null; note?: string; key: string } | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
   const [justCreated, setJustCreated] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [aisleId, setAisleId] = useState<string | null>(null);
+  const [showKeys, setShowKeys] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const latestPlan = useRef<StorePlan | null>(null);
 
-  // ── Carga ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!marketId) return;
-    let cancelled = false;
-    // A planta aparece assim que chega; as vendas (mais pesadas) completam depois.
-    storeMapService.getPlan(marketId)
-      .then((p) => { if (!cancelled) setPlan(p); })
-      .catch(() => { if (!cancelled) setError('Não foi possível abrir a planta da loja.'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    storeMapService.getDepartments(marketId)
-      .then((r) => { if (!cancelled) setReport(r); })
-      .catch(() => undefined)
-      .finally(() => { if (!cancelled) setReportLoading(false); });
-    return () => { cancelled = true; };
-  }, [marketId]);
-
-  const loadInsights = useCallback(async () => {
-    if (!marketId) return;
-    try { setInsights(await storeMapService.getInsights(marketId)); } catch { setInsights([]); }
-  }, [marketId]);
-
-  useEffect(() => { if (mode === 'sugestoes' && plan && insights === null) loadInsights(); }, [mode, plan, insights, loadInsights]);
-
   // ── Gravação automática ─────────────────────────────────────────────────
   const persist = useCallback(async () => {
+    saveTimer.current = undefined;
     if (!marketId || !latestPlan.current) return;
     setSaveState('saving');
     try {
@@ -97,46 +100,57 @@ const StoreMap: React.FC = () => {
     }
   }, [marketId]);
 
-  const update = useCallback((next: StorePlan, immediate = false) => {
-    setPlan(next);
+  const schedule = useCallback((next: StorePlan) => {
     latestPlan.current = next;
     setSaveState('pending');
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(persist, immediate ? 0 : SAVE_DELAY_MS);
+    saveTimer.current = setTimeout(persist, SAVE_DELAY_MS);
   }, [persist]);
+
+  const history = usePlanHistory(schedule);
+  const plan = history.plan;
 
   useEffect(() => () => {
     // Saiu da tela com alteração pendente: grava na hora.
     if (saveTimer.current) { clearTimeout(saveTimer.current); persist(); }
   }, [persist]);
 
-  const patchFixture = (id: string, patch: Partial<Fixture>) => {
-    if (!plan) return;
-    update({ ...plan, fixtures: plan.fixtures.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
-  };
+  // ── Carga ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!marketId) return;
+    let cancelled = false;
+    // A planta aparece assim que chega; as vendas (mais pesadas) completam depois.
+    storeMapService.getPlan(marketId)
+      .then((p) => { if (!cancelled) { history.reset(p); latestPlan.current = p; } })
+      .catch(() => { if (!cancelled) setError('Não foi possível abrir a planta da loja.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    storeMapService.getDepartments(marketId)
+      .then((r) => { if (!cancelled) setReport(r); })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) setReportLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketId]);
 
-  const addFixture = (type: FixtureType) => {
-    if (!plan) return;
-    const m = FIXTURES[type];
-    const offset = (plan.fixtures.length % 6) * 0.5;
-    const f: Fixture = {
-      id: newId(), type, label: `${m.label} ${plan.fixtures.filter((x) => x.type === type).length + 1}`,
-      x: Math.max(0, plan.width / 2 - m.w / 2 + offset), y: Math.max(0, plan.height / 2 - m.h / 2 + offset),
-      w: m.w, h: m.h, departments: [],
-    };
-    update({ ...plan, fixtures: [...plan.fixtures, f] });
-    setSelectedId(f.id);
-  };
+  const loadInsights = useCallback(async () => {
+    if (!marketId) return;
+    try { setInsights(await storeMapService.getInsights(marketId)); } catch { setInsights([]); }
+  }, [marketId]);
+
+  useEffect(() => { if (mode === 'sugestoes' && plan && insights === null) loadInsights(); }, [mode, plan, insights, loadInsights]);
+
+  const apply = history.commit;
 
   const createPlan = async (next: StorePlan) => {
     if (!marketId) return;
     setCreating(true);
     try {
       const saved = await storeMapService.savePlan(marketId, next);
-      setPlan(saved);
+      history.reset(saved);
       latestPlan.current = saved;
       setJustCreated(true);
       setSaveState('saved');
+      setSelectedIds([]);
     } catch {
       setError('Não foi possível salvar a planta. Tente de novo.');
     } finally {
@@ -144,29 +158,72 @@ const StoreMap: React.FC = () => {
     }
   };
 
+  const place = (type: FixtureType, x?: number, y?: number) => {
+    if (!plan) return;
+    const n = plan.fixtures.length % 6;
+    const r = addFixture(plan, type, x ?? plan.width / 2 + n * 0.5, y ?? plan.height / 2 + n * 0.5);
+    apply(r.plan);
+    setSelectedIds([r.id]);
+  };
+
+  // ── Atalhos do editor ────────────────────────────────────────────────────
+  const editing = mode === 'montar' && view === 'planta' && !!plan;
+  useEffect(() => {
+    if (!editing || !plan) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) history.redo(); else history.undo(); return; }
+      if (mod && key === 'y') { e.preventDefault(); history.redo(); return; }
+      if (mod && key === 'a') { e.preventDefault(); setSelectedIds(plan.fixtures.map((f) => f.id)); return; }
+      if (!mod && key === 'v') { setTool('select'); return; }
+      if (!mod && key === 'h') { setTool('hand'); return; }
+      if (!selectedIds.length) return;
+      if (mod && key === 'd') { e.preventDefault(); const r = duplicate(plan, selectedIds); apply(r.plan); setSelectedIds(r.ids); return; }
+      if (key === 'delete' || key === 'backspace') { e.preventDefault(); apply(remove(plan, selectedIds)); setSelectedIds([]); return; }
+      if (!mod && key === 'r') { e.preventDefault(); apply(rotate(plan, selectedIds)); return; }
+      if (key === 'escape') { setSelectedIds([]); return; }
+      const step = e.shiftKey ? 1 : 0.25;
+      const arrows: Record<string, [number, number]> = { arrowup: [0, -step], arrowdown: [0, step], arrowleft: [-step, 0], arrowright: [step, 0] };
+      const mv = arrows[key];
+      if (mv) { e.preventDefault(); apply(moveBy(plan, selectedIds, mv[0], mv[1])); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing, plan, selectedIds, history, apply]);
+
   // ── Derivados ────────────────────────────────────────────────────────────
   const heat = useMemo(() => (plan ? revenuePerFixture(plan, report) : {}), [plan, report]);
-  const selected = plan?.fixtures.find((f) => f.id === selectedId) ?? null;
   const placed = useMemo(() => new Set(plan?.fixtures.flatMap((f) => f.departments) ?? []), [plan]);
   const departments = (report?.departments ?? []).filter((d) => d.key !== 'OUTROS');
   const unplacedSelling = departments.filter((d) => !placed.has(d.key) && d.revenueShare >= 0.02);
   const highlightSet = useMemo(() => new Set(highlight?.ids ?? []), [highlight]);
+  const aisles = useMemo(() => (plan ? findAisles(plan) : []), [plan]);
+  const currentAisle = aisles.find((a) => a.id === aisleId) ?? longestAisle(aisles);
+  const validIds = selectedIds.filter((id) => plan?.fixtures.some((f) => f.id === id));
+
+  const showHighlight = (ids: string[], note?: string, connect?: [string, string] | null) =>
+    setHighlight({ ids, note, connect, key: `${Date.now()}` });
 
   const showDepartment = (key: string) => {
     const ids = plan?.fixtures.filter((f) => f.departments.includes(key)).map((f) => f.id) ?? [];
-    setHighlight({ ids, note: ids.length ? `${deptLabel(key)}: ${ids.length === 1 ? '1 móvel' : `${ids.length} móveis`}` : `${deptLabel(key)} ainda não tem lugar no mapa` });
+    showHighlight(ids, ids.length ? `${deptLabel(key)}: ${ids.length === 1 ? '1 móvel' : `${ids.length} móveis`}` : `${deptLabel(key)} ainda não tem lugar no mapa`);
   };
 
-  const saveLabel = { idle: '', pending: 'Alterações não salvas…', saving: 'Salvando…', saved: 'Salvo', error: 'Não salvou — tente de novo' }[saveState];
+  const saveLabel = { idle: '', pending: 'Alterações não salvas…', saving: 'Salvando…', saved: 'Salvo', error: 'Não salvou' }[saveState];
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (loading) {
     return <Layout><div className="flex min-h-[300px] items-center justify-center" role="status"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /><span className="sr-only">Carregando o mapa</span></div></Layout>;
   }
 
+  const stageHeight = 'h-[64vh] min-h-[380px] lg:h-[calc(100vh-17rem)] lg:min-h-[520px]';
+
   return (
     <Layout>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Mapa da loja</h1>
@@ -192,24 +249,38 @@ const StoreMap: React.FC = () => {
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />
                 <div className="min-w-0 flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
                   <p className="font-semibold">Planta pronta, com os setores já no lugar.</p>
-                  <p style={{ color: 'var(--text-muted)' }}>Confira com a sua loja: arraste o que estiver em outro lugar e toque num móvel para trocar o setor. Tudo é salvo sozinho.</p>
+                  <p style={{ color: 'var(--text-muted)' }}>Confira com a sua loja: arraste o que estiver em outro lugar, puxe as alças para mudar o tamanho e toque num móvel para trocar o setor. Tudo é salvo sozinho.</p>
                 </div>
                 <button type="button" onClick={() => setJustCreated(false)} className={`text-sm font-semibold ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>Entendi</button>
               </div>
             )}
 
-            <SegmentedTabs<Mode>
-              tabs={[
-                { key: 'montar', label: 'Montar', icon: <Hammer className="h-4 w-4" /> },
-                { key: 'calor', label: 'Calor de vendas', icon: <Flame className="h-4 w-4" /> },
-                { key: 'sugestoes', label: 'Sugestões', icon: <Lightbulb className="h-4 w-4" />, badge: insights?.filter((i) => i.priority >= 60).length || undefined },
-              ]}
-              value={mode}
-              onChange={(m) => { setMode(m); setHighlight(null); if (m !== 'montar') setSelectedId(null); }}
-              label="Modo do mapa"
-            />
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <SegmentedTabs<Mode>
+                fit
+                tabs={[
+                  { key: 'montar', label: 'Montar', icon: <Hammer className="h-4 w-4" /> },
+                  { key: 'calor', label: 'Calor de vendas', icon: <Flame className="h-4 w-4" /> },
+                  { key: 'sugestoes', label: 'Sugestões', icon: <Lightbulb className="h-4 w-4" />, badge: insights?.filter((i) => i.priority >= 60).length || undefined },
+                ]}
+                value={mode}
+                onChange={(m) => { setMode(m); setHighlight(null); setSelectedIds([]); }}
+                label="O que fazer no mapa"
+              />
+              <SegmentedTabs<View>
+                fit
+                tabs={[
+                  { key: 'planta', label: 'Planta', icon: <MapIcon className="h-4 w-4" /> },
+                  { key: '3d', label: '3D', icon: <Box className="h-4 w-4" /> },
+                  { key: 'corredor', label: 'Corredor', icon: <Footprints className="h-4 w-4" /> },
+                ]}
+                value={view}
+                onChange={setView}
+                label="Como ver a loja"
+              />
+            </div>
 
-            <LocateSearch marketId={marketId!} plan={plan} onFound={(ids, note) => setHighlight({ ids, note })} />
+            <LocateSearch marketId={marketId!} plan={plan} onFound={(ids, note) => showHighlight(ids, note)} />
 
             {highlight?.note && (
               <p className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm" role="status" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
@@ -218,46 +289,154 @@ const StoreMap: React.FC = () => {
               </p>
             )}
 
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-              {/* No desktop a planta fica à vista enquanto o painel ao lado rola. */}
-              <div className="min-w-0 self-start rounded-2xl p-2 sm:p-3 lg:sticky lg:top-20" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <PlanView
-                  plan={plan}
-                  mode={mode === 'montar' ? 'edit' : mode === 'calor' ? 'heat' : 'view'}
-                  selectedId={selectedId}
-                  highlightIds={highlightSet}
-                  connect={highlight?.connect ?? null}
-                  heat={heat}
-                  heatLabel={(id) => (heat[id] != null ? compactMoney(heat[id]) : 'sem setor')}
-                  onSelect={setSelectedId}
-                  onMove={(id, x, y) => patchFixture(id, { x, y })}
-                />
-                {mode === 'montar' && (
-                  <p className="px-2 pb-1 pt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Toque num móvel para dizer o que tem nele. Arraste para mover.
-                  </p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="flex min-w-0 flex-col self-start overflow-hidden rounded-2xl lg:sticky lg:top-20"
+                style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+                {editing && (
+                  <div className="flex flex-wrap items-center gap-1 border-b px-2 py-1.5" role="toolbar" aria-label="Ferramentas da planta"
+                    style={{ borderColor: 'var(--border-soft)', color: 'var(--text-primary)' }}>
+                    <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: 'var(--surface-soft)' }}>
+                      {([['select', MousePointer2, 'Selecionar e mover (V)'], ['hand', Hand, 'Mão: andar pela planta (H)']] as const).map(([t, Icon, title]) => (
+                        <button key={t} type="button" aria-pressed={tool === t} onClick={() => setTool(t)} title={title} aria-label={title}
+                          className={`${TOOL} w-9 px-0`} style={tool === t ? { background: 'var(--surface-base)', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' } : undefined}>
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                    <span className="mx-1 h-5 w-px" style={{ background: 'var(--border-soft)' }} aria-hidden="true" />
+                    <button type="button" className={`${TOOL} w-9 px-0`} onClick={history.undo} disabled={!history.canUndo} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">
+                      <Undo2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button type="button" className={`${TOOL} w-9 px-0`} onClick={history.redo} disabled={!history.canRedo} title="Refazer (Ctrl+Y)" aria-label="Refazer">
+                      <Redo2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <span className="mx-1 h-5 w-px" style={{ background: 'var(--border-soft)' }} aria-hidden="true" />
+                    <button type="button" className={TOOL} disabled={!validIds.length} onClick={() => apply(rotate(plan, validIds))} title="Girar 90° (R)">
+                      <RotateCw className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Girar</span>
+                    </button>
+                    <button type="button" className={TOOL} disabled={!validIds.length} title="Duplicar (Ctrl+D)"
+                      onClick={() => { const r = duplicate(plan, validIds); apply(r.plan); setSelectedIds(r.ids); }}>
+                      <Copy className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Duplicar</span>
+                    </button>
+                    <button type="button" className={TOOL} disabled={!validIds.length} title="Remover (Delete)" aria-label="Remover selecionados"
+                      onClick={() => { apply(remove(plan, validIds)); setSelectedIds([]); }} style={{ color: '#b91c1c' }}>
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <div className="relative ml-auto">
+                      <button type="button" className={TOOL} aria-expanded={showKeys} onClick={() => setShowKeys((v) => !v)} title="Atalhos do teclado">
+                        <Keyboard className="h-4 w-4" aria-hidden="true" /><span className="hidden md:inline">Atalhos</span>
+                      </button>
+                      {showKeys && (
+                        <div className="absolute right-0 top-full z-20 mt-1 w-72 rounded-xl p-3 shadow-lg" style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}>
+                          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+                            {SHORTCUTS.map(([k, v]) => (
+                              <React.Fragment key={k}>
+                                <dt className="font-semibold" style={{ color: 'var(--text-primary)' }}>{k}</dt>
+                                <dd style={{ color: 'var(--text-muted)' }}>{v}</dd>
+                              </React.Fragment>
+                            ))}
+                          </dl>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
-                {mode === 'calor' && <HeatLegend />}
+
+                {view === 'planta' && (
+                  <PlanCanvas
+                    className={stageHeight}
+                    plan={plan}
+                    mode={mode === 'montar' ? 'edit' : mode === 'calor' ? 'heat' : 'view'}
+                    tool={tool}
+                    selectedIds={validIds}
+                    onSelectionChange={setSelectedIds}
+                    highlightIds={highlightSet}
+                    connect={highlight?.connect ?? null}
+                    revealKey={highlight?.key ?? null}
+                    heat={heat}
+                    heatLabel={(id) => (heat[id] != null ? compactMoney(heat[id]) : 'sem setor')}
+                    onPreview={history.preview}
+                    onCommit={() => history.commit()}
+                    onCancel={history.cancel}
+                    onDropType={(t, x, y) => place(t, x, y)}
+                  />
+                )}
+                {view === '3d' && (
+                  <IsoView
+                    className={stageHeight}
+                    plan={plan}
+                    selectedIds={validIds}
+                    onSelect={(id) => setSelectedIds(id ? [id] : [])}
+                    heat={heat}
+                    heatMode={mode === 'calor'}
+                    highlightIds={highlightSet}
+                  />
+                )}
+                {view === 'corredor' && (
+                  <AisleWalk className={stageHeight} aisles={aisles} aisleId={currentAisle?.id ?? null} onAisle={setAisleId} report={report} />
+                )}
+                {mode === 'calor' && view !== 'corredor' && <HeatLegend />}
               </div>
 
               <div className="flex min-w-0 flex-col gap-4">
-                {mode === 'montar' && (selected ? (
-                  <Panel title={fixtureName(selected)}>
-                    <FixtureEditor
-                      fixture={selected}
+                {view === 'corredor' && currentAisle && (
+                  <Panel title="Neste corredor">
+                    <dl className="flex flex-col gap-2 text-sm">
+                      {([['À esquerda', currentAisle.left], ['À direita', currentAisle.right]] as const).map(([side, f]) => (
+                        <div key={side} className="flex flex-col">
+                          <dt className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{side}</dt>
+                          <dd style={{ color: 'var(--text-primary)' }}>{describeSide(f)}</dd>
+                        </div>
+                      ))}
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Largura para passar</dt>
+                        <dd style={{ color: currentAisle.width < 1.2 ? '#b45309' : 'var(--text-primary)' }}>
+                          {currentAisle.width.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m
+                          {currentAisle.width < 1.2 ? ': apertado para dois carrinhos (o comum é 1,5 m ou mais)' : ''}
+                        </dd>
+                      </div>
+                    </dl>
+                  </Panel>
+                )}
+
+                {mode === 'montar' && (validIds.length > 0 ? (
+                  <Panel title={validIds.length === 1 ? 'Móvel' : 'Seleção'}>
+                    <Inspector
+                      plan={plan}
+                      ids={validIds}
                       report={report}
-                      onChange={(patch) => patchFixture(selected.id, patch)}
-                      onDuplicate={() => {
-                        const copy = { ...selected, id: newId(), x: Math.min(plan.width - selected.w, selected.x + 1.5), label: `${fixtureName(selected)} (cópia)` };
-                        update({ ...plan, fixtures: [...plan.fixtures, copy] });
-                        setSelectedId(copy.id);
-                      }}
-                      onRemove={() => { update({ ...plan, fixtures: plan.fixtures.filter((f) => f.id !== selected.id) }); setSelectedId(null); }}
-                      onClose={() => setSelectedId(null)}
+                      apply={apply}
+                      preview={history.preview}
+                      settle={() => history.commit()}
+                      onSelect={setSelectedIds}
                     />
                   </Panel>
                 ) : (
                   <>
+                    {view === 'planta' && (
+                      <Panel title="Móveis">
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Arraste para a planta ou toque para colocar no meio da loja.</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {(Object.keys(FIXTURES) as FixtureType[])
+                            .filter((t) => t !== 'entrada' || !plan.fixtures.some((f) => f.type === 'entrada'))
+                            .map((t) => {
+                              const m = FIXTURES[t];
+                              return (
+                                <button key={t} type="button" draggable onClick={() => place(t)} title={m.hint}
+                                  onDragStart={(e) => { e.dataTransfer.setData(FIXTURE_MIME, t); e.dataTransfer.effectAllowed = 'copy'; }}
+                                  className={`flex min-h-[48px] cursor-grab items-center gap-2 rounded-lg px-2 text-left text-sm font-medium transition hover:bg-[var(--surface-soft)] ${FOCUS}`}
+                                  style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
+                                  <span aria-hidden="true" className="shrink-0 rounded-sm" style={{
+                                    width: Math.max(8, Math.min(26, m.w * 6)), height: Math.max(8, Math.min(26, m.h * 6)), background: m.fill, border: `1.5px solid ${m.stroke}`,
+                                  }} />
+                                  <span className="min-w-0"><span className="block">{m.label}</span><span className="block truncate text-[11px] font-normal" style={{ color: 'var(--text-muted)' }}>{m.hint}</span></span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </Panel>
+                    )}
+
                     <Panel title="Setores da loja">
                       {departments.length === 0 ? (
                         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Os setores aparecem aqui assim que as vendas chegarem.</p>
@@ -268,11 +447,11 @@ const StoreMap: React.FC = () => {
                               ? 'Todos os setores que vendem já têm lugar no mapa.'
                               : `${unplacedSelling.length} ${unplacedSelling.length === 1 ? 'setor ainda sem lugar' : 'setores ainda sem lugar'}. Toque num móvel e marque o setor.`}
                           </p>
-                          <ul className="flex flex-col gap-1">
+                          <ul className="flex flex-col gap-0.5">
                             {departments.map((d) => (
                               <li key={d.key}>
                                 <button type="button" onClick={() => showDepartment(d.key)}
-                                  className={`flex min-h-[44px] w-full items-center gap-2 rounded-lg px-2 text-left text-sm transition hover:bg-[var(--surface-soft)] ${FOCUS}`}>
+                                  className={`flex min-h-[40px] w-full items-center gap-2 rounded-lg px-2 text-left text-sm transition hover:bg-[var(--surface-soft)] ${FOCUS}`}>
                                   <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: DEPT_BY_KEY[d.key]?.color }} />
                                   <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{d.label}</span>
                                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{Math.round(d.revenueShare * 100)}%</span>
@@ -287,38 +466,21 @@ const StoreMap: React.FC = () => {
                       )}
                     </Panel>
 
-                    <Panel title="Adicionar móvel">
-                      <div className="grid grid-cols-2 gap-2">
-                        {(Object.keys(FIXTURES) as FixtureType[])
-                          .filter((t) => t !== 'entrada' || !plan.fixtures.some((f) => f.type === 'entrada'))
-                          .map((t) => {
-                            const m = FIXTURES[t];
-                            return (
-                              <button key={t} type="button" onClick={() => addFixture(t)} title={m.hint}
-                                className={`flex min-h-[48px] items-center gap-2 rounded-lg px-2 text-left text-sm font-medium ${FOCUS}`}
-                                style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
-                                <span aria-hidden="true" className="h-5 w-5 shrink-0 rounded" style={{ background: m.fill, border: `1.5px solid ${m.stroke}` }} />
-                                <span className="min-w-0"><span className="block">{m.label}</span><span className="block truncate text-[11px] font-normal" style={{ color: 'var(--text-muted)' }}>{m.hint}</span></span>
-                              </button>
-                            );
-                          })}
-                      </div>
-                    </Panel>
+                    {view === 'planta' && (
+                      <Panel title="Corredores prontos">
+                        <AisleGenerator key={`${plan.width}x${plan.height}`} plan={plan} onApply={(next, ids) => { apply(next); setSelectedIds(ids); }} />
+                      </Panel>
+                    )}
 
                     <Panel title="Tamanho da loja">
-                      {([['Largura', 'width'], ['Profundidade', 'height']] as const).map(([label, key]) => (
-                        <div key={key} className="flex items-center justify-between gap-2">
-                          <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{label}</span>
-                          <div className="flex items-center gap-1">
-                            <button type="button" aria-label={`Diminuir ${label.toLowerCase()}`} onClick={() => update({ ...plan, [key]: Math.max(6, plan[key] - 1) })}
-                              className={`inline-flex h-11 w-11 items-center justify-center rounded-lg ${FOCUS}`} style={{ border: '1px solid var(--border-strong)' }}><Minus className="h-4 w-4" /></button>
-                            <span className="min-w-[3.5rem] text-center text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{plan[key]} m</span>
-                            <button type="button" aria-label={`Aumentar ${label.toLowerCase()}`} onClick={() => update({ ...plan, [key]: Math.min(80, plan[key] + 1) })}
-                              className={`inline-flex h-11 w-11 items-center justify-center rounded-lg ${FOCUS}`} style={{ border: '1px solid var(--border-strong)' }}><Plus className="h-4 w-4" /></button>
-                          </div>
-                        </div>
-                      ))}
-                      <button type="button" onClick={() => { if (window.confirm('Apagar a planta e escolher outra de novo?')) { setPlan(null); latestPlan.current = null; setSelectedId(null); } }}
+                      <div className="grid grid-cols-2 gap-2">
+                        <MeterField id="store-w" label="Largura" value={plan.width}
+                          min={Math.max(4, ...plan.fixtures.map((f) => f.x + f.w))} max={200} onCommit={(width) => apply({ ...plan, width })} />
+                        <MeterField id="store-h" label="Fundo" value={plan.height}
+                          min={Math.max(4, ...plan.fixtures.map((f) => f.y + f.h))} max={200} onCommit={(height) => apply({ ...plan, height })} />
+                      </div>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Também dá para puxar as paredes da loja na planta.</p>
+                      <button type="button" onClick={() => { if (window.confirm('Apagar a planta e escolher outra de novo?')) { history.reset(null); latestPlan.current = null; setSelectedIds([]); } }}
                         className="self-start text-sm font-medium underline" style={{ color: 'var(--text-muted)' }}>
                         Recomeçar com outra planta
                       </button>
@@ -327,21 +489,22 @@ const StoreMap: React.FC = () => {
                 ))}
 
                 {mode === 'calor' && (
-                  <HeatPanel plan={plan} report={report} heat={heat} selectedId={selectedId} onSelect={setSelectedId} />
+                  <HeatPanel plan={plan} report={report} heat={heat} selectedId={validIds[0] ?? null} onSelect={(id) => setSelectedIds(id ? [id] : [])} />
                 )}
 
                 {mode === 'sugestoes' && (
                   <InsightsPanel
                     insights={insights}
-                    onShow={(ins) => setHighlight({
-                      ids: ins.fixtureIds,
-                      connect: ins.kind === 'CLOSER' && ins.fixtureIds.length === 2 ? [ins.fixtureIds[0], ins.fixtureIds[1]] : null,
-                      note: ins.title,
-                    })}
+                    onShow={(ins) => showHighlight(
+                      ins.fixtureIds,
+                      ins.title,
+                      ins.kind === 'CLOSER' && ins.fixtureIds.length === 2 ? [ins.fixtureIds[0], ins.fixtureIds[1]] : null,
+                    )}
                     onFix={(ins) => {
                       setMode('montar');
+                      setView('planta');
                       setHighlight(null);
-                      if (ins.fixtureIds[0]) setSelectedId(ins.fixtureIds[0]);
+                      if (ins.fixtureIds[0]) setSelectedIds([ins.fixtureIds[0]]);
                     }}
                   />
                 )}
@@ -454,7 +617,7 @@ const HeatPanel: React.FC<{
             if (!d) return <p key={key} className="text-sm" style={{ color: 'var(--text-muted)' }}>{deptLabel(key)}: sem vendas no período.</p>;
             return (
               <div key={key} className="flex flex-col gap-1.5">
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{d.label} · {Math.round(d.revenueShare * 100)}% da loja · em {Math.round(d.basketShare * 100)}% das compras</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{d.label}: {Math.round(d.revenueShare * 100)}% da loja, em {Math.round(d.basketShare * 100)}% das compras</p>
                 <ul className="flex flex-col">
                   {d.topProducts.slice(0, 5).map((p) => (
                     <li key={p.id} className="flex items-center gap-2 py-1 text-sm">

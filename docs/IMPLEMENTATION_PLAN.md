@@ -130,6 +130,26 @@ nem isso começa do zero: ele escolhe o tamanho da loja e recebe a planta típic
 | M-05 | P1 | pares só "perto/longe" em grade | sugestões explicadas com os números da loja: setor sem lugar, frio em móvel seco, setores comprados juntos longe um do outro (afinidade calculada nas notas), setor de destino na entrada, móvel que vende pouco em lugar de passagem, candidatos a ponta de gôndola, móveis sem setor; "Ver no mapa" destaca e liga os móveis | `StoreMapInsights` | baixo | 7 testes + Playwright | DONE |
 | M-06 | P2 | endpoints e serviço do mapa antigo sem uso | removidos; coluna `plan` nova (V56), a antiga `cells` fica intacta | `MarketController`, `StoreLayoutService` | baixo | suíte | DONE |
 
+## Ciclo 6 — Loja Viva profissional: editor de planta e 3D leve (2026-09-28)
+
+Pedido do owner: mapa mais profissional e bem calibrado, com mais ferramentas de edição (mudar o tamanho com o
+mouse, personalizar a planta ou criar do zero), visual moderno e uma vista 3D dos corredores sem renderização pesada.
+
+Viabilidade do 3D: WebGL (three.js) seria dependência nova e pesada para o celular do dono. Escolha: projeção
+isométrica em SVG (só polígonos, ordenados de trás para a frente) para ver a loja inteira, e CSS 3D (`perspective`
+e `preserve-3d`, dois planos) para andar dentro do corredor. Nenhuma dependência nova; o formato da planta salva
+não muda (continua `version 2`).
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| M-07 | P1 | planta fixa na tela, sem zoom, móvel só mudava de tamanho pelo botão ± | editor com zoom (roda, pinça, botões, enquadrar), arrastar o fundo para andar, 8 alças de redimensionar com a medida na tela, cotas da loja, régua de escala | `editor/PlanCanvas.tsx`, `useViewport.ts` | médio | Playwright 390/1440/1920 | DONE |
+| M-08 | P1 | editar um móvel de cada vez, sem desfazer | seleção múltipla (Shift e laço), alinhar, espaçar por igual, mesmo tamanho, girar, duplicar, remover; desfazer/refazer (um arrasto = um passo); atalhos de teclado | `usePlanHistory.ts`, `actions.ts`, `Inspector.tsx` | médio | Playwright | DONE |
+| M-09 | P1 | posicionar exigia olho | encaixe na grade de 25 cm e nas bordas e centros dos outros móveis e das paredes, com guias de alinhamento; Alt solta sem encaixar; medidas digitadas no inspetor | `geometry.ts` | baixo | Playwright | DONE |
+| M-10 | P1 | criar do zero era uma planta 20×14 fixa | "Desenhar do zero" com as medidas do salão; paleta de móveis arrastável; gerador de corredores (quantidade, comprimento, largura do corredor, direção, pontas) com prévia; paredes da loja arrastáveis | `SetupWizard.tsx`, `AisleGenerator.tsx` | baixo | Playwright | DONE |
+| M-11 | P1 | visual de retângulos coloridos | móveis desenhados como vistos de cima (módulos da gôndola, portas da geladeira, tampas do freezer, caixotes da banca, esteira do caixa, porta com seta), faixa com a cor de cada setor, piso com grade de 1 e 5 m | `FixtureGlyph.tsx` | baixo | capturas | DONE |
+| M-12 | P1 | sem 3D | vista 3D isométrica em SVG, girável, com altura real de cada móvel; no calor, a altura mostra a venda | `view3d/IsoView.tsx` | baixo | Playwright | DONE |
+| M-13 | P2 | não dava para "ver" o corredor | caminhada no corredor em CSS 3D: corredores achados sozinhos na planta, prateleiras com a placa do setor e os produtos mais vendidos, aviso de corredor apertado | `view3d/AisleWalk.tsx`, `aisles.ts` | baixo | Playwright | DONE |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive

@@ -8942,7 +8942,9 @@
   50% { opacity: 0.25; }
 }
 .store-fixture-pulse { animation: store-fixture-pulse 1.4s ease-in-out infinite; }
-.store-fixture:focus-visible > rect:first-child { stroke: #15803d; stroke-width: 0.22; }
+.store-fixture:focus-visible > g:first-child > rect:first-child { stroke: #15803d; stroke-width: 0.14; }
+.aisle-world { transition: transform 0.35s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   .store-fixture-pulse { animation: none; }
+  .aisle-world { transition: none; }
 }

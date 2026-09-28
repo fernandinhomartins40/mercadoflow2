@@ -193,6 +193,36 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
   primeira leitura de vendas pode levar dezenas de segundos. A causa é a política de isolamento dos itens de nota.
   Vale para todas as telas; o mapa passou a mostrar a planta antes das vendas.
 
+## Ciclo 6 — Loja Viva profissional (editor e 3D)
+
+- **Editor de planta de verdade:**
+  - zoom com a roda do mouse, pinça ou botões, e arrastar o fundo para andar;
+  - alças para mudar o tamanho de qualquer móvel com o mouse, mostrando a medida;
+  - móveis grudam na grade e nas bordas dos vizinhos, com guias de alinhamento;
+  - seleção de vários (Shift ou laço), com alinhar, espaçar por igual e igualar tamanho;
+  - desfazer e refazer, atalhos de teclado e medidas digitadas no inspetor;
+  - paredes da loja arrastáveis.
+- **Criar do zero ou personalizar:** além das 3 plantas típicas, "Desenhar do zero" com as medidas do salão, paleta
+  de móveis para arrastar e gerador de corredores com prévia.
+- **Visual:** cada móvel é desenhado como é visto de cima (módulos da gôndola, portas da geladeira, caixotes da
+  banca, esteira do caixa), com a cor de cada setor na borda.
+- **3D sem peso:**
+  - a loja em isométrico, em SVG, girável, com a altura real de cada móvel; no calor de vendas, a altura mostra
+    quanto cada móvel vende;
+  - "Corredor": andar entre as prateleiras em CSS 3D, com a placa do setor e os produtos mais vendidos. Também
+    avisa quando o corredor é apertado para dois carrinhos.
+  - Sem WebGL e sem dependência nova; o formato da planta salva é o mesmo.
+- **Testes:**
+  - mapa no Playwright: 39/39 a 1440 e 1920 px e 32/32 a 390 px. Cobre zoom, alça, desfazer/refazer, medida
+    digitada, laço e alinhar, atalhos, paleta arrastável, gerador, 3D, corredor, calor, sugestões, "Onde fica?",
+    persistência, sem rolagem horizontal e sem erro JS;
+  - regressão das outras telas: navegação 28/28, fluxo de compra 24/24, painel Hoje 24/24;
+  - varredura: 96/100. As 4 falhas são o passo dos modais de pedido, que esperou 8 s enquanto a tela de pedidos
+    (não alterada) levou mais que isso para carregar num banco de teste com cerca de 45 lojas. Verificada à mão,
+    ela carrega e funciona. É o mesmo risco de desempenho do isolamento dos itens de nota, já registrado.
+- **Correção feita nos testes:** no celular, as alças do meio de um móvel fino cobriam o corpo e atrapalhavam o
+  arrasto. Agora elas somem quando o móvel fica pequeno na tela.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em
