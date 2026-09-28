@@ -26,10 +26,13 @@ const Settings: React.FC = () => {
   };
 
   const userInitial = (name || email || '?').trim().charAt(0).toUpperCase();
+  const roleLabel = role === 'ADMIN' ? 'Administrador' : role === 'MARKET_OWNER' ? 'Dono da loja' : role === 'MARKET_MANAGER' ? 'Gerente' : 'Usuário';
+  // IA só para quem assume o gasto da chave; o backend aplica a mesma regra.
+  const showAi = role === 'MARKET_OWNER' || role === 'ADMIN';
 
   return (
     <Layout>
-      <div className="flex flex-col gap-6 max-w-2xl">
+      <div className="flex flex-col gap-6">
         {/* Header */}
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Conta</h1>
@@ -38,6 +41,9 @@ const Settings: React.FC = () => {
           </p>
         </div>
 
+        {/* Duas colunas no desktop: conta à esquerda, IA à direita (antes tudo espremido em 670 px). */}
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
         {/* Perfil do usuário */}
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
           <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-soft)' }}>
@@ -50,14 +56,14 @@ const Settings: React.FC = () => {
                 style={{ background: 'var(--brand-500)' }}>
                 {userInitial}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{name || '—'}</p>
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{email || '—'}</p>
+                <p className="break-all text-sm" style={{ color: 'var(--text-muted)' }}>{email || '—'}</p>
               </div>
               <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: role === 'ADMIN' ? '#eff6ff' : 'var(--surface-success)', color: role === 'ADMIN' ? '#1d4ed8' : 'var(--brand-700)' }}>
                 <ShieldCheck className="h-3.5 w-3.5" />
-                {role === 'ADMIN' ? 'Administrador' : 'Operação'}
+                {roleLabel}
               </span>
             </div>
           </div>
@@ -69,15 +75,15 @@ const Settings: React.FC = () => {
             <Building2 className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Mercado</p>
           </div>
-          <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border-soft)' }}>
+          <div className="flex flex-col divide-y divide-[color:var(--border-soft)]">
             {[
               { label: 'ID do mercado', value: marketId || '—', copyable: !!marketId, copyKey: 'market-id' },
               { label: 'URL da API', value: apiBaseUrl, copyable: true, copyKey: 'api-url' },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between gap-4 px-5 py-3.5">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{row.label}</p>
-                  <p className="mt-0.5 text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{row.value}</p>
+                  <p className="mt-0.5 break-all text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{row.value}</p>
                 </div>
                 {row.copyable && (
                   <button type="button" onClick={() => copyText(row.value, row.copyKey)}
@@ -92,16 +98,6 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/*
-          Configuração de IA só para quem pode assumir o compromisso: cadastrar
-          uma chave de API implica gasto na conta do provedor. O backend aplica
-          a mesma regra (MARKET_OWNER/ADMIN) — esconder aqui é conveniência de
-          interface, não a proteção.
-        */}
-        {(role === 'MARKET_OWNER' || role === 'ADMIN') && (
-          <AiSettingsCard marketId={marketId} />
-        )}
-
         {/* Sair */}
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
           <div className="px-5 py-4 flex items-center justify-between">
@@ -115,6 +111,13 @@ const Settings: React.FC = () => {
               <LogOut className="h-4 w-4" /> Sair
             </button>
           </div>
+        </div>
+        </div>
+        {showAi ? (
+          <div className="min-w-0">
+            <AiSettingsCard marketId={marketId} />
+          </div>
+        ) : null}
         </div>
       </div>
     </Layout>

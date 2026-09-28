@@ -128,7 +128,7 @@ const NetworkView: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col gap-5" style={{ maxWidth: '70rem' }}>
+      <div className="flex flex-col gap-5">
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Semana e rede</h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Como foi a semana e, com mais de uma loja, a comparação entre elas.</p>

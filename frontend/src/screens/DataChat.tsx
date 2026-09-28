@@ -85,7 +85,7 @@ const DataChat: React.FC = () => {
   if (demo) {
     return (
       <Layout>
-        <div className="flex flex-col gap-4" style={{ maxWidth: '48rem' }}>
+        <div className="mx-auto flex w-full flex-col gap-4" style={{ maxWidth: '48rem' }}>
           <div
             className="rounded-xl p-5"
             style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
@@ -189,7 +189,7 @@ const DataChat: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col gap-4" style={{ maxWidth: '48rem' }}>
+      <div className="mx-auto flex w-full flex-col gap-4" style={{ maxWidth: '48rem' }}>
         {/* Conversa */}
         <div className="flex flex-col gap-4">
           {messages.length === 0 && (
