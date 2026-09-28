@@ -53,6 +53,43 @@ public final class OutboundUrlGuard {
         }
     }
 
+    /**
+     * Para baixar imagens públicas (fotos de produto): aceita http e https,
+     * com a mesma exigência de host só com endereços públicos. Muitas fotos do
+     * catálogo vêm de sites de varejo ainda em http.
+     */
+    public static void assertPublicWeb(String url) {
+        URI uri;
+        try {
+            uri = URI.create(url.trim());
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Endereço da imagem inválido.");
+        }
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+        if (!"https".equals(scheme) && !"http".equals(scheme)) {
+            throw new IllegalArgumentException("O endereço da imagem precisa começar com http:// ou https://.");
+        }
+        String host = uri.getHost();
+        if (host == null || host.isBlank() || uri.getUserInfo() != null) {
+            throw new IllegalArgumentException("Endereço da imagem inválido.");
+        }
+        int port = uri.getPort();
+        if (port != -1 && port != 80 && port != 443) {
+            throw new IllegalArgumentException("Endereço da imagem com porta não permitida.");
+        }
+        InetAddress[] addresses;
+        try {
+            addresses = InetAddress.getAllByName(host);
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("Não foi possível encontrar o endereço da imagem.");
+        }
+        for (InetAddress address : addresses) {
+            if (!isPublic(address)) {
+                throw new IllegalArgumentException("O endereço da imagem aponta para a rede interna e não é permitido.");
+            }
+        }
+    }
+
     static boolean isPublic(InetAddress a) {
         if (a.isAnyLocalAddress() || a.isLoopbackAddress() || a.isLinkLocalAddress()
             || a.isSiteLocalAddress() || a.isMulticastAddress()) {

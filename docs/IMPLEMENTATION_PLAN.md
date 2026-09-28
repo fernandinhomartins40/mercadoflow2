@@ -175,6 +175,8 @@ cores); o superadmin confirma arrastando.
 | E-05 | P1 | lojista não sabe o que ofertar | sugestão pelas vendas: puxam clientes, precisam girar, em alta; preço atual pela última venda; busca por nome/EAN; colar lista | `ArtStudioService.suggestions` | médio (consulta de 56 dias) | Playwright | DONE |
 | E-06 | P1 | exportação | PNG no tamanho real, PDF A4 a 300 dpi, cartazes de gôndola em lote (1, 2 ou 4 por folha) | `export.ts` | baixo | Playwright (arquivos conferidos) | DONE |
 | E-07 | P2 | divulgação | publicar: artes enviadas ao servidor e página pública `/encarte/:slug` com lista em texto e botão de WhatsApp | `PublicArtController`, `PublicEncarte.tsx` | baixo | Playwright + curl | DONE |
+| E-08 | P1 | cartões sem foto; busca só nos vendidos | busca no catálogo global (nome canônico, código de barras com ou sem zeros, Enter do leitor), foto por produto (do catálogo, enviada pelo mercado ou nenhuma), proxy aceita http público | `ArtStudioService.searchCatalog`, `ArtImageProxy`, `OutboundUrlGuard.assertPublicWeb`, `ArtStudio.tsx` | médio | Playwright + curl | DONE |
+| E-09 | P1 | cores fixas destoavam do fundo | cores automáticas: paleta tirada do fundo de cada formato (etiqueta = cor dominante, faixa = segunda cor, cartão tingido, nome escuro no mesmo tom); padrão no mercado, com opção "Do tema"; superadmin já recebe as cores ao subir o fundo | `palette.ts`, `scene.ts` | baixo | Playwright |  DONE |
 
 ## Coordenação
 

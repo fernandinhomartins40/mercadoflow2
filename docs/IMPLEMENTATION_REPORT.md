@@ -253,6 +253,23 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
 - **Não testado:** a resposta real do DeepSeek (não havia chave válida no teste). Testei o caminho de erro (chave
   recusada → aviso e áreas da medição mantidas). Validar com a chave do owner depois do deploy.
 
+### Ciclo 7.1 — fotos, catálogo global e cores automáticas
+
+- **Catálogo global no editor:** a busca procura nos vendidos da loja (com preço da última venda) e no catálogo
+  da plataforma (nome canônico, foto e código de barras). O código de barras aceita zeros à esquerda, e o Enter
+  de um leitor com um só resultado já põe o produto no encarte. Nome do catálogo fica como está; só nome de nota
+  (em maiúsculas) é ajustado.
+- **Fotos nos cartões:** vêm do catálogo. Em cada produto dá para buscar outra foto no catálogo, enviar uma foto
+  própria ou tirar a foto. O proxy agora aceita http público (muitas fotos do catálogo são http), com a mesma
+  barreira para endereço interno e porta diferente de 80/443.
+- **Cores automáticas:** a paleta sai do fundo de cada formato. É o padrão no mercado, com opção "Do tema". O
+  superadmin já recebe as cores ao subir o primeiro fundo e tem o botão "Tirar as cores do fundo".
+- **Correção encontrada no teste:** uma foto lenta de site externo segurava a prévia inteira (até 15 s em branco).
+  Agora a prévia espera cada foto no máximo 6 s e a exportação 20 s.
+- **Testes:** encartes 41/41 (1440 px) e 24/24 (390 px); novidades 13/14 (a falha é esperada: as cores do tema
+  vieram do mesmo fundo, então coincidem com as automáticas); troca de cores com o tema em outra cor: ok;
+  segurança das rotas novas 12/12.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

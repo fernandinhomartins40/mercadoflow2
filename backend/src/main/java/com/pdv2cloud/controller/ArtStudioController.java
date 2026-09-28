@@ -84,6 +84,21 @@ public class ArtStudioController {
         return studio.searchProducts(marketId, q);
     }
 
+    /** Catálogo global da plataforma, por código de barras ou nome. */
+    @GetMapping("/catalog")
+    public List<ArtStudioService.ArtProduct> catalog(@PathVariable UUID marketId, @RequestParam String q,
+                                                     Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return studio.searchCatalog(marketId, q);
+    }
+
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> uploadItemImage(@PathVariable UUID marketId, @RequestParam("file") MultipartFile file,
+                                               Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return Map.of("url", studio.uploadItemImage(marketId, file));
+    }
+
     @GetMapping("/suggestions")
     public List<ArtStudioService.SuggestionGroup> suggestions(@PathVariable UUID marketId, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);

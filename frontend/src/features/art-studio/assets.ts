@@ -80,7 +80,7 @@ export const loadImage = (url: string | null | undefined, proxy?: (url: string) 
   let promise: Promise<HTMLImageElement | null>;
   if (sameOrigin(url)) {
     promise = fromSrc(url);
-  } else if (proxy && /^https:\/\//i.test(url)) {
+  } else if (proxy && /^https?:\/\//i.test(url)) {
     promise = proxy(url)
       .then((blob) => (blob && blob.type.startsWith('image/') ? fromSrc(URL.createObjectURL(blob)) : null))
       .catch(() => null);
@@ -92,6 +92,14 @@ export const loadImage = (url: string | null | undefined, proxy?: (url: string) 
   promise.then((img) => { if (!img) cache.delete(url); });
   return promise;
 };
+
+/**
+ * Espera a imagem até {@code ms}; depois segue sem ela. Uma foto lenta de
+ * site externo não pode segurar a arte inteira (ela entra na próxima montagem,
+ * quando já estiver em cache).
+ */
+export const loadImageWithin = (url: string | null | undefined, ms: number, proxy?: (url: string) => Promise<Blob>) =>
+  Promise.race([loadImage(url, proxy), new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
 
 /** Luminância média (0 a 1) de um trecho da imagem: decide texto claro ou escuro. */
 const lumCache = new WeakMap<HTMLImageElement, Map<string, number>>();

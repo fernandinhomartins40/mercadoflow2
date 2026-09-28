@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
  * domínio sem CORS "suja" o canvas e a exportação falha. Passando pelo nosso
  * domínio, a imagem vira da mesma origem.
  *
- * Só https público (OutboundUrlGuard em cada salto), só imagem, até 6 MB.
+ * Só http/https de host público (OutboundUrlGuard em cada salto), só imagem, até 6 MB.
  */
 @Service
 public class ArtImageProxy {
@@ -36,7 +36,7 @@ public class ArtImageProxy {
     public Image fetch(String url) {
         String current = url;
         for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
-            OutboundUrlGuard.assertPublicHttps(current);
+            OutboundUrlGuard.assertPublicWeb(current);
             try {
                 HttpRequest request = HttpRequest.newBuilder(URI.create(current))
                     .timeout(Duration.ofSeconds(15))

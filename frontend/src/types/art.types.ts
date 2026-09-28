@@ -112,6 +112,8 @@ export interface CampaignContent {
   hideSeal?: boolean;
   /** Título, usado pelo tema básico (os temas do superadmin já trazem o título no fundo). */
   headline?: string;
+  /** 'auto' (padrão): cores tiradas do fundo de cada formato. 'theme': as cores fixas do tema. */
+  colorMode?: 'auto' | 'theme';
 }
 
 export interface PublishedImage { format: string; url: string; width: number; height: number }

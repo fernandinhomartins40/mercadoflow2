@@ -10,6 +10,7 @@ import type { ArtTheme, FormatKey, Palette, PlatformAiSettings, RegionKey, Regio
 import { DEFAULT_PALETTE, FORMATS, FORMAT_KEYS, REGION_META, SAMPLE_ITEMS, themeFormat } from '../features/art-studio/formats';
 import { Candidate, analyzeBackground, annotatedImage, regionsFromAssignment } from '../features/art-studio/analyze';
 import { loadImage } from '../features/art-studio/assets';
+import { derivePalette } from '../features/art-studio/palette';
 import { useScene } from '../features/art-studio/scene';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
 import RegionEditor from '../features/art-studio/RegionEditor';
@@ -303,7 +304,11 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     const analysis = analyzeBackground(img);
     setCandidates((c) => ({ ...c, [key]: analysis.candidates }));
     let next = await artAdminService.saveRegions(id, key, analysis.regions, { source: 'pixels', candidates: analysis.candidates });
-    setTheme(next);
+    // Tema ainda com as cores padrão: já sai com as cores tiradas do fundo.
+    if (PALETTE_FIELDS.every(({ key: k }) => (next.palette?.[k] ?? DEFAULT_PALETTE[k]) === DEFAULT_PALETTE[k])) {
+      next = await artAdminService.updateTheme(id, { palette: derivePalette(img, analysis.regions.products) });
+    }
+    accept(next);
     if (!aiReady || analysis.candidates.length === 0) { setStage('idle'); return; }
 
     setStage('ai');
@@ -577,6 +582,20 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
                 </span>
               </label>
             ))}
+            {tf && (
+              <button type="button" onClick={async () => {
+                const img = await loadImage(tf.backgroundUrl);
+                if (!img) return;
+                const next = derivePalette(img, regions.products);
+                setPalette(next);
+                patch({ palette: next }, 'Cores tiradas do fundo');
+              }} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50">
+                <Wand2 className="h-4 w-4 text-green-700" />Tirar as cores do fundo de {FORMATS[format].label}
+              </button>
+            )}
+            <p className="text-xs text-slate-500">
+              Nos mercados, o padrão é &quot;cores automáticas&quot;: cada formato combina com o próprio fundo. Estas cores valem quando o mercado escolhe &quot;Do tema&quot;.
+            </p>
             {aiPalette && (
               <button type="button" onClick={() => { const next = { ...palette, ...aiPalette } as Palette; setPalette(next); patch({ palette: next }, 'Cores da IA aplicadas'); setAiPalette(null); }}
                 className="flex items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm text-violet-900 hover:bg-violet-100">

@@ -33,6 +33,11 @@ export const artService = {
   removeLogo: async (marketId: string): Promise<ArtBrand> => (await api.delete(`${market(marketId)}/brand/logo`)).data,
   searchProducts: async (marketId: string, q: string): Promise<ArtProduct[]> =>
     (await api.get(`${market(marketId)}/products`, { params: { q } })).data ?? [],
+  /** Catálogo global da plataforma, por código de barras ou nome. */
+  searchCatalog: async (marketId: string, q: string): Promise<ArtProduct[]> =>
+    (await api.get(`${market(marketId)}/catalog`, { params: { q }, timeout: 45000 })).data ?? [],
+  uploadItemImage: async (marketId: string, file: File): Promise<string> =>
+    (await api.post(`${market(marketId)}/images`, form(file, 'file', file.name), multipart)).data?.url,
   suggestions: async (marketId: string): Promise<SuggestionGroup[]> =>
     (await api.get(`${market(marketId)}/suggestions`, { timeout: 60000 })).data ?? [],
   /** Foto de outro site passando pelo nosso domínio (o canvas exige mesma origem). */

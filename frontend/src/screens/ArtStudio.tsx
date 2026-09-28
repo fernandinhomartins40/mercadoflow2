@@ -8,7 +8,7 @@ import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { artService, apiMessage } from '../services/art.service';
 import type {
-  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, CampaignContent, CampaignItem, FormatKey, SuggestionGroup,
+  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, CampaignContent, CampaignItem, FormatKey, Palette, SuggestionGroup,
 } from '../types/art.types';
 import { BUILTIN_THEME, BUILTIN_THEME_ID, FORMATS, FORMAT_KEYS, UNITS, readyFormats, themeFormat } from '../features/art-studio/formats';
 import { buildScene, useScene } from '../features/art-studio/scene';
@@ -61,7 +61,10 @@ const moneyText = (v: number | null | undefined) => (v == null ? '' : v.toLocale
 
 /** Nome de nota fiscal vem em caixa alta e abreviado; deixa legível. */
 const tidyName = (name: string) => {
-  const lower = name.toLowerCase().replace(/\s+/g, ' ').trim();
+  const clean = name.replace(/\s+/g, ' ').trim();
+  // Nome do catálogo já vem escrito direito ("Coca-Cola 2 Litros"): mantém.
+  if (/[a-zà-ú]/.test(clean)) return clean;
+  const lower = clean.toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 };
 
@@ -89,10 +92,98 @@ const MoneyField: React.FC<{ value: number | null | undefined; onChange: (v: num
 
 // ── Linha de produto ─────────────────────────────────────────────────────
 
+/**
+ * Foto do produto na arte: a do catálogo vem sozinha; dá para trocar por uma
+ * do catálogo global (outra embalagem, foto melhor) ou por uma foto própria.
+ */
+const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (patch: Partial<CampaignItem>) => void }> = ({ marketId, item, onChange }) => {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<ArtProduct[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const term = q.trim();
+    if (term.length < 2) { setHits(null); return undefined; }
+    const t = setTimeout(() => {
+      artService.searchCatalog(marketId, term).then((r) => setHits(r.filter((p) => p.imageUrl))).catch(() => setHits([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, open, marketId]);
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      onChange({ imageUrl: await artService.uploadItemImage(marketId, file) });
+    } catch (err) {
+      setError(apiMessage(err, 'Não foi possível enviar a foto.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="col-span-2 flex flex-col gap-2">
+      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Foto na arte</span>
+      <div className="flex items-center gap-3">
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+          style={{ border: '1px solid var(--border-soft)', background: '#fff' }}>
+          {busy ? <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--brand-600)' }} />
+            : item.imageUrl ? <img src={item.imageUrl} alt={`Foto de ${item.name}`} className="h-full w-full object-contain" />
+            : <ImagePlus className="h-6 w-6" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />}
+        </span>
+        <div className="flex flex-col items-start gap-1.5 text-sm font-semibold">
+          <button type="button" onClick={() => { setOpen((v) => !v); if (!q) setQ(item.name.split(' ').slice(0, 3).join(' ')); }}
+            className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }} aria-expanded={open}>
+            <Search className="h-4 w-4" />Buscar no catálogo
+          </button>
+          <button type="button" onClick={() => fileRef.current?.click()} className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
+            <Upload className="h-4 w-4" />Enviar foto
+          </button>
+          {item.imageUrl && (
+            <button type="button" onClick={() => onChange({ imageUrl: null })} className={`inline-flex items-center gap-1.5 text-red-700 ${FOCUS}`}>
+              <X className="h-4 w-4" />Sem foto
+            </button>
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" tabIndex={-1}
+          onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }} />
+      </div>
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {open && (
+        <div className="flex flex-col gap-2 rounded-xl p-2" style={{ background: 'var(--surface-soft)' }}>
+          <input className={INPUT} style={inputStyle} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome ou código de barras"
+            aria-label="Buscar foto no catálogo global" />
+          {hits === null ? null : hits.length === 0 ? (
+            <p className="px-1 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma foto no catálogo para essa busca.</p>
+          ) : (
+            <ul className="grid grid-cols-4 gap-2" aria-label="Fotos do catálogo">
+              {hits.slice(0, 12).map((p) => (
+                <li key={p.productId}>
+                  <button type="button" title={p.name} aria-label={`Usar a foto de ${p.name}`}
+                    onClick={() => { onChange({ imageUrl: p.imageUrl, productId: item.productId ?? p.productId }); setOpen(false); }}
+                    className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-white p-1 transition hover:ring-2 hover:ring-[var(--brand-600)] ${FOCUS}`}>
+                    <img src={p.imageUrl ?? ''} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ItemRow: React.FC<{
-  item: CampaignItem; index: number; total: number; selected: boolean; heroCount: number;
+  marketId: string; item: CampaignItem; index: number; total: number; selected: boolean; heroCount: number;
   onSelect: () => void; onChange: (patch: Partial<CampaignItem>) => void; onMove: (dir: -1 | 1) => void; onRemove: () => void;
-}> = ({ item, index, total, selected, heroCount, onSelect, onChange, onMove, onRemove }) => {
+}> = ({ marketId, item, index, total, selected, heroCount, onSelect, onChange, onMove, onRemove }) => {
   const ref = useRef<HTMLLIElement>(null);
   useEffect(() => { if (selected) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [selected]);
   return (
@@ -118,6 +209,7 @@ const ItemRow: React.FC<{
       </div>
       {selected && (
         <div className="grid grid-cols-2 gap-3 border-t p-3" style={{ borderColor: 'var(--border-soft)' }}>
+          <PhotoPicker marketId={marketId} item={item} onChange={onChange} />
           <label className="col-span-2 flex flex-col gap-1">
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Nome na arte</span>
             <input className={INPUT} style={inputStyle} value={item.name} onChange={(e) => onChange({ name: e.target.value })} maxLength={80} />
@@ -153,6 +245,22 @@ const ItemRow: React.FC<{
 
 // ── Aba Produtos ─────────────────────────────────────────────────────────
 
+const ResultRow: React.FC<{ p: ArtProduct; added: boolean; onAdd: () => void; sub: string }> = ({ p, added, onAdd, sub }) => (
+  <li>
+    <button type="button" onClick={onAdd} disabled={added}
+      className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-[var(--surface-soft)] disabled:opacity-50 ${FOCUS}`}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-white" style={{ border: '1px solid var(--border-soft)' }}>
+        {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-contain" loading="lazy" /> : <ImagePlus className="h-4 w-4" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{tidyName(p.name)}</span>
+        <span className="block truncate text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{sub}</span>
+      </span>
+      {added ? <Check className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-label="Já está no encarte" /> : <Plus className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />}
+    </button>
+  </li>
+);
+
 const GROUP_ICON = { traffic: Users, falling: TrendingDown, rising: TrendingUp } as const;
 
 const ProductsTab: React.FC<{
@@ -161,6 +269,7 @@ const ProductsTab: React.FC<{
 }> = ({ marketId, items, selectedKey, onSelect, onItems }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ArtProduct[] | null>(null);
+  const [catalog, setCatalog] = useState<ArtProduct[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [groups, setGroups] = useState<SuggestionGroup[] | null>(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -171,12 +280,22 @@ const ProductsTab: React.FC<{
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) { setResults(null); return undefined; }
+    if (q.length < 2) { setResults(null); setCatalog(null); return undefined; }
     setSearching(true);
+    let cancelled = false;
     const t = setTimeout(() => {
-      artService.searchProducts(marketId, q).then(setResults).catch(() => setResults([])).finally(() => setSearching(false));
+      // Vendidos na loja (com preço da última venda) e o catálogo global da plataforma.
+      Promise.all([
+        artService.searchProducts(marketId, q).catch(() => [] as ArtProduct[]),
+        artService.searchCatalog(marketId, q).catch(() => [] as ArtProduct[]),
+      ]).then(([sold, global]) => {
+        if (cancelled) return;
+        const soldIds = new Set(sold.map((p) => p.productId));
+        setResults(sold);
+        setCatalog(global.filter((p) => !soldIds.has(p.productId)));
+      }).finally(() => { if (!cancelled) setSearching(false); });
     }, 300);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [query, marketId]);
 
   const add = (products: ArtProduct[]) => {
@@ -184,6 +303,16 @@ const ProductsTab: React.FC<{
     if (!fresh.length) return;
     onItems([...items, ...fresh]);
     onSelect(fresh[fresh.length - 1].key);
+  };
+
+  /** Leitor de código de barras digita o número e Enter: com um resultado só, já entra. */
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    const all = [...(results ?? []), ...(catalog ?? [])];
+    if (/^\d{8,14}$/.test(query.trim()) && all.length === 1) {
+      add(all);
+      setQuery('');
+    }
   };
 
   const loadSuggestions = async () => {
@@ -204,7 +333,9 @@ const ProductsTab: React.FC<{
     // Tenta achar cada um nas vendas para trazer foto e produto.
     const enriched = await Promise.all(parsed.map(async (item) => {
       try {
-        const [hit] = await artService.searchProducts(marketId, item.name.split(' ').slice(0, 3).join(' '));
+        const term = item.name.split(' ').slice(0, 3).join(' ');
+        let [hit] = await artService.searchProducts(marketId, term);
+        if (!hit) [hit] = (await artService.searchCatalog(marketId, term)).filter((p) => p.imageUrl);
         return hit ? { ...item, productId: hit.productId, imageUrl: hit.imageUrl, price: item.price ?? hit.price, unit: item.unit === 'un' ? hit.unit : item.unit } : item;
       } catch { return item; }
     }));
@@ -217,29 +348,39 @@ const ProductsTab: React.FC<{
     <div className="flex flex-col gap-4">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
-        <input className={`${INPUT} pl-9`} style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar produto vendido ou código de barras" aria-label="Buscar produto" />
+        <input className={`${INPUT} pl-9`} style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey}
+          placeholder="Nome ou código de barras (loja e catálogo)" aria-label="Buscar produto" inputMode="search" />
         {query && <button type="button" onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1" aria-label="Limpar a busca"><X className="h-4 w-4" style={{ color: 'var(--text-muted)' }} /></button>}
       </div>
-      {results && (
-        <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto rounded-xl p-1" style={{ border: '1px solid var(--border-soft)' }} aria-label="Resultados da busca">
-          {results.length === 0 && <li className="p-3 text-sm" style={{ color: 'var(--text-muted)' }}>{searching ? 'Buscando…' : 'Nada vendido com esse nome nos últimos 90 dias.'}</li>}
-          {results.map((p) => (
-            <li key={p.productId}>
-              <button type="button" onClick={() => add([p])} disabled={inList.has(p.productId)}
-                className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-[var(--surface-soft)] disabled:opacity-50 ${FOCUS}`}>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded" style={{ background: 'var(--surface-soft)' }}>
-                  {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-contain" loading="lazy" />}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{tidyName(p.name)}</span>
-                  <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{p.price != null ? `${formatPrice(p.price)} na última venda` : 'sem preço'}, {p.baskets} compras</span>
-                </span>
-                {inList.has(p.productId) ? <Check className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-label="Já está no encarte" /> : <Plus className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />}
-              </button>
-            </li>
-          ))}
-        </ul>
+      {(results || catalog) && (
+        <div className="flex max-h-96 flex-col gap-1 overflow-y-auto rounded-xl p-1" style={{ border: '1px solid var(--border-soft)' }}>
+          {searching && !results?.length && !catalog?.length && <p className="p-3 text-sm" style={{ color: 'var(--text-muted)' }}>Buscando…</p>}
+          {!searching && !results?.length && !catalog?.length && (
+            <p className="p-3 text-sm" style={{ color: 'var(--text-muted)' }}>Nada encontrado na loja nem no catálogo global. Use &quot;Item avulso&quot;.</p>
+          )}
+          {!!results?.length && (
+            <>
+              <h3 className="px-2 pt-1 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Vendidos na loja</h3>
+              <ul aria-label="Vendidos na loja">
+                {results.map((p) => (
+                  <ResultRow key={p.productId} p={p} added={inList.has(p.productId)} onAdd={() => add([p])}
+                    sub={`${p.price != null ? `${formatPrice(p.price)} na última venda` : 'sem preço'}, ${p.baskets} compras`} />
+                ))}
+              </ul>
+            </>
+          )}
+          {!!catalog?.length && (
+            <>
+              <h3 className="px-2 pt-2 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Catálogo global</h3>
+              <ul aria-label="Catálogo global">
+                {catalog.map((p) => (
+                  <ResultRow key={p.productId} p={p} added={inList.has(p.productId)} onAdd={() => add([p])}
+                    sub={[p.ean, p.price != null ? `${formatPrice(p.price)} na última venda` : 'defina o preço'].filter(Boolean).join(', ')} />
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -320,7 +461,7 @@ const ProductsTab: React.FC<{
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item, i) => (
-            <ItemRow key={item.key} item={item} index={i} total={items.length} selected={selectedKey === item.key} heroCount={heroCount}
+            <ItemRow key={item.key} marketId={marketId} item={item} index={i} total={items.length} selected={selectedKey === item.key} heroCount={heroCount}
               onSelect={() => onSelect(selectedKey === item.key ? null : item.key)}
               onChange={(patch) => onItems(items.map((it) => (it.key === item.key ? { ...it, ...patch } : it)))}
               onMove={(dir) => {
@@ -356,9 +497,9 @@ const ThemeThumb: React.FC<{ theme: ArtTheme; format: FormatKey }> = ({ theme, f
 };
 
 const VisualTab: React.FC<{
-  themes: ArtTheme[]; theme: ArtTheme; format: FormatKey; content: CampaignContent;
+  themes: ArtTheme[]; theme: ArtTheme; format: FormatKey; content: CampaignContent; palette: Palette | null;
   onTheme: (t: ArtTheme) => void; onContent: (patch: Partial<CampaignContent>) => void;
-}> = ({ themes, theme, format, content, onTheme, onContent }) => {
+}> = ({ themes, theme, format, content, palette, onTheme, onContent }) => {
   const occasions = useMemo(() => Array.from(new Set(themes.map((t) => t.occasion).filter(Boolean))) as string[], [themes]);
   const [occasion, setOccasion] = useState<string | null>(null);
   const shown = themes.filter((t) => !occasion || t.occasion === occasion);
@@ -394,6 +535,32 @@ const VisualTab: React.FC<{
           );
         })}
       </ul>
+      {theme.id !== BUILTIN_THEME_ID && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Cores da etiqueta e dos cartões</legend>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup">
+            {([['auto', 'Automáticas', 'Combinam com o fundo de cada formato'], ['theme', 'Do tema', 'As que o tema definiu']] as const).map(([key, label, hint]) => {
+              const active = (content.colorMode ?? 'auto') === key;
+              return (
+                <button key={key} type="button" role="radio" aria-checked={active} onClick={() => onContent({ colorMode: key })}
+                  className={`flex flex-col items-start gap-0.5 rounded-xl p-3 text-left transition ${FOCUS}`}
+                  style={{ border: `2px solid ${active ? 'var(--brand-600)' : 'var(--border-soft)'}` }}>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{hint}</span>
+                </button>
+              );
+            })}
+          </div>
+          {palette && (
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Em uso:
+              {([palette.tag, palette.accent, palette.card, palette.cardText] as string[]).map((c, i) => (
+                <span key={i} className="h-5 w-5 rounded-md" style={{ background: c, border: '1px solid var(--border-soft)' }} title={c} />
+              ))}
+            </div>
+          )}
+        </fieldset>
+      )}
       {theme.sealUrl && (
         <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
           <input type="checkbox" checked={!content.hideSeal} onChange={(e) => onContent({ hideSeal: !e.target.checked })} className="h-4 w-4 accent-[var(--brand-600)]" />
@@ -563,14 +730,14 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
   const format: FormatKey = campaign?.content.format && formats.includes(campaign.content.format) ? campaign.content.format : formats[0] ?? 'post';
   const items = campaign?.content.products ?? [];
 
-  const sceneInput = (fmt: FormatKey, selected: string | null) => (campaign && brand ? {
+  const sceneInput = (fmt: FormatKey, selected: string | null, imageWaitMs = 6000) => (campaign && brand ? {
     theme, format: fmt, items, brand, validFrom: campaign.validFrom, validUntil: campaign.validUntil,
-    showSeal: !campaign.content.hideSeal, headline: campaign.content.headline, selectedKey: selected, proxy,
+    showSeal: !campaign.content.hideSeal, colorMode: campaign.content.colorMode ?? 'auto', headline: campaign.content.headline, selectedKey: selected, proxy, imageWaitMs,
   } : null);
   const scene = useScene(sceneInput(format, selectedKey), [campaign, brand, theme, format, selectedKey]);
 
   const exportPng = async () => {
-    const input = sceneInput(format, null);
+    const input = sceneInput(format, null, 20000);
     if (!input || !campaign) return;
     setBusy('png');
     try {
@@ -580,7 +747,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
   };
 
   const exportPdf = async () => {
-    const input = sceneInput('a4', null);
+    const input = sceneInput('a4', null, 20000);
     if (!input || !campaign) return;
     setBusy('pdf');
     try {
@@ -595,7 +762,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
     try {
       const seal = !campaign.content.hideSeal ? await loadImage(theme.sealUrl) : null;
       const validity = campaign.validUntil ? `Válido até ${brDate(campaign.validUntil)}` : '';
-      const pages = posterPages(items, { palette: theme.palette, brandName: brand.displayName || brand.marketName || '', seal, validity, perPage });
+      const pages = posterPages(items, { palette: scene?.palette ?? theme.palette, brandName: brand.displayName || brand.marketName || '', seal, validity, perPage });
       downloadBlob(await jpegPagesToPdf(pages), `${slugify(campaign.title)}-cartazes.pdf`);
       setDialog(null);
     } catch { setError('Não foi possível gerar os cartazes. Tente de novo.'); } finally { setBusy(null); }
@@ -609,7 +776,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
       if (timer.current) { clearTimeout(timer.current); await persist(); }
       const files: Array<{ format: string; blob: Blob }> = [];
       for (const fmt of formats) {
-        const input = sceneInput(fmt, null);
+        const input = sceneInput(fmt, null, 20000);
         if (!input) continue;
         files.push({ format: fmt, blob: await canvasBlob(sceneCanvas(await buildScene(input)), 'image/jpeg', 0.9) });
       }
@@ -699,7 +866,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
               onItems={(next) => updateContent({ products: next })} />
           )}
           {tab === 'visual' && (
-            <VisualTab themes={themes} theme={theme} format={format} content={campaign.content}
+            <VisualTab themes={themes} theme={theme} format={format} content={campaign.content} palette={scene?.palette ?? null}
               onTheme={(t) => update({ themeId: t.id })} onContent={updateContent} />
           )}
           {tab === 'marca' && <BrandTab marketId={marketId} brand={brand} onBrand={setBrand} />}

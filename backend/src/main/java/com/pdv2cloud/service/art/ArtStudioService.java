@@ -220,7 +220,7 @@ public class ArtStudioService {
         all.addAll(traffic);
         all.addAll(falling);
         all.addAll(rising);
-        Map<UUID, String> images = imagesFor(all);
+        Map<UUID, CatalogInfo> images = imagesFor(all);
         return List.of(
             new SuggestionGroup("traffic", "Puxam clientes para a loja",
                 "Os mais presentes nas compras. Um preço bom aqui traz gente, e ela leva o resto.",
@@ -435,42 +435,116 @@ public class ArtStudioService {
         return applyImages(products, imagesFor(products));
     }
 
-    /** Foto do catálogo enriquecido (a mais recente) ou a do cadastro do produto. */
-    private Map<UUID, String> imagesFor(List<ArtProduct> products) {
-        Map<UUID, String> out = new HashMap<>();
+    /** Foto e nome do catálogo enriquecido (o mais recente) de cada produto. */
+    private record CatalogInfo(String imageUrl, String name) {}
+
+    private Map<UUID, CatalogInfo> imagesFor(List<ArtProduct> products) {
+        Map<UUID, CatalogInfo> out = new HashMap<>();
         if (products.isEmpty()) {
             return out;
         }
         List<UUID> ids = products.stream().map(ArtProduct::productId).distinct().toList();
         Map<UUID, String[]> enriched = new HashMap<>();
         jdbc.query(
-            "select distinct on (pe.product_id) pe.product_id, pe.image_url, pe.image_storage_key " +
+            "select distinct on (pe.product_id) pe.product_id, pe.image_url, pe.image_storage_key, pe.canonical_name " +
             "from product_enrichments pe where pe.product_id in (:ids) " +
             "order by pe.product_id, pe.fetched_at desc, pe.id desc",
             Map.of("ids", ids),
             rs -> {
                 enriched.put((UUID) rs.getObject("product_id"),
-                    new String[] {rs.getString("image_url"), rs.getString("image_storage_key")});
+                    new String[] {rs.getString("image_url"), rs.getString("image_storage_key"), rs.getString("canonical_name")});
             });
         for (ArtProduct p : products) {
             String[] e = enriched.get(p.productId());
             String url = e != null && e[0] != null ? e[0] : p.imageUrl();
             String key = e == null ? null : e[1];
+            String resolved = null;
             try {
-                String resolved = catalogImages.resolveCatalogImageUrl(url, key);
-                if (resolved != null && !resolved.isBlank()) {
-                    out.put(p.productId(), resolved);
-                }
+                resolved = catalogImages.resolveCatalogImageUrl(url, key);
             } catch (RuntimeException ignored) {
                 // Sem foto o cartão sai com o nome em destaque.
             }
+            String name = e != null && e[2] != null && !e[2].isBlank() ? e[2] : null;
+            out.put(p.productId(), new CatalogInfo(resolved == null || resolved.isBlank() ? null : resolved, name));
         }
         return out;
     }
 
-    private static List<ArtProduct> applyImages(List<ArtProduct> products, Map<UUID, String> images) {
-        return products.stream().map(p -> new ArtProduct(p.productId(), p.name(), p.ean(),
-            images.getOrDefault(p.productId(), null), p.price(), p.unit(), p.baskets(), p.reason())).toList();
+    private static List<ArtProduct> applyImages(List<ArtProduct> products, Map<UUID, CatalogInfo> info) {
+        return products.stream().map(p -> {
+            CatalogInfo i = info.get(p.productId());
+            return new ArtProduct(p.productId(), i != null && i.name() != null ? i.name() : p.name(), p.ean(),
+                i == null ? null : i.imageUrl(), p.price(), p.unit(), p.baskets(), p.reason());
+        }).toList();
+    }
+
+    // ── Catálogo global ────────────────────────────────────────────────────
+
+    /**
+     * Busca no catálogo global da plataforma (todos os produtos conhecidos, com
+     * nome canônico e foto), por código de barras ou nome. Traz o preço da
+     * última venda deste mercado quando ele já vendeu o produto.
+     */
+    @Transactional(readOnly = true)
+    public List<ArtProduct> searchCatalog(UUID marketId, String query) {
+        String q = query == null ? "" : query.trim();
+        if (q.length() < 2) {
+            return List.of();
+        }
+        String digits = q.replaceAll("\\D", "");
+        boolean byEan = digits.length() >= 8 && digits.length() == q.replaceAll("\\s", "").length();
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("marketId", marketId)
+            .addValue("since", LocalDate.now().minusDays(90).atStartOfDay());
+        String where;
+        if (byEan) {
+            // EAN com ou sem zeros à esquerda (GTIN-13 x GTIN-14).
+            where = "ltrim(p.ean, '0') = ltrim(:ean, '0')";
+            params.addValue("ean", digits);
+        } else {
+            where = "(lower(coalesce(le.canonical_name, '')) like :term or lower(p.name) like :term or lower(coalesce(le.brand, p.brand, '')) like :term)";
+            params.addValue("term", "%" + q.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
+        }
+        String sql =
+            "with candidates as ( " +
+            "  select p.id, p.name, p.ean, p.image_url, le.canonical_name, le.image_url as e_url, le.image_storage_key " +
+            "  from products p " +
+            "  left join lateral (select pe.canonical_name, pe.brand, pe.image_url, pe.image_storage_key from product_enrichments pe " +
+            "    where pe.product_id = p.id order by pe.fetched_at desc, pe.id desc limit 1) le on true " +
+            "  where p.ean is not null and " + where + " " +
+            "  order by (coalesce(le.image_storage_key, le.image_url, p.image_url) is null), length(coalesce(le.canonical_name, p.name)) " +
+            "  limit 30 " +
+            ") " +
+            "select c.*, s.last_price, coalesce(s.baskets, 0) as baskets, coalesce(s.fractional, false) as fractional " +
+            "from candidates c left join lateral ( " +
+            "  select (array_agg(ii.valor_unitario order by i.data_emissao desc))[1] as last_price, " +
+            "    count(distinct ii.invoice_id) as baskets, bool_or(ii.quantidade <> trunc(ii.quantidade)) as fractional " +
+            "  from invoice_items ii join invoices i on i.id = ii.invoice_id " +
+            "  where ii.product_id = c.id and i.market_id = :marketId and i.data_emissao >= :since " +
+            ") s on true " +
+            "order by coalesce(s.baskets, 0) desc limit 24";
+        return jdbc.query(sql, params, (rs, i) -> {
+            String image = null;
+            try {
+                image = catalogImages.resolveCatalogImageUrl(
+                    rs.getString("e_url") != null ? rs.getString("e_url") : rs.getString("image_url"),
+                    rs.getString("image_storage_key"));
+            } catch (RuntimeException ignored) {
+                // sem foto
+            }
+            String canonical = rs.getString("canonical_name");
+            BigDecimal price = rs.getBigDecimal("last_price");
+            return new ArtProduct((UUID) rs.getObject("id"),
+                canonical != null && !canonical.isBlank() ? canonical : rs.getString("name"),
+                rs.getString("ean"), image == null || image.isBlank() ? null : image,
+                price == null ? null : price.setScale(2, RoundingMode.HALF_UP),
+                rs.getBoolean("fractional") ? "kg" : "un", rs.getInt("baskets"), null);
+        });
+    }
+
+    /** Foto própria para um item do encarte (o mercado fotografou o produto). */
+    public String uploadItemImage(UUID marketId, MultipartFile file) {
+        return storage.storeImage("items/" + marketId, file).url();
     }
 
     private Campaign mapCampaign(ResultSet rs) throws SQLException {
