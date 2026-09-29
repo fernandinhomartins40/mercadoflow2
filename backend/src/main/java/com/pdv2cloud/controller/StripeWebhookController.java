@@ -52,15 +52,18 @@ public class StripeWebhookController {
     private final StripeService stripeService;
     private final StripeProcessedEventRepository processedEventRepository;
     private final InvoiceReconciliationService invoiceReconciliationService;
+    private final com.pdv2cloud.service.confere.ConfereService confereService;
 
     public StripeWebhookController(
         StripeService stripeService,
         StripeProcessedEventRepository processedEventRepository,
-        InvoiceReconciliationService invoiceReconciliationService
+        InvoiceReconciliationService invoiceReconciliationService,
+        com.pdv2cloud.service.confere.ConfereService confereService
     ) {
         this.stripeService = stripeService;
         this.processedEventRepository = processedEventRepository;
         this.invoiceReconciliationService = invoiceReconciliationService;
+        this.confereService = confereService;
     }
 
     @PostMapping("/webhook")
@@ -151,9 +154,29 @@ public class StripeWebhookController {
                     }
                 });
 
-            case "checkout.session.completed" -> log.info(
-                "Checkout concluído | evento={} (o plano sobe pelo evento de assinatura)",
-                event.getId());
+            // Assinatura: o plano sobe pelo evento de assinatura. Créditos do
+            // Confere: entram aqui, quando o pagamento está pago (cartão na hora;
+            // Pix/boleto chegam depois em async_payment_succeeded).
+            case "checkout.session.completed",
+                 "checkout.session.async_payment_succeeded" -> deserialize(event, com.stripe.model.checkout.Session.class)
+                .ifPresent(session -> {
+                    java.util.Map<String, String> meta = session.getMetadata();
+                    if (meta != null && "confere".equals(meta.get("kind")) && "paid".equals(session.getPaymentStatus())) {
+                        com.pdv2cloud.tenancy.TenantContext.runAsSystem(() -> {
+                            java.util.UUID orderId = confereService.orderIdBySession(session.getId());
+                            if (orderId != null) {
+                                try {
+                                    confereService.markOrderPaid(orderId, "STRIPE", "stripe");
+                                } catch (IllegalArgumentException alreadyPaid) {
+                                    log.info("Pedido do Confere {} já estava pago", orderId);
+                                }
+                            }
+                            return null;
+                        });
+                    } else {
+                        log.info("Checkout concluído | evento={} (o plano sobe pelo evento de assinatura)", event.getId());
+                    }
+                });
 
             default -> log.debug("Evento {} não tratado", event.getType());
         }

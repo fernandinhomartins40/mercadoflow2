@@ -11,6 +11,25 @@
       rel="stylesheet"
     />
     <title>MercadoFlow — Inteligência para o varejo</title>
+    <script>
+      // MercadoFlow Confere (PWA): manifest e ícones próprios só nas páginas /confere/.
+      if (location.pathname === '/confere' || location.pathname.indexOf('/confere/') === 0) {
+        document.title = 'MercadoFlow Confere';
+        [
+          ['link', { rel: 'manifest', href: '/confere-app/manifest.webmanifest' }],
+          ['link', { rel: 'apple-touch-icon', href: '/confere-app/apple-touch-icon.png' }],
+          ['meta', { name: 'theme-color', content: '#15803d' }],
+          ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
+          ['meta', { name: 'mobile-web-app-capable', content: 'yes' }],
+          ['meta', { name: 'apple-mobile-web-app-title', content: 'Confere' }],
+          ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'default' }],
+        ].forEach(function (e) {
+          var el = document.createElement(e[0]);
+          Object.keys(e[1]).forEach(function (k) { el.setAttribute(k, e[1][k]); });
+          document.head.appendChild(el);
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

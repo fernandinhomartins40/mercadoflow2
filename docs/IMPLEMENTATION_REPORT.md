@@ -287,6 +287,33 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
 - **Testes:** encartes 41/41 (1440 px) e 24/24 (390 px); informações do produto 12/12; novidades 13/14 (a falha é
   a esperada, já explicada no 7.1).
 
+## Ciclo 8 — MercadoFlow Confere
+
+- **O app** (`/confere/`, instalável): criar a conta do mercado com aceite de que as notas ficam armazenadas (ou
+  entrar com a conta do MercadoFlow), ler a nota pela câmera ou digitar a chave, conferir em letras grandes,
+  comprar leituras pelo Pix, cadastrar o certificado A1 e importar XML.
+- **De onde vem a nota:** já guardada → Sefaz pelo certificado A1 (grátis e ilimitado) → Meu Danfe pela chave
+  (1 leitura do saldo, só quando a nota vem; releitura não cobra).
+- **Superadmin, "Confere":** Api-Key do Meu Danfe (validada sem gastar crédito, cifrada, nunca volta para a tela),
+  preço por leitura (R$ 0,06), leituras grátis (15), termos com versão, chave Pix do recebedor, planos, pedidos com
+  "Confirmar pagamento", saldo e ajuste por mercado, números do mês (inclui o custo no Meu Danfe).
+- **Pix:** BR Code estático com valor e identificador do pedido; o pagamento cai na chave da plataforma e as
+  leituras entram quando o superadmin confirma o pedido. Stripe fica como opção com crédito automático.
+- **Testes:**
+  - unidade (backend): leitura do XML, recusa de XXE, dígito da chave, resposta da distribuição com docZip,
+    assinatura do evento de ciência validada, CRC do Pix igual ao exemplo do Banco Central — 6/6;
+  - Playwright no celular com câmera simulada (código de barras do DANFE em vídeo, caminho WebAssembly do iPhone)
+    e simulador do Meu Danfe no contrato da documentação: 39/39 — cadastro e aceite, 15 grátis, leitura em 2,5 s,
+    conferência com falta e avaria, resumo e WhatsApp, releitura sem cobrança, chave inválida, Pix com QR,
+    confirmação no painel e saldo 114, importação de XML, sem rolagem horizontal e sem erro JS;
+  - segurança: 14/14 (outro mercado não lê nota nem pedido, mercado não chama o superadmin nem confirma o próprio
+    pedido, leitura exige termos, chave do Meu Danfe cifrada e fora das respostas, RLS isola as notas, XXE e
+    certificado falso recusados); extrato exato (+15, −1, +100);
+  - regressão: navegação 28/28, encartes 41/41.
+- **Não testado de ponta a ponta:** a Sefaz com certificado A1 real e a API do Meu Danfe com a Api-Key real.
+  Validar em produção: cadastrar a Api-Key no painel (o botão "Testar a chave" não gasta crédito) e ler uma nota;
+  cadastrar um A1 real e usar "Buscar agora".
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

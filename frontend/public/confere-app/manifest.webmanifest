@@ -1,0 +1,27 @@
+{
+  "name": "MercadoFlow Confere",
+  "short_name": "Confere",
+  "description": "Conferência de mercadoria pela nota do fornecedor: leia o código do DANFE e confira em letras grandes.",
+  "lang": "pt-BR",
+  "id": "/confere/",
+  "start_url": "/confere/",
+  "scope": "/confere/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f5f4",
+  "theme_color": "#15803d",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/confere-app/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/confere-app/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/confere-app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "share_target": {
+    "action": "/confere/importar",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [{ "name": "xml", "accept": ["text/xml", "application/xml", ".xml"] }]
+    }
+  }
+}

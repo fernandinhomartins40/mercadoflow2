@@ -54,7 +54,10 @@ api.interceptors.response.use(
       const publicPaths = ['/', '/login', '/register', '/download-agente', '/parear-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
-        if (isOffersAppPath(window.location.pathname)) {
+        if (window.location.pathname === '/confere' || window.location.pathname.startsWith('/confere/')) {
+          // O Confere tem entrada própria (PWA): sessão vencida volta para ela.
+          if (window.location.pathname !== '/confere/') window.location.href = '/confere/';
+        } else if (isOffersAppPath(window.location.pathname)) {
           window.location.href = getOffersWorkspaceLoginRoute(window.location.search);
         } else if (window.location.pathname.startsWith('/super-admin')) {
           window.location.href = '/super-admin/login';

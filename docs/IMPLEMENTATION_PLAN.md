@@ -178,6 +178,27 @@ cores); o superadmin confirma arrastando.
 | E-08 | P1 | cartões sem foto; busca só nos vendidos | busca no catálogo global (nome canônico, código de barras com ou sem zeros, Enter do leitor), foto por produto (do catálogo, enviada pelo mercado ou nenhuma), proxy aceita http público | `ArtStudioService.searchCatalog`, `ArtImageProxy`, `OutboundUrlGuard.assertPublicWeb`, `ArtStudio.tsx` | médio | Playwright + curl | DONE |
 | E-09 | P1 | cores fixas destoavam do fundo | cores automáticas: paleta tirada do fundo de cada formato (etiqueta = cor dominante, faixa = segunda cor, cartão tingido, nome escuro no mesmo tom); padrão no mercado, com opção "Do tema"; superadmin já recebe as cores ao subir o fundo | `palette.ts`, `scene.ts` | baixo | Playwright |  DONE |
 
+## Ciclo 8 — MercadoFlow Confere: PWA grátis de conferência pela nota (2026-09-29)
+
+Pedido do owner: app PWA gratuito, porta de entrada do MercadoFlow, que lê o código do DANFE, busca a nota e
+mostra os produtos em letras grandes para conferir. Grátis para quem cadastra o certificado A1; sem ele, créditos
+de leitura revendidos do Meu Danfe (R$ 0,06 por nota ou planos) pagos por Pix; 15 leituras grátis para testar,
+com cadastro do mercado no MercadoFlow e aceite de que as notas ficam armazenadas.
+
+Pesquisa: desde 2020 a consulta pública pela chave só traz o resumo; os itens vêm pelo certificado de quem
+participa da nota (NFeDistribuicaoDFe, grátis) ou por serviço pago (Serpro, revendido pelo Meu Danfe a R$ 0,03).
+A busca grátis do site do Meu Danfe é protegida por Cloudflare Turnstile e não foi automatizada.
+
+| ID | PRIORIDADE | PROBLEMA | SOLUÇÃO | ARQUIVOS/ÁREAS | RISCO | TESTE | STATUS |
+|---|---|---|---|---|---|---|---|
+| C-01 | P1 | ler a nota pela câmera no Android e no iPhone | leitor nativo (Chrome Android) ou zxing WebAssembly servido pelo nosso domínio (iPhone); Code 128 da chave, QR, EAN dos produtos; lanterna | `features/confere/Scanner.tsx`, `public/confere-app/zxing_reader.wasm` | médio | Playwright com câmera simulada | DONE |
+| C-02 | P1 | buscar a nota grátis | certificado A1 do mercado: distribuição de DF-e por NSU e por chave + ciência da operação assinada (RSA-SHA1/C14N); job a cada 10 min respeitando a espera de 1 h | `SefazClient`, `ConfereService.sync`, `ConfereSyncJob` | alto (sem certificado real para testar) | testes de unidade da assinatura e da resposta | DONE |
+| C-03 | P1 | buscar a nota sem certificado | API v2 do Meu Danfe conforme a documentação (PUT add + GET xml, WAITING/SEARCHING/OK); desconta 1 leitura só quando a nota chega | `MeuDanfeClient`, `ConfereService.read` | médio (sem chave real no teste) | simulador do contrato | DONE |
+| C-04 | P1 | conferência prática | lista e passo a passo, foto do catálogo, "10 CX (120 UN)", + e − grandes, bipar produto, conferência cega, avaria/validade/trocado, alerta de preço, salva no celular sem sinal, resumo para o WhatsApp | `ConferenceScreen.tsx` | baixo | Playwright 390 px | DONE |
+| C-05 | P1 | monetização e teste grátis | carteira com extrato (15 grátis no aceite, uma vez), planos, Pix BR Code com QR e confirmação no painel, Stripe opcional com crédito pelo webhook | `PixCode`, `ConfereAdminService`, `StripeWebhookController` | médio | Playwright + curl | DONE |
+| C-06 | P1 | configurar o serviço | página do superadmin: Api-Key do Meu Danfe (cifrada, testada sem gastar), preço, leituras grátis, termos versionados, chave Pix, planos, pedidos, saldo por mercado | `SuperAdminConfere.tsx`, `SuperAdminConfereController` | baixo | Playwright | DONE |
+| C-07 | P2 | instalar como app | manifest e service worker próprios em /confere/, abre sem internet, recebe XML pelo "compartilhar" do Android | `public/confere-app/`, `public/confere-sw.js`, `index.html` | baixo | Playwright | DONE |
+
 ## Coordenação
 
 Uma segunda sessão trabalhava ao mesmo tempo na F1 no mesmo working tree. Divisão combinada: a F1 (inclusive

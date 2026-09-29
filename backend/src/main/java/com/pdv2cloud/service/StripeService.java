@@ -177,6 +177,39 @@ public class StripeService {
         return session.getUrl();
     }
 
+    public record OneTimeCheckout(String sessionId, String url) {}
+
+    /**
+     * Pagamento avulso (créditos de leitura do Confere). Mesmo princípio da
+     * assinatura: os créditos só entram pelo webhook, nunca pelo redirect.
+     * Os métodos oferecidos são os ativos na conta (Pix quando liberado).
+     */
+    public OneTimeCheckout createOneTimeCheckout(UUID marketId, long amountCents, String description,
+                                                 Map<String, String> metadata, String successPath, String cancelPath)
+        throws StripeException {
+        requireConfigured();
+        Market market = requireMarket(marketId);
+        String customerId = ensureCustomer(market);
+        String base = publicBaseUrl.replaceAll("/+$", "");
+        com.stripe.param.checkout.SessionCreateParams.Builder params =
+            com.stripe.param.checkout.SessionCreateParams.builder()
+                .setMode(Mode.PAYMENT)
+                .setCustomer(customerId)
+                .addLineItem(LineItem.builder()
+                    .setQuantity(1L)
+                    .setPriceData(LineItem.PriceData.builder()
+                        .setCurrency("brl")
+                        .setUnitAmount(amountCents)
+                        .setProductData(LineItem.PriceData.ProductData.builder().setName(description).build())
+                        .build())
+                    .build())
+                .setSuccessUrl(base + successPath)
+                .setCancelUrl(base + cancelPath);
+        metadata.forEach(params::putMetadata);
+        com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.create(params.build());
+        return new OneTimeCheckout(session.getId(), session.getUrl());
+    }
+
     /**
      * URL do Billing Portal, onde o cliente troca cartão, muda de plano ou
      * cancela sem precisar de tela própria nossa.

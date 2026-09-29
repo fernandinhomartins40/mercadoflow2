@@ -21,6 +21,8 @@ const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
 const ArtStudio = lazy(() => import('./screens/ArtStudio'));
 const PublicEncarte = lazy(() => import('./screens/PublicEncarte'));
 const SuperAdminArtThemes = lazy(() => import('./screens/SuperAdminArtThemes'));
+const ConfereApp = lazy(() => import('./screens/ConfereApp'));
+const SuperAdminConfere = lazy(() => import('./screens/SuperAdminConfere'));
 const Landing = lazy(() => import('./screens/Landing'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
 const AgentPairing = lazy(() => import('./screens/AgentPairing'));
@@ -125,6 +127,7 @@ const App: React.FC = () => {
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
         <Route path="/parear-agente" element={<AgentPairing />} />
         <Route path="/encarte/:slug" element={<PublicEncarte />} />
+        <Route path="/confere/*" element={<ConfereApp />} />
 
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/inteligencia" element={secure(<IntelligenceCenter />)} />
@@ -168,6 +171,7 @@ const App: React.FC = () => {
         <Route path="/super-admin/ofertas" element={FEATURE_OFFER_TEMPLATES_ENABLED ? <OffersWorkspaceRedirect targetPath="/ofertas" workspace="super-admin" /> : disabledSuperAdminModuleRedirect} />
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/temas" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
+        <Route path="/super-admin/confere" element={secureSuperAdmin(<SuperAdminConfere />)} />
         <Route path="/super-admin/temas/:themeId" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
 
