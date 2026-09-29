@@ -314,6 +314,19 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
   Validar em produção: cadastrar a Api-Key no painel (o botão "Testar a chave" não gasta crédito) e ler uma nota;
   cadastrar um A1 real e usar "Buscar agora".
 
+### Ciclo 8.1 — Confere: diagnóstico da leitura, instalação e ícone configurável
+
+- **Leitura que "não encontrou a nota":** o fluxo segue a documentação do Meu Danfe; o NOT_FOUND veio da API
+  deles. Agora a tela mostra a chave lida e a mensagem do Meu Danfe (e orienta sobre boleto e XML), e o painel
+  tem "Diagnóstico da consulta" com cada chamada e resposta, sem expor a Api-Key. Depois de um OK, o XML é
+  baixado com novas tentativas (pode demorar um instante para ficar disponível).
+- **Instalação:** o app já era instalável (Chrome sem erros de instalação); faltava o convite. Botão "Instalar o
+  app" (Android abre o convite; iPhone mostra o passo a passo do Safari), com o evento capturado no index.html
+  antes do app carregar. Manifest agora sai do backend com Content-Type application/manifest+json.
+- **Ícone do app no superadmin:** envio de imagem, recorte 1:1 (arrastar e zoom), cor de fundo e margem da
+  versão redonda, com prévias; gera 192, 512, 512 maskable e 180 (iPhone) e o manifest passa a usá-los. V59.
+- **Testes:** PWA/ícone/diagnóstico 16/16; Confere 39/39; unidade 6/6.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

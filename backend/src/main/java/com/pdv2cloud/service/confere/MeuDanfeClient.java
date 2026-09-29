@@ -73,10 +73,18 @@ public class MeuDanfeClient {
     }
 
     public Result fetch(String apiKey, String accessKey) {
+        return fetch(apiKey, accessKey, null);
+    }
+
+    /**
+     * @param trace quando não nulo, recebe cada chamada e a resposta (diagnóstico
+     *              do superadmin). Nunca inclui a Api-Key.
+     */
+    public Result fetch(String apiKey, String accessKey, java.util.List<String> trace) {
         long deadline = System.currentTimeMillis() + WAIT.toMillis();
         try {
             // Nota já na conta (busca anterior): vem de graça.
-            Result ready = download(apiKey, accessKey);
+            Result ready = download(apiKey, accessKey, trace);
             if (ready.outcome() != Outcome.NOT_FOUND) {
                 return ready;
             }
@@ -89,6 +97,7 @@ public class MeuDanfeClient {
                         .PUT(HttpRequest.BodyPublishers.noBody())
                         .build(),
                     HttpResponse.BodyHandlers.ofString());
+                note(trace, "PUT /add/" + accessKey, add.statusCode(), add.body());
                 switch (add.statusCode()) {
                     case 400: return new Result(Outcome.INVALID_KEY, null, "Chave de acesso inválida");
                     case 401: return new Result(Outcome.UNAUTHORIZED, null, "A Api-Key do Meu Danfe foi recusada");
@@ -105,9 +114,18 @@ public class MeuDanfeClient {
                 log.info("Meu Danfe add | status={} msg={}", status, message);
                 switch (status) {
                     case "OK":
-                        return download(apiKey, accessKey);
+                        // O XML pode levar um instante para ficar disponível depois do OK.
+                        for (int attempt = 0; attempt < 4; attempt++) {
+                            Result r = download(apiKey, accessKey, trace);
+                            if (r.outcome() != Outcome.NOT_FOUND) {
+                                return r;
+                            }
+                            Thread.sleep(1500);
+                        }
+                        return new Result(Outcome.ERROR, null, "O Meu Danfe achou a nota, mas o XML ainda não ficou disponível. Tente de novo em instantes");
                     case "NOT_FOUND":
-                        return new Result(Outcome.NOT_FOUND, null, "A Receita não encontrou essa nota");
+                        return new Result(Outcome.NOT_FOUND, null,
+                            "O Meu Danfe não encontrou essa nota na Receita" + (message.isBlank() || "Ok".equalsIgnoreCase(message) ? "" : " (" + message + ")"));
                     case "ERROR":
                         return new Result(Outcome.ERROR, null, message.isBlank() ? "O Meu Danfe não conseguiu consultar" : message);
                     default:
@@ -128,8 +146,9 @@ public class MeuDanfeClient {
     }
 
     /** XML de nota já na conta. NOT_FOUND quando ainda não está (404). */
-    private Result download(String apiKey, String accessKey) throws Exception {
+    private Result download(String apiKey, String accessKey, java.util.List<String> trace) throws Exception {
         HttpResponse<String> r = http.send(get("/get/xml/" + accessKey, apiKey), HttpResponse.BodyHandlers.ofString());
+        note(trace, "GET /get/xml/" + accessKey, r.statusCode(), r.statusCode() == 200 ? "(XML recebido)" : r.body());
         switch (r.statusCode()) {
             case 200: break;
             case 404: return new Result(Outcome.NOT_FOUND, null, null);
@@ -147,6 +166,14 @@ public class MeuDanfeClient {
             return new Result(Outcome.ERROR, null, "O Meu Danfe devolveu um arquivo que não é NF-e");
         }
         return new Result(Outcome.OK, xml, null);
+    }
+
+    private static void note(java.util.List<String> trace, String call, int status, String body) {
+        if (trace == null) {
+            return;
+        }
+        String b = body == null ? "" : body.replaceAll("\\s+", " ").trim();
+        trace.add(call + " → HTTP " + status + (b.isEmpty() ? "" : ": " + (b.length() > 300 ? b.substring(0, 300) + "…" : b)));
     }
 
     private HttpRequest get(String path, String apiKey) {

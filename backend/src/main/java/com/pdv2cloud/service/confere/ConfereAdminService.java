@@ -119,6 +119,37 @@ public class ConfereAdminService {
         return problem == null ? null : problem;
     }
 
+    public record Diagnosis(String accessKey, boolean validKey, String model, String outcome, String message,
+                            List<String> trace, String emitter, Integer items) {}
+
+    /**
+     * Consulta uma chave no Meu Danfe mostrando cada chamada e resposta. Pode
+     * custar R$ 0,03 na conta do Meu Danfe se a nota for nova; não mexe no saldo
+     * de nenhum mercado.
+     */
+    public Diagnosis diagnose(String raw) {
+        String key = raw == null ? "" : raw.replaceAll("\\D", "");
+        boolean valid = NfeXml.validKey(key);
+        String model = key.length() == 44 ? key.substring(20, 22) : null;
+        List<String> trace = new java.util.ArrayList<>();
+        if (!valid) {
+            return new Diagnosis(key, false, model, "INVALID_KEY", "Chave com dígito verificador errado ou sem 44 números", trace, null, null);
+        }
+        String apiKey = confere.meuDanfeKey();
+        if (apiKey == null) {
+            return new Diagnosis(key, true, model, "NO_KEY", "Cadastre a Api-Key do Meu Danfe", trace, null, null);
+        }
+        MeuDanfeClient.Result r = meuDanfe.fetch(apiKey, key, trace);
+        String emitter = null;
+        Integer items = null;
+        if (r.xml() != null) {
+            NfeXml.Data d = NfeXml.read(r.xml());
+            emitter = d.emitterTradeName() != null ? d.emitterTradeName() : d.emitterName();
+            items = d.items().size();
+        }
+        return new Diagnosis(key, true, model, r.outcome().name(), r.message(), trace, emitter, items);
+    }
+
     // ── Planos ─────────────────────────────────────────────────────────────
 
     public List<ConfereService.Plan> plans() {

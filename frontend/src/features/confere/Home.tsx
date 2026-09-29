@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { confereService } from '../../services/confere.service';
 import type { ConfereStatus, DocumentSummary } from '../../types/confere.types';
 import { Shell } from './ui';
+import InstallApp from './InstallApp';
 
 /** Início: saldo, botão grande de ler nota e as notas que chegaram (inclusive pela Sefaz). */
 
@@ -43,7 +44,7 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
     <Shell>
       <div className="flex flex-col gap-5 px-4 pb-10 pt-5">
         <header className="flex items-center gap-3">
-          <img src="/confere-app/icon-192.png" alt="" className="h-12 w-12 rounded-xl" />
+          <img src="/api/v1/public/confere/icon/icon192" alt="" className="h-12 w-12 rounded-xl" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-bold">{status.marketName}</p>
             <BalanceChip status={status} />
@@ -55,6 +56,8 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
           <ScanBarcode className="h-12 w-12" aria-hidden="true" />
           <span className="text-3xl font-extrabold">Ler nota</span>
         </Link>
+
+        <InstallApp />
 
         {!status.certificate && (
           <Link to="/confere/certificado" className="flex items-center gap-3 rounded-3xl border-2 border-green-700 bg-white p-4">

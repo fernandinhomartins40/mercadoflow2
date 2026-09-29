@@ -4,6 +4,8 @@ import type {
   ConfereStats, ConfereStatus, DocumentSummary, ItemCount, LedgerEntry, ReadResult,
 } from '../types/confere.types';
 
+export interface ConfereIcons { icon192: string; icon512: string; maskable: string; apple: string; background: string; custom: boolean; updatedAt: string | null }
+
 const base = (marketId: string) => `/v1/markets/${marketId}/confere`;
 const multipart = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 90000 };
 
@@ -45,6 +47,19 @@ export const confereAdminService = {
   save: async (body: Partial<ConfereSettings> & { meuDanfeApiKey?: string }): Promise<ConfereSettings> =>
     (await api.put(`${admin}/settings`, body, { timeout: 60000 })).data,
   test: async (): Promise<{ ok: boolean; message: string }> => (await api.post(`${admin}/settings/test`, {}, { timeout: 60000 })).data,
+  diagnose: async (accessKey: string): Promise<{ accessKey: string; validKey: boolean; model: string | null; outcome: string; message: string | null; trace: string[]; emitter: string | null; items: number | null }> =>
+    (await api.post(`${admin}/diagnose`, { accessKey }, { timeout: 120000 })).data,
+  icons: async (): Promise<ConfereIcons> => (await api.get(`${admin}/icons`)).data,
+  saveIcons: async (icons: { icon192: Blob; icon512: Blob; maskable: Blob; apple: Blob; background: string }): Promise<ConfereIcons> => {
+    const data = new FormData();
+    data.append('icon192', icons.icon192, 'icon-192.png');
+    data.append('icon512', icons.icon512, 'icon-512.png');
+    data.append('maskable', icons.maskable, 'icon-maskable-512.png');
+    data.append('apple', icons.apple, 'apple-touch-icon.png');
+    data.append('background', icons.background);
+    return (await api.post(`${admin}/icons`, data, multipart)).data;
+  },
+  resetIcons: async (): Promise<ConfereIcons> => (await api.delete(`${admin}/icons`)).data,
   stats: async (): Promise<ConfereStats> => (await api.get(`${admin}/stats`)).data,
   plans: async (): Promise<ConferePlan[]> => (await api.get(`${admin}/plans`)).data ?? [],
   createPlan: async (p: Omit<ConferePlan, 'id'>): Promise<ConferePlan[]> => (await api.post(`${admin}/plans`, p)).data,

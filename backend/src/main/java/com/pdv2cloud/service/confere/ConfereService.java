@@ -199,6 +199,10 @@ public class ConfereService {
                 log.error("Meu Danfe indisponível para revenda: {}", r.message());
                 throw new IllegalArgumentException("A leitura por crédito está indisponível no momento. Nenhuma leitura foi descontada.");
             }
+            if (r.outcome() == MeuDanfeClient.Outcome.NOT_FOUND) {
+                throw new IllegalArgumentException(r.message() + ". Chave lida: " + formatKey(key)
+                    + ". Confira se é a chave impressa no DANFE (não a do boleto) ou importe o XML. Nenhuma leitura foi descontada.");
+            }
             throw new IllegalArgumentException(r.message() + ". Nenhuma leitura foi descontada.");
         }
         UUID id = store(marketId, r.xml(), "MEUDANFE");
@@ -683,6 +687,11 @@ public class ConfereService {
     }
 
     // ── Apoio ──────────────────────────────────────────────────────────────
+
+    /** Chave em blocos de 4, como no DANFE. */
+    static String formatKey(String key) {
+        return key.replaceAll("(.{4})(?!$)", "$1 ");
+    }
 
     public String meuDanfeKey() {
         String enc = jdbc.queryForObject("select meudanfe_api_key_enc from confere_settings where id = 'default'", Map.of(), String.class);

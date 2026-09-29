@@ -67,7 +67,8 @@ public class SecurityConfig {
                 // (nomes UUID) e a página de ofertas que o mercado divulga.
                 .requestMatchers(HttpMethod.GET, "/api/v1/art-files/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/public/encartes/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/public/confere/terms").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/public/confere/terms", "/api/v1/public/confere/manifest.webmanifest",
+                    "/api/v1/public/confere/icon/*").permitAll()
                 // Catalogo de planos: a pagina de cadastro precisa exibir os
                 // limites antes de existir conta. Nao expoe dado de cliente.
                 .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()

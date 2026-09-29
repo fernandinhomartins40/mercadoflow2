@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Plus, Save, Trash2, X } from 'lucide-react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
-import { confereAdminService, money } from '../services/confere.service';
+import { confereAdminService, money, type ConfereIcons } from '../services/confere.service';
+import IconCropper from '../features/confere/IconCropper';
 import type { AdminAccount, AdminOrder, ConferePlan, ConfereSettings, ConfereStats } from '../types/confere.types';
 
 /**
@@ -333,6 +334,95 @@ const AccountsCard: React.FC<{ version: number }> = ({ version }) => {
   );
 };
 
+const IconCard: React.FC = () => {
+  const [icons, setIcons] = useState<ConfereIcons | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { confereAdminService.icons().then(setIcons).catch(() => {}); }, []);
+  return (
+    <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="icon-title">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {icons && <img src={icons.icon192} alt="Ícone atual do app" className="h-12 w-12 rounded-xl shadow" />}
+          <div>
+            <h2 id="icon-title" className="text-base font-semibold text-slate-900">Ícone do app</h2>
+            <p className="text-sm text-slate-600">{icons?.custom ? 'Ícone próprio.' : 'Ícone padrão do Confere.'} Envie uma imagem e recorte em quadrado: os tamanhos do Android e do iPhone são gerados sozinhos.</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <label className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Enviar imagem
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setMsg(null); e.target.value = ''; }} />
+          </label>
+          {icons?.custom && (
+            <Button type="button" variant="ghost" onClick={async () => {
+              if (!window.confirm('Voltar ao ícone padrão do Confere?')) return;
+              setIcons(await confereAdminService.resetIcons());
+              setMsg({ ok: true, text: 'Ícone padrão de volta.' });
+            }}>Usar o padrão</Button>
+          )}
+        </div>
+      </div>
+      {file && (
+        <IconCropper file={file} busy={busy} onGenerate={async (generated) => {
+          setBusy(true);
+          setMsg(null);
+          try {
+            setIcons(await confereAdminService.saveIcons(generated));
+            setFile(null);
+            setMsg({ ok: true, text: 'Ícone salvo. Celulares que já instalaram o app atualizam o ícone em alguns dias (é o sistema que decide).' });
+          } catch (err) {
+            setMsg({ ok: false, text: errorText(err, 'Não foi possível salvar o ícone.') });
+          } finally {
+            setBusy(false);
+          }
+        }} />
+      )}
+      {msg && <p role="status" className={`text-sm ${msg.ok ? 'text-green-700' : 'text-red-700'}`}>{msg.text}</p>}
+    </section>
+  );
+};
+
+const DiagnoseCard: React.FC = () => {
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof confereAdminService.diagnose>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try { setResult(await confereAdminService.diagnose(key)); } catch (err) { setError(errorText(err, 'O diagnóstico falhou.')); } finally { setBusy(false); }
+  };
+  const ok = result?.outcome === 'OK';
+  return (
+    <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="diag-title">
+      <div>
+        <h2 id="diag-title" className="text-base font-semibold text-slate-900">Diagnóstico da consulta</h2>
+        <p className="text-sm text-slate-600">Consulta uma chave no Meu Danfe e mostra cada chamada e resposta. Nota nova custa R$ 0,03 na sua conta do Meu Danfe; o saldo dos mercados não muda.</p>
+      </div>
+      <form onSubmit={run} className="flex flex-col gap-3 sm:flex-row">
+        <input className={`${INPUT} font-mono`} value={key} onChange={(e) => setKey(e.target.value)} placeholder="Chave de acesso (44 números)" aria-label="Chave de acesso para diagnóstico" />
+        <Button type="submit" disabled={busy || key.replace(/\D/g, '').length !== 44}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Consultar'}</Button>
+      </form>
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {result && (
+        <div className="flex flex-col gap-2 text-sm">
+          <p className={ok ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>
+            {ok ? `Nota encontrada: ${result.emitter ?? 'fornecedor'}, ${result.items} itens` : `${result.outcome}: ${result.message ?? ''}`}
+          </p>
+          <p className="text-slate-600">Modelo da chave: {result.model ?? '—'} {result.model && result.model !== '55' ? '(não é NF-e de fornecedor)' : ''}</p>
+          <ol className="flex flex-col gap-1 rounded-lg bg-slate-50 p-3 font-mono text-xs text-slate-800">
+            {result.trace.length ? result.trace.map((t, i) => <li key={i} className="break-all">{t}</li>) : <li>Nenhuma chamada feita.</li>}
+          </ol>
+        </div>
+      )}
+    </section>
+  );
+};
+
 const SuperAdminConfere: React.FC = () => {
   const [settings, setSettings] = useState<ConfereSettings | null>(null);
   const [stats, setStats] = useState<ConfereStats | null>(null);
@@ -370,6 +460,8 @@ const SuperAdminConfere: React.FC = () => {
           </ul>
         )}
         {settings ? <SettingsCard settings={settings} onSaved={setSettings} /> : <Loader2 className="h-6 w-6 animate-spin text-slate-400" />}
+        <IconCard />
+        <DiagnoseCard />
         <OrdersCard onChange={() => { loadStats(); setVersion((v) => v + 1); }} />
         <PlansCard />
         <AccountsCard version={version} />

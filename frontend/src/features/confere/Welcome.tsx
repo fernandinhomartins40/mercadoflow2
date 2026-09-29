@@ -7,6 +7,7 @@ import { confereService } from '../../services/confere.service';
 import type { ConfereStatus } from '../../types/confere.types';
 import { isValidCnpj, maskCnpj, onlyDigits } from '../../utils/formMasks';
 import { BigButton, Field, Shell, errorText } from './ui';
+import InstallApp from './InstallApp';
 
 /** Entrada do Confere: criar a conta do mercado (com aceite dos termos) ou entrar. */
 
@@ -66,7 +67,7 @@ export const Welcome: React.FC = () => {
     <Shell>
       <div className="flex flex-col gap-6 px-5 pb-10 pt-8">
         <div className="flex items-center gap-3">
-          <img src="/confere-app/icon-192.png" alt="" className="h-14 w-14 rounded-2xl" />
+          <img src="/api/v1/public/confere/icon/icon192" alt="" className="h-14 w-14 rounded-2xl" />
           <div>
             <p className="text-sm font-semibold text-green-800">MercadoFlow</p>
             <h1 className="text-3xl font-extrabold leading-none">Confere</h1>
@@ -79,6 +80,7 @@ export const Welcome: React.FC = () => {
             Grátis com o certificado A1 do mercado{terms?.trialReads ? `, e ${terms.trialReads} leituras grátis para testar sem ele` : ''}.
           </p>
         </div>
+        <InstallApp />
         <div className="grid grid-cols-2 rounded-2xl bg-white p-1" role="tablist">
           {([['criar', 'Criar conta'], ['entrar', 'Já tenho conta']] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setError(null); }}

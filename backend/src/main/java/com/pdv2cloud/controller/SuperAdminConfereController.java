@@ -1,6 +1,9 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.confere.ConfereAdminService;
+import com.pdv2cloud.service.confere.ConferePwaService;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import com.pdv2cloud.service.confere.ConfereService;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,9 +30,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class SuperAdminConfereController {
 
     private final ConfereAdminService admin;
+    private final ConferePwaService pwa;
 
-    public SuperAdminConfereController(ConfereAdminService admin) {
+    public SuperAdminConfereController(ConfereAdminService admin, ConferePwaService pwa) {
         this.admin = admin;
+        this.pwa = pwa;
+    }
+
+    @GetMapping("/icons")
+    public ConferePwaService.Icons icons() {
+        return pwa.icons();
+    }
+
+    /** Os quatro PNGs gerados pelo recorte no navegador. */
+    @PostMapping(value = "/icons", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ConferePwaService.Icons saveIcons(@RequestParam("icon192") MultipartFile icon192,
+                                             @RequestParam("icon512") MultipartFile icon512,
+                                             @RequestParam("maskable") MultipartFile maskable,
+                                             @RequestParam("apple") MultipartFile apple,
+                                             @RequestParam(value = "background", required = false) String background) {
+        return pwa.save(Map.of("icon192", icon192, "icon512", icon512, "maskable", maskable, "apple", apple), background);
+    }
+
+    @DeleteMapping("/icons")
+    public ConferePwaService.Icons resetIcons() {
+        return pwa.reset();
     }
 
     @GetMapping("/settings")
@@ -49,6 +74,11 @@ public class SuperAdminConfereController {
         out.put("ok", problem == null);
         out.put("message", problem == null ? "A Api-Key do Meu Danfe está funcionando." : problem);
         return out;
+    }
+
+    @PostMapping("/diagnose")
+    public ConfereAdminService.Diagnosis diagnose(@RequestBody Map<String, Object> body) {
+        return admin.diagnose(body.get("accessKey") == null ? null : String.valueOf(body.get("accessKey")));
     }
 
     @GetMapping("/stats")
