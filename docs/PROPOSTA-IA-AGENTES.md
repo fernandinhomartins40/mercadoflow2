@@ -1,6 +1,6 @@
 # MercadoFlow Copiloto — proposta de IA, assistente por voz e agentes
 
-Versão 4 · 30/09/2026 (Jev na camada de decisão; vigília dos agentes em funil; DeepSeek Harness) · proposta para decisão do dono do produto
+Versão 5 · 30/09/2026 (Jev na camada de decisão, na vigília dos agentes e na montagem do contexto; DeepSeek Harness) · proposta para decisão do dono do produto
 
 ---
 
@@ -46,7 +46,7 @@ Roda no servidor, com fórmulas e estatística. É o **motor** do produto e cont
 | Inteligência de produto | 3h | capital, estoque estimado, giro, cobertura, curva ABC/XYZ |
 | Detecção de oportunidades | 3h30 | capital parado, reposição, promoção, queda de venda, preço acima do mercado |
 | Previsão de demanda | 4h | Holt-Winters com sazonalidade por dia da semana e intervalo de confiança |
-| Avaliação de resultado | segunda, 4h | mede o que aconteceu depois de cada decisão aceita (aprendizado) |
+| Avaliação de resultado | segunda, 4h | mede o que aconteceu depois de cada decisão aceita (aprendizado; vira "lições" na seção 6.6) |
 | Resumo semanal | segunda, 5h | números da semana |
 | Atualização adaptativa | a cada 5 min | acompanha o dia da loja em tempo quase real |
 | Preços de mercado | a cada 15 min | preço praticado × concorrência |
@@ -132,7 +132,8 @@ um sim**. O lojista para de "olhar o sistema" e passa a "conversar com o gerente
 | **Catálogo de ferramentas** | consultas (já são 10) + ações (novas) com nível de permissão | `DataTool` |
 | **Executor de agentes** | roda agentes por horário ou evento, com orçamento e limite de passos | jobs existentes |
 | **Caixa de decisões** | fila de ações preparadas esperando o sim do lojista | Central de Inteligência |
-| **Memória da loja** | preferências, fornecedores preferidos, limites, histórico de aceites e recusas | `OutcomeEvaluationJob` |
+| **Memória da loja** | resumos prontos por dia/semana/mês, lições aprendidas, preferências, histórico de aceites e recusas | `OutcomeEvaluationJob`, resumo semanal |
+| **Montador de contexto** | escolhe, com o Jev, só os pedaços de memória relevantes para cada chamada ao DeepSeek | novo (seção 6.6) |
 | **Voz** | fala → texto, texto → fala, modo mãos livres | novo (seção 7) |
 | **Canal WhatsApp** | resumo, alerta e aprovação por mensagem | novo |
 
@@ -312,6 +313,79 @@ A diferença entre o segundo e o terceiro jeito é o Jev: ele troca cerca de 200
 DeepSeek por dia por ~60 decisões baratas, e o DeepSeek escreve só os ~8 casos que chegam ao
 lojista. É isso que permite oferecer agentes "sempre ligados" dentro de um pacote de R$ 199 com
 margem alta. Os números de sinais e casos por dia são hipótese e serão medidos no piloto.
+
+### 6.6 Memória e aprendizado: o Jev monta o contexto
+
+Um agente que aprende acumula histórico: vendas de meses, notas, decisões aceitas e recusadas,
+resultados medidos. Mandar tudo isso ao DeepSeek a cada chamada seria o segundo jeito de queimar
+tokens (o primeiro é a vigília da seção 6.5), e piora a resposta, porque o modelo se perde no meio de
+informação irrelevante. A regra é: **a IA recebe só o que importa para aquela decisão, e quem escolhe
+o que importa é o código com o Jev, não o DeepSeek.**
+
+#### Como a memória é guardada
+
+| Camada | O que é | Quem produz | Custo |
+|---|---|---|---|
+| Fatos | números do motor: venda, giro, cobertura, preço, previsão | motor | zero |
+| Resumos por período | dia, semana e mês já resumidos (números do motor + 1 parágrafo) | motor + DeepSeek, uma vez por período | gerado uma vez, reaproveitado sempre |
+| Lições | aprendizados curtos com evidência: "promoção de 15% em laticínios não aumentou a venda (2 tentativas)", "fornecedor X faltou em 4 das últimas 6 entregas", "o dono recusa pedido acima de R$ 3 mil sem ver antes" | avaliação de resultado (segunda, 4h) + recusas do lojista | quase zero |
+| Preferências | limites, horários de silêncio, fornecedores preferidos, nível de autonomia | lojista | zero |
+
+O histórico bruto continua no banco, mas não vai para a IA. O que vai são os resumos e as lições,
+que cabem em poucas linhas.
+
+#### Como o contexto é montado a cada chamada
+
+```
+ tarefa (ex.: "plano de compras de laticínios da semana")
+    │
+ 1. Código (sem token)   filtra por chave exata: categoria, produtos, fornecedores, período
+    │                     → ~150 pedaços candidatos (fatos, resumos, lições)
+ 2. Jev (frações de ¢)   dá nota de relevância a cada pedaço para ESTA tarefa, em lote
+    │                     ("este pedaço ajuda a decidir o pedido de laticínios?")
+ 3. Orçamento            entra do mais relevante para o menos, até o teto de tokens da tarefa
+    │                     → ~15 pedaços
+ 4. DeepSeek             recebe: instrução fixa (em cache) + pedaços escolhidos + números do motor
+```
+
+Cuidados:
+
+- **Datas e contas ficam no código:** o Jev erra em datas e contagem, então o filtro de período e
+  os números são do motor. O Jev só julga "é relevante para esta tarefa?".
+- **Instrução fixa primeiro, variável depois:** o começo da mensagem (instrução e ferramentas) é
+  sempre igual, e o DeepSeek cobra ~1/100 por essa parte repetida (cache). A parte que muda vai no fim.
+- **Teto de contexto por tarefa:** pergunta simples ~2 mil tokens; resumo do dia ~5 mil; plano de
+  compras ~10 mil.
+- **Sem Jev, o produto não para:** se ele estiver fora do ar, entra uma regra simples (mais recente
+  e mesmo produto ou categoria primeiro), com a mesma cota de tokens.
+- **Rastro:** cada chamada guarda quais pedaços entraram, para auditar por que o agente decidiu
+  daquele jeito e para medir se a seleção está boa.
+
+#### Economia
+
+Exemplo: plano de compras da semana no DeepSeek V4 Pro, no pico (US$ 1,32 por milhão de tokens de
+entrada, US$ 1 = R$ 5,50):
+
+| Montagem | Tokens de entrada | Custo por plano |
+|---|---|---|
+| Últimos 90 dias de vendas, notas e decisões | ~60.000 | ~R$ 0,44 |
+| **Resumos + lições escolhidos pelo Jev** | ~8.000 (+ ~45.000 no Jev) | **~R$ 0,07** |
+
+Cerca de **85% a menos**, e com resposta melhor, porque o modelo lê só o que importa. O mesmo vale
+para a conversa com o lojista: "e aquele fornecedor que sempre falta?" puxa só as lições e notas
+daquele fornecedor, não o histórico inteiro da loja.
+
+#### O ciclo de aprendizado
+
+1. O agente decide com base nos pedaços escolhidos (fica registrado quais foram).
+2. O lojista aceita ou recusa; a recusa com motivo vira preferência ou lição.
+3. Na segunda-feira, a avaliação de resultado mede o que aconteceu (vendeu? faltou? sobrou?).
+4. O resultado vira lição com evidência, ou reforça ou enfraquece uma lição que já existe.
+5. Na próxima decisão parecida, o Jev tende a escolher essa lição, e o agente erra menos sem que o
+   contexto cresça.
+
+Com o tempo, a loja acumula conhecimento sem aumentar o custo por decisão, porque a memória cresce
+no banco mas o contexto enviado continua do mesmo tamanho.
 
 ---
 
@@ -613,7 +687,9 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 - **Negócio:** mercados pagantes, receita de IA, custo de IA por mercado, margem.
 - **Qualidade:** respostas sem número inventado (auditoria por amostragem), reclamações, recusas por
   "não faz sentido".
-- **Custo:** percentual respondido por regra, por decisão local e por modelo; aproveitamento do cache.
+- **Custo:** percentual respondido por regra, pelo Jev e por modelo; aproveitamento do cache; tokens
+  de contexto por tarefa (a montagem com Jev deve manter esse número estável mesmo com a memória
+  crescendo).
 
 ---
 
