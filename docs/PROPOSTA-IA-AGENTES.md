@@ -1,6 +1,6 @@
 # MercadoFlow Copiloto — proposta de IA, assistente por voz e agentes
 
-Versão 6 · 30/09/2026 (Jev na camada de decisão, na vigília dos agentes e na montagem do contexto; cortes na IA atual; DeepSeek Harness) · proposta para decisão do dono do produto
+Versão 7 · 30/09/2026 (texto pronto + Jev antes do DeepSeek em todo o fluxo; painel de APIs no superadmin) · proposta para decisão do dono do produto
 
 ---
 
@@ -128,8 +128,9 @@ um sim**. O lojista para de "olhar o sistema" e passa a "conversar com o gerente
 2. **Ação com rastro e com dono.** Toda ação tem autor (qual agente), motivo, números e aprovação.
 3. **Autonomia gradual e escolhida pelo lojista** (seção 6.3).
 4. **Sem crédito, nada quebra.** O motor calculado e os textos do sistema continuam funcionando.
-5. **Barato por construção:** primeiro regra, depois decisão local, depois modelo barato, e só no
-   fim modelo forte (seção 5).
+5. **Barato por construção:** primeiro regra e **texto pronto do motor**, depois o Jev, depois o
+   modelo barato, e só no fim o modelo forte (seção 5). O DeepSeek escreve só o que não cabe num
+   texto pronto: resposta a pergunta aberta, "por quê?" pedido pelo lojista e plano sob medida.
 6. **Privacidade:** sai da loja só o necessário, e o lojista sabe o que sai e para onde.
 
 ---
@@ -163,6 +164,8 @@ um sim**. O lojista para de "olhar o sistema" e passa a "conversar com o gerente
 | **Montador de contexto** | escolhe, com o Jev, só os pedaços de memória relevantes para cada chamada ao DeepSeek | novo (seção 6.6) |
 | **Voz** | fala → texto, texto → fala, modo mãos livres | novo (seção 7) |
 | **Canal WhatsApp** | resumo, alerta e aprovação por mensagem | novo |
+| **Textos prontos** | modelos de frase com variações para avisos, resumos, lições e mensagens ao fornecedor | texto do sistema atual, texto do WhatsApp do Confere |
+| **Painel de APIs** | chaves, modelos, roteamento, orçamentos e console de teste no superadmin | configuração da IA dos temas e do Meu Danfe (seção 4.3) |
 
 ### 4.2 Eventos que acordam os agentes
 
@@ -174,6 +177,68 @@ Além dos horários fixos, os agentes reagem a acontecimentos que o sistema já 
 - produto a X dias de acabar (cobertura);
 - preço de concorrente mudou;
 - oportunidade nova de alto impacto.
+
+### 4.3 Painel de APIs no superadmin (primeira entrega, para começar os testes)
+
+Uma página nova no superadmin, **IA e APIs**, onde o dono da plataforma cadastra as chaves e liga os
+testes sem mexer em código nem no servidor. Hoje já existem duas telas parecidas: a chave do
+DeepSeek dos temas de encarte e a chave do Meu Danfe no Confere. A página nova generaliza as duas.
+
+**1. Chaves dos provedores**
+
+| Provedor | Uso | Campos |
+|---|---|---|
+| DeepSeek | modelo de linguagem (Flash e Pro) | chave, modelo padrão, horário de desconto |
+| OpenRouter | Jev e modelos de reserva (Qwen, MiniMax, Kimi) | chave, modelos habilitados |
+| Deepgram (depois) | voz paga | chave |
+| WhatsApp Business (depois) | canal de mensagens | token, número |
+
+- A chave é **cifrada** com a mesma chave mestra do servidor, **nunca volta para a tela** (só os 4
+  últimos dígitos) e nunca aparece em log.
+- Endereços **fixos por provedor**: o formulário não aceita URL livre, o que fecha a porta para
+  mandar a chave a um servidor falso.
+- Botão **Testar** por provedor: chamada mínima, mostra se respondeu, o tempo e o saldo informado
+  pelo provedor, quando ele informa.
+- Liga e desliga por provedor, e ordem da cadeia de reserva.
+
+**2. Roteamento por tarefa**
+
+Tabela editável com as tarefas da seção 5.1: para cada uma, a camada (texto pronto, Jev, Flash,
+Pro), o modelo, o teto de tokens de contexto e o limite de confiança do Jev. Mudar o roteamento
+não exige deploy.
+
+**3. Orçamento e segurança do gasto**
+
+- teto de gasto diário global da plataforma (a IA para e o produto segue com texto pronto);
+- alerta de saldo baixo no DeepSeek e na OpenRouter (e-mail e aviso no painel);
+- teto mensal padrão por mercado e por pacote;
+- valor do crédito e quantos créditos cada tarefa debita.
+
+**4. Piloto controlado**
+
+- lista de **mercados de teste**: só eles usam a chave da plataforma no começo;
+- **modo sombra** por tarefa: o Jev decide em paralelo sem afetar o produto, e o painel compara
+  a decisão dele com a do DeepSeek e com a do lojista (é assim que medimos o acerto em português);
+- botão de desligar tudo (volta ao texto pronto em todos os mercados).
+
+**5. Console de teste**
+
+Campo para rodar uma tarefa de verdade contra um mercado de teste ("quanto vendi ontem?",
+"explique esta oportunidade", "plano de compras de laticínios") e ver:
+
+- qual camada respondeu (texto pronto, Jev, Flash, Pro) e por quê;
+- os pedaços de contexto escolhidos pelo Jev;
+- tokens de entrada e saída, custo em reais e tempo;
+- a resposta final.
+
+**6. Relatório de uso**
+
+Gasto por dia, por provedor, por tarefa e por mercado; percentual resolvido por texto pronto, pelo
+Jev e por modelo; aproveitamento do cache; receita de créditos × custo. A base já existe: o registro
+de uso grava provedor, modelo, tokens, tempo e resultado de cada chamada.
+
+Acesso: só perfil superadmin, e toda alteração (chave trocada, roteamento, teto) fica registrada com
+quem fez e quando.
 
 ---
 
@@ -196,13 +261,13 @@ A economia vem de **não chamar modelo grande para o que uma regra resolve**. Qu
 | Escolher ferramenta / agente para a pergunta | 1 | Jev | se a confiança for baixa, o Flash escolhe |
 | Decidir se precisa do modelo forte | 1 | Jev (nota de dificuldade) | roteia entre Flash e Pro |
 | Conversa com ferramentas | 2 | V4.1 Flash | recebe só a ferramenta já escolhida e o resultado; temperatura 0 |
-| Resumo do dia e da semana | 2 | V4.1 Flash | rodar no horário de desconto |
-| Explicar oportunidade | 2 | V4.1 Flash | cache pelos números, lote noturno |
-| Mensagem ao fornecedor (falta, avaria) | 2 | V4.1 Flash | |
-| Plano de compras da semana | 3 | V4 Pro | vários passos, várias ferramentas |
-| Cenário "e se" (feriado, aumento de preço) | 3 | V4 Pro | usa a simulação de preço e a previsão |
+| Resumo do dia e da semana | 0 + 1 | texto pronto; Jev escolhe os 3 assuntos | DeepSeek só se o lojista pedir "comenta mais" |
+| Explicar oportunidade | 0 → 2 | texto pronto; Flash só no "Por quê?" | sob demanda, cache por faixas (seção 2.2) |
+| Mensagem ao fornecedor (falta, avaria) | 0 | texto pronto | o Confere já monta essa mensagem sem IA; Flash só se pedirem outro tom |
+| Plano de compras da semana | 0 + 1 → 3 | motor calcula; Jev pondera fornecedor | Pro só quando o lojista pede uma estratégia ou negociação |
+| Cenário "e se" (feriado, aumento de preço) | 0 → 2 | formulário com campos | cenário por campos roda no motor; Flash só para pergunta livre, e ele só traduz a pergunta em campos |
 | Visão (encarte, foto de etiqueta) | 2 | modelo com visão | já usado nos temas |
-| Comando de voz curto ("aprova", "depois") | 1 | Jev | sem modelo de linguagem |
+| Comando de voz curto ("aprova", "mais dois", "avaria") | 0 → 1 | lista fixa de comandos; Jev se não reconhecer | número falado ("baixa para 4,49") é lido pelo código, nunca pelo Jev |
 | Guarda da ação preparada pelo agente | 1 | Jev | ação duvidosa vai para aprovação humana |
 | Voz | — | serviço de fala (seção 7) | DeepSeek não processa áudio |
 
@@ -227,6 +292,43 @@ da mensagem, para aproveitar o cache.
 
 Cadeia de reserva: se o DeepSeek falhar, o roteador tenta o próximo modelo da lista; se todos
 falharem, entra o texto do sistema, como hoje.
+
+### 5.3 Varredura: onde a proposta queimaria token sem precisar
+
+Revisão de cada uso de IA do documento, perguntando: "isto é decisão fechada (Jev), cálculo ou
+texto previsível (motor e texto pronto), ou precisa mesmo de um modelo que escreve?".
+
+| # | Onde | Antes | Agora | Economia |
+|---|---|---|---|---|
+| 1 | Resumo do dia | DeepSeek escreve todo dia | texto pronto com os números do motor; o Jev escolhe os 3 assuntos mais importantes; DeepSeek só se o lojista pedir mais | ~95% |
+| 2 | Resumo da semana | DeepSeek escreve | mesmo tratamento do resumo do dia | ~90% |
+| 3 | Mensagem ao fornecedor | DeepSeek redige | texto pronto (o Confere já monta a mensagem do WhatsApp sem IA) | ~100% |
+| 4 | Avisos dos agentes | DeepSeek explica cada aviso | texto pronto com o número e a ação; explicação só no "Por quê?" | ~90% |
+| 5 | Gerente: prioridade do dia | DeepSeek ordena | nota de prioridade do motor + Jev no desempate | ~95% |
+| 6 | Vendas: causa provável da queda | DeepSeek analisa | o motor lista as causas possíveis (ruptura, preço, promoção do vizinho, dia atípico) e o Jev escolhe a mais provável | ~90% |
+| 7 | Promoções: tema do encarte | DeepSeek escolhe | o Jev escolhe entre os temas cadastrados; os produtos vêm do motor | ~95% |
+| 8 | Plano de compras | DeepSeek Pro toda semana | quantidades do motor, fornecedor pelo preço das notas e pelas lições (Jev); Pro só quando pedirem estratégia | ~90% |
+| 9 | Cenário "e se" | DeepSeek Pro | formulário com campos no motor; modelo só para pergunta livre | ~80% |
+| 10 | Memória (resumos e lições) | DeepSeek escreve um parágrafo por período | frases prontas a partir dos números e dos resultados medidos | ~100% |
+
+Dois cuidados que também saíram da varredura, porque o Jev é fraco em tirar valores de texto
+(acerta ~32%):
+
+- **número falado** ("baixa para 4,49", "mais dois") é lido por código, com uma lista fixa de
+  comandos e um leitor de números em português;
+- **cenário escrito livre** ("e se o fornecedor subir 8%?") vai para o Flash, que só converte a
+  frase em campos; quem calcula é o motor.
+
+Textos prontos não precisam soar robóticos: cada aviso tem 3 a 5 variações de frase escolhidas por
+regra, com o vocabulário da loja ("dinheiro parado na prateleira", "vai faltar amanhã").
+
+O que continua no DeepSeek, porque precisa de um modelo que escreve ou raciocina:
+
+- resposta a pergunta aberta no chat;
+- o "Por quê?" pedido pelo lojista;
+- plano ou estratégia sob medida pedido pelo lojista;
+- tradução de pergunta livre em campos (cenário, filtro);
+- leitura de imagem (tema de encarte, foto de etiqueta).
 
 ---
 
@@ -253,7 +355,8 @@ falharem, entra o texto do sistema, como hoje.
    entra quando há algo a explicar ou a planejar (funil da seção 6.5).
 4. Prepara a ação (pedido, promoção, mensagem) e grava na **caixa de decisões** com o motivo, os
    números e o impacto em reais.
-5. Avisa pelo canal que o lojista escolheu, sem repetir o mesmo aviso.
+5. Avisa pelo canal que o lojista escolheu, com **texto pronto** e sem repetir o mesmo aviso; a
+   explicação da IA só vem se ele tocar em "Por quê?".
 6. Registra o custo da execução na carteira e o resultado para o aprendizado.
 
 Limites de cada execução: número de passos, tokens, tempo e valor financeiro das ações.
@@ -318,8 +421,10 @@ Regras de cada andar:
 - **Andar 3 — Jev:** decisões fechadas em lote (uma chamada responde várias perguntas). O Jev não
   faz conta nem compara datas: recebe os números já calculados pelo motor e só julga. Com confiança
   baixa, o caso sobe para o DeepSeek, e o produto nunca fica pior do que sem o Jev.
-- **Andar 4 — DeepSeek:** só para o que precisa de texto ou de plano. Aviso simples ("o leite
-  acaba amanhã") usa texto pronto do sistema, sem IA.
+- **Andar 4 — DeepSeek:** só para o que precisa de texto ou de plano. Aviso ("o leite acaba
+  amanhã"), mensagem ao fornecedor e resumo usam texto pronto, sem IA (seção 5.3). Na prática, a
+  maior parte dos ~8 casos por dia chega ao lojista com texto pronto, e o DeepSeek só escreve quando
+  ele pede o "Por quê?".
 
 Travas de custo por mercado:
 
@@ -354,8 +459,8 @@ o que importa é o código com o Jev, não o DeepSeek.**
 | Camada | O que é | Quem produz | Custo |
 |---|---|---|---|
 | Fatos | números do motor: venda, giro, cobertura, preço, previsão | motor | zero |
-| Resumos por período | dia, semana e mês já resumidos (números do motor + 1 parágrafo) | motor + DeepSeek, uma vez por período | gerado uma vez, reaproveitado sempre |
-| Lições | aprendizados curtos com evidência: "promoção de 15% em laticínios não aumentou a venda (2 tentativas)", "fornecedor X faltou em 4 das últimas 6 entregas", "o dono recusa pedido acima de R$ 3 mil sem ver antes" | avaliação de resultado (segunda, 4h) + recusas do lojista | quase zero |
+| Resumos por período | dia, semana e mês já resumidos (números do motor + frase pronta) | motor | zero |
+| Lições | aprendizados curtos com evidência: "promoção de 15% em laticínios não aumentou a venda (2 tentativas)", "fornecedor X faltou em 4 das últimas 6 entregas", "o dono recusa pedido acima de R$ 3 mil sem ver antes" | avaliação de resultado (segunda, 4h) + recusas do lojista, com frases prontas | zero |
 | Preferências | limites, horários de silêncio, fornecedores preferidos, nível de autonomia | lojista | zero |
 
 O histórico bruto continua no banco, mas não vai para a IA. O que vai são os resumos e as lições,
@@ -656,17 +761,28 @@ Mercado de uso intenso por mês:
 - 5 agentes: R$ 5,25
 - 5 min de voz paga por dia: R$ 6,30
 
-Total: **cerca de R$ 24 por mês** só com DeepSeek. Com o Jev nas decisões fechadas (seção 8.3), cai
-para **cerca de R$ 9**. Um mercado de uso normal fica perto de R$ 3 a 6. Com cache e horário de
-desconto, esses números caem mais.
+Total: **cerca de R$ 24 por mês** só com DeepSeek. Com texto pronto, Jev e geração sob demanda
+(seções 2.2, 5.3, 6.5 e 8.3):
+
+| Item (uso intenso) | Só DeepSeek | Texto pronto + Jev + DeepSeek |
+|---|---|---|
+| 20 perguntas por dia (40% de número direto) | R$ 10,20 | R$ 2,70 |
+| Resumo diário | R$ 0,45 | R$ 0,03 |
+| Explicação de oportunidade | R$ 1,80 | R$ 0,15 (sob demanda) |
+| Agentes (8, vigília em funil) | R$ 5,25 (5 agentes) | R$ 4,00 |
+| Voz paga, 5 min por dia | R$ 6,30 | R$ 6,30 |
+| **Total** | **~R$ 24** | **~R$ 13 (R$ 7 sem voz paga)** |
+
+Com a IA enxuta, **a voz paga vira o maior custo**. Por isso a voz padrão é a do próprio celular
+(grátis) e a paga fica só no pacote Pro. Um mercado de uso normal fica perto de R$ 1 a 3 por mês.
 
 ### 9.3 Proposta de preço (hipótese a validar)
 
 | Pacote | Preço | Inclui | Custo estimado | Margem bruta |
 |---|---|---|---|---|
-| **Copiloto** | R$ 79/mês | assistente, resumo diário, voz do navegador, 800 créditos | até ~R$ 6 (com Jev) | ~90% |
-| **Copiloto Pro** | R$ 199/mês | + agentes, WhatsApp, voz paga, 2.500 créditos | até ~R$ 25 (com Jev) | ~85% |
-| **Recarga** | R$ 39 | 500 créditos | ~R$ 4 | ~90% |
+| **Copiloto** | R$ 79/mês | assistente, resumo diário, voz do celular, 800 créditos | até ~R$ 3 | ~95% |
+| **Copiloto Pro** | R$ 199/mês | + agentes, WhatsApp, voz paga, 2.500 créditos | até ~R$ 13 | ~93% |
+| **Recarga** | R$ 39 | 500 créditos | ~R$ 2 | ~95% |
 
 Referência: 1 crédito ≈ 1 pergunta simples; agente e plano de compras gastam mais créditos. A margem
 real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava tokens por chamada, e
@@ -697,7 +813,8 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 
 | Fase | Entrega | Critério de pronto |
 |---|---|---|
-| **F0 · Fundação** (2-3 semanas) | chave DeepSeek da plataforma, carteira de IA com pacotes e Pix, débito por uso, teto por mercado, roteador por tarefa, cortes da IA atual (seção 2.2: sob demanda, cache por faixas, Jev, só pacote pago) | toda chamada de IA debita crédito; relatório de custo × receita no superadmin; leitura das oportunidades abaixo de R$ 0,20 por mercado/mês |
+| **F0a · Painel de APIs** (1-2 semanas) | página "IA e APIs" no superadmin: chaves cifradas (DeepSeek, OpenRouter), botão testar, roteamento por tarefa, tetos, mercados de teste, modo sombra do Jev e console de teste (seção 4.3) | chaves cadastradas e testadas pelo painel; uma tarefa roda no console mostrando camada, tokens e custo |
+| **F0 · Fundação** (2-3 semanas) | chave DeepSeek da plataforma, carteira de IA com pacotes e Pix, débito por uso, teto por mercado, roteador por tarefa, cortes da IA atual (seção 2.2: sob demanda, cache por faixas, Jev, só pacote pago), textos prontos da seção 5.3 | toda chamada de IA debita crédito; relatório de custo × receita no superadmin; leitura das oportunidades abaixo de R$ 0,20 por mercado/mês |
 | **F1 · Copiloto texto + Jev** (3-4 semanas) | Jev pela OpenRouter na camada de decisão (ferramenta, número direto, dificuldade), chat com resposta por regra, resumo diário, caixa de decisões, notificação no celular | acerto do Jev em português medido; 70% das perguntas comuns sem modelo de linguagem; custo por pergunta caindo |
 | **F2 · Voz** (2-3 semanas) | aperte-para-falar no app e no Confere, resumo falado, comandos na conferência | resposta falada em até 3 s; funciona no Android e no iPhone |
 | **F3 · Agentes** (4-6 semanas) | Gerente, Compras e Recebimento, níveis 0-2, eventos, WhatsApp | 3 agentes em produção; taxa de aceite e impacto em R$ medidos |
@@ -714,7 +831,8 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 - **Negócio:** mercados pagantes, receita de IA, custo de IA por mercado, margem.
 - **Qualidade:** respostas sem número inventado (auditoria por amostragem), reclamações, recusas por
   "não faz sentido".
-- **Custo:** percentual respondido por regra, pelo Jev e por modelo; aproveitamento do cache; tokens
+- **Custo:** percentual respondido por texto pronto, pelo Jev e por modelo (meta: menos de 20% das
+  interações chegando ao DeepSeek); aproveitamento do cache; tokens
   de contexto por tarefa (a montagem com Jev deve manter esse número estável mesmo com a memória
   crescendo).
 
@@ -748,6 +866,8 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 7. Conta na OpenRouter para o Jev (e se o saldo fica junto do DeepSeek na conta da plataforma).
 8. Se vale investir em servidor com placa de vídeo para a decisão local, depois do piloto.
 9. Se testamos o DeepSeek Harness em agentes internos da operação (catálogo, temas, suporte).
+10. Quais mercados entram como mercados de teste no painel de APIs, e por quanto tempo o Jev fica em
+    modo sombra antes de valer.
 
 ---
 
