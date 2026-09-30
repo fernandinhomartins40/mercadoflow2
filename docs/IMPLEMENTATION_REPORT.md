@@ -327,6 +327,38 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
   versão redonda, com prévias; gera 192, 512, 512 maskable e 180 (iPhone) e o manifest passa a usá-los. V59.
 - **Testes:** PWA/ícone/diagnóstico 16/16; Confere 39/39; unidade 6/6.
 
+### Ciclo 8.2 — Confere em passos e base de dados para fabricantes
+
+- **Passo a passo:** Ler nota → Conferir → Revisar → Pronto, com indicador de passos em todas as telas. A
+  conferência de um produto cabe na tela sem rolar (medido em 320×568, 360×640, 390×844 e 768×1024): foto e
+  letras se ajustam à altura, "Problema" e as opções (lista, conferência cega) abrem em folhas, o bipe abre em tela
+  cheia, "Veio certo" já passa para o próximo e arrastar para o lado troca de item. A revisão mostra diferenças,
+  problemas e itens sem contar antes de encerrar.
+- **Nada se perde:** cada toque fica no celular e vai ao servidor em seguida, ao sair da tela ou quando o sinal
+  volta — inclusive o encerramento feito sem internet (antes ficava só no celular). A lista de notas também fica
+  guardada para abrir sem sinal. Bipes fora da nota ficam guardados.
+- **Armazenamento (V60):** itens de cada nota em tabela própria (GTIN de venda e da caixa, ligação ao catálogo,
+  NCM, CFOP, quantidades, desconto, custo por unidade de venda, lote e validade); ao encerrar, entradas de estoque
+  em unidades de venda (5 CX de 24 = 120 UN), com o contado, o esperado e o problema — item não contado fica
+  "não conferido". Fornecedores (CNPJ, cidade, UF) e o endereço do mercado (bairro, cidade, IBGE, CEP) vêm da
+  própria nota; o endereço só é gravado quando o destinatário é o CNPJ do mercado. Notas e conferências antigas
+  são reprocessadas por um job em lotes.
+- **Base para o produto de fabricantes (LGPD):** agregado semanal por GTIN em três níveis (bairro, cidade, UF),
+  sem coluna de mercado nem de fornecedor, só com mercados que aceitaram os termos, só venda de mercadoria (sem
+  bonificação/remessa), célula com pelo menos N lojas (padrão 3, ajustável no superadmin entre 2 e 50) e nenhuma
+  loja com mais de 70% do volume. Visões de tração (4 semanas contra as 4 anteriores), sazonalidade por mês e
+  custo por cidade. Recalculado toda madrugada. Os termos atuais já cobrem esse uso (agregado e anônimo).
+- **Opt-in do mercado:** tela "Fabricantes" no app: o mercado pode autorizar (e retirar) que os fabricantes dos
+  produtos que compra vejam seu nome, bairro e quantidades por mês, para receber condições personalizadas. Cada
+  escolha fica registrada no extrato. Visão `mf_optin_store_sellin` respeita a RLS.
+- **Superadmin:** card "Inteligência de produto (prévia)" com a cobertura da base, tração por produto/UF,
+  sazonalidade e custo por cidade, mínimo de lojas e recálculo manual.
+- **Decisão revisitada:** a regra anterior da divisão para fabricantes era "sem mínimo de lojas". Para o agregado
+  de entrada de mercadoria o mínimo passou a existir (3) porque, sem ele, uma célula de bairro com uma loja
+  mostraria as compras daquela loja. O valor é configurável.
+- **Testes:** passos/sem rolagem/offline/opt-in 54/54; regressão Confere 39/39; dados (itens, estoque,
+  localização, RLS, agregado, k lojas, dominância, bonificação) 33/33; backfill pelo job; unidade 7/7.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

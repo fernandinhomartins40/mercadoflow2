@@ -35,10 +35,12 @@ class ConfereCoreTest {
         <?xml version="1.0" encoding="UTF-8"?>
         <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><NFe><infNFe Id="NFe%s" versao="4.00">
         <ide><cUF>35</cUF><nNF>12345</nNF><serie>1</serie><dhEmi>2026-09-28T10:15:00-03:00</dhEmi></ide>
-        <emit><CNPJ>12345678000199</CNPJ><xNome>DISTRIBUIDORA EXEMPLO LTDA</xNome><xFant>Dist Exemplo</xFant></emit>
-        <dest><CNPJ>98765432000155</CNPJ><xNome>MERCADO TESTE</xNome></dest>
+        <emit><CNPJ>12345678000199</CNPJ><xNome>DISTRIBUIDORA EXEMPLO LTDA</xNome><xFant>Dist Exemplo</xFant>
+          <enderEmit><xLgr>RUA A</xLgr><nro>10</nro><xBairro>DISTRITO INDUSTRIAL</xBairro><cMun>3509502</cMun><xMun>CAMPINAS</xMun><UF>SP</UF><CEP>13000000</CEP></enderEmit></emit>
+        <dest><CNPJ>98765432000155</CNPJ><xNome>MERCADO TESTE</xNome>
+          <enderDest><xLgr>AV B</xLgr><nro>200</nro><xBairro>Jardim  das Flores </xBairro><cMun>3550308</cMun><xMun>SAO PAULO</xMun><UF>SP</UF><CEP>01234-567</CEP></enderDest></dest>
         <det nItem="1"><prod><cProd>A1</cProd><cEAN>17891000100100</cEAN><xProd>LEITE COND MOCA 395G CX 24</xProd><NCM>04029900</NCM>
-          <uCom>CX</uCom><qCom>10.0000</qCom><vUnCom>150.00</vUnCom><vProd>1500.00</vProd>
+          <CFOP>5102</CFOP><uCom>CX</uCom><qCom>10.0000</qCom><vUnCom>150.00</vUnCom><vProd>1500.00</vProd><vDesc>60.00</vDesc>
           <cEANTrib>7891000100103</cEANTrib><uTrib>UN</uTrib><qTrib>240.0000</qTrib></prod></det>
         <det nItem="2"><prod><cProd>B2</cProd><cEAN>SEM GTIN</cEAN><xProd>BANANA PRATA KG</xProd><NCM>08039000</NCM>
           <uCom>KG</uCom><qCom>35.500</qCom><vUnCom>4.20</vUnCom><vProd>149.10</vProd>
@@ -67,6 +69,22 @@ class ConfereCoreTest {
         assertNull(banana.ean(), "SEM GTIN não é código de barras");
         assertEquals("L77", banana.lot());
         assertEquals("2026-10-05", banana.expiry());
+    }
+
+    @Test
+    void readsAddressesAndUnitCost() {
+        NfeXml.Data d = NfeXml.read(NFE_PROC);
+        assertEquals("3550308", d.recipientAddress().cityCode());
+        assertEquals("01234567", d.recipientAddress().postalCode());
+        assertEquals("JARDIM DAS FLORES", NfeItemStore.neighborhood(d.recipientAddress().neighborhood()));
+        assertEquals("CAMPINAS", d.emitterAddress().city());
+        NfeXml.Item leite = d.items().get(0);
+        assertEquals("5102", leite.cfop());
+        // (1500 - 60 de desconto) / 240 unidades de venda
+        assertEquals(0, new BigDecimal("6").compareTo(NfeItemStore.unitCost(leite)));
+        // Sem qTrib: cai na quantidade comercial.
+        NfeXml.Item banana = d.items().get(1);
+        assertEquals(0, new BigDecimal("4.2").compareTo(NfeItemStore.unitCost(banana)));
     }
 
     @Test

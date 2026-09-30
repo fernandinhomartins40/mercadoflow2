@@ -50,9 +50,11 @@ interface Props {
   /** Altura da área da câmera (CSS). */
   height?: string;
   hint?: string;
+  /** Tela cheia: sem cantos arredondados. */
+  fullscreen?: boolean;
 }
 
-const Scanner: React.FC<Props> = ({ formats, onDetect, accept, paused, height = '46vh', hint }) => {
+const Scanner: React.FC<Props> = ({ formats, onDetect, accept, paused, height = '46vh', hint, fullscreen }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +145,7 @@ const Scanner: React.FC<Props> = ({ formats, onDetect, accept, paused, height = 
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-black" style={{ height }}>
+    <div className={`relative overflow-hidden bg-black ${fullscreen ? '' : 'rounded-3xl'}`} style={{ height }}>
       {error ? (
         <div className="flex h-full items-center justify-center p-6 text-center text-lg text-white">{error}</div>
       ) : (

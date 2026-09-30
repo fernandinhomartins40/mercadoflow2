@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, ChevronRight, CreditCard, FileUp, KeyRound, LogOut, ScanBarcode } from 'lucide-react';
+import { BadgeCheck, ChevronRight, CreditCard, Factory, FileUp, KeyRound, LogOut, ScanBarcode } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { confereService } from '../../services/confere.service';
 import type { ConfereStatus, DocumentSummary } from '../../types/confere.types';
@@ -35,8 +35,17 @@ const DocRow: React.FC<{ d: DocumentSummary }> = ({ d }) => (
 
 const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, marketId }) => {
   const { logout } = useAuth();
-  const [docs, setDocs] = useState<DocumentSummary[] | null>(null);
-  useEffect(() => { confereService.documents(marketId).then(setDocs).catch(() => setDocs([])); }, [marketId]);
+  // A lista fica guardada no celular: sem sinal na doca, as notas continuam aparecendo.
+  const cacheKey = `confere:docs:${marketId}`;
+  const [docs, setDocs] = useState<DocumentSummary[] | null>(() => {
+    try { const v = localStorage.getItem(cacheKey); return v ? (JSON.parse(v) as DocumentSummary[]) : null; } catch { return null; }
+  });
+  useEffect(() => {
+    confereService.documents(marketId).then((d) => {
+      setDocs(d);
+      try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /* cheio ou bloqueado */ }
+    }).catch(() => setDocs((prev) => prev ?? []));
+  }, [marketId, cacheKey]);
   const toCheck = (docs ?? []).filter((d) => d.checkStatus !== 'DONE');
   const checked = (docs ?? []).filter((d) => d.checkStatus === 'DONE');
 
@@ -83,10 +92,11 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
           </section>
         )}
 
-        <nav className="grid grid-cols-3 gap-2" aria-label="Mais opções">
+        <nav className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-4" aria-label="Mais opções">
           <Link to="/confere/creditos" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><CreditCard className="h-7 w-7 text-green-700" aria-hidden="true" />Créditos</Link>
           <Link to="/confere/certificado" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><KeyRound className="h-7 w-7 text-green-700" aria-hidden="true" />Certificado</Link>
           <Link to="/confere/importar" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><FileUp className="h-7 w-7 text-green-700" aria-hidden="true" />Importar XML</Link>
+          <Link to="/confere/fabricantes" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><Factory className="h-7 w-7 text-green-700" aria-hidden="true" />Fabricantes</Link>
         </nav>
 
         <a href="/app" className="rounded-3xl bg-stone-900 p-5 text-white">

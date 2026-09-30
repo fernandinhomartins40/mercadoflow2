@@ -51,6 +51,13 @@ public class ConfereController {
         return confere.acceptTerms(marketId, String.valueOf(body.get("version")), auth.getName());
     }
 
+    @PutMapping("/manufacturer-visibility")
+    public ConfereService.Status manufacturerVisibility(@PathVariable UUID marketId, @RequestBody Map<String, Object> body,
+                                                       Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return confere.setManufacturerVisibility(marketId, Boolean.TRUE.equals(body.get("visible")), auth.getName());
+    }
+
     @PostMapping("/read")
     public ConfereService.ReadResult read(@PathVariable UUID marketId, @RequestBody Map<String, Object> body, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);

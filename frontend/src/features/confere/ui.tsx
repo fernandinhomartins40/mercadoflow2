@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 
 /** Peças visuais do Confere: letras grandes e alvos de toque de 56 px ou mais (doca, luva, sol). */
 
@@ -56,3 +56,25 @@ export const keyFrom = (raw: string) => {
   const m = raw.replace(/\s/g, '').match(/\d{44}/);
   return m ? m[0] : raw.replace(/\D/g, '');
 };
+
+/** Os quatro passos da conferência, do jeito que o conferente vive a entrega. */
+export const STEPS = ['Ler nota', 'Conferir', 'Revisar', 'Pronto'] as const;
+
+export const Stepper: React.FC<{ current: 0 | 1 | 2 | 3; className?: string }> = ({ current, className = '' }) => (
+  <ol className={`flex items-center gap-1 ${className}`} aria-label={`Passo ${current + 1} de ${STEPS.length}: ${STEPS[current]}`}>
+    {STEPS.map((label, i) => {
+      const done = i < current;
+      const active = i === current;
+      return (
+        <li key={label} className={`flex items-center gap-1 ${active ? 'flex-none' : 'min-w-0 flex-1'}`} aria-current={active ? 'step' : undefined}>
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+            done ? 'bg-green-700 text-white' : active ? 'bg-stone-900 text-white' : 'bg-stone-300 text-stone-600'}`}>
+            {done ? <Check className="h-4 w-4" aria-hidden="true" /> : i + 1}
+          </span>
+          <span className={`text-xs font-bold ${active ? 'whitespace-nowrap text-stone-900' : `truncate max-[380px]:sr-only ${done ? 'text-green-800' : 'text-stone-500'}`}`}>{label}</span>
+          {i < STEPS.length - 1 && <span className={`h-0.5 min-w-2 flex-1 rounded ${done ? 'bg-green-700' : 'bg-stone-300'}`} aria-hidden="true" />}
+        </li>
+      );
+    })}
+  </ol>
+);

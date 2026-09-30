@@ -4,7 +4,7 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import { confereAdminService, money, type ConfereIcons } from '../services/confere.service';
 import IconCropper from '../features/confere/IconCropper';
-import type { AdminAccount, AdminOrder, ConferePlan, ConfereSettings, ConfereStats } from '../types/confere.types';
+import type { AdminAccount, AdminOrder, ConferePlan, ConfereSettings, ConfereStats, IntelligencePreview } from '../types/confere.types';
 
 /**
  * MercadoFlow Confere no superadmin: chave do Meu Danfe (revenda de leituras),
@@ -423,6 +423,143 @@ const DiagnoseCard: React.FC = () => {
   );
 };
 
+const num = (v: number | null | undefined, d = 0) => (v == null ? '—' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: d }));
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/**
+ * Prévia da inteligência de produto para fabricantes: só lê o agregado
+ * anônimo (sem mercado e sem fornecedor) e mostra o quanto da base já tem
+ * localização e GTIN. O produto para fabricantes será construído em cima disto.
+ */
+const IntelligenceCard: React.FC = () => {
+  const [data, setData] = useState<IntelligencePreview | null>(null);
+  const [uf, setUf] = useState('');
+  const [gtin, setGtin] = useState('');
+  const [min, setMin] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback((u: string, g: string) => {
+    confereAdminService.intelligence(u, g).then((d) => { setData(d); setMin(String(d.coverage.minStores)); })
+      .catch((e) => setMsg(errorText(e, 'Não foi possível carregar.')));
+  }, []);
+  useEffect(() => { load('', ''); }, [load]);
+  const rebuild = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await confereAdminService.rebuildIntelligence();
+      setMsg(`Agregado recalculado desde ${new Date(`${r.from}T00:00`).toLocaleDateString('pt-BR')}: ${r.cells} células com ${r.minStores} lojas ou mais.`);
+      load(uf, gtin);
+    } catch (e) { setMsg(errorText(e, 'O recálculo falhou.')); } finally { setBusy(false); }
+  };
+  const saveMin = async () => {
+    setMsg(null);
+    try { setData(await confereAdminService.setMinStores(Number(min))); setMsg('Mínimo salvo. Vale a partir do próximo recálculo.'); }
+    catch (e) { setMsg(errorText(e, 'Não foi possível salvar.')); }
+  };
+  const c = data?.coverage;
+  const tiles: Array<[string, string]> = c ? [
+    ['Mercados no Confere', num(c.markets)],
+    ['Com localização', num(c.marketsWithLocation)],
+    ['Notas completas', num(c.documents)],
+    ['Itens guardados', num(c.items)],
+    ['Itens com GTIN', num(c.itemsWithGtin)],
+    ['Entradas de estoque', num(c.stockEntries)],
+    ['Células no agregado', num(c.cells)],
+    ['Autorizaram fabricantes', num(c.optedIn)],
+  ] : [];
+  return (
+    <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="intel-title">
+      <div>
+        <h2 id="intel-title" className="text-base font-semibold text-slate-900">Inteligência de produto (prévia)</h2>
+        <p className="text-sm text-slate-600">
+          Entrada de mercadoria por produto, semana e local, somada entre mercados. Uma célula (bairro, cidade ou UF) só entra com o
+          mínimo de lojas abaixo e se nenhuma loja tiver mais de 70% do volume. Nada aqui identifica mercado ou fornecedor.
+        </p>
+      </div>
+      {c && (
+        <ul className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {tiles.map(([label, value]) => (
+            <li key={label} className="rounded-lg bg-slate-50 p-2">
+              <span className="block text-xs text-slate-500">{label}</span>
+              <span className="block text-base font-bold tabular-nums text-slate-900">{value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex w-48 flex-col gap-1"><span className={LABEL}>Mínimo de lojas por célula</span>
+          <input className={INPUT} inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ''))} />
+        </label>
+        <Button variant="secondary" onClick={saveMin}>Salvar mínimo</Button>
+        <Button onClick={rebuild} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Recalcular agora'}</Button>
+      </div>
+      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); load(uf, gtin); }}>
+        <label className="flex w-24 flex-col gap-1"><span className={LABEL}>UF</span>
+          <input className={INPUT} maxLength={2} value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} />
+        </label>
+        <label className="flex w-56 flex-col gap-1"><span className={LABEL}>GTIN</span>
+          <input className={`${INPUT} font-mono`} value={gtin} onChange={(e) => setGtin(e.target.value.replace(/\D/g, ''))} />
+        </label>
+        <Button type="submit" variant="secondary">Filtrar</Button>
+      </form>
+      {msg && <p role="status" className="text-sm text-slate-700">{msg}</p>}
+      {data && (data.traction.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Tração por produto e UF</caption>
+            <thead className="text-xs text-slate-500">
+              <tr><th className="py-1 pr-3">Produto</th><th className="pr-3">UF</th><th className="pr-3 text-right">Unid. 4 sem.</th><th className="pr-3 text-right">4 sem. antes</th><th className="pr-3 text-right">Tração</th><th className="pr-3 text-right">Lojas</th><th className="text-right">Custo médio</th></tr>
+            </thead>
+            <tbody>
+              {data.traction.map((t) => (
+                <tr key={t.gtin + t.uf} className="border-t border-slate-100">
+                  <td className="py-1.5 pr-3">
+                    <button type="button" className="text-left hover:underline" onClick={() => { setGtin(t.gtin); load(uf, t.gtin); }}>
+                      <span className="block font-medium text-slate-900">{t.productName ?? 'Produto sem cadastro'}</span>
+                      <span className="font-mono text-xs text-slate-500">{t.gtin}</span>
+                    </button>
+                  </td>
+                  <td className="pr-3">{t.uf}</td>
+                  <td className="pr-3 text-right tabular-nums">{num(t.units4w)}</td>
+                  <td className="pr-3 text-right tabular-nums">{num(t.unitsPrev4w)}</td>
+                  <td className={`pr-3 text-right font-semibold tabular-nums ${t.growthPercent == null ? 'text-slate-400' : t.growthPercent >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {t.growthPercent == null ? '—' : `${t.growthPercent > 0 ? '+' : ''}${num(t.growthPercent, 1)}%`}
+                  </td>
+                  <td className="pr-3 text-right tabular-nums">{num(t.stores)}</td>
+                  <td className="text-right tabular-nums">{t.avgCost == null ? '—' : money(Math.round(t.avgCost * 100))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+          Ainda não há célula com o mínimo de lojas. O agregado cresce conforme mais mercados conferem notas; o recálculo automático roda toda madrugada.
+        </p>
+      ))}
+      {data && gtin && (data.seasonality.length > 0 || data.cities.length > 0) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Sazonalidade de {gtin}</h3>
+            <ul className="mt-1 flex flex-col gap-0.5 text-sm">
+              {data.seasonality.map((s) => <li key={s.uf + s.month}>{s.uf}, {MONTHS[s.month - 1]}: {num(s.units)} unid. ({s.stores} lojas)</li>)}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Custo por cidade (8 semanas)</h3>
+            <ul className="mt-1 flex flex-col gap-0.5 text-sm">
+              {data.cities.map((ct) => (
+                <li key={ct.uf + ct.city}>{ct.city}/{ct.uf}: {num(ct.units)} unid., custo {money(Math.round(ct.min_cost * 100))} a {money(Math.round(ct.max_cost * 100))}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
 const SuperAdminConfere: React.FC = () => {
   const [settings, setSettings] = useState<ConfereSettings | null>(null);
   const [stats, setStats] = useState<ConfereStats | null>(null);
@@ -462,6 +599,7 @@ const SuperAdminConfere: React.FC = () => {
         {settings ? <SettingsCard settings={settings} onSaved={setSettings} /> : <Loader2 className="h-6 w-6 animate-spin text-slate-400" />}
         <IconCard />
         <DiagnoseCard />
+        <IntelligenceCard />
         <OrdersCard onChange={() => { loadStats(); setVersion((v) => v + 1); }} />
         <PlansCard />
         <AccountsCard version={version} />

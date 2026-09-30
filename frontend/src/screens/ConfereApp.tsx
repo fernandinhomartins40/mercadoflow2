@@ -11,6 +11,7 @@ import Credits from '../features/confere/Credits';
 import CertificateScreen from '../features/confere/CertificateScreen';
 import ImportXml from '../features/confere/ImportXml';
 import ConferenceScreen from '../features/confere/ConferenceScreen';
+import PartnersScreen from '../features/confere/PartnersScreen';
 
 /**
  * MercadoFlow Confere (PWA): conferência de mercadoria pela nota do
@@ -60,11 +61,12 @@ const ConfereApp: React.FC = () => {
   return (
     <Routes>
       <Route index element={<Home status={status} marketId={marketId} />} />
-      <Route path="ler" element={<ReadScreen marketId={marketId} onBalance={(balance) => setStatus((s) => (s ? { ...s, balance } : s))} />} />
+      <Route path="ler" element={<Shell><ReadScreen marketId={marketId} onBalance={(balance) => setStatus((s) => (s ? { ...s, balance } : s))} /></Shell>} />
       <Route path="nota/:docId" element={<NotaRoute marketId={marketId} />} />
       <Route path="creditos" element={<Credits status={status} marketId={marketId} refresh={refresh} />} />
       <Route path="certificado" element={<CertificateScreen status={status} marketId={marketId} refresh={refresh} />} />
       <Route path="importar" element={<ImportXml marketId={marketId} />} />
+      <Route path="fabricantes" element={<PartnersScreen status={status} marketId={marketId} onChange={setStatus} />} />
       <Route path="*" element={<Navigate to="/confere/" replace />} />
     </Routes>
   );

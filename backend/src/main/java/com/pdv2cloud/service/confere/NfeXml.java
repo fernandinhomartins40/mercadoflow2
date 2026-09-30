@@ -33,14 +33,19 @@ public final class NfeXml {
         int number, String code, String ean, String name, String ncm,
         String unit, BigDecimal quantity, BigDecimal unitPrice, BigDecimal total,
         String taxUnit, BigDecimal taxQuantity, String taxEan,
-        String lot, String expiry) {}
+        String lot, String expiry, String cfop, BigDecimal discount) {}
+
+    /** Endereço de emitente ou destinatário (enderEmit / enderDest). */
+    public record Address(
+        String street, String number, String neighborhood, String cityCode, String city,
+        String uf, String postalCode) {}
 
     public record Data(
         String accessKey, boolean full,
         String emitterCnpj, String emitterName, String emitterTradeName,
         String recipientCnpj, String number, String series, LocalDateTime issuedAt,
         BigDecimal totalValue, Integer volumes, String volumeKind, BigDecimal grossWeight,
-        List<Item> items) {}
+        List<Item> items, Address emitterAddress, Address recipientAddress) {}
 
     public static DocumentBuilder safeBuilder() {
         try {
@@ -94,7 +99,7 @@ public final class NfeXml {
 
         if ("resNFe".equals(rootName)) {
             return new Data(text(root, "chNFe"), false, text(root, "CNPJ"), text(root, "xNome"), null, null,
-                null, null, dateTime(text(root, "dhEmi")), decimal(text(root, "vNF")), null, null, null, List.of());
+                null, null, dateTime(text(root, "dhEmi")), decimal(text(root, "vNF")), null, null, null, List.of(), null, null);
         }
 
         Element infNFe = first(doc, "infNFe");
@@ -157,7 +162,8 @@ public final class NfeXml {
             }
             items.add(new Item(n, text(prod, "cProd"), gtin(text(prod, "cEAN")), text(prod, "xProd"), text(prod, "NCM"),
                 text(prod, "uCom"), decimal(text(prod, "qCom")), decimal(text(prod, "vUnCom")), decimal(text(prod, "vProd")),
-                text(prod, "uTrib"), decimal(text(prod, "qTrib")), gtin(text(prod, "cEANTrib")), lot, expiry));
+                text(prod, "uTrib"), decimal(text(prod, "qTrib")), gtin(text(prod, "cEANTrib")), lot, expiry,
+                text(prod, "CFOP"), decimal(text(prod, "vDesc"))));
         }
 
         return new Data(key, true,
@@ -166,7 +172,18 @@ public final class NfeXml {
             dest == null ? null : text(dest, "CNPJ"),
             ide == null ? null : text(ide, "nNF"), ide == null ? null : text(ide, "serie"),
             ide == null ? null : dateTime(text(ide, "dhEmi") != null ? text(ide, "dhEmi") : text(ide, "dEmi")),
-            icmsTot == null ? null : decimal(text(icmsTot, "vNF")), volumes, volumeKind, weight, items);
+            icmsTot == null ? null : decimal(text(icmsTot, "vNF")), volumes, volumeKind, weight, items,
+            address(emit == null ? null : child(emit, "enderEmit")),
+            address(dest == null ? null : child(dest, "enderDest")));
+    }
+
+    private static Address address(Element e) {
+        if (e == null) {
+            return null;
+        }
+        String cep = text(e, "CEP");
+        return new Address(text(e, "xLgr"), text(e, "nro"), text(e, "xBairro"), text(e, "cMun"), text(e, "xMun"),
+            text(e, "UF"), cep == null ? null : cep.replaceAll("\\D", ""));
     }
 
     // ── Apoio ─────────────────────────────────────────────────────────────

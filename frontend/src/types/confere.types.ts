@@ -24,6 +24,8 @@ export interface ConfereStatus {
   stripeAvailable: boolean;
   marketName: string;
   marketCnpj: string | null;
+  manufacturerVisibility: boolean;
+  manufacturerVisibilityAt: string | null;
 }
 
 export interface ReadResult {
@@ -175,4 +177,25 @@ export interface AdminAccount {
   termsAcceptedAt: string | null;
   reads30d: number;
   documents: number;
+}
+
+export interface IntelligenceTraction {
+  gtin: string;
+  productName: string | null;
+  uf: string;
+  units4w: number | null;
+  unitsPrev4w: number | null;
+  stores: number | null;
+  avgCost: number | null;
+  growthPercent: number | null;
+}
+
+export interface IntelligencePreview {
+  coverage: {
+    markets: number; marketsWithLocation: number; documents: number; items: number; itemsWithGtin: number;
+    stockEntries: number; cells: number; optedIn: number; minStores: number;
+  };
+  traction: IntelligenceTraction[];
+  seasonality: Array<{ uf: string; month: number; units: number; stores: number }>;
+  cities: Array<{ uf: string; city: string; units: number; stores: number; min_cost: number; avg_cost: number; max_cost: number }>;
 }

@@ -1,7 +1,7 @@
 import api from './api';
 import type {
   AdminAccount, AdminOrder, ConfereCertificate, ConfereCheck, ConfereDocument, ConfereOrder, ConferePlan, ConfereSettings,
-  ConfereStats, ConfereStatus, DocumentSummary, ItemCount, LedgerEntry, ReadResult,
+  ConfereStats, ConfereStatus, DocumentSummary, IntelligencePreview, ItemCount, LedgerEntry, ReadResult,
 } from '../types/confere.types';
 
 export interface ConfereIcons { icon192: string; icon512: string; maskable: string; apple: string; background: string; custom: boolean; updatedAt: string | null }
@@ -12,6 +12,8 @@ const multipart = { headers: { 'Content-Type': 'multipart/form-data' }, timeout:
 export const confereService = {
   status: async (m: string): Promise<ConfereStatus> => (await api.get(`${base(m)}/status`)).data,
   acceptTerms: async (m: string, version: string): Promise<ConfereStatus> => (await api.post(`${base(m)}/terms`, { version })).data,
+  setManufacturerVisibility: async (m: string, visible: boolean): Promise<ConfereStatus> =>
+    (await api.put(`${base(m)}/manufacturer-visibility`, { visible })).data,
   /** A busca pode levar até ~1 minuto (Sefaz ou Meu Danfe). */
   read: async (m: string, accessKey: string): Promise<ReadResult> =>
     (await api.post(`${base(m)}/read`, { accessKey }, { timeout: 120000 })).data,
@@ -43,6 +45,11 @@ export const confereService = {
 const admin = '/v1/super-admin/confere';
 
 export const confereAdminService = {
+  intelligence: async (uf?: string, gtin?: string): Promise<IntelligencePreview> =>
+    (await api.get(`${admin}/intelligence`, { params: { uf: uf || undefined, gtin: gtin || undefined } })).data,
+  rebuildIntelligence: async (): Promise<{ from: string; cells: number; minStores: number }> =>
+    (await api.post(`${admin}/intelligence/rebuild`, {}, { timeout: 120000 })).data,
+  setMinStores: async (value: number): Promise<IntelligencePreview> => (await api.put(`${admin}/intelligence/min-stores`, { value })).data,
   settings: async (): Promise<ConfereSettings> => (await api.get(`${admin}/settings`)).data,
   save: async (body: Partial<ConfereSettings> & { meuDanfeApiKey?: string }): Promise<ConfereSettings> =>
     (await api.put(`${admin}/settings`, body, { timeout: 60000 })).data,

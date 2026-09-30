@@ -44,17 +44,20 @@ public class ConfereService {
     private final SefazClient sefaz;
     private final CatalogImageStorageService catalogImages;
     private final CatalogImageUrlResolver imageUrls;
+    private final NfeItemStore itemStore;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
     private final SecureRandom random = new SecureRandom();
 
     public ConfereService(NamedParameterJdbcTemplate jdbc, AiCredentialCipher cipher, MeuDanfeClient meuDanfe,
-                          SefazClient sefaz, CatalogImageStorageService catalogImages, CatalogImageUrlResolver imageUrls) {
+                          SefazClient sefaz, CatalogImageStorageService catalogImages, CatalogImageUrlResolver imageUrls,
+                          NfeItemStore itemStore) {
         this.jdbc = jdbc;
         this.cipher = cipher;
         this.meuDanfe = meuDanfe;
         this.sefaz = sefaz;
         this.catalogImages = catalogImages;
         this.imageUrls = imageUrls;
+        this.itemStore = itemStore;
     }
 
     public record Plan(UUID id, String name, int reads, int priceCents, boolean active) {}
@@ -67,7 +70,8 @@ public class ConfereService {
     public record Status(boolean enabled, boolean termsAccepted, String termsVersion, String termsText, int balance,
                          boolean trialGranted, int trialReads, int pricePerReadCents, List<Plan> plans,
                          CertificateInfo certificate, boolean pixAvailable, boolean stripeAvailable,
-                         String marketName, String marketCnpj) {}
+                         String marketName, String marketCnpj, boolean manufacturerVisibility,
+                         LocalDateTime manufacturerVisibilityAt) {}
 
     @Transactional(readOnly = true)
     public Status status(UUID marketId) {
@@ -85,7 +89,25 @@ public class ConfereService {
             termsText == null ? ConfereAdminService.DEFAULT_TERMS : termsText, balance, trial,
             ((Number) s.get("trial_reads")).intValue(), ((Number) s.get("price_per_read_cents")).intValue(), plans,
             certificate(marketId), s.get("pix_key") != null, Boolean.TRUE.equals(s.get("stripe_enabled")),
-            (String) market.get("name"), (String) market.get("cnpj"));
+            (String) market.get("name"), (String) market.get("cnpj"),
+            !acc.isEmpty() && Boolean.TRUE.equals(acc.get(0).get("manufacturer_visibility")),
+            acc.isEmpty() ? null : ts((Timestamp) acc.get(0).get("manufacturer_visibility_at")));
+    }
+
+    /**
+     * Opt-in do mercado: aparecer com nome para os fabricantes dos produtos que
+     * ele compra, em troca de ofertas e condições personalizadas. Revogável a
+     * qualquer momento; sem ele, o mercado só entra no agregado anônimo.
+     */
+    @Transactional
+    public Status setManufacturerVisibility(UUID marketId, boolean visible, String actor) {
+        requireTerms(marketId);
+        jdbc.update("update confere_accounts set manufacturer_visibility = :v, manufacturer_visibility_at = now(), updated_at = now() " +
+            "where market_id = :m", Map.of("m", marketId, "v", visible));
+        jdbc.update("insert into confere_ledger (market_id, delta, kind, reference, note) values (:m, 0, 'CONSENT', :r, :n)",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("r", visible ? "manufacturer-optin" : "manufacturer-optout")
+                .addValue("n", (visible ? "Autorizou" : "Retirou") + " a visibilidade para fabricantes (" + cut(actor, 120) + ")"));
+        return status(marketId);
     }
 
     private CertificateInfo certificate(UUID marketId) {
@@ -275,7 +297,44 @@ public class ConfereService {
             "volumes = coalesce(excluded.volumes, nfe_documents.volumes), updated_at = now() " +
             "where nfe_documents.completeness <> 'FULL' or excluded.completeness = 'FULL'",
             p);
-        return jdbc.queryForObject("select id from nfe_documents where market_id = :m and access_key = :k", p, UUID.class);
+        UUID id = jdbc.queryForObject("select id from nfe_documents where market_id = :m and access_key = :k", p, UUID.class);
+        if (d.full()) {
+            itemStore.extract(marketId, id, d);
+        }
+        return id;
+    }
+
+    /**
+     * Notas guardadas antes da tabela de itens: extrai de novo a partir do XML.
+     * Roda em lotes pequenos (job) até não sobrar nenhuma.
+     */
+    @Transactional
+    public int backfillItems(int limit) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+            "select id, market_id, xml from nfe_documents where completeness = 'FULL' and not items_extracted " +
+            "order by created_at limit :l", Map.of("l", limit));
+        int done = 0;
+        for (Map<String, Object> r : rows) {
+            UUID id = (UUID) r.get("id");
+            UUID marketId = (UUID) r.get("market_id");
+            try {
+                itemStore.extract(marketId, id, NfeXml.read((String) r.get("xml")));
+                done++;
+            } catch (RuntimeException e) {
+                log.warn("Itens da nota {} não extraídos: {}", id, e.getMessage());
+                jdbc.update("update nfe_documents set items_extracted = true where id = :id", Map.of("id", id));
+            }
+        }
+        // Conferências fechadas antes das entradas de estoque.
+        List<Map<String, Object>> checks = jdbc.queryForList(
+            "select k.id, k.market_id, k.document_id, k.counts from confere_checks k where k.status = 'DONE' " +
+            "and not exists (select 1 from confere_stock_entries e where e.check_id = k.id) " +
+            "and exists (select 1 from nfe_document_items i where i.document_id = k.document_id) limit :l", Map.of("l", limit));
+        for (Map<String, Object> c : checks) {
+            itemStore.writeStockEntries((UUID) c.get("market_id"), (UUID) c.get("document_id"), (UUID) c.get("id"),
+                map(String.valueOf(c.get("counts"))));
+        }
+        return done + checks.size();
     }
 
     private UUID storeDist(UUID marketId, SefazClient.DistResult r) {
@@ -459,7 +518,11 @@ public class ConfereService {
             new MapSqlParameterSource().addValue("id", current.id()).addValue("m", marketId).addValue("c", counts)
                 .addValue("b", body.containsKey("blind") ? Boolean.TRUE.equals(body.get("blind")) : current.blind())
                 .addValue("s", summary).addValue("finish", finish).addValue("a", actor));
-        return latestCheck(marketId, documentId);
+        Check saved = latestCheck(marketId, documentId);
+        if (finish) {
+            itemStore.writeStockEntries(marketId, documentId, saved.id(), saved.counts());
+        }
+        return saved;
     }
 
     private Check mapCheck(java.sql.ResultSet rs) throws java.sql.SQLException {

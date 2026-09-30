@@ -1,17 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, EyeOff, List, Minus, PackageCheck, Plus, ScanBarcode, Send,
-  TrendingUp, X,
+  AlertTriangle, ArrowLeft, ArrowRight, Check, ClipboardCheck, EyeOff, List, Minus, MoreVertical, PackageCheck, Plus,
+  RotateCcw, ScanBarcode, Send, TrendingUp, X,
 } from 'lucide-react';
 import { confereService } from '../../services/confere.service';
 import type { ConfereDocument, ConfereItem, ItemCount, ItemIssue } from '../../types/confere.types';
 import Scanner from './Scanner';
+import { Stepper } from './ui';
 
 /**
- * A conferência em si: um produto por vez (passo a passo) ou a lista inteira,
- * em letras grandes, com a foto do catálogo. Cada toque é salvo no celular na
- * hora (funciona sem sinal) e enviado ao servidor quando der.
+ * A conferência em passos: Conferir (um produto por tela, sem rolar) →
+ * Revisar (diferenças antes de fechar) → Pronto (resultado e WhatsApp).
+ *
+ * Nada se perde: cada toque vai para o celular na hora; o servidor recebe em
+ * seguida, ao sair da tela ou quando o sinal voltar — inclusive o
+ * encerramento feito sem internet.
  */
 
 const qtyFmt = (v: number | null | undefined) =>
@@ -27,12 +31,17 @@ const ISSUES: Array<{ key: ItemIssue; label: string }> = [
 
 const localKey = (docId: string) => `confere:check:${docId}`;
 const docKey = (docId: string) => `confere:doc:${docId}`;
+const extrasKey = (docId: string) => `confere:extras:${docId}`;
+const finishKey = (docId: string) => `confere:finish:${docId}`;
 const readLocal = <T,>(k: string): T | null => {
   try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as T) : null; } catch { return null; }
 };
 const writeLocal = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* cheio ou bloqueado */ } };
+const removeLocal = (k: string) => { try { localStorage.removeItem(k); } catch { /* bloqueado */ } };
 
 type Result = 'OK' | 'FALTA' | 'SOBRA' | 'PENDENTE';
+type Phase = 'contar' | 'revisar' | 'pronto';
+type Counts = Record<string, ItemCount>;
 
 const resultOf = (item: ConfereItem, c: ItemCount | undefined): { result: Result; diff: number } => {
   if (!c || c.counted == null) return { result: 'PENDENTE', diff: 0 };
@@ -43,20 +52,20 @@ const resultOf = (item: ConfereItem, c: ItemCount | undefined): { result: Result
 
 const displayName = (item: ConfereItem) => item.catalogName || item.name;
 
-const QtyLine: React.FC<{ item: ConfereItem; className?: string }> = ({ item, className }) => {
+const QtyLine: React.FC<{ item: ConfereItem }> = ({ item }) => {
   const showTrib = item.taxUnit && item.taxQuantity != null && item.taxUnit !== item.unit;
   return (
-    <span className={className}>
+    <span>
       <strong className="tabular-nums">{qtyFmt(item.quantity)}</strong> {item.unit ?? ''}
       {showTrib && <span className="text-stone-500"> ({qtyFmt(item.taxQuantity)} {item.taxUnit})</span>}
     </span>
   );
 };
 
-const Photo: React.FC<{ item: ConfereItem; size: string }> = ({ item, size }) => {
+const Photo: React.FC<{ item: ConfereItem; className: string }> = ({ item, className }) => {
   const [failed, setFailed] = useState(false);
   return (
-    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white ${size}`} style={{ border: '1px solid #e7e5e4' }}>
+    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white ${className}`}>
       {item.imageUrl && !failed
         ? <img src={item.imageUrl} alt="" className="h-full w-full object-contain p-1" onError={() => setFailed(true)} />
         : <PackageCheck className="h-1/2 w-1/2 text-stone-300" aria-hidden="true" />}
@@ -71,66 +80,124 @@ const volumesText = (doc: ConfereDocument) => {
   return `, ${doc.volumes} volumes${kind && !kind.startsWith('volume') ? ` (${kind})` : ''}`;
 };
 
+/** Folha que sobe de baixo: opções e problema do item, sem tirar o produto da tela. */
+const Sheet: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
+  <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
+      className="flex max-h-[85dvh] w-full max-w-xl flex-col gap-3 overflow-auto rounded-t-3xl bg-white p-5 pb-[max(20px,env(safe-area-inset-bottom))]">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-extrabold">{title}</h2>
+        <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100"><X className="h-6 w-6" /></button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
 const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marketId, docId }) => {
   const navigate = useNavigate();
   const [doc, setDoc] = useState<ConfereDocument | null>(() => readLocal<ConfereDocument>(docKey(docId)));
   const [error, setError] = useState<string | null>(null);
-  const [counts, setCounts] = useState<Record<string, ItemCount>>(() => readLocal<Record<string, ItemCount>>(localKey(docId)) ?? {});
+  const [counts, setCounts] = useState<Counts>(() => readLocal<Counts>(localKey(docId)) ?? {});
+  const [extras, setExtras] = useState<string[]>(() => readLocal<string[]>(extrasKey(docId)) ?? []);
   const [blind, setBlind] = useState(false);
   const [mode, setMode] = useState<'passo' | 'lista'>('passo');
+  const [phase, setPhase] = useState<Phase>('contar');
   const [index, setIndex] = useState(0);
   const [scanning, setScanning] = useState(false);
+  const [sheet, setSheet] = useState<'menu' | 'problema' | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [extras, setExtras] = useState<string[]>([]);
-  const [finished, setFinished] = useState(false);
   const [sync, setSync] = useState<'ok' | 'pending' | 'offline'>('ok');
+  const [closing, setClosing] = useState(false);
+
+  const countsRef = useRef(counts);
+  const blindRef = useRef(blind);
+  const dirty = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const advanceTimer = useRef<ReturnType<typeof setTimeout>>();
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  countsRef.current = counts;
+  blindRef.current = blind;
+
+  const push = useCallback(async (next: Counts, finish = false, summary?: unknown) => {
+    setSync('pending');
+    try {
+      await confereService.saveCheck(marketId, docId, { counts: next, blind: blindRef.current, finish, summary });
+      dirty.current = false;
+      if (finish) removeLocal(finishKey(docId));
+      setSync('ok');
+      return true;
+    } catch {
+      if (finish) writeLocal(finishKey(docId), summary ?? {});
+      setSync('offline');
+      return false;
+    }
+  }, [marketId, docId]);
+
+  /** Encerramento feito sem sinal: manda de novo. */
+  const retryPendingFinish = useCallback(() => {
+    const pending = readLocal<unknown>(finishKey(docId));
+    if (pending) push(countsRef.current, true, pending);
+    else if (dirty.current) push(countsRef.current);
+  }, [docId, push]);
 
   useEffect(() => {
     confereService.document(marketId, docId).then((d) => {
       setDoc(d);
       writeLocal(docKey(docId), d);
+      const local = readLocal<Counts>(localKey(docId));
+      const hasLocal = !!local && Object.keys(local).length > 0;
       if (d.check) {
         setBlind(d.check.blind);
-        if (d.check.status === 'DONE') setFinished(true);
+        if (d.check.status === 'DONE') setPhase('pronto');
         // O que está no celular vale mais que o do servidor (pode ter sido contado sem sinal).
-        const local = readLocal<Record<string, ItemCount>>(localKey(docId));
-        if (!local || Object.keys(local).length === 0) setCounts((d.check.counts as Record<string, ItemCount>) ?? {});
+        if (!hasLocal) setCounts((d.check.counts as Counts) ?? {});
       }
+      if (hasLocal) { dirty.current = true; }
+      retryPendingFinish();
+      if (readLocal(finishKey(docId))) setPhase('pronto');
     }).catch((e) => {
       if (!doc) setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não foi possível abrir a nota.');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketId, docId]);
 
-  const push = useCallback((next: Record<string, ItemCount>, finish = false, summary?: unknown) => {
-    setSync('pending');
-    return confereService.saveCheck(marketId, docId, { counts: next, blind, finish, summary })
-      .then(() => setSync('ok'))
-      .catch(() => setSync('offline'));
-  }, [marketId, docId, blind]);
-
   const update = (n: number, patch: Partial<ItemCount>) => {
     setCounts((prev) => {
       const current = prev[n] ?? { counted: null };
       const next = { ...prev, [n]: { ...current, ...patch } };
       writeLocal(localKey(docId), next);
+      dirty.current = true;
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => push(next), 1500);
+      saveTimer.current = setTimeout(() => push(next), 1200);
       return next;
     });
   };
 
-  // Voltou a internet: manda o que ficou no celular.
+  // Sinal de volta, app para o fundo ou saída da tela: nada fica só no timer.
   useEffect(() => {
-    const online = () => { if (sync === 'offline') push(counts); };
-    window.addEventListener('online', online);
-    return () => window.removeEventListener('online', online);
-  }, [sync, counts, push]);
+    const flush = () => {
+      if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = undefined; }
+      retryPendingFinish();
+    };
+    const hidden = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('online', flush);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('online', flush);
+      document.removeEventListener('visibilitychange', hidden);
+      flush();
+    };
+  }, [retryPendingFinish]);
 
-  const items = doc?.items ?? [];
+  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => () => { if (advanceTimer.current) clearTimeout(advanceTimer.current); }, []);
+
+  const items = useMemo(() => doc?.items ?? [], [doc]);
   const done = items.filter((it) => counts[it.number]?.counted != null).length;
-  const item = items[Math.min(index, Math.max(0, items.length - 1))];
+  const safeIndex = Math.min(index, Math.max(0, items.length - 1));
+  const item = items[safeIndex];
+  const last = safeIndex >= items.length - 1;
 
   const summary = useMemo(() => {
     const falta: string[] = [];
@@ -140,14 +207,17 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
     items.forEach((it) => {
       const c = counts[it.number];
       const { result, diff } = resultOf(it, c);
-      const label = `${displayName(it)}`;
+      const label = displayName(it);
       if (result === 'OK') ok += 1;
       if (result === 'FALTA') falta.push(`${qtyFmt(-diff)} ${it.unit ?? ''} de ${label}`);
       if (result === 'SOBRA') sobra.push(`${qtyFmt(diff)} ${it.unit ?? ''} de ${label}`);
       if (c?.issue) issues.push(`${ISSUES.find((i) => i.key === c.issue)?.label}: ${label}${c.note ? ` (${c.note})` : ''}`);
     });
-    return { ok, falta, sobra, issues, pending: items.length - done };
-  }, [items, counts, done]);
+    return { ok, falta, sobra, issues, pending: items.length - done, extras };
+  }, [items, counts, done, extras]);
+
+  const goTo = (i: number) => { setIndex(Math.max(0, Math.min(items.length - 1, i))); setMode('passo'); setPhase('contar'); };
+  const next = () => (last ? setPhase('revisar') : setIndex(safeIndex + 1));
 
   const onScanProduct = (value: string) => {
     const code = value.replace(/\D/g, '');
@@ -155,13 +225,16 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
     const hitUnit = items.find((it) => it.taxEan === code);
     const hit = hitBox ?? hitUnit;
     if (!hit) {
-      setExtras((e) => (e.includes(code) ? e : [...e, code]));
+      setExtras((e) => {
+        const nextExtras = e.includes(code) ? e : [...e, code];
+        writeLocal(extrasKey(docId), nextExtras);
+        return nextExtras;
+      });
       setToast(`Código ${code} não está na nota`);
       navigator.vibrate?.([80, 60, 80]);
       return;
     }
-    const pos = items.indexOf(hit);
-    setIndex(pos);
+    setIndex(items.indexOf(hit));
     if (!hitBox && hit.unit !== hit.taxUnit && hit.taxUnit) {
       setToast(`Esse é o código da unidade. ${displayName(hit)} vem em ${hit.unit}: conte as ${hit.unit}.`);
       return;
@@ -171,11 +244,11 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
     setToast(`+1 ${hit.unit ?? ''} ${displayName(hit)}`);
   };
 
-  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
-
   const finish = async () => {
+    setClosing(true);
     await push(counts, true, summary);
-    setFinished(true);
+    setClosing(false);
+    setPhase('pronto');
   };
 
   const whatsappText = () => {
@@ -200,176 +273,228 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
     );
   }
   if (!doc) {
-    return <div className="flex h-[60vh] items-center justify-center" role="status"><div className="h-10 w-10 animate-spin rounded-full border-4 border-green-700 border-t-transparent" /><span className="sr-only">Abrindo a nota</span></div>;
+    return <div className="flex h-[60dvh] items-center justify-center" role="status"><div className="h-10 w-10 animate-spin rounded-full border-4 border-green-700 border-t-transparent" /><span className="sr-only">Abrindo a nota</span></div>;
   }
 
-  // ── Resumo final ──────────────────────────────────────────────────────
-  if (finished) {
+  const syncLabel = sync === 'offline' ? 'Sem sinal: salvo no celular' : sync === 'pending' ? 'Salvando…' : 'Salvo';
+
+  // Cabeçalho comum aos três passos: nota, estado do salvamento e o passo atual.
+  const header = (step: 1 | 2 | 3, extra?: React.ReactNode) => (
+    <header className="flex shrink-0 flex-col gap-2 px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => navigate('/confere/')} aria-label="Voltar às notas" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white"><ArrowLeft className="h-6 w-6" /></button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-bold leading-tight text-stone-900">{doc.emitterName ?? 'Fornecedor'}</p>
+          <p className="truncate text-sm leading-tight text-stone-600">NF {doc.number}{volumesText(doc)}{doc.totalValue ? `, ${money(doc.totalValue)}` : ''}</p>
+        </div>
+        <span role="status" aria-label={syncLabel} title={syncLabel}
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${sync === 'offline' ? 'bg-amber-200 text-amber-900' : sync === 'pending' ? 'bg-white text-stone-600' : 'bg-green-100 text-green-800'}`}>
+          {sync === 'offline' ? 'Sem sinal' : sync === 'pending' ? 'Salvando' : 'Salvo'}
+        </span>
+        {extra}
+      </div>
+      <Stepper current={step} />
+    </header>
+  );
+
+  // ── Passo 4: pronto ────────────────────────────────────────────────────
+  if (phase === 'pronto') {
     const clean = !summary.falta.length && !summary.sobra.length && !summary.issues.length && !extras.length;
     return (
-      <div className="flex flex-col gap-4 p-4 pb-28">
-        <button type="button" onClick={() => navigate('/confere/')} className="flex items-center gap-2 self-start text-lg font-semibold text-green-800"><ChevronLeft className="h-6 w-6" />Notas</button>
-        <div className={`rounded-3xl p-6 ${clean ? 'bg-green-700 text-white' : 'bg-amber-400 text-stone-900'}`}>
-          <p className="text-lg font-semibold">{doc.emitterName}, NF {doc.number}</p>
-          <h1 className="mt-1 text-3xl font-extrabold leading-tight">{clean ? 'Tudo certo com a entrega' : 'Entrega com diferença'}</h1>
-          <p className="mt-2 text-lg">{summary.ok} de {items.length} itens sem diferença.</p>
-        </div>
-        {[['Faltou', summary.falta, 'text-red-800'], ['Veio a mais', summary.sobra, 'text-amber-800'], ['Problemas', summary.issues, 'text-red-800']].map(([title, list, color]) =>
-          (list as string[]).length ? (
-            <section key={title as string} className="rounded-3xl bg-white p-5">
-              <h2 className={`text-xl font-bold ${color}`}>{title as string}</h2>
-              <ul className="mt-2 flex flex-col gap-2 text-lg">{(list as string[]).map((l) => <li key={l}>{l}</li>)}</ul>
+      <div className="flex h-[100dvh] flex-col">
+        {header(3)}
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-3 pb-3">
+          <div className={`rounded-3xl p-5 ${clean ? 'bg-green-700 text-white' : 'bg-amber-400 text-stone-900'}`}>
+            <ClipboardCheck className="h-10 w-10" aria-hidden="true" />
+            <h1 className="mt-2 text-3xl font-extrabold leading-tight">{clean ? 'Tudo certo com a entrega' : 'Entrega com diferença'}</h1>
+            <p className="mt-1 text-lg">{summary.ok} de {items.length} itens sem diferença{summary.pending ? `, ${summary.pending} sem contar` : ''}.</p>
+            {sync === 'offline' && <p className="mt-2 text-base font-semibold">Sem sinal: o encerramento vai para o sistema assim que a internet voltar.</p>}
+          </div>
+          {[['Faltou', summary.falta, 'text-red-800'], ['Veio a mais', summary.sobra, 'text-amber-800'], ['Problemas', summary.issues, 'text-red-800']].map(([title, list, color]) =>
+            (list as string[]).length ? (
+              <section key={title as string} className="rounded-3xl bg-white p-4">
+                <h2 className={`text-xl font-bold ${color}`}>{title as string}</h2>
+                <ul className="mt-2 flex flex-col gap-1.5 text-lg">{(list as string[]).map((l) => <li key={l}>{l}</li>)}</ul>
+              </section>
+            ) : null)}
+          {extras.length > 0 && (
+            <section className="rounded-3xl bg-white p-4">
+              <h2 className="text-xl font-bold text-amber-800">Fora da nota</h2>
+              <p className="mt-1 text-lg">{extras.join(', ')}</p>
             </section>
-          ) : null)}
-        {extras.length > 0 && (
-          <section className="rounded-3xl bg-white p-5">
-            <h2 className="text-xl font-bold text-amber-800">Fora da nota</h2>
-            <p className="mt-1 text-lg">{extras.join(', ')}</p>
-          </section>
-        )}
-        <a href={`https://wa.me/?text=${encodeURIComponent(whatsappText())}`} target="_blank" rel="noreferrer"
-          className="flex h-16 items-center justify-center gap-3 rounded-2xl bg-green-700 text-xl font-bold text-white">
-          <Send className="h-6 w-6" />Mandar para o fornecedor
-        </a>
-        <button type="button" onClick={() => { setFinished(false); setIndex(0); }} className="h-14 rounded-2xl border-2 border-stone-300 text-lg font-semibold text-stone-800">
-          Revisar a contagem
-        </button>
-        <a href="/app" className="rounded-3xl bg-stone-900 p-5 text-white">
-          <span className="block text-sm font-semibold text-yellow-300">MercadoFlow</span>
-          <span className="mt-1 block text-lg font-bold">Quanto desses produtos você vende por dia?</span>
-          <span className="mt-1 block text-stone-300">Conecte o caixa ao MercadoFlow e veja a venda, o estoque e o que comprar, produto por produto.</span>
-        </a>
+          )}
+          <a href="/app" className="rounded-3xl bg-stone-900 p-4 text-white">
+            <span className="block text-sm font-semibold text-yellow-300">MercadoFlow</span>
+            <span className="mt-1 block text-lg font-bold">Quanto desses produtos você vende por dia?</span>
+            <span className="mt-1 block text-stone-300">Conecte o caixa ao MercadoFlow e veja a venda, o estoque e o que comprar, produto por produto.</span>
+          </a>
+        </main>
+        <nav className="shrink-0 border-t border-stone-200 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3" aria-label="Depois da conferência">
+          <div className="flex flex-col gap-2">
+            {!clean && (
+              <a href={`https://wa.me/?text=${encodeURIComponent(whatsappText())}`} target="_blank" rel="noreferrer"
+                className="flex h-14 items-center justify-center gap-3 rounded-2xl bg-green-700 text-lg font-bold text-white">
+                <Send className="h-6 w-6" />Mandar para o fornecedor
+              </a>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => { setPhase('contar'); setIndex(0); }}
+                className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-stone-100 text-base font-bold text-stone-900">
+                <RotateCcw className="h-5 w-5" />Reabrir contagem
+              </button>
+              <Link to="/confere/ler" className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold ${clean ? 'bg-green-700 text-white' : 'bg-stone-100 text-stone-900'}`}>
+                <ScanBarcode className="h-5 w-5" />Ler outra nota
+              </Link>
+            </div>
+          </div>
+        </nav>
       </div>
     );
   }
 
-  const c = item ? counts[item.number] : undefined;
-  const r = item ? resultOf(item, c) : { result: 'PENDENTE' as Result, diff: 0 };
-
-  return (
-    <div className="flex flex-col gap-3 pb-32">
-      {/* Cabeçalho da nota */}
-      <header className="sticky top-0 z-10 flex flex-col gap-2 bg-stone-100/95 px-4 pb-3 pt-3 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => navigate('/confere/')} aria-label="Voltar às notas" className="flex h-12 w-12 items-center justify-center rounded-full bg-white"><ArrowLeft className="h-6 w-6" /></button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-bold text-stone-900">{doc.emitterName ?? 'Fornecedor'}</p>
-            <p className="truncate text-sm text-stone-600">
-              NF {doc.number}{volumesText(doc)}{doc.totalValue ? `, ${money(doc.totalValue)}` : ''}
-            </p>
-          </div>
-          <span className={`rounded-full px-3 py-1 text-sm font-semibold ${sync === 'offline' ? 'bg-amber-200 text-amber-900' : 'bg-white text-stone-600'}`} role="status">
-            {sync === 'offline' ? 'Sem sinal: salvo no celular' : sync === 'pending' ? 'Salvando…' : 'Salvo'}
-          </span>
-        </div>
-        <div className="h-3 overflow-hidden rounded-full bg-stone-300" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done} aria-label="Itens conferidos">
-          <div className="h-full rounded-full bg-green-700 transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-base font-semibold text-stone-800">{done} de {items.length} conferidos</span>
-          <div className="ml-auto flex rounded-xl bg-white p-1" role="tablist" aria-label="Modo">
-            {([['passo', 'Um por vez'], ['lista', 'Lista']] as const).map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)}
-                className={`rounded-lg px-3 py-2 text-sm font-bold ${mode === k ? 'bg-green-700 text-white' : 'text-stone-700'}`}>
-                {k === 'lista' ? <List className="mr-1 inline h-4 w-4" /> : null}{label}
-              </button>
+  // ── Passo 3: revisar ───────────────────────────────────────────────────
+  if (phase === 'revisar') {
+    const withDiff = items.map((it, i) => ({ it, i, r: resultOf(it, counts[it.number]), c: counts[it.number] }))
+      .filter(({ r, c }) => r.result === 'FALTA' || r.result === 'SOBRA' || c?.issue);
+    const pendingItems = items.map((it, i) => ({ it, i })).filter(({ it }) => counts[it.number]?.counted == null);
+    const tiles: Array<[string, number, string]> = [
+      ['Certos', summary.ok, 'bg-green-100 text-green-900'],
+      ['Com diferença', summary.falta.length + summary.sobra.length, 'bg-red-100 text-red-900'],
+      ['Problemas', summary.issues.length, 'bg-amber-100 text-amber-900'],
+      ['Sem contar', summary.pending, 'bg-stone-200 text-stone-800'],
+    ];
+    return (
+      <div className="flex h-[100dvh] flex-col">
+        {header(2)}
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-3 pb-3">
+          <h1 className="text-2xl font-extrabold">Revise antes de encerrar</h1>
+          <div className="grid grid-cols-2 gap-2">
+            {tiles.map(([label, n, tone]) => (
+              <div key={label} className={`rounded-2xl p-3 ${tone}`}>
+                <p className="text-3xl font-extrabold tabular-nums">{n}</p>
+                <p className="text-base font-semibold">{label}</p>
+              </div>
             ))}
           </div>
-        </div>
-      </header>
-
-      {toast && <div className="fixed inset-x-4 top-4 z-30 rounded-2xl bg-stone-900 px-5 py-4 text-lg font-semibold text-white shadow-xl" role="status">{toast}</div>}
-
-      {scanning && (
-        <div className="px-4">
-          <Scanner formats={['ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'code_128']} height="30vh"
-            hint="Bipe o código do produto" onDetect={onScanProduct}
-            accept={(v) => /^\d{8,14}$/.test(v)} />
-        </div>
-      )}
-
-      {mode === 'passo' && item && (
-        <section className="mx-4 flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-sm" aria-label={`Item ${index + 1} de ${items.length}`}>
-          <div className="flex items-center justify-between text-base font-semibold text-stone-500">
-            <span>Item {index + 1} de {items.length}</span>
-            {r.result !== 'PENDENTE' && !blind && (
-              <span className={`rounded-full px-3 py-1 ${r.result === 'OK' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {r.result === 'OK' ? 'Confere' : r.result === 'FALTA' ? `Falta ${qtyFmt(-r.diff)}` : `Sobra ${qtyFmt(r.diff)}`}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            <Photo item={item} size="h-28 w-28" />
-            <div className="min-w-0">
-              <h2 className="text-2xl font-extrabold leading-tight text-stone-900">{displayName(item)}</h2>
-              {item.catalogName && item.catalogName !== item.name && <p className="mt-1 text-sm text-stone-500">{item.name}</p>}
-              {item.ean && <p className="mt-1 font-mono text-sm text-stone-500">{item.ean}</p>}
-            </div>
-          </div>
-          {!blind && (
-            <p className="rounded-2xl bg-stone-100 px-4 py-3 text-xl text-stone-800">Na nota: <QtyLine item={item} /></p>
+          {withDiff.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-lg font-bold">Diferenças e problemas</h2>
+              <ul className="flex flex-col gap-2">
+                {withDiff.map(({ it, i, r, c }) => (
+                  <li key={it.number}>
+                    <button type="button" onClick={() => goTo(i)} className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left">
+                      <Photo item={it} className="h-14 w-14" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-base font-bold">{displayName(it)}</span>
+                        <span className="block text-sm text-stone-700">
+                          Nota {qtyFmt(it.quantity)}, contado {qtyFmt(c?.counted)} {it.unit ?? ''}
+                          {c?.issue ? `, ${ISSUES.find((x) => x.key === c.issue)?.label}` : ''}
+                        </span>
+                      </span>
+                      {r.result !== 'OK' && r.result !== 'PENDENTE' && (
+                        <span className={`rounded-xl px-2 py-1 text-base font-extrabold tabular-nums ${r.result === 'FALTA' ? 'bg-red-600 text-white' : 'bg-amber-500 text-stone-900'}`}>
+                          {r.diff > 0 ? '+' : ''}{qtyFmt(r.diff)}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-          {item.priceChangePercent != null && item.priceChangePercent >= 3 && (
-            <p className="flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-base font-semibold text-red-800">
-              <TrendingUp className="h-5 w-5 shrink-0" />Preço {item.priceChangePercent.toLocaleString('pt-BR')}% maior que na última nota ({money(item.lastUnitPrice)} → {money(item.unitPrice)})
-            </p>
+          {pendingItems.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-lg font-bold">Sem contar</h2>
+              <p className="text-base text-stone-700">Esses itens ficam registrados como não conferidos. Toque para contar.</p>
+              <ul className="flex flex-col gap-2">
+                {pendingItems.map(({ it, i }) => (
+                  <li key={it.number}>
+                    <button type="button" onClick={() => goTo(i)} className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left">
+                      <Photo item={it} className="h-12 w-12" />
+                      <span className="min-w-0 flex-1 truncate text-base font-bold">{displayName(it)}</span>
+                      <ArrowRight className="h-5 w-5 text-stone-400" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-          {(item.lot || item.expiry) && (
-            <p className="text-base text-stone-600">{item.lot ? `Lote ${item.lot}` : ''}{item.lot && item.expiry ? ', ' : ''}{item.expiry ? `validade ${item.expiry.split('-').reverse().join('/')}` : ''}</p>
-          )}
-          {/* Contador */}
-          <div className="flex items-center gap-3">
-            <button type="button" aria-label="Menos um" onClick={() => update(item.number, { counted: Math.max(0, (c?.counted ?? 0) - 1) })}
-              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-stone-200 text-stone-900 active:bg-stone-300"><Minus className="h-9 w-9" /></button>
-            <label className="flex min-w-0 flex-1 flex-col items-center">
-              <span className="sr-only">Quantidade contada</span>
-              <input inputMode="decimal" value={c?.counted == null ? '' : String(c.counted).replace('.', ',')} placeholder="0"
-                onChange={(e) => {
-                  const v = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
-                  update(item.number, { counted: v === '' ? null : Number(v) });
-                }}
-                className="h-20 w-full rounded-2xl border-4 border-yellow-400 bg-yellow-50 text-center text-5xl font-extrabold tabular-nums text-stone-900 outline-none focus:border-green-700" />
-              <span className="mt-1 text-base font-semibold text-stone-600">{item.unit ?? 'unidades'} contadas</span>
-            </label>
-            <button type="button" aria-label="Mais um" onClick={() => update(item.number, { counted: Math.round(((c?.counted ?? 0) + 1) * 1000) / 1000 })}
-              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-green-700 text-white active:bg-green-800"><Plus className="h-9 w-9" /></button>
-          </div>
-          {!blind && (
-            <button type="button" onClick={() => update(item.number, { counted: Number(item.quantity ?? 0) })}
-              className="flex h-16 items-center justify-center gap-2 rounded-2xl border-2 border-green-700 text-xl font-bold text-green-800">
-              <Check className="h-7 w-7" />Veio certo ({qtyFmt(item.quantity)} {item.unit})
+          {extras.length > 0 && <p className="rounded-2xl bg-amber-50 p-3 text-base text-amber-900">Bipados fora da nota: {extras.join(', ')}</p>}
+          {withDiff.length === 0 && pendingItems.length === 0 && <p className="rounded-2xl bg-white p-4 text-lg">Tudo contado e sem diferença.</p>}
+        </main>
+        <nav className="shrink-0 border-t border-stone-200 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3" aria-label="Revisão">
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPhase('contar')} className="flex h-16 flex-none items-center justify-center gap-2 rounded-2xl bg-stone-100 px-5 text-lg font-bold">
+              <ArrowLeft className="h-6 w-6" />Voltar
             </button>
-          )}
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Problema no item">
-            {ISSUES.map((iss) => {
-              const active = c?.issue === iss.key;
-              return (
-                <button key={iss.key} type="button" aria-pressed={active} onClick={() => update(item.number, { issue: active ? null : iss.key, counted: c?.counted ?? null })}
-                  className={`rounded-full px-4 py-2 text-base font-semibold ${active ? 'bg-red-700 text-white' : 'bg-stone-100 text-stone-800'}`}>
-                  {active && <AlertTriangle className="mr-1 inline h-4 w-4" />}{iss.label}
-                </button>
-              );
-            })}
+            <button type="button" onClick={finish} disabled={closing}
+              className="flex h-16 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-green-700 px-3 text-lg font-bold text-white disabled:opacity-60">
+              <PackageCheck className="h-6 w-6 shrink-0 max-[380px]:hidden" />{closing ? 'Encerrando…' : 'Confirmar e encerrar'}
+            </button>
           </div>
-        </section>
-      )}
+        </nav>
+      </div>
+    );
+  }
 
-      {mode === 'lista' && (
-        <ul className="mx-4 flex flex-col gap-2">
+  // ── Passo 2: conferir ──────────────────────────────────────────────────
+  const c = item ? counts[item.number] : undefined;
+  const r = item ? resultOf(item, c) : { result: 'PENDENTE' as Result, diff: 0 };
+  const priceUp = item?.priceChangePercent != null && item.priceChangePercent >= 3;
+
+  const onTouchStart = (e: React.TouchEvent) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const t = touch.current;
+    touch.current = null;
+    if (!t) return;
+    const dx = e.changedTouches[0].clientX - t.x;
+    const dy = e.changedTouches[0].clientY - t.y;
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 50) {
+      if (dx < 0 && !last) setIndex(safeIndex + 1);
+      if (dx > 0 && safeIndex > 0) setIndex(safeIndex - 1);
+    }
+  };
+
+  const confirmExpected = () => {
+    if (!item) return;
+    update(item.number, { counted: Number(item.quantity ?? 0) });
+    if (!last) {
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+      advanceTimer.current = setTimeout(() => setIndex((i) => Math.min(items.length - 1, i + 1)), 350);
+    }
+  };
+
+  return (
+    <div className="flex h-[100dvh] flex-col">
+      {header(1, (
+        <button type="button" onClick={() => setSheet('menu')} aria-label="Opções da conferência"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white"><MoreVertical className="h-6 w-6" /></button>
+      ))}
+
+      <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
+        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-stone-300" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done} aria-label="Itens conferidos">
+          <div className="h-full rounded-full bg-green-700 transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} />
+        </div>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-stone-700">{done}/{items.length} conferidos</span>
+      </div>
+
+      {toast && <div className="fixed inset-x-4 top-4 z-50 rounded-2xl bg-stone-900 px-5 py-4 text-lg font-semibold text-white shadow-xl" role="status">{toast}</div>}
+
+      {mode === 'lista' ? (
+        <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto px-3 pb-3">
           {items.map((it, i) => {
             const ic = counts[it.number];
             const res = resultOf(it, ic);
             return (
               <li key={it.number}>
-                <button type="button" onClick={() => { setIndex(i); setMode('passo'); }}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left">
-                  <Photo item={it} size="h-16 w-16" />
+                <button type="button" onClick={() => goTo(i)} className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left">
+                  <Photo item={it} className="h-14 w-14" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-lg font-bold leading-tight text-stone-900">{displayName(it)}</span>
-                    <span className="block text-base text-stone-700">{blind ? 'Contagem cega' : <QtyLine item={it} />}</span>
+                    <span className="block text-base font-bold leading-tight text-stone-900">{displayName(it)}</span>
+                    <span className="block text-sm text-stone-700">{blind ? 'Contagem cega' : <QtyLine item={it} />}</span>
                     {ic?.issue && <span className="block text-sm font-semibold text-red-700">{ISSUES.find((x) => x.key === ic.issue)?.label}</span>}
                   </span>
-                  <span className={`flex h-12 min-w-12 items-center justify-center rounded-xl px-2 text-lg font-extrabold tabular-nums ${
+                  <span className={`flex h-11 min-w-11 items-center justify-center rounded-xl px-2 text-base font-extrabold tabular-nums ${
                     res.result === 'PENDENTE' ? 'bg-stone-100 text-stone-400' : blind || res.result === 'OK' ? 'bg-green-700 text-white' : 'bg-red-600 text-white'}`}>
                     {res.result === 'PENDENTE' ? '—' : blind ? qtyFmt(ic?.counted) : res.result === 'OK' ? <Check className="h-6 w-6" /> : (res.diff > 0 ? '+' : '') + qtyFmt(res.diff)}
                   </span>
@@ -378,37 +503,169 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
             );
           })}
         </ul>
+      ) : item && (
+        <main className="flex min-h-0 flex-1 flex-col px-3 pb-2">
+          <section onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+            className="flex min-h-0 flex-1 flex-col gap-[clamp(6px,1.4dvh,14px)] overflow-hidden rounded-3xl bg-white p-[clamp(12px,2dvh,20px)] shadow-sm"
+            aria-label={`Item ${safeIndex + 1} de ${items.length}`}>
+            <div className="flex shrink-0 items-center justify-between text-sm font-bold text-stone-500">
+              <span>Item {safeIndex + 1} de {items.length}</span>
+              {r.result !== 'PENDENTE' && !blind && (
+                <span className={`rounded-full px-3 py-0.5 ${r.result === 'OK' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {r.result === 'OK' ? 'Confere' : r.result === 'FALTA' ? `Falta ${qtyFmt(-r.diff)}` : `Sobra ${qtyFmt(r.diff)}`}
+                </span>
+              )}
+              {blind && <span className="flex items-center gap-1 rounded-full bg-stone-100 px-3 py-0.5 text-stone-700"><EyeOff className="h-4 w-4" />Cega</span>}
+            </div>
+
+            <div className="flex min-h-0 shrink items-center gap-3">
+              <Photo item={item} className="aspect-square h-[clamp(64px,24dvh,220px)] max-w-[45%]" />
+              <div className="min-w-0 flex-1">
+                <h2 className="line-clamp-3 text-[clamp(1.1rem,3dvh,1.6rem)] font-extrabold leading-tight text-stone-900">{displayName(item)}</h2>
+                {item.catalogName && item.catalogName !== item.name && <p className="mt-0.5 truncate text-sm text-stone-500">{item.name}</p>}
+                {item.ean && <p className="mt-0.5 font-mono text-sm text-stone-500">{item.ean}</p>}
+              </div>
+            </div>
+
+            {!blind && (
+              <p className="shrink-0 rounded-2xl bg-stone-100 px-4 py-[clamp(6px,1.2dvh,12px)] text-[clamp(1.05rem,2.6dvh,1.35rem)] text-stone-800">Na nota: <QtyLine item={item} /></p>
+            )}
+            {(priceUp || item.lot || item.expiry || c?.issue) && (
+              <div className="flex shrink-0 flex-wrap gap-1.5 text-sm font-semibold">
+                {c?.issue && <span className="flex items-center gap-1 rounded-full bg-red-700 px-3 py-1 text-white"><AlertTriangle className="h-4 w-4" />{ISSUES.find((x) => x.key === c.issue)?.label}</span>}
+                {priceUp && (
+                  <span className="flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-800">
+                    <TrendingUp className="h-4 w-4" />Preço +{item.priceChangePercent!.toLocaleString('pt-BR')}% ({money(item.lastUnitPrice)} → {money(item.unitPrice)})
+                  </span>
+                )}
+                {(item.lot || item.expiry) && (
+                  <span className="rounded-full bg-stone-100 px-3 py-1 text-stone-700">
+                    {item.lot ? `Lote ${item.lot}` : ''}{item.lot && item.expiry ? ', ' : ''}{item.expiry ? `validade ${item.expiry.split('-').reverse().join('/')}` : ''}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="min-h-0 flex-1" aria-hidden="true" />
+
+            {/* Contador */}
+            <div className="flex shrink-0 items-stretch gap-2">
+              <button type="button" aria-label="Menos um" onClick={() => update(item.number, { counted: Math.max(0, Math.round(((c?.counted ?? 0) - 1) * 1000) / 1000) })}
+                className="flex h-[clamp(56px,10dvh,80px)] w-[clamp(56px,10dvh,80px)] shrink-0 items-center justify-center rounded-2xl bg-stone-200 text-stone-900 active:bg-stone-300"><Minus className="h-8 w-8" /></button>
+              <label className="flex min-w-0 flex-1 flex-col items-center">
+                <span className="sr-only">Quantidade contada em {item.unit ?? 'unidades'}</span>
+                <input inputMode="decimal" value={c?.counted == null ? '' : String(c.counted).replace('.', ',')} placeholder="0"
+                  onChange={(e) => {
+                    const v = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
+                    update(item.number, { counted: v === '' ? null : Number(v) });
+                  }}
+                  className="h-[clamp(56px,10dvh,80px)] w-full rounded-2xl border-4 border-yellow-400 bg-yellow-50 text-center text-[clamp(2rem,6dvh,3rem)] font-extrabold tabular-nums text-stone-900 outline-none focus:border-green-700" />
+                <span className="text-sm font-semibold text-stone-600">{item.unit ?? 'unidades'} contadas</span>
+              </label>
+              <button type="button" aria-label="Mais um" onClick={() => update(item.number, { counted: Math.round(((c?.counted ?? 0) + 1) * 1000) / 1000 })}
+                className="flex h-[clamp(56px,10dvh,80px)] w-[clamp(56px,10dvh,80px)] shrink-0 items-center justify-center rounded-2xl bg-green-700 text-white active:bg-green-800"><Plus className="h-8 w-8" /></button>
+            </div>
+
+            <div className="flex shrink-0 gap-2">
+              {!blind && (
+                <button type="button" onClick={confirmExpected}
+                  className="flex h-[clamp(48px,8dvh,64px)] flex-[1.6] items-center justify-center gap-2 rounded-2xl border-2 border-green-700 text-lg font-bold text-green-800 active:bg-green-50">
+                  <Check className="h-6 w-6" />Veio certo
+                </button>
+              )}
+              <button type="button" onClick={() => setSheet('problema')} aria-haspopup="dialog"
+                className={`flex h-[clamp(48px,8dvh,64px)] flex-1 items-center justify-center gap-2 rounded-2xl text-lg font-bold ${c?.issue ? 'bg-red-700 text-white' : 'bg-stone-100 text-stone-800'}`}>
+                <AlertTriangle className="h-5 w-5" />Problema
+              </button>
+            </div>
+          </section>
+        </main>
       )}
 
-      <label className="mx-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-base font-semibold text-stone-800">
-        <input type="checkbox" checked={blind} onChange={(e) => setBlind(e.target.checked)} className="h-6 w-6 accent-green-700" />
-        <EyeOff className="h-5 w-5 text-stone-500" />Conferência cega (esconde a quantidade da nota)
-      </label>
-
       {/* Barra de ações no alcance do polegar */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur" aria-label="Ações da conferência">
-        <div className="mx-auto flex max-w-xl items-center gap-2">
+      <nav className="shrink-0 border-t border-stone-200 bg-white px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5" aria-label="Ações da conferência">
+        <div className="flex items-center gap-2">
           {mode === 'passo' && (
-            <button type="button" aria-label="Item anterior" disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}
-              className="flex h-16 w-16 items-center justify-center rounded-2xl bg-stone-100 disabled:opacity-40"><ArrowLeft className="h-7 w-7" /></button>
+            <button type="button" aria-label="Item anterior" disabled={safeIndex === 0} onClick={() => setIndex(safeIndex - 1)}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-stone-100 disabled:opacity-40"><ArrowLeft className="h-7 w-7" /></button>
           )}
-          <button type="button" onClick={() => setScanning((s) => !s)} aria-pressed={scanning}
-            className={`flex h-16 flex-1 items-center justify-center gap-2 rounded-2xl text-lg font-bold ${scanning ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-900'}`}>
-            {scanning ? <X className="h-6 w-6" /> : <ScanBarcode className="h-6 w-6" />}{scanning ? 'Fechar' : 'Bipar'}
+          <button type="button" onClick={() => setScanning(true)}
+            className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-stone-100 text-lg font-bold text-stone-900">
+            <ScanBarcode className="h-6 w-6" />Bipar
           </button>
-          {mode === 'passo' && index < items.length - 1 ? (
-            <button type="button" onClick={() => setIndex((i) => Math.min(items.length - 1, i + 1))}
-              className="flex h-16 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-green-700 text-xl font-bold text-white">
+          {mode === 'passo' && !last ? (
+            <button type="button" onClick={next}
+              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-green-700 text-lg font-bold text-white">
               Próximo<ArrowRight className="h-6 w-6" />
             </button>
           ) : (
-            <button type="button" onClick={finish}
-              className="flex h-16 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-green-700 text-xl font-bold text-white">
-              <PackageCheck className="h-6 w-6" />{summary.pending ? `Encerrar (${summary.pending} sem contar)` : 'Encerrar'}
+            <button type="button" onClick={() => setPhase('revisar')}
+              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-green-700 text-lg font-bold text-white">
+              Revisar<ArrowRight className="h-6 w-6" />
             </button>
           )}
         </div>
       </nav>
+
+      {scanning && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-black">
+          <div className="min-h-0 flex-1">
+            <Scanner formats={['ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'code_128']} height="100%" fullscreen
+              hint="Bipe o código do produto" onDetect={onScanProduct} accept={(v) => /^\d{8,14}$/.test(v)} />
+          </div>
+          <div className="flex shrink-0 items-center gap-3 bg-stone-900 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3 text-white">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm text-stone-400">Cada bipe soma 1 no produto</span>
+              <span className="block text-base font-bold tabular-nums">{done} de {items.length} conferidos</span>
+            </span>
+            <button type="button" onClick={() => setScanning(false)} className="flex h-14 items-center gap-2 rounded-2xl bg-white px-5 text-lg font-bold text-stone-900">
+              <X className="h-6 w-6" />Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sheet === 'problema' && item && (
+        <Sheet title="Problema no item" onClose={() => setSheet(null)}>
+          <p className="truncate text-base text-stone-700">{displayName(item)}</p>
+          <div className="grid gap-2" role="group" aria-label="Problema no item">
+            {ISSUES.map((iss) => {
+              const active = c?.issue === iss.key;
+              return (
+                <button key={iss.key} type="button" aria-pressed={active}
+                  onClick={() => update(item.number, { issue: active ? null : iss.key, counted: c?.counted ?? null })}
+                  className={`flex h-14 items-center gap-3 rounded-2xl px-4 text-lg font-bold ${active ? 'bg-red-700 text-white' : 'bg-stone-100 text-stone-900'}`}>
+                  {active ? <Check className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6 text-red-700" />}{iss.label}
+                </button>
+              );
+            })}
+          </div>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-base font-semibold">Observação (opcional)</span>
+            <input value={c?.note ?? ''} maxLength={140} onChange={(e) => update(item.number, { note: e.target.value, counted: c?.counted ?? null })}
+              placeholder="Ex.: 2 caixas amassadas" className="h-14 rounded-2xl border-2 border-stone-300 px-4 text-lg outline-none focus:border-green-700" />
+          </label>
+          <button type="button" onClick={() => setSheet(null)} className="h-14 rounded-2xl bg-green-700 text-lg font-bold text-white">Pronto</button>
+        </Sheet>
+      )}
+
+      {sheet === 'menu' && (
+        <Sheet title="Opções" onClose={() => setSheet(null)}>
+          <div className="grid grid-cols-2 rounded-2xl bg-stone-100 p-1" role="tablist" aria-label="Modo">
+            {([['passo', 'Um por vez'], ['lista', 'Lista']] as const).map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => { setMode(k); setSheet(null); }}
+                className={`flex h-12 items-center justify-center gap-1 rounded-xl text-base font-bold ${mode === k ? 'bg-green-700 text-white' : 'text-stone-700'}`}>
+                {k === 'lista' && <List className="h-5 w-5" />}{label}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-center gap-3 rounded-2xl bg-stone-100 px-4 py-3 text-base font-semibold text-stone-800">
+            <input type="checkbox" checked={blind} onChange={(e) => { setBlind(e.target.checked); blindRef.current = e.target.checked; push(countsRef.current); }} className="h-6 w-6 accent-green-700" />
+            <EyeOff className="h-5 w-5 text-stone-500" />Conferência cega (esconde a quantidade da nota)
+          </label>
+          <p className="text-sm text-stone-600">{syncLabel}. Dica: arraste o produto para o lado para trocar de item.</p>
+        </Sheet>
+      )}
     </div>
   );
 };

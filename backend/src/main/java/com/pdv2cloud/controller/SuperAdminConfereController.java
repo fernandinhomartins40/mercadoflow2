@@ -2,6 +2,7 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.confere.ConfereAdminService;
 import com.pdv2cloud.service.confere.ConferePwaService;
+import com.pdv2cloud.service.confere.SellInAggregator;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import com.pdv2cloud.service.confere.ConfereService;
@@ -31,10 +32,30 @@ public class SuperAdminConfereController {
 
     private final ConfereAdminService admin;
     private final ConferePwaService pwa;
+    private final SellInAggregator sellIn;
 
-    public SuperAdminConfereController(ConfereAdminService admin, ConferePwaService pwa) {
+    public SuperAdminConfereController(ConfereAdminService admin, ConferePwaService pwa, SellInAggregator sellIn) {
         this.admin = admin;
         this.pwa = pwa;
+        this.sellIn = sellIn;
+    }
+
+    /** Prévia da inteligência de produto (só dados agregados e anônimos). */
+    @GetMapping("/intelligence")
+    public SellInAggregator.Preview intelligence(@RequestParam(required = false) String uf,
+                                                 @RequestParam(required = false) String gtin) {
+        return sellIn.preview(uf, gtin);
+    }
+
+    @PostMapping("/intelligence/rebuild")
+    public SellInAggregator.Result rebuild() {
+        return sellIn.rebuild(104);
+    }
+
+    @PutMapping("/intelligence/min-stores")
+    public SellInAggregator.Preview minStores(@RequestBody Map<String, Object> body) {
+        sellIn.setMinStores(body.get("value") instanceof Number n ? n.intValue() : 0);
+        return sellIn.preview(null, null);
     }
 
     @GetMapping("/icons")

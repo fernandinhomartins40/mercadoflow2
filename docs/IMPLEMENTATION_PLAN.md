@@ -198,6 +198,9 @@ A busca grátis do site do Meu Danfe é protegida por Cloudflare Turnstile e nã
 | C-05 | P1 | monetização e teste grátis | carteira com extrato (15 grátis no aceite, uma vez), planos, Pix BR Code com QR e confirmação no painel, Stripe opcional com crédito pelo webhook | `PixCode`, `ConfereAdminService`, `StripeWebhookController` | médio | Playwright + curl | DONE |
 | C-06 | P1 | configurar o serviço | página do superadmin: Api-Key do Meu Danfe (cifrada, testada sem gastar), preço, leituras grátis, termos versionados, chave Pix, planos, pedidos, saldo por mercado | `SuperAdminConfere.tsx`, `SuperAdminConfereController` | baixo | Playwright | DONE |
 | C-07 | P2 | instalar como app | manifest e service worker próprios em /confere/, abre sem internet, recebe XML pelo "compartilhar" do Android | `public/confere-app/`, `public/confere-sw.js`, `index.html` | baixo | Playwright | DONE |
+| C-08 | P1 | conferência confusa e com rolagem | passo a passo Ler → Conferir → Revisar → Pronto; um produto por tela sem rolar em 320–768 px; folhas para problema e opções; bipe em tela cheia | `ConferenceScreen.tsx`, `ReadScreen.tsx`, `ui.tsx` (Stepper) | baixo | Playwright em 4 tamanhos | DONE |
+| C-09 | P1 | dados das notas presos no XML e encerramento offline perdido | itens, fornecedores, localização e entradas de estoque em tabelas próprias (V60), backfill por job; encerramento sem sinal reenviado | `NfeItemStore`, `ConfereService`, `ConfereDataJob` | médio | SQL + Playwright offline | DONE |
+| C-10 | P2 | base do produto de desempenho para fabricantes | agregado semanal anônimo (bairro/cidade/UF, mínimo de lojas configurável, dominância ≤ 70%), tração, sazonalidade, custo por cidade; opt-in do mercado; prévia no superadmin | `SellInAggregator`, V60, `PartnersScreen.tsx`, `SuperAdminConfere.tsx` | médio (LGPD) | testes de k lojas e dominância | DONE |
 
 ## Coordenação
 
