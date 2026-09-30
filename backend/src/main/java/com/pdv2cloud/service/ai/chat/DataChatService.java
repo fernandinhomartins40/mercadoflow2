@@ -69,6 +69,19 @@ public class DataChatService {
     private final Map<String, DataTool> toolsByName;
     private final List<LlmClient.ToolSpec> toolSpecs;
 
+    /** Jev decidindo de verdade (fora da sombra) e respostas prontas: opcionais. */
+    private com.pdv2cloud.service.ai.platform.AiGate gate;
+    private com.pdv2cloud.service.ai.platform.JevClient jev;
+    private DirectAnswers directAnswers;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setJevRouting(com.pdv2cloud.service.ai.platform.AiGate gate, com.pdv2cloud.service.ai.platform.JevClient jev,
+                       DirectAnswers directAnswers) {
+        this.gate = gate;
+        this.jev = jev;
+        this.directAnswers = directAnswers;
+    }
+
     /** Jev em modo sombra (opcional; só mede, não muda a resposta). */
     private com.pdv2cloud.service.ai.platform.JevShadowService jevShadow;
 
@@ -167,6 +180,19 @@ public class DataChatService {
             return new ChatAnswer(false, null, List.of(), null, "Pergunta vazia.");
         }
 
+        // Camada de decisão (Jev): pergunta de número direto responde com texto
+        // pronto, sem modelo de linguagem; senão, o modelo recebe só a consulta
+        // escolhida. Pergunta de continuação fica fora: o Jev não vê a conversa.
+        JevRoute route = (history == null || history.isEmpty()) ? jevRoute(marketId, question) : null;
+        if (route != null && route.confident() && route.direct() && directAnswers != null
+            && DirectAnswers.SUPPORTED.contains(route.tool())) {
+            Optional<ChatAnswer> direct = answerDirectly(marketId, question, route);
+            if (direct.isPresent()) {
+                return direct.get();
+            }
+        }
+        String onlyTool = route != null && route.confident() && toolsByName.containsKey(route.tool()) ? route.tool() : null;
+
         Optional<AiOrchestrator.ActiveCredential> maybe =
             orchestrator.resolveCredential(marketId);
         if (maybe.isEmpty()) {
@@ -197,7 +223,9 @@ public class DataChatService {
             // não tem alternativa senão responder com o que já coletou. Manter
             // a lista aqui deixaria o laço terminar sem resposta nenhuma.
             boolean lastRound = round == MAX_TOOL_ROUNDS;
-            List<LlmClient.ToolSpec> offered = lastRound ? List.of() : toolSpecs;
+            List<LlmClient.ToolSpec> offered = lastRound ? List.of()
+                : (round == 0 && onlyTool != null
+                    ? toolSpecs.stream().filter(t -> t.name().equals(onlyTool)).toList() : toolSpecs);
 
             LlmClient.LlmResponse response = llmClient.converse(
                 credential.baseUrl(), credential.apiKey(), credential.model(),
@@ -251,6 +279,75 @@ public class DataChatService {
             "Limite de consultas atingido", 0);
         return new ChatAnswer(false, null, toolsUsed, credential.provider().name(),
             "Não consegui concluir a análise. Tente uma pergunta mais específica.");
+    }
+
+    /** Decisão do Jev para a pergunta: consulta, se pede só números, e se está acima do limite de confiança. */
+    record JevRoute(String tool, boolean direct, double confidence, double threshold, double costUsd) {
+        boolean confident() {
+            return confidence >= threshold;
+        }
+    }
+
+    private JevRoute jevRoute(UUID marketId, String question) {
+        if (gate == null || jev == null) {
+            return null;
+        }
+        com.pdv2cloud.service.ai.platform.AiGate.Decision d;
+        try {
+            d = gate.decide(marketId, "JEV_FERRAMENTA");
+        } catch (RuntimeException e) {
+            return null;
+        }
+        if (!d.allowed() || d.route().shadow()) {
+            return null;
+        }
+        Map<String, String> options = new LinkedHashMap<>();
+        for (LlmClient.ToolSpec t : toolSpecs) {
+            options.put(t.name(), t.description().length() > 220 ? t.description().substring(0, 220) : t.description());
+        }
+        options.put("nenhuma", "responder sem consultar dados: cumprimento, agradecimento ou pergunta sobre o assistente");
+        Map<String, com.pdv2cloud.service.ai.platform.JevClient.Question> questions = new LinkedHashMap<>();
+        questions.put("ferramenta", com.pdv2cloud.service.ai.platform.JevClient.Question.choice(
+            "Qual consulta aos dados da loja responde a pergunta do lojista de supermercado?", options));
+        questions.put("direto", com.pdv2cloud.service.ai.platform.JevClient.Question.yesNo(
+            "A pergunta pede só os números de uma consulta (quanto, quais, qual), sem pedir análise, "
+                + "comparação com outra coisa, opinião, conselho ou explicação?"));
+        com.pdv2cloud.service.ai.platform.JevClient.Result r =
+            jev.decide(d.key().baseUrl(), d.key().apiKey(), d.model(), question, questions);
+        double cost = com.pdv2cloud.service.ai.platform.AiGate.costUsd(d.route(), r.inputTokens(), 0);
+        usageRecorder.recordFull(marketId, "JEV_FERRAMENTA", "JEV", d.model(), "jev-v1", null, r.inputTokens(), 0,
+            (int) r.latencyMs(), r.success() ? AiUsageLog.Outcome.OK : AiUsageLog.Outcome.ERRO, r.error(), cost, "JEV", 0, true);
+        if (!r.success() || !r.answers().containsKey("ferramenta")) {
+            return null;
+        }
+        var tool = r.answers().get("ferramenta");
+        var direct = r.answers().get("direto");
+        boolean isDirect = direct != null && "sim".equals(direct.answer());
+        double confidence = direct == null ? tool.confidence() : Math.min(tool.confidence(), direct.confidence());
+        return new JevRoute(tool.answer(), isDirect, isDirect ? confidence : tool.confidence(), d.route().jevThreshold(), cost);
+    }
+
+    /** Resposta pronta: roda a consulta escolhida pelo Jev e monta o texto, sem modelo de linguagem. */
+    private Optional<ChatAnswer> answerDirectly(UUID marketId, String question, JevRoute route) {
+        DataTool tool = toolsByName.get(route.tool());
+        if (tool == null) {
+            return Optional.empty();
+        }
+        long started = System.currentTimeMillis();
+        try {
+            Map<String, Object> result = tool.execute(marketId, directAnswers.argsFrom(route.tool(), question));
+            Optional<String> text = directAnswers.render(route.tool(), result);
+            if (text.isEmpty()) {
+                return Optional.empty();
+            }
+            usageRecorder.recordFull(marketId, TASK, "MERCADOFLOW", "texto-pronto", ChatPrompts.VERSION, null, 0, 0,
+                (int) (System.currentTimeMillis() - started), AiUsageLog.Outcome.OK, null, 0d, "TEMPLATE", 0, true);
+            return Optional.of(new ChatAnswer(true, text.get(), List.of(route.tool()), "MERCADOFLOW", null,
+                "TEMPLATE", 0, 0, 0, route.costUsd(), true));
+        } catch (Exception e) {
+            log.warn("Resposta pronta falhou ({}): {}", route.tool(), e.getMessage());
+            return Optional.empty();
+        }
     }
 
     /** Registra o uso; na IA da plataforma, com custo, camada e créditos. Devolve o custo em dólar. */

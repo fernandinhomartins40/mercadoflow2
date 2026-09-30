@@ -399,6 +399,25 @@ nos provedores e vende créditos aos mercados).
 - **Testes:** backend 257/257 (20 novos); ponta a ponta do painel, chat, créditos, Pix, roteamento, teto,
   "Por quê?", sombra e interruptor 34/34.
 
+### Ciclo 11 — Copiloto F1: Jev decidindo, texto pronto e resumo do dia
+
+- **Jev escolhe a consulta de verdade:** com a rota `JEV_FERRAMENTA` fora do modo sombra, a primeira
+  pergunta de uma conversa passa pelo Jev (qual consulta? é só número direto?). Com confiança acima do
+  limite da rota:
+  - pergunta de número direto ("quanto vendi na semana?", "quais os 5 mais vendidos?") roda a consulta e
+    sai em **texto pronto**, sem DeepSeek e sem debitar crédito (registro com camada `TEMPLATE`);
+  - pergunta de análise vai ao DeepSeek levando **só a consulta escolhida**, o que corta os tokens das
+    descrições das outras ferramentas.
+  Abaixo do limite, ou com o Jev fora do ar, segue o caminho anterior. Período e quantidade saem da
+  pergunta por código (`DirectAnswers`), nunca do Jev.
+- **Resumo do dia:** às 6h (horário de Brasília) o job gera, para cada mercado ativo, um texto pronto
+  com as vendas de ontem contra o mesmo dia da semana anterior, os 3 assuntos de maior prioridade e as
+  recomendações esperando decisão. Sem IA e sem custo. Tabela `ai_daily_briefs` (V62, com RLS).
+- **Tela Hoje:** cartão "Resumo do dia" com botão **Ouvir** (voz do próprio aparelho, sem custo) e botão de
+  atualizar. O cartão aparece só depois da ativação, quando já há vendas.
+- **Testes:** backend 267/267 (10 novos); ponta a ponta da F1 15/15 (resumo, texto pronto com 0 crédito,
+  análise indo ao modelo); regressão da F0 34/34.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

@@ -123,3 +123,16 @@ export const aiCreditsService = {
   explain: async (marketId: string, opportunityId: string): Promise<{ texto: string; ia: boolean; doCache: boolean }> =>
     (await api.post(`/v1/markets/${marketId}/opportunities/${opportunityId}/explain`, {}, { timeout: 90000 })).data,
 };
+
+export interface DailyBrief {
+  day: string;
+  text: string;
+  items: Array<{ tipo: string; id: string; titulo: string; impacto: number | null }>;
+}
+
+/** Copiloto do lojista: resumo do dia em texto pronto (sem custo de IA). */
+export const copilotService = {
+  brief: async (marketId: string): Promise<DailyBrief> => (await api.get(`/v1/markets/${marketId}/copilot/brief`)).data,
+  refreshBrief: async (marketId: string): Promise<DailyBrief> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/brief/refresh`, {})).data,
+};

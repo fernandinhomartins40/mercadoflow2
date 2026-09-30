@@ -235,6 +235,79 @@ class DataChatServiceTest {
         verifyNoInteractions(llmClient);
     }
 
+    // ── Jev escolhendo a consulta (Copiloto F1) ─────────────────────────────
+
+    @Mock private com.pdv2cloud.service.ai.platform.AiGate gate;
+    @Mock private com.pdv2cloud.service.ai.platform.JevClient jev;
+
+    private DataChatService serviceWithJev(double toolConfidence, double directProbability) {
+        DataTool vendas = new DataTool() {
+            @Override public String name() { return "resumo_de_vendas"; }
+            @Override public String description() { return "Faturamento, cupons e ticket médio."; }
+            @Override public Map<String, Object> parametersSchema() { return DataTool.schema(Map.of(), List.of()); }
+            @Override public Map<String, Object> execute(UUID market, Map<String, Object> args) {
+                marketSeenByTool = market;
+                return Map.of("periodoDias", args.getOrDefault("dias", 30), "faturamento", 1000, "cupons", 50, "ticketMedio", 20);
+            }
+        };
+        when(salesTools.tools()).thenReturn(List.of(vendas));
+        DataChatService s = new DataChatService(orchestrator, usageRecorder, llmClient, capitalTools, salesTools, opportunityTools);
+        var route = new com.pdv2cloud.service.ai.platform.AiPlatformConfig.Route("JEV_FERRAMENTA", "Jev", "JEV", "JEV",
+            "jev-latest", 2000, 0, 0, 0.8, 0, java.math.BigDecimal.valueOf(0.042), java.math.BigDecimal.ZERO,
+            false, true, null, null, null);
+        var key = new com.pdv2cloud.service.ai.platform.AiPlatformConfig.Key("JEV", "https://api.typesafe.ai", "k", "jev-latest");
+        when(gate.decide(any(), eq("JEV_FERRAMENTA"))).thenReturn(new com.pdv2cloud.service.ai.platform.AiGate.Decision(
+            com.pdv2cloud.service.ai.platform.AiGate.Reason.OK, route, key));
+        boolean yes = directProbability >= 0.5;
+        when(jev.decide(anyString(), anyString(), anyString(), any(), any())).thenReturn(
+            new com.pdv2cloud.service.ai.platform.JevClient.Result(true, Map.of(
+                "ferramenta", new com.pdv2cloud.service.ai.platform.JevClient.Answer("resumo_de_vendas", toolConfidence, null, Map.of()),
+                "direto", new com.pdv2cloud.service.ai.platform.JevClient.Answer(yes ? "sim" : "nao",
+                    Math.abs(directProbability - 0.5) * 2, directProbability, Map.of())), 300, 40, null));
+        s.setJevRouting(gate, jev, new DirectAnswers());
+        return s;
+    }
+
+    /** Pergunta de número direto com o Jev confiante: texto pronto, sem modelo de linguagem e sem crédito. */
+    @Test
+    void perguntaDiretaSaiComTextoProntoSemChamarModelo() {
+        DataChatService.ChatAnswer answer = serviceWithJev(0.95, 0.98).ask(marketId, "quanto vendi na semana?", List.of());
+
+        assertTrue(answer.success());
+        assertEquals("MERCADOFLOW", answer.provider());
+        assertEquals("TEMPLATE", answer.layer());
+        assertEquals(0, answer.credits());
+        assertTrue(answer.answer().contains("Nos últimos 7 dias"), answer.answer());
+        assertEquals(marketId, marketSeenByTool);
+        verifyNoInteractions(llmClient);
+    }
+
+    /** Jev inseguro: segue o caminho normal do modelo, com todas as consultas. */
+    @Test
+    void jevInseguroNaoRespondeSozinho() {
+        when(llmClient.converse(anyString(), anyString(), anyString(), anyList(), anyList(), anyInt(), anyDouble()))
+            .thenReturn(LlmClient.LlmResponse.ok("Resposta do modelo.", 10, 5, 90));
+
+        DataChatService.ChatAnswer answer = serviceWithJev(0.4, 0.98).ask(marketId, "quanto vendi na semana?", List.of());
+
+        assertEquals("Resposta do modelo.", answer.answer());
+        verify(llmClient, times(1)).converse(anyString(), anyString(), anyString(), anyList(), anyList(), anyInt(), anyDouble());
+    }
+
+    /** Pergunta que pede análise: o modelo responde, mas só com a consulta que o Jev escolheu. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void perguntaDeAnaliseUsaSoAConsultaEscolhida() {
+        when(llmClient.converse(anyString(), anyString(), anyString(), anyList(), anyList(), anyInt(), anyDouble()))
+            .thenReturn(LlmClient.LlmResponse.ok("Análise.", 10, 5, 90));
+
+        serviceWithJev(0.95, 0.1).ask(marketId, "por que minhas vendas caíram?", List.of());
+
+        ArgumentCaptor<List<LlmClient.ToolSpec>> tools = ArgumentCaptor.forClass(List.class);
+        verify(llmClient).converse(anyString(), anyString(), anyString(), anyList(), tools.capture(), anyInt(), anyDouble());
+        assertEquals(List.of("resumo_de_vendas"), tools.getValue().stream().map(LlmClient.ToolSpec::name).toList());
+    }
+
     private AiOrchestrator.ActiveCredential credential() {
         return new AiOrchestrator.ActiveCredential(
             com.pdv2cloud.service.ai.AiProvider.GROQ,

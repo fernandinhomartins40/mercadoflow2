@@ -22,6 +22,7 @@ import ActivationChecklist from '../components/activation/ActivationChecklist';
 import CollectingBanner from '../components/activation/CollectingBanner';
 import RecommendationCard from '../components/intelligence/RecommendationCard';
 import DecisionFeedback from '../components/intelligence/DecisionFeedback';
+import DailyBriefCard from '../components/intelligence/DailyBriefCard';
 import { useMarketData } from '../hooks/useMarketData';
 import { useActivation } from '../hooks/useActivation';
 import { useRecommendationDecision } from '../hooks/useRecommendationDecision';
@@ -331,6 +332,8 @@ const Dashboard: React.FC = () => {
         {activation.collecting && activation.status && (
           <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
         )}
+
+        <DailyBriefCard marketId={marketId} />
 
         {/* Números do dia: dois de venda, dois de ação. */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
