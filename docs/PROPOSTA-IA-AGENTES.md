@@ -1,6 +1,6 @@
 # MercadoFlow Copiloto — proposta de IA, assistente por voz e agentes
 
-Versão 1 · 30/09/2026 · proposta para decisão do dono do produto
+Versão 2 · 30/09/2026 (Jev na camada de decisão) · proposta para decisão do dono do produto
 
 ---
 
@@ -23,6 +23,11 @@ Três peças novas, sobre o que já existe:
 A regra de ouro continua: **quem calcula é o sistema; a IA explica, conversa e opera**. Isso é o
 que deixa o custo baixo (a maior parte da inteligência não gasta token) e o que impede a IA de
 inventar número numa decisão de compra.
+
+A economia de tokens vem do padrão que a comunidade de desenvolvedores está usando em 2026:
+**Jev + modelo de linguagem**. O Jev (TypeSafe AI) toma as decisões fechadas — qual ferramenta,
+qual agente, merece alerta, a ação é segura, precisa do modelo forte — a US$ 0,042 por milhão de
+tokens e sem cobrar saída; o DeepSeek só entra para escrever e planejar. Detalhes na seção 8.
 
 ---
 
@@ -149,7 +154,7 @@ A economia vem de **não chamar modelo grande para o que uma regra resolve**. Qu
 | Camada | O que é | Custo | Exemplos no MercadoFlow |
 |---|---|---|---|
 | **0 · Regra e cálculo** | o motor atual | zero | "quanto vendi hoje", "o que acaba amanhã", alertas por limite |
-| **1 · Decisão local** | modelo pequeno no nosso servidor (LAYA ou classificador) | zero por chamada | "isto merece alerta?", "a pergunta é sobre vendas, estoque ou preço?" |
+| **1 · Decisão** | Jev (API de decisão) — e, no futuro, LAYA local | ~R$ 0,0007 por decisão (3 mil tokens de entrada) | qual ferramenta, qual agente, "merece alerta?", "a ação é segura?", "precisa do modelo forte?" |
 | **2 · Modelo barato** | DeepSeek V4.1 Flash | centavos | conversa, resumo do dia, explicação de oportunidade, mensagem ao fornecedor |
 | **3 · Modelo forte** | DeepSeek V4 Pro (depois Qwen, Kimi) | ~4× a camada 2 | plano de compras da semana, cenário "e se", negociação com vários fornecedores |
 
@@ -157,15 +162,18 @@ A economia vem de **não chamar modelo grande para o que uma regra resolve**. Qu
 
 | Tarefa | Camada | Modelo inicial | Observação |
 |---|---|---|---|
-| Resposta a pergunta com número direto | 0 | — | responde por modelo de texto pronto, sem IA |
-| Classificar a intenção da pergunta | 1 → 2 | LAYA (piloto) / Flash | cai para Flash se a confiança for baixa |
-| Conversa com ferramentas | 2 | V4.1 Flash | temperatura 0 |
+| Resposta a pergunta com número direto | 0 + 1 | Jev escolhe a ferramenta | o motor consulta e responde com texto pronto, sem modelo de linguagem |
+| Escolher ferramenta / agente para a pergunta | 1 | Jev | se a confiança for baixa, o Flash escolhe |
+| Decidir se precisa do modelo forte | 1 | Jev (nota de dificuldade) | roteia entre Flash e Pro |
+| Conversa com ferramentas | 2 | V4.1 Flash | recebe só a ferramenta já escolhida e o resultado; temperatura 0 |
 | Resumo do dia e da semana | 2 | V4.1 Flash | rodar no horário de desconto |
 | Explicar oportunidade | 2 | V4.1 Flash | cache pelos números, lote noturno |
 | Mensagem ao fornecedor (falta, avaria) | 2 | V4.1 Flash | |
 | Plano de compras da semana | 3 | V4 Pro | vários passos, várias ferramentas |
 | Cenário "e se" (feriado, aumento de preço) | 3 | V4 Pro | usa a simulação de preço e a previsão |
 | Visão (encarte, foto de etiqueta) | 2 | modelo com visão | já usado nos temas |
+| Comando de voz curto ("aprova", "depois") | 1 | Jev | sem modelo de linguagem |
+| Guarda da ação preparada pelo agente | 1 | Jev | ação duvidosa vai para aprovação humana |
 | Voz | — | serviço de fala (seção 7) | DeepSeek não processa áudio |
 
 ### 5.2 Vários modelos juntos (fase posterior)
@@ -211,7 +219,7 @@ falharem, entra o texto do sistema, como hoje.
 
 1. Acorda por horário ou evento (4.2).
 2. Lê os números com ferramentas de consulta, sem inventar nada.
-3. Decide se há algo que vale atenção. A **regra ou a decisão local decide primeiro**; o modelo só
+3. Decide se há algo que vale atenção. A **regra decide primeiro, depois o Jev**; o DeepSeek só
    entra quando há algo a explicar ou a planejar.
 4. Prepara a ação (pedido, promoção, mensagem) e grava na **caixa de decisões** com o motivo, os
    números e o impacto em reais.
@@ -278,59 +286,124 @@ Privacidade: o áudio não é guardado, só o texto da pergunta, no mesmo regist
 
 ---
 
-## 8. LAYA: o que é e onde usar
+## 8. Jev + DeepSeek: a camada de decisão que economiza tokens
 
-### 8.1 O que é
+### 8.1 O que é o Jev e por que a comunidade está usando
 
-- **Jev** (TypeSafe AI) é uma API paga de "decisões tipadas": pergunta com opções → resposta com
-  probabilidade. Não gera texto.
-- **LAYA** é a alternativa aberta (licença Apache 2.0, uso comercial livre): modelo pequeno de
-  322-421 milhões de parâmetros, que ocupa menos de 1 GB e roda no nosso servidor sem cobrar por
-  chamada.
-- Três formatos de pergunta: escolha entre opções, sim/não, nota numa escala.
+O **Jev** (TypeSafe AI) é um modelo que **não escreve texto: ele decide**. Recebe a situação (texto ou
+JSON) e perguntas fechadas, e devolve a resposta com a probabilidade de cada opção, tudo numa única
+passada.
 
-### 8.2 Números medidos por terceiros
+| Tipo de pergunta | Exemplo no MercadoFlow | Resposta |
+|---|---|---|
+| **Escolha** (até 255 opções) | "qual ferramenta responde esta pergunta?" | a opção + probabilidade de cada uma |
+| **Nota** (escala) | "qual a dificuldade desta tarefa, de 1 a 5?" | a nota + confiança |
+| **Sim/não** | "esta queda de venda merece alerta?" | probabilidade de 0 a 1 |
+
+Por que ele economiza:
+
+- **Preço:** US$ 0,042 por milhão de tokens de entrada e **saída grátis**, contra US$ 0,15 a
+  US$ 1,32 de entrada e US$ 0,60 a US$ 3,96 de saída no DeepSeek.
+- **Tempo:** 70 a 500 ms, contra segundos de um modelo de linguagem.
+- **Várias perguntas de uma vez:** um pedido responde "qual ferramenta?", "é urgente?" e "precisa do
+  modelo forte?" juntos.
+
+O padrão que os desenvolvedores estão usando em agentes: **checagem exata primeiro (código), depois
+uma pergunta fechada ao Jev sobre o que ficou ambíguo, e o modelo de linguagem só para o que precisa
+de texto ou raciocínio longo**. Os usos mais citados:
+
+- rotear para o modelo mais barato capaz (fácil → barato; difícil → forte);
+- escolher ferramenta, habilidade ou subagente;
+- "guarda" de ação: aprovar ou barrar uma ação do agente antes de executar (um projeto julgou 17 mil
+  chamadas de ferramenta e segurou 42, com ~88% de acerto);
+- barrar instrução maliciosa escondida em texto de terceiros;
+- verificar se o agente terminou a tarefa;
+- triagem de caixa de entrada e classificação em massa (500 páginas por menos de US$ 0,10).
+
+### 8.2 Onde entra no MercadoFlow
+
+| Decisão | Tipo | Antes (só modelo de linguagem) | Com Jev |
+|---|---|---|---|
+| Qual das 10+ ferramentas responde a pergunta | escolha | o DeepSeek lê a descrição de todas as ferramentas numa volta inteira | o Jev escolhe; o DeepSeek recebe só o resultado |
+| A pergunta é de número direto (dá para responder por texto pronto)? | sim/não | sempre chamava o modelo | responde sem modelo de linguagem |
+| Precisa do DeepSeek Pro ou o Flash resolve? | nota | não existia | roteia pela dificuldade |
+| Qual agente trata este evento (nota chegou, venda caiu…) | escolha | — | o Jev distribui |
+| "Isto merece acordar o lojista?" (antes de cada aviso) | sim/não | o modelo lia cada candidato | só os "sim" viram texto |
+| "A ação preparada é segura?" (guarda da caixa de decisões) | sim/não | — | barra ou manda para aprovação humana |
+| Texto de nota, observação ou nome de produto contém instrução maliciosa? | sim/não | — | filtro antes de mandar ao modelo |
+| O agente terminou ou precisa de mais um passo? | sim/não | uma volta a mais do modelo | o Jev decide |
+| Comando de voz: "aprova", "depois", "detalhe", "cancela" | escolha | o modelo interpretava | o Jev entende a intenção |
+
+O Jev **não substitui o motor**: ele erra em conta, contagem, datas e raciocínio em vários passos. Nada
+disso sai dele. Preço, giro, previsão, quantidade a comprar e diferença de nota continuam no motor, que
+acerta 100%.
+
+### 8.3 Economia estimada
+
+Mesmas premissas da seção 9.2 (Flash no pico, US$ 1 = R$ 5,50).
+
+| Tarefa | Só DeepSeek | Jev + DeepSeek | Economia |
+|---|---|---|---|
+| Pergunta de número direto | ~R$ 0,017 | ~R$ 0,0007 (sem modelo de linguagem) | ~96% |
+| Pergunta que precisa de conversa | ~R$ 0,017 | ~R$ 0,007 (uma volta a menos, sem a lista de ferramentas) | ~60% |
+| Execução diária de um agente (80% dos casos sem nada relevante) | ~R$ 0,035 | ~R$ 0,008 | ~75% |
+| Comando de voz de aprovação | ~R$ 0,005 | ~R$ 0,0001 | ~98% |
+
+Hipótese de trabalho: com ~40% das perguntas sendo de número direto, o custo de IA por mercado cai
+de **~R$ 24 para ~R$ 9 por mês** no uso intenso. Isso sobe a margem dos pacotes ou permite baixar o
+preço de entrada. A confirmar no piloto, com o registro de uso real.
+
+### 8.4 Cuidados
+
+- **Português:** a documentação do Jev não confirma suporte a português. Primeira tarefa do piloto é
+  medir o acerto com perguntas reais de lojista.
+- **Acesso:** o cadastro direto na TypeSafe está pausado desde 22/09/2026. O acesso segue pela
+  **OpenRouter** (modelo `jev-latest`) e pelo **Vercel AI Gateway**. A OpenRouter já está no catálogo
+  de provedores do MercadoFlow.
+- **Confiança baixa cai para o DeepSeek:** toda decisão do Jev abaixo de um limite calibrado segue
+  para o modelo de linguagem, e o produto nunca fica pior do que hoje.
+- **LGPD:** o Jev roda nos EUA. Vale a mesma regra de mandar só métricas e texto necessário.
+- **Dependência:** fornecedor novo e com cadastro pausado. Por isso o LAYA fica mapeado como plano B
+  local (8.5).
+
+### 8.5 LAYA: a alternativa local ao Jev
+
+O **LAYA** é a versão aberta do mesmo tipo de modelo (licença Apache 2.0, 322-421 milhões de
+parâmetros, menos de 1 GB), que roda no nosso servidor sem custo por chamada. Os testes de terceiros
+mostram por que a comunidade prefere o Jev pela API:
 
 | Situação | Jev | LAYA |
 |---|---|---|
-| Tempo por decisão | ~250-700 ms (rede) | ~9-21 ms com placa de vídeo; ~0,8-1,7 s só com processador |
+| Tempo por decisão | ~70-700 ms (pela rede) | ~9-21 ms com placa de vídeo; ~0,8-1,7 s só com processador |
 | Casos comuns | 99% | 73% |
 | Casos difíceis | 74% | 34% |
 | Escolher entre 117 opções | 89% | 5,5% |
 | Extrair valor de um texto | 100% | 32% |
 | Confiança declarada × acerto real (versão multilíngue) | calibrado | diz 99,6%, acerta 22% |
 
-Leitura honesta: o LAYA é **rápido e de graça, mas só é bom em perguntas simples de sim/não e com
-poucas opções**. Ele erra muito com muitas opções, com extração de valores e às vezes fica "confiante
-demais" no erro. Quem testou resume: **trocar Jev por LAYA não é trocar uma peça, é refazer**:
-calibrar limites, escolher a versão certa e treinar com dados próprios.
+Quem testou resume: **trocar Jev por LAYA não é trocar uma peça, é refazer** (calibrar limites,
+escolher a versão certa, treinar com dados próprios). Como o Jev custa frações de centavo por decisão,
+**a economia de trazer isso para dentro de casa é pequena** e a perda de acerto é grande.
 
-### 8.3 Onde ele cabe no MercadoFlow
+Quando o LAYA passa a valer a pena:
 
-| Uso | Serve? | Por quê |
-|---|---|---|
-| "Esta queda de venda merece alerta?" (sim/não) | piloto | pergunta binária, alto volume |
-| "Esta pergunta é sobre vendas, estoque, preço, compras ou outro?" (5 opções) | piloto | poucas opções; se a confiança for baixa, passa para o DeepSeek |
-| "Esta nota de fornecedor tem divergência grave?" | piloto | binária, com números já calculados |
-| Escolher entre dezenas de ferramentas ou produtos | não | cai para 5,5% com muitas opções |
-| Ler valor, data ou quantidade de texto | não | o motor e o XML da nota já fazem isso com 100% de precisão |
-| Conversar, resumir, escrever | não | ele não gera texto |
+- se o Jev ficar indisponível ou mudar de preço;
+- em decisões de sim/não de altíssimo volume (ex.: triagem contínua de cada variação de venda);
+- se tivermos servidor com placa de vídeo ou rodarmos no computador do caixa, onde o agente Windows
+  já está instalado.
 
-### 8.4 Onde está a economia de verdade
+Mesmo assim, só depois de 30 dias rodando em paralelo e passando de 90% de acerto calibrado.
 
-A maior economia **não vem do LAYA, vem do motor que já temos**: preço, giro, cobertura, previsão,
-reposição, divergência de nota e alerta por limite já são calculados sem IA. O Copiloto deve
-responder por regra tudo o que o motor já sabe e chamar o DeepSeek só para conversar e planejar.
-O LAYA entra como **filtro barato antes do DeepSeek**, em 2 ou 3 decisões de sim/não, em modo de
-teste:
+### 8.6 Onde está a economia de verdade
 
-1. Roda em paralelo, sem afetar o produto, por 30 dias.
-2. Compara com o DeepSeek e com a decisão do lojista.
-3. Fica só onde acertar pelo menos 90% com confiança calibrada.
+Em ordem de peso:
 
-Cuidado de infraestrutura: sem placa de vídeo, cada decisão leva de 1 a 2 s de processador. A VPS
-atual precisa ser medida antes. Os relatórios de VPS do repositório mostram recursos apertados. Uma
-opção futura é rodar o modelo local no computador do caixa, onde o agente Windows já roda.
+1. **O motor que já temos:** preço, giro, cobertura, previsão, reposição e divergência de nota não
+   gastam nada.
+2. **Jev nas decisões fechadas:** tira do DeepSeek escolha de ferramenta, triagem e voltas extras.
+3. **Cache e horário de desconto do DeepSeek:** instrução fixa no começo (cache a ~1/100 do preço) e
+   rotinas em lote fora do pico (metade do preço).
+4. **LAYA local:** só em volume muito alto e com placa de vídeo.
 
 ---
 
@@ -369,16 +442,17 @@ Mercado de uso intenso por mês:
 - 5 agentes: R$ 5,25
 - 5 min de voz paga por dia: R$ 6,30
 
-Total: **cerca de R$ 24 por mês**. Um mercado de uso normal fica perto de R$ 6 a 10. Com cache e
-horário de desconto, esses números caem bastante.
+Total: **cerca de R$ 24 por mês** só com DeepSeek. Com o Jev nas decisões fechadas (seção 8.3), cai
+para **cerca de R$ 9**. Um mercado de uso normal fica perto de R$ 3 a 6. Com cache e horário de
+desconto, esses números caem mais.
 
 ### 9.3 Proposta de preço (hipótese a validar)
 
 | Pacote | Preço | Inclui | Custo estimado | Margem bruta |
 |---|---|---|---|---|
-| **Copiloto** | R$ 79/mês | assistente, resumo diário, voz do navegador, 800 créditos | até ~R$ 14 | ~80% |
-| **Copiloto Pro** | R$ 199/mês | + agentes, WhatsApp, voz paga, 2.500 créditos | até ~R$ 45 | ~75% |
-| **Recarga** | R$ 39 | 500 créditos | ~R$ 9 | ~75% |
+| **Copiloto** | R$ 79/mês | assistente, resumo diário, voz do navegador, 800 créditos | até ~R$ 6 (com Jev) | ~90% |
+| **Copiloto Pro** | R$ 199/mês | + agentes, WhatsApp, voz paga, 2.500 créditos | até ~R$ 25 (com Jev) | ~85% |
+| **Recarga** | R$ 39 | 500 créditos | ~R$ 4 | ~90% |
 
 Referência: 1 crédito ≈ 1 pergunta simples; agente e plano de compras gastam mais créditos. A margem
 real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava tokens por chamada, e
@@ -410,10 +484,10 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 | Fase | Entrega | Critério de pronto |
 |---|---|---|
 | **F0 · Fundação** (2-3 semanas) | chave DeepSeek da plataforma, carteira de IA com pacotes e Pix, débito por uso, teto por mercado, roteador por tarefa | toda chamada de IA debita crédito; relatório de custo × receita no superadmin |
-| **F1 · Copiloto texto** (3 semanas) | chat com resposta por regra antes da IA, resumo diário, caixa de decisões com as ações que já existem, notificação no celular | 70% das perguntas comuns respondidas sem IA; resumo diário entregue às 6h |
+| **F1 · Copiloto texto + Jev** (3-4 semanas) | Jev pela OpenRouter na camada de decisão (ferramenta, número direto, dificuldade), chat com resposta por regra, resumo diário, caixa de decisões, notificação no celular | acerto do Jev em português medido; 70% das perguntas comuns sem modelo de linguagem; custo por pergunta caindo |
 | **F2 · Voz** (2-3 semanas) | aperte-para-falar no app e no Confere, resumo falado, comandos na conferência | resposta falada em até 3 s; funciona no Android e no iPhone |
 | **F3 · Agentes** (4-6 semanas) | Gerente, Compras e Recebimento, níveis 0-2, eventos, WhatsApp | 3 agentes em produção; taxa de aceite e impacto em R$ medidos |
-| **F4 · Mais modelos e decisão local** (3-4 semanas) | Qwen/MiniMax na cadeia, escolha por custo × acerto, piloto LAYA em paralelo, agentes de Preço, Capital, Promoções e Cenários | custo por tarefa cai sem cair a taxa de aceite |
+| **F4 · Mais modelos** (3-4 semanas) | Qwen/MiniMax na cadeia, escolha por custo × acerto, agentes de Preço, Capital, Promoções e Cenários, LAYA em paralelo só se o volume justificar | custo por tarefa cai sem cair a taxa de aceite |
 | **F5 · Autonomia** | nível 3 com limites, WhatsApp de ida e volta | ações executadas sem incidente; lojista mantém o nível ligado |
 
 ---
@@ -440,6 +514,8 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 | Transferência de dados para a China | aviso, dados mínimos, opção de hospedagem fora da China |
 | Agente agir errado | caixa de decisões, níveis de autonomia, limites em reais, botão de desligar |
 | Voz errar no barulho | aperte-para-falar, confirmação antes de agir, reconhecimento pago onde precisar |
+| Jev sem bom português | piloto medindo acerto real; abaixo do limite de confiança, cai para o DeepSeek |
+| Jev indisponível (cadastro direto pausado) | acesso pela OpenRouter/Vercel; LAYA local como plano B; DeepSeek decide se ambos faltarem |
 | LAYA fraco em português ou com muitas opções | só em teste paralelo e só em sim/não; sai se não passar da meta |
 
 ---
@@ -453,7 +529,8 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 4. Quais agentes entram primeiro (proposta: Gerente, Compras e Recebimento).
 5. Se o WhatsApp entra na F3 (exige conta WhatsApp Business e custo por conversa).
 6. Texto de consentimento sobre processamento fora do Brasil.
-7. Se vale investir em servidor com placa de vídeo para a decisão local, depois do piloto.
+7. Conta na OpenRouter para o Jev (e se o saldo fica junto do DeepSeek na conta da plataforma).
+8. Se vale investir em servidor com placa de vídeo para a decisão local, depois do piloto.
 
 ---
 
@@ -465,6 +542,13 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 - Preços Qwen, Kimi, GLM e MiniMax: [benchlm.ai/alibaba](https://benchlm.ai/alibaba/api-pricing),
   [morphllm.com](https://www.morphllm.com/llm-api),
   [geotoolbox.ai](https://geotoolbox.ai/blog/chinese-ai-models-compared)
+- Jev e o uso com modelos de linguagem: [Firecrawl](https://www.firecrawl.dev/blog/what-is-jev),
+  [InfoWorld](https://www.infoworld.com/article/4223468/typesafe-ais-new-models-work-with-machines-not-humans.html),
+  [LangChain](https://www.langchain.com/blog/building-a-harness-with-jev),
+  [Refix](https://www.refix.ai/news/jev-for-ai-agents/),
+  [18 usos (Hugging Face)](https://huggingface.co/blog/karmen-beatapi/18-practical-jev-use-cases-for-ai-agents),
+  [DEV Community](https://dev.to/vivek_shetye/jev-explained-why-it-could-matter-for-ai-agents-51om),
+  [preço](https://jevtypesafeai.com/pricing)
 - LAYA × Jev: [Hugging Face](https://huggingface.co/blog/sora-2/jev-vs-laya-hosted-api-or-open-weights-2026-guide),
   [BKS-Lab](https://bks-lab.com/en/blog/laya-gegen-jev/),
   [iMasters](https://imasters.com/news/laya-arrives-as-an-open-source-alternative-to-typesafe-ai-jev),
