@@ -1,6 +1,6 @@
 # MercadoFlow Copiloto — proposta de IA, assistente por voz e agentes
 
-Versão 5 · 30/09/2026 (Jev na camada de decisão, na vigília dos agentes e na montagem do contexto; DeepSeek Harness) · proposta para decisão do dono do produto
+Versão 6 · 30/09/2026 (Jev na camada de decisão, na vigília dos agentes e na montagem do contexto; cortes na IA atual; DeepSeek Harness) · proposta para decisão do dono do produto
 
 ---
 
@@ -73,6 +73,33 @@ Base técnica que já serve para o que vem:
 - **Registro de uso** por chamada: provedor, modelo, tokens, tempo e resultado. É a base da cobrança.
 - **Carteira de créditos do Confere**: extrato, pacotes, Pix com QR e confirmação, Stripe, painel do
   superadmin. É exatamente o que a revenda de IA precisa.
+
+#### Onde a IA generativa de hoje desperdiça
+
+Levantamento no código (30/09/2026). Hoje quem paga são os mercados, com a própria chave; na
+revenda, passa a ser a plataforma.
+
+| Função | Custo por mercado/mês | Com 1.000 mercados | Problema |
+|---|---|---|---|
+| Leitura das oportunidades | ~R$ 1,80 | ~R$ 1.800 | refeita toda noite e gerada mesmo sem ninguém ler |
+| Resumo da semana | ~R$ 0,06 | ~R$ 60 | nenhum: um texto por semana, vale o custo |
+
+Por que a leitura das oportunidades é refeita toda noite: o texto enviado à IA inclui "situação já
+detectada N vezes" e a cobertura com casa decimal ("3,2 dias"). Esses valores mudam a cada
+detecção, o hash muda e o cache nunca acerta para oportunidade que continua aberta. Além disso, a
+rotina gera até 40 textos por mercado por noite, mesmo que o lojista não abra a Central de
+Inteligência.
+
+Cortes previstos na fase F0 (seção 11), com estimativa de ~R$ 1,80 → **~R$ 0,15 por mercado/mês**:
+
+1. **Gerar só quando alguém lê:** o texto da IA nasce quando o lojista abre a oportunidade ou toca
+   em "Por quê?"; até lá, o texto do sistema (que já existe) aparece.
+2. **Cache estável por faixas:** sai a contagem exata de dias e entram faixas ("cobertura baixa",
+   "há mais de uma semana"); o texto só é refeito quando a situação muda de verdade.
+3. **Jev decide se vale:** "o texto do sistema já explica bem?" antes de chamar o DeepSeek; só o que
+   tem impacto relevante ganha texto da IA.
+4. **IA só no pacote pago:** plano grátis fica com o texto do sistema.
+5. **Teto de créditos por mercado**, como no resto do Copiloto.
 
 ### 2.3 O que falta
 
@@ -670,7 +697,7 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 
 | Fase | Entrega | Critério de pronto |
 |---|---|---|
-| **F0 · Fundação** (2-3 semanas) | chave DeepSeek da plataforma, carteira de IA com pacotes e Pix, débito por uso, teto por mercado, roteador por tarefa | toda chamada de IA debita crédito; relatório de custo × receita no superadmin |
+| **F0 · Fundação** (2-3 semanas) | chave DeepSeek da plataforma, carteira de IA com pacotes e Pix, débito por uso, teto por mercado, roteador por tarefa, cortes da IA atual (seção 2.2: sob demanda, cache por faixas, Jev, só pacote pago) | toda chamada de IA debita crédito; relatório de custo × receita no superadmin; leitura das oportunidades abaixo de R$ 0,20 por mercado/mês |
 | **F1 · Copiloto texto + Jev** (3-4 semanas) | Jev pela OpenRouter na camada de decisão (ferramenta, número direto, dificuldade), chat com resposta por regra, resumo diário, caixa de decisões, notificação no celular | acerto do Jev em português medido; 70% das perguntas comuns sem modelo de linguagem; custo por pergunta caindo |
 | **F2 · Voz** (2-3 semanas) | aperte-para-falar no app e no Confere, resumo falado, comandos na conferência | resposta falada em até 3 s; funciona no Android e no iPhone |
 | **F3 · Agentes** (4-6 semanas) | Gerente, Compras e Recebimento, níveis 0-2, eventos, WhatsApp | 3 agentes em produção; taxa de aceite e impacto em R$ medidos |
