@@ -45,7 +45,7 @@ const DocCard: React.FC<{ d: DocumentSummary }> = ({ d }) => {
       {state !== 'WAIT' && <ChevronRight className="h-5 w-5 shrink-0 text-stone-300" aria-hidden="true" />}
     </>
   );
-  const cls = 'flex items-center gap-3 rounded-3xl bg-white p-3.5 ring-1 ring-[#DCE5DF] active:scale-[0.99] transition';
+  const cls = 'lg-card flex items-center gap-3 rounded-3xl p-3.5 active:scale-[0.99] transition';
   return (
     <li>
       {state === 'WAIT'

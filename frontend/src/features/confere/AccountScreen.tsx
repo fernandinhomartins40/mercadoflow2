@@ -18,7 +18,7 @@ const AccountScreen: React.FC<{ status: ConfereStatus }> = ({ status }) => {
     <>
       <TabHeader title="Conta" />
       <div className="flex flex-col gap-6 px-4 pt-1">
-        <section className="flex items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-[#DCE5DF]">
+        <section className="flex items-center gap-4 rounded-3xl p-4 lg-card">
           <span className="cf-wallet flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold text-white" aria-hidden="true">
             {status.marketName.trim().charAt(0).toUpperCase()}
           </span>

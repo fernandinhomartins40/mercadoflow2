@@ -68,7 +68,7 @@ const InstallApp: React.FC<{ tone?: 'light' | 'dark' }> = ({ tone = 'light' }) =
         </button>
       ) : (
         <button type="button" onClick={install}
-          className="flex w-full items-center gap-3 rounded-3xl bg-white p-4 text-left ring-1 ring-[#DCE5DF] active:scale-[0.99]">
+          className="flex w-full items-center gap-3 rounded-3xl p-4 text-left lg-card active:scale-[0.99]">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#E3F4EA] text-[#0A7A3D]"><Download className="h-5 w-5" aria-hidden="true" /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-base font-bold">Instalar o app no celular</span>

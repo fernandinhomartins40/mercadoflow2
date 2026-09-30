@@ -20,13 +20,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidthOnMobile?: boolean;
 }
 
+// Liquid glass: cor sólida com a luz do vidro (tingido) ou vidro claro (secundário).
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'border border-transparent bg-green-500 text-white hover:bg-green-600',
-  secondary: 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300',
-  ghost: 'border border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-  danger: 'border border-transparent bg-red-500 text-white hover:bg-red-600',
-  success: 'border border-transparent bg-emerald-500 text-white hover:bg-emerald-600',
-  warning: 'border border-transparent bg-amber-500 text-white hover:bg-amber-600',
+  primary: 'lg-tinted border border-transparent',
+  secondary: 'lg-soft border border-transparent',
+  ghost: 'border border-transparent bg-transparent text-slate-600 hover:bg-slate-900/5 hover:text-slate-900',
+  danger: 'lg-tinted border border-transparent [--tint:#e5383d]',
+  success: 'lg-tinted border border-transparent [--tint:#059669]',
+  warning: 'lg-tinted border border-transparent [--tint:#f59e0b]',
 };
 
 const SIZE_CLASS: Record<ButtonSize, string> = {
@@ -45,7 +46,7 @@ const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseClassName =
-    'inline-flex items-center justify-center gap-2 rounded-lg text-center font-semibold leading-none whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex items-center justify-center gap-2 rounded-full text-center font-semibold leading-none whitespace-nowrap transition duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <button

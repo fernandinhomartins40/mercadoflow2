@@ -55,14 +55,14 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
   return (
     <>
       <TabHeader small subtitle="Olá," title={status.marketName}
-        action={<img src="/api/v1/public/confere/icon/icon192" alt="" className="h-11 w-11 shrink-0 rounded-2xl shadow-sm ring-1 ring-[#DCE5DF]" />} />
+        action={<img src="/api/v1/public/confere/icon/icon192" alt="" className="h-11 w-11 shrink-0 rounded-2xl shadow-sm lg-card" />} />
       <div className="flex flex-col gap-6 px-4 pt-2">
         <Wallet status={status} />
 
         <ul className="grid grid-cols-3 gap-2" aria-label="Resumo das notas">
           {([['A conferir', counts.todo, 'text-amber-700'], ['Conferidas', counts.done, 'text-[#0A7A3D]'], ['Na Sefaz', counts.wait, 'text-stone-600']] as const).map(([label, n, color]) => (
             <li key={label}>
-              <Link to="/confere/notas" className="flex flex-col rounded-2xl bg-white px-3 py-3 ring-1 ring-[#DCE5DF]">
+              <Link to="/confere/notas" className="flex flex-col rounded-2xl px-3 py-3 lg-card">
                 <span className={`text-2xl font-extrabold tabular-nums ${color}`}>{docs === null ? '–' : n}</span>
                 <span className="text-sm font-semibold text-[#5B6B62]">{label}</span>
               </Link>

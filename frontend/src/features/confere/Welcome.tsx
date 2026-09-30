@@ -81,10 +81,10 @@ export const Welcome: React.FC = () => {
           </p>
         </section>
         <InstallApp />
-        <div className="grid grid-cols-2 rounded-2xl bg-[#DDE7E1] p-1" role="tablist">
+        <div className="grid grid-cols-2 lg-glass rounded-full p-1" role="tablist">
           {([['criar', 'Criar conta'], ['entrar', 'Já tenho conta']] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setError(null); }}
-              className={`h-12 rounded-xl text-lg font-bold ${tab === k ? 'bg-white text-[#0F1A14] shadow-sm' : 'text-[#5B6B62]'}`}>{l}</button>
+              className={`h-12 rounded-full text-lg font-bold ${tab === k ? 'lg-tab-on' : 'text-[#5B6B62]'}`}>{l}</button>
           ))}
         </div>
         {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-lg text-red-800">{error}</p>}
@@ -103,7 +103,7 @@ export const Welcome: React.FC = () => {
             <Field label="E-mail" type="email" required value={form.email} onChange={set('email')} autoComplete="email" />
             <Field label="Senha" type="password" required value={form.password} onChange={set('password')} autoComplete="new-password"
               hint="8 ou mais caracteres, com maiúscula, minúscula, número e símbolo." />
-            <label className="flex items-start gap-3 rounded-2xl bg-white p-4 text-base ring-1 ring-[#DCE5DF]">
+            <label className="flex items-start gap-3 rounded-2xl p-4 text-base lg-card">
               <input type="checkbox" checked={form.accept} onChange={set('accept')} className="mt-1 h-6 w-6 shrink-0 accent-[#0A7A3D]" />
               <span>
                 Li e aceito os termos: <strong>as notas lidas ficam armazenadas pelo MercadoFlow</strong>, ligadas ao meu mercado.{' '}

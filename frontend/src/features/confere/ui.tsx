@@ -13,15 +13,15 @@ export const errorText = (e: unknown, fallback: string) =>
   (e as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
 
 export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-[100dvh] bg-[#EEF3F0] text-[#0F1A14] antialiased" style={{ fontSize: 17 }}>
+  <div className="min-h-[100dvh] lg-canvas text-[#0F1A14] antialiased" style={{ fontSize: 17 }}>
     <div className="mx-auto w-full max-w-xl">{children}</div>
   </div>
 );
 
 /** Cabeçalho de vidro: voltar, título e uma ação opcional à direita. */
 export const TopBar: React.FC<{ title: string; back?: string; action?: React.ReactNode }> = ({ title, back = '/confere/', action }) => (
-  <header className="cf-glass-header sticky top-0 z-20 flex items-center gap-3 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))]">
-    <Link to={back} aria-label="Voltar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#DCE5DF] active:scale-95"><ArrowLeft className="h-5 w-5" /></Link>
+  <header className="lg-bar sticky top-0 z-20 flex items-center gap-3 rounded-b-[28px] px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))]">
+    <Link to={back} aria-label="Voltar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm lg-card active:scale-95"><ArrowLeft className="h-5 w-5" /></Link>
     <h1 className="min-w-0 flex-1 truncate text-[1.6rem] font-extrabold tracking-tight">{title}</h1>
     {action}
   </header>
@@ -29,7 +29,7 @@ export const TopBar: React.FC<{ title: string; back?: string; action?: React.Rea
 
 /** Título grande da aba (Início, Notas, Créditos, Conta). */
 export const TabHeader: React.FC<{ title: string; subtitle?: React.ReactNode; action?: React.ReactNode; small?: boolean }> = ({ title, subtitle, action, small }) => (
-  <header className="cf-glass-header sticky top-0 z-20 flex items-end gap-3 px-5 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
+  <header className="lg-bar sticky top-0 z-20 flex items-end gap-3 rounded-b-[28px] px-5 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
     <div className="min-w-0 flex-1">
       {subtitle && <p className="truncate text-sm font-semibold text-[#5B6B62]">{subtitle}</p>}
       <h1 className={`font-extrabold leading-tight tracking-tight ${small ? 'line-clamp-2 text-[1.55rem]' : 'truncate text-[2rem]'}`}>{title}</h1>
@@ -39,7 +39,7 @@ export const TabHeader: React.FC<{ title: string; subtitle?: React.ReactNode; ac
 );
 
 export const Card: React.FC<React.HTMLAttributes<HTMLElement> & { as?: 'section' | 'div' }> = ({ as = 'section', className = '', ...props }) =>
-  React.createElement(as, { ...props, className: `rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(15,26,20,0.04)] ring-1 ring-[#DCE5DF] ${className}` });
+  React.createElement(as, { ...props, className: `lg-card rounded-3xl p-5 ${className}` });
 
 export const SectionTitle: React.FC<{ children: React.ReactNode; action?: React.ReactNode }> = ({ children, action }) => (
   <div className="flex items-center justify-between px-1">
@@ -52,7 +52,7 @@ export const SectionTitle: React.FC<{ children: React.ReactNode; action?: React.
 export const Group: React.FC<{ children: React.ReactNode; label?: string }> = ({ children, label }) => (
   <div className="flex flex-col gap-1.5">
     {label && <p className="px-4 text-sm font-semibold text-[#5B6B62]">{label}</p>}
-    <ul className="divide-y divide-[#E6EDE8] overflow-hidden rounded-3xl bg-white ring-1 ring-[#DCE5DF]">{children}</ul>
+    <ul className="divide-y divide-[#E6EDE8] overflow-hidden rounded-3xl lg-card">{children}</ul>
   </div>
 );
 
@@ -85,7 +85,7 @@ export const Field: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { lab
 
 export const BigButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: 'green' | 'white' }> = ({ tone = 'green', className = '', ...props }) => (
   <button {...props} className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-lg font-bold transition active:scale-[0.98] disabled:opacity-50 ${
-    tone === 'green' ? 'bg-gradient-to-b from-[#0C8A45] to-[#06592C] text-white shadow-[0_8px_20px_-8px_rgba(10,122,61,0.7)]' : 'bg-white text-[#0F1A14] ring-1 ring-[#CFDAD3]'} ${className}`} />
+    tone === 'green' ? 'lg-tinted [--tint:#0a7a3d]' : 'lg-soft'} ${className}`} />
 );
 
 export const Spinner: React.FC = () => (

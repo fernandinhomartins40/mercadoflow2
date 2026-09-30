@@ -37,7 +37,7 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
   }, [marketId, navigate, onBalance]);
 
   return (
-    <div className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col bg-[#EEF3F0] text-[#0F1A14]">
+    <div className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col lg-canvas text-[#0F1A14]">
       <header className="flex shrink-0 flex-col gap-2 px-4 pb-2 pt-3">
         <div className="flex items-center gap-3">
           <Link to="/confere/" aria-label="Voltar" className="flex h-12 w-12 items-center justify-center rounded-full bg-white"><ArrowLeft className="h-6 w-6" /></Link>

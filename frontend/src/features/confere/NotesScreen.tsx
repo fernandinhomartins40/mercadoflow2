@@ -31,18 +31,18 @@ const NotesScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
   return (
     <>
       <TabHeader title="Notas" action={
-        <Link to="/confere/importar" aria-label="Importar XML" className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#DCE5DF]"><FileUp className="h-5 w-5 text-[#0A7A3D]" /></Link>
+        <Link to="/confere/importar" aria-label="Importar XML" className="flex h-11 w-11 items-center justify-center rounded-full shadow-sm lg-card"><FileUp className="h-5 w-5 text-[#0A7A3D]" /></Link>
       } />
       <div className="flex flex-col gap-4 px-4 pt-1">
-        <label className="flex h-12 items-center gap-2 rounded-2xl bg-white px-4 ring-1 ring-[#DCE5DF] focus-within:ring-2 focus-within:ring-[#0A7A3D]/40">
+        <label className="flex h-12 items-center gap-2 rounded-2xl px-4 lg-card focus-within:ring-2 focus-within:ring-[#0A7A3D]/40">
           <Search className="h-5 w-5 text-[#8A978F]" aria-hidden="true" />
           <span className="sr-only">Buscar nota</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Fornecedor ou número da nota" className="min-w-0 flex-1 bg-transparent text-base outline-none" />
         </label>
-        <div className="grid grid-cols-3 rounded-2xl bg-[#DDE7E1] p-1" role="tablist" aria-label="Situação">
+        <div className="grid grid-cols-3 lg-glass rounded-full p-1" role="tablist" aria-label="Situação">
           {FILTERS.map(([k, label]) => (
             <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)}
-              className={`flex h-10 items-center justify-center gap-1 rounded-xl text-sm font-bold transition ${filter === k ? 'bg-white text-[#0F1A14] shadow-sm' : 'text-[#5B6B62]'}`}>
+              className={`flex h-10 items-center justify-center gap-1 rounded-full text-sm font-bold transition ${filter === k ? 'lg-tab-on' : 'text-[#5B6B62]'}`}>
               {label}{docs && <span className={`tabular-nums ${filter === k ? 'text-[#0A7A3D]' : ''}`}>{count(k)}</span>}
             </button>
           ))}

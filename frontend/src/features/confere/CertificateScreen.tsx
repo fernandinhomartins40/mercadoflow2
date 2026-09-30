@@ -59,7 +59,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
           e registra a &quot;ciência da operação&quot; para liberar os produtos. Ele fica guardado cifrado e só é usado para isso.
         </p>
         {cert && (
-          <section className="flex flex-col gap-2 rounded-3xl bg-white p-5 ring-1 ring-[#DCE5DF]">
+          <section className="flex flex-col gap-2 rounded-3xl p-5 lg-card">
             <p className="flex items-center gap-2 text-xl font-bold text-[#0A7A3D]"><ShieldCheck className="h-6 w-6" aria-hidden="true" />Certificado ativo</p>
             <p className="text-lg">{cert.holder}</p>
             <p className="text-base text-stone-600">CNPJ {maskCnpj(cert.cnpj)}, vence em {new Date(cert.notAfter).toLocaleDateString('pt-BR')}</p>
@@ -74,7 +74,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
           </section>
         )}
         {msg && <p role="status" className={`rounded-2xl p-4 text-lg ${msg.ok ? 'bg-green-50 text-green-900' : 'bg-red-50 text-red-800'}`}>{msg.text}</p>}
-        <form onSubmit={save} className="flex flex-col gap-4 rounded-3xl bg-white p-5 ring-1 ring-[#DCE5DF]">
+        <form onSubmit={save} className="flex flex-col gap-4 rounded-3xl p-5 lg-card">
           <h2 className="text-xl font-extrabold">{cert ? 'Trocar o certificado' : 'Enviar o certificado'}</h2>
           <label className="flex h-20 cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-stone-300 text-lg font-semibold">
             <Upload className="h-6 w-6 text-[#0A7A3D]" aria-hidden="true" />{file ? file.name : 'Escolher arquivo .pfx ou .p12'}

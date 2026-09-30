@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
+import AuthBrand from '../components/common/AuthBrand';
 import { useSuperAdminAuth } from '../context/SuperAdminAuthContext';
 import {
   clearRememberedLogin,
@@ -70,11 +71,13 @@ const SuperAdminLogin: React.FC = () => {
   };
 
   return (
-    <div className="super-admin-login-page">
-      <div className="super-admin-login-card card">
-        <span className="pill">Super Admin</span>
-        <h2>Painel do super admin</h2>
-        <p>Acesso da operação para revisar contas, catálogo e coletas.</p>
+    <div className="super-admin-login-page lg-canvas">
+      <div className="super-admin-login-card lg-thick">
+        <AuthBrand badge="Super Admin" />
+        <div className="login-heading">
+          <h2>Painel do super admin</h2>
+          <p>Acesso da operação para revisar contas, catálogo e coletas.</p>
+        </div>
         <form className="super-admin-login-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>E-mail</label>

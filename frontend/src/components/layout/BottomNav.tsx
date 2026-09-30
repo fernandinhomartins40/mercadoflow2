@@ -15,12 +15,13 @@ const BottomNav: React.FC = () => {
   const active = resolveLocation(pathname).destination.key;
 
   return (
+    // Pílula de vidro flutuando sobre o conteúdo, como no DigiUrban Glass.
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-30 border-t"
-      style={{ background: 'var(--surface-base)', borderColor: 'var(--border-soft)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3"
+      style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}
     >
-      <ul className="mx-auto grid max-w-xl grid-cols-5">
+      <ul className="lg-bar pointer-events-auto mx-auto grid max-w-xl grid-cols-5 rounded-[28px] p-1.5">
         {DESTINATIONS.map((destination) => {
           const Icon = destination.icon;
           const isActive = destination.key === active;
@@ -32,15 +33,12 @@ const BottomNav: React.FC = () => {
                 to={first.to}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 text-[0.72rem] font-semibold no-underline transition-colors',
+                  'flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-[22px] px-1 text-[0.72rem] font-semibold no-underline',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--brand-700)]',
+                  isActive ? 'lg-tab-on' : 'text-slate-500',
                 )}
-                style={{ color: isActive ? 'var(--brand-700)' : 'var(--text-muted)' }}
               >
-                <span
-                  className="flex h-7 w-12 items-center justify-center rounded-full transition-colors"
-                  style={{ background: isActive ? 'var(--surface-success)' : 'transparent' }}
-                >
+                <span className="flex h-7 w-12 items-center justify-center rounded-full">
                   <Icon className="h-5 w-5" strokeWidth={isActive ? 2.4 : 2} aria-hidden="true" />
                 </span>
                 {destination.label}

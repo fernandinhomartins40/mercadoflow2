@@ -55,7 +55,7 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
           <p className="rounded-2xl bg-green-50 p-4 text-lg text-green-900">Com o certificado A1 cadastrado, as notas vêm grátis da Sefaz. Os créditos ficam para quando a Sefaz demorar.</p>
         )}
         {order ? (
-          <section className="flex flex-col items-center gap-4 rounded-3xl bg-white p-5 ring-1 ring-[#DCE5DF] text-center">
+          <section className="flex flex-col items-center gap-4 rounded-3xl p-5 lg-card text-center">
             {order.status === 'PAID' ? (
               <>
                 <CheckCircle2 className="h-16 w-16 text-[#0A7A3D]" aria-hidden="true" />
@@ -90,7 +90,7 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
             {status.plans.map((p) => {
               const best = status.plans.length > 1 && p.id === [...status.plans].sort((x, y) => x.priceCents / x.reads - y.priceCents / y.reads)[0].id;
               return (
-              <div key={p.id} className={`flex flex-col gap-3 rounded-3xl bg-white p-5 ${best ? 'ring-2 ring-[#0A7A3D]' : 'ring-1 ring-[#DCE5DF]'}`}>
+              <div key={p.id} className={`flex flex-col gap-3 rounded-3xl p-5 ${best ? 'ring-2 ring-[#0A7A3D]' : 'lg-card'}`}>
                 {best && <span className="-mb-1 self-start rounded-full bg-[#E3F4EA] px-2.5 py-0.5 text-xs font-bold text-[#0A7A3D]">Mais em conta por nota</span>}
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-xl font-bold">{p.name}</span>

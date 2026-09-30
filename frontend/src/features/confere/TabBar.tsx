@@ -38,7 +38,7 @@ export const TabBar: React.FC = () => {
   const [a, b, c, d] = TABS;
   return (
     <nav aria-label="Menu do app" className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
-      <div className="cf-tabbar pointer-events-auto relative mx-auto flex h-[68px] max-w-xl items-center rounded-[28px] px-1">
+      <div className="lg-bar pointer-events-auto relative mx-auto flex h-[68px] max-w-xl items-center rounded-[28px] px-1">
         <TabLink tab={a} active={a.match(pathname)} />
         <TabLink tab={b} active={b.match(pathname)} />
         <div className="flex w-[84px] shrink-0 justify-center">
@@ -59,7 +59,7 @@ export const TabBar: React.FC = () => {
 export const TabLayout: React.FC = () => {
   const { pathname } = useLocation();
   return (
-    <div className="min-h-[100dvh] bg-[#EEF3F0] text-[#0F1A14] antialiased" style={{ fontSize: 17 }}>
+    <div className="min-h-[100dvh] lg-canvas text-[#0F1A14] antialiased" style={{ fontSize: 17 }}>
       <div key={pathname} className="cf-enter mx-auto w-full max-w-xl pb-[calc(112px+env(safe-area-inset-bottom))]">
         <Outlet />
       </div>

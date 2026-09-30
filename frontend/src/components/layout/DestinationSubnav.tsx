@@ -16,8 +16,8 @@ const DestinationSubnav: React.FC = () => {
   if (pages.length < 2) return null;
 
   return (
-    <nav aria-label={`Páginas de ${destination.label}`} className="lg:hidden" style={{ background: 'var(--surface-base)', borderBottom: '1px solid var(--border-soft)' }}>
-      <ul className="flex gap-1 overflow-x-auto px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav aria-label={`Páginas de ${destination.label}`} className="px-3 pt-2 lg:hidden">
+      <ul className="lg-glass flex gap-1 overflow-x-auto rounded-full p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {pages.map((p) => {
           const isActive = p.to === page.to;
           return (
@@ -27,12 +27,10 @@ const DestinationSubnav: React.FC = () => {
                 end={p.exact}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'inline-flex min-h-[40px] items-center rounded-full px-4 text-sm font-medium no-underline transition-colors',
+                  'inline-flex min-h-[40px] items-center rounded-full px-4 text-sm font-medium no-underline',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]',
+                  isActive ? 'lg-tab-on' : 'lg-tab',
                 )}
-                style={isActive
-                  ? { background: 'var(--brand-700)', color: '#fff' }
-                  : { background: 'var(--surface-soft)', color: 'var(--text-primary)', border: '1px solid var(--border-soft)' }}
               >
                 {p.label}
               </NavLink>

@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { SuperAdminAuthProvider } from './context/SuperAdminAuthContext';
 import './tailwind.css';
+import './styles/liquid-glass.css';
 
 document.documentElement.lang = 'pt-BR';
 document.documentElement.setAttribute('dir', 'ltr');

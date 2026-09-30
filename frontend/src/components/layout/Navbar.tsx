@@ -18,11 +18,12 @@ const Navbar: React.FC<{ desktopPinned: boolean }> = ({ desktopPinned }) => {
   const asking = pathname === '/app/perguntar';
 
   return (
-    <header className="sticky top-0 z-20" style={{ borderBottom: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-      <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2 sm:px-6">
+    // Topo de vidro que fica colado ao rolar; o conteúdo passa desfocado por baixo.
+    <header className="sticky top-0 z-20 px-3 pt-3 sm:px-6">
+      <div className="lg-bar flex min-h-14 items-center justify-between gap-3 rounded-full py-2 pl-4 pr-2">
         <div className="flex min-w-0 items-center gap-2.5">
           {!desktopPinned && (
-            <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">MF</span>
+            <span aria-hidden="true" className="lg-tinted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">MF</span>
           )}
           {/* Só o destino: o título da tela já aparece na própria página. */}
           <p className="min-w-0 truncate text-base font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
@@ -34,8 +35,7 @@ const Navbar: React.FC<{ desktopPinned: boolean }> = ({ desktopPinned }) => {
           {!asking && (
             <Link
               to="/app/perguntar"
-              className={`inline-flex min-h-[40px] items-center gap-2 rounded-lg px-3 text-sm font-semibold no-underline ${FOCUS}`}
-              style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}
+              className={`lg-soft inline-flex min-h-[40px] items-center gap-2 rounded-full px-4 text-sm font-semibold no-underline ${FOCUS}`}
             >
               <MessageSquare className="h-4 w-4" aria-hidden="true" />
               {/* Em telas estreitas só o ícone: o título da tela precisa do espaço. */}
@@ -48,8 +48,7 @@ const Navbar: React.FC<{ desktopPinned: boolean }> = ({ desktopPinned }) => {
               type="button"
               onClick={logout}
               aria-label="Sair da conta"
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${FOCUS}`}
-              style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}
+              className={`lg-soft inline-flex h-10 w-10 items-center justify-center rounded-full ${FOCUS}`}
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>

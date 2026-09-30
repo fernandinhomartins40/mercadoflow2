@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import AuthBrand from '../components/common/AuthBrand';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Check, Sparkles } from 'lucide-react';
 import Button from '../components/common/Button';
@@ -139,10 +140,11 @@ const Register: React.FC = () => {
   const purchasablePlans = plans.filter((plan) => plan.code !== 'REDE');
 
   return (
-    <div className="login-page">
-      <div className="card login-card" style={{ maxWidth: '520px' }}>
+    <div className="login-page lg-canvas">
+      <div className="lg-thick login-card" style={{ maxWidth: '520px' }}>
+        <AuthBrand badge="Grátis" />
         <h2>Criar conta grátis</h2>
-        <p>
+        <p className="login-lead">
           Comece agora no plano gratuito, sem cartão de crédito. Você já pode instalar o Agente
           Mercado Flow e receber suas notas fiscais.
         </p>

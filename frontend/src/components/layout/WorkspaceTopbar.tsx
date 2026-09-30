@@ -22,8 +22,7 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   const menuButton = showMenuToggle ? (
     <button
       type="button"
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition"
-      style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}
+      className="lg-soft inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition"
       onClick={onToggleSidebar}
       aria-label="Abrir menu lateral"
     >
@@ -32,19 +31,17 @@ const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
   ) : null;
 
   return (
-    <header
-      className={cn('sticky top-0 z-20', className)}
-      style={{ borderBottom: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
-    >
-      <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-2 sm:px-6">
+    // Topo de vidro em pílula, colado ao rolar.
+    <header className={cn('sticky top-0 z-20 px-3 pt-3 sm:px-6', className)}>
+      <div className="lg-bar flex min-h-14 items-center justify-between gap-4 rounded-full py-2 pl-3 pr-2 sm:pl-5">
         <div className="flex min-w-0 items-center gap-3">
           {menuButton}
 
           <div className="min-w-0">
-            <span className="block text-[0.65rem] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
+            <span className="block text-xs font-semibold" style={{ color: 'var(--lg-ink3)' }}>
               {section}
             </span>
-            <h2 className="truncate text-[1rem] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+            <h2 className="truncate text-[1.05rem] font-bold tracking-tight" style={{ color: 'var(--lg-ink)' }}>{title}</h2>
           </div>
         </div>
 

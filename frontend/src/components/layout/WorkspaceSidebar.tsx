@@ -69,29 +69,30 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
       <aside
         className={cn(
-          'flex min-w-0 flex-col bg-slate-900 text-white transition duration-300',
+          'lg-bar flex min-w-0 flex-col text-[#1d1d1f] transition duration-300',
           desktopPinned
             ? cn(
-                'fixed inset-y-0 left-0 z-30 h-screen border-r border-slate-800',
-                desktopWidthClassName || (iconOnlyDesktop ? 'w-16' : 'w-60'),
+                // Lateral flutuante: 12 px das bordas, cantos de 28 px.
+                'fixed bottom-3 left-3 top-3 z-30 rounded-[28px]',
+                iconOnlyDesktop ? 'w-16' : 'w-[244px]',
               )
             : cn(
-                'fixed inset-y-2 left-2 z-50 w-[min(280px,calc(100vw-16px))] max-w-[calc(100vw-16px)] rounded-2xl border border-slate-700/60 shadow-2xl',
+                'fixed inset-y-2 left-2 z-50 w-[min(280px,calc(100vw-16px))] max-w-[calc(100vw-16px)] rounded-[28px]',
                 mobileOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[110%] opacity-0',
               ),
         )}
       >
         <div className="flex h-full min-h-0 flex-col">
           {/* Brand header */}
-          <div className={cn('flex h-14 items-center justify-between border-b border-slate-800', iconOnlyDesktop ? 'px-3' : 'px-4')}>
+          <div className={cn('flex h-16 items-center justify-between', iconOnlyDesktop ? 'px-3' : 'px-4')}>
             <div className={cn('flex min-w-0 items-center gap-2.5', iconOnlyDesktop ? 'justify-center' : '')}>
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">
+              <div className="lg-tinted flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold">
                 {brandMark}
               </div>
 
               {!iconOnlyDesktop ? (
                 <div className="min-w-0">
-                  <p className="truncate text-[0.95rem] font-semibold tracking-tight text-white">{brandTitle}</p>
+                  <p className="truncate text-[1.02rem] font-bold tracking-tight">{brandTitle}</p>
                 </div>
               ) : null}
             </div>
@@ -99,7 +100,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             {!desktopPinned ? (
               <button
                 type="button"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-slate-400 transition hover:bg-slate-700 hover:text-white"
+                className="lg-soft inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600"
                 onClick={onClose}
                 aria-label="Fechar menu"
               >
@@ -110,14 +111,14 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
           {/* User info (mobile drawer) */}
           {!desktopPinned && !iconOnlyDesktop ? (
-            <div className="border-b border-slate-800 px-3 py-3">
-              <div className="flex items-center gap-2.5 rounded-lg bg-slate-800 px-3 py-2.5">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500 text-xs font-bold text-white">
+            <div className="px-3 pb-2">
+              <div className="flex items-center gap-2.5 rounded-2xl bg-white/55 px-3 py-2.5 ring-1 ring-white/80">
+                <span className="lg-tinted inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
                   {userInitial}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-white">{userName}</p>
-                  <p className="truncate text-xs text-slate-400">{userEmail}</p>
+                  <p className="truncate text-sm font-semibold">{userName}</p>
+                  <p className="truncate text-xs text-slate-500">{userEmail}</p>
                 </div>
               </div>
             </div>
@@ -128,7 +129,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             {sections.map((section) => (
               <section key={section.title} className="mb-4">
                 {!iconOnlyDesktop ? (
-                  <h3 className="mb-1 px-3 text-[0.65rem] font-semibold uppercase tracking-widest text-slate-500">
+                  <h3 className="mb-1 px-3 text-xs font-semibold text-slate-500">
                     {section.title}
                   </h3>
                 ) : null}
@@ -143,18 +144,16 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                       onClick={onClose}
                       className={({ isActive }) =>
                         cn(
-                          'group flex items-center rounded-lg text-sm font-medium transition-colors',
+                          'group flex items-center rounded-2xl text-sm font-medium',
                           iconOnlyDesktop ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
-                          isActive
-                            ? 'bg-green-500 text-white'
-                            : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+                          isActive ? 'lg-tab-on' : 'lg-tab text-slate-700',
                         )
                       }
                     >
                       {({ isActive }) => (
                         <>
                           <item.icon
-                            className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300')}
+                            className={cn('h-4 w-4 shrink-0', isActive ? 'text-[#0a7a3d]' : 'text-slate-500 group-hover:text-slate-700')}
                             strokeWidth={2}
                           />
                           {!iconOnlyDesktop ? <span className="truncate">{item.label}</span> : null}
@@ -168,7 +167,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           </div>
 
           {footer ? (
-            <div className={cn('border-t border-slate-800', iconOnlyDesktop ? 'p-2' : 'p-3')}>
+            <div className={cn('border-t border-slate-900/10', iconOnlyDesktop ? 'p-2' : 'p-3')}>
               {footer}
             </div>
           ) : null}
