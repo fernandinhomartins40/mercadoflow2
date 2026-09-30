@@ -40,7 +40,7 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
     <div className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col lg-canvas text-[#0F1A14]">
       <header className="flex shrink-0 flex-col gap-2 px-4 pb-2 pt-3">
         <div className="flex items-center gap-3">
-          <Link to="/confere/" aria-label="Voltar" className="flex h-12 w-12 items-center justify-center rounded-full bg-white"><ArrowLeft className="h-6 w-6" /></Link>
+          <Link to="/confere/" aria-label="Voltar" className="lg-card flex h-12 w-12 items-center justify-center rounded-full shadow-sm"><ArrowLeft className="h-6 w-6" /></Link>
           <h1 className="text-2xl font-extrabold">Ler nota</h1>
         </div>
         <Stepper current={0} />
@@ -48,10 +48,10 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-[max(12px,env(safe-area-inset-bottom))]">
         {busy ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-3xl bg-white p-6 text-center" role="status">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-3xl lg-card p-6 text-center" role="status">
             <div className="h-14 w-14 animate-spin rounded-full border-4 border-[#0A7A3D] border-t-transparent" />
             <p className="text-2xl font-bold">Buscando a nota…</p>
-            <p className="text-lg text-stone-600">Pode levar alguns segundos enquanto a Receita responde.</p>
+            <p className="text-lg text-[#5B6B62]">Pode levar alguns segundos enquanto a Receita responde.</p>
           </div>
         ) : !typing ? (
           <div className="min-h-0 flex-1">
@@ -63,7 +63,7 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
         {error && <p role="alert" className="max-h-[30dvh] shrink-0 overflow-auto rounded-2xl bg-red-50 p-4 text-lg text-red-800">{error}</p>}
 
         {typing ? (
-          <form onSubmit={(e) => { e.preventDefault(); read(typed); }} className="flex shrink-0 flex-col gap-3 rounded-3xl bg-white p-4">
+          <form onSubmit={(e) => { e.preventDefault(); read(typed); }} className="lg-card flex shrink-0 flex-col gap-3 rounded-3xl p-4">
             <Field label="Ou digite a chave de acesso" inputMode="numeric" value={typed} maxLength={60} autoFocus
               onChange={(e) => setTyped(e.target.value.replace(/[^\d ]/g, ''))} placeholder="44 números embaixo do código de barras"
               hint={`${typed.replace(/\D/g, '').length} de 44 números`} />
@@ -73,10 +73,10 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
         ) : !busy && (
           <div className="grid shrink-0 grid-cols-2 gap-2">
             <button type="button" onClick={() => { setTyping(true); setError(null); }}
-              className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-white text-base font-bold text-stone-900">
+              className="lg-card flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold">
               <Keyboard className="h-5 w-5 text-[#0A7A3D]" aria-hidden="true" />Digitar a chave
             </button>
-            <Link to="/confere/importar" className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-white text-base font-bold text-stone-900">
+            <Link to="/confere/importar" className="lg-card flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold">
               <FileUp className="h-5 w-5 text-[#0A7A3D]" aria-hidden="true" />Importar XML
             </Link>
           </div>
