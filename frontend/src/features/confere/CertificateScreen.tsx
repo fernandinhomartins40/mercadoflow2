@@ -3,7 +3,7 @@ import { RefreshCw, ShieldCheck, Upload } from 'lucide-react';
 import { confereService } from '../../services/confere.service';
 import type { ConfereStatus } from '../../types/confere.types';
 import { maskCnpj } from '../../utils/formMasks';
-import { BigButton, Field, Shell, TopBar, errorText } from './ui';
+import { BigButton, Field, TopBar, errorText } from './ui';
 
 /** Certificado A1: com ele as notas vêm da Sefaz, grátis e sem limite. */
 const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; refresh: () => void }> = ({ status, marketId, refresh }) => {
@@ -51,16 +51,16 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
   };
 
   return (
-    <Shell>
-      <TopBar title="Certificado A1" />
-      <div className="flex flex-col gap-4 px-4 pb-10">
+    <>
+      <TopBar title="Certificado A1" back="/confere/conta" />
+      <div className="flex flex-col gap-4 px-4 pb-6 pt-1">
         <p className="text-lg text-stone-700">
           Com o certificado digital A1 do mercado, o Confere baixa da Sefaz, de graça, todas as notas emitidas contra o seu CNPJ
           e registra a &quot;ciência da operação&quot; para liberar os produtos. Ele fica guardado cifrado e só é usado para isso.
         </p>
         {cert && (
-          <section className="flex flex-col gap-2 rounded-3xl bg-white p-5">
-            <p className="flex items-center gap-2 text-xl font-bold text-green-800"><ShieldCheck className="h-6 w-6" aria-hidden="true" />Certificado ativo</p>
+          <section className="flex flex-col gap-2 rounded-3xl bg-white p-5 ring-1 ring-[#DCE5DF]">
+            <p className="flex items-center gap-2 text-xl font-bold text-[#0A7A3D]"><ShieldCheck className="h-6 w-6" aria-hidden="true" />Certificado ativo</p>
             <p className="text-lg">{cert.holder}</p>
             <p className="text-base text-stone-600">CNPJ {maskCnpj(cert.cnpj)}, vence em {new Date(cert.notAfter).toLocaleDateString('pt-BR')}</p>
             {cert.expired && <p className="text-lg font-semibold text-red-700">Vencido: envie o certificado novo.</p>}
@@ -74,10 +74,10 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
           </section>
         )}
         {msg && <p role="status" className={`rounded-2xl p-4 text-lg ${msg.ok ? 'bg-green-50 text-green-900' : 'bg-red-50 text-red-800'}`}>{msg.text}</p>}
-        <form onSubmit={save} className="flex flex-col gap-4 rounded-3xl bg-white p-5">
+        <form onSubmit={save} className="flex flex-col gap-4 rounded-3xl bg-white p-5 ring-1 ring-[#DCE5DF]">
           <h2 className="text-xl font-extrabold">{cert ? 'Trocar o certificado' : 'Enviar o certificado'}</h2>
           <label className="flex h-20 cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-stone-300 text-lg font-semibold">
-            <Upload className="h-6 w-6 text-green-700" aria-hidden="true" />{file ? file.name : 'Escolher arquivo .pfx ou .p12'}
+            <Upload className="h-6 w-6 text-[#0A7A3D]" aria-hidden="true" />{file ? file.name : 'Escolher arquivo .pfx ou .p12'}
             <input type="file" accept=".pfx,.p12,application/x-pkcs12" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
           <Field label="Senha do certificado" type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -85,7 +85,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
           <BigButton type="submit" disabled={!file || !!busy}>{busy === 'save' ? 'Guardando…' : 'Guardar certificado'}</BigButton>
         </form>
       </div>
-    </Shell>
+    </>
   );
 };
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Factory, ShieldCheck } from 'lucide-react';
 import { confereService } from '../../services/confere.service';
 import type { ConfereStatus } from '../../types/confere.types';
-import { BigButton, Shell, TopBar, errorText } from './ui';
+import { BigButton, TopBar, errorText } from './ui';
 
 /**
  * Parceria com fabricantes: por padrão o mercado só entra nos números
@@ -29,11 +29,11 @@ const PartnersScreen: React.FC<{ status: ConfereStatus; marketId: string; onChan
   };
 
   return (
-    <Shell>
-      <TopBar title="Fabricantes" />
-      <div className="flex flex-col gap-4 px-4 pb-10">
-        <section className="rounded-3xl bg-white p-5">
-          <ShieldCheck className="h-9 w-9 text-green-700" aria-hidden="true" />
+    <>
+      <TopBar title="Fabricantes" back="/confere/conta" />
+      <div className="flex flex-col gap-4 px-4 pb-6 pt-1">
+        <section className="rounded-3xl bg-white p-5 ring-1 ring-[#DCE5DF]">
+          <ShieldCheck className="h-9 w-9 text-[#0A7A3D]" aria-hidden="true" />
           <h2 className="mt-2 text-xl font-extrabold">Como já é hoje</h2>
           <p className="mt-1 text-lg text-stone-700">
             As notas entram nos números do ecossistema só somadas com as de outros mercados da região, sem o nome do seu mercado
@@ -41,10 +41,10 @@ const PartnersScreen: React.FC<{ status: ConfereStatus; marketId: string; onChan
           </p>
         </section>
 
-        <section className={`rounded-3xl p-5 ${on ? 'bg-green-700 text-white' : 'bg-white'}`}>
-          <Factory className={`h-9 w-9 ${on ? 'text-yellow-300' : 'text-green-700'}`} aria-hidden="true" />
+        <section className={`rounded-3xl p-5 ${on ? 'cf-wallet text-white' : 'bg-white ring-1 ring-[#DCE5DF]'}`}>
+          <Factory className={`h-9 w-9 ${on ? 'text-[#B6F36A]' : 'text-[#0A7A3D]'}`} aria-hidden="true" />
           <h2 className="mt-2 text-xl font-extrabold">{on ? 'Você aparece para os fabricantes' : 'Receber ofertas dos fabricantes'}</h2>
-          <p className={`mt-1 text-lg ${on ? 'text-green-50' : 'text-stone-700'}`}>
+          <p className={`mt-1 text-lg ${on ? 'text-white/85' : 'text-stone-700'}`}>
             Se você autorizar, os fabricantes dos produtos que você compra veem o nome e o bairro do seu mercado e quanto você
             comprou de cada produto deles, por mês. Com isso eles podem oferecer preço e condição feitos para o seu volume.
             Preço de venda, clientes e o fornecedor de cada nota nunca aparecem.
@@ -60,7 +60,7 @@ const PartnersScreen: React.FC<{ status: ConfereStatus; marketId: string; onChan
           <BigButton tone="white" onClick={() => save(false)} disabled={busy}>{busy ? 'Salvando…' : 'Retirar a autorização'}</BigButton>
         ) : (
           <>
-            <label className="flex items-start gap-3 rounded-2xl bg-white p-4 text-base">
+            <label className="flex items-start gap-3 rounded-2xl bg-white p-4 text-base ring-1 ring-[#DCE5DF]">
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-1 h-6 w-6 shrink-0 accent-green-700" />
               <span>Autorizo o MercadoFlow a mostrar o nome e o bairro de <strong>{status.marketName}</strong> e as quantidades compradas aos fabricantes desses produtos.</span>
             </label>
@@ -68,7 +68,7 @@ const PartnersScreen: React.FC<{ status: ConfereStatus; marketId: string; onChan
           </>
         )}
       </div>
-    </Shell>
+    </>
   );
 };
 

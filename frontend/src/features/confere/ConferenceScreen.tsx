@@ -267,13 +267,13 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
   if (error) {
     return (
       <div className="flex flex-col gap-4 p-5">
-        <button type="button" onClick={() => navigate('/confere/')} className="flex items-center gap-2 text-lg font-semibold text-green-800"><ArrowLeft className="h-6 w-6" />Voltar</button>
+        <button type="button" onClick={() => navigate('/confere/')} className="flex items-center gap-2 text-lg font-semibold text-[#06592C]"><ArrowLeft className="h-6 w-6" />Voltar</button>
         <p className="rounded-2xl bg-amber-50 p-5 text-lg text-amber-900">{error}</p>
       </div>
     );
   }
   if (!doc) {
-    return <div className="flex h-[60dvh] items-center justify-center" role="status"><div className="h-10 w-10 animate-spin rounded-full border-4 border-green-700 border-t-transparent" /><span className="sr-only">Abrindo a nota</span></div>;
+    return <div className="flex h-[60dvh] items-center justify-center" role="status"><div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0A7A3D] border-t-transparent" /><span className="sr-only">Abrindo a nota</span></div>;
   }
 
   const syncLabel = sync === 'offline' ? 'Sem sinal: salvo no celular' : sync === 'pending' ? 'Salvando…' : 'Salvo';
@@ -288,7 +288,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <p className="truncate text-sm leading-tight text-stone-600">NF {doc.number}{volumesText(doc)}{doc.totalValue ? `, ${money(doc.totalValue)}` : ''}</p>
         </div>
         <span role="status" aria-label={syncLabel} title={syncLabel}
-          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${sync === 'offline' ? 'bg-amber-200 text-amber-900' : sync === 'pending' ? 'bg-white text-stone-600' : 'bg-green-100 text-green-800'}`}>
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${sync === 'offline' ? 'bg-amber-200 text-amber-900' : sync === 'pending' ? 'bg-white text-stone-600' : 'bg-green-100 text-[#06592C]'}`}>
           {sync === 'offline' ? 'Sem sinal' : sync === 'pending' ? 'Salvando' : 'Salvo'}
         </span>
         {extra}
@@ -304,7 +304,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
       <div className="flex h-[100dvh] flex-col">
         {header(3)}
         <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-3 pb-3">
-          <div className={`rounded-3xl p-5 ${clean ? 'bg-green-700 text-white' : 'bg-amber-400 text-stone-900'}`}>
+          <div className={`rounded-3xl p-5 ${clean ? 'bg-[#0A7A3D] text-white' : 'bg-amber-400 text-stone-900'}`}>
             <ClipboardCheck className="h-10 w-10" aria-hidden="true" />
             <h1 className="mt-2 text-3xl font-extrabold leading-tight">{clean ? 'Tudo certo com a entrega' : 'Entrega com diferença'}</h1>
             <p className="mt-1 text-lg">{summary.ok} de {items.length} itens sem diferença{summary.pending ? `, ${summary.pending} sem contar` : ''}.</p>
@@ -333,7 +333,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <div className="flex flex-col gap-2">
             {!clean && (
               <a href={`https://wa.me/?text=${encodeURIComponent(whatsappText())}`} target="_blank" rel="noreferrer"
-                className="flex h-14 items-center justify-center gap-3 rounded-2xl bg-green-700 text-lg font-bold text-white">
+                className="flex h-14 items-center justify-center gap-3 rounded-2xl bg-[#0A7A3D] text-lg font-bold text-white">
                 <Send className="h-6 w-6" />Mandar para o fornecedor
               </a>
             )}
@@ -342,7 +342,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                 className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-stone-100 text-base font-bold text-stone-900">
                 <RotateCcw className="h-5 w-5" />Reabrir contagem
               </button>
-              <Link to="/confere/ler" className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold ${clean ? 'bg-green-700 text-white' : 'bg-stone-100 text-stone-900'}`}>
+              <Link to="/confere/ler" className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold ${clean ? 'bg-[#0A7A3D] text-white' : 'bg-stone-100 text-stone-900'}`}>
                 <ScanBarcode className="h-5 w-5" />Ler outra nota
               </Link>
             </div>
@@ -428,7 +428,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
               <ArrowLeft className="h-6 w-6" />Voltar
             </button>
             <button type="button" onClick={finish} disabled={closing}
-              className="flex h-16 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-green-700 px-3 text-lg font-bold text-white disabled:opacity-60">
+              className="flex h-16 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#0A7A3D] px-3 text-lg font-bold text-white disabled:opacity-60">
               <PackageCheck className="h-6 w-6 shrink-0 max-[380px]:hidden" />{closing ? 'Encerrando…' : 'Confirmar e encerrar'}
             </button>
           </div>
@@ -473,7 +473,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
 
       <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-stone-300" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done} aria-label="Itens conferidos">
-          <div className="h-full rounded-full bg-green-700 transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} />
+          <div className="h-full rounded-full bg-[#0A7A3D] transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} />
         </div>
         <span className="shrink-0 text-sm font-bold tabular-nums text-stone-700">{done}/{items.length} conferidos</span>
       </div>
@@ -495,7 +495,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                     {ic?.issue && <span className="block text-sm font-semibold text-red-700">{ISSUES.find((x) => x.key === ic.issue)?.label}</span>}
                   </span>
                   <span className={`flex h-11 min-w-11 items-center justify-center rounded-xl px-2 text-base font-extrabold tabular-nums ${
-                    res.result === 'PENDENTE' ? 'bg-stone-100 text-stone-400' : blind || res.result === 'OK' ? 'bg-green-700 text-white' : 'bg-red-600 text-white'}`}>
+                    res.result === 'PENDENTE' ? 'bg-stone-100 text-stone-400' : blind || res.result === 'OK' ? 'bg-[#0A7A3D] text-white' : 'bg-red-600 text-white'}`}>
                     {res.result === 'PENDENTE' ? '—' : blind ? qtyFmt(ic?.counted) : res.result === 'OK' ? <Check className="h-6 w-6" /> : (res.diff > 0 ? '+' : '') + qtyFmt(res.diff)}
                   </span>
                 </button>
@@ -511,7 +511,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
             <div className="flex shrink-0 items-center justify-between text-sm font-bold text-stone-500">
               <span>Item {safeIndex + 1} de {items.length}</span>
               {r.result !== 'PENDENTE' && !blind && (
-                <span className={`rounded-full px-3 py-0.5 ${r.result === 'OK' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <span className={`rounded-full px-3 py-0.5 ${r.result === 'OK' ? 'bg-green-100 text-[#06592C]' : 'bg-red-100 text-red-800'}`}>
                   {r.result === 'OK' ? 'Confere' : r.result === 'FALTA' ? `Falta ${qtyFmt(-r.diff)}` : `Sobra ${qtyFmt(r.diff)}`}
                 </span>
               )}
@@ -559,17 +559,17 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                     const v = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
                     update(item.number, { counted: v === '' ? null : Number(v) });
                   }}
-                  className="h-[clamp(56px,10dvh,80px)] w-full rounded-2xl border-4 border-yellow-400 bg-yellow-50 text-center text-[clamp(2rem,6dvh,3rem)] font-extrabold tabular-nums text-stone-900 outline-none focus:border-green-700" />
+                  className="h-[clamp(56px,10dvh,80px)] w-full rounded-2xl border-4 border-yellow-400 bg-yellow-50 text-center text-[clamp(2rem,6dvh,3rem)] font-extrabold tabular-nums text-stone-900 outline-none focus:border-[#0A7A3D]" />
                 <span className="text-sm font-semibold text-stone-600">{item.unit ?? 'unidades'} contadas</span>
               </label>
               <button type="button" aria-label="Mais um" onClick={() => update(item.number, { counted: Math.round(((c?.counted ?? 0) + 1) * 1000) / 1000 })}
-                className="flex h-[clamp(56px,10dvh,80px)] w-[clamp(56px,10dvh,80px)] shrink-0 items-center justify-center rounded-2xl bg-green-700 text-white active:bg-green-800"><Plus className="h-8 w-8" /></button>
+                className="flex h-[clamp(56px,10dvh,80px)] w-[clamp(56px,10dvh,80px)] shrink-0 items-center justify-center rounded-2xl bg-[#0A7A3D] text-white active:bg-[#06592C]"><Plus className="h-8 w-8" /></button>
             </div>
 
             <div className="flex shrink-0 gap-2">
               {!blind && (
                 <button type="button" onClick={confirmExpected}
-                  className="flex h-[clamp(48px,8dvh,64px)] flex-[1.6] items-center justify-center gap-2 rounded-2xl border-2 border-green-700 text-lg font-bold text-green-800 active:bg-green-50">
+                  className="flex h-[clamp(48px,8dvh,64px)] flex-[1.6] items-center justify-center gap-2 rounded-2xl border-2 border-[#0A7A3D] text-lg font-bold text-[#06592C] active:bg-green-50">
                   <Check className="h-6 w-6" />Veio certo
                 </button>
               )}
@@ -595,12 +595,12 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           </button>
           {mode === 'passo' && !last ? (
             <button type="button" onClick={next}
-              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-green-700 text-lg font-bold text-white">
+              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-[#0A7A3D] text-lg font-bold text-white">
               Próximo<ArrowRight className="h-6 w-6" />
             </button>
           ) : (
             <button type="button" onClick={() => setPhase('revisar')}
-              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-green-700 text-lg font-bold text-white">
+              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-[#0A7A3D] text-lg font-bold text-white">
               Revisar<ArrowRight className="h-6 w-6" />
             </button>
           )}
@@ -643,9 +643,9 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <label className="flex flex-col gap-1.5">
             <span className="text-base font-semibold">Observação (opcional)</span>
             <input value={c?.note ?? ''} maxLength={140} onChange={(e) => update(item.number, { note: e.target.value, counted: c?.counted ?? null })}
-              placeholder="Ex.: 2 caixas amassadas" className="h-14 rounded-2xl border-2 border-stone-300 px-4 text-lg outline-none focus:border-green-700" />
+              placeholder="Ex.: 2 caixas amassadas" className="h-14 rounded-2xl border-2 border-stone-300 px-4 text-lg outline-none focus:border-[#0A7A3D]" />
           </label>
-          <button type="button" onClick={() => setSheet(null)} className="h-14 rounded-2xl bg-green-700 text-lg font-bold text-white">Pronto</button>
+          <button type="button" onClick={() => setSheet(null)} className="h-14 rounded-2xl bg-[#0A7A3D] text-lg font-bold text-white">Pronto</button>
         </Sheet>
       )}
 
@@ -654,13 +654,13 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <div className="grid grid-cols-2 rounded-2xl bg-stone-100 p-1" role="tablist" aria-label="Modo">
             {([['passo', 'Um por vez'], ['lista', 'Lista']] as const).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => { setMode(k); setSheet(null); }}
-                className={`flex h-12 items-center justify-center gap-1 rounded-xl text-base font-bold ${mode === k ? 'bg-green-700 text-white' : 'text-stone-700'}`}>
+                className={`flex h-12 items-center justify-center gap-1 rounded-xl text-base font-bold ${mode === k ? 'bg-[#0A7A3D] text-white' : 'text-stone-700'}`}>
                 {k === 'lista' && <List className="h-5 w-5" />}{label}
               </button>
             ))}
           </div>
           <label className="flex items-center gap-3 rounded-2xl bg-stone-100 px-4 py-3 text-base font-semibold text-stone-800">
-            <input type="checkbox" checked={blind} onChange={(e) => { setBlind(e.target.checked); blindRef.current = e.target.checked; push(countsRef.current); }} className="h-6 w-6 accent-green-700" />
+            <input type="checkbox" checked={blind} onChange={(e) => { setBlind(e.target.checked); blindRef.current = e.target.checked; push(countsRef.current); }} className="h-6 w-6 accent-[#0A7A3D]" />
             <EyeOff className="h-5 w-5 text-stone-500" />Conferência cega (esconde a quantidade da nota)
           </label>
           <p className="text-sm text-stone-600">{syncLabel}. Dica: arraste o produto para o lado para trocar de item.</p>

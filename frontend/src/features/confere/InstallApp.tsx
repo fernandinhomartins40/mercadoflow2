@@ -61,11 +61,21 @@ const InstallApp: React.FC<{ tone?: 'light' | 'dark' }> = ({ tone = 'light' }) =
 
   return (
     <>
-      <button type="button" onClick={install}
-        className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-lg font-bold ${
-          tone === 'dark' ? 'bg-yellow-400 text-stone-900' : 'border-2 border-green-700 bg-white text-green-800'}`}>
-        <Download className="h-5 w-5" aria-hidden="true" />Instalar o app no celular
-      </button>
+      {tone === 'dark' ? (
+        <button type="button" onClick={install}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#B6F36A] text-lg font-bold text-[#0F1A14]">
+          <Download className="h-5 w-5" aria-hidden="true" />Instalar o app no celular
+        </button>
+      ) : (
+        <button type="button" onClick={install}
+          className="flex w-full items-center gap-3 rounded-3xl bg-white p-4 text-left ring-1 ring-[#DCE5DF] active:scale-[0.99]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#E3F4EA] text-[#0A7A3D]"><Download className="h-5 w-5" aria-hidden="true" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-bold">Instalar o app no celular</span>
+            <span className="block text-sm text-[#5B6B62]">Abre direto da tela inicial, em tela cheia</span>
+          </span>
+        </button>
+      )}
       {iosHelp && (
         <div className="fixed inset-0 z-40 flex items-end bg-black/50" role="dialog" aria-modal="true" aria-labelledby="ios-install-title" onClick={() => setIosHelp(false)}>
           <div className="w-full rounded-t-3xl bg-white p-6 pb-10" onClick={(e) => e.stopPropagation()}>

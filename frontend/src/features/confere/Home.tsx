@@ -1,111 +1,106 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, ChevronRight, CreditCard, Factory, FileUp, KeyRound, LogOut, ScanBarcode } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { confereService } from '../../services/confere.service';
-import type { ConfereStatus, DocumentSummary } from '../../types/confere.types';
-import { Shell } from './ui';
+import { ArrowUpRight, Infinity as InfinityIcon, KeyRound, PackageOpen, Plus, ShieldCheck } from 'lucide-react';
+import type { ConfereStatus } from '../../types/confere.types';
+import { SectionTitle, TabHeader } from './ui';
+import DocCard, { docState } from './DocCard';
 import InstallApp from './InstallApp';
+import { useDocuments } from './useDocuments';
 
-/** Início: saldo, botão grande de ler nota e as notas que chegaram (inclusive pela Sefaz). */
+/** Início: saldo em destaque, o que falta conferir e atalhos. */
 
-const BalanceChip: React.FC<{ status: ConfereStatus }> = ({ status }) => (
-  status.certificate && !status.certificate.expired
-    ? <span className="rounded-full bg-green-100 px-3 py-1 text-base font-bold text-green-800">Ilimitado (certificado A1)</span>
-    : <span className={`rounded-full px-3 py-1 text-base font-bold ${status.balance > 0 ? 'bg-yellow-100 text-yellow-900' : 'bg-red-100 text-red-800'}`}>
-        {status.balance} {status.balance === 1 ? 'leitura' : 'leituras'}
-      </span>
-);
-
-const DocRow: React.FC<{ d: DocumentSummary }> = ({ d }) => (
-  <li>
-    <Link to={d.completeness === 'FULL' ? `/confere/nota/${d.id}` : '#'} onClick={(e) => { if (d.completeness !== 'FULL') e.preventDefault(); }}
-      className="flex items-center gap-3 rounded-2xl bg-white p-4">
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-lg font-bold">{d.emitterName ?? 'Fornecedor'}</span>
-        <span className="block text-base text-stone-600">
-          NF {d.number ?? d.accessKey.slice(25, 34)}{d.itemsCount ? `, ${d.itemsCount} itens` : ''}{d.issuedAt ? `, ${new Date(d.issuedAt).toLocaleDateString('pt-BR')}` : ''}
+const Wallet: React.FC<{ status: ConfereStatus }> = ({ status }) => {
+  const a1 = !!status.certificate && !status.certificate.expired;
+  return (
+    <section className="cf-wallet relative overflow-hidden rounded-[28px] p-5 text-white shadow-[0_18px_40px_-18px_rgba(6,89,44,0.8)]" aria-label="Saldo">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-white/75">{a1 ? 'Leitura pela Sefaz' : 'Leituras disponíveis'}</p>
+          {a1 ? (
+            <p className="mt-1 flex items-center gap-2 text-4xl font-extrabold tracking-tight"><InfinityIcon className="h-9 w-9" aria-hidden="true" />Ilimitado</p>
+          ) : (
+            <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight">
+              {status.balance} <span className="text-xl font-bold text-white/80">{status.balance === 1 ? 'leitura' : 'leituras'}</span>
+            </p>
+          )}
+        </div>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${a1 ? 'bg-white/20' : 'bg-black/20'}`}>
+          {a1 ? <><ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />A1 ativo</> : <><KeyRound className="h-3.5 w-3.5" aria-hidden="true" />Sem A1</>}
         </span>
-        {d.completeness !== 'FULL' && <span className="block text-sm font-semibold text-amber-800">Aguardando a Sefaz liberar os produtos</span>}
-      </span>
-      {d.checkStatus === 'DONE' ? <BadgeCheck className="h-7 w-7 text-green-700" aria-label="Conferida" /> : <ChevronRight className="h-7 w-7 text-stone-400" aria-hidden="true" />}
-    </Link>
-  </li>
-);
+      </div>
+      <div className="mt-5 flex gap-2">
+        <Link to="/confere/creditos" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/95 text-base max-[360px]:text-sm font-bold text-[#06592C] active:scale-[0.98]">
+          <Plus className="h-5 w-5" aria-hidden="true" />Comprar
+        </Link>
+        {!a1 && (
+          <Link to="/confere/certificado" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/15 text-base max-[360px]:text-sm font-bold ring-1 ring-white/30 active:scale-[0.98]">
+            Usar o A1 grátis
+          </Link>
+        )}
+      </div>
+    </section>
+  );
+};
 
 const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, marketId }) => {
-  const { logout } = useAuth();
-  // A lista fica guardada no celular: sem sinal na doca, as notas continuam aparecendo.
-  const cacheKey = `confere:docs:${marketId}`;
-  const [docs, setDocs] = useState<DocumentSummary[] | null>(() => {
-    try { const v = localStorage.getItem(cacheKey); return v ? (JSON.parse(v) as DocumentSummary[]) : null; } catch { return null; }
-  });
-  useEffect(() => {
-    confereService.documents(marketId).then((d) => {
-      setDocs(d);
-      try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /* cheio ou bloqueado */ }
-    }).catch(() => setDocs((prev) => prev ?? []));
-  }, [marketId, cacheKey]);
-  const toCheck = (docs ?? []).filter((d) => d.checkStatus !== 'DONE');
-  const checked = (docs ?? []).filter((d) => d.checkStatus === 'DONE');
+  const docs = useDocuments(marketId);
+  const all = docs ?? [];
+  const toCheck = all.filter((d) => docState(d) === 'TODO');
+  const counts = {
+    todo: toCheck.length,
+    done: all.filter((d) => docState(d) === 'DONE').length,
+    wait: all.filter((d) => docState(d) === 'WAIT').length,
+  };
 
   return (
-    <Shell>
-      <div className="flex flex-col gap-5 px-4 pb-10 pt-5">
-        <header className="flex items-center gap-3">
-          <img src="/api/v1/public/confere/icon/icon192" alt="" className="h-12 w-12 rounded-xl" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-bold">{status.marketName}</p>
-            <BalanceChip status={status} />
-          </div>
-          <button type="button" onClick={() => logout()} aria-label="Sair" className="flex h-12 w-12 items-center justify-center rounded-full bg-white"><LogOut className="h-6 w-6" /></button>
-        </header>
+    <>
+      <TabHeader small subtitle="Olá," title={status.marketName}
+        action={<img src="/api/v1/public/confere/icon/icon192" alt="" className="h-11 w-11 shrink-0 rounded-2xl shadow-sm ring-1 ring-[#DCE5DF]" />} />
+      <div className="flex flex-col gap-6 px-4 pt-2">
+        <Wallet status={status} />
 
-        <Link to="/confere/ler" className="flex h-36 flex-col items-center justify-center gap-2 rounded-3xl bg-green-700 text-white shadow-lg active:bg-green-800">
-          <ScanBarcode className="h-12 w-12" aria-hidden="true" />
-          <span className="text-3xl font-extrabold">Ler nota</span>
-        </Link>
+        <ul className="grid grid-cols-3 gap-2" aria-label="Resumo das notas">
+          {([['A conferir', counts.todo, 'text-amber-700'], ['Conferidas', counts.done, 'text-[#0A7A3D]'], ['Na Sefaz', counts.wait, 'text-stone-600']] as const).map(([label, n, color]) => (
+            <li key={label}>
+              <Link to="/confere/notas" className="flex flex-col rounded-2xl bg-white px-3 py-3 ring-1 ring-[#DCE5DF]">
+                <span className={`text-2xl font-extrabold tabular-nums ${color}`}>{docs === null ? '–' : n}</span>
+                <span className="text-sm font-semibold text-[#5B6B62]">{label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
 
         <InstallApp />
 
-        {!status.certificate && (
-          <Link to="/confere/certificado" className="flex items-center gap-3 rounded-3xl border-2 border-green-700 bg-white p-4">
-            <KeyRound className="h-8 w-8 shrink-0 text-green-700" aria-hidden="true" />
-            <span className="flex-1">
-              <span className="block text-lg font-bold">Leitura grátis e ilimitada</span>
-              <span className="block text-base text-stone-700">Cadastre o certificado A1: as notas chegam sozinhas, antes do caminhão.</span>
-            </span>
-            <ChevronRight className="h-6 w-6 text-stone-400" aria-hidden="true" />
-          </Link>
-        )}
-
-        <section className="flex flex-col gap-2">
-          <h2 className="text-xl font-extrabold">Notas para conferir</h2>
-          {docs === null ? <p className="text-lg text-stone-600">Carregando…</p>
-            : toCheck.length === 0 ? <p className="rounded-2xl bg-white p-4 text-lg text-stone-700">Nenhuma nota esperando. Toque em <strong>Ler nota</strong> quando a mercadoria chegar.</p>
-            : <ul className="flex flex-col gap-2">{toCheck.slice(0, 20).map((d) => <DocRow key={d.id} d={d} />)}</ul>}
+        <section className="flex flex-col gap-3">
+          <SectionTitle action={all.length > 0 && <Link to="/confere/notas" className="text-sm font-bold text-[#0A7A3D]">Ver todas</Link>}>
+            Para conferir
+          </SectionTitle>
+          {docs === null ? (
+            <ul className="flex flex-col gap-2" aria-label="Carregando">
+              {[0, 1].map((i) => <li key={i} className="h-[84px] animate-pulse rounded-3xl bg-white/70" />)}
+            </ul>
+          ) : toCheck.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-[#CFDAD3] bg-white/60 px-6 py-8 text-center">
+              <PackageOpen className="h-10 w-10 text-[#0A7A3D]" aria-hidden="true" />
+              <p className="text-lg font-bold">Nenhuma nota esperando</p>
+              <p className="text-base text-[#5B6B62]">Quando o caminhão chegar, toque em <strong>Conferir</strong> e aponte a câmera para o DANFE.</p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">{toCheck.slice(0, 5).map((d) => <DocCard key={d.id} d={d} />)}</ul>
+          )}
         </section>
-        {checked.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h2 className="text-xl font-extrabold">Conferidas</h2>
-            <ul className="flex flex-col gap-2">{checked.slice(0, 10).map((d) => <DocRow key={d.id} d={d} />)}</ul>
-          </section>
-        )}
 
-        <nav className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-4" aria-label="Mais opções">
-          <Link to="/confere/creditos" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><CreditCard className="h-7 w-7 text-green-700" aria-hidden="true" />Créditos</Link>
-          <Link to="/confere/certificado" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><KeyRound className="h-7 w-7 text-green-700" aria-hidden="true" />Certificado</Link>
-          <Link to="/confere/importar" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><FileUp className="h-7 w-7 text-green-700" aria-hidden="true" />Importar XML</Link>
-          <Link to="/confere/fabricantes" className="flex flex-col items-center gap-1 rounded-2xl bg-white p-4 text-base font-semibold"><Factory className="h-7 w-7 text-green-700" aria-hidden="true" />Fabricantes</Link>
-        </nav>
-
-        <a href="/app" className="rounded-3xl bg-stone-900 p-5 text-white">
-          <span className="block text-sm font-semibold text-yellow-300">MercadoFlow</span>
-          <span className="mt-1 block text-xl font-bold">Você confere o que entra. E o que sai?</span>
-          <span className="mt-1 block text-base text-stone-300">Ligue o caixa ao MercadoFlow e saiba o que vende, o que está parado e quanto comprar de cada produto.</span>
+        <a href="/app" className="relative overflow-hidden rounded-3xl bg-[#0F1A14] p-5 text-white">
+          <span className="flex items-center justify-between">
+            <span className="text-sm font-bold text-[#B6F36A]">MercadoFlow</span>
+            <ArrowUpRight className="h-5 w-5 text-white/60" aria-hidden="true" />
+          </span>
+          <span className="mt-2 block text-xl font-extrabold leading-snug">Você confere o que entra. E o que sai?</span>
+          <span className="mt-1 block text-base text-white/70">Ligue o caixa ao MercadoFlow e saiba o que vende, o que está parado e quanto comprar de cada produto.</span>
         </a>
       </div>
-    </Shell>
+    </>
   );
 };
 
