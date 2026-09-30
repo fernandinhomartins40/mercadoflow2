@@ -34,4 +34,16 @@ public interface AiInterpretationRepository extends JpaRepository<AiInterpretati
     @Query("delete from AiInterpretation i where i.market.id = :marketId "
         + "and i.createdAt < :before")
     int deleteOlderThan(@Param("marketId") UUID marketId, @Param("before") LocalDateTime before);
+
+    /**
+     * Apaga os textos do sistema guardados quando a IA falhou.
+     *
+     * Chamado quando o mercado cadastra ou reativa uma chave: a próxima rodada
+     * precisa tentar a IA de novo para esses números, em vez de reaproveitar o
+     * texto de quando não havia chave que funcionasse.
+     */
+    @Modifying
+    @Query("delete from AiInterpretation i where i.market.id = :marketId "
+        + "and i.deterministic = true")
+    int deleteDeterministic(@Param("marketId") UUID marketId);
 }

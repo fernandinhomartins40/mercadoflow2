@@ -30,6 +30,12 @@ public enum AiProvider {
     /** Camada compatível com OpenAI do Gemini. */
     GEMINI("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.0-flash", true),
 
+    /**
+     * Pago, mas barato; é o provedor que a plataforma usa nos temas de encarte.
+     * Mesmo modelo padrão de {@code PlatformAiService} (ago/2026).
+     */
+    DEEPSEEK("https://api.deepseek.com", "deepseek-flash", false),
+
     /** Pago; entra quando o cliente já tem conta e prefere usá-la. */
     OPENAI("https://api.openai.com/v1", "gpt-4o-mini", false),
 
@@ -75,6 +81,7 @@ public enum AiProvider {
             case NVIDIA_NIM -> "NVIDIA NIM";
             case OPENROUTER -> "OpenRouter";
             case GEMINI -> "Google Gemini";
+            case DEEPSEEK -> "DeepSeek";
             case OPENAI -> "OpenAI";
             case CUSTOM -> "Endpoint próprio";
         };

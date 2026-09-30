@@ -70,6 +70,32 @@ public class AiUsageRecorder {
         }
     }
 
+    /**
+     * Descarta um texto do cache (o do sistema, guardado numa falha que já
+     * passou), para que a nova tentativa possa gravar o resultado no lugar —
+     * a unique (mercado, tarefa, hash) impediria duas linhas.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void discardInterpretation(UUID interpretationId) {
+        try {
+            interpretationRepository.deleteById(interpretationId);
+        } catch (Exception e) {
+            log.debug("Interpretação já descartada: {}", e.getMessage());
+        }
+    }
+
+    /** Esquece os textos de falha do mercado (chave nova ou reativada). */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int forgetFallbacks(UUID marketId) {
+        return interpretationRepository.deleteDeterministic(marketId);
+    }
+
+    /** Apaga interpretações antigas do mercado; o cache não cresce para sempre. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int purgeOlderThan(UUID marketId, java.time.LocalDateTime before) {
+        return interpretationRepository.deleteOlderThan(marketId, before);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void record(
         UUID marketId, String task, String provider, String model, String promptVersion,

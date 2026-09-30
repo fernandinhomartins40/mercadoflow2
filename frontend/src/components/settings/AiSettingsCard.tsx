@@ -27,6 +27,7 @@ const SIGNUP_URL: Partial<Record<AiProviderId, string>> = {
   NVIDIA_NIM: 'https://build.nvidia.com',
   OPENROUTER: 'https://openrouter.ai/keys',
   GEMINI: 'https://aistudio.google.com/apikey',
+  DEEPSEEK: 'https://platform.deepseek.com/api_keys',
   OPENAI: 'https://platform.openai.com/api-keys',
 };
 

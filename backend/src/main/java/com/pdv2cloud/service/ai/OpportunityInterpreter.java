@@ -138,6 +138,21 @@ public class OpportunityInterpreter {
     }
 
     /**
+     * Quanto tempo uma interpretação fica guardada.
+     *
+     * Quando os números mudam, o texto antigo deixa de ser alcançável pelo hash
+     * e ficaria no banco para sempre. Noventa dias cobrem com folga uma
+     * oportunidade que persiste; se ela ainda estiver aberta, a próxima rodada
+     * escreve o texto de novo (uma chamada, na cota do cliente).
+     */
+    static final int KEEP_DAYS = 90;
+
+    /** Limpeza do cache do mercado; chamada pelo job depois da rodada. */
+    public int purgeStale(UUID marketId) {
+        return orchestrator.purgeInterpretations(marketId, java.time.LocalDateTime.now().minusDays(KEEP_DAYS));
+    }
+
+    /**
      * Interpreta em lote as oportunidades abertas de um mercado.
      *
      * Chamado pelo job, depois da detecção. Erro numa oportunidade não derruba

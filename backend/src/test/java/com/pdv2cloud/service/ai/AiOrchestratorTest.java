@@ -234,6 +234,97 @@ class AiOrchestratorTest {
             anyString(), anyString(), anyInt(), anyDouble());
     }
 
+    /**
+     * Texto do sistema guardado numa falha recente é reaproveitado: evita
+     * repetir a cadeia inteira várias vezes na mesma rodada.
+     */
+    @Test
+    void fallbackRecenteNoCacheEReaproveitado() {
+        AiInterpretation cached = new AiInterpretation();
+        cached.setContent(FALLBACK);
+        cached.setDeterministic(true);
+        cached.setCreatedAt(java.time.LocalDateTime.now().minusHours(1));
+        when(interpretationRepository.findByMarketIdAndTaskAndContextHash(
+            marketId, "TAREFA", "hash-abc")).thenReturn(Optional.of(cached));
+
+        AiOrchestrator.Interpretation result = interpret();
+
+        assertTrue(result.deterministic());
+        verifyNoInteractions(llmClient);
+        verify(usageRecorder, never()).discardInterpretation(any());
+    }
+
+    /**
+     * Texto do sistema guardado numa falha antiga não congela a oportunidade:
+     * a falha costumava ser passageira (cota do dia, provedor fora do ar), então
+     * a IA é tentada de novo e o texto dela substitui o do sistema.
+     */
+    @Test
+    void fallbackVencidoNoCacheTentaAIaDeNovo() {
+        AiInterpretation cached = new AiInterpretation();
+        cached.setId(UUID.randomUUID());
+        cached.setContent(FALLBACK);
+        cached.setDeterministic(true);
+        cached.setCreatedAt(java.time.LocalDateTime.now()
+            .minusHours(AiOrchestrator.FALLBACK_RETRY_HOURS + 1));
+        when(interpretationRepository.findByMarketIdAndTaskAndContextHash(
+            marketId, "TAREFA", "hash-abc")).thenReturn(Optional.of(cached));
+        when(credentialRepository.findChain(marketId))
+            .thenReturn(List.of(credential(AiProvider.GROQ, 10)));
+        when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
+            anyInt(), anyDouble()))
+            .thenReturn(LlmClient.LlmResponse.ok("Agora a IA respondeu.", 10, 20, 100));
+
+        AiOrchestrator.Interpretation result = interpret();
+
+        assertEquals("Agora a IA respondeu.", result.content());
+        assertFalse(result.deterministic());
+        verify(usageRecorder).discardInterpretation(cached.getId());
+    }
+
+    /** O texto da IA não vence: vale enquanto os números não mudarem. */
+    @Test
+    void textoDaIaAntigoContinuaValendo() {
+        AiInterpretation cached = new AiInterpretation();
+        cached.setContent("Texto da IA de meses atrás.");
+        cached.setDeterministic(false);
+        cached.setCreatedAt(java.time.LocalDateTime.now().minusDays(60));
+        when(interpretationRepository.findByMarketIdAndTaskAndContextHash(
+            marketId, "TAREFA", "hash-abc")).thenReturn(Optional.of(cached));
+
+        assertEquals("Texto da IA de meses atrás.", interpret().content());
+        verifyNoInteractions(llmClient);
+    }
+
+    /**
+     * Chave nova: os textos de falha são esquecidos e a credencial sai da
+     * quarentena, para a próxima rodada tentar a IA na hora.
+     */
+    @Test
+    void credencialNovaEsqueceFalhasETiraDaQuarentena() {
+        AiProviderCredential groq = credential(AiProvider.GROQ, 10);
+        when(credentialRepository.findChain(marketId)).thenReturn(List.of(groq));
+        when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
+            anyInt(), anyDouble()))
+            .thenReturn(LlmClient.LlmResponse.fail("HTTP 429", true, 50));
+        interpret();
+
+        orchestrator.credentialsChanged(marketId);
+        interpret();
+
+        verify(usageRecorder).forgetFallbacks(marketId);
+        verify(llmClient, times(2)).chat(anyString(), anyString(), anyString(),
+            anyString(), anyString(), anyInt(), anyDouble());
+    }
+
+    /** DeepSeek entra na lista dos mercados com endereço e modelo prontos. */
+    @Test
+    void deepSeekTemEnderecoEModeloPadrao() {
+        assertEquals("https://api.deepseek.com", AiProvider.DEEPSEEK.defaultBaseUrl());
+        assertFalse(AiProvider.DEEPSEEK.requiresBaseUrl());
+        assertEquals("DeepSeek", AiProvider.DEEPSEEK.label());
+    }
+
     /** Credencial desabilitada não entra na cadeia (findChain já filtra). */
     @Test
     void isEnabledForRespeitaCredencialHabilitada() {

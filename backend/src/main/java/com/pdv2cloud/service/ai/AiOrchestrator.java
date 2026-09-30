@@ -43,6 +43,16 @@ public class AiOrchestrator {
     /** Quanto tempo uma credencial que falhou fica fora da cadeia. */
     private static final long BREAKER_MINUTES = 10;
 
+    /**
+     * Quanto tempo vale o texto do sistema guardado numa falha da cadeia.
+     *
+     * Guardá-lo evita repetir a cadeia inteira várias vezes na mesma rodada.
+     * Mas a falha costuma ser passageira (cota do dia, provedor fora do ar):
+     * sem prazo, a oportunidade ficaria com o texto do sistema para sempre,
+     * até os números mudarem. Seis horas separam uma rodada da outra.
+     */
+    static final long FALLBACK_RETRY_HOURS = 6;
+
     private final AiProviderCredentialRepository credentialRepository;
     private final AiInterpretationRepository interpretationRepository;
     private final AiUsageRecorder usageRecorder;
@@ -117,16 +127,21 @@ public class AiOrchestrator {
         String promptVersion,
         String fallbackText
     ) {
-        // 1. Cache — inclusive quando o que foi guardado é o próprio fallback:
-        // se a IA falhou para estes números, tentar de novo a cada request
-        // repetiria a espera sem mudar o resultado.
+        // 1. Cache. O texto da IA vale enquanto os números não mudarem. O texto
+        // do sistema guardado numa falha vale só por FALLBACK_RETRY_HOURS:
+        // dentro do prazo evita repetir a espera na mesma rodada; depois dele,
+        // a IA é tentada de novo (a falha costuma ser passageira).
         Optional<AiInterpretation> cached = interpretationRepository
             .findByMarketIdAndTaskAndContextHash(marketId, task, context.hash());
         if (cached.isPresent()) {
             AiInterpretation hit = cached.get();
-            return new Interpretation(
-                hit.getContent(), Boolean.TRUE.equals(hit.getDeterministic()),
-                hit.getProvider(), true);
+            boolean fallback = Boolean.TRUE.equals(hit.getDeterministic());
+            boolean expired = fallback && hit.getCreatedAt() != null
+                && hit.getCreatedAt().isBefore(LocalDateTime.now().minusHours(FALLBACK_RETRY_HOURS));
+            if (!expired) {
+                return new Interpretation(hit.getContent(), fallback, hit.getProvider(), true);
+            }
+            usageRecorder.discardInterpretation(hit.getId());
         }
 
         if (!cipher.isConfigured()) {
@@ -272,6 +287,20 @@ public class AiOrchestrator {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Chave nova ou reativada: esquece os textos de falha do mercado e tira as
+     * credenciais dele da quarentena, para a próxima rodada tentar a IA já.
+     */
+    public void credentialsChanged(UUID marketId) {
+        usageRecorder.forgetFallbacks(marketId);
+        credentialRepository.findChain(marketId).forEach(c -> breaker.remove(c.getId()));
+    }
+
+    /** Apaga interpretações do mercado mais antigas que o limite. */
+    public int purgeInterpretations(UUID marketId, LocalDateTime before) {
+        return usageRecorder.purgeOlderThan(marketId, before);
     }
 
     /** Marca uma credencial como falha, tirando-a da cadeia por alguns minutos. */

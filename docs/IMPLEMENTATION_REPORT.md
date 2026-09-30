@@ -359,6 +359,18 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
 - **Testes:** passos/sem rolagem/offline/opt-in 54/54; regressão Confere 39/39; dados (itens, estoque,
   localização, RLS, agregado, k lojas, dominância, bonificação) 33/33; backfill pelo job; unidade 7/7.
 
+### Ciclo 9 — IA: correções da análise
+
+- **Falha passageira não congela mais o texto do sistema:** o texto guardado quando todos os provedores
+  falham vale 6 horas; depois a IA é tentada de novo e o texto dela substitui o do sistema. Cadastrar ou
+  reativar uma chave apaga na hora os textos de falha do mercado e tira as credenciais dele da quarentena.
+- **Cache com limpeza:** a rodada da madrugada apaga interpretações com mais de 90 dias (a função existia,
+  mas nada a chamava). Oportunidade ainda aberta ganha o texto de novo na rodada seguinte.
+- **DeepSeek na lista dos mercados:** endereço e modelo padrão prontos (o mesmo modelo dos temas de encarte)
+  e link para criar a chave. Antes só entrava como "endpoint próprio".
+- **Testes:** backend 241/241 (5 novos); API local: chave DeepSeek salva e cifrada, textos de falha
+  apagados e texto da IA preservado.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

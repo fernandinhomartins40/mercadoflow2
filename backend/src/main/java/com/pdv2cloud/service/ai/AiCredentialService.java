@@ -162,7 +162,11 @@ public class AiCredentialService {
         credential.setEnabled(true);
         credential.setUpdatedAt(LocalDateTime.now());
 
-        return CredentialView.from(credentialRepository.save(credential));
+        CredentialView saved = CredentialView.from(credentialRepository.save(credential));
+        // Chave nova: os textos do sistema guardados em falhas anteriores não
+        // devem impedir a IA de escrever na próxima rodada.
+        orchestrator.credentialsChanged(marketId);
+        return saved;
     }
 
     /**
@@ -203,6 +207,9 @@ public class AiCredentialService {
         credential.setEnabled(enabled);
         credential.setUpdatedAt(LocalDateTime.now());
         credentialRepository.save(credential);
+        if (enabled) {
+            orchestrator.credentialsChanged(marketId);
+        }
     }
 
     /**

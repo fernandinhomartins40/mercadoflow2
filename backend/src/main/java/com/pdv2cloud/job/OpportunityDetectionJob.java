@@ -97,6 +97,13 @@ public class OpportunityDetectionJob {
                     log.warn("Interpretacao por IA falhou no mercado {}: {}",
                         market.getId(), e.getMessage());
                 }
+                // Textos com mais de 90 dias saem do cache (senão ele cresce para sempre).
+                try {
+                    TenantContext.runAsSystem(() -> opportunityInterpreter.purgeStale(market.getId()));
+                } catch (Exception e) {
+                    log.warn("Limpeza do cache de IA falhou no mercado {}: {}",
+                        market.getId(), e.getMessage());
+                }
 
                 totalCreated += result.created();
                 totalRecommendations += recs;

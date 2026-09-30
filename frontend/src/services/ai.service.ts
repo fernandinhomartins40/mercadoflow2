@@ -14,7 +14,7 @@ import api from './api';
 
 export type AiProviderId =
   | 'CEREBRAS' | 'GROQ' | 'NVIDIA_NIM' | 'OPENROUTER'
-  | 'GEMINI' | 'OPENAI' | 'CUSTOM';
+  | 'GEMINI' | 'DEEPSEEK' | 'OPENAI' | 'CUSTOM';
 
 export interface AiProviderOption {
   id: AiProviderId;
