@@ -1,6 +1,6 @@
 # MercadoFlow Copiloto — proposta de IA, assistente por voz e agentes
 
-Versão 3 · 30/09/2026 (Jev na camada de decisão; avaliação do DeepSeek Harness) · proposta para decisão do dono do produto
+Versão 4 · 30/09/2026 (Jev na camada de decisão; vigília dos agentes em funil; DeepSeek Harness) · proposta para decisão do dono do produto
 
 ---
 
@@ -17,6 +17,8 @@ Três peças novas, sobre o que já existe:
    ações com um "sim" do lojista (aceitar uma recomendação, gerar um pedido, montar um encarte).
 2. **Agentes:** "funcionários digitais" especializados (compras, recebimento, preço, vendas,
    promoções) que vigiam a operação o tempo todo e só chamam o dono quando há algo que vale dinheiro.
+   Quem vigia 24 horas é o **motor de cálculo** (sem token); o **Jev** filtra o que merece atenção por
+   frações de centavo; o **DeepSeek** só escreve para o pouco que passa pelo filtro (seção 6.5).
 3. **Créditos de IA:** a plataforma compra créditos no DeepSeek e revende pacotes aos mercados, com
    margem, igual já fazemos com as leituras do Meu Danfe no Confere.
 
@@ -217,10 +219,10 @@ falharem, entra o texto do sistema, como hoje.
 
 ### 6.2 Como um agente trabalha
 
-1. Acorda por horário ou evento (4.2).
+1. Acorda por horário ou evento (4.2). **Não existe agente "ligado" chamando IA em laço.**
 2. Lê os números com ferramentas de consulta, sem inventar nada.
 3. Decide se há algo que vale atenção. A **regra decide primeiro, depois o Jev**; o DeepSeek só
-   entra quando há algo a explicar ou a planejar.
+   entra quando há algo a explicar ou a planejar (funil da seção 6.5).
 4. Prepara a ação (pedido, promoção, mensagem) e grava na **caixa de decisões** com o motivo, os
    números e o impacto em reais.
 5. Avisa pelo canal que o lojista escolheu, sem repetir o mesmo aviso.
@@ -252,6 +254,64 @@ caixa de decisões:
 - agendar lembrete e resumo.
 
 Nenhuma ação altera preço no caixa ou envia pedido ao fornecedor sem aprovação, salvo nível 3.
+
+### 6.5 Vigília 24 horas sem queimar tokens
+
+O erro caro seria o jeito ingênuo de fazer agente: um modelo de linguagem acordando de tempos em
+tempos, lendo tudo e perguntando a si mesmo "tem algo errado?". Com 8 agentes olhando a cada 5
+minutos, são mais de 2.300 chamadas por dia por mercado, quase todas para concluir "nada a fazer".
+
+No MercadoFlow o agente é um **funil em quatro andares**, e cada andar só passa adiante o que o
+anterior não resolve:
+
+```
+ Andar 1 · Motor (sem token)          vigia 24h: vendas a cada 5 min, estoque, notas, preços
+          │  regra e limite: "cobertura < lead time", "venda 30% abaixo do esperado",
+          │  "nota com falta", "preço 15% acima do bairro"            → ~200 sinais/dia
+          ▼
+ Andar 2 · Memória (sem token)        já avisei disto? o lojista recusou algo igual? está no
+          │  horário de silêncio? o valor é pequeno demais?          → ~60 candidatos/dia
+          ▼
+ Andar 3 · Jev (frações de centavo)   várias perguntas numa chamada só, por candidato:
+          │  "merece acordar o lojista?", "é urgente?", "qual agente?", "precisa de texto
+          │  ou basta o aviso pronto?"                                → ~8 casos/dia
+          ▼
+ Andar 4 · DeepSeek (centavos)        escreve a explicação, monta o pedido, planeja a promoção,
+             redige a mensagem ao fornecedor                         → ~8 textos/dia
+```
+
+Regras de cada andar:
+
+- **Andar 1 — motor:** detecta por regra e cálculo; é o que já roda hoje (atualização a cada 5
+  min, detecção de oportunidades, Confere, preços). Nada aqui usa IA.
+- **Andar 2 — memória:** não repete aviso já dado sobre os mesmos números (mesmo hash dos números
+  que o cache de IA já usa), respeita o horário de silêncio e o valor mínimo que o lojista definiu,
+  e aprende com o que ele recusou.
+- **Andar 3 — Jev:** decisões fechadas em lote (uma chamada responde várias perguntas). O Jev não
+  faz conta nem compara datas: recebe os números já calculados pelo motor e só julga. Com confiança
+  baixa, o caso sobe para o DeepSeek, e o produto nunca fica pior do que sem o Jev.
+- **Andar 4 — DeepSeek:** só para o que precisa de texto ou de plano. Aviso simples ("o leite
+  acaba amanhã") usa texto pronto do sistema, sem IA.
+
+Travas de custo por mercado:
+
+- orçamento diário de créditos por agente, com parada automática ao atingir;
+- no máximo N avisos por dia por agente (o resto vai para o resumo do dia seguinte);
+- rotinas não urgentes (resumo, explicações em lote) no horário de desconto do DeepSeek;
+- se acabar o crédito, os andares 1 e 2 continuam e o lojista recebe o aviso com texto pronto.
+
+Custo estimado da vigília 24 horas, com os 8 agentes e as premissas da seção 9.2:
+
+| Jeito de fazer | Chamadas de IA por dia | Custo por mercado/mês |
+|---|---|---|
+| Modelo de linguagem olhando tudo a cada 5 min | ~2.300 (DeepSeek) | ~R$ 2.400 |
+| Motor + DeepSeek julgando cada sinal | ~200 (DeepSeek) | ~R$ 32 |
+| **Funil: motor + memória + Jev + DeepSeek** | ~60 (Jev) + ~8 (DeepSeek) | **~R$ 4** |
+
+A diferença entre o segundo e o terceiro jeito é o Jev: ele troca cerca de 200 julgamentos do
+DeepSeek por dia por ~60 decisões baratas, e o DeepSeek escreve só os ~8 casos que chegam ao
+lojista. É isso que permite oferecer agentes "sempre ligados" dentro de um pacote de R$ 199 com
+margem alta. Os números de sinais e casos por dia são hipótese e serão medidos no piloto.
 
 ---
 
