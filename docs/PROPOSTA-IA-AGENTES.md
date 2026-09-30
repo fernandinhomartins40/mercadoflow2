@@ -1,6 +1,6 @@
 # MercadoFlow Copiloto — proposta de IA, assistente por voz e agentes
 
-Versão 2 · 30/09/2026 (Jev na camada de decisão) · proposta para decisão do dono do produto
+Versão 3 · 30/09/2026 (Jev na camada de decisão; avaliação do DeepSeek Harness) · proposta para decisão do dono do produto
 
 ---
 
@@ -405,6 +405,59 @@ Em ordem de peso:
    rotinas em lote fora do pico (metade do preço).
 4. **LAYA local:** só em volume muito alto e com placa de vídeo.
 
+### 8.7 DeepSeek Harness: faz sentido para nós?
+
+**O que é:** o DeepSeek Harness (`dsh`) é o "motor de agentes" de código aberto que a DeepSeek
+publicou em 13/08/2026 (licença MIT, 95 mil estrelas no GitHub em 48 h). Características:
+
+- Roda em **Node.js**, com linha de comando, interface web local (`127.0.0.1:3080`), aplicativo de
+  desktop e SDK.
+- **"Tudo é plugin"** (framework Cordis): modelo, ferramentas, habilidades, laço do agente, sessão,
+  sandbox e interface são peças trocáveis.
+- Funciona com **vários provedores**, não só DeepSeek (Moonshot/Kimi e outros).
+- Fala **MCP** (o padrão aberto para ligar ferramentas a agentes) e tem um ecossistema de plugins.
+- Tem subagentes, "modo plano" e o **Code Mode**: em vez de uma chamada ao modelo por ferramenta, o
+  modelo escreve um pequeno programa que encadeia várias operações de uma vez, o que corta voltas e
+  tokens.
+- As ferramentas embutidas são de **agente de programação**: arquivos, terminal e busca na web, com
+  permissões "só leitura", "escrever na pasta" e "acesso total".
+- Está em **prévia para desenvolvedores**, e o próprio README avisa que haverá mudanças que quebram
+  compatibilidade.
+
+**Veredito: não usar como motor dos agentes do lojista agora, mas aproveitar três coisas.**
+
+Por que não como motor:
+
+| Ponto | DeepSeek Harness | O que os agentes do MercadoFlow precisam |
+|---|---|---|
+| Para quem foi feito | uma pessoa no próprio computador, trabalhando com arquivos e terminal | milhares de mercados num servidor, cada um isolado dos outros |
+| Isolamento entre clientes | não é o foco (sessão local) | proteção por mercado no banco (RLS), já pronta no Java |
+| Cobrança | não tem | débito de créditos por uso, teto por mercado |
+| Linguagem | Node.js | backend Java/Spring; entraria um serviço novo para manter |
+| Ferramentas | terminal e arquivos (perigosas num SaaS) | consultas e ações de negócio tipadas, que já existem |
+| Maturidade | prévia, com mudanças que quebram | produto pago com cliente real |
+
+O laço de agente do MercadoFlow já existe e é pequeno (o "Pergunte aos dados" consulta ferramentas em
+até 4 voltas). O difícil e valioso é o que está em volta: isolamento, cobrança, dados e as
+ferramentas de negócio. Isso o `dsh` não traz, e colocá-lo no meio seria mais uma peça para
+proteger.
+
+O que aproveitar:
+
+1. **Ideias de arquitetura:** ferramentas, agentes e modelos como peças registráveis (plugins); modo
+   plano; subagentes; e o princípio do Code Mode aplicado do nosso jeito, com o modelo pedindo várias
+   consultas de uma vez numa volta só (o chat já aceita até 4 por volta) em vez de uma por volta.
+2. **Servidor MCP do MercadoFlow:** expor as ferramentas de consulta, só leitura e por mercado com
+   chave própria, no padrão MCP. Assim qualquer agente externo (o próprio `dsh`, o Claude, o ChatGPT,
+   o Cursor) conversa com os dados da loja. Serve para redes com equipe técnica e vira um recurso do
+   plano mais alto. As mesmas ferramentas continuam servindo os nossos agentes internos.
+3. **Agentes internos da operação (superadmin):** curadoria do catálogo global, revisão de temas de
+   encarte, triagem de suporte. Aqui o `dsh` pode rodar do nosso lado, sem cliente final e sem dado
+   de mercado, e ganhamos experiência com ele até sair da prévia.
+
+Reavaliar quando o `dsh` sair da prévia e tiver modo servidor para vários usuários (sem interface),
+com isolamento por sessão.
+
 ---
 
 ## 9. Créditos de IA: modelo de receita
@@ -487,7 +540,7 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 | **F1 · Copiloto texto + Jev** (3-4 semanas) | Jev pela OpenRouter na camada de decisão (ferramenta, número direto, dificuldade), chat com resposta por regra, resumo diário, caixa de decisões, notificação no celular | acerto do Jev em português medido; 70% das perguntas comuns sem modelo de linguagem; custo por pergunta caindo |
 | **F2 · Voz** (2-3 semanas) | aperte-para-falar no app e no Confere, resumo falado, comandos na conferência | resposta falada em até 3 s; funciona no Android e no iPhone |
 | **F3 · Agentes** (4-6 semanas) | Gerente, Compras e Recebimento, níveis 0-2, eventos, WhatsApp | 3 agentes em produção; taxa de aceite e impacto em R$ medidos |
-| **F4 · Mais modelos** (3-4 semanas) | Qwen/MiniMax na cadeia, escolha por custo × acerto, agentes de Preço, Capital, Promoções e Cenários, LAYA em paralelo só se o volume justificar | custo por tarefa cai sem cair a taxa de aceite |
+| **F4 · Mais modelos e MCP** (4-5 semanas) | Qwen/MiniMax na cadeia, escolha por custo × acerto, agentes de Preço, Capital, Promoções e Cenários, servidor MCP do MercadoFlow (só leitura, por mercado), LAYA em paralelo só se o volume justificar | custo por tarefa cai sem cair a taxa de aceite; um agente externo consulta a loja pelo MCP |
 | **F5 · Autonomia** | nível 3 com limites, WhatsApp de ida e volta | ações executadas sem incidente; lojista mantém o nível ligado |
 
 ---
@@ -531,6 +584,7 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
 6. Texto de consentimento sobre processamento fora do Brasil.
 7. Conta na OpenRouter para o Jev (e se o saldo fica junto do DeepSeek na conta da plataforma).
 8. Se vale investir em servidor com placa de vídeo para a decisão local, depois do piloto.
+9. Se testamos o DeepSeek Harness em agentes internos da operação (catálogo, temas, suporte).
 
 ---
 
@@ -549,6 +603,11 @@ real desconta taxa do Pix e do cartão e impostos. O registro de uso já grava t
   [18 usos (Hugging Face)](https://huggingface.co/blog/karmen-beatapi/18-practical-jev-use-cases-for-ai-agents),
   [DEV Community](https://dev.to/vivek_shetye/jev-explained-why-it-could-matter-for-ai-agents-51om),
   [preço](https://jevtypesafeai.com/pricing)
+- DeepSeek Harness: [repositório oficial](https://github.com/deepseek-ai/deepseek-harness),
+  [The New Stack](https://thenewstack.io/deepseek-harness-open-source-plugins/),
+  [guia de uso](https://thetricontinental.org/how-to-use-deepseek-harness/),
+  [MCP no dsh](https://findharness.com/blog/deepseek-harness-mcp-guide),
+  [ecossistema de plugins](https://github.com/0xsline/awesome-deepseek-harness)
 - LAYA × Jev: [Hugging Face](https://huggingface.co/blog/sora-2/jev-vs-laya-hosted-api-or-open-weights-2026-guide),
   [BKS-Lab](https://bks-lab.com/en/blog/laya-gegen-jev/),
   [iMasters](https://imasters.com/news/laya-arrives-as-an-open-source-alternative-to-typesafe-ai-jev),
