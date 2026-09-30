@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import AiSettingsCard from '../components/settings/AiSettingsCard';
+import AiCreditsCard from '../components/settings/AiCreditsCard';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
@@ -115,7 +116,11 @@ const Settings: React.FC = () => {
         </div>
         {showAi ? (
           <div className="min-w-0">
-            <AiSettingsCard marketId={marketId} />
+            {marketId ? <AiCreditsCard marketId={marketId} /> : null}
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>Avançado: usar a chave de IA própria do mercado</summary>
+              <div className="mt-3"><AiSettingsCard marketId={marketId} /></div>
+            </details>
           </div>
         ) : null}
         </div>

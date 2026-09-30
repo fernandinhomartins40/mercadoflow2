@@ -371,6 +371,34 @@ projeto é alterar a VPS só pelo GitHub Actions, então ele ficou registrado, n
 - **Testes:** backend 241/241 (5 novos); API local: chave DeepSeek salva e cifrada, textos de falha
   apagados e texto da IA preservado.
 
+### Ciclo 10 — Copiloto F0a e F0: painel de APIs, créditos de IA e cortes
+
+Implementação das fases F0a e F0 de `docs/PROPOSTA-IA-AGENTES.md` (revenda de IA: a plataforma compra
+nos provedores e vende créditos aos mercados).
+
+- **Painel "IA e APIs" (superadmin, `/super-admin/ia`):** chaves de DeepSeek, Jev, OpenRouter, Deepgram e
+  WhatsApp (cifradas, só os 4 últimos dígitos na tela, endereço de lista fixa, botão Testar com saldo do
+  DeepSeek); roteamento por tarefa editável (camada, modelo, tetos de tokens, créditos, preço de
+  referência, limite de confiança do Jev, modo sombra); orçamento (teto diário global, câmbio, teto
+  mensal padrão, créditos de teste); mercados de teste com carteira e ajuste; console que roda chat,
+  "Por quê?" e Jev contra um mercado sem debitar; uso e custo por dia, tarefa, provedor e mercado;
+  concordância do Jev em sombra; pacotes e confirmação de Pix; auditoria de toda alteração.
+- **Portão da IA da plataforma:** tarefa roteada → interruptor geral → só piloto → chave → teto diário →
+  créditos e teto mensal do mercado. Sem liberação, segue a chave própria do mercado (se houver) e, por
+  fim, o texto do sistema.
+- **Créditos de IA do mercado:** carteira, extrato, teto mensal, pacotes e compra por Pix (mesma chave
+  Pix do Confere) em Configurações; o chat passa a funcionar com créditos mesmo no plano grátis.
+- **Jev:** cliente próprio (`POST /v1/systemone`, perguntas de escolha, sim/não e escala) e modo sombra
+  no chat (qual consulta?) e no "Por quê?" (o texto do sistema bastava?), sem atrasar a resposta.
+- **Cortes da IA atual:** fim dos 40 textos por noite (explicação só no "Por quê?"); cache por faixas
+  (contagem de detecções e números arredondados a 2 algarismos, datas preservadas).
+- **Reaproveitamento:** a chave DeepSeek dos temas de encarte migrou para o painel e os temas usam a do
+  painel quando não têm a própria.
+- **Teste local:** simulador de DeepSeek e Jev ligado só com `-Dmercadoflow.ai.mock-base-url` na JVM
+  (produção não define; a proteção contra endereço interno continua valendo).
+- **Testes:** backend 257/257 (20 novos); ponta a ponta do painel, chat, créditos, Pix, roteamento, teto,
+  "Por quê?", sombra e interruptor 34/34.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

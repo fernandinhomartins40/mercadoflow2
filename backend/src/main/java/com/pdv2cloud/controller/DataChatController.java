@@ -84,8 +84,15 @@ public class DataChatController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
 
-        boolean paidPlan = planService.limitsFor(marketId).fullInsights();
+        // Créditos de IA da plataforma também liberam o chat (revenda da IA).
+        boolean platform = chatService.platformAllowed(marketId);
+        boolean paidPlan = platform || planService.limitsFor(marketId).fullInsights();
         Map<String, Object> body = new LinkedHashMap<>();
+        body.put("iaDaPlataforma", platform);
+        String block = chatService.platformBlockMessage(marketId);
+        if (block != null) {
+            body.put("avisoCreditos", block);
+        }
 
         if (!paidPlan) {
             // Gratuito: a tela não fica trancada. Mostra três perguntas já
@@ -115,7 +122,7 @@ public class DataChatController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
 
-        if (!planService.limitsFor(marketId).fullInsights()) {
+        if (!chatService.platformAllowed(marketId) && !planService.limitsFor(marketId).fullInsights()) {
             // 200 e não 403: para a tela isto é um estado da conversa, não erro
             // de aplicação — e a mensagem é o convite, não uma recusa seca.
             return ResponseEntity.ok(Map.of(
@@ -154,7 +161,8 @@ public class DataChatController {
             // Quais consultas alimentaram a resposta. Vai para a tela porque o
             // lojista tem direito de saber de onde veio o número.
             "consultasUsadas", answer.toolsUsed(),
-            "provedor", answer.provider() == null ? "" : answer.provider()
+            "provedor", answer.provider() == null ? "" : answer.provider(),
+            "creditosUsados", answer.credits()
         ));
     }
 

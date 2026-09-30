@@ -69,6 +69,14 @@ public class DataChatService {
     private final Map<String, DataTool> toolsByName;
     private final List<LlmClient.ToolSpec> toolSpecs;
 
+    /** Jev em modo sombra (opcional; só mede, não muda a resposta). */
+    private com.pdv2cloud.service.ai.platform.JevShadowService jevShadow;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setJevShadow(com.pdv2cloud.service.ai.platform.JevShadowService jevShadow) {
+        this.jevShadow = jevShadow;
+    }
+
     public DataChatService(
         AiOrchestrator orchestrator,
         AiUsageRecorder usageRecorder,
@@ -105,12 +113,35 @@ public class DataChatService {
         String answer,
         List<String> toolsUsed,
         String provider,
-        String errorMessage
-    ) { }
+        String errorMessage,
+        /** Camada que respondeu (FLASH/PRO) e o que custou. */
+        String layer,
+        int credits,
+        int inputTokens,
+        int outputTokens,
+        double costUsd,
+        boolean platform
+    ) {
+        public ChatAnswer(boolean success, String answer, List<String> toolsUsed, String provider, String errorMessage) {
+            this(success, answer, toolsUsed, provider, errorMessage, null, 0, 0, 0, 0, false);
+        }
+    }
 
-    /** O chat só existe para quem configurou uma chave. */
+    /** O chat existe para quem tem créditos de IA da plataforma ou chave própria. */
     public boolean isAvailable(UUID marketId) {
-        return orchestrator.isEnabledFor(marketId);
+        return platformAllowed(marketId) || orchestrator.isEnabledFor(marketId);
+    }
+
+    /** A IA da plataforma atende o chat deste mercado agora? */
+    public boolean platformAllowed(UUID marketId) {
+        com.pdv2cloud.service.ai.platform.AiGate.Decision d = orchestrator.platformDecision(marketId, TASK);
+        return d != null && d.allowed();
+    }
+
+    /** Por que a IA da plataforma não atende (para a tela), ou nulo. */
+    public String platformBlockMessage(UUID marketId) {
+        com.pdv2cloud.service.ai.platform.AiGate.Decision d = orchestrator.platformDecision(marketId, TASK);
+        return d == null || d.allowed() ? null : d.message();
     }
 
     /** As perguntas que o chat sabe responder, para a tela sugerir. */
@@ -141,10 +172,13 @@ public class DataChatService {
         if (maybe.isEmpty()) {
             usageRecorder.record(marketId, TASK, null, null, ChatPrompts.VERSION, null,
                 null, null, null, AiUsageLog.Outcome.SEM_CREDENCIAL, null);
-            return new ChatAnswer(false, null, List.of(), null,
-                "Configure uma chave de IA em Conta para usar o Pergunte aos dados.");
+            String block = platformBlockMessage(marketId);
+            return new ChatAnswer(false, null, List.of(), null, block != null ? block
+                : "Compre créditos de IA em Configurações para usar o Pergunte aos dados.");
         }
         AiOrchestrator.ActiveCredential credential = maybe.get();
+        int maxTokens = credential.platform() ? credential.route().maxOutputTokens() : PROFILE.maxTokens();
+        double temperature = credential.platform() ? credential.route().temperature() : PROFILE.temperature();
 
         List<LlmClient.ChatMessage> messages = new ArrayList<>();
         messages.add(LlmClient.ChatMessage.system(ChatPrompts.SYSTEM));
@@ -167,7 +201,7 @@ public class DataChatService {
 
             LlmClient.LlmResponse response = llmClient.converse(
                 credential.baseUrl(), credential.apiKey(), credential.model(),
-                messages, offered, PROFILE.maxTokens(), PROFILE.temperature()
+                messages, offered, maxTokens, temperature
             );
 
             totalIn += value(response.inputTokens());
@@ -176,19 +210,24 @@ public class DataChatService {
 
             if (!response.success()) {
                 orchestrator.reportFailure(credential.credentialId());
-                usageRecorder.record(marketId, TASK, credential.provider().name(),
-                    credential.model(), ChatPrompts.VERSION, null, totalIn, totalOut,
-                    (int) totalMs, AiUsageLog.Outcome.ERRO, response.errorMessage());
+                record(marketId, credential, totalIn, totalOut, totalMs, AiUsageLog.Outcome.ERRO,
+                    response.errorMessage(), 0);
                 return new ChatAnswer(false, null, toolsUsed,
                     credential.provider().name(), response.errorMessage());
             }
 
+            if (round == 0) {
+                // Referência para o Jev em sombra: o que o DeepSeek escolheu na primeira volta.
+                shadow(marketId, question, response.needsTools() ? response.toolCalls().get(0).name() : "nenhuma");
+            }
+
             if (!response.needsTools()) {
-                usageRecorder.record(marketId, TASK, credential.provider().name(),
-                    credential.model(), ChatPrompts.VERSION, null, totalIn, totalOut,
-                    (int) totalMs, AiUsageLog.Outcome.OK, null);
-                return new ChatAnswer(true, response.content(), toolsUsed,
-                    credential.provider().name(), null);
+                int credits = credential.platform()
+                    ? orchestrator.chargePlatform(marketId, credential.route(), null) : 0;
+                double cost = record(marketId, credential, totalIn, totalOut, totalMs, AiUsageLog.Outcome.OK, null, credits);
+                return new ChatAnswer(true, response.content(), toolsUsed, credential.provider().name(), null,
+                    credential.platform() ? credential.route().layer() : null, credits, totalIn, totalOut, cost,
+                    credential.platform());
             }
 
             // O modelo quer dados. A mensagem com os pedidos volta ao histórico
@@ -208,11 +247,37 @@ public class DataChatService {
         }
 
         // Inalcançável na prática: a última volta não oferece ferramentas.
-        usageRecorder.record(marketId, TASK, credential.provider().name(),
-            credential.model(), ChatPrompts.VERSION, null, totalIn, totalOut,
-            (int) totalMs, AiUsageLog.Outcome.ERRO, "Limite de consultas atingido");
+        record(marketId, credential, totalIn, totalOut, totalMs, AiUsageLog.Outcome.ERRO,
+            "Limite de consultas atingido", 0);
         return new ChatAnswer(false, null, toolsUsed, credential.provider().name(),
             "Não consegui concluir a análise. Tente uma pergunta mais específica.");
+    }
+
+    /** Registra o uso; na IA da plataforma, com custo, camada e créditos. Devolve o custo em dólar. */
+    private double record(UUID marketId, AiOrchestrator.ActiveCredential credential, int in, int out, long ms,
+                          AiUsageLog.Outcome outcome, String error, int credits) {
+        if (!credential.platform()) {
+            usageRecorder.record(marketId, TASK, credential.provider().name(), credential.model(), ChatPrompts.VERSION,
+                null, in, out, (int) ms, outcome, error);
+            return 0;
+        }
+        double cost = com.pdv2cloud.service.ai.platform.AiGate.costUsd(credential.route(), in, out);
+        usageRecorder.recordFull(marketId, TASK, credential.route().provider(), credential.model(), ChatPrompts.VERSION,
+            null, in, out, (int) ms, outcome, error, cost, credential.route().layer(), credits, true);
+        return cost;
+    }
+
+    private void shadow(UUID marketId, String question, String reference) {
+        if (jevShadow == null) {
+            return;
+        }
+        try {
+            jevShadow.toolChoice(marketId, question, toolSpecs.stream()
+                .map(t -> new com.pdv2cloud.service.ai.platform.JevShadowService.Tool(t.name(), t.description()))
+                .toList(), reference);
+        } catch (RuntimeException e) {
+            log.debug("Jev em sombra ignorado: {}", e.getMessage());
+        }
     }
 
     /**

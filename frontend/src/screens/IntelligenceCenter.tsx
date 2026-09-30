@@ -10,6 +10,7 @@ import DecisionFeedback from '../components/intelligence/DecisionFeedback';
 import useRecommendationDecision from '../hooks/useRecommendationDecision';
 import RecommendationCard, { ACTION_LABEL } from '../components/intelligence/RecommendationCard';
 import { marketService } from '../services/market.service';
+import { aiCreditsService } from '../services/aiPlatform.service';
 import { formatDecimal } from '../utils/formatters';
 import { OpportunityItem, OutcomesResponse, RecommendationItem } from '../types/analytics.types';
 import {
@@ -115,6 +116,24 @@ const OpportunityCard: React.FC<{
   const cfg = typeConfig(opp.type);
   const tone = toneOf(opp.type);
   const Icon = cfg.icon;
+  const { marketId } = useAuth();
+  // "Por quê?": a explicação da IA nasce sob demanda, só quando o lojista pede.
+  const [why, setWhy] = useState<{ texto: string; ia: boolean } | null>(
+    opp.aiInsight ? { texto: opp.aiInsight, ia: true } : null);
+  const [whyBusy, setWhyBusy] = useState(false);
+  const [whyError, setWhyError] = useState<string | null>(null);
+  const askWhy = async () => {
+    if (!marketId) return;
+    setWhyBusy(true);
+    setWhyError(null);
+    try {
+      setWhy(await aiCreditsService.explain(marketId, opp.id));
+    } catch {
+      setWhyError('Não foi possível explicar agora. Tente de novo.');
+    } finally {
+      setWhyBusy(false);
+    }
+  };
 
   return (
     <article
@@ -171,17 +190,35 @@ const OpportunityCard: React.FC<{
           calculou — e só aparece quando existe: sem chave, o card fica
           exatamente como era antes.
         */}
-        {opp.aiInsight ? (
+        {why?.ia ? (
           <div
             className="flex gap-2 rounded-lg px-3 py-2"
             style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}
           >
             <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: 'var(--brand-500)' }} />
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-              {opp.aiInsight}
+              {why.texto}
             </p>
           </div>
-        ) : null}
+        ) : why && !why.ia ? (
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            {why.texto}{' '}
+            <Link to="/app/configuracoes#creditos-ia" className="font-semibold" style={{ color: 'var(--brand-700)' }}>
+              Com créditos de IA, o Copiloto explica em detalhe.
+            </Link>
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={askWhy}
+            disabled={whyBusy}
+            className="lg-soft inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-60"
+            style={{ color: 'var(--brand-700)' }}
+          >
+            <Sparkles className="h-3.5 w-3.5" /> {whyBusy ? 'Explicando…' : 'Por quê?'}
+          </button>
+        )}
+        {whyError ? <p className="text-xs" style={{ color: 'var(--danger)' }}>{whyError}</p> : null}
         {opp.expectedImpactValue ? (
           <p className="text-xs font-medium" style={{ color: tone.text }}>
             Impacto estimado: {fmt.money(opp.expectedImpactValue)}

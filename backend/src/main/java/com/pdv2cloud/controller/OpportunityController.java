@@ -186,6 +186,26 @@ public class OpportunityController {
         return ResponseEntity.ok(Map.of("marcadas", changed));
     }
 
+    /**
+     * "Por quê?": explicação da oportunidade escrita pela IA, sob demanda.
+     * Sem créditos nem chave própria, devolve o texto do sistema (ia=false).
+     */
+    @PostMapping("/{opportunityId}/explain")
+    public ResponseEntity<Map<String, Object>> explain(
+        @PathVariable("marketId") UUID marketId,
+        @PathVariable("opportunityId") UUID opportunityId,
+        Authentication authentication
+    ) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        Opportunity o = opportunityRepository.findByIdAndMarketId(opportunityId, marketId)
+            .orElseThrow(() -> new com.pdv2cloud.exception.CustomExceptions.NotFound("Oportunidade não encontrada"));
+        com.pdv2cloud.service.ai.AiOrchestrator.Interpretation r = opportunityInterpreter.explainOnDemand(marketId, o);
+        return ResponseEntity.ok(Map.of(
+            "texto", r.content(),
+            "ia", !r.deterministic(),
+            "doCache", r.fromCache()));
+    }
+
     /** Descarta uma oportunidade — o usuário avaliou e não considera relevante. */
     @PostMapping("/{opportunityId}/dismiss")
     public ResponseEntity<OpportunityDTO> dismiss(

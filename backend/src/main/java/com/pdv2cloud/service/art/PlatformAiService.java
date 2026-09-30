@@ -54,9 +54,19 @@ public class PlatformAiService {
                 cipher.isConfigured(),
                 rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toLocalDateTime(),
                 rs.getString("updated_by")));
-        return rows.isEmpty()
+        Settings own = rows.isEmpty()
             ? new Settings(PROVIDER, DEFAULT_MODEL, false, null, cipher.isConfigured(), null, null)
             : rows.get(0);
+        if (!own.configured()) {
+            // Sem chave própria dos temas: vale a chave DeepSeek do painel "IA e APIs".
+            List<String> hint = jdbc.queryForList(
+                "select key_hint from ai_platform_providers where provider = 'DEEPSEEK' and enabled and encrypted_api_key is not null",
+                Map.of(), String.class);
+            if (!hint.isEmpty()) {
+                return new Settings(PROVIDER, own.model(), true, hint.get(0), own.encryptionReady(), own.updatedAt(), own.updatedBy());
+            }
+        }
+        return own;
     }
 
     /**
@@ -134,6 +144,13 @@ public class PlatformAiService {
             "select encrypted_api_key, model from platform_ai_settings where purpose = :p and encrypted_api_key is not null",
             Map.of("p", PURPOSE_ART),
             (rs, i) -> new Credentials(rs.getString("encrypted_api_key"), rs.getString("model")));
+        if (rows.isEmpty()) {
+            // Sem chave própria dos temas: usa a chave DeepSeek do painel "IA e APIs".
+            rows = jdbc.query(
+                "select encrypted_api_key, default_model as model from ai_platform_providers "
+                    + "where provider = 'DEEPSEEK' and enabled and encrypted_api_key is not null",
+                Map.of(), (rs, i) -> new Credentials(rs.getString("encrypted_api_key"), rs.getString("model")));
+        }
         if (rows.isEmpty()) {
             throw new IllegalArgumentException("Cadastre a chave do DeepSeek no painel antes de usar a IA");
         }

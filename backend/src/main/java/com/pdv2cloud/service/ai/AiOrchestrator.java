@@ -11,7 +11,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import com.pdv2cloud.service.ai.platform.AiGate;
+import com.pdv2cloud.service.ai.platform.AiPlatformConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -68,6 +71,17 @@ public class AiOrchestrator {
      */
     private final Map<UUID, LocalDateTime> breaker = new ConcurrentHashMap<>();
 
+    /**
+     * IA da plataforma (revenda de créditos). Opcional: sem ela, o orquestrador
+     * funciona só com a chave própria do mercado, como antes.
+     */
+    private AiGate gate;
+
+    @Autowired(required = false)
+    void setGate(AiGate gate) {
+        this.gate = gate;
+    }
+
     public AiOrchestrator(
         AiProviderCredentialRepository credentialRepository,
         AiInterpretationRepository interpretationRepository,
@@ -99,6 +113,11 @@ public class AiOrchestrator {
     /** O mercado tem alguma credencial habilitada? Usado para não tentar à toa. */
     public boolean isEnabledFor(UUID marketId) {
         return cipher.isConfigured() && credentialRepository.existsByMarketIdAndEnabledTrue(marketId);
+    }
+
+    /** A IA da plataforma atende esta tarefa deste mercado agora (créditos, piloto, teto)? */
+    public AiGate.Decision platformDecision(UUID marketId, String task) {
+        return gate == null ? null : gate.decide(marketId, task);
     }
 
     /**
@@ -149,6 +168,27 @@ public class AiOrchestrator {
                 null, null, null, AiUsageLog.Outcome.SEM_CREDENCIAL,
                 "Chave mestra de criptografia não configurada no servidor");
             return deterministic(fallbackText);
+        }
+
+        // 1b. IA da plataforma (créditos do mercado), antes da chave própria.
+        AiGate.Decision decision = platformDecision(marketId, task);
+        if (decision != null && decision.allowed()) {
+            AiPlatformConfig.Route route = decision.route();
+            LlmClient.LlmResponse response = llmClient.chat(decision.key().baseUrl(), decision.key().apiKey(),
+                decision.model(), systemPrompt, context.prompt(), route.maxOutputTokens(), route.temperature());
+            double cost = AiGate.costUsd(route, response.inputTokens(), response.outputTokens());
+            if (response.success()) {
+                int credits = gate.charge(marketId, route, subjectId == null ? null : subjectId.toString());
+                usageRecorder.recordFull(marketId, task, route.provider(), decision.model(), promptVersion, context.hash(),
+                    response.inputTokens(), response.outputTokens(), (int) response.latencyMs(),
+                    AiUsageLog.Outcome.OK, null, cost, route.layer(), credits, true);
+                usageRecorder.storeInterpretation(marketId, task, subjectType, subjectId, context.hash(),
+                    response.content(), route.provider(), decision.model(), promptVersion, false);
+                return new Interpretation(response.content(), false, route.provider(), false);
+            }
+            usageRecorder.recordFull(marketId, task, route.provider(), decision.model(), promptVersion, context.hash(),
+                null, null, (int) response.latencyMs(), AiUsageLog.Outcome.ERRO, response.errorMessage(),
+                0d, route.layer(), 0, true);
         }
 
         List<AiProviderCredential> chain = credentialRepository.findChain(marketId);
@@ -250,8 +290,18 @@ public class AiOrchestrator {
      *               deve ser guardada, logada ou devolvida por API
      */
     public record ActiveCredential(
-        AiProvider provider, String baseUrl, String apiKey, String model, UUID credentialId
-    ) { }
+        AiProvider provider, String baseUrl, String apiKey, String model, UUID credentialId,
+        /** Rota da IA da plataforma; nulo quando é a chave própria do mercado. */
+        AiPlatformConfig.Route route
+    ) {
+        public ActiveCredential(AiProvider provider, String baseUrl, String apiKey, String model, UUID credentialId) {
+            this(provider, baseUrl, apiKey, model, credentialId, null);
+        }
+
+        public boolean platform() {
+            return route != null;
+        }
+    }
 
     /**
      * Resolve a primeira credencial utilizável da cadeia do mercado.
@@ -268,6 +318,18 @@ public class AiOrchestrator {
     public Optional<ActiveCredential> resolveCredential(UUID marketId) {
         if (!cipher.isConfigured()) {
             return Optional.empty();
+        }
+        // IA da plataforma primeiro (créditos do mercado); depois a chave própria.
+        AiGate.Decision decision = platformDecision(marketId, "PERGUNTE_AOS_DADOS");
+        if (decision != null && decision.allowed()) {
+            AiProvider provider;
+            try {
+                provider = AiProvider.valueOf(decision.route().provider());
+            } catch (IllegalArgumentException e) {
+                provider = AiProvider.DEEPSEEK;
+            }
+            return Optional.of(new ActiveCredential(provider, decision.key().baseUrl(), decision.key().apiKey(),
+                decision.model(), null, decision.route()));
         }
         for (AiProviderCredential credential : credentialRepository.findChain(marketId)) {
             if (isOpen(credential.getId())) {
@@ -305,7 +367,14 @@ public class AiOrchestrator {
 
     /** Marca uma credencial como falha, tirando-a da cadeia por alguns minutos. */
     public void reportFailure(UUID credentialId) {
-        trip(credentialId);
+        if (credentialId != null) {
+            trip(credentialId);
+        }
+    }
+
+    /** Cobrança de uma chamada feita por fora do {@link #interpret} (chat). */
+    public int chargePlatform(UUID marketId, AiPlatformConfig.Route route, String reference) {
+        return gate == null ? 0 : gate.charge(marketId, route, reference);
     }
 
     private Interpretation deterministic(String fallbackText) {

@@ -110,6 +110,33 @@ public class OpportunityInterpreter {
         );
     }
 
+    /** Jev em modo sombra (opcional): mede se o texto do sistema já bastaria. */
+    private com.pdv2cloud.service.ai.platform.JevShadowService jevShadow;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setJevShadow(com.pdv2cloud.service.ai.platform.JevShadowService jevShadow) {
+        this.jevShadow = jevShadow;
+    }
+
+    /**
+     * "Por quê?" pedido pelo lojista: a explicação nasce aqui, sob demanda.
+     *
+     * Substitui a geração em lote da madrugada, que escrevia até 40 textos por
+     * noite, a maioria sem ninguém ler (proposta, seção 2.2). O cache continua
+     * valendo: a mesma situação não é paga duas vezes.
+     */
+    public AiOrchestrator.Interpretation explainOnDemand(UUID marketId, Opportunity opportunity) {
+        if (jevShadow != null) {
+            try {
+                List<Recommendation> recs = recommendationRepository.findByOpportunityId(opportunity.getId());
+                jevShadow.explanationNeeded(marketId, fallbackText(opportunity, recs));
+            } catch (RuntimeException ignored) {
+                // medição não atrapalha a explicação
+            }
+        }
+        return interpret(marketId, opportunity);
+    }
+
     /**
      * Interpretações já prontas para um conjunto de oportunidades.
      *

@@ -80,7 +80,7 @@ public class AiContextBuilder {
             sb.append("Categoria: ").append(opportunity.getCategory()).append('\n');
         }
         if (opportunity.getDescription() != null && !opportunity.getDescription().isBlank()) {
-            sb.append("Leitura do sistema: ").append(opportunity.getDescription()).append('\n');
+            sb.append("Leitura do sistema: ").append(band(opportunity.getDescription())).append('\n');
         }
 
         appendMoney(sb, "Impacto estimado", opportunity.getExpectedImpactValue());
@@ -88,19 +88,20 @@ public class AiContextBuilder {
 
         // Persistência importa para o tom da interpretação: algo que reaparece
         // há semanas merece urgência diferente do que apareceu ontem.
+        // Em faixa, e não a contagem exata: a contagem sobe todo dia e, com ela
+        // no texto, o hash mudava a cada noite e o cache nunca acertava.
         if (opportunity.getDetectionCount() != null && opportunity.getDetectionCount() > 1) {
-            sb.append("Situação já detectada ")
-                .append(opportunity.getDetectionCount())
-                .append(" vezes (persiste desde ")
-                .append(opportunity.getFirstDetectedAt().toLocalDate())
-                .append(")\n");
+            int n = opportunity.getDetectionCount();
+            sb.append("Situação persistente: ")
+                .append(n >= 28 ? "há mais de um mês" : n >= 7 ? "há mais de uma semana" : "há alguns dias")
+                .append('\n');
         }
 
         Map<String, Object> evidence = filterEvidence(opportunity.getEvidence());
         if (!evidence.isEmpty()) {
             sb.append("\nNÚMEROS QUE SUSTENTAM\n");
             evidence.forEach((k, v) -> sb.append("- ").append(humanize(k))
-                .append(": ").append(format(v)).append('\n'));
+                .append(": ").append(v instanceof Number ? band(format(v)) : format(v)).append('\n'));
         }
 
         if (recommendations != null && !recommendations.isEmpty()) {
@@ -159,6 +160,37 @@ public class AiContextBuilder {
                     .setScale(0, java.math.RoundingMode.HALF_UP))
                 .append("%\n");
         }
+    }
+
+    /**
+     * Arredonda os números de um texto para 2 algarismos significativos.
+     *
+     * Cobertura de 3,2 para 2,9 dias ou giro de 1,45 para 1,52 não mudam a
+     * leitura, mas mudavam o hash e refaziam a explicação toda noite. Em faixa,
+     * o texto só é refeito quando a situação muda de verdade.
+     */
+    static String band(String text) {
+        if (text == null) {
+            return null;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?<![\\d/-])\\d+(?:[.,]\\d+)?(?![\\d/-])").matcher(text);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            String raw = m.group();
+            String rounded;
+            try {
+                java.math.BigDecimal v = new java.math.BigDecimal(raw.replace(',', '.'));
+                rounded = v.round(new java.math.MathContext(2)).stripTrailingZeros().toPlainString();
+                if (raw.contains(",")) {
+                    rounded = rounded.replace('.', ',');
+                }
+            } catch (NumberFormatException e) {
+                rounded = raw;
+            }
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(rounded));
+        }
+        m.appendTail(out);
+        return out.toString();
     }
 
     /** camelCase → "camel case", para o modelo ler rótulo e não identificador. */

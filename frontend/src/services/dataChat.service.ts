@@ -28,6 +28,9 @@ export interface ChatStatus {
   modoDemonstracao?: boolean;
   exemplos?: DemoAnswer[];
   mensagem?: string;
+  /** Por que a IA da plataforma não atende (sem créditos, fora do piloto…). */
+  avisoCreditos?: string;
+  iaDaPlataforma?: boolean;
 }
 
 export interface ChatMessage {

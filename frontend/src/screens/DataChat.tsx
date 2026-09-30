@@ -23,6 +23,7 @@ const DataChat: React.FC = () => {
   const [available, setAvailable] = useState<boolean | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [demo, setDemo] = useState<{ exemplos: DemoAnswer[]; mensagem?: string } | null>(null);
+  const [creditNotice, setCreditNotice] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -33,6 +34,7 @@ const DataChat: React.FC = () => {
     dataChatService.status(marketId)
       .then(s => {
         setAvailable(s.disponivel);
+        setCreditNotice(s.avisoCreditos ?? null);
         setSuggestions(s.sugestoes || []);
         // Plano gratuito: em vez de porta trancada, três respostas prontas com
         // os números da própria loja.
@@ -99,6 +101,12 @@ const DataChat: React.FC = () => {
             <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               {demo.mensagem}
             </p>
+            {creditNotice && (
+              <p className="mt-2 rounded-lg px-3 py-2 text-sm" role="status"
+                style={{ background: 'var(--surface-warning)', color: '#92400e' }}>
+                {creditNotice}
+              </p>
+            )}
           </div>
 
           {demo.exemplos.map((ex, i) => (
@@ -143,12 +151,18 @@ const DataChat: React.FC = () => {
                 Pergunte o que quiser
               </p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Nos planos pagos você conversa livremente com os dados da loja.
+                Com créditos de IA (ou num plano pago) você conversa livremente com os dados da loja.
               </p>
             </div>
             <span className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
               Ver planos
             </span>
+          </Link>
+          <Link
+            to="/app/configuracoes#creditos-ia"
+            className="lg-tinted inline-flex items-center justify-center gap-2 self-start rounded-full px-4 py-2 text-sm font-semibold no-underline"
+          >
+            <Sparkles className="h-4 w-4" /> Comprar créditos de IA
           </Link>
         </div>
       </Layout>
@@ -171,15 +185,20 @@ const DataChat: React.FC = () => {
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed"
               style={{ color: 'var(--text-muted)' }}>
               Faça perguntas como “o que preciso comprar essa semana?” e receba a
-              resposta com os números reais da sua loja. Para usar, configure uma
-              chave de IA — há serviços com plano gratuito.
+              resposta com os números reais da sua loja. Para usar, compre um pacote
+              de créditos de IA do MercadoFlow.
             </p>
+            {creditNotice && (
+              <p className="mx-auto mt-3 max-w-md rounded-lg px-3 py-2 text-sm" role="status"
+                style={{ background: 'var(--surface-warning)', color: '#92400e' }}>
+                {creditNotice}
+              </p>
+            )}
             <Link
-              to="/app/configuracoes"
-              className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-              style={{ background: 'var(--brand-500)' }}
+              to="/app/configuracoes#creditos-ia"
+              className="lg-tinted mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold no-underline"
             >
-              <Settings className="h-4 w-4" /> Configurar agora
+              <Settings className="h-4 w-4" /> Comprar créditos de IA
             </Link>
           </div>
         </div>

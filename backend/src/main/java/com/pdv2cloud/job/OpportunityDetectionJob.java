@@ -85,18 +85,11 @@ public class OpportunityDetectionJob {
                         market.getId(), ProductEventService.ACTIVATION_FIRST_ANALYSIS));
                 }
 
-                // Interpretação por IA: falha aqui não invalida a detecção,
-                // que é o produto real deste job. A IA é acréscimo.
+                // A explicação da IA não é mais gerada em lote aqui: nasce sob
+                // demanda, quando o lojista toca em "Por quê?" (proposta, seção
+                // 2.2). A rodada noturna escrevia até 40 textos por mercado, a
+                // maioria sem ninguém ler, e refazia os mesmos todo dia.
                 int interpreted = 0;
-                try {
-                    interpreted = TenantContext.runAsSystem(() ->
-                        opportunityInterpreter.interpretMarket(
-                            market.getId(),
-                            opportunityRepository.findOpenByMarket(market.getId())));
-                } catch (Exception e) {
-                    log.warn("Interpretacao por IA falhou no mercado {}: {}",
-                        market.getId(), e.getMessage());
-                }
                 // Textos com mais de 90 dias saem do cache (senão ele cresce para sempre).
                 try {
                     TenantContext.runAsSystem(() -> opportunityInterpreter.purgeStale(market.getId()));

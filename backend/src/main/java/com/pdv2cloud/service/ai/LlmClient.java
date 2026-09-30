@@ -529,6 +529,9 @@ public class LlmClient {
      * regra do OutboundUrlGuard e troca de DNS depois do cadastro.
      */
     private LlmResponse rejectInternal(String baseUrl) {
+        if (com.pdv2cloud.service.ai.platform.AiDevMock.isMock(baseUrl)) {
+            return null;
+        }
         try {
             OutboundUrlGuard.assertPublicHttps(baseUrl);
             return null;

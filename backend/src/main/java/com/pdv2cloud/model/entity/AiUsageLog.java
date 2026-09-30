@@ -85,4 +85,19 @@ public class AiUsageLog {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    /** Custo estimado em dólar (preço de referência da rota); só na IA da plataforma. */
+    @Column(name = "cost_usd", precision = 12, scale = 6)
+    private java.math.BigDecimal costUsd;
+
+    /** Camada que atendeu: TEMPLATE, JEV, FLASH ou PRO. */
+    @Column(length = 12)
+    private String layer;
+
+    /** Créditos debitados do mercado. */
+    private Integer credits;
+
+    /** Usou a chave da plataforma (revenda), e não a chave própria do mercado. */
+    @Column(nullable = false)
+    private Boolean platform = false;
 }

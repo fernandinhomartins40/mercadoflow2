@@ -124,7 +124,37 @@ class AiContextBuilderTest {
         Opportunity o = opportunity(Map.of("giroDiario", new BigDecimal("0.1")));
         o.setDetectionCount(12);
 
-        assertTrue(builder.forOpportunity(o, List.of()).prompt().contains("12 vezes"));
+        assertTrue(builder.forOpportunity(o, List.of()).prompt().contains("há mais de uma semana"));
+    }
+
+    /**
+     * Cache estável: a contagem de detecções sobe todo dia, mas dentro da mesma
+     * faixa o hash não muda (antes, a explicação era refeita toda noite).
+     */
+    @Test
+    void contagemDeDeteccoesNaMesmaFaixaNaoMudaOHash() {
+        Opportunity a = opportunity(Map.of("giroDiario", new BigDecimal("0.1")));
+        Opportunity b = opportunity(Map.of("giroDiario", new BigDecimal("0.1")));
+        a.setDetectionCount(8);
+        b.setDetectionCount(9);
+
+        assertEquals(builder.forOpportunity(a, List.of()).hash(), builder.forOpportunity(b, List.of()).hash());
+    }
+
+    /** Variação pequena de número (3,21 → 3,24) cai na mesma faixa e não refaz o texto. */
+    @Test
+    void variacaoPequenaNaoMudaOHash() {
+        assertEquals(
+            builder.forOpportunity(opportunity(Map.of("coberturaDias", new BigDecimal("3.21"))), List.of()).hash(),
+            builder.forOpportunity(opportunity(Map.of("coberturaDias", new BigDecimal("3.24"))), List.of()).hash());
+    }
+
+    @Test
+    void faixaArredondaNumerosMasPreservaDatas() {
+        assertEquals("Cobertura atual de 3.2 dia(s) com giro de 1.5 un./dia",
+            AiContextBuilder.band("Cobertura atual de 3.21 dia(s) com giro de 1.45 un./dia"));
+        assertEquals("observado em 2026-09-29", AiContextBuilder.band("observado em 2026-09-29"));
+        assertEquals("R$ 1200", AiContextBuilder.band("R$ 1234.56"));
     }
 
     private Opportunity opportunity(Map<String, Object> evidence) {

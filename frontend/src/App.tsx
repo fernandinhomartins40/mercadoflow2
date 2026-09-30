@@ -23,6 +23,7 @@ const PublicEncarte = lazy(() => import('./screens/PublicEncarte'));
 const SuperAdminArtThemes = lazy(() => import('./screens/SuperAdminArtThemes'));
 const ConfereApp = lazy(() => import('./screens/ConfereApp'));
 const SuperAdminConfere = lazy(() => import('./screens/SuperAdminConfere'));
+const SuperAdminAi = lazy(() => import('./screens/SuperAdminAi'));
 const Landing = lazy(() => import('./screens/Landing'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
 const AgentPairing = lazy(() => import('./screens/AgentPairing'));
@@ -172,6 +173,7 @@ const App: React.FC = () => {
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/temas" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/confere" element={secureSuperAdmin(<SuperAdminConfere />)} />
+        <Route path="/super-admin/ia" element={secureSuperAdmin(<SuperAdminAi />)} />
         <Route path="/super-admin/temas/:themeId" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />
 

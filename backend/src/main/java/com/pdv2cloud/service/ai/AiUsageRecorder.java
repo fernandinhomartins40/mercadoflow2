@@ -102,6 +102,17 @@ public class AiUsageRecorder {
         String contextHash, Integer inputTokens, Integer outputTokens, Integer latencyMs,
         AiUsageLog.Outcome outcome, String error
     ) {
+        recordFull(marketId, task, provider, model, promptVersion, contextHash, inputTokens, outputTokens,
+            latencyMs, outcome, error, null, null, null, false);
+    }
+
+    /** Registro com custo, camada e créditos (IA da plataforma). */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordFull(
+        UUID marketId, String task, String provider, String model, String promptVersion,
+        String contextHash, Integer inputTokens, Integer outputTokens, Integer latencyMs,
+        AiUsageLog.Outcome outcome, String error, Double costUsd, String layer, Integer credits, boolean platform
+    ) {
         try {
             AiUsageLog entry = new AiUsageLog();
             entry.setMarket(marketRepository.getReferenceById(marketId));
@@ -115,6 +126,10 @@ public class AiUsageRecorder {
             entry.setLatencyMs(latencyMs);
             entry.setOutcome(outcome);
             entry.setErrorMessage(truncate(error));
+            entry.setCostUsd(costUsd == null ? null : java.math.BigDecimal.valueOf(costUsd));
+            entry.setLayer(layer);
+            entry.setCredits(credits);
+            entry.setPlatform(platform);
             usageLogRepository.save(entry);
         } catch (Exception e) {
             // Log de observabilidade não pode derrubar a operação que observa.

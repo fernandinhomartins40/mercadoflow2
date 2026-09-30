@@ -115,7 +115,7 @@ class DataChatServiceTest {
             "a ferramenta precisa receber o mercado autenticado, não o do modelo");
     }
 
-    /** Sem chave configurada, o chat não tenta chamar provedor nenhum. */
+    /** Sem créditos de IA nem chave própria, o chat não tenta chamar provedor nenhum. */
     @Test
     void semCredencialNaoChamaProvedor() {
         when(orchestrator.resolveCredential(marketId)).thenReturn(Optional.empty());
@@ -123,7 +123,7 @@ class DataChatServiceTest {
         DataChatService.ChatAnswer answer = service.ask(marketId, "quanto vendi?", List.of());
 
         assertFalse(answer.success());
-        assertTrue(answer.errorMessage().contains("Configure uma chave"));
+        assertTrue(answer.errorMessage().contains("créditos de IA"));
         verifyNoInteractions(llmClient);
     }
 
