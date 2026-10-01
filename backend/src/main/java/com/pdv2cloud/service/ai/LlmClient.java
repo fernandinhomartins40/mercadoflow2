@@ -457,13 +457,19 @@ public class LlmClient {
      * recebem os números calculados, então o raciocínio fica desligado.
      */
     String providerOptions(String baseUrl, String body) {
-        if (baseUrl == null || !baseUrl.contains("deepseek.com")) {
+        boolean deepseek = baseUrl != null && baseUrl.contains("deepseek.com");
+        boolean openrouter = baseUrl != null && baseUrl.contains("openrouter.ai");
+        if (!deepseek && !openrouter) {
             return body;
         }
         try {
             ObjectNode root = (ObjectNode) mapper.readTree(body);
-            if (!root.has("thinking")) {
+            if (deepseek && !root.has("thinking")) {
                 root.putObject("thinking").put("type", "disabled");
+            }
+            // OpenRouter: parâmetro unificado de raciocínio (modelos sem raciocínio ignoram).
+            if (openrouter && !root.has("reasoning")) {
+                root.putObject("reasoning").put("enabled", false);
             }
             return root.toString();
         } catch (Exception e) {

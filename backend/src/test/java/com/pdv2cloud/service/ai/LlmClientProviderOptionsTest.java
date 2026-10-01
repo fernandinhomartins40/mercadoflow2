@@ -22,9 +22,11 @@ class LlmClientProviderOptionsTest {
     }
 
     @Test
-    void outrosProvedoresNaoMudam() {
-        String body = "{\"model\":\"qwen/qwen3.5-flash\"}";
-        assertEquals(body, client.providerOptions("https://openrouter.ai/api/v1", body));
+    void openRouterDesligaORaciocinioEOutrosNaoMudam() throws Exception {
+        JsonNode or = mapper.readTree(client.providerOptions("https://openrouter.ai/api/v1", "{\"model\":\"qwen/qwen3.7-flash\"}"));
+        assertFalse(or.path("reasoning").path("enabled").asBoolean(true));
+        String body = "{\"model\":\"llama\"}";
+        assertEquals(body, client.providerOptions("https://api.groq.com/openai/v1", body));
         assertEquals(body, client.providerOptions(null, body));
     }
 

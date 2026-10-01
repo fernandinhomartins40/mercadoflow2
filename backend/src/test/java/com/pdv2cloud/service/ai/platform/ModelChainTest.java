@@ -27,7 +27,7 @@ class ModelChainTest {
         AiGate.Decision primary = new AiGate.Decision(AiGate.Reason.OK, route(),
             new AiPlatformConfig.Key("DEEPSEEK", "https://api.deepseek.com", "k1", "deepseek-flash"));
         when(config.fallbacks("PERGUNTE_AOS_DADOS")).thenReturn(List.of(
-            new AiPlatformConfig.Fallback("PERGUNTE_AOS_DADOS", 1, "OPENROUTER", "qwen/qwen3.5-flash",
+            new AiPlatformConfig.Fallback("PERGUNTE_AOS_DADOS", 1, "OPENROUTER", "qwen/qwen3.7-flash",
                 BigDecimal.valueOf(0.10), BigDecimal.valueOf(0.40), true, null, null),
             new AiPlatformConfig.Fallback("PERGUNTE_AOS_DADOS", 2, "DEEPSEEK", "deepseek-pro",
                 BigDecimal.valueOf(0.66), BigDecimal.valueOf(1.98), true, null, null)));
@@ -38,7 +38,7 @@ class ModelChainTest {
 
         assertEquals(3, chain.size());
         assertEquals("deepseek-flash", chain.get(0).model());
-        assertEquals("qwen/qwen3.5-flash", chain.get(1).model());
+        assertEquals("qwen/qwen3.7-flash", chain.get(1).model());
         assertEquals("OPENROUTER", chain.get(1).route().provider());
         // 1M de entrada + 1M de saída no Qwen = 0,10 + 0,40.
         assertEquals(0.50, AiGate.costUsd(chain.get(1).route(), 1_000_000, 1_000_000), 1e-9);
@@ -50,7 +50,7 @@ class ModelChainTest {
         AiGate.Decision primary = new AiGate.Decision(AiGate.Reason.OK, route(),
             new AiPlatformConfig.Key("DEEPSEEK", "https://api.deepseek.com", "k1", "deepseek-flash"));
         when(config.fallbacks("PERGUNTE_AOS_DADOS")).thenReturn(List.of(new AiPlatformConfig.Fallback("PERGUNTE_AOS_DADOS", 1,
-            "OPENROUTER", "qwen/qwen3.5-flash", BigDecimal.ONE, BigDecimal.ONE, true, null, null)));
+            "OPENROUTER", "qwen/qwen3.7-flash", BigDecimal.ONE, BigDecimal.ONE, true, null, null)));
         when(config.key("OPENROUTER")).thenReturn(Optional.empty());
         assertEquals(1, gate.attempts(primary).size());
     }

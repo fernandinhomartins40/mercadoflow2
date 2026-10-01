@@ -277,7 +277,9 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
               <a href={info.keyUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Onde criar a chave</a></label>
             <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>{isWa ? 'ID do número (Phone number ID)' : 'Modelo padrão'}</span>
               <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)}
-                aria-label={isWa ? 'ID do número do WhatsApp' : `Modelo padrão de ${info.name}`} /></label>
+                aria-label={isWa ? 'ID do número do WhatsApp' : `Modelo padrão de ${info.name}`} />
+              {p.provider === 'OPENROUTER' && <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Ver os ids dos modelos</a>}
+              {p.provider === 'DEEPSEEK' && <span className={HINT}>deepseek-flash ou deepseek-v4-pro</span>}</label>
           </div>
           {p.allowedBaseUrls.length > 1 && (
             <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>Endereço</span>
@@ -457,7 +459,7 @@ const RouteCard: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; fallbacks
     const position = [1, 2, 3, 4, 5].find((n) => !used.includes(n));
     if (!position) return;
     try {
-      onFallbacks(await aiAdminService.saveFallback(r.task, position, { provider: 'OPENROUTER', model: 'qwen/qwen3.5-flash', inputPriceUsdM: 0.1, outputPriceUsdM: 0.4, enabled: true }));
+      onFallbacks(await aiAdminService.saveFallback(r.task, position, { provider: 'OPENROUTER', model: 'qwen/qwen3.7-flash', inputPriceUsdM: 0.03, outputPriceUsdM: 0.13, enabled: true }));
     } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
   };
   const numField = (k: keyof AiRouteRow, label: string, aria: string, hint?: string) => (
@@ -507,7 +509,7 @@ const RouteCard: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; fallbacks
           {writes && (
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
               <h4 className="text-sm font-semibold text-slate-900">Se este modelo falhar</h4>
-              <p className={HINT}>O Copiloto tenta as reservas na ordem, antes de cair no texto do sistema. O lojista paga o mesmo crédito. Confira o id do modelo no OpenRouter.</p>
+              <p className={HINT}>O Copiloto tenta as reservas na ordem, antes de cair no texto do sistema. O lojista paga o mesmo crédito. Os ids estão em <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="font-semibold text-green-700 hover:underline">openrouter.ai/models</a>.</p>
               <ul className="flex flex-col gap-2">{mine.map((x) => <FallbackItem key={`${x.task}-${x.position}`} f={x} onSaved={onFallbacks} />)}</ul>
               {mine.length < 5 && <div><Button size="sm" variant="secondary" onClick={addFallback}><Plus className="h-4 w-4" />Adicionar reserva</Button></div>}
             </div>
