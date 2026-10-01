@@ -83,6 +83,13 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(AccountAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountAccess(AccountAccessException ex) {
+        Map<String, Object> body = errorBody("account_blocked", ex.getMessage(), ex.getMessage());
+        body.put("state", ex.getState());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody(

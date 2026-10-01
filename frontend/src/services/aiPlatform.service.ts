@@ -3,7 +3,7 @@ import api from './api';
 /** IA da plataforma (revenda de créditos): painel do superadmin e carteira do mercado. */
 
 export interface AiProviderRow {
-  provider: 'DEEPSEEK' | 'JEV' | 'OPENROUTER' | 'DEEPGRAM' | 'WHATSAPP';
+  provider: 'DEEPSEEK' | 'JEV' | 'OPENROUTER' | 'DEEPGRAM' | 'WHATSAPP' | 'EMAIL';
   baseUrl: string;
   allowedBaseUrls: string[];
   configured: boolean;

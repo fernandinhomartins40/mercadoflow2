@@ -37,7 +37,8 @@ public class AiPlatformConfig {
         "OPENROUTER", List.of("https://openrouter.ai/api/v1"),
         "JEV", List.of("https://api.typesafe.ai", "https://api.apimodels.app"),
         "DEEPGRAM", List.of("https://api.deepgram.com"),
-        "WHATSAPP", List.of("https://graph.facebook.com"));
+        "WHATSAPP", List.of("https://graph.facebook.com"),
+        "EMAIL", List.of("https://api.resend.com"));
 
     public static final Set<String> LAYERS = Set.of("TEMPLATE", "JEV", "FLASH", "PRO", "VOZ", "CANAL");
 
@@ -88,7 +89,11 @@ public class AiPlatformConfig {
         if (url != null && !allowed.contains(url)) {
             throw new IllegalArgumentException("Endereço não permitido para " + provider);
         }
-        if (model != null && !model.isBlank() && (model.length() > 120 || !model.trim().matches("[A-Za-z0-9._:/-]+"))) {
+        if ("EMAIL".equals(provider)) {
+            if (model != null && !model.isBlank() && (model.length() > 120 || !model.trim().matches("[^<>]*<?[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+>?"))) {
+                throw new IllegalArgumentException("Remetente inválido: use nome@seudominio.com ou Nome <nome@seudominio.com>");
+            }
+        } else if (model != null && !model.isBlank() && (model.length() > 120 || !model.trim().matches("[A-Za-z0-9._:/-]+"))) {
             throw new IllegalArgumentException("Nome de modelo inválido");
         }
         String key = cleanKey(apiKey);
@@ -243,7 +248,7 @@ public class AiPlatformConfig {
     static String effectiveBase(String provider, String base) {
         String mock = AiDevMock.baseUrl();
         return mock != null && ("DEEPSEEK".equals(provider) || "OPENROUTER".equals(provider) || "JEV".equals(provider)
-            || "DEEPGRAM".equals(provider) || "WHATSAPP".equals(provider)) ? mock : base;
+            || "DEEPGRAM".equals(provider) || "WHATSAPP".equals(provider) || "EMAIL".equals(provider)) ? mock : base;
     }
 
     /** Saldo da conta DeepSeek (GET /user/balance), para o alerta de saldo baixo. */
@@ -267,10 +272,13 @@ public class AiPlatformConfig {
 
     private TestResult simpleGet(String provider, String base, String apiKey) {
         long started = System.currentTimeMillis();
-        String path = "DEEPGRAM".equals(provider) ? "/v1/projects" : "/v21.0/me";
+        String path = "DEEPGRAM".equals(provider) ? "/v1/projects" : "EMAIL".equals(provider) ? "/domains" : "/v21.0/me";
         try {
             HttpRequest.Builder b = HttpRequest.newBuilder().uri(URI.create(base + path)).timeout(Duration.ofSeconds(8)).GET();
             b.header("Authorization", ("DEEPGRAM".equals(provider) ? "Token " : "Bearer ") + apiKey);
+            if ("EMAIL".equals(provider)) {
+                b.header("User-Agent", "MercadoFlow");
+            }
             HttpResponse<String> r = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
             boolean ok = r.statusCode() >= 200 && r.statusCode() < 300;
             return new TestResult(ok, ok ? "Chave aceita" : "Recusada (HTTP " + r.statusCode() + ")",

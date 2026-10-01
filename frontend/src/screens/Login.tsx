@@ -67,7 +67,10 @@ const Login: React.FC = () => {
       }
       navigate('/app');
     } catch (err: any) {
-      setError(err.message || 'Falha ao autenticar');
+      // Conta bloqueada (senha certa): mostra o motivo e o que fazer. Senha errada: mensagem em português.
+      const data = err?.response?.data;
+      if (err?.response?.status === 429) setError('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
+      else setError(data?.userMessage || (err?.response?.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar agora. Tente de novo.'));
     }
   };
 
@@ -148,8 +151,9 @@ const Login: React.FC = () => {
               <span>Manter conectado</span>
             </label>
           </div>
-          {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+          {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
           <Button type="submit">Entrar</Button>
+          <p className="login-switch" style={{ marginTop: 12 }}><Link to="/esqueci-senha">Esqueci minha senha</Link></p>
         </form>
         <p className="login-switch">
           Ainda não tem conta? <Link to="/register">Criar conta grátis</Link>

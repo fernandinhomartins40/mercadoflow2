@@ -51,7 +51,7 @@ api.interceptors.response.use(
       }
       // /parear-agente autentica sozinha no próprio fluxo: redirecionar para
       // /login perderia o código de pareamento que veio na query string.
-      const publicPaths = ['/', '/login', '/register', '/download-agente', '/parear-agente', '/super-admin/login'];
+      const publicPaths = ['/', '/login', '/register', '/esqueci-senha', '/redefinir-senha', '/download-agente', '/parear-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
         if (window.location.pathname === '/confere' || window.location.pathname.startsWith('/confere/')) {

@@ -28,6 +28,13 @@ const Plans: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState<PlanCode | 'PORTAL' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Volta do pagamento: o plano só muda quando o pagamento é confirmado (webhook), então o aviso diz isso.
+  const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
+  const checkoutNotice = checkoutResult === 'sucesso'
+    ? 'Pagamento enviado. O plano novo é liberado assim que a confirmação chegar, em geral em poucos segundos.'
+    : checkoutResult === 'alterado'
+      ? 'Plano trocado na sua assinatura atual. A diferença do mês é ajustada proporcionalmente na próxima fatura.'
+      : checkoutResult === 'cancelado' ? 'Pagamento não concluído. Nada foi cobrado.' : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +135,12 @@ const Plans: React.FC = () => {
                 <ExternalLink size={12} />
               </button>
             )}
+          </div>
+        )}
+
+        {checkoutNotice && (
+          <div role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
+            {checkoutNotice}
           </div>
         )}
 

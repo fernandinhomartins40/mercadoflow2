@@ -6,6 +6,8 @@ import { buildOffersUrl, resolveOffersWorkspace } from './lib/offersApp';
 import { FEATURE_OFFER_TEMPLATES_ENABLED, FEATURE_STATE_PRICES_ENABLED } from './config/features';
 
 const Login = lazy(() => import('./screens/Login'));
+const ForgotPassword = lazy(() => import('./screens/ForgotPassword'));
+const ResetPassword = lazy(() => import('./screens/ResetPassword'));
 const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
 const IntelligenceCenter = lazy(() => import('./screens/IntelligenceCenter'));
@@ -122,6 +124,8 @@ const App: React.FC = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/esqueci-senha" element={<ForgotPassword />} />
+        <Route path="/redefinir-senha" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />
         <Route path="/" element={<Landing />} />

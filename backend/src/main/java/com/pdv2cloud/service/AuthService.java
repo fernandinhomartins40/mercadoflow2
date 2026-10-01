@@ -54,6 +54,9 @@ public class AuthService {
     @Autowired
     private ProductEventService productEventService;
 
+    @Autowired
+    private com.pdv2cloud.service.billing.AccessPolicy accessPolicy;
+
     /**
      * O cadastro público cria o mercado e o primeiro usuário sem que exista
      * tenant na sessão — é ele que dá origem ao tenant.
@@ -151,8 +154,21 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        Authentication auth = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        Authentication auth;
+        try {
+            auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        } catch (org.springframework.security.authentication.DisabledException disabled) {
+            // O Spring recusa conta bloqueada ANTES de conferir a senha. Só
+            // explicamos o motivo a quem acertou a senha; para os outros, a
+            // resposta continua sendo "e-mail ou senha incorretos".
+            User user = userRepository.findForAuthenticationByEmail(request.getEmail()).orElse(null);
+            if (user != null && user.getPassword() != null && passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                com.pdv2cloud.service.billing.AccessPolicy.Access access = accessPolicy.of(user);
+                throw new com.pdv2cloud.exception.AccountAccessException(access.state(), access.message());
+            }
+            throw new org.springframework.security.authentication.BadCredentialsException("Bad credentials");
+        }
         long tokenTtl = Boolean.TRUE.equals(request.getKeepConnected())
             ? Duration.ofDays(30).toMillis()
             : Duration.ofDays(1).toMillis();

@@ -134,8 +134,36 @@ public class StripeService {
                 : "Este plano não está disponível para contratação online."
         ));
 
-        String customerId = ensureCustomer(market);
         String base = publicBaseUrl.replaceAll("/+$", "");
+
+        // Já assina? Troca o preço da assinatura atual, com valor proporcional,
+        // em vez de abrir um checkout novo — que criaria uma SEGUNDA assinatura
+        // e cobraria as duas.
+        String currentId = market.getStripeSubscriptionId();
+        if (currentId != null && !currentId.isBlank()) {
+            Subscription current = Subscription.retrieve(currentId);
+            String status = current.getStatus();
+            if (!"canceled".equals(status) && !"incomplete_expired".equals(status)) {
+                if (current.getItems() == null || current.getItems().getData().isEmpty()) {
+                    throw new IllegalStateException("Assinatura sem itens no Stripe; fale com o suporte.");
+                }
+                com.stripe.model.SubscriptionItem item = current.getItems().getData().get(0);
+                if (item.getPrice() != null && priceId.equals(item.getPrice().getId())) {
+                    throw new IllegalArgumentException("Você já está neste plano.");
+                }
+                Subscription updated = current.update(com.stripe.param.SubscriptionUpdateParams.builder()
+                    .addItem(com.stripe.param.SubscriptionUpdateParams.Item.builder().setId(item.getId()).setPrice(priceId).build())
+                    .setProrationBehavior(com.stripe.param.SubscriptionUpdateParams.ProrationBehavior.CREATE_PRORATIONS)
+                    .putMetadata("marketId", market.getId().toString())
+                    .putMetadata("planCode", plan.name())
+                    .build());
+                syncSubscription(updated);
+                log.info("Plano trocado na assinatura atual | market={} | plano={} | assinatura={}", marketId, plan, currentId);
+                return base + "/app/planos?checkout=alterado";
+            }
+        }
+
+        String customerId = ensureCustomer(market);
 
         // payment_method_types deliberadamente NÃO é fixado: o Checkout oferece
         // o que estiver ativo em Settings → Payments da conta (hoje cartão e

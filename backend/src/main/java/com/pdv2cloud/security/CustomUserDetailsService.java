@@ -21,6 +21,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.pdv2cloud.service.billing.AccessPolicy accessPolicy;
+
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -37,6 +40,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         );
     }
 
+    /** Mesma regra para o login e para o app: {@link com.pdv2cloud.service.billing.AccessPolicy}. */
     private boolean isUserEnabled(User user) {
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             return false;
@@ -44,20 +48,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (user.getRole() == UserRole.SUPER_ADMIN) {
             return true;
         }
-        Market market = user.getMarket();
-        if (market == null) {
-            return true;
-        }
-        if (!Boolean.TRUE.equals(market.getIsActive())) {
-            return false;
-        }
-        if (
-            market.getBillingStatus() == MarketBillingStatus.PENDING
-            || market.getBillingStatus() == MarketBillingStatus.SUSPENDED
-            || market.getBillingStatus() == MarketBillingStatus.CANCELLED
-        ) {
-            return false;
-        }
-        return market.getAccessExpiresAt() == null || market.getAccessExpiresAt().isAfter(LocalDateTime.now());
+        return accessPolicy.of(user).canLogin();
     }
 }

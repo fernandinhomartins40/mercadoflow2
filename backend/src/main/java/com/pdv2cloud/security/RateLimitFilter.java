@@ -58,6 +58,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 }
                 return;
             }
+            // Nova senha: mesmo teto do cadastro, por IP (evita disparo de e-mails e chute de link).
+            if ("/api/v1/auth/forgot-password".equals(path) || "/api/v1/auth/reset-password".equals(path)) {
+                if (consume(authCache, "pwreset:ip:" + clientIp(request), this::createPasswordResetBucket)) {
+                    filterChain.doFilter(request, response);
+                } else {
+                    writeAuthRateLimited(response);
+                }
+                return;
+            }
             if ("/api/v1/auth/register".equals(path)) {
                 if (consume(authCache, "register:ip:" + clientIp(request), this::createRegisterBucket)) {
                     filterChain.doFilter(request, response);
@@ -139,6 +148,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private Bucket createLoginEmailBucket() {
         // 10 tentativas a cada 15 min por conta.
+        return Bucket.builder().addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(15)))).build();
+    }
+
+    private Bucket createPasswordResetBucket() {
+        // 10 a cada 15 min por IP: cabe a loja inteira atrás do mesmo NAT, não cabe disparo de e-mails.
         return Bucket.builder().addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(15)))).build();
     }
 

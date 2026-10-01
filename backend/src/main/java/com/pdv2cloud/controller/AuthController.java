@@ -28,6 +28,10 @@ import com.pdv2cloud.service.UserProfileService;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.PasswordResetService passwordResetService;
+
+
     private static final String COOKIE_NAME = "pdv2cloud_token";
 
     @Autowired
@@ -57,6 +61,21 @@ public class AuthController {
         boolean keepConnected = request.getKeepConnected() != null && request.getKeepConnected();
         ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), keepConnected);
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+    }
+
+    /** "Esqueci minha senha": resposta sempre igual, exista ou não a conta. */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<java.util.Map<String, String>> forgotPassword(@RequestBody java.util.Map<String, String> body, HttpServletRequest http) {
+        passwordResetService.request(body.get("email"), http.getRemoteAddr());
+        return ResponseEntity.accepted().body(java.util.Map.of("message",
+            "Se houver uma conta com este e-mail, enviamos um link para criar uma nova senha. Ele vale por 30 minutos."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<java.util.Map<String, Object>> resetPassword(@RequestBody java.util.Map<String, String> body) {
+        com.pdv2cloud.service.PasswordResetService.Result r = passwordResetService.reset(body.get("token"), body.get("password"));
+        return ResponseEntity.status(r.ok() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+            .body(java.util.Map.of("ok", r.ok(), "message", r.message()));
     }
 
     @GetMapping("/me")

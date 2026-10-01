@@ -506,7 +506,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {([
-                  ['invoiceLimit', 'Notas/mês'],
+                  ['invoiceLimit', 'Notas/semana'],
                   ['branchLimit', 'Lojas'],
                   ['pdvPerBranchLimit', 'PDVs por loja'],
                   ['pdvLimit', 'PDVs no total'],
