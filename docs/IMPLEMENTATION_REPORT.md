@@ -521,6 +521,47 @@ nos provedores e vende créditos aos mercados).
     aprovar pelo botão e por texto, ajuda, número desconhecido e PARAR;
   - regressão: F0 34/34, F1 15/15, F2 32/32 e F3a 38/38.
 
+### Ciclo 15 — Copiloto F4: mais modelos, agentes novos e servidor MCP
+
+- **Cadeia de reserva de modelos:** se o modelo da rota falhar, o Copiloto tenta as reservas, na
+  ordem, antes de cair no texto do sistema.
+  - Vale para o chat, para o "Por quê?" de oportunidades e para o "Por quê?" das decisões.
+  - Cada reserva tem o próprio preço (tabela `ai_route_fallbacks`, até 5 por tarefa).
+  - Reserva inicial: Qwen 3.5 Flash pelo OpenRouter. Confira o id do modelo antes de ligar.
+  - O lojista paga o crédito uma vez só.
+  - Editável em IA e APIs → Roteamento → Cadeia de reserva.
+- **Custo por tarefa bem resolvida** (IA e APIs → Uso): por tarefa e modelo, mostra chamadas, taxa de
+  sucesso, custo por resposta que deu certo e tempo. Também mostra o aceite das decisões dos agentes,
+  no geral e quando o lojista pediu o "Por quê?". É o critério da proposta para escolher o modelo de
+  cada tarefa.
+- **Quatro agentes novos** no mesmo funil:
+  - **Capital parado:** liquidações sugeridas, com o valor parado e os dias de estoque.
+  - **Preço:** compara o preço da loja com o do mercado e avisa que a referência pode ser de outra
+    região.
+  - **Promoções:** ao aprovar, deixa o rascunho do encarte pronto no Estúdio, com o preço de oferta
+    calculado pelo desconto sugerido.
+  - **Cenários:** quando uma data forte começa em 3 a 21 dias, compara a venda por dia da mesma
+    temporada no ano passado com as 4 semanas anteriores e lista o que mais vendeu. Só informa.
+
+  Aprovar aceita as recomendações pelo caminho da Central, e o resultado é medido em 30 dias. Nada
+  muda no caixa.
+- **Servidor MCP do MercadoFlow** (`/api/v1/mcp`, HTTP com JSON-RPC 2.0, sem sessão):
+  - expõe as mesmas consultas do "Pergunte aos dados", só leitura, para Claude, ChatGPT, dsh ou
+    qualquer agente que fale MCP;
+  - a chave é por integração, criada em Copiloto → Agentes, mostrada uma vez, guardada só como hash e
+    revogável;
+  - o mercado vem da chave, nunca dos argumentos, e a consulta roda com o mercado no contexto (RLS);
+  - limite de 60 chamadas por minuto por chave, e o uso fica registrado.
+- **LAYA:** não entrou. Pela proposta, só vale se o volume justificar, depois de 30 dias em paralelo com
+  o Jev.
+- **Migração V66:** `ai_route_fallbacks` e `ai_mcp_keys` (com RLS).
+- **Testes:**
+  - backend 298/298 (11 novos: cadeia, MCP, Cenários e preço de oferta);
+  - ponta a ponta da F4 31/31: reserva respondendo com o DeepSeek fora, cobrança única, custo por
+    modelo, 3 agentes novos, encarte pronto e MCP (chave, initialize, tools/list e tools/call com
+    mercado da chave, revogação);
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38 e F3b 38/38.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

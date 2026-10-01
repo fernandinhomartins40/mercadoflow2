@@ -5,6 +5,8 @@ import com.pdv2cloud.service.ai.agents.AgentRunner;
 import com.pdv2cloud.service.ai.agents.CopilotSettingsService;
 import com.pdv2cloud.service.ai.agents.DecisionService;
 import com.pdv2cloud.service.ai.agents.LessonService;
+import com.pdv2cloud.service.ai.mcp.McpKeyService;
+import com.pdv2cloud.service.ai.mcp.McpServer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,14 +37,37 @@ public class CopilotAgentsController {
     private final CopilotSettingsService settings;
     private final AgentRunner runner;
     private final LessonService lessons;
+    private final McpKeyService mcpKeys;
+    private final McpServer mcp;
 
     public CopilotAgentsController(MarketAccessService access, DecisionService decisions, CopilotSettingsService settings,
-                                   AgentRunner runner, LessonService lessons) {
+                                   AgentRunner runner, LessonService lessons, McpKeyService mcpKeys, McpServer mcp) {
         this.access = access;
         this.decisions = decisions;
         this.settings = settings;
         this.runner = runner;
         this.lessons = lessons;
+        this.mcpKeys = mcpKeys;
+        this.mcp = mcp;
+    }
+
+    /** Integrações MCP: chaves do mercado (a chave em si só aparece na criação). */
+    @GetMapping("/mcp-keys")
+    public Map<String, Object> mcpKeys(@PathVariable UUID marketId, Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return Map.of("chaves", mcpKeys.list(marketId), "ferramentas", mcp.toolNames());
+    }
+
+    @PostMapping("/mcp-keys")
+    public McpKeyService.Created createMcpKey(@PathVariable UUID marketId, @RequestBody Map<String, String> body, Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return mcpKeys.create(marketId, body.get("nome"), auth.getName());
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/mcp-keys/{id}")
+    public List<McpKeyService.KeyRow> revokeMcpKey(@PathVariable UUID marketId, @PathVariable UUID id, Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return mcpKeys.revoke(marketId, id);
     }
 
     @GetMapping("/decisions")

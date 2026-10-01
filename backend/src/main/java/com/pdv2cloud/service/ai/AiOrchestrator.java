@@ -171,8 +171,9 @@ public class AiOrchestrator {
         }
 
         // 1b. IA da plataforma (créditos do mercado), antes da chave própria.
-        AiGate.Decision decision = platformDecision(marketId, task);
-        if (decision != null && decision.allowed()) {
+        AiGate.Decision primary = platformDecision(marketId, task);
+        // Modelo da rota e, se falhar, as reservas (cada uma com o próprio preço).
+        for (AiGate.Decision decision : chain(primary)) {
             AiPlatformConfig.Route route = decision.route();
             LlmClient.LlmResponse response = llmClient.chat(decision.key().baseUrl(), decision.key().apiKey(),
                 decision.model(), systemPrompt, context.prompt(), route.maxOutputTokens(), route.temperature());
@@ -373,6 +374,34 @@ public class AiOrchestrator {
     }
 
     /** Cobrança de uma chamada feita por fora do {@link #interpret} (chat). */
+    private List<AiGate.Decision> chain(AiGate.Decision primary) {
+        if (primary == null || !primary.allowed()) {
+            return List.of();
+        }
+        List<AiGate.Decision> chain = gate.attempts(primary);
+        return chain == null || chain.isEmpty() ? List.of(primary) : chain;
+    }
+
+    /** Reservas da IA da plataforma para a credencial (vazio na chave própria do mercado). */
+    public List<ActiveCredential> platformFallbacks(UUID marketId, ActiveCredential primary) {
+        if (gate == null || !primary.platform()) {
+            return List.of();
+        }
+        List<AiGate.Decision> chain = gate.attempts(new AiGate.Decision(AiGate.Reason.OK, primary.route(),
+            new AiPlatformConfig.Key(primary.route().provider(), primary.baseUrl(), primary.apiKey(), primary.model())));
+        List<ActiveCredential> out = new java.util.ArrayList<>();
+        for (AiGate.Decision d : chain == null || chain.size() < 2 ? List.<AiGate.Decision>of() : chain.subList(1, chain.size())) {
+            AiProvider provider;
+            try {
+                provider = AiProvider.valueOf(d.route().provider());
+            } catch (IllegalArgumentException e) {
+                provider = AiProvider.OPENROUTER;
+            }
+            out.add(new ActiveCredential(provider, d.key().baseUrl(), d.key().apiKey(), d.model(), null, d.route()));
+        }
+        return out;
+    }
+
     public int chargePlatform(UUID marketId, AiPlatformConfig.Route route, String reference) {
         return gate == null ? 0 : gate.charge(marketId, route, reference);
     }

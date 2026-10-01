@@ -59,10 +59,23 @@ export interface AiOrderRow {
 export interface AiWallet { balance: number; monthlyCap: number | null; monthUsed: number; effectiveCap: number; monthStart: string }
 export interface AiLedgerRow { delta: number; kind: string; task: string | null; note: string | null; createdAt: string }
 
+export interface AiFallbackRow {
+  task: string;
+  position: number;
+  provider: 'DEEPSEEK' | 'OPENROUTER';
+  model: string;
+  inputPriceUsdM: number;
+  outputPriceUsdM: number;
+  enabled: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
 export interface AiOverview {
   settings: AiSettingsRow;
   providers: AiProviderRow[];
   routes: AiRouteRow[];
+  fallbacks: AiFallbackRow[];
   pilots: AiPilotRow[];
   plans: AiPlanRow[];
 }
@@ -90,6 +103,10 @@ export interface WhatsAppConfig {
 
 export const aiAdminService = {
   whatsapp: async (): Promise<WhatsAppConfig> => (await api.get(`${admin}/whatsapp`)).data,
+  saveFallback: async (task: string, position: number, body: Partial<AiFallbackRow>): Promise<AiFallbackRow[]> =>
+    (await api.put(`${admin}/routes/${task}/fallbacks/${position}`, body)).data,
+  removeFallback: async (task: string, position: number): Promise<AiFallbackRow[]> =>
+    (await api.delete(`${admin}/routes/${task}/fallbacks/${position}`)).data,
   notifyWhatsapp: async (marketId: string): Promise<{ enviadas: number }> => (await api.post(`${admin}/whatsapp/notify/${marketId}`, {})).data,
   saveWhatsapp: async (body: { templateName?: string; templateLang?: string; verifyToken?: string; appSecret?: string }): Promise<WhatsAppConfig> =>
     (await api.put(`${admin}/whatsapp`, body)).data,
@@ -182,7 +199,7 @@ export interface CopilotDecision {
   decidedAt: string | null;
   decidedBy: string | null;
   decisionNote: string | null;
-  result: { executado?: boolean; noPedido?: number; semFornecedor?: number; jaDecididas?: number; whatsappUrl?: string; mensagem?: string } | null;
+  result: { executado?: boolean; noPedido?: number; semFornecedor?: number; jaDecididas?: number; aceitas?: number; encarteUrl?: string; whatsappUrl?: string; mensagem?: string } | null;
 }
 
 export interface CopilotInbox {
@@ -235,4 +252,26 @@ export const copilotAgentsService = {
     (await api.put(`/v1/markets/${marketId}/copilot/prefs`, body)).data,
   run: async (marketId: string): Promise<{ signals: number; afterMemory: number; jevCalls: number; created: number; silenced: number }> =>
     (await api.post(`/v1/markets/${marketId}/copilot/agents/run`, {}, { timeout: 60000 })).data,
+};
+
+// ── Servidor MCP (F4) ──────────────────────────────────────────────────────
+
+export interface McpKeyRow {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  createdBy: string | null;
+  lastUsedAt: string | null;
+  calls: number;
+  revokedAt: string | null;
+}
+
+export const mcpService = {
+  list: async (marketId: string): Promise<{ chaves: McpKeyRow[]; ferramentas: string[] }> =>
+    (await api.get(`/v1/markets/${marketId}/copilot/mcp-keys`)).data,
+  create: async (marketId: string, nome: string): Promise<{ key: McpKeyRow; secret: string }> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/mcp-keys`, { nome })).data,
+  revoke: async (marketId: string, id: string): Promise<McpKeyRow[]> =>
+    (await api.delete(`/v1/markets/${marketId}/copilot/mcp-keys/${id}`)).data,
 };

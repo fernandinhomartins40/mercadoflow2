@@ -54,7 +54,8 @@ public class WhatsAppChannel {
     static final int MAX_PER_RUN = 3;
     /** O resumo vai na primeira rodada depois desta hora, fora do silêncio. */
     static final LocalTime BRIEF_FROM = LocalTime.of(6, 30);
-    private static final Map<String, String> AGENT_LABEL = Map.of("GERENTE", "Gerente", "COMPRAS", "Compras", "RECEBIMENTO", "Recebimento");
+    private static final Map<String, String> AGENT_LABEL = Map.of("GERENTE", "Gerente", "COMPRAS", "Compras", "RECEBIMENTO", "Recebimento",
+        "CAPITAL", "Capital parado", "PRECO", "Preço", "PROMOCOES", "Promoções", "CENARIOS", "Cenários");
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AiGate gate;

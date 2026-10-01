@@ -80,6 +80,9 @@ public class SecurityConfig {
                 // cadastrado e cada mensagem exige a assinatura HMAC do corpo
                 // (WhatsAppWebhookController / WhatsAppChannel.validSignature).
                 .requestMatchers("/api/v1/public/whatsapp/webhook").permitAll()
+                // Servidor MCP: o cliente e um agente externo sem JWT. A autenticacao
+                // e a chave MCP do mercado (McpController / McpKeyService), so leitura.
+                .requestMatchers("/api/v1/mcp").permitAll()
                 // Pareamento do Agente Mercado Flow: o agente ainda nao tem credencial
                 // alguma nestes passos. Protegido por codigo efemero de alta entropia,
                 // segredo do agente e rate limit dedicado (RateLimitFilter).

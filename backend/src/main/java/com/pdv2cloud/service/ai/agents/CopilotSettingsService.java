@@ -27,6 +27,10 @@ public class CopilotSettingsService {
         AGENTS.put("GERENTE", "Gerente: o que merece atenção hoje");
         AGENTS.put("COMPRAS", "Compras: pedido do que vai acabar");
         AGENTS.put("RECEBIMENTO", "Recebimento: aviso ao fornecedor quando a entrega vem errada");
+        AGENTS.put("CAPITAL", "Capital parado: liquidar o que não gira");
+        AGENTS.put("PRECO", "Preço: produtos acima do mercado");
+        AGENTS.put("PROMOCOES", "Promoções: encarte pronto com as ofertas sugeridas");
+        AGENTS.put("CENARIOS", "Cenários: datas fortes chegando, com o que vendeu no ano passado");
     }
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -48,7 +52,7 @@ public class CopilotSettingsService {
                     rs.getInt("daily_limit"), rs.getBigDecimal("min_impact")));
             });
         List<AgentSettings> out = new ArrayList<>();
-        AGENTS.forEach((a, label) -> out.add(saved.getOrDefault(a, new AgentSettings(a, label, true, a.equals("GERENTE") ? 1 : 2, 5,
+        AGENTS.forEach((a, label) -> out.add(saved.getOrDefault(a, new AgentSettings(a, label, true, a.equals("GERENTE") || a.equals("CENARIOS") ? 1 : 2, 5,
             BigDecimal.ZERO))));
         return out;
     }

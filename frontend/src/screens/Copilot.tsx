@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, BellOff, Check, Loader2, MessageCircle, RefreshCw, ShoppingCart, Sparkles, Sun, X } from 'lucide-react';
+import { AlertTriangle, BellOff, CalendarClock, Check, Copy, KeyRound, Loader2, Megaphone, MessageCircle, PiggyBank, RefreshCw, ShoppingCart, Sparkles, Sun, Tag, X } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/layout/PageHeader';
 import { SegmentedTabs } from '../components/ui';
@@ -12,6 +12,8 @@ import {
   type CopilotInbox,
   type CopilotLesson,
   type CopilotPrefs,
+  mcpService,
+  type McpKeyRow,
 } from '../services/aiPlatform.service';
 
 /**
@@ -26,6 +28,10 @@ const AGENT: Record<string, { label: string; icon: React.ElementType }> = {
   GERENTE: { label: 'Gerente', icon: Sun },
   COMPRAS: { label: 'Compras', icon: ShoppingCart },
   RECEBIMENTO: { label: 'Recebimento', icon: MessageCircle },
+  CAPITAL: { label: 'Capital parado', icon: PiggyBank },
+  PRECO: { label: 'Preço', icon: Tag },
+  PROMOCOES: { label: 'Promoções', icon: Megaphone },
+  CENARIOS: { label: 'Cenários', icon: CalendarClock },
 };
 
 const LEVELS = [
@@ -57,7 +63,8 @@ const triage = (d: CopilotDecision) => {
 };
 
 const approveLabel = (d: CopilotDecision) =>
-  d.level < 2 ? 'Vou fazer' : d.kind === 'PEDIDO' ? 'Aprovar pedido' : d.kind === 'MENSAGEM_FORNECEDOR' ? 'Abrir no WhatsApp' : 'Aprovar';
+  d.level < 2 ? 'Vou fazer' : d.kind === 'PEDIDO' ? 'Aprovar pedido' : d.kind === 'MENSAGEM_FORNECEDOR' ? 'Abrir no WhatsApp'
+    : d.kind === 'PROMOCAO' ? 'Montar o encarte' : 'Aprovar';
 
 const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onChange: () => void }> = ({ marketId, decision: d, onChange }) => {
   const [busy, setBusy] = useState<string | null>(null);
@@ -119,7 +126,7 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
         <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />{agent.label}
         </span>
-        {d.urgent && open && (
+        {d.urgent && (view.status === 'PENDENTE' || view.status === 'INFORMATIVA') && (
           <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-red-800"><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />Urgente</span>
         )}
         <span style={{ color: 'var(--text-muted)' }}>{STATUS_LABEL[view.status] ?? view.status} · {when(view.decidedAt ?? d.createdAt)}</span>
@@ -142,6 +149,12 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
           {view.result.noPedido} {view.result.noPedido === 1 ? 'item foi' : 'itens foram'} para o rascunho de pedido.
           {view.result.semFornecedor ? ` ${view.result.semFornecedor} sem fornecedor conhecido: escolha na lista de compras.` : ''}
           {' '}<Link to="/app/lista-compras" className="font-semibold underline">Revisar o pedido</Link>
+        </p>
+      )}
+      {view.result?.executado && view.result.aceitas != null && (
+        <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
+          {view.result.aceitas} {view.result.aceitas === 1 ? 'sugestão aceita' : 'sugestões aceitas'}: o resultado é medido em 30 dias.
+          {view.result.encarteUrl && <>{' '}<Link to={view.result.encarteUrl} className="font-semibold underline">Abrir o rascunho do encarte</Link></>}
         </p>
       )}
       {view.result?.whatsappUrl && (
@@ -314,6 +327,90 @@ const WhatsAppCard: React.FC<{ marketId: string; prefs: CopilotPrefs; onSaved: (
   );
 };
 
+const McpCard: React.FC<{ marketId: string }> = ({ marketId }) => {
+  const [keys, setKeys] = useState<McpKeyRow[] | null>(null);
+  const [tools, setTools] = useState<string[]>([]);
+  const [name, setName] = useState('');
+  const [secret, setSecret] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<string | null>(null);
+  const endpoint = `${window.location.origin}/api/v1/mcp`;
+  useEffect(() => {
+    mcpService.list(marketId).then((r) => { setKeys(r.chaves); setTools(r.ferramentas); }).catch(() => setState('Não foi possível carregar.'));
+  }, [marketId]);
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const r = await mcpService.create(marketId, name);
+      setSecret(r.secret);
+      setCopied(false);
+      setName('');
+      setKeys((await mcpService.list(marketId)).chaves);
+      setState(null);
+    } catch (err) {
+      setState(apiError(err, 'Não foi possível criar a chave.'));
+    }
+  };
+  const revoke = async (id: string) => {
+    if (!window.confirm('Revogar esta chave? A integração que usa ela para de funcionar na hora.')) return;
+    setKeys(await mcpService.revoke(marketId, id));
+  };
+  const copy = async () => {
+    if (!secret) return;
+    try { await navigator.clipboard.writeText(secret); setCopied(true); } catch { setCopied(false); }
+  };
+  return (
+    <section className="card flex flex-col gap-3 p-4" aria-labelledby="mcp-titulo">
+      <h2 id="mcp-titulo" className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <KeyRound className="h-4 w-4" />Integração com outros assistentes (MCP)
+      </h2>
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+        Deixe o Claude, o ChatGPT ou outro assistente consultar os números da sua loja, só para leitura. Cada chave é de uma integração e pode ser revogada a qualquer momento.
+      </p>
+      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+        Endereço: <span className="select-all rounded px-1.5 py-0.5 font-mono text-xs" style={{ background: 'var(--surface-soft)' }}>{endpoint}</span>
+        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>Cabeçalho: Authorization: Bearer (a chave). {tools.length} consultas disponíveis.</span>
+      </p>
+      {secret && (
+        <div role="status" className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <strong>Copie a chave agora: ela não aparece de novo.</strong>
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="select-all break-all font-mono text-xs">{secret}</span>
+            <button type="button" onClick={copy} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${FOCUS}`} style={{ border: '1px solid currentColor' }}>
+              <Copy className="h-3.5 w-3.5" />{copied ? 'Copiada' : 'Copiar'}
+            </button>
+          </span>
+        </div>
+      )}
+      <form onSubmit={create} className="flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+          Nome da integração
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Ex.: Claude do escritório"
+            className="rounded-lg px-3 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
+        </label>
+        <button type="submit" disabled={!name.trim()} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Criar chave</button>
+        {state && <span role="alert" className="text-sm text-red-700">{state}</span>}
+      </form>
+      {keys && keys.length > 0 && (
+        <ul className="flex flex-col gap-2 text-sm">
+          {keys.map((k) => (
+            <li key={k.id} className="flex flex-wrap items-center gap-2" style={{ color: k.revokedAt ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+              <span className="font-medium">{k.name}</span>
+              <span className="font-mono text-xs">{k.keyPrefix}…</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {k.revokedAt ? `revogada em ${when(k.revokedAt)}` : k.lastUsedAt ? `${k.calls} consultas, última em ${when(k.lastUsedAt)}` : 'ainda não usada'}
+              </span>
+              {!k.revokedAt && (
+                <button type="button" onClick={() => revoke(k.id)} className={`ml-auto rounded-lg px-2 py-1 text-xs ${FOCUS}`} style={{ border: '1px solid var(--border-strong)' }}>Revogar</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
 const Copilot: React.FC = () => {
   const { marketId } = useAuth();
   const [tab, setTab] = useState<Tab>('abertas');
@@ -417,6 +514,7 @@ const Copilot: React.FC = () => {
               </ul>
               <PrefsCard marketId={marketId} prefs={prefs} />
               <WhatsAppCard marketId={marketId} prefs={prefs} onSaved={setPrefs} />
+              <McpCard marketId={marketId} />
               <section className="card flex flex-col gap-2 p-4" aria-labelledby="licoes">
                 <h2 id="licoes" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>O que a loja já aprendeu</h2>
                 {lessons.length === 0 ? (

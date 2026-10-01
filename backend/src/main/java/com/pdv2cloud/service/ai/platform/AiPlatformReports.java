@@ -73,6 +73,22 @@ public class AiPlatformReports {
                 + "coalesce(sum(output_tokens), 0) as tokens_saida, coalesce(sum(cost_usd), 0) as custo_usd, coalesce(sum(credits), 0) as creditos, "
                 + "round(avg(latency_ms)) as tempo_medio_ms from ai_usage_log where platform and created_at >= current_date - :d "
                 + "group by 1, 2 order by custo_usd desc", p));
+        // Critério da proposta (seção 5.2): custo por tarefa bem resolvida, por modelo.
+        out.put("porModelo", jdbc.queryForList(
+            "select task as tarefa, coalesce(provider, '-') as provedor, coalesce(model, '-') as modelo, count(*) as chamadas, "
+                + "count(*) filter (where outcome = 'OK') as resolvidas, "
+                + "round(100.0 * count(*) filter (where outcome = 'OK') / count(*), 1) as taxa_sucesso, "
+                + "coalesce(sum(cost_usd), 0) as custo_usd, "
+                + "case when count(*) filter (where outcome = 'OK') > 0 then coalesce(sum(cost_usd), 0) / count(*) filter (where outcome = 'OK') end as custo_por_resolvida_usd, "
+                + "round(avg(latency_ms) filter (where outcome = 'OK')) as tempo_medio_ms "
+                + "from ai_usage_log where platform and layer in ('FLASH', 'PRO') and created_at >= current_date - :d "
+                + "group by 1, 2, 3 order by 1, custo_por_resolvida_usd nulls last", p));
+        out.put("aceiteDasDecisoes", jdbc.queryForMap(
+            "select count(*) filter (where status in ('APROVADA', 'RECUSADA')) as decididas, "
+                + "count(*) filter (where status = 'APROVADA') as aprovadas, "
+                + "count(*) filter (where explanation is not null and status in ('APROVADA', 'RECUSADA')) as decididas_com_porque, "
+                + "count(*) filter (where explanation is not null and status = 'APROVADA') as aprovadas_com_porque "
+                + "from ai_decisions where created_at >= current_date - :d", p));
         out.put("porProvedor", jdbc.queryForList(
             "select coalesce(provider, '-') as provedor, count(*) as chamadas, coalesce(sum(cost_usd), 0) as custo_usd "
                 + "from ai_usage_log where platform and created_at >= current_date - :d group by 1 order by custo_usd desc", p));

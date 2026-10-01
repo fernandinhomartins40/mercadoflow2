@@ -4,7 +4,7 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import {
   aiAdminService, type AiLedgerRow, type AiOrderRow, type AiOverview, type AiPlanRow, type AiProviderRow, type AiRouteRow,
-  type AiSettingsRow, type AiWallet, type ConsoleResult, type ConsoleTask, type WhatsAppConfig,
+  type AiSettingsRow, type AiWallet, type ConsoleResult, type ConsoleTask, type WhatsAppConfig, type AiFallbackRow,
 } from '../services/aiPlatform.service';
 
 /**
@@ -342,6 +342,87 @@ const RouteRow: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; onSaved: (
   );
 };
 
+// ── Cadeia de reserva de modelos ───────────────────────────────────────
+
+const FallbackRow: React.FC<{ f: AiFallbackRow; onSaved: (rows: AiFallbackRow[]) => void }> = ({ f, onSaved }) => {
+  const [form, setForm] = useState({ ...f });
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { setForm({ ...f }); }, [f]);
+  const save = async () => {
+    try {
+      onSaved(await aiAdminService.saveFallback(f.task, f.position, {
+        provider: form.provider, model: form.model, inputPriceUsdM: Number(form.inputPriceUsdM),
+        outputPriceUsdM: Number(form.outputPriceUsdM), enabled: form.enabled,
+      }));
+      setMsg({ ok: true, text: 'Salvo' });
+    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
+  };
+  const remove = async () => {
+    try { onSaved(await aiAdminService.removeFallback(f.task, f.position)); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
+  };
+  const label = `${f.task} reserva ${f.position}`;
+  return (
+    <tr className="border-t border-slate-100 align-top">
+      <td className="py-2 pr-3 font-mono text-xs">{f.task}</td>
+      <td className="pr-3 pt-2 tabular-nums">{f.position}</td>
+      <td className="pr-3"><select className={INPUT} value={form.provider} aria-label={`Provedor da ${label}`}
+        onChange={(e) => setForm({ ...form, provider: e.target.value as AiFallbackRow['provider'] })}>
+        <option value="OPENROUTER">OpenRouter</option><option value="DEEPSEEK">DeepSeek</option></select></td>
+      <td className="pr-3"><input className={`${INPUT} font-mono`} value={form.model} aria-label={`Modelo da ${label}`} onChange={(e) => setForm({ ...form, model: e.target.value })} /></td>
+      <td className="pr-3"><div className="flex gap-1">
+        <input className={INPUT} type="number" step="0.01" min={0} value={form.inputPriceUsdM} aria-label={`Preço de entrada da ${label}`} onChange={(e) => setForm({ ...form, inputPriceUsdM: Number(e.target.value) })} />
+        <input className={INPUT} type="number" step="0.01" min={0} value={form.outputPriceUsdM} aria-label={`Preço de saída da ${label}`} onChange={(e) => setForm({ ...form, outputPriceUsdM: Number(e.target.value) })} />
+      </div></td>
+      <td className="pr-3 pt-2"><Toggle on={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={`Ligar a ${label}`} /></td>
+      <td className="pt-1"><div className="flex items-center gap-1">
+        <Button size="sm" onClick={save}>Salvar</Button>
+        <Button size="sm" variant="ghost" onClick={remove} aria-label={`Remover a ${label}`}><Trash2 className="h-4 w-4" /></Button>
+        <Msg msg={msg} /></div></td>
+    </tr>
+  );
+};
+
+const FallbacksCard: React.FC<{ fallbacks: AiFallbackRow[]; routes: AiRouteRow[]; onSaved: (rows: AiFallbackRow[]) => void }> = ({ fallbacks, routes, onSaved }) => {
+  const writing = routes.filter((r) => r.layer === 'FLASH' || r.layer === 'PRO');
+  const [task, setTask] = useState(writing[0]?.task ?? '');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const add = async () => {
+    const used = fallbacks.filter((f) => f.task === task).map((f) => f.position);
+    const position = [1, 2, 3, 4, 5].find((n) => !used.includes(n));
+    if (!position) { setMsg({ ok: false, text: 'Até 5 reservas por tarefa.' }); return; }
+    try {
+      onSaved(await aiAdminService.saveFallback(task, position, { provider: 'OPENROUTER', model: 'qwen/qwen3.5-flash', inputPriceUsdM: 0.1, outputPriceUsdM: 0.4, enabled: true }));
+      setMsg(null);
+    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
+  };
+  return (
+    <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="fallbacks-title">
+      <div>
+        <h2 id="fallbacks-title" className="text-base font-semibold text-slate-900">Cadeia de reserva</h2>
+        <p className="text-sm text-slate-600">Se o modelo da rota falhar, o Copiloto tenta estes, na ordem, antes de cair no texto do sistema. O lojista paga o mesmo crédito; o custo de cada modelo aparece em Uso. Confira o id do modelo no OpenRouter antes de ligar.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <caption className="sr-only">Cadeia de reserva de modelos</caption>
+          <thead className="text-xs text-slate-500"><tr><th className="py-1 pr-3">Tarefa</th><th>Ordem</th><th>Provedor</th><th>Modelo</th><th>Preço US$ (entrada / saída)</th><th>Ligada</th><th /></tr></thead>
+          <tbody>
+            {fallbacks.map((f) => <FallbackRow key={`${f.task}-${f.position}`} f={f} onSaved={onSaved} />)}
+            {fallbacks.length === 0 && <tr><td colSpan={7} className="py-2 text-slate-500">Nenhuma reserva: se o modelo falhar, entra o texto do sistema.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1"><span className={LABEL}>Adicionar reserva para</span>
+          <select className={INPUT} value={task} onChange={(e) => setTask(e.target.value)} aria-label="Tarefa da nova reserva">
+            {writing.map((r) => <option key={r.task} value={r.task}>{r.label}</option>)}
+          </select></label>
+        <Button variant="secondary" onClick={add}><Plus className="h-4 w-4" />Adicionar reserva</Button>
+        <Msg msg={msg} />
+      </div>
+    </section>
+  );
+};
+
 const RoutesCard: React.FC<{ routes: AiRouteRow[]; providers: AiProviderRow[]; onSaved: (rows: AiRouteRow[]) => void }> = ({ routes, providers, onSaved }) => (
   <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="routes-title">
     <div>
@@ -545,6 +626,15 @@ const Table: React.FC<{ rows: Row[]; cols: Array<[string, string, (v: unknown) =
   </div>
 );
 
+const AcceptLine: React.FC<{ a: Row }> = ({ a }) => {
+  const rate = (x: unknown, y: unknown) => (num(y) > 0 ? `${Math.round((num(x) / num(y)) * 100)}%` : '—');
+  return (
+    <p className="mt-1 text-sm text-slate-600">
+      Aceite das decisões dos agentes: {rate(a.aprovadas, a.decididas)} no geral e {rate(a.aprovadas_com_porque, a.decididas_com_porque)} quando o lojista pediu o Por quê?.
+    </p>
+  );
+};
+
 const UsageCard: React.FC<{ usage: Row | null; days: number; setDays: (d: number) => void }> = ({ usage, days, setDays }) => {
   if (!usage) return <section className={CARD}><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></section>;
   const fx = num(usage.cambio);
@@ -578,6 +668,13 @@ const UsageCard: React.FC<{ usage: Row | null; days: number; setDays: (d: number
           ['concordancia_confiante', 'Concordância (confiantes)', pct], ['amostras_confiantes', 'Amostras confiantes', n],
           ['confianca_media', 'Confiança média', pct], ['tempo_medio_ms', 'Tempo médio (ms)', n]]} />
       </div>
+      <div><h3 className="text-sm font-semibold text-slate-900">Custo por tarefa bem resolvida</h3>
+        <p className={HINT}>Critério para escolher o modelo de cada tarefa: quanto custa cada resposta que deu certo. Use junto com a taxa de aceite das decisões.</p>
+        <Table caption="Custo por modelo" rows={(usage.porModelo ?? []) as Row[]} cols={[
+          ['tarefa', 'Tarefa', s], ['provedor', 'Provedor', s], ['modelo', 'Modelo', s], ['chamadas', 'Chamadas', n],
+          ['taxa_sucesso', 'Sucesso', pct], ['custo_por_resolvida_usd', 'Custo por resolvida', (v) => (v == null ? '—' : brl(num(v) * fx))],
+          ['tempo_medio_ms', 'Tempo médio (ms)', n]]} />
+        <AcceptLine a={(usage.aceiteDasDecisoes ?? {}) as Row} /></div>
       <div><h3 className="text-sm font-semibold text-slate-900">Por tarefa</h3>
         <Table caption="Uso por tarefa" rows={(usage.porTarefa ?? []) as Row[]} cols={[
           ['tarefa', 'Tarefa', s], ['camada', 'Camada', (v) => LAYER_LABEL[String(v)] ?? s(v)], ['chamadas', 'Chamadas', n],
@@ -711,6 +808,7 @@ const SuperAdminAi: React.FC = () => {
             ))}
             {tab === 'chaves' && <WhatsAppConfigCard encryptionReady={data.settings.encryptionReady} pilots={data.pilots} />}
             {tab === 'rotas' && <RoutesCard routes={data.routes} providers={data.providers} onSaved={(rows) => patch({ routes: rows })} />}
+            {tab === 'rotas' && <FallbacksCard fallbacks={data.fallbacks ?? []} routes={data.routes} onSaved={(rows) => patch({ fallbacks: rows })} />}
             {tab === 'piloto' && <PilotCard data={data} onPilots={(rows) => patch({ pilots: rows })} refresh={load} />}
             {tab === 'console' && <ConsoleCard data={data} />}
             {tab === 'uso' && <UsageCard usage={usage} days={days} setDays={setDays} />}

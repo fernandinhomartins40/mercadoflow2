@@ -158,17 +158,29 @@ public class DecisionService {
             user.append("\n\nO que a loja já aprendeu:");
             sel.pieces().forEach(p -> user.append("\n- ").append(p.text()));
         }
-        LlmClient.LlmResponse r = llm.chat(g.key().baseUrl(), g.key().apiKey(), g.model(), SYSTEM, user.toString(),
-            g.route().maxOutputTokens(), g.route().temperature());
-        double cost = AiGate.costUsd(g.route(), r.inputTokens(), r.outputTokens());
-        if (!r.success() || r.content() == null || r.content().isBlank()) {
-            usage.recordFull(marketId, EXPLAIN_TASK, g.route().provider(), g.model(), "agentes-v1", null, r.inputTokens(),
-                r.outputTokens(), (int) r.latencyMs(), AiUsageLog.Outcome.ERRO, r.errorMessage(), cost, g.route().layer(), 0, true);
+        // Modelo da rota e, se falhar, as reservas configuradas no painel.
+        List<AiGate.Decision> chain = gate.attempts(g);
+        LlmClient.LlmResponse r = null;
+        AiGate.Decision served = null;
+        for (AiGate.Decision attempt : chain == null || chain.isEmpty() ? List.of(g) : chain) {
+            r = llm.chat(attempt.key().baseUrl(), attempt.key().apiKey(), attempt.model(), SYSTEM, user.toString(),
+                attempt.route().maxOutputTokens(), attempt.route().temperature());
+            double cost = AiGate.costUsd(attempt.route(), r.inputTokens(), r.outputTokens());
+            if (r.success() && r.content() != null && !r.content().isBlank()) {
+                int credits = gate.charge(marketId, attempt.route(), "decisao:" + id);
+                usage.recordFull(marketId, EXPLAIN_TASK, attempt.route().provider(), attempt.model(), "agentes-v1", null,
+                    r.inputTokens(), r.outputTokens(), (int) r.latencyMs(), AiUsageLog.Outcome.OK, null, cost,
+                    attempt.route().layer(), credits, true);
+                served = attempt;
+                break;
+            }
+            usage.recordFull(marketId, EXPLAIN_TASK, attempt.route().provider(), attempt.model(), "agentes-v1", null,
+                r.inputTokens(), r.outputTokens(), (int) r.latencyMs(), AiUsageLog.Outcome.ERRO, r.errorMessage(), cost,
+                attempt.route().layer(), 0, true);
+        }
+        if (served == null) {
             return new Explanation(fallback, false, false, "A IA não respondeu agora. Este é o texto do sistema.");
         }
-        int credits = gate.charge(marketId, g.route(), "decisao:" + id);
-        usage.recordFull(marketId, EXPLAIN_TASK, g.route().provider(), g.model(), "agentes-v1", null, r.inputTokens(),
-            r.outputTokens(), (int) r.latencyMs(), AiUsageLog.Outcome.OK, null, cost, g.route().layer(), credits, true);
         String text = r.content().trim();
         jdbc.update("update ai_decisions set explanation = :e where market_id = :m and id = :id",
             Map.of("m", marketId, "id", id, "e", text));

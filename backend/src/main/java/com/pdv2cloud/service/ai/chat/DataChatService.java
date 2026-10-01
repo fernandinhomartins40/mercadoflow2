@@ -214,6 +214,7 @@ public class DataChatService {
         messages.add(LlmClient.ChatMessage.user(question));
 
         List<String> toolsUsed = new ArrayList<>();
+        java.util.Deque<AiOrchestrator.ActiveCredential> fallbacks = null;
         int totalIn = 0;
         int totalOut = 0;
         long totalMs = 0;
@@ -240,6 +241,17 @@ public class DataChatService {
                 orchestrator.reportFailure(credential.credentialId());
                 record(marketId, credential, totalIn, totalOut, totalMs, AiUsageLog.Outcome.ERRO,
                     response.errorMessage(), 0);
+                // IA da plataforma: o próximo modelo da cadeia de reserva refaz esta volta.
+                if (fallbacks == null) {
+                    fallbacks = new java.util.ArrayDeque<>(orchestrator.platformFallbacks(marketId, credential));
+                }
+                if (!fallbacks.isEmpty()) {
+                    credential = fallbacks.poll();
+                    totalIn = 0;
+                    totalOut = 0;
+                    round--;
+                    continue;
+                }
                 return new ChatAnswer(false, null, toolsUsed,
                     credential.provider().name(), response.errorMessage());
             }

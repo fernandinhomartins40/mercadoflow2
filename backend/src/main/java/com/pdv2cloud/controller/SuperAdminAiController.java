@@ -43,6 +43,17 @@ public class SuperAdminAiController {
         this.channel = channel;
     }
 
+    @PutMapping("/routes/{task}/fallbacks/{position}")
+    public List<AiPlatformConfig.Fallback> saveFallback(@PathVariable String task, @PathVariable int position,
+                                                        @RequestBody Map<String, Object> body, Authentication auth) {
+        return config.saveFallback(task, position, body, auth.getName());
+    }
+
+    @DeleteMapping("/routes/{task}/fallbacks/{position}")
+    public List<AiPlatformConfig.Fallback> removeFallback(@PathVariable String task, @PathVariable int position, Authentication auth) {
+        return config.removeFallback(task, position, auth.getName());
+    }
+
     /** Teste: envia agora o resumo e os avisos pendentes de um mercado (respeita aceite e silêncio, como o job). */
     @PostMapping("/whatsapp/notify/{marketId}")
     public Map<String, Object> notifyNow(@PathVariable java.util.UUID marketId, Authentication auth) {
@@ -69,6 +80,7 @@ public class SuperAdminAiController {
         out.put("settings", config.settings());
         out.put("providers", config.providers());
         out.put("routes", config.routes());
+        out.put("fallbacks", config.fallbacks());
         out.put("pilots", config.pilots());
         out.put("plans", wallets.plans(false));
         return out;

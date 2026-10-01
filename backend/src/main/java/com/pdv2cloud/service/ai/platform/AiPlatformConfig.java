@@ -368,6 +368,74 @@ public class AiPlatformConfig {
 
     // ── Apoio ──────────────────────────────────────────────────────────────
 
+    // ── Cadeia de reserva de modelos ────────────────────────────────────────
+
+    public record Fallback(String task, int position, String provider, String model, BigDecimal inputPriceUsdM,
+                           BigDecimal outputPriceUsdM, boolean enabled, LocalDateTime updatedAt, String updatedBy) {}
+
+    public List<Fallback> fallbacks() {
+        return jdbc.query("select * from ai_route_fallbacks order by task, position", Map.of(), (rs, i) -> mapFallback(rs));
+    }
+
+    public List<Fallback> fallbacks(String task) {
+        return jdbc.query("select * from ai_route_fallbacks where task = :t and enabled order by position", Map.of("t", task),
+            (rs, i) -> mapFallback(rs));
+    }
+
+    @Transactional
+    public List<Fallback> saveFallback(String task, int position, Map<String, Object> body, String actor) {
+        if (route(task).isEmpty()) {
+            throw new IllegalArgumentException("Tarefa desconhecida");
+        }
+        if (position < 1 || position > 5) {
+            throw new IllegalArgumentException("Posição da reserva: de 1 a 5");
+        }
+        String provider = String.valueOf(body.getOrDefault("provider", "")).trim().toUpperCase();
+        if (!List.of("DEEPSEEK", "OPENROUTER").contains(provider)) {
+            throw new IllegalArgumentException("Reserva só por DeepSeek ou OpenRouter");
+        }
+        String model = String.valueOf(body.getOrDefault("model", "")).trim();
+        if (model.isEmpty() || model.length() > 120) {
+            throw new IllegalArgumentException("Informe o modelo da reserva");
+        }
+        BigDecimal in = decimal(body.get("inputPriceUsdM"));
+        BigDecimal out = decimal(body.get("outputPriceUsdM"));
+        boolean enabled = body.get("enabled") == null || Boolean.parseBoolean(String.valueOf(body.get("enabled")));
+        jdbc.update("insert into ai_route_fallbacks (task, position, provider, model, input_price_usd_m, output_price_usd_m, enabled, updated_by) "
+                + "values (:t, :p, :pr, :mo, :i, :o, :e, :u) on conflict (task, position) do update set provider = excluded.provider, "
+                + "model = excluded.model, input_price_usd_m = excluded.input_price_usd_m, output_price_usd_m = excluded.output_price_usd_m, "
+                + "enabled = excluded.enabled, updated_at = now(), updated_by = excluded.updated_by",
+            new MapSqlParameterSource().addValue("t", task).addValue("p", position).addValue("pr", provider).addValue("mo", model)
+                .addValue("i", in).addValue("o", out).addValue("e", enabled).addValue("u", actor));
+        audit(actor, "FALLBACK_SAVE", task + " #" + position + ": " + provider + " " + model + (enabled ? "" : " (desligada)"));
+        return fallbacks();
+    }
+
+    @Transactional
+    public List<Fallback> removeFallback(String task, int position, String actor) {
+        jdbc.update("delete from ai_route_fallbacks where task = :t and position = :p", Map.of("t", task, "p", position));
+        audit(actor, "FALLBACK_REMOVE", task + " #" + position);
+        return fallbacks();
+    }
+
+    private static BigDecimal decimal(Object v) {
+        try {
+            BigDecimal b = v == null ? BigDecimal.ZERO : new BigDecimal(String.valueOf(v));
+            if (b.signum() < 0 || b.compareTo(BigDecimal.valueOf(1000)) > 0) {
+                throw new IllegalArgumentException("Preço por milhão de tokens entre 0 e 1000");
+            }
+            return b;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Preço inválido");
+        }
+    }
+
+    private Fallback mapFallback(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new Fallback(rs.getString("task"), rs.getInt("position"), rs.getString("provider"), rs.getString("model"),
+            rs.getBigDecimal("input_price_usd_m"), rs.getBigDecimal("output_price_usd_m"), rs.getBoolean("enabled"),
+            ts(rs.getTimestamp("updated_at")), rs.getString("updated_by"));
+    }
+
     private Route mapRoute(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new Route(rs.getString("task"), rs.getString("label"), rs.getString("layer"), rs.getString("provider"),
             rs.getString("model"), rs.getInt("max_context_tokens"), rs.getInt("max_output_tokens"),

@@ -2,6 +2,7 @@ package com.pdv2cloud.service.ai.platform;
 
 import com.pdv2cloud.tenancy.TenantContext;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -91,6 +92,31 @@ public class AiGate {
             return new Decision(Reason.NO_CREDITS, route, key.get());
         }
         return new Decision(Reason.OK, route, key.get());
+    }
+
+    /**
+     * Cadeia de tentativas de uma decisão liberada: o modelo da rota e, se ele
+     * falhar, as reservas configuradas (cada uma com o próprio preço, numa cópia
+     * da rota). Reserva sem chave cadastrada fica de fora.
+     */
+    public List<Decision> attempts(Decision primary) {
+        List<Decision> out = new java.util.ArrayList<>();
+        out.add(primary);
+        if (!primary.allowed()) {
+            return out;
+        }
+        AiPlatformConfig.Route r = primary.route();
+        for (AiPlatformConfig.Fallback f : config.fallbacks(r.task())) {
+            Optional<AiPlatformConfig.Key> key = config.key(f.provider());
+            if (key.isEmpty()) {
+                continue;
+            }
+            AiPlatformConfig.Route copy = new AiPlatformConfig.Route(r.task(), r.label(), r.layer(), f.provider(), f.model(),
+                r.maxContextTokens(), r.maxOutputTokens(), r.temperature(), r.jevThreshold(), r.creditsPerUse(),
+                f.inputPriceUsdM(), f.outputPriceUsdM(), r.shadow(), r.enabled(), r.notes(), r.updatedAt(), r.updatedBy());
+            out.add(new Decision(Reason.OK, copy, key.get()));
+        }
+        return out;
     }
 
     /** Custo em dólar de uma chamada, pelos preços de referência da rota. */
