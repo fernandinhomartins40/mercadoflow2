@@ -44,6 +44,11 @@ api.interceptors.response.use(
     if (typeof serverMessage === 'string' && serverMessage.trim()) {
       error.message = serverError ? `${serverError}: ${serverMessage}` : serverMessage;
     }
+    // Conta só para consulta (pagamento em aberto): a frase vem pronta e a faixa do topo se atualiza.
+    if (error.response?.status === 402 && typeof error.response?.data?.userMessage === 'string') {
+      error.message = error.response.data.userMessage;
+      window.dispatchEvent(new Event('mf:subscription-changed'));
+    }
     if (error.response?.status === 401) {
       const requestUrl: string = error.config?.url ?? '';
       if (requestUrl.includes('/v1/auth/me') || requestUrl.includes('/v1/super-admin/auth/me')) {

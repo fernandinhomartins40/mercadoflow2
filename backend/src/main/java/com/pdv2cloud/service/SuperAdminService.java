@@ -71,6 +71,11 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional
 public class SuperAdminService {
 
+    /** Assinatura única: muda junto quando o plano ou o estado é alterado por aqui. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.billing.SubscriptionService subscriptionSync;
+
+
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
     private static final String DEFAULT_USER_AGENT = "MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)";
     private static final List<FixedCrawlerJob> FIXED_CRAWLER_JOBS = List.of(
@@ -623,14 +628,18 @@ public class SuperAdminService {
     public SuperAdminMarketDTO createMarket(SuperAdminMarketCreateRequest request) {
         Market market = new Market();
         applyMarketFields(market, request);
-        return toMarketDTO(marketRepository.save(market));
+        Market saved = marketRepository.save(market);
+        if (subscriptionSync != null) { subscriptionSync.syncFromMarket(saved, "superadmin: novo mercado"); }
+        return toMarketDTO(saved);
     }
 
     public SuperAdminMarketDTO updateMarket(UUID marketId, SuperAdminMarketUpdateRequest request) {
         Market market = marketRepository.findById(marketId)
             .orElseThrow(() -> new IllegalArgumentException("Mercado nao encontrado"));
         applyMarketFields(market, request);
-        return toMarketDTO(marketRepository.save(market));
+        Market saved = marketRepository.save(market);
+        if (subscriptionSync != null) { subscriptionSync.syncFromMarket(saved, "superadmin: mercado"); }
+        return toMarketDTO(saved);
     }
 
     public CatalogAdminProductDTO upsertCatalogProduct(SuperAdminCatalogProductUpsertRequest request) {

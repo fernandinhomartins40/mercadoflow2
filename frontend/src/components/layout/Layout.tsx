@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import BottomNav from './BottomNav';
 import DestinationSubnav from './DestinationSubnav';
+import SubscriptionBanner from '../billing/SubscriptionBanner';
 import { useDesktopSidebarMode } from '../../hooks/useDesktopSidebarMode';
 
 /**
@@ -26,7 +27,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           // Espaço para a barra inferior flutuante (68 px + margem + área segura do aparelho).
           style={desktopPinned ? undefined : { paddingBottom: 'calc(104px + env(safe-area-inset-bottom))' }}
         >
-          <div className="workspace-stage flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden">{children}</div>
+          <div className="workspace-stage flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden">
+            <SubscriptionBanner />
+            {children}
+          </div>
         </div>
       </main>
       {!desktopPinned && <BottomNav />}

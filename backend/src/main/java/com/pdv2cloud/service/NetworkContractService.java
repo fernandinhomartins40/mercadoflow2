@@ -45,6 +45,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class NetworkContractService {
 
+    /** Assinatura única: muda junto quando o plano ou o estado é alterado por aqui. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.billing.SubscriptionService subscriptionSync;
+
+
     private final NetworkContractRepository contractRepository;
     private final NetworkInvoiceRepository invoiceRepository;
     private final MarketRepository marketRepository;
@@ -131,6 +136,7 @@ public class NetworkContractService {
         market.setIsActive(true);
         market.setPlanChangedAt(LocalDateTime.now());
         marketRepository.save(market);
+        if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "contrato de rede"); }
 
         String warning = null;
         if (stripeService.isConfigured()) {

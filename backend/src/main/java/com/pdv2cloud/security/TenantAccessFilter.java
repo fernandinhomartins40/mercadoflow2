@@ -12,7 +12,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,6 +44,13 @@ public class TenantAccessFilter extends OncePerRequestFilter {
     private static final Pattern MARKET_PATH = Pattern.compile(
         "^/api/v1(?:/super-admin)?/markets/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:/.*)?$");
 
+    /** Na conta só para consulta, estas áreas seguem liberadas: pagar, comprar créditos, conferir notas, ler avisos. */
+    private static final Pattern RESTRICTED_ALLOWED = Pattern.compile(
+        "^/api/v1/markets/[^/]+/(billing|subscription|notifications|ai-credits|confere)(/.*)?$");
+
+    @Autowired(required = false)
+    private NamedParameterJdbcTemplate jdbc;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -53,6 +62,10 @@ public class TenantAccessFilter extends OncePerRequestFilter {
             if (pathMarketId != null && !canAccess(pathMarketId)) {
                 log.warn("Cross-tenant access blocked: path marketId={} uri={}", pathMarketId, request.getRequestURI());
                 writeForbidden(response);
+                return;
+            }
+            if (pathMarketId != null && blockedByRestriction(request, pathMarketId)) {
+                writeRestricted(response);
                 return;
             }
 
@@ -86,6 +99,41 @@ public class TenantAccessFilter extends OncePerRequestFilter {
             return true;
         }
         return info.bypassTenantIsolation() || pathMarketId.equals(info.marketId());
+    }
+
+    /**
+     * Conta restrita (pagamento em aberto além da carência): o lojista consulta
+     * tudo, mas não altera. O agente do PDV segue enviando as notas, para não
+     * perder vendas; superadmin não é afetado.
+     */
+    private boolean blockedByRestriction(HttpServletRequest request, UUID marketId) {
+        String method = request.getMethod();
+        if (jdbc == null || "GET".equals(method) || "HEAD".equals(method) || "OPTIONS".equals(method)) {
+            return false;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof AppUserDetails user)
+            || user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
+            return false;
+        }
+        if (RESTRICTED_ALLOWED.matcher(request.getRequestURI()).matches()) {
+            return false;
+        }
+        try {
+            return jdbc.queryForList("select billing_status from markets where id = :m",
+                java.util.Map.of("m", marketId), String.class).contains("RESTRICTED");
+        } catch (RuntimeException ex) {
+            log.warn("Não consegui ler o estado da assinatura de {}: {}", marketId, ex.getMessage());
+            return false;
+        }
+    }
+
+    private void writeRestricted(HttpServletResponse response) throws IOException {
+        response.setStatus(402);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write("{\"error\":\"account_restricted\",\"state\":\"RESTRICTED\",\"userMessage\":"
+            + "\"Sua conta está só para consulta porque há um pagamento em aberto. Regularize em Assinatura para voltar a alterar.\"}");
     }
 
     private UUID extractMarketId(String uri) {

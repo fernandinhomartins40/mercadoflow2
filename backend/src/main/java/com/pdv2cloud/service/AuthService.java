@@ -33,6 +33,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
+    /** Assinatura única: muda junto quando o plano ou o estado é alterado por aqui. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.billing.SubscriptionService subscriptionSync;
+
+
     @Autowired
     private UserRepository userRepository;
 
@@ -122,6 +127,7 @@ public class AuthService {
             ? "Cadastro publico no plano gratuito. Interesse declarado: " + request.getIntendedPlan()
             : "Cadastro publico no plano gratuito.");
         market = marketRepository.save(market);
+        if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "cadastro"); }
 
         User user = new User();
         user.setEmail(normalizedEmail);

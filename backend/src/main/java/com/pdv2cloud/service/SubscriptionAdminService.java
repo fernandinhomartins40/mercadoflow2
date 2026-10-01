@@ -37,6 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SubscriptionAdminService {
 
+    /** Assinatura única: muda junto quando o plano ou o estado é alterado por aqui. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.billing.SubscriptionService subscriptionSync;
+
+
     private final MarketRepository marketRepository;
     private final MarketUsageCounterRepository usageRepository;
     private final SubscriptionEventRepository eventRepository;
@@ -190,6 +195,7 @@ public class SubscriptionAdminService {
             market.setIsActive(true);
         }
         marketRepository.save(market);
+        if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "superadmin: plano"); }
 
         // Reflete no Stripe: sem isso o cliente ganharia limites que não paga
         // (ou pagaria por limites que não tem). O aviso volta para a UI quando
@@ -236,6 +242,7 @@ public class SubscriptionAdminService {
         market.setIsActive(newStatus == MarketBillingStatus.ACTIVE
             || newStatus == MarketBillingStatus.TRIAL);
         marketRepository.save(market);
+        if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "superadmin: estado"); }
 
         String warning = switch (cancelBilling) {
             case AT_PERIOD_END -> stripeAdminService.cancelSubscription(market, true, reason);

@@ -29,7 +29,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AiGate {
 
-    public enum Reason { OK, TEMPLATE, DISABLED_TASK, PLATFORM_OFF, NOT_PILOT, NO_KEY, DAILY_BUDGET, NO_CREDITS }
+    public enum Reason { OK, TEMPLATE, DISABLED_TASK, PLATFORM_OFF, NOT_PILOT, NO_KEY, DAILY_BUDGET, NO_CREDITS, RESTRICTED }
 
     public record Decision(Reason reason, AiPlatformConfig.Route route, AiPlatformConfig.Key key) {
         public boolean allowed() {
@@ -46,6 +46,7 @@ public class AiGate {
                 case NO_CREDITS -> "Seus créditos de IA acabaram (ou atingiram o teto do mês). Compre um pacote em Configurações.";
                 case NOT_PILOT, PLATFORM_OFF -> "A IA do MercadoFlow ainda não está liberada para o seu mercado.";
                 case DAILY_BUDGET -> "A IA está em pausa por hoje. Tente novamente amanhã.";
+                case RESTRICTED -> "A conta está só para consulta por um pagamento em aberto. Regularize em Assinatura para usar a IA.";
                 default -> "A IA não está disponível para esta tarefa agora.";
             };
         }
@@ -74,6 +75,9 @@ public class AiGate {
         if ("TEMPLATE".equals(route.layer())) {
             return new Decision(Reason.TEMPLATE, route, null);
         }
+        if (restricted(marketId)) {
+            return new Decision(Reason.RESTRICTED, route, null);
+        }
         AiPlatformConfig.Settings s = config.settings();
         if (!s.enabled()) {
             return new Decision(Reason.PLATFORM_OFF, route, null);
@@ -92,6 +96,15 @@ public class AiGate {
             return new Decision(Reason.NO_CREDITS, route, key.get());
         }
         return new Decision(Reason.OK, route, key.get());
+    }
+
+    /** Conta só para consulta (pagamento em aberto além da carência). */
+    public boolean restricted(UUID marketId) {
+        if (marketId == null) {
+            return false;
+        }
+        return jdbc.queryForList("select billing_status from markets where id = :m", Map.of("m", marketId), String.class)
+            .contains("RESTRICTED");
     }
 
     /**

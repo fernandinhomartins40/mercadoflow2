@@ -62,6 +62,12 @@ public class StripeService {
     private final MarketRepository marketRepository;
     private final SubscriptionEventService subscriptionEventService;
     private final PlanCatalogService planCatalogService;
+    private com.pdv2cloud.service.billing.SubscriptionService subscriptions;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setSubscriptions(com.pdv2cloud.service.billing.SubscriptionService subscriptions) {
+        this.subscriptions = subscriptions;
+    }
 
     public StripeService(
         MarketRepository marketRepository,
@@ -322,49 +328,21 @@ public class StripeService {
         market.setCancelAtPeriodEnd(Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()));
 
         PlanType targetPlan = planFromSubscription(subscription).orElse(previousPlan);
-
-        // Mapeia o status do Stripe para o acesso na aplicação.
-        //
-        // past_due e unpaid mantêm o plano: o Stripe ainda está tentando cobrar,
-        // e cortar o acesso na primeira falha de cartão puniria o cliente por um
-        // problema que costuma se resolver sozinho em dias.
-        switch (status) {
-            case "active", "trialing" -> {
-                market.setPlanType(targetPlan);
-                market.setBillingStatus(MarketBillingStatus.ACTIVE);
-                market.setIsActive(true);
-            }
-            case "past_due", "unpaid" -> {
-                market.setBillingStatus(MarketBillingStatus.PAST_DUE);
-                market.setIsActive(true);
-            }
-            case "canceled", "incomplete_expired" -> {
-                // Volta ao gratuito em vez de bloquear: o cliente continua
-                // usando com os limites do FREE, o que preserva o histórico e
-                // deixa a porta aberta para ele voltar.
-                market.setPlanType(PlanType.FREE);
-                market.setBillingStatus(MarketBillingStatus.ACTIVE);
-                market.setIsActive(true);
-                market.setStripeSubscriptionId(null);
-            }
-            default -> log.info("Status Stripe não tratado: {} (assinatura {})", status, subscription.getId());
-        }
-
-        if (market.getPlanType() != previousPlan) {
-            market.setPlanChangedAt(LocalDateTime.now());
+        if ("canceled".equals(status) || "incomplete_expired".equals(status)) {
+            market.setStripeSubscriptionId(null);
         }
         marketRepository.save(market);
 
-        if (market.getPlanType() != previousPlan) {
-            subscriptionEventService.recordPlanChange(
-                market, previousPlan, market.getPlanType(),
-                "Assinatura Stripe " + status, null
-            );
-        } else if (market.getBillingStatus() != previousStatus) {
-            subscriptionEventService.recordStatusChange(
-                market, previousStatus, market.getBillingStatus(),
-                "Assinatura Stripe " + status, null
-            );
+        // O estado de acesso vem da assinatura única (carência, só leitura,
+        // volta ao Grátis), que espelha plano e status no mercado.
+        if (subscriptions != null) {
+            switch (status) {
+                case "active", "trialing" -> subscriptions.paymentConfirmed(market.getId(), targetPlan, "STRIPE",
+                    market.getStripeCustomerId(), subscription.getId(), "CARTAO", null, "Assinatura Stripe " + status);
+                case "past_due", "unpaid" -> subscriptions.paymentFailed(market.getId(), "Assinatura Stripe " + status);
+                case "canceled", "incomplete_expired" -> subscriptions.cancel(market.getId(), false, "Assinatura Stripe " + status);
+                default -> log.info("Status Stripe não tratado: {} (assinatura {})", status, subscription.getId());
+            }
         }
 
         log.info("Assinatura sincronizada | market={} | status={} | plano={}",
@@ -429,6 +407,10 @@ public class StripeService {
             .filter(m -> customerId.equals(m.getStripeCustomerId()))
             .findFirst()
             .ifPresent(market -> {
+                if (subscriptions != null) {
+                    subscriptions.paymentFailed(market.getId(), "Falha no pagamento da fatura (Stripe)");
+                    return;
+                }
                 MarketBillingStatus previous = market.getBillingStatus();
                 market.setBillingStatus(MarketBillingStatus.PAST_DUE);
                 marketRepository.save(market);

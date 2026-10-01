@@ -47,6 +47,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class DunningService {
 
+    /** Assinatura única: muda junto quando o plano ou o estado é alterado por aqui. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.billing.SubscriptionService subscriptionSync;
+
+
     /**
      * Auto-referência para atravessar o proxy do Spring: chamar um método
      * @Transactional de dentro da própria classe ignora o proxy e a transação
@@ -190,10 +195,11 @@ public class DunningService {
                     detail = "Alerta registrado para " + marketName;
                 }
                 case MARK_PAST_DUE -> {
-                    if (market != null && market.getBillingStatus() != MarketBillingStatus.PAST_DUE) {
+                    if (market != null && subscriptionSync != null) {
+                        // Atraso entra pela assinatura: carência, depois só consulta.
+                        subscriptionSync.paymentFailed(market.getId(), "Fatura de rede vencida");
+                    } else if (market != null && market.getBillingStatus() != MarketBillingStatus.PAST_DUE) {
                         market.setBillingStatus(MarketBillingStatus.PAST_DUE);
-                        // isActive não é tocado: marcar inadimplência não corta
-                        // o acesso — essa decisão é humana.
                         marketRepository.save(market);
                     }
                     detail = marketName + " marcado como inadimplente";

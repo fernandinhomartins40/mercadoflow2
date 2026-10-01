@@ -595,6 +595,51 @@ nos provedores e vende créditos aos mercados).
     apagado ao sair;
   - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38 e F4 31/31.
 
+### Ciclo 17 — Assinaturas S0 e S1 (docs/PROPOSTA-ASSINATURAS.md)
+
+Decisões do owner: o plano Grátis é permanente; teste de 7 dias sem cartão; atraso com 7 dias de
+carência e depois só consulta; Asaas e Stripe lado a lado (S2); Copiloto dentro dos planos (S3).
+
+- **S0 (6be303b):**
+  - "Esqueci minha senha" por e-mail (Resend), com link de 30 minutos e resposta neutra;
+  - o login explica o motivo do bloqueio, mas só depois de conferir a senha;
+  - troca de plano no Stripe sem cobrança dupla.
+- **S1, assinatura única** (`subscriptions`, uma por rede, na matriz):
+  - estados Grátis, Teste, Ativa, Em atraso, Só consulta, Pausada, Suspensa, Pendente e Cancelada;
+  - `plan_type`, `billing_status` e `trial_ends_at` do mercado e das filiais passam a ser espelho;
+  - Stripe, régua das faturas de rede, superadmin, contrato de rede e cadastro mudam o estado por
+    `SubscriptionService`. Os caminhos antigos sincronizam depois do commit, numa transação própria.
+- **Ciclo diário** (`BillingLifecycleJob`, 8h15; o superadmin também pode rodar na hora):
+  - teste vencido volta ao Grátis; um aviso sai 48 h antes do fim;
+  - atraso além da carência vira só consulta;
+  - 30 dias só consulta volta ao Grátis;
+  - cancelamento agendado vale no fim do período.
+
+  Cada passo gera um aviso no app e um e-mail aos donos, sem repetir (chave por aviso). Prazos ficam
+  em `billing_settings`, editáveis no superadmin (Assinaturas → Planos e preços).
+- **Só consulta:**
+  - toda alteração em `/markets/{id}/**` devolve 402, com a frase em português;
+  - continuam liberados pagamento, assinatura, avisos, créditos de IA e Confere;
+  - o agente do PDV segue enviando notas, e o superadmin não é afetado;
+  - a IA da plataforma recusa com o motivo, e agentes e WhatsApp param.
+- **Telas:**
+  - faixa no topo do app: teste com dias restantes, atraso com prazo, só consulta;
+  - "Testar 7 dias grátis" e selo "Em teste" em Planos, mais a lista "Avisos da conta";
+  - `/app/assinatura` aponta para Planos até a tela própria (S3).
+- **Correção antiga (V72):** o gatilho que impede filial de filial era BEFORE UPDATE. Ele travava a
+  linha do mercado em modo exclusivo, e a troca de plano pelo superadmin ficava pendurada esperando o
+  registro de evento. Agora é AFTER, com a mesma regra.
+- **Migrações:**
+  - V70: tokens de nova senha e provedor de e-mail;
+  - V71: `billing_settings`, `subscriptions` (com carga a partir dos mercados) e `app_notifications`,
+    com RLS;
+  - V72: gatilho de rede como AFTER.
+- **Testes:**
+  - backend 321/321;
+  - ponta a ponta: S0 20/20 e S1 40/40 (teste, lembrete sem repetir, volta ao Grátis, superadmin,
+    carência, 402, IA, faixa, regras pela tela);
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31 e F5 25/25.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

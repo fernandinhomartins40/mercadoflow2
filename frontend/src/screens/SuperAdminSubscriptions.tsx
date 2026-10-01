@@ -3,6 +3,7 @@ import { formatDecimal } from '../utils/formatters';
 import useModalBehavior from '../hooks/useModalBehavior';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
+import BillingRulesPanel from '../components/admin/BillingRulesPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
 import NetworkContractsPanel from '../components/admin/NetworkContractsPanel';
 import subscriptionService, {
@@ -278,7 +279,12 @@ const SuperAdminSubscriptions: React.FC = () => {
           ))}
         </div>
 
-        {tab === 'planos' && <PlanCatalogPanel />}
+        {tab === 'planos' && (
+          <div className="flex flex-col gap-5">
+            <BillingRulesPanel />
+            <PlanCatalogPanel />
+          </div>
+        )}
         {tab === 'redes' && <NetworkContractsPanel markets={overview?.subscriptions ?? []} />}
         {tab === 'faturamento' && <BillingReportPanel />}
 

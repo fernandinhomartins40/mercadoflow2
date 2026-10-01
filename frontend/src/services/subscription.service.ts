@@ -521,6 +521,63 @@ const openBillingPortal = async (marketId: string): Promise<string> => {
   return data.url;
 };
 
+/* ─── Assinatura única (estado, teste grátis, avisos) ─── */
+
+export type SubscriptionStatus =
+  | 'FREE' | 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'RESTRICTED' | 'PAUSED' | 'SUSPENDED' | 'PENDING' | 'CANCELLED';
+
+export interface MarketSubscription {
+  status: SubscriptionStatus;
+  planCode: PlanCode;
+  trialPlan?: PlanCode | null;
+  trialEndsAt?: string | null;
+  trialAvailable: boolean;
+  trialDays: number;
+  provider: string;
+  paymentMethod?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd: boolean;
+  daysLeft?: number | null;
+  bannerTone?: 'INFO' | 'WARNING' | 'DANGER' | null;
+  bannerMessage?: string | null;
+  bannerAction?: string | null;
+}
+
+export interface AppNotice {
+  id: string;
+  kind: string;
+  severity: 'INFO' | 'WARNING' | 'DANGER';
+  title: string;
+  body: string;
+  actionLabel?: string | null;
+  actionUrl?: string | null;
+  createdAt: string;
+  readAt?: string | null;
+}
+
+/** Disparado quando o estado da assinatura pode ter mudado (teste iniciado, conta restrita). */
+export const SUBSCRIPTION_CHANGED = 'mf:subscription-changed';
+
+const getSubscription = async (marketId: string): Promise<MarketSubscription> => {
+  const { data } = await api.get<MarketSubscription>(`/v1/markets/${marketId}/subscription`);
+  return data;
+};
+
+const startTrial = async (marketId: string, plan: PlanCode): Promise<MarketSubscription> => {
+  const { data } = await api.post<MarketSubscription>(`/v1/markets/${marketId}/subscription/trial`, { plan });
+  window.dispatchEvent(new Event(SUBSCRIPTION_CHANGED));
+  return data;
+};
+
+const getNotices = async (marketId: string): Promise<AppNotice[]> => {
+  const { data } = await api.get<AppNotice[]>(`/v1/markets/${marketId}/notifications`);
+  return data;
+};
+
+const markNoticeRead = async (marketId: string, id: string): Promise<void> => {
+  await api.post(`/v1/markets/${marketId}/notifications/${id}/read`);
+};
+
 /* ─── Público ─── */
 
 const getPublicPlans = async (): Promise<PlanDescriptor[]> => {
@@ -555,4 +612,8 @@ export default {
   startCheckout,
   openBillingPortal,
   getPublicPlans,
+  getSubscription,
+  startTrial,
+  getNotices,
+  markNoticeRead,
 };

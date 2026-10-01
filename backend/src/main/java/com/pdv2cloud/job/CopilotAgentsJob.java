@@ -40,6 +40,9 @@ public class CopilotAgentsJob {
         List<Market> active = TenantContext.runAsSystem(markets::findAllActive);
         int created = 0;
         for (Market m : active) {
+            if (m.getBillingStatus() == com.pdv2cloud.model.entity.MarketBillingStatus.RESTRICTED) {
+                continue; // conta só para consulta: agentes e avisos param até o pagamento
+            }
             try {
                 created += TenantContext.runAsSystem(() -> runner.run(m.getId(), "HORARIO").created());
                 // Canal: só para quem aceitou receber, fora do silêncio (texto pronto, sem IA).

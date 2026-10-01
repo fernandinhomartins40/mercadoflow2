@@ -162,6 +162,7 @@ const App: React.FC = () => {
         <Route path="/app/promocoes" element={secure(<Promocoes />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/planos" element={secure(<Plans />)} />
+        <Route path="/app/assinatura" element={secure(<Plans />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
         <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/layout/Layout';
-import { AlertTriangle, Check, CreditCard, ExternalLink, Sparkles } from 'lucide-react';
+import { AlertTriangle, Bell, Check, Clock, CreditCard, ExternalLink, Sparkles } from 'lucide-react';
 import subscriptionService, {
+  AppNotice,
   BillingStatus,
+  MarketSubscription,
   MarketUsage,
   PlanCode,
   PlanDescriptor,
@@ -28,6 +30,10 @@ const Plans: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState<PlanCode | 'PORTAL' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sub, setSub] = useState<MarketSubscription | null>(null);
+  const [notices, setNotices] = useState<AppNotice[]>([]);
+  const [trialing, setTrialing] = useState<PlanCode | null>(null);
+  const [trialNotice, setTrialNotice] = useState<string | null>(null);
   // Volta do pagamento: o plano só muda quando o pagamento é confirmado (webhook), então o aviso diz isso.
   const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
   const checkoutNotice = checkoutResult === 'sucesso'
@@ -40,15 +46,19 @@ const Plans: React.FC = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const [planList, usageData, billingData] = await Promise.all([
+        const [planList, usageData, billingData, subData, noticeData] = await Promise.all([
           subscriptionService.getPublicPlans(),
           marketId ? subscriptionService.getMarketUsage(marketId).catch(() => null) : Promise.resolve(null),
           marketId ? subscriptionService.getBillingStatus(marketId).catch(() => null) : Promise.resolve(null),
+          marketId ? subscriptionService.getSubscription(marketId).catch(() => null) : Promise.resolve(null),
+          marketId ? subscriptionService.getNotices(marketId).catch(() => []) : Promise.resolve([]),
         ]);
         if (cancelled) return;
         setPlans(planList);
         setUsage(usageData);
         setBilling(billingData);
+        setSub(subData);
+        setNotices(noticeData);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -69,6 +79,27 @@ const Plans: React.FC = () => {
     } catch (err: any) {
       setError(err?.message || 'Não foi possível abrir o pagamento.');
       setRedirecting(null);
+    }
+  };
+
+  const startTrial = async (plan: PlanDescriptor) => {
+    if (!marketId) return;
+    setTrialing(plan.code);
+    setError(null);
+    try {
+      const updated = await subscriptionService.startTrial(marketId, plan.code);
+      setSub(updated);
+      const [usageData, noticeData] = await Promise.all([
+        subscriptionService.getMarketUsage(marketId).catch(() => null),
+        subscriptionService.getNotices(marketId).catch(() => []),
+      ]);
+      setUsage(usageData);
+      setNotices(noticeData);
+      setTrialNotice(`Teste do plano ${plan.name} liberado por ${updated.trialDays} dias. Aproveite!`);
+    } catch (err: any) {
+      setError(err?.response?.data?.userMessage || err?.message || 'Não foi possível começar o teste.');
+    } finally {
+      setTrialing(null);
     }
   };
 
@@ -138,6 +169,12 @@ const Plans: React.FC = () => {
           </div>
         )}
 
+        {trialNotice && (
+          <div role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
+            {trialNotice}
+          </div>
+        )}
+
         {checkoutNotice && (
           <div role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
             {checkoutNotice}
@@ -161,7 +198,9 @@ const Plans: React.FC = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {plans.map((plan) => {
-              const current = usage?.planCode === plan.code;
+              const inTrial = sub?.status === 'TRIAL' && sub.trialPlan === plan.code;
+              const current = usage?.planCode === plan.code && !inTrial;
+              const canTrial = !!sub?.trialAvailable && (plan.code === 'ESSENCIAL' || plan.code === 'PROFISSIONAL');
               const recommended = plan.code === 'ESSENCIAL';
               return (
                 <div
@@ -183,6 +222,15 @@ const Plans: React.FC = () => {
                       >
                         <Sparkles size={10} />
                         Recomendado
+                      </span>
+                    )}
+                    {inTrial && (
+                      <span
+                        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                        style={{ background: '#fef3c7', color: '#92400e' }}
+                      >
+                        <Clock size={10} />
+                        Em teste
                       </span>
                     )}
                     {current && (
@@ -215,13 +263,26 @@ const Plans: React.FC = () => {
                     ))}
                   </ul>
 
+                  {canTrial && (
+                    <button
+                      type="button"
+                      disabled={trialing !== null || redirecting !== null}
+                      onClick={() => startTrial(plan)}
+                      className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60"
+                      style={{ background: 'var(--brand-500, #22c55e)', color: '#fff' }}
+                    >
+                      <Clock size={14} />
+                      {trialing === plan.code ? 'Liberando...' : `Testar ${sub?.trialDays ?? 7} dias grátis`}
+                    </button>
+                  )}
+
                   {!current && plan.code !== 'FREE' && (
                     canCheckout(plan) ? (
                       <button
                         type="button"
                         disabled={redirecting !== null}
                         onClick={() => subscribe(plan.code)}
-                        className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60"
+                        className={`${canTrial ? '' : 'mt-auto '}flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60`}
                         style={
                           recommended
                             ? { background: 'var(--brand-500, #22c55e)', color: '#fff' }
@@ -246,6 +307,28 @@ const Plans: React.FC = () => {
               );
             })}
           </div>
+        )}
+
+        {notices.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              <Bell size={14} />
+              Avisos da conta
+            </h2>
+            {notices.slice(0, 6).map((n) => (
+              <div
+                key={n.id}
+                className="rounded-xl p-3"
+                style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
+              >
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{n.title}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{n.body}</p>
+                <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {new Date(n.createdAt).toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+            ))}
+          </section>
         )}
       </div>
     </Layout>
