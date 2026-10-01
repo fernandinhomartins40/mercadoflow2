@@ -483,6 +483,44 @@ nos provedores e vende créditos aos mercados).
     "aprova" por voz;
   - regressão: F0 34/34, F1 15/15 e F2 32/32.
 
+### Ciclo 14 — Copiloto F3b: canal WhatsApp
+
+- **API oficial da Meta (Cloud API).** O token e o ID do número ficam no provedor WhatsApp do painel.
+- **Superadmin**, cartão novo "WhatsApp: modelo de mensagem e webhook":
+  - nome e idioma do modelo aprovado;
+  - token de verificação (com botão Gerar);
+  - segredo do app, guardado cifrado e nunca devolvido à tela;
+  - endereço do webhook para cadastrar;
+  - botão "Enviar avisos agora" para um mercado do piloto.
+- **O que configurar na Meta:** um modelo da categoria Utilidade com corpo `{{1}}` e dois botões de
+  resposta rápida, **Aprovar** e **Depois**.
+- **Lojista** (Copiloto → Agentes): número com DDD e aceite explícito ("responda PARAR para cancelar"),
+  com data do aceite.
+- **Envio** a cada 5 minutos, no mesmo job da vigília:
+  - só para quem aceitou, fora do horário de silêncio;
+  - resumo do dia uma vez por dia (a partir das 6h30);
+  - até 3 avisos por rodada;
+  - cada decisão é avisada uma vez;
+  - o botão Aprovar carrega o id da decisão.
+  Tudo com texto pronto, sem IA. O custo por mensagem fica no uso (rota `WHATSAPP_AVISO`, camada
+  nova "Canal", 0 crédito por padrão).
+- **Webhook** (`/api/v1/public/whatsapp/webhook`):
+  - verificação pelo token cadastrado;
+  - cada mensagem só é aceita com a assinatura HMAC dos bytes recebidos;
+  - o botão Aprovar só aprova decisão de um mercado daquele número;
+  - "aprova" escrito aprova a última decisão avisada;
+  - texto solto recebe ajuda e número desconhecido é ignorado;
+  - "PARAR" cancela o aceite na hora (LGPD).
+  A confirmação responde com o resultado: itens no rascunho, ou a mensagem pronta para encaminhar ao
+  fornecedor.
+- **Migração V65:** `ai_whatsapp_config` (linha única), `ai_whatsapp_messages` (com RLS) e rota
+  `WHATSAPP_AVISO`.
+- **Testes:**
+  - backend 287/287 (5 novos do canal);
+  - ponta a ponta da F3b 38/38: configuração, aceite, envio sem repetir, webhook com e sem assinatura,
+    aprovar pelo botão e por texto, ajuda, número desconhecido e PARAR;
+  - regressão: F0 34/34, F1 15/15, F2 32/32 e F3a 38/38.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

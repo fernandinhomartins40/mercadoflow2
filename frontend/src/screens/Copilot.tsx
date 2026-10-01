@@ -275,6 +275,45 @@ const PrefsCard: React.FC<{ marketId: string; prefs: CopilotPrefs }> = ({ market
   );
 };
 
+const WhatsAppCard: React.FC<{ marketId: string; prefs: CopilotPrefs; onSaved: (p: CopilotPrefs) => void }> = ({ marketId, prefs, onSaved }) => {
+  const [phone, setPhone] = useState(prefs.whatsappPhone ? prefs.whatsappPhone.replace(/^55/, '') : '');
+  const [consent, setConsent] = useState(prefs.whatsappOptIn);
+  const [state, setState] = useState<string | null>(null);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const p = await copilotAgentsService.savePrefs(marketId, { whatsappPhone: phone, whatsappOptIn: consent });
+      onSaved(p);
+      setState(p.whatsappOptIn ? 'Pronto: os avisos chegam no seu WhatsApp.' : 'Salvo. Você não recebe avisos no WhatsApp.');
+    } catch (err) {
+      setState(apiError(err, 'Não foi possível salvar.'));
+    }
+  };
+  return (
+    <form onSubmit={save} className="card flex flex-col gap-3 p-4" aria-labelledby="whatsapp-titulo">
+      <h2 id="whatsapp-titulo" className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <MessageCircle className="h-4 w-4" />Avisos no WhatsApp
+      </h2>
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+        O resumo do dia e os avisos dos agentes chegam no seu WhatsApp, com o botão Aprovar. Fora do horário de silêncio e sem repetir.
+      </p>
+      <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+        Número com DDD
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="(11) 98765-4321" maxLength={20}
+          className="max-w-xs rounded-lg px-3 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
+      </label>
+      <label className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-5 w-5 accent-green-700" />
+        <span>Aceito receber avisos do MercadoFlow no WhatsApp. Posso cancelar quando quiser respondendo PARAR.</span>
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Salvar WhatsApp</button>
+        {state && <span role="status" className="text-sm" style={{ color: 'var(--text-muted)' }}>{state}</span>}
+      </div>
+    </form>
+  );
+};
+
 const Copilot: React.FC = () => {
   const { marketId } = useAuth();
   const [tab, setTab] = useState<Tab>('abertas');
@@ -377,6 +416,7 @@ const Copilot: React.FC = () => {
                 {agents.map((a) => <AgentRow key={a.agent} marketId={marketId} agent={a} onSaved={setAgents} />)}
               </ul>
               <PrefsCard marketId={marketId} prefs={prefs} />
+              <WhatsAppCard marketId={marketId} prefs={prefs} onSaved={setPrefs} />
               <section className="card flex flex-col gap-2 p-4" aria-labelledby="licoes">
                 <h2 id="licoes" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>O que a loja já aprendeu</h2>
                 {lessons.length === 0 ? (

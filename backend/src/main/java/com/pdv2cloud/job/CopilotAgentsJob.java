@@ -4,6 +4,7 @@ import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.service.ai.agents.AgentRunner;
 import com.pdv2cloud.service.ai.agents.LessonService;
+import com.pdv2cloud.service.ai.agents.WhatsAppChannel;
 import com.pdv2cloud.tenancy.TenantContext;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,8 @@ import org.springframework.stereotype.Component;
 /**
  * Vigília dos agentes do Copiloto. A cada 5 minutos o funil roda por mercado:
  * consultas ao banco e, só para o sinal que passa pela memória, uma decisão do
- * Jev. Nenhum modelo de linguagem é chamado aqui.
+ * Jev. Nenhum modelo de linguagem é chamado aqui. Depois, os avisos pelo
+ * WhatsApp de quem aceitou receber.
  */
 @Component
 @Profile("jobs")
@@ -24,11 +26,13 @@ public class CopilotAgentsJob {
     private final MarketRepository markets;
     private final AgentRunner runner;
     private final LessonService lessons;
+    private final WhatsAppChannel whatsapp;
 
-    public CopilotAgentsJob(MarketRepository markets, AgentRunner runner, LessonService lessons) {
+    public CopilotAgentsJob(MarketRepository markets, AgentRunner runner, LessonService lessons, WhatsAppChannel whatsapp) {
         this.markets = markets;
         this.runner = runner;
         this.lessons = lessons;
+        this.whatsapp = whatsapp;
     }
 
     @Scheduled(fixedDelay = 300_000, initialDelay = 120_000)
@@ -38,6 +42,8 @@ public class CopilotAgentsJob {
         for (Market m : active) {
             try {
                 created += TenantContext.runAsSystem(() -> runner.run(m.getId(), "HORARIO").created());
+                // Canal: só para quem aceitou receber, fora do silêncio (texto pronto, sem IA).
+                TenantContext.runAsSystem(() -> whatsapp.notify(m.getId()));
             } catch (RuntimeException e) {
                 log.warn("Vigília dos agentes falhou no mercado {}: {}", m.getId(), e.getMessage());
             }

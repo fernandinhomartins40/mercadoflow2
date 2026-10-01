@@ -35,7 +35,7 @@ export interface AiSettingsRow {
 export interface AiRouteRow {
   task: string;
   label: string;
-  layer: 'TEMPLATE' | 'JEV' | 'FLASH' | 'PRO' | 'VOZ';
+  layer: 'TEMPLATE' | 'JEV' | 'FLASH' | 'PRO' | 'VOZ' | 'CANAL';
   provider: string | null;
   model: string | null;
   maxContextTokens: number;
@@ -78,7 +78,21 @@ export interface ConsoleResult {
 
 const admin = '/v1/super-admin/ai';
 
+export interface WhatsAppConfig {
+  templateName: string;
+  templateLang: string;
+  verifyTokenSet: boolean;
+  appSecretSet: boolean;
+  appSecretHint: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
 export const aiAdminService = {
+  whatsapp: async (): Promise<WhatsAppConfig> => (await api.get(`${admin}/whatsapp`)).data,
+  notifyWhatsapp: async (marketId: string): Promise<{ enviadas: number }> => (await api.post(`${admin}/whatsapp/notify/${marketId}`, {})).data,
+  saveWhatsapp: async (body: { templateName?: string; templateLang?: string; verifyToken?: string; appSecret?: string }): Promise<WhatsAppConfig> =>
+    (await api.put(`${admin}/whatsapp`, body)).data,
   overview: async (): Promise<AiOverview> => (await api.get(`${admin}/overview`)).data,
   saveSettings: async (body: Partial<AiSettingsRow>): Promise<AiSettingsRow> => (await api.put(`${admin}/settings`, body)).data,
   saveProvider: async (provider: string, body: { apiKey?: string; baseUrl?: string; model?: string; enabled?: boolean; priority?: number }): Promise<AiProviderRow[]> =>

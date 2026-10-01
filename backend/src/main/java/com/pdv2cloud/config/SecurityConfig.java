@@ -76,6 +76,10 @@ public class SecurityConfig {
                 // A autenticidade vem da assinatura HMAC do corpo, verificada
                 // em StripeWebhookController com o webhook secret.
                 .requestMatchers(HttpMethod.POST, "/api/v1/stripe/webhook").permitAll()
+                // Webhook do WhatsApp: o remetente e a Meta. A verificacao usa o token
+                // cadastrado e cada mensagem exige a assinatura HMAC do corpo
+                // (WhatsAppWebhookController / WhatsAppChannel.validSignature).
+                .requestMatchers("/api/v1/public/whatsapp/webhook").permitAll()
                 // Pareamento do Agente Mercado Flow: o agente ainda nao tem credencial
                 // alguma nestes passos. Protegido por codigo efemero de alta entropia,
                 // segredo do agente e rate limit dedicado (RateLimitFilter).

@@ -4,7 +4,7 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import {
   aiAdminService, type AiLedgerRow, type AiOrderRow, type AiOverview, type AiPlanRow, type AiProviderRow, type AiRouteRow,
-  type AiSettingsRow, type AiWallet, type ConsoleResult, type ConsoleTask,
+  type AiSettingsRow, type AiWallet, type ConsoleResult, type ConsoleTask, type WhatsAppConfig,
 } from '../services/aiPlatform.service';
 
 /**
@@ -33,7 +33,7 @@ const PROVIDER_INFO: Record<string, { name: string; use: string; keyUrl: string 
   WHATSAPP: { name: 'WhatsApp Business', use: 'Canal de mensagens dos agentes', keyUrl: 'https://business.facebook.com' },
 };
 
-const LAYER_LABEL: Record<string, string> = { TEMPLATE: 'Texto pronto', JEV: 'Jev', FLASH: 'Flash', PRO: 'Pro', VOZ: 'Voz' };
+const LAYER_LABEL: Record<string, string> = { TEMPLATE: 'Texto pronto', JEV: 'Jev', FLASH: 'Flash', PRO: 'Pro', VOZ: 'Voz', CANAL: 'Canal' };
 
 const Toggle: React.FC<{ on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }> = ({ on, onChange, label, disabled }) => (
   <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
@@ -207,8 +207,9 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
             {p.allowedBaseUrls.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           <span className={HINT}>Lista fixa: a chave nunca vai para outro servidor.</span></label>
-        <label className="flex flex-col gap-1"><span className={LABEL}>Modelo padrão</span>
-          <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)} aria-label={`Modelo padrão de ${info.name}`} /></label>
+        <label className="flex flex-col gap-1"><span className={LABEL}>{p.provider === 'WHATSAPP' ? 'ID do número (Phone number ID)' : 'Modelo padrão'}</span>
+          <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)}
+            aria-label={p.provider === 'WHATSAPP' ? 'ID do número do WhatsApp' : `Modelo padrão de ${info.name}`} /></label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => save()} disabled={!!busy || !encryptionReady}>{busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Salvar</Button>
@@ -217,6 +218,84 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
         <Msg msg={msg} />
       </div>
     </section>
+  );
+};
+
+// ── WhatsApp: modelo de mensagem e webhook ─────────────────────────────
+
+const WEBHOOK_URL = `${window.location.origin}/api/v1/public/whatsapp/webhook`;
+
+const newToken = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+const WhatsAppConfigCard: React.FC<{ encryptionReady: boolean; pilots: AiOverview['pilots'] }> = ({ encryptionReady, pilots }) => {
+  const [target, setTarget] = useState(pilots[0]?.marketId ?? '');
+  const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const sendNow = async () => {
+    if (!target) return;
+    try {
+      const r = await aiAdminService.notifyWhatsapp(target);
+      setSendMsg({ ok: true, text: r.enviadas ? `${r.enviadas} mensagem(ns) enviada(s).` : 'Nada enviado: sem aceite, no horário de silêncio ou sem novidade.' });
+    } catch (err) { setSendMsg({ ok: false, text: errorText(err, 'Não foi possível enviar.') }); }
+  };
+  const [cfg, setCfg] = useState<WhatsAppConfig | null>(null);
+  const [form, setForm] = useState({ templateName: '', templateLang: '', verifyToken: '', appSecret: '' });
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    aiAdminService.whatsapp().then((c) => { setCfg(c); setForm({ templateName: c.templateName, templateLang: c.templateLang, verifyToken: '', appSecret: '' }); })
+      .catch(() => setMsg({ ok: false, text: 'Não foi possível carregar.' }));
+  }, []);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const c = await aiAdminService.saveWhatsapp({
+        templateName: form.templateName, templateLang: form.templateLang,
+        verifyToken: form.verifyToken.trim() || undefined, appSecret: form.appSecret.trim() || undefined,
+      });
+      setCfg(c);
+      setForm({ ...form, verifyToken: '', appSecret: '' });
+      setMsg({ ok: true, text: form.verifyToken ? `Salvo. Cole este token na Meta: ${form.verifyToken}` : 'Salvo.' });
+    } catch (err) { setMsg({ ok: false, text: errorText(err, 'Não foi possível salvar.') }); }
+  };
+  if (!cfg) return <section className={CARD}><Loader2 className="h-5 w-5 animate-spin text-slate-400" /><Msg msg={msg} /></section>;
+  return (
+    <form onSubmit={save} className={`${CARD} flex flex-col gap-3`} aria-label="WhatsApp: modelo e webhook">
+      <div>
+        <h3 className="text-base font-semibold text-slate-900">WhatsApp: modelo de mensagem e webhook</h3>
+        <p className="text-sm text-slate-600">
+          Na Meta, crie um modelo da categoria Utilidade com o corpo <span className="font-mono">{'{{1}}'}</span> e dois botões de resposta rápida:
+          <strong> Aprovar</strong> e <strong>Depois</strong>. O texto do aviso entra no {'{{1}}'}; o botão Aprovar responde à decisão.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-1"><span className={LABEL}>Nome do modelo aprovado</span>
+          <input className={`${INPUT} font-mono`} value={form.templateName} onChange={(e) => setForm({ ...form, templateName: e.target.value })} /></label>
+        <label className="flex flex-col gap-1"><span className={LABEL}>Idioma do modelo</span>
+          <input className={`${INPUT} font-mono`} value={form.templateLang} onChange={(e) => setForm({ ...form, templateLang: e.target.value })} /></label>
+        <label className="flex flex-col gap-1"><span className={LABEL}>{cfg.verifyTokenSet ? 'Trocar o token de verificação' : 'Token de verificação do webhook'}</span>
+          <span className="flex gap-2">
+            <input className={`${INPUT} font-mono`} value={form.verifyToken} onChange={(e) => setForm({ ...form, verifyToken: e.target.value })}
+              placeholder={cfg.verifyTokenSet ? 'já cadastrado; deixe vazio para manter' : 'gere ou cole'} aria-label="Token de verificação do webhook" />
+            <Button type="button" variant="secondary" onClick={() => setForm({ ...form, verifyToken: newToken() })}>Gerar</Button>
+          </span></label>
+        <label className="flex flex-col gap-1"><span className={LABEL}>{cfg.appSecretSet ? `Trocar o segredo do app (atual termina em ${cfg.appSecretHint ?? '…'})` : 'Segredo do app (App Secret)'}</span>
+          <input className={`${INPUT} font-mono`} type="password" autoComplete="off" value={form.appSecret} disabled={!encryptionReady}
+            onChange={(e) => setForm({ ...form, appSecret: e.target.value })} placeholder={cfg.appSecretSet ? 'deixe vazio para manter' : 'cole o App Secret'} aria-label="Segredo do app do WhatsApp" />
+          <span className={HINT}>Usado para conferir a assinatura de cada mensagem recebida. Guardado cifrado.</span></label>
+      </div>
+      <p className="text-sm text-slate-600">Endereço do webhook para cadastrar na Meta (campo <span className="font-mono">messages</span>):
+        <span className="ml-1 select-all rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{WEBHOOK_URL}</span></p>
+      <div className="flex flex-wrap items-center gap-2"><Button type="submit"><Save className="h-4 w-4" />Salvar WhatsApp</Button><Msg msg={msg} /></div>
+      {pilots.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
+          <label className="flex flex-col gap-1"><span className={LABEL}>Testar com um mercado do piloto</span>
+            <select className={INPUT} value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Mercado para o teste do WhatsApp">
+              {pilots.map((p) => <option key={p.marketId} value={p.marketId}>{p.name}</option>)}
+            </select></label>
+          <Button type="button" variant="secondary" onClick={sendNow}><Play className="h-4 w-4" />Enviar avisos agora</Button>
+          <Msg msg={sendMsg} />
+        </div>
+      )}
+    </form>
   );
 };
 
@@ -630,6 +709,7 @@ const SuperAdminAi: React.FC = () => {
             {tab === 'chaves' && data.providers.map((p) => (
               <ProviderCard key={p.provider} p={p} encryptionReady={data.settings.encryptionReady} onChange={(rows) => patch({ providers: rows })} />
             ))}
+            {tab === 'chaves' && <WhatsAppConfigCard encryptionReady={data.settings.encryptionReady} pilots={data.pilots} />}
             {tab === 'rotas' && <RoutesCard routes={data.routes} providers={data.providers} onSaved={(rows) => patch({ routes: rows })} />}
             {tab === 'piloto' && <PilotCard data={data} onPilots={(rows) => patch({ pilots: rows })} refresh={load} />}
             {tab === 'console' && <ConsoleCard data={data} />}

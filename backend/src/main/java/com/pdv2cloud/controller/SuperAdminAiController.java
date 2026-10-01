@@ -30,11 +30,37 @@ public class SuperAdminAiController {
     private final AiPlatformConfig config;
     private final AiWalletService wallets;
     private final AiPlatformReports reports;
+    private final com.pdv2cloud.service.ai.agents.WhatsAppConfigService whatsapp;
+    private final com.pdv2cloud.service.ai.agents.WhatsAppChannel channel;
 
-    public SuperAdminAiController(AiPlatformConfig config, AiWalletService wallets, AiPlatformReports reports) {
+    public SuperAdminAiController(AiPlatformConfig config, AiWalletService wallets, AiPlatformReports reports,
+                                  com.pdv2cloud.service.ai.agents.WhatsAppConfigService whatsapp,
+                                  com.pdv2cloud.service.ai.agents.WhatsAppChannel channel) {
         this.config = config;
         this.wallets = wallets;
         this.reports = reports;
+        this.whatsapp = whatsapp;
+        this.channel = channel;
+    }
+
+    /** Teste: envia agora o resumo e os avisos pendentes de um mercado (respeita aceite e silêncio, como o job). */
+    @PostMapping("/whatsapp/notify/{marketId}")
+    public Map<String, Object> notifyNow(@PathVariable java.util.UUID marketId, Authentication auth) {
+        int sent = com.pdv2cloud.tenancy.TenantContext.runAsSystem(() -> channel.notify(marketId));
+        config.audit(auth.getName(), "WHATSAPP_NOTIFY", marketId + ": " + sent + " mensagens");
+        return Map.of("enviadas", sent);
+    }
+
+    /** WhatsApp: modelo de mensagem e webhook (o segredo do app nunca volta, só os 4 últimos dígitos). */
+    @GetMapping("/whatsapp")
+    public com.pdv2cloud.service.ai.agents.WhatsAppConfigService.Config whatsapp() {
+        return whatsapp.get();
+    }
+
+    @PutMapping("/whatsapp")
+    public com.pdv2cloud.service.ai.agents.WhatsAppConfigService.Config saveWhatsapp(@RequestBody Map<String, Object> body,
+                                                                                    Authentication auth) {
+        return whatsapp.save(body, auth.getName());
     }
 
     @GetMapping("/overview")
