@@ -160,7 +160,7 @@ public class AiPlatformConfig {
         String model = (String) rows.get(0).get("default_model");
         TestResult result = switch (provider) {
             case "DEEPSEEK", "OPENROUTER" -> {
-                LlmClient.LlmResponse r = llm.chat(base, apiKey, model, "Responda apenas com a palavra OK.", "Teste de conexão.", 5, 0);
+                LlmClient.LlmResponse r = llm.chat(base, apiKey, model, "Responda apenas com a palavra OK.", "Teste de conexão.", 32, 0);
                 yield new TestResult(r.success(), r.success() ? "Respondeu: " + clip(r.content()) : r.errorMessage(), r.latencyMs(),
                     "DEEPSEEK".equals(provider) && r.success() ? deepSeekBalance(base, apiKey) : null);
             }

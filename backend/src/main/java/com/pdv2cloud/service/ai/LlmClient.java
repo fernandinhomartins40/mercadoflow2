@@ -171,7 +171,7 @@ public class LlmClient {
             return blocked;
         }
         try {
-            String body = buildRequestBody(model, systemPrompt, userPrompt, maxTokens, temperature);
+            String body = providerOptions(baseUrl, buildRequestBody(model, systemPrompt, userPrompt, maxTokens, temperature));
 
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(trimTrailingSlash(baseUrl) + "/chat/completions"))
@@ -253,7 +253,7 @@ public class LlmClient {
                 .timeout(REQUEST_TIMEOUT)
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(root.toString()))
+                .POST(HttpRequest.BodyPublishers.ofString(providerOptions(baseUrl, root.toString())))
                 .build();
 
             HttpResponse<String> response =
@@ -303,7 +303,7 @@ public class LlmClient {
             return blocked;
         }
         try {
-            String body = buildConversationBody(model, messages, tools, maxTokens, temperature);
+            String body = providerOptions(baseUrl, buildConversationBody(model, messages, tools, maxTokens, temperature));
 
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(trimTrailingSlash(baseUrl) + "/chat/completions"))
@@ -441,13 +441,50 @@ public class LlmClient {
 
             String content = message.path("content").asText("");
             if (content.isBlank()) {
-                return LlmResponse.fail("Resposta do provedor vazia", true, elapsed);
+                return LlmResponse.fail(emptyReason(choices.get(0)), true, elapsed);
             }
             return LlmResponse.ok(content.trim(), in, out, elapsed);
 
         } catch (Exception e) {
             return LlmResponse.fail("Resposta do provedor em formato inesperado", true, elapsed);
         }
+    }
+
+    /**
+     * Ajustes por provedor. No DeepSeek o modo de raciocínio vem ligado por
+     * padrão nos modelos atuais: ele gasta o teto de tokens "pensando" (a
+     * resposta sai vazia) e custa mais. As tarefas do Copiloto são curtas e já
+     * recebem os números calculados, então o raciocínio fica desligado.
+     */
+    String providerOptions(String baseUrl, String body) {
+        if (baseUrl == null || !baseUrl.contains("deepseek.com")) {
+            return body;
+        }
+        try {
+            ObjectNode root = (ObjectNode) mapper.readTree(body);
+            if (!root.has("thinking")) {
+                root.putObject("thinking").put("type", "disabled");
+            }
+            return root.toString();
+        } catch (Exception e) {
+            return body;
+        }
+    }
+
+    /** Por que veio vazio: sem isso, "resposta vazia" parece chave errada. */
+    static String emptyReason(JsonNode choice) {
+        String finish = choice.path("finish_reason").asText("");
+        boolean reasoned = !choice.path("message").path("reasoning_content").asText("").isBlank();
+        if (reasoned && "length".equals(finish)) {
+            return "O modelo gastou todo o limite de tokens raciocinando e não chegou a responder. Aumente o teto de resposta da tarefa.";
+        }
+        if ("length".equals(finish)) {
+            return "O limite de tokens acabou antes da resposta. Aumente o teto de resposta da tarefa.";
+        }
+        if ("content_filter".equals(finish)) {
+            return "O provedor bloqueou a resposta pelo filtro de conteúdo.";
+        }
+        return "Resposta do provedor vazia";
     }
 
     private String buildRequestBody(
@@ -481,7 +518,7 @@ public class LlmClient {
             }
             String content = choices.get(0).path("message").path("content").asText("");
             if (content.isBlank()) {
-                return LlmResponse.fail("Resposta do provedor vazia", true, elapsed);
+                return LlmResponse.fail(emptyReason(choices.get(0)), true, elapsed);
             }
 
             JsonNode usage = root.path("usage");
