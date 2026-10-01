@@ -57,22 +57,23 @@ public class DecisionService {
                            Map<String, Object> numbers, Map<String, Object> payload, BigDecimal impact, int level,
                            boolean urgent, String status, Map<String, Object> funnel, String explanation,
                            LocalDateTime createdAt, LocalDateTime decidedAt, String decidedBy, String decisionNote,
-                           Map<String, Object> result) {}
+                           Map<String, Object> result, boolean autoExecuted, LocalDateTime undoneAt) {}
 
     public record Explanation(String texto, boolean ia, boolean doCache, String aviso) {}
 
     private static final String COLS = "id, agent, kind, scope_key, title, body, numbers::text as numbers, payload::text as payload, "
         + "impact, level, urgent, status, funnel::text as funnel, explanation, created_at, decided_at, decided_by, decision_note, "
-        + "result::text as result";
+        + "result::text as result, auto_executed, undone_at";
 
     /** Caixa: pendentes e avisos primeiro (urgentes no topo); "decididas" e "silenciadas" sob pedido. */
     public List<Decision> inbox(UUID marketId, String view) {
         String where = switch (view == null ? "" : view) {
-            case "decididas" -> "status in ('APROVADA', 'RECUSADA', 'EXPIRADA')";
+            case "decididas" -> "status in ('APROVADA', 'RECUSADA', 'EXPIRADA', 'DESFEITA')";
+            case "sozinho" -> "auto_executed";
             case "silenciadas" -> "status = 'SILENCIADA'";
             default -> "status in ('PENDENTE', 'INFORMATIVA')";
         };
-        String order = "decididas".equals(view) ? "coalesce(decided_at, created_at) desc" : "urgent desc, created_at desc";
+        String order = "decididas".equals(view) || "sozinho".equals(view) ? "coalesce(decided_at, created_at) desc" : "urgent desc, created_at desc";
         return jdbc.query("select " + COLS + " from ai_decisions where market_id = :m and " + where + " order by " + order + " limit 60",
             Map.of("m", marketId), (rs, i) -> map(rs));
     }
@@ -80,7 +81,8 @@ public class DecisionService {
     public Map<String, Object> counts(UUID marketId) {
         return jdbc.queryForMap("select count(*) filter (where status = 'PENDENTE') as pendentes, "
             + "count(*) filter (where status = 'INFORMATIVA') as avisos, "
-            + "count(*) filter (where status in ('PENDENTE', 'INFORMATIVA') and urgent) as urgentes "
+            + "count(*) filter (where status in ('PENDENTE', 'INFORMATIVA') and urgent) as urgentes, "
+            + "count(*) filter (where auto_executed and decided_at >= date_trunc('day', now())) as feitas_sozinho_hoje "
             + "from ai_decisions where market_id = :m", Map.of("m", marketId));
     }
 
@@ -114,6 +116,30 @@ public class DecisionService {
         if (d.level() >= 2 && agent != null) {
             result = new java.util.LinkedHashMap<>(agent.execute(marketId, d.payload(), actor));
             result.put("executado", true);
+        }
+        jdbc.update("update ai_decisions set result = cast(:r as jsonb) where market_id = :m and id = :id",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("id", id).addValue("r", json(result)));
+        return get(marketId, id);
+    }
+
+    /** Desfazer uma decisão aprovada (pelo lojista ou pelo nível 3) em até 24 horas. */
+    public Decision undo(UUID marketId, UUID id, String actor) {
+        Decision d = get(marketId, id);
+        if (!"APROVADA".equals(d.status())) {
+            throw new IllegalStateException("Só dá para desfazer uma decisão aprovada.");
+        }
+        if (d.decidedAt() != null && d.decidedAt().isBefore(LocalDateTime.now().minusHours(24))) {
+            throw new IllegalStateException("Passou de 24 horas: desfaça direto no pedido ou no encarte.");
+        }
+        int claimed = jdbc.update("update ai_decisions set status = 'DESFEITA', undone_at = now(), undone_by = :u "
+            + "where market_id = :m and id = :id and status = 'APROVADA'", Map.of("m", marketId, "id", id, "u", actor));
+        if (claimed == 0) {
+            throw new IllegalStateException("Esta decisão já foi desfeita.");
+        }
+        CopilotAgent agent = agents.get(d.agent());
+        Map<String, Object> result = new java.util.LinkedHashMap<>(d.result() == null ? Map.of() : d.result());
+        if (agent != null && Boolean.TRUE.equals(result.get("executado"))) {
+            result.put("desfeito", agent.undo(marketId, d.payload(), d.result(), actor));
         }
         jdbc.update("update ai_decisions set result = cast(:r as jsonb) where market_id = :m and id = :id",
             new MapSqlParameterSource().addValue("m", marketId).addValue("id", id).addValue("r", json(result)));
@@ -192,7 +218,8 @@ public class DecisionService {
             rs.getString("title"), rs.getString("body"), read(rs.getString("numbers")), read(rs.getString("payload")),
             rs.getBigDecimal("impact"), rs.getInt("level"), rs.getBoolean("urgent"), rs.getString("status"),
             read(rs.getString("funnel")), rs.getString("explanation"), ts(rs.getTimestamp("created_at")),
-            ts(rs.getTimestamp("decided_at")), rs.getString("decided_by"), rs.getString("decision_note"), read(rs.getString("result")));
+            ts(rs.getTimestamp("decided_at")), rs.getString("decided_by"), rs.getString("decision_note"), read(rs.getString("result")),
+            rs.getBoolean("auto_executed"), ts(rs.getTimestamp("undone_at")));
     }
 
     private static LocalDateTime ts(java.sql.Timestamp t) {

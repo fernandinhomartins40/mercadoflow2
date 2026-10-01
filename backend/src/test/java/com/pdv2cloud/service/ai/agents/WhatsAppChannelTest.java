@@ -64,15 +64,15 @@ class WhatsAppChannelTest {
     void confirmacaoDoPedidoEDaMensagem() {
         DecisionService.Decision pedido = new DecisionService.Decision(UUID.randomUUID(), "COMPRAS", "PEDIDO", "compras",
             "Pedido sugerido: 2 produtos para repor", "", Map.of(), Map.of(), null, 2, false, "APROVADA", Map.of(), null,
-            null, null, null, null, Map.of("executado", true, "noPedido", 2));
+            null, null, null, null, Map.of("executado", true, "noPedido", 2), false, null);
         assertEquals("Aprovado: Pedido sugerido: 2 produtos para repor. 2 itens foram para o rascunho de pedido. "
             + "Revise no MercadoFlow antes de enviar ao fornecedor.", WhatsAppChannel.confirmation(pedido));
         DecisionService.Decision msg = new DecisionService.Decision(UUID.randomUUID(), "RECEBIMENTO", "MENSAGEM_FORNECEDOR", "1",
             "Avisar Atacado", "", Map.of(), Map.of(), null, 2, true, "APROVADA", Map.of(), null, null, null, null, null,
-            Map.of("executado", true, "mensagem", "Olá, Atacado."));
+            Map.of("executado", true, "mensagem", "Olá, Atacado."), false, null);
         assertTrue(WhatsAppChannel.confirmation(msg).endsWith("Mensagem para encaminhar ao fornecedor:\n\nOlá, Atacado."));
         DecisionService.Decision nivel1 = new DecisionService.Decision(UUID.randomUUID(), "COMPRAS", "PEDIDO", "compras", "Pedido",
-            "", Map.of(), Map.of(), null, 1, false, "APROVADA", Map.of(), null, null, null, null, null, Map.of("executado", false));
+            "", Map.of(), Map.of(), null, 1, false, "APROVADA", Map.of(), null, null, null, null, null, Map.of("executado", false), false, null);
         assertTrue(WhatsAppChannel.confirmation(nivel1).endsWith("Anotado na caixa do Copiloto."));
     }
 }

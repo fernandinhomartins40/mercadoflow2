@@ -111,14 +111,20 @@ public class WhatsAppChannel {
             }
         }
         List<Map<String, Object>> pending = jdbc.queryForList(
-            "select id, agent, title, body, impact from ai_decisions where market_id = :m and status in ('PENDENTE', 'INFORMATIVA') "
+            "select id, agent, title, body, impact, auto_executed, result::text as result from ai_decisions where market_id = :m "
+                + "and (status in ('PENDENTE', 'INFORMATIVA') or (status = 'APROVADA' and auto_executed)) "
                 + "and notified_at is null and created_at >= now() - interval '24 hours' order by urgent desc, created_at limit :n",
             new MapSqlParameterSource().addValue("m", marketId).addValue("n", MAX_PER_RUN));
         for (Map<String, Object> d : pending) {
             UUID id = (UUID) d.get("id");
-            String text = AGENT_LABEL.getOrDefault(String.valueOf(d.get("agent")), "Copiloto") + ": " + d.get("title") + ". "
-                + firstLines(String.valueOf(d.get("body")), 2);
-            Sent s = send(marketId, prefs.whatsappPhone(), text, id, "AVISO");
+            boolean alone = Boolean.TRUE.equals(d.get("auto_executed"));
+            String agent = AGENT_LABEL.getOrDefault(String.valueOf(d.get("agent")), "Copiloto");
+            String text = alone
+                ? "Feito pelo Copiloto (" + agent + ", dentro dos seus limites): " + d.get("title") + ". " + autoSummary(String.valueOf(d.get("result")))
+                    + " Para desfazer, abra o Copiloto em até 24 horas."
+                : agent + ": " + d.get("title") + ". " + firstLines(String.valueOf(d.get("body")), 2);
+            // Feito sozinho: os botões não aprovam nada (a decisão já foi executada).
+            Sent s = send(marketId, prefs.whatsappPhone(), text, alone ? null : id, alone ? "FEITO" : "AVISO");
             if (!s.ok()) {
                 break;
             }
@@ -365,6 +371,15 @@ public class WhatsAppChannel {
     static String templateParam(String text) {
         String t = text.replaceAll("[\\r\\n\\t]+", " ").replaceAll(" {2,}", " ").replace("•", "-").trim();
         return t.length() > 1024 ? t.substring(0, 1023) + "…" : t;
+    }
+
+    static String autoSummary(String resultJson) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"noPedido\"\\s*:\\s*(\\d+)").matcher(resultJson == null ? "" : resultJson);
+        if (m.find()) {
+            int n = Integer.parseInt(m.group(1));
+            return n + (n == 1 ? " item foi" : " itens foram") + " para o rascunho de pedido.";
+        }
+        return "";
     }
 
     static String firstLines(String body, int n) {

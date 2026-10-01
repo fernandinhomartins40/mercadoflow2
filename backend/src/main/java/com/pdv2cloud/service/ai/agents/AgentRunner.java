@@ -47,6 +47,8 @@ public class AgentRunner {
     private final AiUsageRecorder usage;
     private final NamedParameterJdbcTemplate jdbc;
     private final ObjectMapper mapper = new ObjectMapper();
+    private AutonomyGuard autonomy;
+    private DecisionService decisions;
 
     public AgentRunner(List<CopilotAgent> agents, CopilotSettingsService settings, LessonService lessons, AiGate gate,
                        JevClient jev, AiUsageRecorder usage, NamedParameterJdbcTemplate jdbc) {
@@ -59,7 +61,15 @@ public class AgentRunner {
         this.jdbc = jdbc;
     }
 
-    public record RunResult(int signals, int afterMemory, int jevCalls, int created, int silenced, Map<String, Integer> dropped) {}
+    /** Nível 3 (opcional: sem ele, tudo fica no máximo no nível 2). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAutonomy(AutonomyGuard autonomy, DecisionService decisions) {
+        this.autonomy = autonomy;
+        this.decisions = decisions;
+    }
+
+    public record RunResult(int signals, int afterMemory, int jevCalls, int created, int silenced, Map<String, Integer> dropped,
+                            int autoExecuted) {}
 
     /** Veredito do andar 3. */
     record Verdict(boolean worth, boolean urgent, String source, Double worthProbability, Double confidence) {}
@@ -72,6 +82,7 @@ public class AgentRunner {
         int jevCalls = 0;
         int created = 0;
         int silenced = 0;
+        int auto = 0;
         Map<String, Integer> dropped = new LinkedHashMap<>();
         for (CopilotAgent agent : agents) {
             CopilotSettingsService.AgentSettings cfg = settings.agent(marketId, agent.name());
@@ -102,17 +113,21 @@ public class AgentRunner {
                 }
                 String status = !v.worth() ? "SILENCIADA"
                     : cfg.level() == 0 || !s.actionable() ? "INFORMATIVA" : "PENDENTE";
-                if (insert(marketId, s, cfg.level(), v, status)) {
+                UUID id = insert(marketId, s, cfg.level(), v, status);
+                if (id != null) {
                     if ("SILENCIADA".equals(status)) {
                         silenced++;
                     } else {
                         created++;
                         today++;
+                        if ("PENDENTE".equals(status) && cfg.level() == 3 && actAlone(marketId, id, s, cfg)) {
+                            auto++;
+                        }
                     }
                 }
             }
         }
-        RunResult result = new RunResult(signals, afterMemory, jevCalls, created, silenced, dropped);
+        RunResult result = new RunResult(signals, afterMemory, jevCalls, created, silenced, dropped, auto);
         jdbc.update("insert into ai_agent_runs (market_id, run_trigger, signals, after_memory, jev_calls, created, silenced, detail) "
                 + "values (:m, :t, :s, :a, :j, :c, :x, cast(:d as jsonb))",
             new MapSqlParameterSource().addValue("m", marketId).addValue("t", trigger).addValue("s", signals)
@@ -181,7 +196,34 @@ public class AgentRunner {
         return new Verdict(!confidentNo, isUrgent, "JEV", worth.probability(), worth.confidence());
     }
 
-    private boolean insert(UUID marketId, AgentSignal s, int level, Verdict v, String status) {
+    /**
+     * Nível 3: dentro dos limites, o próprio agente aprova (registrado como
+     * "copiloto"). Fora deles, a decisão fica esperando o sim e o motivo vai
+     * para o funil, à vista do lojista.
+     */
+    private boolean actAlone(UUID marketId, UUID id, AgentSignal s, CopilotSettingsService.AgentSettings cfg) {
+        if (autonomy == null || decisions == null) {
+            return false;
+        }
+        String block = autonomy.blockReason(marketId, s, cfg);
+        if (block != null) {
+            jdbc.update("update ai_decisions set funnel = funnel || jsonb_build_object('autonomia', cast(:r as text)) "
+                + "where market_id = :m and id = :id", new MapSqlParameterSource().addValue("m", marketId).addValue("id", id)
+                .addValue("r", block));
+            return false;
+        }
+        try {
+            decisions.approve(marketId, id, "copiloto:" + s.agent().toLowerCase() + " (nível 3)");
+            jdbc.update("update ai_decisions set auto_executed = true, funnel = funnel || '{\"autonomia\": \"feito sozinho\"}'::jsonb "
+                + "where market_id = :m and id = :id", Map.of("m", marketId, "id", id));
+            return true;
+        } catch (RuntimeException e) {
+            log.warn("Nível 3 não executou a decisão {}: {}", id, e.getMessage());
+            return false;
+        }
+    }
+
+    private UUID insert(UUID marketId, AgentSignal s, int level, Verdict v, String status) {
         Map<String, Object> funnel = new LinkedHashMap<>();
         funnel.put("julgamento", v.source());
         funnel.put("vale", v.worth());
@@ -190,15 +232,15 @@ public class AgentRunner {
             funnel.put("probabilidadeVale", v.worthProbability());
             funnel.put("confianca", v.confidence());
         }
-        int n = jdbc.update("insert into ai_decisions (market_id, agent, kind, scope_key, title, body, numbers, payload, impact, level, "
+        List<UUID> ids = jdbc.queryForList("insert into ai_decisions (market_id, agent, kind, scope_key, title, body, numbers, payload, impact, level, "
                 + "urgent, status, funnel, signal_hash) values (:m, :a, :k, :s, :t, :b, cast(:n as jsonb), cast(:p as jsonb), :i, :l, "
-                + ":u, :st, cast(:f as jsonb), :h) on conflict (market_id, signal_hash) do nothing",
+                + ":u, :st, cast(:f as jsonb), :h) on conflict (market_id, signal_hash) do nothing returning id",
             new MapSqlParameterSource().addValue("m", marketId).addValue("a", s.agent()).addValue("k", s.kind())
                 .addValue("s", s.scopeKey()).addValue("t", s.title().length() > 200 ? s.title().substring(0, 199) + "…" : s.title())
                 .addValue("b", s.body()).addValue("n", json(s.numbers())).addValue("p", json(s.payload()))
                 .addValue("i", s.impact()).addValue("l", level).addValue("u", v.urgent()).addValue("st", status)
-                .addValue("f", json(funnel)).addValue("h", s.hash()));
-        if (n > 0 && !"SILENCIADA".equals(status)) {
+                .addValue("f", json(funnel)).addValue("h", s.hash()), UUID.class);
+        if (!ids.isEmpty() && !"SILENCIADA".equals(status)) {
             // Proposta nova do mesmo assunto substitui a anterior que ninguém decidiu.
             jdbc.update("update ai_decisions set status = 'EXPIRADA', decision_note = 'Substituída por uma proposta mais nova' "
                     + "where market_id = :m and agent = :a and kind = :k and scope_key = :s and status in ('PENDENTE', 'INFORMATIVA') "
@@ -206,7 +248,7 @@ public class AgentRunner {
                 new MapSqlParameterSource().addValue("m", marketId).addValue("a", s.agent()).addValue("k", s.kind())
                     .addValue("s", s.scopeKey()).addValue("h", s.hash()));
         }
-        return n > 0;
+        return ids.isEmpty() ? null : ids.get(0);
     }
 
     private int count(String sql, MapSqlParameterSource p) {

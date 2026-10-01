@@ -111,6 +111,27 @@ public class PromocoesAgent extends RecommendationBundleAgent {
         return out;
     }
 
+    /** Desfaz as aceitações e apaga o rascunho do encarte, se ainda não foi publicado. */
+    @Override
+    public Map<String, Object> undo(UUID marketId, Map<String, Object> payload, Map<String, Object> result, String actor) {
+        Map<String, Object> out = new LinkedHashMap<>(super.undo(marketId, payload, result, actor));
+        Object encarte = result == null ? null : result.get("encarteId");
+        if (encarte != null) {
+            try {
+                UUID id = UUID.fromString(String.valueOf(encarte));
+                if ("DRAFT".equals(art.campaign(marketId, id).status())) {
+                    art.deleteCampaign(marketId, id);
+                    out.put("encarteApagado", true);
+                } else {
+                    out.put("encarteApagado", false);
+                }
+            } catch (RuntimeException e) {
+                out.put("encarteApagado", false);
+            }
+        }
+        return out;
+    }
+
     /** Preço de oferta: desconto sobre o preço atual, em centavos. */
     public static BigDecimal offer(BigDecimal price, BigDecimal discountPercent) {
         return price.multiply(BigDecimal.ONE.subtract(discountPercent.movePointLeft(2))).setScale(2, RoundingMode.HALF_UP);

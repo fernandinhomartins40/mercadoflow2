@@ -18,4 +18,13 @@ public interface CopilotAgent {
     default java.util.Map<String, Object> execute(UUID marketId, java.util.Map<String, Object> payload, String actor) {
         return java.util.Map.of();
     }
+
+    /**
+     * Desfaz o que {@link #execute} fez (até 24 h depois). O padrão não tem nada
+     * a desfazer: o agente só informou ou abriu uma mensagem para o lojista.
+     */
+    default java.util.Map<String, Object> undo(UUID marketId, java.util.Map<String, Object> payload,
+                                               java.util.Map<String, Object> result, String actor) {
+        return java.util.Map.of();
+    }
 }

@@ -39,21 +39,35 @@ public class CopilotSettingsService {
         this.jdbc = jdbc;
     }
 
-    public record AgentSettings(String agent, String label, boolean enabled, int level, int dailyLimit, BigDecimal minImpact) {}
+    /** Agentes que podem agir sozinhos (nível 3): só onde a ação continua revisável e não distorce a medição. */
+    public static final java.util.Set<String> AUTONOMOUS = java.util.Set.of("COMPRAS");
+
+    public record AgentSettings(String agent, String label, boolean enabled, int level, int dailyLimit, BigDecimal minImpact,
+                                Autonomy autonomy) {}
+
+    /** Limites do nível 3: teto por ação e por dia, fornecedores permitidos e quando o lojista aceitou. */
+    public record Autonomy(boolean available, BigDecimal cap, BigDecimal dailyCap, List<String> allowedSuppliers,
+                           java.time.LocalDateTime acceptedAt, String acceptedBy) {}
+
+    public record AutonomyConfig(boolean enabled, BigDecimal maxActionCap) {}
 
     public record Prefs(LocalTime quietStart, LocalTime quietEnd, String whatsappPhone, boolean whatsappOptIn) {}
 
     public List<AgentSettings> agents(UUID marketId) {
         Map<String, AgentSettings> saved = new LinkedHashMap<>();
-        jdbc.query("select agent, enabled, level, daily_limit, min_impact from ai_agent_settings where market_id = :m",
+        jdbc.query("select agent, enabled, level, daily_limit, min_impact, autonomy_cap, autonomy_daily_cap, allowed_suppliers::text as sup, "
+                + "autonomy_accepted_at, autonomy_accepted_by from ai_agent_settings where market_id = :m",
             Map.of("m", marketId), rs -> {
                 String a = rs.getString("agent");
+                java.sql.Timestamp acc = rs.getTimestamp("autonomy_accepted_at");
                 saved.put(a, new AgentSettings(a, AGENTS.getOrDefault(a, a), rs.getBoolean("enabled"), rs.getInt("level"),
-                    rs.getInt("daily_limit"), rs.getBigDecimal("min_impact")));
+                    rs.getInt("daily_limit"), rs.getBigDecimal("min_impact"), new Autonomy(AUTONOMOUS.contains(a),
+                        rs.getBigDecimal("autonomy_cap"), rs.getBigDecimal("autonomy_daily_cap"), suppliers(rs.getString("sup")),
+                        acc == null ? null : acc.toLocalDateTime(), rs.getString("autonomy_accepted_by"))));
             });
         List<AgentSettings> out = new ArrayList<>();
         AGENTS.forEach((a, label) -> out.add(saved.getOrDefault(a, new AgentSettings(a, label, true, a.equals("GERENTE") || a.equals("CENARIOS") ? 1 : 2, 5,
-            BigDecimal.ZERO))));
+            BigDecimal.ZERO, new Autonomy(AUTONOMOUS.contains(a), null, null, List.of(), null, null)))));
         return out;
     }
 
@@ -70,8 +84,35 @@ public class CopilotSettingsService {
         AgentSettings cur = agent(marketId, agent);
         boolean enabled = body.get("enabled") == null ? cur.enabled() : Boolean.parseBoolean(String.valueOf(body.get("enabled")));
         int level = body.get("level") instanceof Number n ? n.intValue() : cur.level();
-        if (level < 0 || level > 2) {
-            throw new IllegalArgumentException("Nível de 0 a 2. Executar sozinho (nível 3) ainda não está disponível.");
+        if (level < 0 || level > 3) {
+            throw new IllegalArgumentException("Nível de 0 a 3.");
+        }
+        BigDecimal cap = body.containsKey("autonomyCap") ? money(body.get("autonomyCap")) : cur.autonomy().cap();
+        BigDecimal dailyCap = body.containsKey("autonomyDailyCap") ? money(body.get("autonomyDailyCap")) : cur.autonomy().dailyCap();
+        List<String> allowed = body.get("allowedSuppliers") instanceof List<?> l
+            ? l.stream().map(String::valueOf).map(String::trim).filter(x -> x.matches("[0-9a-fA-F-]{36}")).distinct().toList()
+            : cur.autonomy().allowedSuppliers();
+        boolean accepting = Boolean.parseBoolean(String.valueOf(body.get("autonomyAccepted")));
+        if (level == 3) {
+            if (!AUTONOMOUS.contains(agent)) {
+                throw new IllegalArgumentException("Este agente não age sozinho: a ação dele depende da loja (preço no caixa, liquidação).");
+            }
+            AutonomyConfig platform = autonomyConfig();
+            if (!platform.enabled()) {
+                throw new IllegalArgumentException("A autonomia ainda não foi liberada pelo MercadoFlow para a sua loja.");
+            }
+            if (cap == null || cap.signum() <= 0 || cap.compareTo(platform.maxActionCap()) > 0) {
+                throw new IllegalArgumentException("Teto por pedido entre R$ 1 e " + platform.maxActionCap().toPlainString().replace('.', ',') + ".");
+            }
+            if (dailyCap == null || dailyCap.compareTo(cap) < 0) {
+                throw new IllegalArgumentException("O teto do dia não pode ser menor que o teto por pedido.");
+            }
+            if (allowed.isEmpty()) {
+                throw new IllegalArgumentException("Escolha pelo menos um fornecedor permitido.");
+            }
+            if (!accepting && cur.autonomy().acceptedAt() == null) {
+                throw new IllegalArgumentException("Confirme que aceita o Copiloto agir sozinho dentro desses limites.");
+            }
         }
         int limit = body.get("dailyLimit") instanceof Number n ? n.intValue() : cur.dailyLimit();
         if (limit < 0 || limit > 50) {
@@ -81,13 +122,85 @@ public class CopilotSettingsService {
         if (min.signum() < 0) {
             throw new IllegalArgumentException("Valor mínimo não pode ser negativo.");
         }
-        jdbc.update("insert into ai_agent_settings (market_id, agent, enabled, level, daily_limit, min_impact, updated_by) "
-                + "values (:m, :a, :e, :l, :d, :v, :u) on conflict (market_id, agent) do update set enabled = excluded.enabled, "
+        // O aceite vale enquanto o nível 3 continuar; sair do nível 3 apaga o aceite (voltar exige aceitar de novo).
+        boolean keepAccept = level == 3 && (accepting || cur.autonomy().acceptedAt() != null);
+        jdbc.update("insert into ai_agent_settings (market_id, agent, enabled, level, daily_limit, min_impact, autonomy_cap, "
+                + "autonomy_daily_cap, allowed_suppliers, autonomy_accepted_at, autonomy_accepted_by, updated_by) "
+                + "values (:m, :a, :e, :l, :d, :v, :c, :dc, cast(:s as jsonb), case when :k then now() end, case when :k then :u end, :u) "
+                + "on conflict (market_id, agent) do update set enabled = excluded.enabled, "
                 + "level = excluded.level, daily_limit = excluded.daily_limit, min_impact = excluded.min_impact, "
+                + "autonomy_cap = excluded.autonomy_cap, autonomy_daily_cap = excluded.autonomy_daily_cap, "
+                + "allowed_suppliers = excluded.allowed_suppliers, "
+                + "autonomy_accepted_at = case when :k then coalesce(ai_agent_settings.autonomy_accepted_at, now()) end, "
+                + "autonomy_accepted_by = case when :k then coalesce(ai_agent_settings.autonomy_accepted_by, :u) end, "
                 + "updated_at = now(), updated_by = excluded.updated_by",
             new MapSqlParameterSource().addValue("m", marketId).addValue("a", agent).addValue("e", enabled)
-                .addValue("l", level).addValue("d", limit).addValue("v", min).addValue("u", actor));
+                .addValue("l", level).addValue("d", limit).addValue("v", min).addValue("c", cap).addValue("dc", dailyCap)
+                .addValue("s", toJson(allowed)).addValue("k", keepAccept).addValue("u", actor));
         return agents(marketId);
+    }
+
+    // ── Autonomia: liberação da plataforma e botão de pausar tudo ─────────────
+
+    public AutonomyConfig autonomyConfig() {
+        List<AutonomyConfig> r = jdbc.query("select enabled, max_action_cap from ai_autonomy_config where id = 1", Map.of(),
+            (rs, i) -> new AutonomyConfig(rs.getBoolean("enabled"), rs.getBigDecimal("max_action_cap")));
+        return r.isEmpty() ? new AutonomyConfig(false, BigDecimal.ZERO) : r.get(0);
+    }
+
+    @Transactional
+    public AutonomyConfig saveAutonomyConfig(Map<String, Object> body, String actor) {
+        AutonomyConfig cur = autonomyConfig();
+        boolean enabled = body.get("enabled") == null ? cur.enabled() : Boolean.parseBoolean(String.valueOf(body.get("enabled")));
+        BigDecimal max = body.containsKey("maxActionCap") ? money(body.get("maxActionCap")) : cur.maxActionCap();
+        if (max == null || max.signum() <= 0) {
+            throw new IllegalArgumentException("Teto máximo por ação maior que zero.");
+        }
+        jdbc.update("update ai_autonomy_config set enabled = :e, max_action_cap = :x, updated_at = now(), updated_by = :u where id = 1",
+            new MapSqlParameterSource().addValue("e", enabled).addValue("x", max).addValue("u", actor));
+        return autonomyConfig();
+    }
+
+    public boolean autonomyPaused(UUID marketId) {
+        List<Boolean> r = jdbc.queryForList("select autonomy_paused from ai_copilot_prefs where market_id = :m", Map.of("m", marketId), Boolean.class);
+        return !r.isEmpty() && Boolean.TRUE.equals(r.get(0));
+    }
+
+    @Transactional
+    public boolean setAutonomyPaused(UUID marketId, boolean paused, String actor) {
+        jdbc.update("insert into ai_copilot_prefs (market_id, autonomy_paused, autonomy_paused_at, autonomy_paused_by, updated_by) "
+                + "values (:m, :p, case when :p then now() end, case when :p then :u end, :u) on conflict (market_id) do update set "
+                + "autonomy_paused = :p, autonomy_paused_at = case when :p then now() end, autonomy_paused_by = case when :p then :u end, "
+                + "updated_at = now(), updated_by = :u",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("p", paused).addValue("u", actor));
+        return autonomyPaused(marketId);
+    }
+
+    private static BigDecimal money(Object v) {
+        if (v == null || String.valueOf(v).isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(String.valueOf(v)).setScale(2, java.math.RoundingMode.HALF_UP);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Valor em reais inválido.");
+        }
+    }
+
+    private static List<String> suppliers(String json) {
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("[0-9a-fA-F-]{36}").matcher(json);
+        while (m.find()) {
+            out.add(m.group());
+        }
+        return out;
+    }
+
+    private static String toJson(List<String> ids) {
+        return ids.stream().map(x -> "\"" + x + "\"").collect(java.util.stream.Collectors.joining(",", "[", "]"));
     }
 
     public Prefs prefs(UUID marketId) {

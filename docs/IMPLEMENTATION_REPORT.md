@@ -562,6 +562,39 @@ nos provedores e vende créditos aos mercados).
     mercado da chave, revogação);
   - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38 e F3b 38/38.
 
+### Ciclo 16 — Copiloto F5: autonomia (nível 3)
+
+- **"Fazer sozinho, dentro dos meus limites"** só para o agente de Compras. Ele monta o rascunho de
+  pedido e avisa; nada é enviado ao fornecedor sem revisão. Os outros agentes vão no máximo ao nível 2:
+  a ação deles depende da loja (preço no caixa, liquidação). Registrar isso sozinho falsearia a
+  medição de resultado e as lições.
+- **Travas.** Todas precisam estar abertas ao mesmo tempo; senão a decisão espera o sim, e o motivo
+  aparece no cartão:
+  1. liberação global no superadmin (começa desligada), com teto máximo por pedido;
+  2. aceite explícito do lojista, com data e autor;
+  3. teto por pedido e teto por dia (soma do que foi feito sozinho e não desfeito);
+  4. todos os itens com fornecedor habitual (o do pedido mais recente do produto) na lista de
+     permitidos;
+  5. botão "Pausar tudo" do lojista.
+
+  Sair do nível 3 apaga o aceite: voltar exige aceitar de novo.
+- **Desfazer em até 24 horas** qualquer decisão aprovada (pelo lojista ou pelo nível 3): as
+  recomendações voltam para a caixa e os itens saem do rascunho. No agente de Promoções, o rascunho do
+  encarte é apagado se ainda não foi publicado.
+- **Rastro:** a aba "Feitas sozinho" e o selo "Feito pelo Copiloto" mostram o que o agente fez. Também
+  ficam registrados o autor (`copiloto:compras (nível 3)`), o resultado e quem desfez. O WhatsApp avisa
+  o que foi feito e como desfazer, com botões que não aprovam nada.
+- **Correção:** o agente de Compras passou a contar como "no pedido" só o que entrou no rascunho. O que
+  foi aceito sem produto ou quantidade aparece à parte.
+- **Migração V67:** `ai_autonomy_config`; nível 0 a 3 e limites em `ai_agent_settings`; pausa em
+  `ai_copilot_prefs`; `auto_executed`, `undone_at` e `undone_by` em `ai_decisions`.
+- **Testes:**
+  - backend 303/303 (5 novos da guarda);
+  - ponta a ponta da F5 25/25: bloqueado sem liberação, recusa sem fornecedor ou sem aceite, pedido
+    feito sozinho, aviso no WhatsApp, desfazer, fornecedor fora da lista, teto, pausa e aceite
+    apagado ao sair;
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38 e F4 31/31.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

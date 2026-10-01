@@ -91,12 +91,16 @@ public class ComprasAgent implements CopilotAgent {
         List<String> ids = (List<String>) payload.getOrDefault("recommendationIds", List.of());
         int linked = 0;
         int needsSupplier = 0;
+        int notLinked = 0;
         int skipped = 0;
         for (String id : ids) {
             try {
                 RecommendationOrderService.DecisionResult r = orders.decide(marketId, UUID.fromString(id),
                     Recommendation.Status.ACEITA, actor, "Aprovado no Copiloto (agente de Compras)", null);
-                if (r.orderLink() != null && r.orderLink().status() == RecommendationOrderService.LinkStatus.NEEDS_SUPPLIER) {
+                if (r.orderLink() == null) {
+                    // Aceita, mas sem produto ou quantidade para o pedido: o comprador inclui à mão.
+                    notLinked++;
+                } else if (r.orderLink().status() == RecommendationOrderService.LinkStatus.NEEDS_SUPPLIER) {
                     needsSupplier++;
                 } else {
                     linked++;
@@ -107,7 +111,29 @@ public class ComprasAgent implements CopilotAgent {
                 skipped++;
             }
         }
-        return Map.of("noPedido", linked, "semFornecedor", needsSupplier, "jaDecididas", skipped);
+        return Map.of("noPedido", linked, "semFornecedor", needsSupplier, "foraDoPedido", notLinked, "jaDecididas", skipped);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> undo(UUID marketId, Map<String, Object> payload, Map<String, Object> result, String actor) {
+        int undone = 0;
+        int kept = 0;
+        for (String id : (List<String>) payload.getOrDefault("recommendationIds", List.of())) {
+            try {
+                RecommendationOrderService.UndoResult r = orders.undo(marketId, UUID.fromString(id), actor);
+                undone++;
+                if (r.orderKept()) {
+                    kept++;
+                }
+            } catch (RuntimeException e) {
+                // Ainda proposta, já medida ou removida: nada a desfazer neste item.
+            }
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("desfeitas", undone);
+        out.put("pedidoMantido", kept);
+        return out;
     }
 
     static BigDecimal decimal(Object v) {

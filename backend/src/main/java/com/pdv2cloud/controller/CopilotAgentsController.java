@@ -100,6 +100,24 @@ public class CopilotAgentsController {
         }
     }
 
+    @PostMapping("/decisions/{id}/undo")
+    public ResponseEntity<?> undo(@PathVariable UUID marketId, @PathVariable UUID id, Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        try {
+            return ResponseEntity.ok(decisions.undo(marketId, id, auth.getName()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /** Botão de pausar tudo: nenhum agente age sozinho enquanto estiver ligado. */
+    @PutMapping("/autonomy/pause")
+    public Map<String, Object> pause(@PathVariable UUID marketId, @RequestBody Map<String, Object> body, Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        boolean paused = settings.setAutonomyPaused(marketId, Boolean.parseBoolean(String.valueOf(body.get("paused"))), auth.getName());
+        return Map.of("pausado", paused);
+    }
+
     @PostMapping("/decisions/{id}/explain")
     public DecisionService.Explanation explain(@PathVariable UUID marketId, @PathVariable UUID id, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
@@ -110,7 +128,7 @@ public class CopilotAgentsController {
     public Map<String, Object> agents(@PathVariable UUID marketId, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
         return Map.of("agentes", settings.agents(marketId), "preferencias", settings.prefs(marketId),
-            "licoes", lessons.all(marketId));
+            "licoes", lessons.all(marketId), "autonomia", settings.autonomyConfig(), "pausado", settings.autonomyPaused(marketId));
     }
 
     @PutMapping("/agents/{agent}")

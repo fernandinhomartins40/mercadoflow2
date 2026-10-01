@@ -105,6 +105,28 @@ abstract class RecommendationBundleAgent implements CopilotAgent {
         return out;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> undo(UUID marketId, Map<String, Object> payload, Map<String, Object> result, String actor) {
+        int undone = 0;
+        int kept = 0;
+        for (String id : (List<String>) payload.getOrDefault("recommendationIds", List.of())) {
+            try {
+                RecommendationOrderService.UndoResult r = orders.undo(marketId, UUID.fromString(id), actor);
+                undone++;
+                if (r.orderKept()) {
+                    kept++;
+                }
+            } catch (RuntimeException e) {
+                // Ainda proposta, já medida ou removida: nada a desfazer neste item.
+            }
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("desfeitas", undone);
+        out.put("pedidoMantido", kept);
+        return out;
+    }
+
     static String pct(Object v) {
         BigDecimal b = ComprasAgent.decimal(v);
         return b.stripTrailingZeros().toPlainString().replace('.', ',') + "%";

@@ -5,6 +5,7 @@ import Layout from '../components/layout/Layout';
 import PageHeader from '../components/layout/PageHeader';
 import { SegmentedTabs } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { useSuppliers } from '../hooks/useSuppliers';
 import {
   copilotAgentsService,
   type CopilotAgentSettings,
@@ -14,6 +15,7 @@ import {
   type CopilotPrefs,
   mcpService,
   type McpKeyRow,
+  type AutonomyConfig,
 } from '../services/aiPlatform.service';
 
 /**
@@ -22,7 +24,7 @@ import {
  * que ele recusa vira lição para o agente não insistir.
  */
 
-type Tab = 'abertas' | 'decididas' | 'silenciadas' | 'agentes';
+type Tab = 'abertas' | 'decididas' | 'sozinho' | 'silenciadas' | 'agentes';
 
 const AGENT: Record<string, { label: string; icon: React.ElementType }> = {
   GERENTE: { label: 'Gerente', icon: Sun },
@@ -38,12 +40,14 @@ const LEVELS = [
   { value: 0, label: 'Só avisar' },
   { value: 1, label: 'Avisar e sugerir' },
   { value: 2, label: 'Deixar pronto para eu aprovar' },
+  { value: 3, label: 'Fazer sozinho, dentro dos meus limites' },
 ];
 
 const REASONS = ['Não preciso agora', 'Valor alto demais', 'Já resolvi', 'Não confio nesse fornecedor'];
 
 const STATUS_LABEL: Record<string, string> = {
   APROVADA: 'Aprovada', RECUSADA: 'Recusada', EXPIRADA: 'Expirou', SILENCIADA: 'Silenciada', INFORMATIVA: 'Aviso', PENDENTE: 'Esperando você',
+  DESFEITA: 'Desfeita',
 };
 
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
@@ -106,6 +110,20 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
     }
   };
 
+  const undo = async () => {
+    if (!window.confirm('Desfazer? Os itens saem do rascunho de pedido e as sugestões voltam para a caixa.')) return;
+    setBusy('undo');
+    setError(null);
+    try {
+      setDone(await copilotAgentsService.undo(marketId, d.id));
+    } catch (e) {
+      setError(apiError(e, 'Não foi possível desfazer.'));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const canUndo = view.status === 'APROVADA' && !!view.decidedAt && Date.now() - new Date(view.decidedAt).getTime() < 24 * 3600 * 1000;
+
   const explain = async () => {
     if (why) { setWhy(null); return; }
     setBusy('why');
@@ -126,6 +144,9 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
         <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />{agent.label}
         </span>
+        {d.autoExecuted && (
+          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-blue-800"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />Feito pelo Copiloto</span>
+        )}
         {d.urgent && (view.status === 'PENDENTE' || view.status === 'INFORMATIVA') && (
           <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-red-800"><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />Urgente</span>
         )}
@@ -148,6 +169,7 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
         <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
           {view.result.noPedido} {view.result.noPedido === 1 ? 'item foi' : 'itens foram'} para o rascunho de pedido.
           {view.result.semFornecedor ? ` ${view.result.semFornecedor} sem fornecedor conhecido: escolha na lista de compras.` : ''}
+          {view.result.foraDoPedido ? ` ${view.result.foraDoPedido} sem quantidade para o pedido: inclua à mão.` : ''}
           {' '}<Link to="/app/lista-compras" className="font-semibold underline">Revisar o pedido</Link>
         </p>
       )}
@@ -164,6 +186,22 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
       )}
       {view.status === 'RECUSADA' && view.decisionNote && (
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Motivo: {view.decisionNote}. O agente não volta a propor isso nos próximos 14 dias.</p>
+      )}
+      {view.status === 'DESFEITA' && (
+        <p role="status" className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>
+          Desfeita: as sugestões voltaram para a caixa e os itens saíram do rascunho de pedido.
+        </p>
+      )}
+      {canUndo && (
+        <div>
+          <button type="button" onClick={undo} disabled={!!busy}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${FOCUS}`} style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+            {busy === 'undo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}Desfazer
+          </button>
+        </div>
+      )}
+      {d.funnel?.autonomia && d.funnel.autonomia !== 'feito sozinho' && d.funnel.autonomia !== 'nivel' && view.status === 'PENDENTE' && (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Não fez sozinho: {d.funnel.autonomia}. Ficou esperando o seu sim.</p>
       )}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
 
@@ -215,14 +253,26 @@ const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onCh
   );
 };
 
-const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; onSaved: (a: CopilotAgentSettings[]) => void }> = ({ marketId, agent, onSaved }) => {
+const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; platform: AutonomyConfig | null; onSaved: (a: CopilotAgentSettings[]) => void }> = ({ marketId, agent, platform, onSaved }) => {
   const [form, setForm] = useState(agent);
+  const [cap, setCap] = useState(agent.autonomy.cap ?? '');
+  const [dailyCap, setDailyCap] = useState(agent.autonomy.dailyCap ?? '');
+  const [allowed, setAllowed] = useState<string[]>(agent.autonomy.allowedSuppliers);
+  const [accept, setAccept] = useState(false);
   const [state, setState] = useState<string | null>(null);
+  const { suppliers } = useSuppliers(form.level === 3 ? marketId : '');
   useEffect(() => setForm(agent), [agent]);
+  const canAlone = agent.autonomy.available && !!platform?.enabled;
   const save = async () => {
     setState('…');
     try {
-      onSaved(await copilotAgentsService.saveAgent(marketId, agent.agent, form));
+      onSaved(await copilotAgentsService.saveAgent(marketId, agent.agent, {
+        enabled: form.enabled, level: form.level, dailyLimit: form.dailyLimit, minImpact: form.minImpact,
+        ...(form.level === 3 ? {
+          autonomyCap: cap === '' ? null : Number(cap), autonomyDailyCap: dailyCap === '' ? null : Number(dailyCap),
+          allowedSuppliers: allowed, autonomyAccepted: accept,
+        } : {}),
+      }));
       setState('Salvo.');
     } catch (e) {
       setState(apiError(e, 'Não foi possível salvar.'));
@@ -239,7 +289,9 @@ const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; onSave
         <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           O que ele pode fazer
           <select value={form.level} onChange={(e) => setForm({ ...form, level: Number(e.target.value) })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
-            {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+            {LEVELS.filter((l) => l.value < 3 || agent.autonomy.available).map((l) => (
+              <option key={l.value} value={l.value} disabled={l.value === 3 && !canAlone}>{l.label}{l.value === 3 && !canAlone ? ' (ainda não liberado)' : ''}</option>
+            ))}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -251,6 +303,45 @@ const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; onSave
           <input type="number" min={0} step={50} value={form.minImpact} onChange={(e) => setForm({ ...form, minImpact: Number(e.target.value) })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
         </label>
       </div>
+      {form.level === 3 && (
+        <fieldset className="flex flex-col gap-3 rounded-xl p-3" style={{ background: 'var(--surface-soft)' }}>
+          <legend className="px-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Limites para fazer sozinho</legend>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            O agente monta o rascunho de pedido sozinho e te avisa. Nada é enviado ao fornecedor: você revisa o rascunho. Pode desfazer em até 24 horas ou pausar tudo a qualquer momento.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+              Teto por pedido (R$){platform ? `, até ${money(platform.maxActionCap)}` : ''}
+              <input type="number" min={1} step={50} value={cap} onChange={(e) => setCap(e.target.value)} className="rounded-lg px-2 py-2"
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+              Teto por dia (R$)
+              <input type="number" min={1} step={50} value={dailyCap} onChange={(e) => setDailyCap(e.target.value)} className="rounded-lg px-2 py-2"
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
+            </label>
+          </div>
+          <div role="group" aria-label="Fornecedores permitidos" className="flex flex-col gap-1.5">
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Só com estes fornecedores (os de sempre)</span>
+            {suppliers.length === 0 && <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum fornecedor cadastrado ainda.</span>}
+            {suppliers.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                <input type="checkbox" className="h-4 w-4 accent-green-700" checked={allowed.includes(s.id)}
+                  onChange={(e) => setAllowed(e.target.checked ? [...allowed, s.id] : allowed.filter((x) => x !== s.id))} />
+                {s.nomeFantasia || s.razaoSocial}
+              </label>
+            ))}
+          </div>
+          {agent.autonomy.acceptedAt ? (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Você aceitou em {when(agent.autonomy.acceptedAt)}.</p>
+          ) : (
+            <label className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+              <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-0.5 h-5 w-5 accent-green-700" />
+              <span>Aceito que o Copiloto monte o rascunho de pedido sozinho dentro desses limites e me avise.</span>
+            </label>
+          )}
+        </fieldset>
+      )}
       <div className="flex items-center gap-3">
         <button type="button" onClick={save} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Salvar</button>
         {state && <span role="status" className="text-sm" style={{ color: 'var(--text-muted)' }}>{state}</span>}
@@ -418,6 +509,9 @@ const Copilot: React.FC = () => {
   const [agents, setAgents] = useState<CopilotAgentSettings[] | null>(null);
   const [prefs, setPrefs] = useState<CopilotPrefs | null>(null);
   const [lessons, setLessons] = useState<CopilotLesson[]>([]);
+  const [platform, setPlatform] = useState<AutonomyConfig | null>(null);
+  const [paused, setPaused] = useState(false);
+  const [anyAlone, setAnyAlone] = useState(false);
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
@@ -428,12 +522,26 @@ const Copilot: React.FC = () => {
       setAgents(r.agentes);
       setPrefs(r.preferencias);
       setLessons(r.licoes);
+      setPlatform(r.autonomia);
+      setPaused(r.pausado);
+      setAnyAlone(r.agentes.some((a) => a.level === 3));
     } else {
       setInbox(await copilotAgentsService.inbox(marketId, tab));
     }
   }, [marketId, tab]);
 
   useEffect(() => { load().catch(() => setNote('Não foi possível carregar o Copiloto.')); }, [load]);
+  useEffect(() => {
+    if (!marketId) return;
+    copilotAgentsService.agents(marketId).then((r) => { setPaused(r.pausado); setAnyAlone(r.agentes.some((a) => a.level === 3)); setPlatform(r.autonomia); }).catch(() => {});
+  }, [marketId]);
+
+  const togglePause = async () => {
+    if (!marketId) return;
+    const r = await copilotAgentsService.pause(marketId, !paused);
+    setPaused(r.pausado);
+    setNote(r.pausado ? 'Pausado: nenhum agente faz nada sozinho até você retomar.' : 'Retomado: os agentes voltam a agir dentro dos seus limites.');
+  };
 
   const check = async () => {
     if (!marketId) return;
@@ -460,11 +568,20 @@ const Copilot: React.FC = () => {
         title="Copiloto"
         subtitle="O que os agentes viram e deixaram pronto. Nada acontece sem o seu sim."
         actions={
+          <>
+          {anyAlone && (
+            <button type="button" onClick={togglePause} aria-pressed={paused}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold ${FOCUS}`}
+              style={paused ? { background: '#b91c1c', color: '#fff' } : { border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}>
+              {paused ? 'Retomar o que ele faz sozinho' : 'Pausar tudo'}
+            </button>
+          )}
           <button type="button" onClick={check} disabled={checking}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-60 ${FOCUS}`}
             style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}>
             <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />Verificar agora
           </button>
+          </>
         }
       />
       <div className="flex flex-col gap-4">
@@ -475,6 +592,7 @@ const Copilot: React.FC = () => {
           tabs={[
             { key: 'abertas', label: 'Para decidir', badge: tab === 'abertas' ? open : undefined },
             { key: 'decididas', label: 'Decididas' },
+            ...(anyAlone ? [{ key: 'sozinho' as Tab, label: 'Feitas sozinho' }] : []),
             { key: 'silenciadas', label: 'Silenciadas' },
             { key: 'agentes', label: 'Agentes' },
           ]}
@@ -510,7 +628,8 @@ const Copilot: React.FC = () => {
           !agents || !prefs ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : (
             <>
               <ul className="flex flex-col gap-3">
-                {agents.map((a) => <AgentRow key={a.agent} marketId={marketId} agent={a} onSaved={setAgents} />)}
+                {agents.map((a) => <AgentRow key={a.agent} marketId={marketId} agent={a} platform={platform}
+                  onSaved={(rows) => { setAgents(rows); setAnyAlone(rows.some((x) => x.level === 3)); }} />)}
               </ul>
               <PrefsCard marketId={marketId} prefs={prefs} />
               <WhatsAppCard marketId={marketId} prefs={prefs} onSaved={setPrefs} />

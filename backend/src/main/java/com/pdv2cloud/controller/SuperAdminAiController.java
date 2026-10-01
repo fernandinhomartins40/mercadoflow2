@@ -32,15 +32,18 @@ public class SuperAdminAiController {
     private final AiPlatformReports reports;
     private final com.pdv2cloud.service.ai.agents.WhatsAppConfigService whatsapp;
     private final com.pdv2cloud.service.ai.agents.WhatsAppChannel channel;
+    private final com.pdv2cloud.service.ai.agents.CopilotSettingsService agentSettings;
 
     public SuperAdminAiController(AiPlatformConfig config, AiWalletService wallets, AiPlatformReports reports,
                                   com.pdv2cloud.service.ai.agents.WhatsAppConfigService whatsapp,
-                                  com.pdv2cloud.service.ai.agents.WhatsAppChannel channel) {
+                                  com.pdv2cloud.service.ai.agents.WhatsAppChannel channel,
+                                  com.pdv2cloud.service.ai.agents.CopilotSettingsService agentSettings) {
         this.config = config;
         this.wallets = wallets;
         this.reports = reports;
         this.whatsapp = whatsapp;
         this.channel = channel;
+        this.agentSettings = agentSettings;
     }
 
     @PutMapping("/routes/{task}/fallbacks/{position}")
@@ -60,6 +63,20 @@ public class SuperAdminAiController {
         int sent = com.pdv2cloud.tenancy.TenantContext.runAsSystem(() -> channel.notify(marketId));
         config.audit(auth.getName(), "WHATSAPP_NOTIFY", marketId + ": " + sent + " mensagens");
         return Map.of("enviadas", sent);
+    }
+
+    /** Autonomia (nível 3): liberação global e teto máximo por ação. */
+    @GetMapping("/autonomy")
+    public com.pdv2cloud.service.ai.agents.CopilotSettingsService.AutonomyConfig autonomy() {
+        return agentSettings.autonomyConfig();
+    }
+
+    @PutMapping("/autonomy")
+    public com.pdv2cloud.service.ai.agents.CopilotSettingsService.AutonomyConfig saveAutonomy(@RequestBody Map<String, Object> body,
+                                                                                            Authentication auth) {
+        var saved = agentSettings.saveAutonomyConfig(body, auth.getName());
+        config.audit(auth.getName(), "AUTONOMY_SAVE", (saved.enabled() ? "liberada" : "desligada") + ", teto " + saved.maxActionCap());
+        return saved;
     }
 
     /** WhatsApp: modelo de mensagem e webhook (o segredo do app nunca volta, só os 4 últimos dígitos). */

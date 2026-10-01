@@ -342,6 +342,43 @@ const RouteRow: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; onSaved: (
   );
 };
 
+// ── Autonomia (nível 3) ────────────────────────────────────────────────
+
+const AutonomyCard: React.FC = () => {
+  const [cfg, setCfg] = useState<{ enabled: boolean; maxActionCap: number } | null>(null);
+  const [cap, setCap] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { aiAdminService.autonomy().then((c) => { setCfg(c); setCap(String(c.maxActionCap)); }).catch(() => {}); }, []);
+  const save = async (enabled?: boolean) => {
+    try {
+      const c = await aiAdminService.saveAutonomy({ enabled: enabled ?? cfg?.enabled, maxActionCap: Number(cap) });
+      setCfg(c);
+      setMsg({ ok: true, text: 'Salvo.' });
+    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível salvar.') }); }
+  };
+  if (!cfg) return null;
+  return (
+    <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="autonomy-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="autonomy-title" className="text-base font-semibold text-slate-900">Autonomia dos agentes (nível 3)</h2>
+          <p className="text-sm text-slate-600">Liberada, o lojista pode deixar o agente de Compras montar o rascunho de pedido sozinho, dentro do teto e dos fornecedores que ele escolher. Nada é enviado ao fornecedor sem revisão, e tudo pode ser desfeito em 24 horas.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-semibold ${cfg.enabled ? 'text-green-700' : 'text-slate-500'}`}>{cfg.enabled ? 'Liberada' : 'Desligada'}</span>
+          <Toggle on={cfg.enabled} onChange={(v) => save(v)} label="Liberar a autonomia dos agentes" />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1"><span className={LABEL}>Teto máximo por pedido (R$)</span>
+          <input className={INPUT} type="number" min={1} step={50} value={cap} onChange={(e) => setCap(e.target.value)} /></label>
+        <Button variant="secondary" onClick={() => save()}><Save className="h-4 w-4" />Salvar teto</Button>
+        <Msg msg={msg} />
+      </div>
+    </section>
+  );
+};
+
 // ── Cadeia de reserva de modelos ───────────────────────────────────────
 
 const FallbackRow: React.FC<{ f: AiFallbackRow; onSaved: (rows: AiFallbackRow[]) => void }> = ({ f, onSaved }) => {
@@ -802,6 +839,7 @@ const SuperAdminAi: React.FC = () => {
             {tab === 'geral' && (<>
               <StatusCard data={data} usage={usage} onSettings={(s) => patch({ settings: s })} />
               <BudgetCard key="orcamento" settings={data.settings} onSaved={(s) => patch({ settings: s })} />
+              <AutonomyCard />
             </>)}
             {tab === 'chaves' && data.providers.map((p) => (
               <ProviderCard key={p.provider} p={p} encryptionReady={data.settings.encryptionReady} onChange={(rows) => patch({ providers: rows })} />
