@@ -39,7 +39,7 @@ public class AiPlatformConfig {
         "DEEPGRAM", List.of("https://api.deepgram.com"),
         "WHATSAPP", List.of("https://graph.facebook.com"));
 
-    public static final Set<String> LAYERS = Set.of("TEMPLATE", "JEV", "FLASH", "PRO");
+    public static final Set<String> LAYERS = Set.of("TEMPLATE", "JEV", "FLASH", "PRO", "VOZ");
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AiCredentialCipher cipher;
@@ -185,7 +185,8 @@ public class AiPlatformConfig {
     /** Endereço usado de fato: o do cadastro, ou o simulador em teste local (ver {@link AiDevMock}). */
     static String effectiveBase(String provider, String base) {
         String mock = AiDevMock.baseUrl();
-        return mock != null && ("DEEPSEEK".equals(provider) || "OPENROUTER".equals(provider) || "JEV".equals(provider)) ? mock : base;
+        return mock != null && ("DEEPSEEK".equals(provider) || "OPENROUTER".equals(provider) || "JEV".equals(provider)
+            || "DEEPGRAM".equals(provider)) ? mock : base;
     }
 
     /** Saldo da conta DeepSeek (GET /user/balance), para o alerta de saldo baixo. */

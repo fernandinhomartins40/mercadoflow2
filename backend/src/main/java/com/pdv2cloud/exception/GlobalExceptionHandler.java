@@ -71,7 +71,8 @@ public class GlobalExceptionHandler {
         org.springframework.http.converter.HttpMessageNotReadableException.class,
         org.springframework.web.bind.MissingRequestHeaderException.class,
         org.springframework.web.bind.MissingServletRequestParameterException.class,
-        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class
+        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+        org.springframework.web.HttpMediaTypeNotSupportedException.class
     })
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception ex) {
         log.debug("Requisicao invalida: {}", ex.getMessage());

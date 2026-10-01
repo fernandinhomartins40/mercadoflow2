@@ -33,7 +33,7 @@ const PROVIDER_INFO: Record<string, { name: string; use: string; keyUrl: string 
   WHATSAPP: { name: 'WhatsApp Business', use: 'Canal de mensagens dos agentes', keyUrl: 'https://business.facebook.com' },
 };
 
-const LAYER_LABEL: Record<string, string> = { TEMPLATE: 'Texto pronto', JEV: 'Jev', FLASH: 'Flash', PRO: 'Pro' };
+const LAYER_LABEL: Record<string, string> = { TEMPLATE: 'Texto pronto', JEV: 'Jev', FLASH: 'Flash', PRO: 'Pro', VOZ: 'Voz' };
 
 const Toggle: React.FC<{ on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }> = ({ on, onChange, label, disabled }) => (
   <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}

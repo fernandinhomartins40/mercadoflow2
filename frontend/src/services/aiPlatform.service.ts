@@ -35,7 +35,7 @@ export interface AiSettingsRow {
 export interface AiRouteRow {
   task: string;
   label: string;
-  layer: 'TEMPLATE' | 'JEV' | 'FLASH' | 'PRO';
+  layer: 'TEMPLATE' | 'JEV' | 'FLASH' | 'PRO' | 'VOZ';
   provider: string | null;
   model: string | null;
   maxContextTokens: number;
@@ -135,4 +135,12 @@ export const copilotService = {
   brief: async (marketId: string): Promise<DailyBrief> => (await api.get(`/v1/markets/${marketId}/copilot/brief`)).data,
   refreshBrief: async (marketId: string): Promise<DailyBrief> =>
     (await api.post(`/v1/markets/${marketId}/copilot/brief/refresh`, {})).data,
+  /** Reserva paga: transcrição do áudio no servidor (o áudio não é guardado). */
+  transcribe: async (marketId: string, audio: Blob): Promise<{ ok: boolean; texto: string | null; aviso: string | null; creditosUsados: number }> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/voice/transcribe`, audio, {
+      headers: { 'Content-Type': (audio.type || 'audio/webm').split(';')[0] }, timeout: 45000,
+    })).data,
+  /** Comando que a lista fixa não reconheceu: o Jev escolhe a ação da tela. */
+  command: async (marketId: string, contexto: 'CONFERENCIA' | 'RESUMO', texto: string): Promise<{ acao: string | null; confianca: number; origem: string }> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/voice/command`, { contexto, texto }, { timeout: 8000 })).data,
 };

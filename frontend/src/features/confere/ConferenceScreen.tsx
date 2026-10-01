@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, ClipboardCheck, EyeOff, List, Minus, MoreVertical, PackageCheck, Plus,
+  AlertTriangle, ArrowLeft, ArrowRight, Check, ClipboardCheck, EyeOff, List, Mic, MicOff, Minus, MoreVertical, PackageCheck, Plus,
   RotateCcw, ScanBarcode, Send, TrendingUp, X,
 } from 'lucide-react';
 import { confereService } from '../../services/confere.service';
+import { copilotService } from '../../services/aiPlatform.service';
+import { useVoice } from '../../hooks/useVoice';
+import { parseConference, type ConferenceAction, type VoiceCommand } from '../../utils/voiceCommands';
 import type { ConfereDocument, ConfereItem, ItemCount, ItemIssue } from '../../types/confere.types';
 import Scanner from './Scanner';
 import { Stepper } from './ui';
@@ -116,6 +119,11 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const advanceTimer = useRef<ReturnType<typeof setTimeout>>();
   const touch = useRef<{ x: number; y: number } | null>(null);
+  const voiceHandler = useRef<(text: string) => void>(() => {});
+  // Mãos livres: com o reconhecimento do navegador, fica ouvindo até desligar.
+  const voice = useVoice({ marketId, continuous: true, onText: (t) => voiceHandler.current(t) });
+  const stopVoice = voice.stop;
+  useEffect(() => { if (phase !== 'contar' || mode !== 'passo') stopVoice(); }, [phase, mode, stopVoice]);
   countsRef.current = counts;
   blindRef.current = blind;
 
@@ -464,6 +472,65 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
     }
   };
 
+  // ── Voz: comandos lidos no aparelho; o Jev só escolhe a ação quando a lista não reconhece ──
+  const applyVoice = (cmd: VoiceCommand<ConferenceAction>) => {
+    if (!item) return;
+    const current = c?.counted ?? 0;
+    const round = (v: number) => Math.round(v * 1000) / 1000;
+    const heard = `"${cmd.texto}"`;
+    switch (cmd.acao) {
+      case 'somar': {
+        const total = round(current + (cmd.numero ?? 1));
+        update(item.number, { counted: total });
+        setToast(`${heard}: +${qtyFmt(cmd.numero ?? 1)}, total ${qtyFmt(total)}`);
+        break;
+      }
+      case 'tirar': {
+        const total = Math.max(0, round(current - (cmd.numero ?? 1)));
+        update(item.number, { counted: total });
+        setToast(`${heard}: -${qtyFmt(cmd.numero ?? 1)}, total ${qtyFmt(total)}`);
+        break;
+      }
+      case 'definir':
+        if (cmd.numero == null) { setToast(`${heard}: diga o número, ex.: "contei doze"`); break; }
+        update(item.number, { counted: cmd.numero });
+        setToast(`${heard}: contados ${qtyFmt(cmd.numero)}`);
+        break;
+      case 'veio_certo':
+        if (blind) { setToast('Na conferência cega, diga quanto contou.'); break; }
+        confirmExpected();
+        setToast(`${heard}: veio certo`);
+        break;
+      case 'avaria':
+      case 'validade':
+      case 'trocado': {
+        const key = cmd.acao === 'avaria' ? 'AVARIA' : cmd.acao === 'validade' ? 'VALIDADE' : 'TROCADO';
+        update(item.number, { issue: key as ItemIssue, counted: c?.counted ?? null });
+        setToast(`${heard}: ${ISSUES.find((x) => x.key === key)?.label} marcado`);
+        break;
+      }
+      case 'proximo': next(); break;
+      case 'anterior': if (safeIndex > 0) setIndex(safeIndex - 1); break;
+      case 'revisar': voice.stop(); setPhase('revisar'); break;
+      default: break;
+    }
+  };
+
+  const onVoiceText = async (text: string) => {
+    const local = parseConference(text);
+    if (local) { applyVoice(local); return; }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) { setToast(`Não entendi "${text}".`); return; }
+    try {
+      const r = await copilotService.command(marketId, 'CONFERENCIA', text);
+      if (r.acao) applyVoice({ acao: r.acao as ConferenceAction, numero: null, texto: text });
+      else setToast(`Não entendi "${text}". Ex.: "mais dois", "contei doze", "avaria", "próximo".`);
+    } catch {
+      setToast(`Não entendi "${text}".`);
+    }
+  };
+
+  voiceHandler.current = onVoiceText;
+
   return (
     <div className="flex h-[100dvh] flex-col">
       {header(1, (
@@ -582,6 +649,14 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
         </main>
       )}
 
+      {(voice.listening || voice.busy || voice.error) && (
+        <p className="shrink-0 px-4 pt-1 text-center text-base font-semibold text-[#34443B]" role="status">
+          {voice.error ?? (voice.busy ? 'Entendendo…' : voice.mode === 'servidor'
+            ? 'Gravando: fale e toque no microfone para enviar.'
+            : 'Ouvindo: "mais dois", "contei doze", "veio certo", "avaria", "próximo".')}
+        </p>
+      )}
+
       {/* Barra de ações no alcance do polegar */}
       <nav className="shrink-0 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2" aria-label="Ações da conferência">
         <div className="lg-bar flex items-center gap-2 rounded-[28px] p-2">
@@ -589,18 +664,25 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
             <button type="button" aria-label="Item anterior" disabled={safeIndex === 0} onClick={() => setIndex(safeIndex - 1)}
               className="lg-soft flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] disabled:opacity-40"><ArrowLeft className="h-7 w-7" /></button>
           )}
-          <button type="button" onClick={() => setScanning(true)}
-            className="lg-soft flex h-14 flex-1 items-center justify-center gap-2 rounded-[20px] text-lg font-bold">
-            <ScanBarcode className="h-6 w-6" />Bipar
+          {voice.mode !== 'nenhum' && mode === 'passo' && (
+            <button type="button" onClick={voice.toggle} disabled={voice.busy} aria-pressed={voice.listening}
+              aria-label={voice.listening ? 'Desligar comandos de voz' : 'Ligar comandos de voz'}
+              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] ${voice.listening ? 'lg-tinted [--tint:#b91c1c]' : 'lg-soft'}`}>
+              {voice.listening ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
+            </button>
+          )}
+          <button type="button" onClick={() => setScanning(true)} aria-label="Bipar"
+            className="lg-soft flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-[20px] text-lg font-bold">
+            <ScanBarcode className="h-6 w-6 shrink-0" /><span className="max-[359px]:hidden">Bipar</span>
           </button>
           {mode === 'passo' && !last ? (
             <button type="button" onClick={next}
-              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
+              className="flex h-14 min-w-0 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
               Próximo<ArrowRight className="h-6 w-6" />
             </button>
           ) : (
             <button type="button" onClick={() => setPhase('revisar')}
-              className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
+              className="flex h-14 min-w-0 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
               Revisar<ArrowRight className="h-6 w-6" />
             </button>
           )}

@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
+import { speak, stopSpeaking, useVoice } from '../hooks/useVoice';
 import {
   dataChatService, ChatMessage, DemoAnswer, CONSULTA_LABEL,
 } from '../services/dataChat.service';
 import {
-  MessageSquare, Send, Loader2, Sparkles, Database, AlertTriangle, Settings,
+  MessageSquare, Send, Loader2, Sparkles, Database, AlertTriangle, Settings, Mic, Square,
 } from 'lucide-react';
 
 /**
@@ -28,6 +29,7 @@ const DataChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const [params, setParams] = useSearchParams();
 
   useEffect(() => {
     if (!marketId) return;
@@ -51,8 +53,9 @@ const DataChat: React.FC = () => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
-  const send = useCallback(async (question: string) => {
+  const send = useCallback(async (question: string, byVoice = false) => {
     if (!marketId || !question.trim() || sending) return;
+    stopSpeaking();
 
     const historyForBackend = messages;
     setMessages(prev => [...prev, { autor: 'usuario', texto: question.trim() }]);
@@ -61,6 +64,8 @@ const DataChat: React.FC = () => {
 
     try {
       const res = await dataChatService.ask(marketId, question.trim(), historyForBackend);
+      // Perguntou falando, ouve a resposta (voz do próprio aparelho, sem custo).
+      if (byVoice) speak(res.sucesso ? res.resposta || '' : res.erro || 'Não consegui responder agora.');
       setMessages(prev => [...prev, res.sucesso
         ? {
           autor: 'assistente',
@@ -82,6 +87,19 @@ const DataChat: React.FC = () => {
       setSending(false);
     }
   }, [marketId, messages, sending]);
+
+  // Aperte para falar: a frase reconhecida vira a pergunta e a resposta sai falada.
+  const voice = useVoice({ marketId, onText: (text) => send(text, true) });
+
+  // Pergunta vinda de outra tela (ex.: respondida por voz no resumo do dia).
+  useEffect(() => {
+    const q = params.get('q');
+    if (!q || available === null) return;
+    const byVoice = params.get('voz') === '1';
+    setParams({}, { replace: true });
+    send(q, byVoice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available]);
 
   /* ─── Plano gratuito: demonstração com dados reais ─── */
   if (demo) {
@@ -306,6 +324,12 @@ const DataChat: React.FC = () => {
           <div ref={endRef} />
         </div>
 
+        {(voice.listening || voice.error) && (
+          <p className="text-sm" role="status" style={{ color: voice.error ? '#b91c1c' : 'var(--text-muted)' }}>
+            {voice.error ?? (voice.mode === 'servidor' ? 'Gravando… toque de novo para enviar.' : 'Ouvindo… pode falar.')}
+          </p>
+        )}
+
         {/* Campo de pergunta */}
         <form
           onSubmit={e => { e.preventDefault(); send(input); }}
@@ -325,6 +349,22 @@ const DataChat: React.FC = () => {
               color: 'var(--text-primary)',
             }}
           />
+          {voice.mode !== 'nenhum' && (
+            <button
+              type="button"
+              onClick={voice.toggle}
+              disabled={sending || voice.busy || available === null}
+              aria-pressed={voice.listening}
+              aria-label={voice.listening ? 'Parar de ouvir' : 'Perguntar falando'}
+              title={voice.mode === 'servidor' ? 'Perguntar falando (usa créditos de IA)' : 'Perguntar falando'}
+              className="flex items-center justify-center rounded-lg px-3 py-2.5 transition disabled:opacity-50"
+              style={voice.listening
+                ? { background: '#b91c1c', color: '#fff' }
+                : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
+            >
+              {voice.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : voice.listening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
           <button
             type="submit"
             disabled={sending || !input.trim()}

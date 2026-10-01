@@ -418,6 +418,29 @@ nos provedores e vende créditos aos mercados).
 - **Testes:** backend 267/267 (10 novos); ponta a ponta da F1 15/15 (resumo, texto pronto com 0 crédito,
   análise indo ao modelo); regressão da F0 34/34.
 
+### Ciclo 12 — Copiloto F2: voz
+
+- **Padrão grátis, no aparelho:** reconhecimento de fala e voz do próprio navegador (pt-BR). Os comandos
+  são lidos por código no celular (`utils/voiceCommands.ts`), inclusive números por extenso ("vinte e
+  três", "meia dúzia", "quatro vírgula cinco"); funciona sem sinal.
+- **Chat:** botão "Perguntar falando"; pergunta feita por voz tem a resposta falada.
+- **Resumo do dia:** botão "Responder falando": "detalhe" abre a Central, "depois" encerra, "repete" lê
+  de novo e frase longa vira pergunta no chat, já respondida em voz.
+- **Confere, mãos livres na contagem:** microfone na barra do polegar; fica ouvindo até desligar.
+  "Mais dois", "menos um", "contei doze", "veio certo", "avaria", "validade", "trocado", "próximo",
+  "volta", "terminei". O microfone desliga sozinho fora da contagem.
+- **Jev só como reserva:** frase que a lista fixa não reconhece vai ao Jev (rota `JEV_COMANDO_VOZ`), que
+  escolhe entre as ações daquela tela ou "nenhuma"; nunca lê número; abaixo do limite de confiança, nada
+  acontece e a tela pede para repetir.
+- **Transcrição paga (Deepgram):** só quando o navegador não tem reconhecimento de fala. O app grava
+  até 1 minuto, o servidor transcreve (rota `VOZ_TRANSCRICAO`, camada nova "Voz", 1 crédito) e o áudio
+  não é guardado. Na camada Voz, os "tokens de entrada" do registro de uso são segundos de áudio.
+- **Migração V63:** as duas rotas novas, editáveis no painel IA e APIs.
+- **Correção:** requisição com formato não suportado passa a responder 400 em vez de 500.
+- **Testes:** backend 273/273 (13 novos de voz e texto pronto); leitor de comandos 34/34; ponta a ponta
+  da voz 32/32 (chat, resumo, conferência, Jev, transcrição paga com gravação real do navegador);
+  conferência com microfone sem rolagem em 320, 360 e 390 px (24/24); F0 34/34 e F1 15/15.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Pause, RefreshCw, Volume2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Loader2, Mic, Pause, RefreshCw, Square, Volume2 } from 'lucide-react';
 import { copilotService, type DailyBrief } from '../../services/aiPlatform.service';
+import { canSpeak as speechAvailable, speak, stopSpeaking, useVoice } from '../../hooks/useVoice';
+import { parseBrief, type BriefAction } from '../../utils/voiceCommands';
 
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-500)] focus-visible:ring-offset-2';
 
-const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
+const canSpeak = speechAvailable();
 
 /**
  * Resumo do dia do Copiloto: texto pronto gerado toda manhã (sem custo de IA),
@@ -15,6 +17,32 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [heard, setHeard] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const act = (action: BriefAction | null, text: string) => {
+    if (action === 'detalhe') navigate('/app/inteligencia');
+    else if (action === 'depois') { stopSpeaking(); setHeard('Combinado, fica para depois.'); }
+    else if (action === 'repetir' && brief) { setSpeaking(true); speak(brief.text, () => setSpeaking(false)); }
+    else if (action === 'pergunta') navigate(`/app/perguntar?voz=1&q=${encodeURIComponent(text)}`);
+    else setHeard(`Não entendi "${text}". Diga "detalhe", "depois", "repete" ou faça uma pergunta.`);
+  };
+
+  // Responder falando: a lista fixa resolve no aparelho; só o que ela não reconhece vai ao Jev.
+  const voice = useVoice({
+    marketId,
+    onText: async (text) => {
+      setHeard(null);
+      const local = parseBrief(text);
+      if (local || !marketId) { act(local?.acao ?? null, text); return; }
+      try {
+        const r = await copilotService.command(marketId, 'RESUMO', text);
+        act((r.acao as BriefAction | null) ?? null, text);
+      } catch {
+        act(null, text);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!marketId) return;
@@ -30,19 +58,12 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
   const listen = () => {
     if (!canSpeak) return;
     if (speaking) {
-      window.speechSynthesis.cancel();
+      stopSpeaking();
       setSpeaking(false);
       return;
     }
-    const u = new SpeechSynthesisUtterance(brief.text);
-    u.lang = 'pt-BR';
-    const voice = window.speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith('pt'));
-    if (voice) u.voice = voice;
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
     setSpeaking(true);
+    speak(brief.text, () => setSpeaking(false));
   };
 
   const refresh = async () => {
@@ -76,6 +97,21 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
               {speaking ? 'Parar' : 'Ouvir'}
             </button>
           )}
+          {voice.mode !== 'nenhum' && (
+            <button
+              type="button"
+              onClick={() => { setSpeaking(false); voice.toggle(); }}
+              disabled={voice.busy}
+              className={`flex h-10 w-10 items-center justify-center rounded-full ${FOCUS}`}
+              style={voice.listening ? { background: '#b91c1c', color: '#fff' } : { color: 'var(--brand-700)' }}
+              aria-pressed={voice.listening}
+              aria-label={voice.listening ? 'Parar de ouvir' : 'Responder falando'}
+              title="Responder falando: detalhe, depois, repete ou uma pergunta"
+            >
+              {voice.busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                : voice.listening ? <Square className="h-4 w-4" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={refresh}
@@ -92,6 +128,11 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
       <p className="mt-2 whitespace-pre-line text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
         {brief.text}
       </p>
+      {(voice.listening || voice.error || heard) && (
+        <p className="mt-2 text-sm" role="status" style={{ color: voice.error ? '#b91c1c' : 'var(--text-muted)' }}>
+          {voice.error ?? (voice.listening ? 'Ouvindo… diga "detalhe", "depois", "repete" ou pergunte.' : heard)}
+        </p>
+      )}
       {brief.items.length > 0 && (
         <p className="mt-2 text-sm">
           <Link to="/app/inteligencia" className={`font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
