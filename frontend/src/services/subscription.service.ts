@@ -500,7 +500,13 @@ export interface BillingStatus {
   checkoutEnabled: boolean;
   essencialAvailable: boolean;
   profissionalAvailable: boolean;
+  /** Cartão pelo Stripe; Pix e boleto pelo Asaas. */
+  cardEnabled?: boolean;
+  pixEnabled?: boolean;
+  boletoEnabled?: boolean;
 }
+
+export type PaymentMethod = 'PIX' | 'BOLETO' | 'CARTAO';
 
 const getBillingStatus = async (marketId: string): Promise<BillingStatus> => {
   const { data } = await api.get<BillingStatus>(`/v1/markets/${marketId}/billing/status`);
@@ -508,11 +514,24 @@ const getBillingStatus = async (marketId: string): Promise<BillingStatus> => {
 };
 
 /** Devolve a URL do Checkout do Stripe para redirecionar o cliente. */
-const startCheckout = async (marketId: string, plan: PlanCode): Promise<string> => {
+const startCheckout = async (marketId: string, plan: PlanCode, method: PaymentMethod = 'CARTAO'): Promise<string> => {
   const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/checkout`, {
     plan,
+    method,
   });
   return data.url;
+};
+
+/** Fatura em aberto (Pix/boleto) ou portal do cartão. */
+const openPayment = async (marketId: string): Promise<string> => {
+  const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/pay`);
+  return data.url;
+};
+
+/** Cancela a assinatura por Pix/boleto no fim do período pago. */
+const cancelSubscription = async (marketId: string): Promise<void> => {
+  await api.post(`/v1/markets/${marketId}/billing/cancel`);
+  window.dispatchEvent(new Event(SUBSCRIPTION_CHANGED));
 };
 
 /** Portal do Stripe: trocar cartão, mudar de plano ou cancelar. */
@@ -537,6 +556,8 @@ export interface MarketSubscription {
   paymentMethod?: string | null;
   currentPeriodEnd?: string | null;
   cancelAtPeriodEnd: boolean;
+  pendingPlan?: PlanCode | null;
+  pendingInvoiceUrl?: string | null;
   daysLeft?: number | null;
   bannerTone?: 'INFO' | 'WARNING' | 'DANGER' | null;
   bannerMessage?: string | null;
@@ -610,6 +631,8 @@ export default {
   getMarketUsage,
   getBillingStatus,
   startCheckout,
+  openPayment,
+  cancelSubscription,
   openBillingPortal,
   getPublicPlans,
   getSubscription,

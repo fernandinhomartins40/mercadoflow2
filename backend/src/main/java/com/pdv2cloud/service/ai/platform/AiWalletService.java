@@ -33,6 +33,14 @@ public class AiWalletService {
     private final NamedParameterJdbcTemplate jdbc;
     private final SecureRandom random = new SecureRandom();
 
+    /** Com o Asaas ligado, o Pix sai com QR dele e o aviso de pagamento confirma sozinho. */
+    private com.pdv2cloud.service.billing.AsaasService asaas;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAsaas(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.AsaasService asaas) {
+        this.asaas = asaas;
+    }
+
     public AiWalletService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -150,14 +158,21 @@ public class AiWalletService {
     public Order createPixOrder(UUID marketId, UUID planId) {
         Plan plan = plans(true).stream().filter(p -> p.id().equals(planId)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Pacote indisponível"));
+        boolean gateway = asaas != null && asaas.enabled();
         String pixKey = jdbc.queryForObject("select pix_key from confere_settings where id = 'default'", Map.of(), String.class);
-        if (pixKey == null) {
+        if (pixKey == null && !gateway) {
             throw new IllegalArgumentException("Pagamento por Pix ainda não está disponível");
         }
         UUID id = UUID.randomUUID();
         jdbc.update("insert into ai_orders (id, market_id, plan_id, credits, amount_cents, txid) values (:id, :m, :p, :c, :a, :t)",
             new MapSqlParameterSource().addValue("id", id).addValue("m", marketId).addValue("p", plan.id())
                 .addValue("c", plan.credits()).addValue("a", plan.priceCents()).addValue("t", txid()));
+        if (gateway) {
+            var charge = asaas.pixCharge(marketId, plan.priceCents(), plan.name() + " — créditos de IA MercadoFlow", "ai:" + id);
+            jdbc.update("update ai_orders set provider_payment_id = :p, provider_pix_payload = :x, provider_invoice_url = :u where id = :id",
+                new MapSqlParameterSource().addValue("id", id).addValue("p", charge.paymentId()).addValue("x", charge.pixPayload())
+                    .addValue("u", charge.invoiceUrl()));
+        }
         return order(marketId, id);
     }
 
@@ -168,7 +183,10 @@ public class AiWalletService {
             (rs, i) -> {
                 String payload = null;
                 String qr = null;
-                if ("PENDING".equals(rs.getString("status")) && s.get("pix_key") != null) {
+                if ("PENDING".equals(rs.getString("status")) && rs.getString("provider_pix_payload") != null) {
+                    payload = rs.getString("provider_pix_payload");
+                    qr = PixCode.qrPngBase64(payload);
+                } else if ("PENDING".equals(rs.getString("status")) && s.get("pix_key") != null) {
                     payload = PixCode.payload((String) s.get("pix_key"),
                         s.get("pix_merchant_name") == null ? "MERCADOFLOW" : (String) s.get("pix_merchant_name"),
                         s.get("pix_merchant_city") == null ? "BRASIL" : (String) s.get("pix_merchant_city"),
@@ -207,6 +225,18 @@ public class AiWalletService {
         }
         int credits = ((Number) rows.get(0).get("credits")).intValue();
         credit((UUID) rows.get(0).get("market_id"), credits, "PURCHASE", orderId.toString(), "Compra de " + credits + " créditos de IA (Pix)");
+    }
+
+    /** Aviso de pagamento do Asaas: credita se ainda estava pendente (aviso repetido não credita de novo). */
+    @Transactional
+    public boolean markPaidByGateway(UUID orderId) {
+        int pending = jdbc.queryForObject("select count(*) from ai_orders where id = :id and status = 'PENDING'",
+            Map.of("id", orderId), Integer.class);
+        if (pending == 0) {
+            return false;
+        }
+        markPaid(orderId, "asaas");
+        return true;
     }
 
     @Transactional

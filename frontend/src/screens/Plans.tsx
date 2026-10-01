@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/layout/Layout';
-import { AlertTriangle, Bell, Check, Clock, CreditCard, ExternalLink, Sparkles } from 'lucide-react';
+import { AlertTriangle, Barcode, Bell, Check, Clock, CreditCard, ExternalLink, QrCode, Sparkles } from 'lucide-react';
 import subscriptionService, {
   AppNotice,
   BillingStatus,
   MarketSubscription,
   MarketUsage,
+  PaymentMethod,
   PlanCode,
   PlanDescriptor,
   formatLimit,
@@ -22,6 +23,21 @@ import { useAuth } from '../context/AuthContext';
 
 const fmt = (v?: number | null) => new Intl.NumberFormat('pt-BR').format(Number(v || 0));
 
+/** Frase do servidor quando ela existe (as rotas de cobrança devolvem { error: "frase" }). */
+const reason = (err: any, fallback: string) => {
+  const data = err?.response?.data;
+  if (typeof data?.userMessage === 'string') return data.userMessage;
+  if (typeof data?.error === 'string' && data.error.includes(' ')) return data.error;
+  return fallback;
+};
+
+const METHOD_LABEL: Record<PaymentMethod, string> = { PIX: 'Pix', BOLETO: 'Boleto', CARTAO: 'Cartão' };
+const METHOD_ICON: Record<PaymentMethod, React.ReactNode> = {
+  PIX: <QrCode size={14} />,
+  BOLETO: <Barcode size={14} />,
+  CARTAO: <CreditCard size={14} />,
+};
+
 const Plans: React.FC = () => {
   const { marketId } = useAuth();
   const [plans, setPlans] = useState<PlanDescriptor[]>([]);
@@ -34,6 +50,9 @@ const Plans: React.FC = () => {
   const [notices, setNotices] = useState<AppNotice[]>([]);
   const [trialing, setTrialing] = useState<PlanCode | null>(null);
   const [trialNotice, setTrialNotice] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState<PlanCode | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   // Volta do pagamento: o plano só muda quando o pagamento é confirmado (webhook), então o aviso diz isso.
   const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
   const checkoutNotice = checkoutResult === 'sucesso'
@@ -69,16 +88,44 @@ const Plans: React.FC = () => {
     };
   }, [marketId]);
 
-  const subscribe = async (plan: PlanCode) => {
+  const subscribe = async (plan: PlanCode, method: PaymentMethod) => {
     if (!marketId) return;
     setRedirecting(plan);
     setError(null);
     try {
-      // O backend devolve a URL do Checkout; o pagamento acontece no Stripe.
-      window.location.href = await subscriptionService.startCheckout(marketId, plan);
+      // O backend devolve a página de pagamento: fatura do Asaas (Pix/boleto) ou Checkout do Stripe (cartão).
+      window.location.href = await subscriptionService.startCheckout(marketId, plan, method);
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível abrir o pagamento.');
+      setError(reason(err, 'Não foi possível abrir o pagamento.'));
       setRedirecting(null);
+    }
+  };
+
+  const payNow = async () => {
+    if (!marketId) return;
+    setPaying(true);
+    setError(null);
+    try {
+      window.location.href = await subscriptionService.openPayment(marketId);
+    } catch (err: any) {
+      setError(reason(err, 'Não foi possível abrir a fatura.'));
+      setPaying(false);
+    }
+  };
+
+  const cancelPlan = async () => {
+    if (!marketId) return;
+    const until = sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString('pt-BR') : null;
+    if (!window.confirm(`Cancelar a assinatura? ${until ? `O plano vale até ${until} e depois` : 'A conta'} volta ao Grátis, sem perder dados.`)) return;
+    setCanceling(true);
+    setError(null);
+    try {
+      await subscriptionService.cancelSubscription(marketId);
+      setSub(await subscriptionService.getSubscription(marketId));
+    } catch (err: any) {
+      setError(reason(err, 'Não foi possível cancelar agora.'));
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -110,17 +157,24 @@ const Plans: React.FC = () => {
     try {
       window.location.href = await subscriptionService.openBillingPortal(marketId);
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível abrir a gestão da assinatura.');
+      setError(reason(err, 'Não foi possível abrir a gestão da assinatura.'));
       setRedirecting(null);
     }
   };
 
-  const canCheckout = (plan: PlanDescriptor) => {
-    if (!billing?.checkoutEnabled) return false;
-    if (plan.code === 'ESSENCIAL') return billing.essencialAvailable;
-    if (plan.code === 'PROFISSIONAL') return billing.profissionalAvailable;
-    return false;
+  /** Formas de pagamento disponíveis para o plano: Pix e boleto (Asaas), cartão (Stripe). */
+  const methodsFor = (plan: PlanDescriptor): PaymentMethod[] => {
+    if (!billing || (plan.code !== 'ESSENCIAL' && plan.code !== 'PROFISSIONAL')) return [];
+    const out: PaymentMethod[] = [];
+    if (billing.pixEnabled) out.push('PIX');
+    if (billing.boletoEnabled) out.push('BOLETO');
+    const cardPrice = plan.code === 'ESSENCIAL' ? billing.essencialAvailable : billing.profissionalAvailable;
+    if (billing.checkoutEnabled && cardPrice) out.push('CARTAO');
+    return out;
   };
+  const canCheckout = (plan: PlanDescriptor) => methodsFor(plan).length > 0;
+  const late = sub?.status === 'PAST_DUE' || sub?.status === 'RESTRICTED';
+  const paysByGateway = sub?.provider === 'ASAAS' && (sub.status === 'ACTIVE' || late);
 
   const hasPaidPlan = usage != null && usage.planCode !== 'FREE';
 
@@ -153,7 +207,28 @@ const Plans: React.FC = () => {
               {usage.seatCount} de {formatLimit(usage.seatLimit)} usuário(s)
             </p>
 
-            {hasPaidPlan && billing?.checkoutEnabled && (
+            {paysByGateway && sub && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Pago por {sub.paymentMethod === 'BOLETO' ? 'boleto' : 'Pix'}
+                  {sub.currentPeriodEnd && ` · plano válido até ${new Date(sub.currentPeriodEnd).toLocaleDateString('pt-BR')}`}
+                  {sub.cancelAtPeriodEnd && ' · cancelada, volta ao Grátis depois'}
+                </span>
+                {!sub.cancelAtPeriodEnd && (
+                  <button
+                    type="button"
+                    disabled={canceling}
+                    onClick={cancelPlan}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                  >
+                    {canceling ? 'Cancelando...' : 'Cancelar assinatura'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {hasPaidPlan && billing?.checkoutEnabled && sub?.provider === 'STRIPE' && (
               <button
                 type="button"
                 disabled={redirecting !== null}
@@ -166,6 +241,40 @@ const Plans: React.FC = () => {
                 <ExternalLink size={12} />
               </button>
             )}
+          </div>
+        )}
+
+        {late && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl p-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+            <p className="min-w-0 flex-1 text-sm" style={{ color: '#991b1b' }}>
+              {sub?.bannerMessage || 'Há um pagamento em aberto.'}
+            </p>
+            <button
+              type="button"
+              disabled={paying}
+              onClick={payNow}
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60"
+              style={{ background: '#dc2626', color: '#fff' }}
+            >
+              {paying ? 'Abrindo...' : 'Pagar agora'}
+            </button>
+          </div>
+        )}
+
+        {!late && sub?.pendingInvoiceUrl && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl p-3" style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}>
+            <p className="min-w-0 flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+              A fatura do plano {plans.find((x) => x.code === sub.pendingPlan)?.name || sub.pendingPlan} está esperando o pagamento.
+              O plano é liberado assim que o pagamento for confirmado.
+            </p>
+            <a
+              href={sub.pendingInvoiceUrl}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold"
+              style={{ background: 'var(--brand-500, #22c55e)', color: '#fff' }}
+            >
+              Abrir fatura
+              <ExternalLink size={13} />
+            </a>
           </div>
         )}
 
@@ -278,10 +387,37 @@ const Plans: React.FC = () => {
 
                   {!current && plan.code !== 'FREE' && (
                     canCheckout(plan) ? (
+                      choosing === plan.code ? (
+                        <div className={`${canTrial ? '' : 'mt-auto '}flex flex-col gap-2`} role="group" aria-label={`Forma de pagamento do plano ${plan.name}`}>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Como você quer pagar?</span>
+                          <div className="grid grid-cols-3 gap-2">
+                            {methodsFor(plan).map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                disabled={redirecting !== null}
+                                onClick={() => subscribe(plan.code, m)}
+                                className="flex flex-col items-center gap-1 rounded-lg py-2 text-xs font-semibold disabled:opacity-60"
+                                style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                              >
+                                {METHOD_ICON[m]}
+                                {redirecting === plan.code ? '...' : METHOD_LABEL[m]}
+                              </button>
+                            ))}
+                          </div>
+                          <button type="button" onClick={() => setChoosing(null)} className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Voltar
+                          </button>
+                        </div>
+                      ) : (
                       <button
                         type="button"
                         disabled={redirecting !== null}
-                        onClick={() => subscribe(plan.code)}
+                        onClick={() => {
+                          const methods = methodsFor(plan);
+                          if (methods.length === 1) void subscribe(plan.code, methods[0]);
+                          else setChoosing(plan.code);
+                        }}
                         className={`${canTrial ? '' : 'mt-auto '}flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60`}
                         style={
                           recommended
@@ -292,6 +428,7 @@ const Plans: React.FC = () => {
                         <CreditCard size={14} />
                         {redirecting === plan.code ? 'Abrindo pagamento...' : 'Assinar'}
                       </button>
+                      )
                     ) : (
                       <a
                         href={`mailto:comercial@mercadoflow.com?subject=Plano%20${encodeURIComponent(plan.name)}`}

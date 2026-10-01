@@ -48,6 +48,14 @@ public class ConfereService {
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
     private final SecureRandom random = new SecureRandom();
 
+    /** Com o Asaas ligado, o Pix sai com QR dele e o aviso de pagamento confirma sozinho. */
+    private com.pdv2cloud.service.billing.AsaasService asaas;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAsaas(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.AsaasService asaas) {
+        this.asaas = asaas;
+    }
+
     public ConfereService(NamedParameterJdbcTemplate jdbc, AiCredentialCipher cipher, MeuDanfeClient meuDanfe,
                           SefazClient sefaz, CatalogImageStorageService catalogImages, CatalogImageUrlResolver imageUrls,
                           NfeItemStore itemStore) {
@@ -88,7 +96,7 @@ public class ConfereService {
         return new Status(Boolean.TRUE.equals(s.get("enabled")), accepted, version,
             termsText == null ? ConfereAdminService.DEFAULT_TERMS : termsText, balance, trial,
             ((Number) s.get("trial_reads")).intValue(), ((Number) s.get("price_per_read_cents")).intValue(), plans,
-            certificate(marketId), s.get("pix_key") != null, Boolean.TRUE.equals(s.get("stripe_enabled")),
+            certificate(marketId), s.get("pix_key") != null || (asaas != null && asaas.enabled()), Boolean.TRUE.equals(s.get("stripe_enabled")),
             (String) market.get("name"), (String) market.get("cnpj"),
             !acc.isEmpty() && Boolean.TRUE.equals(acc.get(0).get("manufacturer_visibility")),
             acc.isEmpty() ? null : ts((Timestamp) acc.get(0).get("manufacturer_visibility_at")));
@@ -662,7 +670,8 @@ public class ConfereService {
     @Transactional
     public Order createPixOrder(UUID marketId, UUID planId) {
         Map<String, Object> s = jdbc.queryForMap("select * from confere_settings where id = 'default'", Map.of());
-        if (s.get("pix_key") == null) {
+        boolean gateway = asaas != null && asaas.enabled();
+        if (s.get("pix_key") == null && !gateway) {
             throw new IllegalArgumentException("Pagamento por Pix ainda não está disponível");
         }
         Plan plan = plan(planId);
@@ -671,6 +680,12 @@ public class ConfereService {
         jdbc.update("insert into confere_orders (id, market_id, plan_id, reads, amount_cents, method, txid) values (:id, :m, :p, :r, :a, 'PIX', :t)",
             new MapSqlParameterSource().addValue("id", id).addValue("m", marketId).addValue("p", plan.id())
                 .addValue("r", plan.reads()).addValue("a", plan.priceCents()).addValue("t", txid));
+        if (gateway) {
+            var charge = asaas.pixCharge(marketId, plan.priceCents(), plan.name() + " — leituras do Confere", "confere:" + id);
+            jdbc.update("update confere_orders set provider_payment_id = :p, provider_pix_payload = :x, provider_invoice_url = :u where id = :id",
+                new MapSqlParameterSource().addValue("id", id).addValue("p", charge.paymentId()).addValue("x", charge.pixPayload())
+                    .addValue("u", charge.invoiceUrl()));
+        }
         return order(marketId, id);
     }
 
@@ -703,7 +718,10 @@ public class ConfereService {
             (rs, i) -> {
                 String payload = null;
                 String qr = null;
-                if ("PIX".equals(rs.getString("method")) && "PENDING".equals(rs.getString("status")) && s.get("pix_key") != null) {
+                if ("PIX".equals(rs.getString("method")) && "PENDING".equals(rs.getString("status")) && rs.getString("provider_pix_payload") != null) {
+                    payload = rs.getString("provider_pix_payload");
+                    qr = PixCode.qrPngBase64(payload);
+                } else if ("PIX".equals(rs.getString("method")) && "PENDING".equals(rs.getString("status")) && s.get("pix_key") != null) {
                     payload = PixCode.payload((String) s.get("pix_key"),
                         s.get("pix_merchant_name") == null ? "MERCADOFLOW" : (String) s.get("pix_merchant_name"),
                         s.get("pix_merchant_city") == null ? "BRASIL" : (String) s.get("pix_merchant_city"),
@@ -742,6 +760,18 @@ public class ConfereService {
         UUID marketId = (UUID) rows.get(0).get("market_id");
         int reads = ((Number) rows.get(0).get("reads")).intValue();
         credit(marketId, reads, "PURCHASE", orderId.toString(), "Compra de " + reads + " leituras (" + method + ")");
+    }
+
+    /** Aviso de pagamento do Asaas: credita se ainda estava pendente. */
+    @Transactional
+    public boolean markOrderPaidByGateway(UUID orderId) {
+        int pending = jdbc.queryForObject("select count(*) from confere_orders where id = :id and status = 'PENDING'",
+            Map.of("id", orderId), Integer.class);
+        if (pending == 0) {
+            return false;
+        }
+        markOrderPaid(orderId, "PIX", "asaas");
+        return true;
     }
 
     public UUID orderIdBySession(String sessionId) {

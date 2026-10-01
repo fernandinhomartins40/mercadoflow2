@@ -53,7 +53,8 @@ public class SubscriptionService {
     public record Subscription(UUID marketId, String planCode, Status status, String provider, String providerCustomerId,
                                String providerSubscriptionId, String paymentMethod, LocalDateTime currentPeriodEnd,
                                boolean cancelAtPeriodEnd, String trialPlan, LocalDateTime trialEndsAt, boolean trialUsed,
-                               LocalDateTime pastDueSince, LocalDateTime restrictedSince, LocalDateTime pausedUntil) {}
+                               LocalDateTime pastDueSince, LocalDateTime restrictedSince, LocalDateTime pausedUntil,
+                               String pendingPlan, String pendingSubscriptionId, String pendingInvoiceUrl) {}
 
     private final NamedParameterJdbcTemplate jdbc;
     private final MarketRepository markets;
@@ -153,6 +154,7 @@ public class SubscriptionService {
                 + "provider_customer_id = coalesce(:c, provider_customer_id), provider_subscription_id = coalesce(:sid, provider_subscription_id), "
                 + "payment_method = coalesce(:pm, payment_method), current_period_end = coalesce(:end, current_period_end), "
                 + "past_due_since = null, restricted_since = null, trial_plan = null, trial_ends_at = null, paused_until = null, "
+                + "cancel_at_period_end = false, pending_plan = null, pending_subscription_id = null, pending_invoice_url = null, "
                 + "updated_at = now() where market_id = :m",
             new MapSqlParameterSource().addValue("m", s.marketId()).addValue("p", plan.name()).addValue("pr", provider)
                 .addValue("c", customerId).addValue("sid", subscriptionId).addValue("pm", paymentMethod)
@@ -391,7 +393,8 @@ public class SubscriptionService {
             rs.getString("provider"), rs.getString("provider_customer_id"), rs.getString("provider_subscription_id"),
             rs.getString("payment_method"), ts(rs.getTimestamp("current_period_end")), rs.getBoolean("cancel_at_period_end"),
             rs.getString("trial_plan"), ts(rs.getTimestamp("trial_ends_at")), rs.getBoolean("trial_used"),
-            ts(rs.getTimestamp("past_due_since")), ts(rs.getTimestamp("restricted_since")), ts(rs.getTimestamp("paused_until")));
+            ts(rs.getTimestamp("past_due_since")), ts(rs.getTimestamp("restricted_since")), ts(rs.getTimestamp("paused_until")),
+            rs.getString("pending_plan"), rs.getString("pending_subscription_id"), rs.getString("pending_invoice_url"));
     }
 
     private static LocalDateTime ts(Timestamp t) {

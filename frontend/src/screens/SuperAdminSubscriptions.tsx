@@ -4,6 +4,7 @@ import useModalBehavior from '../hooks/useModalBehavior';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
 import BillingRulesPanel from '../components/admin/BillingRulesPanel';
+import AsaasBillingPanel from '../components/admin/AsaasBillingPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
 import NetworkContractsPanel from '../components/admin/NetworkContractsPanel';
 import subscriptionService, {
@@ -282,6 +283,7 @@ const SuperAdminSubscriptions: React.FC = () => {
         {tab === 'planos' && (
           <div className="flex flex-col gap-5">
             <BillingRulesPanel />
+            <AsaasBillingPanel />
             <PlanCatalogPanel />
           </div>
         )}

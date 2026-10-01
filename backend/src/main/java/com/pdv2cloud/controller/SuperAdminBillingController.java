@@ -24,9 +24,37 @@ import org.springframework.web.bind.annotation.RestController;
 public class SuperAdminBillingController {
 
     private final SubscriptionService subscriptions;
+    private final com.pdv2cloud.service.billing.AsaasService asaas;
 
-    public SuperAdminBillingController(SubscriptionService subscriptions) {
+    public SuperAdminBillingController(SubscriptionService subscriptions, com.pdv2cloud.service.billing.AsaasService asaas) {
         this.subscriptions = subscriptions;
+        this.asaas = asaas;
+    }
+
+    /** Situação do Asaas e da nota fiscal automática. */
+    @GetMapping("/asaas")
+    public Map<String, Object> asaasStatus() {
+        return asaas.adminStatus();
+    }
+
+    /** Cadastra no Asaas o aviso de pagamento com um token novo. */
+    @PostMapping("/asaas/webhook")
+    public ResponseEntity<?> registerWebhook(@RequestBody(required = false) Map<String, Object> body) {
+        try {
+            String email = body == null || body.get("email") == null ? null : String.valueOf(body.get("email"));
+            return ResponseEntity.ok(Map.of("url", asaas.registerWebhook(email)));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "asaas_webhook", "userMessage", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/invoice-settings")
+    public ResponseEntity<?> saveInvoiceSettings(@RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(asaas.saveInvoiceSettings(body));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid_settings", "userMessage", e.getMessage()));
+        }
     }
 
     @GetMapping("/settings")

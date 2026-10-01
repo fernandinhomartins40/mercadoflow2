@@ -640,6 +640,52 @@ carência e depois só consulta; Asaas e Stripe lado a lado (S2); Copiloto dentr
     carência, 402, IA, faixa, regras pela tela);
   - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31 e F5 25/25.
 
+### Ciclo 18 — Assinaturas S2: Pix e boleto (Asaas) ao lado do cartão (Stripe)
+
+- **Checkout com escolha:** ao assinar, o lojista escolhe Pix, boleto ou cartão. Só aparece o que está
+  configurado.
+  - Pix e boleto criam uma assinatura mensal no Asaas e levam à fatura hospedada por ele. O plano só
+    muda quando o pagamento é confirmado; até lá, Planos mostra "Abrir fatura".
+  - O cartão segue no Stripe, como antes.
+- **Troca de plano no Asaas:** muda o valor da mesma assinatura, sem cobrança dupla. Contratação
+  anterior não paga é descartada.
+- **Pagar agora** abre a fatura vencida, ou a da contratação pendente. Quem paga no cartão vai ao
+  portal do Stripe.
+- **Cancelar assinatura** apaga a assinatura no Asaas. O plano vale até o fim do período pago, e depois
+  a conta volta ao Grátis pelo ciclo diário.
+- **Avisos de pagamento:**
+  - `/api/v1/public/asaas/webhook`, com o token no header `asaas-access-token`, gerado e cadastrado
+    pelo botão "Conectar avisos de pagamento". Ele é guardado cifrado e conferido em tempo constante;
+  - cada aviso é tratado uma vez (`billing_webhook_events`), na mesma transação que o efeito;
+  - pagamento confirmado: plano ativo por um mês a partir do vencimento;
+  - fatura vencida: entra em atraso (carência, depois só consulta);
+  - assinatura apagada: cancela no fim do período.
+- **Créditos sem confirmação manual:** com o Asaas ligado, o Pix de créditos de IA e de leituras do
+  Confere sai com o QR do Asaas, e o aviso credita sozinho. "Confirmado" mais "recebido" não credita
+  duas vezes. Sem o Asaas, segue o Pix na chave da plataforma com confirmação no painel.
+- **Nota fiscal:** com a opção ligada (código do serviço municipal, descrição, ISS e observações), cada
+  assinatura nova recebe a configuração para o Asaas emitir a NFS-e a cada pagamento confirmado.
+- **Painel:**
+  - provedor ASAAS em IA e APIs → Chaves e canais: chave cifrada, sandbox ou produção, teste em
+    `/myAccount`, e-mail de alerta;
+  - Assinaturas → Planos e preços → "Pix e boleto (Asaas)".
+- **Pix Automático:** ainda não implementado. Hoje a assinatura por Pix gera uma cobrança Pix por mês,
+  confirmada sozinha. O Pix Automático do Asaas (débito autorizado) exige liberação na conta e um fluxo
+  de autorização próprio.
+- **Migração V73:**
+  - provedor ASAAS;
+  - `billing_customers` (com RLS) e `billing_webhook_events`;
+  - contratação pendente em `subscriptions`;
+  - id, payload Pix e fatura do Asaas em `ai_orders` e `confere_orders`;
+  - nota fiscal e token do aviso em `billing_settings`.
+- **Testes:**
+  - backend 325/325;
+  - ponta a ponta do S2 42/42: chave, avisos e nota pela tela, token errado, sem CNPJ, assinatura por
+    Pix, pagamento, aviso repetido, troca para boleto, vencida e paga, créditos de IA e do Confere,
+    cancelamento e volta ao Grátis;
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20 e
+    S1 40/40.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

@@ -32,6 +32,7 @@ const PROVIDER_INFO: Record<string, { name: string; use: string; keyUrl: string 
   DEEPGRAM: { name: 'Deepgram', use: 'Voz paga (fala → texto), pacote Pro', keyUrl: 'https://console.deepgram.com' },
   WHATSAPP: { name: 'WhatsApp Business', use: 'Canal de mensagens dos agentes', keyUrl: 'https://business.facebook.com' },
   EMAIL: { name: 'E-mail (Resend)', use: 'E-mails da plataforma: nova senha, avisos de assinatura e cobrança', keyUrl: 'https://resend.com/api-keys' },
+  ASAAS: { name: 'Asaas (Pix e boleto)', use: 'Cobrança brasileira: assinatura por Pix ou boleto, créditos por Pix e nota fiscal', keyUrl: 'https://www.asaas.com/customerApiAccessToken/index' },
 };
 
 const LAYER_LABEL: Record<string, string> = { TEMPLATE: 'Texto pronto', JEV: 'Jev', FLASH: 'Flash', PRO: 'Pro', VOZ: 'Voz', CANAL: 'Canal' };
@@ -68,7 +69,7 @@ const providerState = (p: AiProviderRow | undefined): { label: string; tone: Ton
 };
 
 const REQUIRED_PROVIDERS = ['DEEPSEEK', 'JEV', 'EMAIL'];
-const PROVIDER_ORDER = ['DEEPSEEK', 'JEV', 'EMAIL', 'OPENROUTER', 'DEEPGRAM', 'WHATSAPP'];
+const PROVIDER_ORDER = ['DEEPSEEK', 'JEV', 'EMAIL', 'ASAAS', 'OPENROUTER', 'DEEPGRAM', 'WHATSAPP'];
 
 // ── Começar ─────────────────────────────────────────────────────────────
 
@@ -276,9 +277,10 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
               <input className={`${INPUT} font-mono`} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
                 placeholder={p.configured ? 'deixe vazio para manter a atual' : 'cole a chave aqui'} aria-label={`Chave de API de ${info.name}`} disabled={!encryptionReady} />
               <a href={info.keyUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Onde criar a chave</a></label>
-            <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>{isWa ? 'ID do número (Phone number ID)' : p.provider === 'EMAIL' ? 'Remetente' : 'Modelo padrão'}</span>
+            <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>{isWa ? 'ID do número (Phone number ID)' : p.provider === 'EMAIL' ? 'Remetente' : p.provider === 'ASAAS' ? 'E-mail de alerta' : 'Modelo padrão'}</span>
               <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)}
-                aria-label={isWa ? 'ID do número do WhatsApp' : p.provider === 'EMAIL' ? 'Remetente dos e-mails' : `Modelo padrão de ${info.name}`} />
+                aria-label={isWa ? 'ID do número do WhatsApp' : p.provider === 'EMAIL' ? 'Remetente dos e-mails' : p.provider === 'ASAAS' ? 'E-mail de alerta do Asaas' : `Modelo padrão de ${info.name}`} />
+              {p.provider === 'ASAAS' && <span className={HINT}>Recebe os alertas do Asaas quando um aviso de pagamento falhar. Opcional.</span>}
               {p.provider === 'EMAIL' && <span className={HINT}>Ex.: MercadoFlow &lt;nao-responda@mercadoflow.com&gt;. O domínio precisa estar verificado no Resend.</span>}
               {p.provider === 'OPENROUTER' && <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Ver os ids dos modelos</a>}
               {p.provider === 'DEEPSEEK' && <span className={HINT}>deepseek-flash ou deepseek-v4-pro</span>}</label>

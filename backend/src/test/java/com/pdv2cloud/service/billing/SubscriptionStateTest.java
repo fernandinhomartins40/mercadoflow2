@@ -14,7 +14,7 @@ class SubscriptionStateTest {
 
     private static Subscription sub(Status status, String plan, String trialPlan) {
         return new Subscription(UUID.randomUUID(), plan, status, "NONE", null, null, null, null, false, trialPlan,
-            null, false, null, null, null);
+            null, false, null, null, null, null, null, null);
     }
 
     @Test
@@ -56,7 +56,7 @@ class SubscriptionStateTest {
         SubscriptionService.Settings cfg = new SubscriptionService.Settings(7, 7, 30);
 
         Subscription trial = new Subscription(UUID.randomUUID(), "FREE", Status.TRIAL, "NONE", null, null, null, null, false,
-            "ESSENCIAL", now.plusDays(3), true, null, null, null);
+            "ESSENCIAL", now.plusDays(3), true, null, null, null, null, null, null);
         var v = com.pdv2cloud.controller.SubscriptionControllerAccess.view(trial, cfg, now);
         assertThat(v.get("daysLeft")).isEqualTo(3);
         assertThat(v.get("bannerTone")).isEqualTo("INFO");
@@ -64,13 +64,13 @@ class SubscriptionStateTest {
         assertThat(v.get("trialAvailable")).isEqualTo(false);
 
         Subscription late = new Subscription(UUID.randomUUID(), "ESSENCIAL", Status.PAST_DUE, "STRIPE", null, null, null, null,
-            false, null, null, true, now.minusDays(2), null, null);
+            false, null, null, true, now.minusDays(2), null, null, null, null, null);
         v = com.pdv2cloud.controller.SubscriptionControllerAccess.view(late, cfg, now);
         assertThat(v.get("daysLeft")).isEqualTo(5);
         assertThat((String) v.get("bannerMessage")).contains("06/10");
 
         Subscription restricted = new Subscription(UUID.randomUUID(), "ESSENCIAL", Status.RESTRICTED, "STRIPE", null, null, null,
-            null, false, null, null, true, now.minusDays(9), now.minusDays(2), null);
+            null, false, null, null, true, now.minusDays(9), now.minusDays(2), null, null, null, null);
         v = com.pdv2cloud.controller.SubscriptionControllerAccess.view(restricted, cfg, now);
         assertThat(v.get("bannerTone")).isEqualTo("DANGER");
         assertThat(v.get("daysLeft")).isEqualTo(28);

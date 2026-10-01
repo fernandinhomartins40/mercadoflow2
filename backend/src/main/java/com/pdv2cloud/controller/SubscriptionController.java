@@ -88,6 +88,8 @@ public class SubscriptionController {
         out.put("paymentMethod", s.paymentMethod());
         out.put("currentPeriodEnd", s.currentPeriodEnd());
         out.put("cancelAtPeriodEnd", s.cancelAtPeriodEnd());
+        out.put("pendingPlan", s.pendingPlan());
+        out.put("pendingInvoiceUrl", s.pendingInvoiceUrl());
         Integer daysLeft = null;
         String tone = null;
         String message = null;

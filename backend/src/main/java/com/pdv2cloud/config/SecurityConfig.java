@@ -81,6 +81,9 @@ public class SecurityConfig {
                 // cadastrado e cada mensagem exige a assinatura HMAC do corpo
                 // (WhatsAppWebhookController / WhatsAppChannel.validSignature).
                 .requestMatchers("/api/v1/public/whatsapp/webhook").permitAll()
+                // Avisos de pagamento do Asaas: o token cadastrado no Asaas vem no header
+                // asaas-access-token e é conferido em AsaasWebhookController.
+                .requestMatchers(HttpMethod.POST, "/api/v1/public/asaas/webhook").permitAll()
                 // Servidor MCP: o cliente e um agente externo sem JWT. A autenticacao
                 // e a chave MCP do mercado (McpController / McpKeyService), so leitura.
                 .requestMatchers("/api/v1/mcp").permitAll()
