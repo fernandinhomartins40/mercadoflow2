@@ -45,9 +45,35 @@ const Toggle: React.FC<{ on: boolean; onChange: (v: boolean) => void; label: str
 const Msg: React.FC<{ msg: { ok: boolean; text: string } | null }> = ({ msg }) =>
   msg ? <p role="status" className={`text-sm ${msg.ok ? 'text-green-700' : 'text-red-700'}`}>{msg.text}</p> : null;
 
-// ── Visão geral ─────────────────────────────────────────────────────────
+type Tone = 'green' | 'amber' | 'red' | 'slate' | 'blue';
+const TONE: Record<Tone, string> = {
+  green: 'bg-green-50 text-green-800 ring-green-200',
+  amber: 'bg-amber-50 text-amber-900 ring-amber-200',
+  red: 'bg-red-50 text-red-800 ring-red-200',
+  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
+  blue: 'bg-blue-50 text-blue-800 ring-blue-200',
+};
+const Pill: React.FC<{ tone: Tone; children: React.ReactNode }> = ({ tone, children }) => (
+  <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${TONE[tone]}`}>{children}</span>
+);
 
-const StatusCard: React.FC<{ data: AiOverview; usage: Record<string, unknown> | null; onSettings: (s: AiSettingsRow) => void }> = ({ data, usage, onSettings }) => {
+/** Estado de um provedor em uma palavra, para a lista e o guia. */
+const providerState = (p: AiProviderRow | undefined): { label: string; tone: Tone; ok: boolean } => {
+  if (!p || !p.configured) return { label: 'Sem chave', tone: 'slate', ok: false };
+  if (p.lastCheckOk === false) return { label: 'Falhou no teste', tone: 'red', ok: false };
+  if (!p.lastCheckAt) return { label: 'Falta testar', tone: 'amber', ok: false };
+  if (!p.enabled) return { label: 'Desligado', tone: 'slate', ok: false };
+  return { label: 'Pronto', tone: 'green', ok: true };
+};
+
+const REQUIRED_PROVIDERS = ['DEEPSEEK', 'JEV'];
+const PROVIDER_ORDER = ['DEEPSEEK', 'JEV', 'OPENROUTER', 'DEEPGRAM', 'WHATSAPP'];
+
+// ── Começar ─────────────────────────────────────────────────────────────
+
+type GoTo = (tab: Tab) => void;
+
+const SetupGuide: React.FC<{ data: AiOverview; usage: Record<string, unknown> | null; onSettings: (s: AiSettingsRow) => void; go: GoTo }> = ({ data, usage, onSettings, go }) => {
   const s = data.settings;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -56,56 +82,89 @@ const StatusCard: React.FC<{ data: AiOverview; usage: Record<string, unknown> | 
     setMsg(null);
     try { onSettings(await aiAdminService.saveSettings(patch)); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível salvar.') }); } finally { setBusy(false); }
   };
-  const deepseek = data.providers.find((p) => p.provider === 'DEEPSEEK');
-  const jev = data.providers.find((p) => p.provider === 'JEV');
+  const prov = (k: string) => data.providers.find((p) => p.provider === k);
   const spent = num(usage?.gastoHojeUsd);
   const budget = num(s.dailyBudgetUsd);
-  const checklist: Array<[string, boolean]> = [
-    ['Chave mestra de criptografia no servidor', s.encryptionReady],
-    ['Chave do DeepSeek cadastrada e testada', !!deepseek?.configured && !!deepseek?.lastCheckOk],
-    ['Chave do Jev cadastrada e testada (para o modo sombra)', !!jev?.configured && !!jev?.lastCheckOk],
-    ['Pelo menos um mercado de teste', data.pilots.length > 0],
-    ['IA da plataforma ligada', s.enabled],
+  const steps: Array<{ title: string; hint: string; done: boolean; action?: React.ReactNode }> = [
+    { title: 'Chave mestra no servidor', hint: 'Variável AI_ENCRYPTION_KEY do deploy. Sem ela, nenhuma chave pode ser guardada.', done: s.encryptionReady },
+    { title: 'DeepSeek: salvar a chave e testar', hint: 'É quem escreve as respostas.', done: providerState(prov('DEEPSEEK')).ok,
+      action: <Button size="sm" variant="secondary" onClick={() => go('chaves')}>Abrir chaves</Button> },
+    { title: 'Jev: salvar a chave e testar', hint: 'Decide o que vale a pena por frações de centavo.', done: providerState(prov('JEV')).ok,
+      action: <Button size="sm" variant="secondary" onClick={() => go('chaves')}>Abrir chaves</Button> },
+    { title: 'Escolher um mercado de teste', hint: `Ele ganha ${s.pilotGrantCredits} créditos para testar.`, done: data.pilots.length > 0,
+      action: <Button size="sm" variant="secondary" onClick={() => go('mercados')}>Abrir mercados</Button> },
+    { title: 'Ligar a IA da plataforma', hint: 'Começa só para os mercados de teste.', done: s.enabled,
+      action: <Toggle on={s.enabled} onChange={(v) => set({ enabled: v })} label="Ligar a IA da plataforma" disabled={busy} /> },
+  ];
+  const doneCount = steps.filter((x) => x.done).length;
+  const extras: Array<{ title: string; state: { label: string; tone: Tone }; tab: Tab }> = [
+    { title: 'Reserva de modelos (OpenRouter)', state: providerState(prov('OPENROUTER')), tab: 'chaves' },
+    { title: 'Voz paga (Deepgram)', state: providerState(prov('DEEPGRAM')), tab: 'chaves' },
+    { title: 'Avisos no WhatsApp', state: providerState(prov('WHATSAPP')), tab: 'chaves' },
   ];
   return (
-    <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="status-title">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="status-title" className="text-base font-semibold text-slate-900">IA da plataforma</h2>
-          <p className="text-sm text-slate-600">Liga ou desliga o uso da chave da plataforma em todos os mercados. Desligada, todos ficam com o texto pronto do sistema.</p>
-        </div>
-        <div className="flex items-center gap-3">
+    <>
+      <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="guide-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="guide-title" className="text-base font-semibold text-slate-900">Para começar os testes</h2>
+            <p className="text-sm text-slate-600">{doneCount === steps.length ? 'Tudo pronto. Use a aba Uso e testes para acompanhar.' : `${doneCount} de ${steps.length} passos feitos.`}</p>
+          </div>
           <span className={`text-sm font-semibold ${s.enabled ? 'text-green-700' : 'text-slate-500'}`}>{s.enabled ? 'Ligada' : 'Desligada'}</span>
-          <Toggle on={s.enabled} onChange={(v) => set({ enabled: v })} label="Ligar a IA da plataforma" disabled={busy} />
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3">
-        <Toggle on={s.pilotOnly} onChange={(v) => set({ pilotOnly: v })} label="Só mercados de teste" disabled={busy} />
-        <span className="text-sm text-slate-700">{s.pilotOnly ? 'Só os mercados de teste usam a IA (recomendado no começo)' : 'Todos os mercados com créditos usam a IA'}</span>
-      </div>
-      <ul className="grid gap-2 sm:grid-cols-3">
-        <li className="rounded-xl border border-slate-200 p-3"><span className={HINT}>Gasto de hoje</span>
-          <span className="block text-lg font-bold tabular-nums">{usd(spent)}</span>
-          <span className={`${HINT} ${spent >= budget ? 'font-semibold text-red-700' : ''}`}>teto diário {usd(budget)}{spent >= budget ? ': IA em pausa' : ''}</span></li>
-        <li className="rounded-xl border border-slate-200 p-3"><span className={HINT}>Mercados de teste</span>
-          <span className="block text-lg font-bold tabular-nums">{data.pilots.length}</span></li>
-        <li className="rounded-xl border border-slate-200 p-3"><span className={HINT}>Saldo DeepSeek (último teste)</span>
-          <span className="block text-lg font-bold tabular-nums">{deepseek?.lastCheckOk ? 'ok' : '—'}</span>
-          <span className={HINT}>Veja em Chaves → Testar</span></li>
-      </ul>
-      <div>
-        <h3 className="text-sm font-semibold text-slate-900">Para começar os testes</h3>
-        <ol className="mt-2 flex flex-col gap-1.5">
-          {checklist.map(([label, done], i) => (
-            <li key={label} className="flex items-center gap-2 text-sm">
-              {done ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500">{i + 1}</span>}
-              <span className={done ? 'text-slate-500 line-through' : 'text-slate-800'}>{label}</span>
+        <div className="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount} aria-label="Passos feitos">
+          <div className="h-full rounded-full bg-green-600 transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+        </div>
+        <ol className="flex flex-col divide-y divide-slate-100">
+          {steps.map((st, i) => (
+            <li key={st.title} className="flex flex-wrap items-center gap-3 py-3">
+              {st.done
+                ? <CheckCircle2 className="h-6 w-6 shrink-0 text-green-600" aria-label="feito" />
+                : <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 text-xs font-bold text-slate-600">{i + 1}</span>}
+              <span className="min-w-0 flex-1">
+                <span className={`block text-sm font-semibold ${st.done ? 'text-slate-500' : 'text-slate-900'}`}>{st.title}</span>
+                <span className={HINT}>{st.hint}</span>
+              </span>
+              {st.action && (!st.done || i === steps.length - 1) && <span className="shrink-0">{st.action}</span>}
             </li>
           ))}
         </ol>
-      </div>
-      <Msg msg={msg} />
-    </section>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3">
+          <Toggle on={s.pilotOnly} onChange={(v) => set({ pilotOnly: v })} label="Só mercados de teste" disabled={busy} />
+          <span className="min-w-0 flex-1 text-sm text-slate-700">{s.pilotOnly ? 'Só os mercados de teste usam a IA (recomendado no começo)' : 'Todos os mercados com créditos usam a IA'}</span>
+        </div>
+        <Msg msg={msg} />
+      </section>
+
+      <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="extras-title">
+        <h2 id="extras-title" className="text-base font-semibold text-slate-900">Opcionais</h2>
+        <ul className="flex flex-col divide-y divide-slate-100">
+          {extras.map((x) => (
+            <li key={x.title} className="flex flex-wrap items-center gap-3 py-2.5">
+              <span className="min-w-0 flex-1 text-sm text-slate-800">{x.title}</span>
+              <Pill tone={x.state.tone}>{x.state.label}</Pill>
+              <Button size="sm" variant="ghost" onClick={() => go(x.tab)}>Configurar</Button>
+            </li>
+          ))}
+          <li className="flex flex-wrap items-center gap-3 py-2.5">
+            <span className="min-w-0 flex-1 text-sm text-slate-800">Agentes agindo sozinhos (nível 3)</span>
+            <Button size="sm" variant="ghost" onClick={() => go('ajustes')}>Configurar</Button>
+          </li>
+        </ul>
+      </section>
+
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Situação de hoje">
+        <li className={`${CARD} !p-4`}><span className={HINT}>Gasto de hoje</span>
+          <span className="block text-xl font-bold tabular-nums text-slate-900">{usd(spent)}</span>
+          <span className={`${HINT} ${spent >= budget ? 'font-semibold text-red-700' : ''}`}>teto diário {usd(budget)}{spent >= budget ? ': IA em pausa' : ''}</span></li>
+        <li className={`${CARD} !p-4`}><span className={HINT}>Mercados de teste</span>
+          <span className="block text-xl font-bold tabular-nums text-slate-900">{data.pilots.length}</span>
+          <button type="button" onClick={() => go('mercados')} className="text-xs font-semibold text-green-700 hover:underline">Ver mercados</button></li>
+        <li className={`${CARD} !p-4`}><span className={HINT}>DeepSeek</span>
+          <span className="block"><Pill tone={providerState(prov('DEEPSEEK')).tone}>{providerState(prov('DEEPSEEK')).label}</Pill></span>
+          <span className={HINT}>{prov('DEEPSEEK')?.lastCheckAt ? `último teste ${when(prov('DEEPSEEK')?.lastCheckAt)}` : 'ainda não testado'}</span></li>
+      </ul>
+    </>
   );
 };
 
@@ -154,11 +213,15 @@ const BudgetCard: React.FC<{ settings: AiSettingsRow; onSaved: (s: AiSettingsRow
 
 const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[]) => void; encryptionReady: boolean }> = ({ p, onChange, encryptionReady }) => {
   const info = PROVIDER_INFO[p.provider];
+  const required = REQUIRED_PROVIDERS.includes(p.provider);
+  const state = providerState(p);
+  const [editing, setEditing] = useState(!p.configured);
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState(p.baseUrl);
   const [model, setModel] = useState(p.defaultModel ?? '');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const isWa = p.provider === 'WHATSAPP';
   const save = async (enabled?: boolean) => {
     setBusy('save');
     setMsg(null);
@@ -166,6 +229,7 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
       onChange(await aiAdminService.saveProvider(p.provider, { apiKey: apiKey.trim() || undefined, baseUrl, model, enabled }));
       setApiKey('');
       setMsg({ ok: true, text: 'Salvo.' });
+      if (enabled === undefined) setEditing(false);
     } catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível salvar.') }); } finally { setBusy(null); }
   };
   const test = async () => {
@@ -179,42 +243,62 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
   };
   const remove = async () => {
     if (!window.confirm(`Remover a chave de ${info.name}?`)) return;
-    try { onChange(await aiAdminService.removeKey(p.provider)); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível remover.') }); }
+    try { onChange(await aiAdminService.removeKey(p.provider)); setEditing(true); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível remover.') }); }
   };
   return (
     <section className={`${CARD} flex flex-col gap-3`} aria-label={info.name}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900">{info.name}</h3>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-slate-900">{info.name}</h3>
+            <Pill tone={required ? 'blue' : 'slate'}>{required ? 'Obrigatória' : 'Opcional'}</Pill>
+            <Pill tone={state.tone}>{state.label}</Pill>
+          </div>
           <p className="text-sm text-slate-600">{info.use}</p>
-          <p className={HINT}>
-            {p.configured ? <>Chave terminando em <span className="font-mono">{p.keyHint}</span></> : 'Sem chave'}
-            {p.lastCheckAt ? <> · último teste {when(p.lastCheckAt)}: {p.lastCheckOk ? 'ok' : `falhou (${p.lastCheckError ?? ''})`}</> : null}
-          </p>
+          {p.configured && (
+            <p className={`${HINT} break-words`}>
+              Chave terminando em <span className="font-mono">{p.keyHint}</span>
+              {p.lastCheckAt ? <>; último teste {when(p.lastCheckAt)}: {p.lastCheckOk ? 'ok' : `falhou (${p.lastCheckError ?? ''})`}</> : null}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-sm font-semibold ${p.enabled ? 'text-green-700' : 'text-slate-500'}`}>{p.enabled ? 'Ligado' : 'Desligado'}</span>
           <Toggle on={p.enabled} onChange={(v) => save(v)} label={`Ligar ${info.name}`} disabled={!p.configured || !!busy} />
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <label className="flex flex-col gap-1"><span className={LABEL}>{p.configured ? 'Trocar a chave' : 'Chave de API'}</span>
-          <input className={`${INPUT} font-mono`} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-            placeholder={p.configured ? 'deixe vazio para manter' : 'cole a chave aqui'} aria-label={`Chave de API de ${info.name}`} disabled={!encryptionReady} />
-          <a href={info.keyUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Onde criar a chave</a></label>
-        <label className="flex flex-col gap-1"><span className={LABEL}>Endereço</span>
-          <select className={INPUT} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} aria-label={`Endereço de ${info.name}`}>
-            {p.allowedBaseUrls.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
-          <span className={HINT}>Lista fixa: a chave nunca vai para outro servidor.</span></label>
-        <label className="flex flex-col gap-1"><span className={LABEL}>{p.provider === 'WHATSAPP' ? 'ID do número (Phone number ID)' : 'Modelo padrão'}</span>
-          <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)}
-            aria-label={p.provider === 'WHATSAPP' ? 'ID do número do WhatsApp' : `Modelo padrão de ${info.name}`} /></label>
-      </div>
+
+      {editing ? (
+        <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>{p.configured ? 'Nova chave' : 'Chave de API'}</span>
+              <input className={`${INPUT} font-mono`} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                placeholder={p.configured ? 'deixe vazio para manter a atual' : 'cole a chave aqui'} aria-label={`Chave de API de ${info.name}`} disabled={!encryptionReady} />
+              <a href={info.keyUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Onde criar a chave</a></label>
+            <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>{isWa ? 'ID do número (Phone number ID)' : 'Modelo padrão'}</span>
+              <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)}
+                aria-label={isWa ? 'ID do número do WhatsApp' : `Modelo padrão de ${info.name}`} /></label>
+          </div>
+          {p.allowedBaseUrls.length > 1 && (
+            <label className="flex min-w-0 flex-col gap-1"><span className={LABEL}>Endereço</span>
+              <select className={INPUT} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} aria-label={`Endereço de ${info.name}`}>
+                {p.allowedBaseUrls.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <span className={HINT}>Lista fixa: a chave nunca vai para outro servidor.</span></label>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => save()} disabled={!!busy || !encryptionReady}>{busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Salvar</Button>
+            {p.configured && <Button variant="ghost" onClick={() => { setEditing(false); setApiKey(''); }}>Cancelar</Button>}
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={() => save()} disabled={!!busy || !encryptionReady}>{busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Salvar</Button>
-        <Button variant="secondary" onClick={test} disabled={!!busy || !p.configured}>{busy === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}Testar</Button>
-        {p.configured && <Button variant="ghost" onClick={remove} disabled={!!busy}><Trash2 className="h-4 w-4" />Remover chave</Button>}
+        {p.configured && (
+          <Button variant="secondary" onClick={test} disabled={!!busy}>{busy === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}Testar</Button>
+        )}
+        {p.configured && !editing && <Button variant="ghost" onClick={() => setEditing(true)}><KeyRound className="h-4 w-4" />Trocar chave ou modelo</Button>}
+        {p.configured && <Button variant="ghost" onClick={remove} disabled={!!busy}><Trash2 className="h-4 w-4" />Remover</Button>}
         <Msg msg={msg} />
       </div>
     </section>
@@ -283,7 +367,7 @@ const WhatsAppConfigCard: React.FC<{ encryptionReady: boolean; pilots: AiOvervie
           <span className={HINT}>Usado para conferir a assinatura de cada mensagem recebida. Guardado cifrado.</span></label>
       </div>
       <p className="text-sm text-slate-600">Endereço do webhook para cadastrar na Meta (campo <span className="font-mono">messages</span>):
-        <span className="ml-1 select-all rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{WEBHOOK_URL}</span></p>
+        <span className="mt-1 block select-all break-all rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{WEBHOOK_URL}</span></p>
       <div className="flex flex-wrap items-center gap-2"><Button type="submit"><Save className="h-4 w-4" />Salvar WhatsApp</Button><Msg msg={msg} /></div>
       {pilots.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
@@ -301,11 +385,62 @@ const WhatsAppConfigCard: React.FC<{ encryptionReady: boolean; pilots: AiOvervie
 
 // ── Roteamento ──────────────────────────────────────────────────────────
 
-const RouteRow: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; onSaved: (rows: AiRouteRow[]) => void }> = ({ r, providers, onSaved }) => {
+const routeState = (r: AiRouteRow): { label: string; tone: Tone } =>
+  !r.enabled ? { label: 'Desligada', tone: 'slate' } : r.shadow ? { label: 'Em sombra', tone: 'amber' } : { label: 'Ligada', tone: 'green' };
+
+const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string; wide?: boolean }> = ({ label, children, hint, wide }) => (
+  <label className={`flex min-w-0 flex-col gap-1 ${wide ? 'col-span-2 sm:col-span-1' : ''}`}><span className="text-xs font-medium text-slate-600">{label}</span>{children}{hint && <span className={HINT}>{hint}</span>}</label>
+);
+
+const FallbackItem: React.FC<{ f: AiFallbackRow; onSaved: (rows: AiFallbackRow[]) => void }> = ({ f, onSaved }) => {
+  const [form, setForm] = useState({ ...f });
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { setForm({ ...f }); }, [f]);
+  const save = async () => {
+    try {
+      onSaved(await aiAdminService.saveFallback(f.task, f.position, {
+        provider: form.provider, model: form.model, inputPriceUsdM: Number(form.inputPriceUsdM),
+        outputPriceUsdM: Number(form.outputPriceUsdM), enabled: form.enabled,
+      }));
+      setMsg({ ok: true, text: 'Salvo' });
+    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
+  };
+  const remove = async () => {
+    try { onSaved(await aiAdminService.removeFallback(f.task, f.position)); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
+  };
+  const label = `${f.task} reserva ${f.position}`;
+  return (
+    <li className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3" aria-label={`Reserva ${f.position}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-slate-800">Reserva {f.position}</span>
+        <span className="flex items-center gap-2 text-xs text-slate-600"><Toggle on={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={`Ligar a ${label}`} />{form.enabled ? 'ligada' : 'desligada'}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Field label="Provedor"><select className={INPUT} value={form.provider} aria-label={`Provedor da ${label}`}
+          onChange={(e) => setForm({ ...form, provider: e.target.value as AiFallbackRow['provider'] })}>
+          <option value="OPENROUTER">OpenRouter</option><option value="DEEPSEEK">DeepSeek</option></select></Field>
+        <Field label="Modelo" wide><input className={`${INPUT} font-mono`} value={form.model} aria-label={`Modelo da ${label}`} onChange={(e) => setForm({ ...form, model: e.target.value })} /></Field>
+        <Field label="US$ por milhão (entrada)"><input className={INPUT} type="number" step="0.01" min={0} value={form.inputPriceUsdM} aria-label={`Preço de entrada da ${label}`} onChange={(e) => setForm({ ...form, inputPriceUsdM: Number(e.target.value) })} /></Field>
+        <Field label="US$ por milhão (saída)"><input className={INPUT} type="number" step="0.01" min={0} value={form.outputPriceUsdM} aria-label={`Preço de saída da ${label}`} onChange={(e) => setForm({ ...form, outputPriceUsdM: Number(e.target.value) })} /></Field>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={save}>Salvar reserva</Button>
+        <Button size="sm" variant="ghost" onClick={remove} aria-label={`Remover a ${label}`}><Trash2 className="h-4 w-4" />Remover</Button>
+        <Msg msg={msg} />
+      </div>
+    </li>
+  );
+};
+
+const RouteCard: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; fallbacks: AiFallbackRow[]; onSaved: (rows: AiRouteRow[]) => void;
+  onFallbacks: (rows: AiFallbackRow[]) => void }> = ({ r, providers, fallbacks, onSaved, onFallbacks }) => {
+  const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ...r });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => { setF({ ...r }); }, [r]);
   const dirty = JSON.stringify(f) !== JSON.stringify(r);
+  const writes = r.layer === 'FLASH' || r.layer === 'PRO';
+  const mine = fallbacks.filter((x) => x.task === r.task);
   const save = async () => {
     try {
       onSaved(await aiAdminService.saveRoute(r.task, {
@@ -317,30 +452,100 @@ const RouteRow: React.FC<{ r: AiRouteRow; providers: AiProviderRow[]; onSaved: (
       setMsg({ ok: true, text: 'Salvo' });
     } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
   };
-  const small = (k: keyof AiRouteRow, label: string, w = 'w-20') => (
-    <input className={`${INPUT} ${w} px-2 text-right tabular-nums`} aria-label={`${label} de ${r.label}`} value={String(f[k] ?? '')}
-      onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+  const addFallback = async () => {
+    const used = mine.map((x) => x.position);
+    const position = [1, 2, 3, 4, 5].find((n) => !used.includes(n));
+    if (!position) return;
+    try {
+      onFallbacks(await aiAdminService.saveFallback(r.task, position, { provider: 'OPENROUTER', model: 'qwen/qwen3.5-flash', inputPriceUsdM: 0.1, outputPriceUsdM: 0.4, enabled: true }));
+    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
+  };
+  const numField = (k: keyof AiRouteRow, label: string, aria: string, hint?: string) => (
+    <Field label={label} hint={hint}>
+      <input className={`${INPUT} tabular-nums`} inputMode="decimal" aria-label={`${aria} de ${r.label}`} value={String(f[k] ?? '')}
+        onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+    </Field>
   );
+  const state = routeState(r);
+  const providerName = PROVIDER_INFO[r.provider ?? '']?.name ?? r.provider ?? '—';
   return (
-    <tr className="border-t border-slate-100 align-top">
-      <td className="py-2 pr-3"><span className="block font-medium text-slate-900">{r.label}</span><span className="font-mono text-xs text-slate-500">{r.task}</span>
-        {r.notes && <span className="mt-0.5 block text-xs text-slate-500">{r.notes}</span>}</td>
-      <td className="pr-2"><select className={`${INPUT} w-32`} value={f.layer} aria-label={`Camada de ${r.label}`} onChange={(e) => setF({ ...f, layer: e.target.value as AiRouteRow['layer'] })}>
-        {Object.entries(LAYER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
-      <td className="pr-2"><select className={`${INPUT} w-32`} value={f.provider ?? ''} aria-label={`Provedor de ${r.label}`} onChange={(e) => setF({ ...f, provider: e.target.value })}>
-        {providers.map((p) => <option key={p.provider} value={p.provider}>{PROVIDER_INFO[p.provider]?.name ?? p.provider}</option>)}</select>
-        <input className={`${INPUT} mt-1 w-32 font-mono`} value={f.model ?? ''} aria-label={`Modelo de ${r.label}`} placeholder="padrão do provedor" onChange={(e) => setF({ ...f, model: e.target.value })} /></td>
-      <td className="pr-2">{small('maxContextTokens', 'Teto de contexto')}<span className={`${HINT} block`}>contexto</span>{small('maxOutputTokens', 'Teto de saída')}<span className={`${HINT} block`}>saída</span></td>
-      <td className="pr-2">{small('creditsPerUse', 'Créditos por uso', 'w-16')}</td>
-      <td className="pr-2">{small('inputPriceUsdM', 'Preço de entrada')}<span className={`${HINT} block`}>entrada/M</span>{small('outputPriceUsdM', 'Preço de saída')}<span className={`${HINT} block`}>saída/M</span></td>
-      <td className="pr-2">{small('jevThreshold', 'Limite de confiança do Jev', 'w-16')}</td>
-      <td className="pr-2"><div className="flex flex-col gap-2 pt-2">
-        <label className="flex items-center gap-2 text-xs"><Toggle on={f.shadow} onChange={(v) => setF({ ...f, shadow: v })} label={`Modo sombra de ${r.label}`} />sombra</label>
-        <label className="flex items-center gap-2 text-xs"><Toggle on={f.enabled} onChange={(v) => setF({ ...f, enabled: v })} label={`Ligar ${r.label}`} />ligada</label></div></td>
-      <td className="pt-1"><Button size="sm" onClick={save} disabled={!dirty}>Salvar</Button><Msg msg={msg} /></td>
-    </tr>
+    <li className="rounded-xl border border-slate-200 bg-white" aria-label={r.label}>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl p-3 text-left hover:bg-slate-50">
+        <span className="min-w-0 flex-1 basis-56">
+          <span className="block text-sm font-semibold text-slate-900">{r.label}</span>
+          <span className="block truncate text-xs text-slate-500">{providerName}{r.model ? ` · ${r.model}` : ''} · {r.creditsPerUse} {r.creditsPerUse === 1 ? 'crédito' : 'créditos'} por uso</span>
+        </span>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Pill tone="slate">{LAYER_LABEL[r.layer] ?? r.layer}</Pill>
+          <Pill tone={state.tone}>{state.label}</Pill>
+          {writes && <Pill tone={mine.length ? 'blue' : 'slate'}>{mine.length ? `${mine.length} reserva${mine.length > 1 ? 's' : ''}` : 'sem reserva'}</Pill>}
+          <span className="text-xs font-semibold text-green-700">{open ? 'Fechar' : 'Editar'}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-3 border-t border-slate-100 p-3">
+          <p className="text-xs text-slate-500"><span className="font-mono">{r.task}</span>{r.notes ? `: ${r.notes}` : ''}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <Field label="Camada"><select className={INPUT} value={f.layer} aria-label={`Camada de ${r.label}`} onChange={(e) => setF({ ...f, layer: e.target.value as AiRouteRow['layer'] })}>
+              {Object.entries(LAYER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+            <Field label="Provedor"><select className={INPUT} value={f.provider ?? ''} aria-label={`Provedor de ${r.label}`} onChange={(e) => setF({ ...f, provider: e.target.value })}>
+              {providers.map((p) => <option key={p.provider} value={p.provider}>{PROVIDER_INFO[p.provider]?.name ?? p.provider}</option>)}</select></Field>
+            <Field label="Modelo" wide><input className={`${INPUT} font-mono`} value={f.model ?? ''} aria-label={`Modelo de ${r.label}`} placeholder="padrão do provedor" onChange={(e) => setF({ ...f, model: e.target.value })} /></Field>
+            {numField('creditsPerUse', 'Créditos cobrados por uso', 'Créditos por uso')}
+            {numField('maxContextTokens', 'Teto de entrada (tokens)', 'Teto de contexto')}
+            {numField('maxOutputTokens', 'Teto de resposta (tokens)', 'Teto de saída')}
+            {numField('inputPriceUsdM', 'US$ por milhão (entrada)', 'Preço de entrada')}
+            {numField('outputPriceUsdM', 'US$ por milhão (saída)', 'Preço de saída')}
+            {r.layer === 'JEV' && numField('jevThreshold', 'Confiança mínima do Jev (0 a 1)', 'Limite de confiança do Jev')}
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-700">
+            <label className="flex items-center gap-2"><Toggle on={f.enabled} onChange={(v) => setF({ ...f, enabled: v })} label={`Ligar ${r.label}`} />Ligada</label>
+            <label className="flex items-center gap-2"><Toggle on={f.shadow} onChange={(v) => setF({ ...f, shadow: v })} label={`Modo sombra de ${r.label}`} />Em sombra (só observa, não decide)</label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2"><Button size="sm" onClick={save} disabled={!dirty}>Salvar</Button><Msg msg={msg} /></div>
+          {writes && (
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+              <h4 className="text-sm font-semibold text-slate-900">Se este modelo falhar</h4>
+              <p className={HINT}>O Copiloto tenta as reservas na ordem, antes de cair no texto do sistema. O lojista paga o mesmo crédito. Confira o id do modelo no OpenRouter.</p>
+              <ul className="flex flex-col gap-2">{mine.map((x) => <FallbackItem key={`${x.task}-${x.position}`} f={x} onSaved={onFallbacks} />)}</ul>
+              {mine.length < 5 && <div><Button size="sm" variant="secondary" onClick={addFallback}><Plus className="h-4 w-4" />Adicionar reserva</Button></div>}
+            </div>
+          )}
+        </div>
+      )}
+    </li>
   );
 };
+
+const ROUTE_GROUPS: Array<{ title: string; hint: string; layers: string[] }> = [
+  { title: 'Escrevem texto', hint: 'Gastam créditos do lojista. Use reservas para não ficar sem resposta.', layers: ['FLASH', 'PRO'] },
+  { title: 'Decisões do Jev', hint: 'Frações de centavo. Em sombra, só observam e não mudam nada.', layers: ['JEV'] },
+  { title: 'Voz e WhatsApp', hint: 'Serviços pagos por uso fora do modelo de texto.', layers: ['VOZ', 'CANAL'] },
+  { title: 'Texto pronto', hint: 'Sem custo. Mude a camada se quiser que a IA escreva.', layers: ['TEMPLATE'] },
+];
+
+const RoutesCard: React.FC<{ routes: AiRouteRow[]; providers: AiProviderRow[]; fallbacks: AiFallbackRow[]; onSaved: (rows: AiRouteRow[]) => void;
+  onFallbacks: (rows: AiFallbackRow[]) => void }> = ({ routes, providers, fallbacks, onSaved, onFallbacks }) => (
+  <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="routes-title">
+    <div>
+      <h2 id="routes-title" className="text-base font-semibold text-slate-900">Tarefas da IA</h2>
+      <p className="text-sm text-slate-600">Quem atende cada tarefa e quanto ela custa. Toque em uma tarefa para editar. Muda na hora, sem deploy.</p>
+    </div>
+    {ROUTE_GROUPS.map((g) => {
+      const list = routes.filter((r) => g.layers.includes(r.layer));
+      if (list.length === 0) return null;
+      return (
+        <div key={g.title} className="flex flex-col gap-2">
+          <div><h3 className="text-sm font-semibold text-slate-900">{g.title}</h3><p className={HINT}>{g.hint}</p></div>
+          <ul className="flex flex-col gap-2">
+            {list.map((r) => <RouteCard key={r.task} r={r} providers={providers} fallbacks={fallbacks} onSaved={onSaved} onFallbacks={onFallbacks} />)}
+          </ul>
+        </div>
+      );
+    })}
+  </section>
+);
 
 // ── Autonomia (nível 3) ────────────────────────────────────────────────
 
@@ -378,105 +583,6 @@ const AutonomyCard: React.FC = () => {
     </section>
   );
 };
-
-// ── Cadeia de reserva de modelos ───────────────────────────────────────
-
-const FallbackRow: React.FC<{ f: AiFallbackRow; onSaved: (rows: AiFallbackRow[]) => void }> = ({ f, onSaved }) => {
-  const [form, setForm] = useState({ ...f });
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  useEffect(() => { setForm({ ...f }); }, [f]);
-  const save = async () => {
-    try {
-      onSaved(await aiAdminService.saveFallback(f.task, f.position, {
-        provider: form.provider, model: form.model, inputPriceUsdM: Number(form.inputPriceUsdM),
-        outputPriceUsdM: Number(form.outputPriceUsdM), enabled: form.enabled,
-      }));
-      setMsg({ ok: true, text: 'Salvo' });
-    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
-  };
-  const remove = async () => {
-    try { onSaved(await aiAdminService.removeFallback(f.task, f.position)); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
-  };
-  const label = `${f.task} reserva ${f.position}`;
-  return (
-    <tr className="border-t border-slate-100 align-top">
-      <td className="py-2 pr-3 font-mono text-xs">{f.task}</td>
-      <td className="pr-3 pt-2 tabular-nums">{f.position}</td>
-      <td className="pr-3"><select className={INPUT} value={form.provider} aria-label={`Provedor da ${label}`}
-        onChange={(e) => setForm({ ...form, provider: e.target.value as AiFallbackRow['provider'] })}>
-        <option value="OPENROUTER">OpenRouter</option><option value="DEEPSEEK">DeepSeek</option></select></td>
-      <td className="pr-3"><input className={`${INPUT} font-mono`} value={form.model} aria-label={`Modelo da ${label}`} onChange={(e) => setForm({ ...form, model: e.target.value })} /></td>
-      <td className="pr-3"><div className="flex gap-1">
-        <input className={INPUT} type="number" step="0.01" min={0} value={form.inputPriceUsdM} aria-label={`Preço de entrada da ${label}`} onChange={(e) => setForm({ ...form, inputPriceUsdM: Number(e.target.value) })} />
-        <input className={INPUT} type="number" step="0.01" min={0} value={form.outputPriceUsdM} aria-label={`Preço de saída da ${label}`} onChange={(e) => setForm({ ...form, outputPriceUsdM: Number(e.target.value) })} />
-      </div></td>
-      <td className="pr-3 pt-2"><Toggle on={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={`Ligar a ${label}`} /></td>
-      <td className="pt-1"><div className="flex items-center gap-1">
-        <Button size="sm" onClick={save}>Salvar</Button>
-        <Button size="sm" variant="ghost" onClick={remove} aria-label={`Remover a ${label}`}><Trash2 className="h-4 w-4" /></Button>
-        <Msg msg={msg} /></div></td>
-    </tr>
-  );
-};
-
-const FallbacksCard: React.FC<{ fallbacks: AiFallbackRow[]; routes: AiRouteRow[]; onSaved: (rows: AiFallbackRow[]) => void }> = ({ fallbacks, routes, onSaved }) => {
-  const writing = routes.filter((r) => r.layer === 'FLASH' || r.layer === 'PRO');
-  const [task, setTask] = useState(writing[0]?.task ?? '');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const add = async () => {
-    const used = fallbacks.filter((f) => f.task === task).map((f) => f.position);
-    const position = [1, 2, 3, 4, 5].find((n) => !used.includes(n));
-    if (!position) { setMsg({ ok: false, text: 'Até 5 reservas por tarefa.' }); return; }
-    try {
-      onSaved(await aiAdminService.saveFallback(task, position, { provider: 'OPENROUTER', model: 'qwen/qwen3.5-flash', inputPriceUsdM: 0.1, outputPriceUsdM: 0.4, enabled: true }));
-      setMsg(null);
-    } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
-  };
-  return (
-    <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="fallbacks-title">
-      <div>
-        <h2 id="fallbacks-title" className="text-base font-semibold text-slate-900">Cadeia de reserva</h2>
-        <p className="text-sm text-slate-600">Se o modelo da rota falhar, o Copiloto tenta estes, na ordem, antes de cair no texto do sistema. O lojista paga o mesmo crédito; o custo de cada modelo aparece em Uso. Confira o id do modelo no OpenRouter antes de ligar.</p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
-          <caption className="sr-only">Cadeia de reserva de modelos</caption>
-          <thead className="text-xs text-slate-500"><tr><th className="py-1 pr-3">Tarefa</th><th>Ordem</th><th>Provedor</th><th>Modelo</th><th>Preço US$ (entrada / saída)</th><th>Ligada</th><th /></tr></thead>
-          <tbody>
-            {fallbacks.map((f) => <FallbackRow key={`${f.task}-${f.position}`} f={f} onSaved={onSaved} />)}
-            {fallbacks.length === 0 && <tr><td colSpan={7} className="py-2 text-slate-500">Nenhuma reserva: se o modelo falhar, entra o texto do sistema.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1"><span className={LABEL}>Adicionar reserva para</span>
-          <select className={INPUT} value={task} onChange={(e) => setTask(e.target.value)} aria-label="Tarefa da nova reserva">
-            {writing.map((r) => <option key={r.task} value={r.task}>{r.label}</option>)}
-          </select></label>
-        <Button variant="secondary" onClick={add}><Plus className="h-4 w-4" />Adicionar reserva</Button>
-        <Msg msg={msg} />
-      </div>
-    </section>
-  );
-};
-
-const RoutesCard: React.FC<{ routes: AiRouteRow[]; providers: AiProviderRow[]; onSaved: (rows: AiRouteRow[]) => void }> = ({ routes, providers, onSaved }) => (
-  <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="routes-title">
-    <div>
-      <h2 id="routes-title" className="text-base font-semibold text-slate-900">Roteamento por tarefa</h2>
-      <p className="text-sm text-slate-600">Qual camada atende cada tarefa. Texto pronto não gasta nada; Jev decide por frações de centavo; Flash e Pro escrevem. Muda na hora, sem deploy.</p>
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1100px] text-left text-sm">
-        <caption className="sr-only">Rotas de IA por tarefa</caption>
-        <thead className="text-xs text-slate-500"><tr>
-          <th className="py-1 pr-3">Tarefa</th><th>Camada</th><th>Provedor e modelo</th><th>Tokens</th><th>Créditos</th><th>Preço US$</th><th>Confiança Jev</th><th>Estado</th><th />
-        </tr></thead>
-        <tbody>{routes.map((r) => <RouteRow key={r.task} r={r} providers={providers} onSaved={onSaved} />)}</tbody>
-      </table>
-    </div>
-  </section>
-);
 
 // ── Piloto e carteiras ──────────────────────────────────────────────────
 
@@ -613,7 +719,7 @@ const ConsoleCard: React.FC<{ data: AiOverview }> = ({ data }) => {
             </select></label>
           <fieldset className="flex flex-col gap-1"><legend className={LABEL}>Tarefa</legend>
             <div className="flex flex-wrap gap-2">
-              {([['CHAT', 'Pergunta no chat'], ['EXPLAIN', 'Por quê? de uma oportunidade'], ['JEV', 'Decisão do Jev']] as const).map(([k, l]) => (
+              {([['CHAT', 'Pergunta no chat'], ['EXPLAIN', 'Por quê? de oportunidade'], ['JEV', 'Decisão do Jev']] as const).map(([k, l]) => (
                 <label key={k} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${task === k ? 'border-green-600 bg-green-50' : 'border-slate-300'}`}>
                   <input type="radio" name="task" className="accent-green-600" checked={task === k} onChange={() => { setTask(k); setInput(examples[k]); }} />{l}</label>
               ))}
@@ -651,17 +757,38 @@ const ConsoleCard: React.FC<{ data: AiOverview }> = ({ data }) => {
 type Row = Record<string, unknown>;
 
 const Table: React.FC<{ rows: Row[]; cols: Array<[string, string, (v: unknown) => string]>; caption: string }> = ({ rows, cols, caption }) => (
-  <div className="overflow-x-auto">
-    <table className="w-full text-left text-sm">
-      <caption className="sr-only">{caption}</caption>
-      <thead className="text-xs text-slate-500"><tr>{cols.map(([, label]) => <th key={label} className="py-1 pr-3">{label}</th>)}</tr></thead>
-      <tbody>
-        {rows.map((r, i) => <tr key={i} className="border-t border-slate-100">{cols.map(([k, label, f]) => <td key={label} className="py-1.5 pr-3 tabular-nums">{f(r[k])}</td>)}</tr>)}
-        {rows.length === 0 && <tr><td colSpan={cols.length} className="py-2 text-slate-500">Sem dados no período.</td></tr>}
-      </tbody>
-    </table>
-  </div>
+  <>
+    <div className="hidden overflow-x-auto sm:block">
+      <table className="w-full text-left text-sm">
+        <caption className="sr-only">{caption}</caption>
+        <thead className="text-xs text-slate-500"><tr>{cols.map(([, label]) => <th key={label} className="py-1 pr-3 font-medium">{label}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((r, i) => <tr key={i} className="border-t border-slate-100">{cols.map(([k, label, f]) => <td key={label} className="py-1.5 pr-3 tabular-nums">{f(r[k])}</td>)}</tr>)}
+          {rows.length === 0 && <tr><td colSpan={cols.length} className="py-2 text-slate-500">Sem dados no período.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+    <ul className="flex flex-col gap-2 sm:hidden" aria-label={caption}>
+      {rows.map((r, i) => (
+        <li key={i} className="rounded-xl border border-slate-200 p-3 text-sm">
+          <p className="break-words font-medium text-slate-900">{cols[0][2](r[cols[0][0]])}</p>
+          <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
+            {cols.slice(1).map(([k, label, f]) => (
+              <div key={label} className="min-w-0"><dt className="text-xs text-slate-500">{label}</dt><dd className="break-words tabular-nums text-slate-800">{f(r[k])}</dd></div>
+            ))}
+          </dl>
+        </li>
+      ))}
+      {rows.length === 0 && <li className="text-sm text-slate-500">Sem dados no período.</li>}
+    </ul>
+  </>
 );
+
+const dayLabel = (v: unknown) => {
+  if (v == null) return '—';
+  const d = typeof v === 'number' ? new Date(v) : new Date(`${String(v).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('pt-BR');
+};
 
 const AcceptLine: React.FC<{ a: Row }> = ({ a }) => {
   const rate = (x: unknown, y: unknown) => (num(y) > 0 ? `${Math.round((num(x) / num(y)) * 100)}%` : '—');
@@ -687,11 +814,11 @@ const UsageCard: React.FC<{ usage: Row | null; days: number; setDays: (d: number
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 id="usage-title" className="text-base font-semibold text-slate-900">Uso, custo e modo sombra</h2>
           <p className="text-sm text-slate-600">Só a IA da plataforma (revenda). Custo pelo preço de referência de cada rota.</p></div>
-        <select className={`${INPUT} w-40`} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Período">
+        <select className={`${INPUT} sm:w-44`} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Período">
           {[1, 7, 30, 90].map((d) => <option key={d} value={d}>Últimos {d} dia{d > 1 ? 's' : ''}</option>)}
         </select>
       </div>
-      <ul className="grid grid-cols-2 gap-2 md:grid-cols-5">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {([['Chamadas', n(tot.chamadas)], ['Custo', brl(cost)], ['Créditos usados', n(tot.creditos)], ['Receita de pacotes', brl(revenue)],
           ['Margem bruta', revenue > 0 ? `${Math.round(((revenue - cost) / revenue) * 100)}%` : '—']] as const).map(([l, v]) => (
           <li key={l} className="rounded-xl border border-slate-200 p-3"><span className={HINT}>{l}</span><span className="block text-lg font-bold tabular-nums">{v}</span></li>
@@ -724,7 +851,7 @@ const UsageCard: React.FC<{ usage: Row | null; days: number; setDays: (d: number
           <Table caption="Uso por mercado" rows={(usage.porMercado ?? []) as Row[]} cols={[['mercado', 'Mercado', s], ['chamadas', 'Chamadas', n], ['custo_usd', 'Custo', money], ['creditos', 'Créditos', n]]} /></div>
       </div>
       <div><h3 className="text-sm font-semibold text-slate-900">Por dia</h3>
-        <Table caption="Uso por dia" rows={(usage.porDia ?? []) as Row[]} cols={[['dia', 'Dia', (v) => (v ? new Date(`${String(v)}T12:00`).toLocaleDateString('pt-BR') : '—')], ['chamadas', 'Chamadas', n], ['custo_usd', 'Custo', money], ['creditos', 'Créditos', n]]} /></div>
+        <Table caption="Uso por dia" rows={(usage.porDia ?? []) as Row[]} cols={[['dia', 'Dia', dayLabel], ['chamadas', 'Chamadas', n], ['custo_usd', 'Custo', money], ['creditos', 'Créditos', n]]} /></div>
     </section>
   );
 };
@@ -756,7 +883,8 @@ const PlansOrdersCard: React.FC<{ plans: AiPlanRow[]; onPlans: (p: AiPlanRow[]) 
       <ul className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200">
         {plans.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-            <span className={p.active ? '' : 'text-slate-400 line-through'}><span className="font-medium">{p.name}</span> · {p.credits} créditos · {brl(p.priceCents / 100)} · {brl(p.priceCents / 100 / p.credits)} por crédito</span>
+            <span className={`min-w-0 ${p.active ? '' : 'text-slate-400 line-through'}`}><span className="block font-medium">{p.name}</span>
+              <span className="block text-xs text-slate-500">{p.credits} créditos por {brl(p.priceCents / 100)} ({brl(p.priceCents / 100 / p.credits)} por crédito)</span></span>
             <Button size="sm" variant="ghost" onClick={() => toggle(p)}><Power className="h-4 w-4" />{p.active ? 'Desativar' : 'Ativar'}</Button>
           </li>
         ))}
@@ -765,7 +893,7 @@ const PlansOrdersCard: React.FC<{ plans: AiPlanRow[]; onPlans: (p: AiPlanRow[]) 
         <label className="flex min-w-[200px] flex-1 flex-col gap-1"><span className={LABEL}>Novo pacote</span><input className={INPUT} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-label="Nome do pacote" /></label>
         <label className="flex flex-col gap-1"><span className={LABEL}>Créditos</span><input className={`${INPUT} w-28`} value={draft.credits} onChange={(e) => setDraft({ ...draft, credits: e.target.value })} aria-label="Créditos do pacote" /></label>
         <label className="flex flex-col gap-1"><span className={LABEL}>Preço (R$)</span><input className={`${INPUT} w-28`} value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} aria-label="Preço do pacote" /></label>
-        <Button type="submit" variant="secondary" disabled={!draft.name || !draft.credits || !draft.price}><Plus className="h-4 w-4" />Adicionar</Button>
+        <Button type="submit" variant="secondary" disabled={!draft.name || !draft.credits || !draft.price}><Plus className="h-4 w-4" />Adicionar pacote</Button>
       </form>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-slate-900">Pedidos</h3>
@@ -788,70 +916,109 @@ const PlansOrdersCard: React.FC<{ plans: AiPlanRow[]; onPlans: (p: AiPlanRow[]) 
   );
 };
 
+const AUDIT_LABEL: Record<string, string> = {
+  AUTONOMY_SAVE: 'Autonomia alterada', CONSOLE: 'Teste no console', FALLBACK_REMOVE: 'Reserva removida', FALLBACK_SAVE: 'Reserva salva',
+  ORDER_CANCEL: 'Pedido cancelado', ORDER_CONFIRM: 'Pagamento confirmado', PILOT_ADD: 'Mercado no piloto', PILOT_REMOVE: 'Mercado fora do piloto',
+  PLAN_SAVE: 'Pacote salvo', PROVIDER_KEY_REMOVE: 'Chave removida', PROVIDER_SAVE: 'Chave salva', PROVIDER_TEST: 'Chave testada',
+  ROUTE_SAVE: 'Tarefa alterada', SETTINGS_SAVE: 'Orçamento ou interruptor', WALLET_ADJUST: 'Saldo ajustado', WALLET_CAP: 'Teto mensal',
+  WHATSAPP_CONFIG: 'WhatsApp configurado', WHATSAPP_NOTIFY: 'Avisos enviados',
+};
+
 const AuditCard: React.FC = () => {
   const [rows, setRows] = useState<Array<{ actor: string; action: string; detail: string; createdAt: string }>>([]);
+  const [shown, setShown] = useState(10);
   useEffect(() => { aiAdminService.audit().then(setRows).catch(() => {}); }, []);
   return (
     <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="audit-title">
-      <h2 id="audit-title" className="text-base font-semibold text-slate-900">Auditoria do painel</h2>
-      <Table caption="Auditoria" rows={rows as unknown as Row[]} cols={[['createdAt', 'Quando', (v) => when(v as string)], ['actor', 'Quem', (v) => String(v ?? '—')], ['action', 'Ação', (v) => String(v)], ['detail', 'Detalhe', (v) => String(v ?? '')]]} />
+      <div>
+        <h2 id="audit-title" className="text-base font-semibold text-slate-900">Auditoria do painel</h2>
+        <p className="text-sm text-slate-600">Toda alteração feita aqui, com quem fez e quando.</p>
+      </div>
+      <ul className="flex flex-col divide-y divide-slate-100">
+        {rows.slice(0, shown).map((r, i) => (
+          <li key={i} className="flex flex-col gap-0.5 py-2 text-sm sm:flex-row sm:items-baseline sm:gap-3">
+            <span className="shrink-0 text-xs tabular-nums text-slate-500 sm:w-40">{when(r.createdAt)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="font-medium text-slate-900">{AUDIT_LABEL[r.action] ?? r.action}</span>
+              <span className="ml-2 font-mono text-[11px] text-slate-400">{r.action}</span>
+              {r.detail && <span className="block break-words text-slate-600">{r.detail}</span>}
+            </span>
+            <span className="shrink-0 break-all text-xs text-slate-500 sm:max-w-[14rem] sm:text-right">{r.actor ?? '—'}</span>
+          </li>
+        ))}
+        {rows.length === 0 && <li className="py-2 text-sm text-slate-500">Nada registrado ainda.</li>}
+      </ul>
+      {rows.length > shown && (
+        <div><Button size="sm" variant="secondary" onClick={() => setShown(shown + 20)}>Mostrar mais ({rows.length - shown})</Button></div>
+      )}
     </section>
   );
 };
 
 // ── Página ──────────────────────────────────────────────────────────────
 
-type Tab = 'geral' | 'chaves' | 'rotas' | 'piloto' | 'console' | 'uso' | 'pacotes' | 'auditoria';
-const TABS: Array<[Tab, string]> = [['geral', 'Visão geral'], ['chaves', 'Chaves'], ['rotas', 'Roteamento'], ['piloto', 'Piloto e carteiras'],
-  ['console', 'Console'], ['uso', 'Uso e sombra'], ['pacotes', 'Pacotes e pedidos'], ['auditoria', 'Auditoria']];
+type Tab = 'comecar' | 'chaves' | 'mercados' | 'uso' | 'ajustes';
+const TABS: Array<[Tab, string]> = [['comecar', 'Começar'], ['chaves', 'Chaves e canais'], ['mercados', 'Mercados e créditos'],
+  ['uso', 'Uso e testes'], ['ajustes', 'Ajustes']];
 
 const SuperAdminAi: React.FC = () => {
   const [data, setData] = useState<AiOverview | null>(null);
   const [usage, setUsage] = useState<Row | null>(null);
   const [days, setDays] = useState(30);
-  const [tab, setTab] = useState<Tab>('geral');
+  const [tab, setTab] = useState<Tab>('comecar');
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(() => { aiAdminService.overview().then(setData).catch((e) => setError(errorText(e, 'Não foi possível abrir o painel.'))); }, []);
   useEffect(load, [load]);
   // Recarrega ao abrir as abas que mostram uso, para os números não ficarem velhos.
-  useEffect(() => { if (tab === 'uso' || tab === 'geral') aiAdminService.usage(days).then(setUsage).catch(() => {}); }, [days, tab]);
+  useEffect(() => { if (tab === 'uso' || tab === 'comecar') aiAdminService.usage(days).then(setUsage).catch(() => {}); }, [days, tab]);
   const patch = useMemo(() => (p: Partial<AiOverview>) => setData((d) => (d ? { ...d, ...p } : d)), []);
+  const go = (t: Tab) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const providers = data ? [...data.providers].sort((a, b) => PROVIDER_ORDER.indexOf(a.provider) - PROVIDER_ORDER.indexOf(b.provider)) : [];
 
   return (
     <SuperAdminLayout>
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-5">
         <div>
           <h1 className="text-xl font-bold text-slate-900">IA e APIs</h1>
-          <p className="text-sm text-slate-600">Chaves da plataforma, roteamento por tarefa, orçamento, mercados de teste e console. A plataforma compra os créditos nos provedores e revende pacotes aos mercados.</p>
+          <p className="text-sm text-slate-600">A plataforma compra a IA nos provedores e revende créditos aos mercados. Comece pelo passo a passo.</p>
         </div>
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         {data && !data.settings.encryptionReady && (
-          <p role="alert" className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><KeyRound className="h-4 w-4" />O servidor está sem AI_ENCRYPTION_KEY: as chaves não podem ser guardadas.</p>
+          <p role="alert" className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><KeyRound className="h-4 w-4 shrink-0" />O servidor está sem AI_ENCRYPTION_KEY: as chaves não podem ser guardadas.</p>
         )}
-        <div className="lg-glass flex gap-1 overflow-x-auto rounded-full p-1 [scrollbar-width:none]" role="tablist" aria-label="Seções do painel de IA">
-          {TABS.map(([k, l]) => (
+        <div className="lg-glass grid grid-cols-2 gap-1 rounded-2xl p-1 sm:flex sm:flex-wrap sm:rounded-full" role="tablist" aria-label="Seções do painel de IA">
+          {TABS.map(([k, l], i) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium ${tab === k ? 'lg-tab-on' : 'lg-tab'}`}>{l}</button>
+              className={`rounded-full px-4 py-2 text-sm font-medium ${i === 0 ? 'col-span-2' : ''} ${tab === k ? 'lg-tab-on' : 'lg-tab'}`}>{l}</button>
           ))}
         </div>
         {!data ? <Loader2 className="h-6 w-6 animate-spin text-slate-400" /> : (
           <>
-            {tab === 'geral' && (<>
-              <StatusCard data={data} usage={usage} onSettings={(s) => patch({ settings: s })} />
-              <BudgetCard key="orcamento" settings={data.settings} onSaved={(s) => patch({ settings: s })} />
-              <AutonomyCard />
+            {tab === 'comecar' && <SetupGuide data={data} usage={usage} onSettings={(s) => patch({ settings: s })} go={go} />}
+            {tab === 'chaves' && (<>
+              <p className="text-sm text-slate-600">Obrigatórias para começar: DeepSeek e Jev. As outras ligam recursos extras.</p>
+              {providers.map((p) => (
+                <React.Fragment key={p.provider}>
+                  <ProviderCard p={p} encryptionReady={data.settings.encryptionReady} onChange={(rows) => patch({ providers: rows })} />
+                  {p.provider === 'WHATSAPP' && <WhatsAppConfigCard encryptionReady={data.settings.encryptionReady} pilots={data.pilots} />}
+                </React.Fragment>
+              ))}
             </>)}
-            {tab === 'chaves' && data.providers.map((p) => (
-              <ProviderCard key={p.provider} p={p} encryptionReady={data.settings.encryptionReady} onChange={(rows) => patch({ providers: rows })} />
-            ))}
-            {tab === 'chaves' && <WhatsAppConfigCard encryptionReady={data.settings.encryptionReady} pilots={data.pilots} />}
-            {tab === 'rotas' && <RoutesCard routes={data.routes} providers={data.providers} onSaved={(rows) => patch({ routes: rows })} />}
-            {tab === 'rotas' && <FallbacksCard fallbacks={data.fallbacks ?? []} routes={data.routes} onSaved={(rows) => patch({ fallbacks: rows })} />}
-            {tab === 'piloto' && <PilotCard data={data} onPilots={(rows) => patch({ pilots: rows })} refresh={load} />}
-            {tab === 'console' && <ConsoleCard data={data} />}
-            {tab === 'uso' && <UsageCard usage={usage} days={days} setDays={setDays} />}
-            {tab === 'pacotes' && <PlansOrdersCard plans={data.plans} onPlans={(p) => patch({ plans: p })} />}
-            {tab === 'auditoria' && <AuditCard />}
+            {tab === 'mercados' && (<>
+              <PilotCard data={data} onPilots={(rows) => patch({ pilots: rows })} refresh={load} />
+              <PlansOrdersCard plans={data.plans} onPlans={(p) => patch({ plans: p })} />
+            </>)}
+            {tab === 'uso' && (<>
+              <UsageCard usage={usage} days={days} setDays={setDays} />
+              <ConsoleCard data={data} />
+            </>)}
+            {tab === 'ajustes' && (<>
+              <BudgetCard key="orcamento" settings={data.settings} onSaved={(s) => patch({ settings: s })} />
+              <RoutesCard routes={data.routes} providers={data.providers} fallbacks={data.fallbacks ?? []}
+                onSaved={(rows) => patch({ routes: rows })} onFallbacks={(rows) => patch({ fallbacks: rows })} />
+              <AutonomyCard />
+              <AuditCard />
+            </>)}
           </>
         )}
       </div>
