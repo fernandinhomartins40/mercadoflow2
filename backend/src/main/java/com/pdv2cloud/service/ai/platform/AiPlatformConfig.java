@@ -91,7 +91,7 @@ public class AiPlatformConfig {
         if (model != null && !model.isBlank() && (model.length() > 120 || !model.trim().matches("[A-Za-z0-9._:/-]+"))) {
             throw new IllegalArgumentException("Nome de modelo inválido");
         }
-        String key = apiKey == null ? "" : apiKey.trim();
+        String key = cleanKey(apiKey);
         if (!key.isEmpty()) {
             if (!cipher.isConfigured()) {
                 throw new IllegalArgumentException("A chave mestra de criptografia (AI_ENCRYPTION_KEY) não está configurada no servidor");
@@ -159,7 +159,8 @@ public class AiPlatformConfig {
         String apiKey = cipher.decrypt((String) rows.get(0).get("encrypted_api_key"));
         String model = (String) rows.get(0).get("default_model");
         TestResult result = switch (provider) {
-            case "DEEPSEEK", "OPENROUTER" -> {
+            case "OPENROUTER" -> openRouterTest(base, apiKey, model);
+            case "DEEPSEEK" -> {
                 LlmClient.LlmResponse r = llm.chat(base, apiKey, model, "Responda apenas com a palavra OK.", "Teste de conexão.", 32, 0);
                 yield new TestResult(r.success(), r.success() ? "Respondeu: " + clip(r.content()) : r.errorMessage(), r.latencyMs(),
                     "DEEPSEEK".equals(provider) && r.success() ? deepSeekBalance(base, apiKey) : null);
@@ -180,6 +181,62 @@ public class AiPlatformConfig {
                 .addValue("err", result.ok() ? null : clip(result.message())).addValue("ms", (int) result.latencyMs()));
         audit(actor, "PROVIDER_TEST", provider + (result.ok() ? " ok" : " falhou"));
         return result;
+    }
+
+    /**
+     * Chave colada com sujeira comum: aspas, "Bearer " na frente, quebra de
+     * linha ou caractere invisível (espaço de largura zero vindo de páginas e
+     * e-mails). Sem isso o provedor responde 401 e parece que a chave é falsa.
+     */
+    static String cleanKey(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String k = raw.replaceAll("[\\p{Cf}\\p{Cc}]", "").trim();
+        if (k.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            k = k.substring(7).trim();
+        }
+        while (k.length() > 1 && (k.startsWith("\"") || k.startsWith("'")) && (k.endsWith("\"") || k.endsWith("'"))) {
+            k = k.substring(1, k.length() - 1).trim();
+        }
+        return k;
+    }
+
+    /**
+     * OpenRouter em duas partes: primeiro a chave (GET /key, não gasta nada e
+     * mostra o saldo), depois o modelo de reserva. Assim "chave recusada" e
+     * "modelo não existe" não se confundem.
+     */
+    private TestResult openRouterTest(String base, String apiKey, String model) {
+        long started = System.currentTimeMillis();
+        String balance = null;
+        try {
+            HttpResponse<String> r = http.send(HttpRequest.newBuilder().uri(URI.create(base + "/key"))
+                .timeout(Duration.ofSeconds(8)).header("Authorization", "Bearer " + apiKey).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+            if (r.statusCode() == 401 || r.statusCode() == 403) {
+                String why = LlmClient.providerReason(r.body());
+                return new TestResult(false, "O OpenRouter recusou a chave (HTTP " + r.statusCode() + ")" + (why == null ? "" : ": " + why)
+                    + ". Confira se copiou a chave inteira (começa com sk-or-) e se ela não foi desativada.",
+                    System.currentTimeMillis() - started, null);
+            }
+            if (r.statusCode() == 200) {
+                com.fasterxml.jackson.databind.JsonNode d = new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.body()).path("data");
+                if (d.hasNonNull("limit_remaining")) {
+                    balance = String.format(java.util.Locale.ROOT, "US$ %.2f restantes", d.get("limit_remaining").asDouble());
+                } else if (d.hasNonNull("usage")) {
+                    balance = String.format(java.util.Locale.ROOT, "US$ %.2f usados, sem limite na chave", d.get("usage").asDouble());
+                }
+            }
+        } catch (Exception e) {
+            return new TestResult(false, "Falha de comunicação com o OpenRouter", System.currentTimeMillis() - started, null);
+        }
+        LlmClient.LlmResponse r = llm.chat(base, apiKey, model, "Responda apenas com a palavra OK.", "Teste de conexão.", 32, 0);
+        if (!r.success()) {
+            return new TestResult(false, "Chave aceita, mas o modelo " + (model == null || model.isBlank() ? "padrão" : model)
+                + " falhou: " + r.errorMessage() + ". Confira o id do modelo no OpenRouter.", r.latencyMs(), balance);
+        }
+        return new TestResult(true, "Respondeu: " + clip(r.content()), r.latencyMs(), balance);
     }
 
     /** Endereço usado de fato: o do cadastro, ou o simulador em teste local (ver {@link AiDevMock}). */

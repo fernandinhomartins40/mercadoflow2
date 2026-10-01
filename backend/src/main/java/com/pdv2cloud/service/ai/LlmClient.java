@@ -538,6 +538,11 @@ public class LlmClient {
      * alguns gateways devolve o prompt inteiro, que traz os dados da loja.
      */
     private String describeHttpError(int status, String body) {
+        String reason = providerReason(body);
+        return describeStatus(status) + (reason == null ? "" : ": " + reason);
+    }
+
+    private String describeStatus(int status) {
         return switch (status) {
             case 401, 403 -> "Chave de API rejeitada pelo provedor (HTTP " + status + ")";
             case 404 -> "Modelo ou endpoint não encontrado no provedor (HTTP 404)";
@@ -546,6 +551,31 @@ public class LlmClient {
                 ? "Provedor de IA indisponível (HTTP " + status + ")"
                 : "Provedor de IA recusou a requisição (HTTP " + status + ")";
         };
+    }
+
+    /**
+     * Motivo curto que o provedor devolve no corpo do erro ("User not found",
+     * "Model not exist"...). Provedores não ecoam a chave nesse texto; mesmo
+     * assim, qualquer trecho com cara de chave é cortado.
+     */
+    public static String providerReason(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = new ObjectMapper().readTree(body);
+            String msg = root.path("error").path("message").asText(null);
+            if (msg == null) {
+                msg = root.path("error").isTextual() ? root.path("error").asText() : root.path("message").asText(null);
+            }
+            if (msg == null || msg.isBlank()) {
+                return null;
+            }
+            msg = msg.replaceAll("(sk|key)[-_A-Za-z0-9]{8,}", "[chave]").replaceAll("\\s+", " ").trim();
+            return msg.length() > 140 ? msg.substring(0, 139) + "…" : msg;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
