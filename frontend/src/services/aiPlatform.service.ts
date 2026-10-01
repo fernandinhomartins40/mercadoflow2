@@ -144,3 +144,81 @@ export const copilotService = {
   command: async (marketId: string, contexto: 'CONFERENCIA' | 'RESUMO', texto: string): Promise<{ acao: string | null; confianca: number; origem: string }> =>
     (await api.post(`/v1/markets/${marketId}/copilot/voice/command`, { contexto, texto }, { timeout: 8000 })).data,
 };
+
+// ── Agentes do Copiloto (F3) ───────────────────────────────────────────────
+
+export type DecisionStatus = 'PENDENTE' | 'INFORMATIVA' | 'SILENCIADA' | 'APROVADA' | 'RECUSADA' | 'EXPIRADA';
+
+export interface CopilotDecision {
+  id: string;
+  agent: 'GERENTE' | 'COMPRAS' | 'RECEBIMENTO' | string;
+  kind: 'PEDIDO' | 'MENSAGEM_FORNECEDOR' | 'AVISO' | string;
+  scopeKey: string | null;
+  title: string;
+  body: string;
+  numbers: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  impact: number | null;
+  level: number;
+  urgent: boolean;
+  status: DecisionStatus;
+  funnel: { julgamento?: 'JEV' | 'REGRA'; vale?: boolean; urgente?: boolean; probabilidadeVale?: number; confianca?: number };
+  explanation: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionNote: string | null;
+  result: { executado?: boolean; noPedido?: number; semFornecedor?: number; jaDecididas?: number; whatsappUrl?: string; mensagem?: string } | null;
+}
+
+export interface CopilotInbox {
+  pendentes: number;
+  avisos: number;
+  urgentes: number;
+  decisoes: CopilotDecision[];
+}
+
+export interface CopilotAgentSettings {
+  agent: string;
+  label: string;
+  enabled: boolean;
+  level: number;
+  dailyLimit: number;
+  minImpact: number;
+}
+
+export interface CopilotPrefs {
+  quietStart: string;
+  quietEnd: string;
+  whatsappPhone: string | null;
+  whatsappOptIn: boolean;
+}
+
+export interface CopilotLesson {
+  id: string;
+  scope: string;
+  scopeKey: string;
+  topic: string;
+  text: string;
+  weight: number;
+  updatedAt: string;
+}
+
+export const copilotAgentsService = {
+  inbox: async (marketId: string, view: 'abertas' | 'decididas' | 'silenciadas' = 'abertas'): Promise<CopilotInbox> =>
+    (await api.get(`/v1/markets/${marketId}/copilot/decisions`, { params: { view } })).data,
+  approve: async (marketId: string, id: string): Promise<CopilotDecision> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/decisions/${id}/approve`, {})).data,
+  refuse: async (marketId: string, id: string, motivo?: string): Promise<CopilotDecision> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/decisions/${id}/refuse`, { motivo })).data,
+  explain: async (marketId: string, id: string): Promise<{ texto: string; ia: boolean; doCache: boolean; aviso: string | null }> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/decisions/${id}/explain`, {}, { timeout: 90000 })).data,
+  agents: async (marketId: string): Promise<{ agentes: CopilotAgentSettings[]; preferencias: CopilotPrefs; licoes: CopilotLesson[] }> =>
+    (await api.get(`/v1/markets/${marketId}/copilot/agents`)).data,
+  saveAgent: async (marketId: string, agent: string, body: Partial<CopilotAgentSettings>): Promise<CopilotAgentSettings[]> =>
+    (await api.put(`/v1/markets/${marketId}/copilot/agents/${agent}`, body)).data,
+  savePrefs: async (marketId: string, body: Partial<CopilotPrefs>): Promise<CopilotPrefs> =>
+    (await api.put(`/v1/markets/${marketId}/copilot/prefs`, body)).data,
+  run: async (marketId: string): Promise<{ signals: number; afterMemory: number; jevCalls: number; created: number; silenced: number }> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/agents/run`, {}, { timeout: 60000 })).data,
+};

@@ -101,6 +101,23 @@ public class DailyBriefService {
             }
             sb.append('.');
         }
+        // O que os agentes prepararam e espera o sim (caixa de decisões do Copiloto).
+        List<Map<String, Object>> decisions = jdbc.queryForList(
+            "select id, title, level from ai_decisions where market_id = :m and status = 'PENDENTE' "
+                + "order by urgent desc, created_at desc limit 1", Map.of("m", marketId));
+        if (!decisions.isEmpty()) {
+            Map<String, Object> top = decisions.get(0);
+            sb.append(" O Copiloto preparou: ").append(top.get("title")).append('.');
+            if (((Number) top.get("level")).intValue() >= 2) {
+                sb.append(" Diga \"aprova\" para confirmar.");
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("tipo", "decisao");
+            item.put("id", String.valueOf(top.get("id")));
+            item.put("titulo", top.get("title"));
+            item.put("impacto", null);
+            items.add(item);
+        }
         String text = sb.toString();
         jdbc.update("insert into ai_daily_briefs (market_id, day, text, items) values (:m, :d, :t, cast(:i as jsonb)) "
                 + "on conflict (market_id, day) do update set text = excluded.text, items = excluded.items, created_at = now()",

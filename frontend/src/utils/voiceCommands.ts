@@ -9,7 +9,7 @@ export type VoiceContext = 'CONFERENCIA' | 'RESUMO';
 
 export type ConferenceAction =
   | 'somar' | 'tirar' | 'definir' | 'veio_certo' | 'avaria' | 'validade' | 'trocado' | 'proximo' | 'anterior' | 'revisar';
-export type BriefAction = 'detalhe' | 'depois' | 'repetir' | 'pergunta';
+export type BriefAction = 'aprovar' | 'detalhe' | 'depois' | 'repetir' | 'pergunta';
 
 export interface VoiceCommand<A extends string = string> {
   acao: A;
@@ -107,6 +107,7 @@ export const parseBrief = (raw: string): VoiceCommand<BriefAction> | null => {
   const cmd = (acao: BriefAction) => ({ acao, numero: null, texto: raw });
   const words = t.split(' ').length;
   if (words <= 4) {
+    if (has(t, /\b(aprova|aprovado|aprovo|pode fazer|manda ver|confirmo|confirma)\b/) && !has(t, /\bnao\b/)) return cmd('aprovar');
     if (has(t, /\b(detalhe|detalha|detalhes|mostra|abre|abrir|ver|quero ver)\b/)) return cmd('detalhe');
     if (has(t, /\b(depois|mais tarde|para|parar|chega|agora nao|obrigad\w*)\b/)) return cmd('depois');
     if (has(t, /\b(repete|repetir|de novo|outra vez)\b/)) return cmd('repetir');

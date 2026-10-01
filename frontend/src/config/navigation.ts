@@ -1,4 +1,5 @@
 import {
+  Bot,
   CalendarDays,
   CreditCard,
   Database,
@@ -51,6 +52,7 @@ export const DESTINATIONS: Destination[] = [
     icon: Sun,
     pages: [
       { to: '/app', label: 'Hoje', icon: Sun, exact: true },
+      { to: '/app/copiloto', label: 'Copiloto', icon: Bot },
       { to: '/app/inteligencia', label: 'Todas as decisões', icon: Sparkles },
       { to: '/app/rede', label: 'Semana e rede', icon: CalendarDays },
     ],

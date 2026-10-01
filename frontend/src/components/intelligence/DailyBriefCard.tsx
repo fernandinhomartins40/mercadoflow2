@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Mic, Pause, RefreshCw, Square, Volume2 } from 'lucide-react';
-import { copilotService, type DailyBrief } from '../../services/aiPlatform.service';
+import { copilotAgentsService, copilotService, type DailyBrief } from '../../services/aiPlatform.service';
 import { canSpeak as speechAvailable, speak, stopSpeaking, useVoice } from '../../hooks/useVoice';
 import { parseBrief, type BriefAction } from '../../utils/voiceCommands';
 
@@ -20,8 +20,22 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
   const [heard, setHeard] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  const decision = brief?.items.find((i) => i.tipo === 'decisao');
+
+  const approveByVoice = async () => {
+    if (!decision || !marketId) { setHeard('Não há nada esperando a sua aprovação agora.'); return; }
+    try {
+      await copilotAgentsService.approve(marketId, decision.id);
+      setHeard(`Aprovado: ${decision.titulo}. Confira em Copiloto.`);
+      speak('Pronto, aprovado.');
+    } catch (e) {
+      setHeard((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui aprovar agora.');
+    }
+  };
+
   const act = (action: BriefAction | null, text: string) => {
-    if (action === 'detalhe') navigate('/app/inteligencia');
+    if (action === 'aprovar') void approveByVoice();
+    else if (action === 'detalhe') navigate(decision ? '/app/copiloto' : '/app/inteligencia');
     else if (action === 'depois') { stopSpeaking(); setHeard('Combinado, fica para depois.'); }
     else if (action === 'repetir' && brief) { setSpeaking(true); speak(brief.text, () => setSpeaking(false)); }
     else if (action === 'pergunta') navigate(`/app/perguntar?voz=1&q=${encodeURIComponent(text)}`);
@@ -130,11 +144,18 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
       </p>
       {(voice.listening || voice.error || heard) && (
         <p className="mt-2 text-sm" role="status" style={{ color: voice.error ? '#b91c1c' : 'var(--text-muted)' }}>
-          {voice.error ?? (voice.listening ? 'Ouvindo… diga "detalhe", "depois", "repete" ou pergunte.' : heard)}
+          {voice.error ?? (voice.listening
+            ? `Ouvindo… diga ${decision ? '"aprova", ' : ''}"detalhe", "depois", "repete" ou pergunte.`
+            : heard)}
         </p>
       )}
       {brief.items.length > 0 && (
-        <p className="mt-2 text-sm">
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {decision && (
+            <Link to="/app/copiloto" className={`font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
+              Ver o que o Copiloto preparou
+            </Link>
+          )}
           <Link to="/app/inteligencia" className={`font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
             Ver os assuntos na Central de Inteligência
           </Link>

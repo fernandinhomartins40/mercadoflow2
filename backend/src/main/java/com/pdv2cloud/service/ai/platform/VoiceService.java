@@ -56,6 +56,7 @@ public class VoiceService {
             "anterior", "voltar ao produto anterior",
             "revisar", "terminar e revisar as diferenças"),
         "RESUMO", ordered(
+            "aprovar", "aprovar o que o Copiloto preparou (aprova, pode fazer, manda ver, confirmo)",
             "detalhe", "ver os detalhes ou abrir os assuntos do dia",
             "depois", "deixar para depois, parar de ouvir",
             "repetir", "ouvir de novo",

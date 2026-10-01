@@ -441,6 +441,48 @@ nos provedores e vende créditos aos mercados).
   da voz 32/32 (chat, resumo, conferência, Jev, transcrição paga com gravação real do navegador);
   conferência com microfone sem rolagem em 320, 360 e 390 px (24/24); F0 34/34 e F1 15/15.
 
+### Ciclo 13 — Copiloto F3a: agentes, caixa de decisões e memória
+
+- **Três agentes** (Gerente, Compras e Recebimento) em funil, como na seção 6.5 da proposta:
+  1. **Motor:** cada agente lê os números que o sistema já calcula e monta o texto pronto, sem IA.
+     - Compras junta as compras recomendadas num pedido só.
+     - Recebimento prepara a mensagem ao fornecedor quando a conferência termina com falta, sobra ou
+       problema.
+     - Gerente avisa a oportunidade nova de alta prioridade.
+  2. **Memória:** o funil descarta o sinal já avisado (mesmo hash dos números), o que foi recusado há
+     menos de 14 dias, o que está abaixo do valor mínimo e o que passa do limite de avisos do dia.
+  3. **Jev:** uma chamada responde "vale avisar?" e "é urgente?", com as lições do assunto. O Jev só
+     silencia quando está confiante. Sem Jev, vale a regra.
+  4. **DeepSeek:** entra só no "Por quê?" (rota `AGENTE_EXPLICAR`, 1 crédito, guardado). As lições vão
+     escolhidas pelo montador de contexto (Jev com nota de relevância, ou a regra), e cada montagem
+     fica registrada.
+- **Caixa de decisões** (`/app/copiloto`, menu Hoje → Copiloto):
+  - abas Para decidir, Decididas e Silenciadas; as silenciadas ficam visíveis para auditar o Jev;
+  - **Aprovar** só executa no nível 2: o pedido vai para o rascunho de cada fornecedor (o mesmo caminho
+    da Central) e a mensagem ao fornecedor abre no WhatsApp do lojista;
+  - **Recusar** pede o motivo, e a recusa vira lição;
+  - dois toques seguidos não executam a ação duas vezes;
+  - uma proposta nova do mesmo assunto substitui a anterior, e a pendente expira em 7 dias.
+- **Agentes:** por agente, o lojista escolhe se está ligado, o nível (0 só avisar, 1 sugerir, 2 deixar
+  pronto), o limite de avisos por dia e o valor mínimo. Também define o horário de silêncio. O nível 3
+  (executar sozinho) fica para a F5.
+- **Memória da loja:** as lições são escritas por código, sem IA, e aparecem na tela:
+  - fornecedor que entrega com falta (das últimas 6 conferências);
+  - resultado medido por tipo de ação (todo dia às 4h30);
+  - recusas do lojista com motivo.
+- **Vigília:** job a cada 5 minutos, no perfil `jobs`. A maior parte da rodada é consulta ao banco; o Jev
+  entra só para o sinal que passa pela memória. Há também o botão "Verificar agora".
+- **Resumo do dia** cita o que o Copiloto preparou; o lojista diz "aprova" e a decisão é aprovada por voz.
+- **Migração V64:** tabelas `ai_agent_settings`, `ai_copilot_prefs`, `ai_decisions`, `ai_lessons`,
+  `ai_context_traces` e `ai_agent_runs` (todas com RLS), rotas `JEV_VIGILIA` e `AGENTE_EXPLICAR`, e
+  `JEV_RELEVANCIA` fora da sombra.
+- **Testes:**
+  - backend 282/282 (9 novos do funil);
+  - ponta a ponta da F3a 38/38: funil 4 sinais → 3 avisos + 1 silenciado, sem repetição, "Por quê?"
+    com cache, aprovar pedido e WhatsApp, recusa virando lição, nível 0, limite do dia, substituição e
+    "aprova" por voz;
+  - regressão: F0 34/34, F1 15/15 e F2 32/32.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

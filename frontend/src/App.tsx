@@ -10,6 +10,7 @@ const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
 const IntelligenceCenter = lazy(() => import('./screens/IntelligenceCenter'));
 const DataChat = lazy(() => import('./screens/DataChat'));
+const Copilot = lazy(() => import('./screens/Copilot'));
 const NetworkView = lazy(() => import('./screens/NetworkView'));
 const CustomerIntelligence = lazy(() => import('./screens/CustomerIntelligence'));
 const Products = lazy(() => import('./screens/Products'));
@@ -133,6 +134,7 @@ const App: React.FC = () => {
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/inteligencia" element={secure(<IntelligenceCenter />)} />
         <Route path="/app/perguntar" element={secure(<DataChat />)} />
+        <Route path="/app/copiloto" element={secure(<Copilot />)} />
         <Route path="/app/rede" element={secure(<NetworkView />)} />
         <Route path="/app/clientes" element={secure(<CustomerIntelligence />)} />
         <Route path="/app/produtos" element={secure(<Products />)} />
