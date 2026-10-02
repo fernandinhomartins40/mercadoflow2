@@ -45,7 +45,7 @@ import org.springframework.stereotype.Service;
  * Texto sempre pronto: nenhum modelo de linguagem no canal.
  */
 @Service
-public class WhatsAppChannel {
+public class WhatsAppChannel implements com.pdv2cloud.service.billing.NotificationService.WhatsAppSender {
 
     private static final Logger log = LoggerFactory.getLogger(WhatsAppChannel.class);
     public static final String TASK = "WHATSAPP_AVISO";
@@ -176,6 +176,38 @@ public class WhatsAppChannel {
             gate.charge(marketId, g.route(), "whatsapp:" + kind.toLowerCase());
         }
         return s;
+    }
+
+    /**
+     * Aviso de assinatura (teste, atraso, conta restrita) para quem aceitou
+     * receber pelo WhatsApp, fora do silêncio. Usa o modelo aprovado; não passa
+     * pelo portão da IA nem cobra crédito: quem paga a mensagem é a plataforma.
+     */
+    @Override
+    public boolean sendNotice(UUID marketId, String text, String kind) {
+        CopilotSettingsService.Prefs prefs = settings.prefs(marketId);
+        if (!prefs.whatsappOptIn() || prefs.whatsappPhone() == null
+            || CopilotSettingsService.quiet(prefs, LocalTime.now(CopilotSettingsService.ZONE))) {
+            return false;
+        }
+        Optional<AiPlatformConfig.Key> key = platform.key("WHATSAPP");
+        if (key.isEmpty() || key.get().defaultModel() == null || key.get().defaultModel().isBlank()) {
+            return false;
+        }
+        Map<String, Object> template = new LinkedHashMap<>();
+        template.put("name", config.templateName());
+        template.put("language", Map.of("code", config.templateLang()));
+        List<Object> components = new ArrayList<>();
+        components.add(Map.of("type", "body", "parameters", List.of(Map.of("type", "text", "text", templateParam(text)))));
+        components.add(Map.of("type", "button", "sub_type", "quick_reply", "index", "0",
+            "parameters", List.of(Map.of("type", "payload", "payload", "APROVAR:NENHUMA"))));
+        components.add(Map.of("type", "button", "sub_type", "quick_reply", "index", "1",
+            "parameters", List.of(Map.of("type", "payload", "payload", "DEPOIS:NENHUMA"))));
+        template.put("components", components);
+        Sent s = post(key.get(), key.get().defaultModel(),
+            Map.of("messaging_product", "whatsapp", "to", prefs.whatsappPhone(), "type", "template", "template", template));
+        record(marketId, "OUT", prefs.whatsappPhone(), null, "AVISO", s);
+        return s.ok();
     }
 
     /** Resposta dentro da conversa (janela de 24 h aberta pelo lojista): texto livre, sem modelo. */

@@ -49,6 +49,7 @@ public class AuthController {
         // ainda não existe, e a conexão precisa estar marcada como is_admin
         // antes de o @Transactional obtê-la.
         RegisterResponse response = TenantContext.runAsSystem(() -> authService.register(request));
+        TenantContext.runAsSystem(() -> authService.sendWelcome(response.getMarketId(), request.getName()));
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 

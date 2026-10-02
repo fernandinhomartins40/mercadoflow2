@@ -46,6 +46,8 @@ public class Market {
     private String state;
     private String region;
 
+    /** Fora do JSON: User.market aponta de volta para cá (recursão) e o usuário traz dados de acesso. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private User owner;

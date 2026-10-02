@@ -27,7 +27,17 @@ public class AsaasWebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(AsaasWebhookService.class);
 
-    public enum Outcome { DUPLICATE, IGNORED, CREDITS_AI, CREDITS_CONFERE, SUBSCRIPTION_PAID, SUBSCRIPTION_LATE, SUBSCRIPTION_CANCELED }
+    public enum Outcome { DUPLICATE, IGNORED, CREDITS_AI, CREDITS_CONFERE, SUBSCRIPTION_PAID, SUBSCRIPTION_LATE, SUBSCRIPTION_CANCELED,
+        EXCEPTION }
+
+    private BillingInsightsService insights;
+    private NotificationService notifications;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setInsights(BillingInsightsService insights, NotificationService notifications) {
+        this.insights = insights;
+        this.notifications = notifications;
+    }
 
     private final AsaasService asaas;
     private final SubscriptionService subscriptions;
@@ -81,6 +91,23 @@ public class AsaasWebhookService {
                     }
                 }
             }
+            case "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE" -> {
+                if (insights != null) {
+                    UUID root = subId == null ? null : anyRoot(subId);
+                    insights.exception(event, root, paymentId, (event.equals("PAYMENT_REFUNDED") ? "Pagamento estornado" : "Pagamento contestado")
+                        + " no Asaas: " + paymentId + " (" + AsaasService.text(payment, "value") + ")"
+                        + (ref == null ? "" : ", referência " + ref) + ".");
+                    return Outcome.EXCEPTION;
+                }
+            }
+            case "INVOICE_ERROR" -> {
+                if (insights != null) {
+                    JsonNode inv = body.path("invoice");
+                    insights.exception("NFSE_ERROR", null, AsaasService.text(inv, "id"), "Nota fiscal recusada: "
+                        + AsaasService.text(inv, "statusDescription") + " (pagamento " + AsaasService.text(inv, "payment") + ").");
+                    return Outcome.EXCEPTION;
+                }
+            }
             case "SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED" -> {
                 String id = AsaasService.text(body.path("subscription"), "id");
                 UUID root = id == null ? null : activeRoot(id);
@@ -111,12 +138,35 @@ public class AsaasWebhookService {
             plan = parts[2];
         } else {
             log.warn("Pagamento do Asaas de assinatura desconhecida {}", subId);
+            if (insights != null) {
+                insights.exception("UNKNOWN_SUBSCRIPTION", null, AsaasService.text(payment, "id"),
+                    "Pagamento recebido de uma assinatura que o MercadoFlow não conhece: " + subId + ".");
+            }
             return Outcome.IGNORED;
         }
         subscriptions.paymentConfirmed(root, PlanType.fromString(plan), AsaasService.PROVIDER,
             AsaasService.text(payment, "customer"), subId, AsaasService.paymentMethod(AsaasService.text(payment, "billingType")),
             AsaasService.periodEnd(AsaasService.text(payment, "dueDate")), "Pagamento Asaas " + AsaasService.text(payment, "id"));
+        String paymentId = AsaasService.text(payment, "id");
+        int cents = payment.path("value").decimalValue().movePointRight(2).intValue();
+        if (insights != null) {
+            insights.recordPayment(AsaasService.PROVIDER, paymentId, root, "SUBSCRIPTION", cents,
+                AsaasService.paymentMethod(AsaasService.text(payment, "billingType")));
+        }
+        if (notifications != null) {
+            notifications.notify(root, "PAYMENT_CONFIRMED", "paid:" + paymentId, NotificationService.Severity.INFO,
+                "Pagamento confirmado", "Recebemos o pagamento da assinatura.", "Minha assinatura", "/app/assinatura", true,
+                Map.of("valor", java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR")).format(cents / 100.0).replace('\u00a0', ' '),
+                    "plano", PlanType.fromString(plan).getDisplayName(),
+                    "data", AsaasService.periodEnd(AsaasService.text(payment, "dueDate")).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM"))));
+        }
         return Outcome.SUBSCRIPTION_PAID;
+    }
+
+    private UUID anyRoot(String subId) {
+        List<UUID> r = jdbc.queryForList("select market_id from subscriptions where provider_subscription_id = :s or pending_subscription_id = :s",
+            Map.of("s", subId), UUID.class);
+        return r.isEmpty() ? null : r.get(0);
     }
 
     /** Rede cuja assinatura ativa no Asaas é esta (contratação pendente não conta). */

@@ -45,7 +45,16 @@ public class AsaasService {
     private static final Logger log = LoggerFactory.getLogger(AsaasService.class);
     public static final String PROVIDER = "ASAAS";
     static final List<String> WEBHOOK_EVENTS = List.of("PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE",
-        "PAYMENT_REFUNDED", "PAYMENT_DELETED", "SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED");
+        "PAYMENT_REFUNDED", "PAYMENT_DELETED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE",
+        "SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED", "INVOICE_ERROR");
+
+    /** Fila de exceções do superadmin (nota fiscal não configurada etc.). */
+    private BillingInsightsService insights;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setInsights(BillingInsightsService insights) {
+        this.insights = insights;
+    }
 
     public record Charge(String paymentId, String invoiceUrl, String pixPayload) {}
 
@@ -410,6 +419,10 @@ public class AsaasService {
         } catch (RuntimeException e) {
             // A cobrança segue; a nota pode ser emitida pelo painel do Asaas.
             log.warn("Nota fiscal automática não configurada na assinatura {}: {}", subscriptionId, e.getMessage());
+            if (insights != null) {
+                insights.exception("NFSE_CONFIG", null, subscriptionId,
+                    "A nota fiscal automática não foi configurada na assinatura " + subscriptionId + ": " + e.getMessage());
+            }
         }
     }
 

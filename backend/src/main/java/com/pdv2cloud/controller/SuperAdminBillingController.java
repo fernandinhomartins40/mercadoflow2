@@ -37,6 +37,98 @@ public class SuperAdminBillingController {
         this.jdbc = jdbc;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.billing.BillingInsightsService insights;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.billing.NotificationService notices;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.SubscriptionAdminService subscriptionAdmin;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.ai.platform.AiWalletService wallets;
+
+    @GetMapping("/revenue")
+    public Map<String, Object> revenue() {
+        return insights.revenue();
+    }
+
+    @GetMapping("/exceptions")
+    public java.util.List<Map<String, Object>> exceptions(@org.springframework.web.bind.annotation.RequestParam(required = false) String status) {
+        return insights.exceptions(status);
+    }
+
+    @PostMapping("/exceptions/{id}/resolve")
+    public ResponseEntity<?> resolve(@PathVariable long id, @RequestBody(required = false) Map<String, Object> body, Authentication auth) {
+        try {
+            insights.resolve(id, body == null || body.get("resolution") == null ? null : String.valueOf(body.get("resolution")), auth.getName());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "exception", "userMessage", e.getMessage()));
+        }
+    }
+
+    /** Ficha da conta: assinatura, eventos, pagamentos, avisos enviados, saídas e exceções. */
+    @GetMapping("/accounts/{marketId}")
+    public Map<String, Object> account(@PathVariable UUID marketId) {
+        UUID root = subscriptions.rootOf(marketId);
+        Map<String, Object> out = new java.util.LinkedHashMap<>(insights.account(root));
+        out.put("subscription", SubscriptionController.view(subscriptions.of(root), subscriptions.settings(), java.time.LocalDateTime.now()));
+        out.put("wallet", wallets.wallet(root));
+        return out;
+    }
+
+    /** Ações rápidas, todas registradas no histórico com quem fez. */
+    @PostMapping("/accounts/{marketId}/actions")
+    public ResponseEntity<?> action(@PathVariable UUID marketId, @RequestBody Map<String, Object> body, Authentication auth) {
+        UUID root = subscriptions.rootOf(marketId);
+        String note = body.get("reason") == null || String.valueOf(body.get("reason")).isBlank() ? "" : " — " + body.get("reason");
+        String who = "superadmin " + auth.getName();
+        int days = body.get("days") instanceof Number n ? n.intValue() : 0;
+        try {
+            switch (String.valueOf(body.get("action"))) {
+                case "EXTEND_TRIAL" -> subscriptions.extendTrial(root, days, "Teste prorrogado em " + days + " dia(s) por " + who + note);
+                case "COURTESY" -> {
+                    com.pdv2cloud.model.entity.PlanType plan = com.pdv2cloud.model.entity.PlanType.fromString(String.valueOf(body.get("plan")));
+                    subscriptions.courtesy(root, plan, days, "Cortesia de " + days + " dia(s) no " + plan.getDisplayName() + " por " + who + note);
+                }
+                case "CREDITS" -> {
+                    int credits = body.get("credits") instanceof Number n ? n.intValue() : 0;
+                    if (credits < 1 || credits > 100_000) {
+                        throw new IllegalArgumentException("Créditos de 1 a 100.000.");
+                    }
+                    wallets.credit(root, credits, "COURTESY", "superadmin", "Cortesia de " + credits + " créditos (" + who + ")" + note);
+                }
+                case "CHANGE_PLAN" -> subscriptionAdmin.changePlan(root,
+                    com.pdv2cloud.model.entity.PlanType.fromString(String.valueOf(body.get("plan"))), "Troca sem cobrança" + note, auth.getName());
+                default -> throw new IllegalArgumentException("Ação desconhecida");
+            }
+            return ResponseEntity.ok(account(root));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "action", "userMessage", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/templates")
+    public java.util.List<com.pdv2cloud.service.billing.NotificationService.Template> templates() {
+        return notices.templates();
+    }
+
+    @PutMapping("/templates/{kind}")
+    public ResponseEntity<?> saveTemplate(@PathVariable String kind, @RequestBody Map<String, Object> body, Authentication auth) {
+        try {
+            return ResponseEntity.ok(notices.saveTemplate(kind, body, auth.getName()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "template", "userMessage", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/templates/{kind}/preview")
+    public Map<String, String> preview(@PathVariable String kind) {
+        return notices.preview(kind);
+    }
+
     /** O que cada plano dá (a mesma tabela que a vitrine e o sistema leem). */
     @GetMapping("/features")
     public Map<String, Object> features() {

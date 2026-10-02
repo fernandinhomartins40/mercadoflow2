@@ -42,6 +42,8 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    /** Nunca sai em resposta JSON (só entra, quando algum corpo traz a senha). */
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 

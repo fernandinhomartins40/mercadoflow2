@@ -216,6 +216,28 @@ public class AuthService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.pdv2cloud.service.team.TwoFactorService twoFactor;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private com.pdv2cloud.service.billing.NotificationService welcome;
+
+    /**
+     * Boas-vindas do cadastro. Chamado depois do commit (pelo controller): o
+     * aviso referencia o mercado, que só existe no banco depois dele.
+     */
+    public void sendWelcome(UUID marketId, String name) {
+        if (welcome == null || marketId == null) {
+            return;
+        }
+        try {
+            String first = name == null || name.isBlank() ? "" : name.trim().split("\\s+")[0];
+            welcome.notify(marketId, "WELCOME", "welcome", com.pdv2cloud.service.billing.NotificationService.Severity.INFO,
+                "Bem-vindo ao MercadoFlow", "Sua conta está pronta, no plano Grátis.", "Instalar o agente", "/app/pdvs", true,
+                java.util.Map.of("nome", first));
+        } catch (RuntimeException e) {
+            // boas-vindas não pode travar o cadastro
+        }
+    }
+
     @org.springframework.beans.factory.annotation.Autowired
     private com.pdv2cloud.security.CustomUserDetailsService userDetailsService;
 

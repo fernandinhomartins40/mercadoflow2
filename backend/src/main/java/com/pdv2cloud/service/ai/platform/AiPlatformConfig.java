@@ -406,10 +406,12 @@ public class AiPlatformConfig {
 
     public List<MarketHit> searchMarkets(String q) {
         String term = q == null ? "" : q.trim();
-        return jdbc.query("select id, name, cnpj from markets where (:q = '' or name ilike :like or cnpj like :digits) "
+        // CNPJ só entra quando o termo tem dígitos: sem eles, "like '%%'" casava com todos os mercados.
+        String digits = term.replaceAll("\\D", "");
+        return jdbc.query("select id, name, cnpj from markets where (:q = '' or name ilike :like or (:d <> '' and cnpj like :digits)) "
                 + "order by name limit 20",
-            new MapSqlParameterSource().addValue("q", term).addValue("like", "%" + term + "%")
-                .addValue("digits", "%" + term.replaceAll("\\D", "") + "%"),
+            new MapSqlParameterSource().addValue("q", term).addValue("like", "%" + term + "%").addValue("d", digits)
+                .addValue("digits", "%" + digits + "%"),
             (rs, i) -> new MarketHit((UUID) rs.getObject("id"), rs.getString("name"), rs.getString("cnpj")));
     }
 

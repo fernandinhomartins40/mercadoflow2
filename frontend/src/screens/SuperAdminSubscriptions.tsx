@@ -6,6 +6,9 @@ import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
 import BillingRulesPanel from '../components/admin/BillingRulesPanel';
 import AsaasBillingPanel from '../components/admin/AsaasBillingPanel';
 import PlanFeaturesPanel from '../components/admin/PlanFeaturesPanel';
+import RevenuePanel from '../components/admin/RevenuePanel';
+import NoticeTemplatesPanel from '../components/admin/NoticeTemplatesPanel';
+import AccountSheet from '../components/admin/AccountSheet';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
 import NetworkContractsPanel from '../components/admin/NetworkContractsPanel';
 import subscriptionService, {
@@ -25,6 +28,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  Bell,
   DollarSign,
   Gauge,
   Network,
@@ -125,7 +129,7 @@ const SuperAdminSubscriptions: React.FC = () => {
   const [planFilter, setPlanFilter] = useState<'ALL' | PlanCode>('ALL');
   const [onlyCandidates, setOnlyCandidates] = useState(false);
 
-  const [tab, setTab] = useState<'contas' | 'planos' | 'redes' | 'faturamento'>('contas');
+  const [tab, setTab] = useState<'contas' | 'planos' | 'redes' | 'faturamento' | 'avisos'>('contas');
   const [suspected, setSuspected] = useState<SuspectedNetwork[]>([]);
   const [showSuspected, setShowSuspected] = useState(false);
   const [detail, setDetail] = useState<SubscriptionRow | null>(null);
@@ -263,6 +267,7 @@ const SuperAdminSubscriptions: React.FC = () => {
             { key: 'planos', label: 'Planos e preços', icon: <Package size={14} /> },
             { key: 'redes', label: 'Contratos de rede', icon: <Network size={14} /> },
             { key: 'faturamento', label: 'Faturamento', icon: <DollarSign size={14} /> },
+            { key: 'avisos', label: 'Avisos', icon: <Bell size={14} /> },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -290,7 +295,13 @@ const SuperAdminSubscriptions: React.FC = () => {
           </div>
         )}
         {tab === 'redes' && <NetworkContractsPanel markets={overview?.subscriptions ?? []} />}
-        {tab === 'faturamento' && <BillingReportPanel />}
+        {tab === 'faturamento' && (
+          <div className="flex flex-col gap-5">
+            <RevenuePanel />
+            <BillingReportPanel />
+          </div>
+        )}
+        {tab === 'avisos' && <NoticeTemplatesPanel />}
 
         {tab === 'contas' && (loading && !overview ? (
           <div className="flex items-center gap-2 p-6 text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -681,6 +692,8 @@ const SuperAdminSubscriptions: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            <AccountSheet marketId={detail.marketId} onChanged={() => { void subscriptionService.getHistory(detail.marketId).then(setHistory); }} />
 
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>

@@ -148,7 +148,36 @@ public class AiWalletService {
         jdbc.update("insert into ai_ledger (market_id, delta, kind, task, reference, note) values (:m, :d, 'USE', :t, :r, :n)",
             new MapSqlParameterSource().addValue("m", marketId).addValue("d", -credits).addValue("t", task)
                 .addValue("r", reference).addValue("n", label(task)));
+        warnIfLow(marketId);
         return true;
+    }
+
+    /** Avisa uma vez por mês quando sobra 20% ou menos (do plano + último pacote), mínimo de 10 créditos. */
+    void warnIfLow(UUID marketId) {
+        if (notifications == null) {
+            return;
+        }
+        try {
+            Map<String, Object> w = jdbc.queryForMap("select balance + included_balance as available, included_granted + coalesce((select max(credits) "
+                + "from ai_orders where market_id = :m and status = 'PAID'), 0) as base from ai_wallets where market_id = :m", Map.of("m", marketId));
+            int available = ((Number) w.get("available")).intValue();
+            int base = ((Number) w.get("base")).intValue();
+            if (base <= 0 || available > Math.max(10, base / 5)) {
+                return;
+            }
+            notifications.notify(marketId, "AI_CREDITS_LOW", "ai-low:" + LocalDate.now().withDayOfMonth(1),
+                com.pdv2cloud.service.billing.NotificationService.Severity.WARNING, "Seus créditos de IA estão acabando",
+                "Restam " + available + " créditos.", "Comprar créditos", "/app/configuracoes", true, Map.of("valor", String.valueOf(available)));
+        } catch (RuntimeException e) {
+            // aviso é acessório
+        }
+    }
+
+    private com.pdv2cloud.service.billing.NotificationService notifications;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setNotifications(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.NotificationService notifications) {
+        this.notifications = notifications;
     }
 
     /** Crédito (compra, concessão de teste, ajuste manual). */

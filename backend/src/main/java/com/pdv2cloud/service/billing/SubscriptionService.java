@@ -140,7 +140,7 @@ public class SubscriptionService {
             "Seu teste do plano " + plan.getDisplayName() + " começou",
             "Você tem " + days + " dias com tudo do plano " + plan.getDisplayName() + ", sem cartão. Termina em " + ends.format(DAY)
                 + ". Depois, se não assinar, a conta volta ao Grátis sem perder nada.",
-            "Ver planos", "/app/planos", true);
+            "Ver planos", "/app/planos", true, Map.of("plano", plan.getDisplayName(), "dias", String.valueOf(days), "data", ends.format(DAY)));
         return after;
     }
 
@@ -163,7 +163,7 @@ public class SubscriptionService {
         if (wasLate) {
             notifications.notify(s.marketId(), "PAYMENT_RECOVERED", "recovered:" + LocalDateTime.now().toLocalDate(),
                 NotificationService.Severity.INFO, "Pagamento confirmado",
-                "Obrigado! A assinatura voltou ao normal e todos os recursos do plano estão liberados.", null, null, true);
+                "Obrigado! A assinatura voltou ao normal e todos os recursos do plano estão liberados.", null, null, true, Map.of("plano", PlanType.fromString(after.planCode()).getDisplayName()));
         }
         return after;
     }
@@ -183,7 +183,7 @@ public class SubscriptionService {
             notifications.notify(s.marketId(), "PAYMENT_FAILED", "past-due:" + LocalDateTime.now().toLocalDate(),
                 NotificationService.Severity.WARNING, "Não conseguimos confirmar o pagamento da assinatura",
                 "Tudo continua funcionando até " + limit.format(DAY) + ". Depois disso, a conta fica só para consulta até o pagamento ser feito.",
-                "Pagar agora", "/app/assinatura", true);
+                "Pagar agora", "/app/assinatura", true, Map.of("data", limit.format(DAY), "plano", PlanType.fromString(s.planCode()).getDisplayName()));
         }
         return after;
     }
@@ -284,7 +284,7 @@ public class SubscriptionService {
             "Assinatura pausada até " + until.format(DAY),
             "Os seus dados ficam guardados e a conta usa os limites do Grátis. A assinatura volta sozinha em "
                 + until.format(DAY) + "; a próxima cobrança fica para " + periodEnd.format(DAY) + ".",
-            "Minha assinatura", "/app/assinatura", true);
+            "Minha assinatura", "/app/assinatura", true, Map.of("data", until.format(DAY)));
         return after;
     }
 
@@ -304,6 +304,48 @@ public class SubscriptionService {
         return after;
     }
 
+    /** Superadmin: mais dias de teste. */
+    @Transactional
+    public Subscription extendTrial(UUID marketId, int days, String reason) {
+        Subscription s = of(marketId);
+        if (s.status() != Status.TRIAL || s.trialEndsAt() == null) {
+            throw new IllegalStateException("A conta não está em teste.");
+        }
+        if (days < 1 || days > 60) {
+            throw new IllegalArgumentException("Prorrogue de 1 a 60 dias.");
+        }
+        jdbc.update("update subscriptions set trial_ends_at = trial_ends_at + make_interval(days => :d), updated_at = now() "
+            + "where market_id = :m", Map.of("d", days, "m", s.marketId()));
+        Subscription after = applyAndRecord(s, reason);
+        events.recordStatusChange(markets.findById(s.marketId()).orElseThrow(), MarketBillingStatus.TRIAL, MarketBillingStatus.TRIAL,
+            reason, null);
+        return after;
+    }
+
+    /**
+     * Superadmin: cortesia de um plano pago por X dias, sem cobrança. No fim, o
+     * ciclo diário devolve a conta ao Grátis (cancelamento agendado).
+     */
+    @Transactional
+    public Subscription courtesy(UUID marketId, PlanType plan, int days, String reason) {
+        Subscription s = of(marketId);
+        if (plan == PlanType.FREE) {
+            throw new IllegalArgumentException("Escolha um plano pago para a cortesia.");
+        }
+        if (days < 1 || days > 365) {
+            throw new IllegalArgumentException("Cortesia de 1 a 365 dias.");
+        }
+        if ((s.status() == Status.ACTIVE || s.status() == Status.PAST_DUE)
+            && ("ASAAS".equals(s.provider()) || "STRIPE".equals(s.provider()))) {
+            throw new IllegalStateException("A conta já paga uma assinatura. Use a troca de plano ou fale com o cliente.");
+        }
+        jdbc.update("update subscriptions set status = 'ACTIVE', plan_code = :p, provider = 'MANUAL', "
+                + "current_period_end = now() + make_interval(days => :d), cancel_at_period_end = true, trial_plan = null, "
+                + "trial_ends_at = null, past_due_since = null, restricted_since = null, updated_at = now() where market_id = :m",
+            new MapSqlParameterSource().addValue("p", plan.name()).addValue("d", days).addValue("m", s.marketId()));
+        return applyAndRecord(s, reason);
+    }
+
     /** Por que cancelou (ou pausou), para o painel entender a saída. */
     public void recordExit(UUID marketId, String reason, String comment, String outcome, String actor) {
         jdbc.update("insert into subscription_cancel_feedback (market_id, reason, comment, outcome, actor) values (:m, :r, :c, :o, :a)",
@@ -315,7 +357,15 @@ public class SubscriptionService {
     // ── Ciclo diário ─────────────────────────────────────────────────────
 
     public record LifecycleResult(int trialsEnded, int trialReminders, int restricted, int backToFree, int canceledAtEnd,
-                                  int resumed) {}
+                                  int resumed, int usageNotices) {}
+
+    /** Avisos de limite (80% e 100% da semana), rodados junto com o ciclo. */
+    private UsageNoticeService usageNotices;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setUsageNotices(@org.springframework.context.annotation.Lazy UsageNoticeService usageNotices) {
+        this.usageNotices = usageNotices;
+    }
 
     /** Roda todo dia: teste que acabou, carência vencida, restrição longa, cancelamento no fim do período. */
     public LifecycleResult runLifecycle() {
@@ -333,16 +383,32 @@ public class SubscriptionService {
                     "Seu teste terminou: a conta voltou ao Grátis",
                     "Nada foi perdido. Para voltar a ter tudo do plano, é só assinar.", "Assinar", "/app/planos", true);
                 trialsEnded++;
-            } else if (ChronoUnit.HOURS.between(now, s.trialEndsAt()) <= 48) {
-                if (notifications.notify(s.marketId(), "TRIAL_ENDING", "trial-ending:" + s.trialEndsAt().toLocalDate(),
+            } else {
+                // Lembretes a 3 dias e a 1 dia do fim (cada um uma vez).
+                long hours = ChronoUnit.HOURS.between(now, s.trialEndsAt());
+                int bucket = hours <= 24 ? 1 : hours <= 72 ? 3 : 0;
+                if (bucket > 0 && notifications.notify(s.marketId(), "TRIAL_ENDING",
+                    "trial-ending-" + bucket + ":" + s.trialEndsAt().toLocalDate(),
                     NotificationService.Severity.WARNING, "Seu teste termina em " + s.trialEndsAt().format(DAY),
                     "Assine para continuar com tudo do plano. Se não assinar, a conta volta ao Grátis sem perder nada.",
-                    "Assinar", "/app/planos", true)) {
+                    "Assinar", "/app/planos", true, Map.of("data", s.trialEndsAt().format(DAY),
+                        "dias", String.valueOf(Math.max(1, (hours + 23) / 24)), "plano", PlanType.fromString(s.trialPlan()).getDisplayName()))) {
                     reminders++;
                 }
             }
         }
         for (Subscription s : list("status = 'PAST_DUE'")) {
+            // Lembretes de atraso nos dias 1, 3, 5 e 7 (cada um uma vez).
+            if (s.pastDueSince() != null) {
+                long late = ChronoUnit.DAYS.between(s.pastDueSince().toLocalDate(), now.toLocalDate());
+                if (late == 1 || late == 3 || late == 5 || late == 7) {
+                    notifications.notify(s.marketId(), "PAST_DUE_REMINDER", "past-due-d" + late + ":" + s.pastDueSince().toLocalDate(),
+                        NotificationService.Severity.WARNING, "Pagamento em aberto há " + late + " dia(s)",
+                        "A assinatura está com pagamento em aberto. Pague em Minha assinatura.", "Pagar agora", "/app/assinatura", true,
+                        Map.of("dias", String.valueOf(late), "plano", PlanType.fromString(s.planCode()).getDisplayName(),
+                            "data", s.pastDueSince().plusDays(cfg.graceDays()).format(DAY)));
+                }
+            }
             if (s.pastDueSince() != null && !s.pastDueSince().plusDays(cfg.graceDays()).isAfter(now)) {
                 jdbc.update("update subscriptions set status = 'RESTRICTED', restricted_since = now(), updated_at = now() "
                     + "where market_id = :m and status = 'PAST_DUE'", Map.of("m", s.marketId()));
@@ -351,7 +417,7 @@ public class SubscriptionService {
                     "Conta só para consulta: pagamento em aberto",
                     "Os seus dados continuam guardados. Assim que o pagamento for confirmado, tudo volta na hora. Se ficar "
                         + cfg.restrictedDays() + " dias assim, a conta volta ao plano Grátis.",
-                    "Pagar agora", "/app/assinatura", true);
+                    "Pagar agora", "/app/assinatura", true, Map.of("dias", String.valueOf(cfg.restrictedDays()), "plano", PlanType.fromString(s.planCode()).getDisplayName()));
                 restricted++;
             }
         }
@@ -374,7 +440,8 @@ public class SubscriptionService {
             resume(s.marketId(), "Fim da pausa");
             resumed++;
         }
-        return new LifecycleResult(trialsEnded, reminders, restricted, backToFree, canceled, resumed);
+        int usage = usageNotices == null ? 0 : usageNotices.run();
+        return new LifecycleResult(trialsEnded, reminders, restricted, backToFree, canceled, resumed, usage);
     }
 
     // ── Apoio ────────────────────────────────────────────────────────────

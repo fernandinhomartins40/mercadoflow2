@@ -49,9 +49,16 @@ public class SubscriptionEvent {
     @ToString.Include
     private UUID id;
 
+    /** Fora do JSON: o mercado leva ao dono e de volta ao mercado (recursão). Vai só o id. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "market_id", nullable = false)
     private Market market;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("marketId")
+    public UUID getMarketId() {
+        return market == null ? null : market.getId();
+    }
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 32)

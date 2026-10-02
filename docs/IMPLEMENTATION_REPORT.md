@@ -779,6 +779,51 @@ carência e depois só consulta; Asaas e Stripe lado a lado (S2); Copiloto dentr
   - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20,
     S1 40/40, S2 42/42 e S3 47/47.
 
+### Ciclo 21 — Assinaturas S5: central de avisos, painel de receita e fila de exceções
+
+- **Central de avisos** (`notification_templates`): 15 modelos editáveis no superadmin (Assinaturas →
+  Avisos).
+  - Título e texto com variáveis `{nome}`, `{loja}`, `{plano}`, `{data}`, `{dias}` e `{valor}`, prévia
+    com valores de exemplo e "restaurar texto padrão".
+  - Cada aviso tem seus canais: no app, e-mail e WhatsApp.
+  - O WhatsApp de assinatura sai pelo modelo aprovado, só para quem aceitou e fora do silêncio, sem
+    cobrar crédito de IA.
+  - Um aviso que não aparece no app continua gravado (`hidden`), para não repetir.
+- **Avisos novos:**
+  - boas-vindas no cadastro, enviadas depois do commit;
+  - teste a 3 dias e a 1 dia do fim (antes era só 48 h);
+  - atraso nos dias 1, 3, 5 e 7;
+  - pagamento confirmado com valor;
+  - 80% e 100% do limite semanal de notas;
+  - créditos de IA a 20% ou menos, uma vez por mês.
+- **Pagamentos registrados** (`billing_payments`): cada pagamento de assinatura do Asaas.
+- **Painel de receita** (Faturamento):
+  - MRR por plano e por adicional;
+  - créditos (30 dias), recebido no mês e previsão do mês (recebido + renovações até o fim do mês);
+  - churn de 30 dias, conversão do teste em pago, inadimplência por idade e exceções em aberto.
+  - Pagamentos no cartão (Stripe) ainda não entram no "recebido".
+- **Fila de exceções** (`billing_exceptions`): estorno, contestação, nota fiscal recusada, nota não
+  configurada e pagamento de assinatura desconhecida. Cada referência entra uma vez, e a exceção é
+  resolvida com nota e autor.
+- **Ficha da conta** (no "Gerenciar" da conta):
+  - pagamentos, avisos enviados (e-mail e WhatsApp), saídas e exceções;
+  - ações rápidas registradas no histórico com quem fez: prorrogar o teste, cortesia de um plano por
+    X dias (volta sozinha ao Grátis no fim), conceder créditos e trocar de plano sem cobrar.
+- **Correções antigas encontradas no caminho:**
+  - a busca de mercados do painel de IA devolvia todos os mercados (`cnpj like '%%'` quando o termo
+    não tinha dígitos);
+  - o histórico de assinatura serializava a entidade inteira. Com o dono gravado no mercado, a
+    recursão estourava o JSON e o histórico sumia, e o hash da senha do dono aparecia na resposta.
+    Agora o evento manda só `marketId`, `Market.owner` fica fora do JSON e a senha do usuário é só de
+    escrita.
+- **Migração V76:** modelos de aviso, `hidden` e `whatsapp_at` em `app_notifications`,
+  `billing_payments` e `billing_exceptions`.
+- **Testes:**
+  - backend 336/336;
+  - ponta a ponta do S5 36/36;
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20,
+    S1 40/40, S2 42/42, S3 47/47 e S4 49/49.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em
