@@ -9,9 +9,11 @@ import subscriptionService, {
   PaymentMethod,
   PlanCode,
   PlanDescriptor,
+  featureText,
   formatLimit,
   formatPrice,
 } from '../services/subscription.service';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -52,7 +54,6 @@ const Plans: React.FC = () => {
   const [trialNotice, setTrialNotice] = useState<string | null>(null);
   const [choosing, setChoosing] = useState<PlanCode | null>(null);
   const [paying, setPaying] = useState(false);
-  const [canceling, setCanceling] = useState(false);
   // Volta do pagamento: o plano só muda quando o pagamento é confirmado (webhook), então o aviso diz isso.
   const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
   const checkoutNotice = checkoutResult === 'sucesso'
@@ -113,21 +114,7 @@ const Plans: React.FC = () => {
     }
   };
 
-  const cancelPlan = async () => {
-    if (!marketId) return;
-    const until = sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString('pt-BR') : null;
-    if (!window.confirm(`Cancelar a assinatura? ${until ? `O plano vale até ${until} e depois` : 'A conta'} volta ao Grátis, sem perder dados.`)) return;
-    setCanceling(true);
-    setError(null);
-    try {
-      await subscriptionService.cancelSubscription(marketId);
-      setSub(await subscriptionService.getSubscription(marketId));
-    } catch (err: any) {
-      setError(reason(err, 'Não foi possível cancelar agora.'));
-    } finally {
-      setCanceling(false);
-    }
-  };
+
 
   const startTrial = async (plan: PlanDescriptor) => {
     if (!marketId) return;
@@ -214,17 +201,13 @@ const Plans: React.FC = () => {
                   {sub.currentPeriodEnd && ` · plano válido até ${new Date(sub.currentPeriodEnd).toLocaleDateString('pt-BR')}`}
                   {sub.cancelAtPeriodEnd && ' · cancelada, volta ao Grátis depois'}
                 </span>
-                {!sub.cancelAtPeriodEnd && (
-                  <button
-                    type="button"
-                    disabled={canceling}
-                    onClick={cancelPlan}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                    style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-                  >
-                    {canceling ? 'Cancelando...' : 'Cancelar assinatura'}
-                  </button>
-                )}
+                <Link
+                  to="/app/assinatura"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                >
+                  Minha assinatura
+                </Link>
               </div>
             )}
 
@@ -363,11 +346,21 @@ const Plans: React.FC = () => {
                     )}
                   </div>
 
-                  <ul className="flex flex-col gap-2">
+                  {plan.description && (
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{plan.description}</p>
+                  )}
+
+                  <ul className="flex flex-col gap-2" aria-label={`O que o plano ${plan.name} inclui`}>
                     {(plan.highlights || []).map((item) => (
                       <li key={item} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                         <Check size={13} className="mt-0.5 shrink-0" style={{ color: '#16a34a' }} />
                         {item}
+                      </li>
+                    ))}
+                    {(plan.features || []).filter((f) => f.enabled).map((f) => (
+                      <li key={f.key} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-primary)' }}>
+                        <Check size={13} className="mt-0.5 shrink-0" style={{ color: '#16a34a' }} />
+                        {featureText(f)}
                       </li>
                     ))}
                   </ul>

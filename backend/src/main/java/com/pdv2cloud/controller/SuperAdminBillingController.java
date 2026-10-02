@@ -25,10 +25,62 @@ public class SuperAdminBillingController {
 
     private final SubscriptionService subscriptions;
     private final com.pdv2cloud.service.billing.AsaasService asaas;
+    private final com.pdv2cloud.service.billing.Entitlements entitlements;
+    private final org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc;
 
-    public SuperAdminBillingController(SubscriptionService subscriptions, com.pdv2cloud.service.billing.AsaasService asaas) {
+    public SuperAdminBillingController(SubscriptionService subscriptions, com.pdv2cloud.service.billing.AsaasService asaas,
+                                       com.pdv2cloud.service.billing.Entitlements entitlements,
+                                       org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc) {
         this.subscriptions = subscriptions;
         this.asaas = asaas;
+        this.entitlements = entitlements;
+        this.jdbc = jdbc;
+    }
+
+    /** O que cada plano dá (a mesma tabela que a vitrine e o sistema leem). */
+    @GetMapping("/features")
+    public Map<String, Object> features() {
+        return Map.of("definitions", entitlements.definitions(), "plans", entitlements.matrix(),
+            "changes", jdbc.queryForList("select plan_code, feature_key, old_value, new_value, actor, created_at "
+                + "from plan_feature_changes order by created_at desc limit 30", Map.of()));
+    }
+
+    /** Muda um recurso de um plano; vale para todos os assinantes do plano. */
+    @PutMapping("/features/{plan}/{feature}")
+    public ResponseEntity<?> saveFeature(@PathVariable String plan, @PathVariable String feature,
+                                         @RequestBody Map<String, Object> body, Authentication auth) {
+        try {
+            Boolean enabled = body.get("enabled") instanceof Boolean b ? b : null;
+            Integer amount = body.get("amount") instanceof Number n ? n.intValue() : null;
+            return ResponseEntity.ok(entitlements.save(plan, feature, enabled, amount, auth.getName()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "feature", "userMessage", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/addons")
+    public java.util.List<Map<String, Object>> addonCatalog() {
+        return jdbc.queryForList("select * from addon_catalog order by code", Map.of());
+    }
+
+    @PutMapping("/addons/{code}")
+    public ResponseEntity<?> saveAddon(@PathVariable String code, @RequestBody Map<String, Object> body) {
+        int price = body.get("monthlyPriceCents") instanceof Number n ? n.intValue() : -1;
+        if (price < 0 || price > 10_000_000) {
+            return ResponseEntity.badRequest().body(Map.of("error", "addon", "userMessage", "Preço inválido"));
+        }
+        Boolean active = body.get("active") instanceof Boolean b ? b : null;
+        int n = jdbc.update("update addon_catalog set monthly_price_cents = :p, active = coalesce(:a, active) where code = :c",
+            new org.springframework.jdbc.core.namedparam.MapSqlParameterSource().addValue("p", price).addValue("a", active).addValue("c", code));
+        return n == 0 ? ResponseEntity.badRequest().body(Map.of("error", "addon", "userMessage", "Adicional desconhecido"))
+            : ResponseEntity.ok(addonCatalog());
+    }
+
+    /** Por que as contas cancelaram ou pausaram. */
+    @GetMapping("/exits")
+    public java.util.List<Map<String, Object>> exits() {
+        return jdbc.queryForList("select f.reason, f.comment, f.outcome, f.actor, f.created_at, m.name as market_name "
+            + "from subscription_cancel_feedback f join markets m on m.id = f.market_id order by f.created_at desc limit 100", Map.of());
     }
 
     /** Situação do Asaas e da nota fiscal automática. */

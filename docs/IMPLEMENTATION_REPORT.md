@@ -686,6 +686,58 @@ carência e depois só consulta; Asaas e Stripe lado a lado (S2); Copiloto dentr
   - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20 e
     S1 40/40.
 
+### Ciclo 19 — Assinaturas S3: catálogo com recursos, Copiloto nos planos e Minha assinatura
+
+- **Um catálogo só:** `plan_feature_definitions` e `plan_features` dizem o que cada plano dá.
+  - **Inteligência:** previsão em dias, rede, clientes, simulação de preço, histórico de resultados e
+    exportação.
+  - **Copiloto:** resumo e voz, perguntas, agentes, WhatsApp, autonomia e créditos de IA por mês.
+  - `Entitlements` responde às checagens do sistema (`PlanService`, chat, agentes, WhatsApp, nível 3)
+    e alimenta a vitrine. A escada antiga do enum fica só como reserva.
+  - O superadmin muda um recurso pela tabela em Assinaturas → Planos e preços. A mudança vale na
+    hora para todos os assinantes do plano e fica registrada (`plan_feature_changes`).
+  - "Só para novos assinantes" não foi feito.
+- **Copiloto dentro dos planos:**
+  - Grátis: resumo do dia e voz;
+  - Essencial: mais perguntas, agentes e caixa de decisões;
+  - Profissional e Rede: mais WhatsApp e o Copiloto agindo sozinho (nível 3).
+
+  Fora do plano, a tela explica qual plano libera. A vitrine tirou as notas por semana, que seguem
+  só como teto técnico.
+- **Créditos de IA inclusos:** 50 / 500 / 1.500 / 3.000 por mês, por loja.
+  - São gastos antes dos comprados e vencem na virada do mês.
+  - Ao subir de plano no meio do mês, a diferença entra na hora, e o extrato registra só o
+    complemento.
+  - O teto mensal do mercado passa a somar os inclusos.
+- **Minha assinatura** (`/app/assinatura`, no menu Loja):
+  - plano e estado, valor mensal, próxima cobrança e forma de pagamento;
+  - o que o plano inclui e o uso de lojas, caixas e pessoas;
+  - créditos de IA (do plano e comprados) e leituras do Confere;
+  - adicionais, faturas com link da nota fiscal;
+  - pausar ou cancelar.
+- **Adicionais:** loja extra (R$ 79) e usuário extra (R$ 19), com preço editável no superadmin.
+  - Somam aos limites e ao valor da mesma assinatura no Asaas, com a fatura em aberto atualizada.
+  - Diminuir é recusado quando o uso passaria do limite.
+  - No cartão (Stripe), o pedido vai ao comercial.
+- **Pausa de 1 ou 2 meses** (assinaturas por Pix ou boleto):
+  - a conta usa os limites do Grátis;
+  - a próxima cobrança e o fim do período pago andam junto, sem perder o que já foi pago;
+  - o ciclo diário retoma sozinho, e "Voltar agora" antecipa.
+- **Cancelamento com motivo:** preço, pouco uso, faltou recurso, temporada, fechou a loja ou outro,
+  mais um comentário. A pausa é oferecida antes. O cartão cancela no Stripe ao fim do período. O
+  superadmin vê "Por que saíram". No fim do período, os adicionais também se encerram.
+- **Migração V74:** definições e valores de recursos, descrições dos planos, créditos inclusos em
+  `ai_wallets`, `addon_catalog`, `subscription_addons` (RLS), `paused_from` e
+  `subscription_cancel_feedback` (RLS).
+- **Testes:**
+  - backend 328/328;
+  - ponta a ponta do S3 47/47;
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20,
+    S1 40/40 e S2 42/42.
+
+  As suítes do Copiloto passam a rodar com o mercado de teste no Profissional, com os créditos do
+  plano zerados, para medir só o saldo comprado.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

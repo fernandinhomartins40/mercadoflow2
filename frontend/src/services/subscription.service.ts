@@ -37,7 +37,28 @@ export interface PlanDescriptor {
   marketCount?: number;
   free?: boolean;
   highlights?: string[];
+  description?: string;
+  /** O que o plano faz, do mesmo catálogo que o sistema consulta. */
+  features?: PlanFeature[];
 }
+
+export interface PlanFeature {
+  key: string;
+  label: string;
+  kind: 'BOOL' | 'NUMBER';
+  unit?: string | null;
+  group: string;
+  enabled: boolean;
+  amount?: number | null;
+}
+
+/** "Previsão de vendas: 30 dias", "500 créditos de IA por mês". */
+export const featureText = (f: PlanFeature) => {
+  if (f.kind !== 'NUMBER' || f.amount == null) return f.label;
+  const n = new Intl.NumberFormat('pt-BR').format(f.amount);
+  if (f.key === 'ai_monthly_credits') return `${n} créditos de IA por mês`;
+  return `${f.label}: ${n} ${f.unit ?? ''}`.trim();
+};
 
 export interface SubscriptionRow {
   marketId: string;

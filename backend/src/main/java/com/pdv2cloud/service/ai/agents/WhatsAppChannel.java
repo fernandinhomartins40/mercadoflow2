@@ -71,6 +71,14 @@ public class WhatsAppChannel {
         .build();
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /** O que cada plano dá vem do catálogo (plan_features). */
+    private com.pdv2cloud.service.billing.Entitlements entitlements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEntitlements(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.Entitlements entitlements) {
+        this.entitlements = entitlements;
+    }
+
     public WhatsAppChannel(NamedParameterJdbcTemplate jdbc, AiGate gate, AiPlatformConfig platform, WhatsAppConfigService config,
                            CopilotSettingsService settings, DecisionService decisions, DailyBriefService briefs,
                            AiUsageRecorder usage) {
@@ -92,6 +100,9 @@ public class WhatsAppChannel {
     public int notify(UUID marketId) {
         CopilotSettingsService.Prefs prefs = settings.prefs(marketId);
         if (!prefs.whatsappOptIn() || prefs.whatsappPhone() == null) {
+            return 0;
+        }
+        if (entitlements != null && !entitlements.has(marketId, "copilot_whatsapp")) {
             return 0;
         }
         LocalTime now = LocalTime.now(CopilotSettingsService.ZONE);

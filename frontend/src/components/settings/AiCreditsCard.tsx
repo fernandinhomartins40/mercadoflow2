@@ -63,8 +63,13 @@ const AiCreditsCard: React.FC<{ marketId: string }> = ({ marketId }) => {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl p-4" style={{ background: 'var(--surface-soft)' }}>
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Saldo</span>
-              <span className="block text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{w!.balance}</span>
+              <span className="block text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{w!.available ?? w!.balance}</span>
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>créditos · 1 crédito ≈ 1 pergunta simples</span>
+              {!!w!.includedMonthly && (
+                <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {w!.included ?? 0} do plano neste mês (de {w!.includedMonthly}, renovam todo mês) + {w!.balance} comprados
+                </span>
+              )}
             </div>
             <div className="rounded-xl p-4" style={{ background: 'var(--surface-soft)' }}>
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Uso neste mês</span>

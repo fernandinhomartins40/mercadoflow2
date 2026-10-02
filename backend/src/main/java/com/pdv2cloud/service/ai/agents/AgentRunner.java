@@ -50,6 +50,14 @@ public class AgentRunner {
     private AutonomyGuard autonomy;
     private DecisionService decisions;
 
+    /** O que cada plano dá vem do catálogo (plan_features). */
+    private com.pdv2cloud.service.billing.Entitlements entitlements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEntitlements(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.Entitlements entitlements) {
+        this.entitlements = entitlements;
+    }
+
     public AgentRunner(List<CopilotAgent> agents, CopilotSettingsService settings, LessonService lessons, AiGate gate,
                        JevClient jev, AiUsageRecorder usage, NamedParameterJdbcTemplate jdbc) {
         this.agents = agents;
@@ -84,7 +92,10 @@ public class AgentRunner {
         int silenced = 0;
         int auto = 0;
         Map<String, Integer> dropped = new LinkedHashMap<>();
-        for (CopilotAgent agent : agents) {
+        // Agentes fazem parte do plano (Essencial em diante); o nível 3 é do Profissional.
+        boolean agentsAllowed = entitlements == null || entitlements.has(marketId, "copilot_agents");
+        boolean autonomyAllowed = entitlements == null || entitlements.has(marketId, "copilot_autonomy");
+        for (CopilotAgent agent : agentsAllowed ? agents : List.<CopilotAgent>of()) {
             CopilotSettingsService.AgentSettings cfg = settings.agent(marketId, agent.name());
             if (!cfg.enabled()) {
                 continue;
@@ -120,7 +131,7 @@ public class AgentRunner {
                     } else {
                         created++;
                         today++;
-                        if ("PENDENTE".equals(status) && cfg.level() == 3 && actAlone(marketId, id, s, cfg)) {
+                        if ("PENDENTE".equals(status) && cfg.level() == 3 && autonomyAllowed && actAlone(marketId, id, s, cfg)) {
                             auto++;
                         }
                     }

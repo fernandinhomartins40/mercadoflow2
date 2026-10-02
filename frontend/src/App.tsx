@@ -39,6 +39,7 @@ const SuperAdminSubscriptions = lazy(() => import('./screens/SuperAdminSubscript
 const SuperAdminCustomers = lazy(() => import('./screens/SuperAdminCustomers'));
 const SuperAdminCollections = lazy(() => import('./screens/SuperAdminCollections'));
 const Plans = lazy(() => import('./screens/Plans'));
+const MySubscription = lazy(() => import('./screens/MySubscription'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
@@ -162,7 +163,7 @@ const App: React.FC = () => {
         <Route path="/app/promocoes" element={secure(<Promocoes />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/planos" element={secure(<Plans />)} />
-        <Route path="/app/assinatura" element={secure(<Plans />)} />
+        <Route path="/app/assinatura" element={secure(<MySubscription />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
         <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />

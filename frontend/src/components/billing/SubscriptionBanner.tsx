@@ -62,7 +62,8 @@ const SubscriptionBanner: React.FC = () => {
 
   const colors = PALETTE[tone];
   const Icon = sub.status === 'RESTRICTED' ? Lock : sub.status === 'TRIAL' ? Clock : AlertTriangle;
-  const onPlans = location.pathname === '/app/planos';
+  const target = sub.bannerAction === 'Pagar agora' ? '/app/assinatura' : '/app/planos';
+  const onPlans = location.pathname === target;
 
   const dismiss = () => {
     try {
@@ -86,7 +87,7 @@ const SubscriptionBanner: React.FC = () => {
       </p>
       {sub.bannerAction && !onPlans && (
         <Link
-          to="/app/planos"
+          to={target}
           className="rounded-lg px-3 py-1.5 text-xs font-semibold"
           style={{ background: colors.accent, color: '#fff' }}
         >

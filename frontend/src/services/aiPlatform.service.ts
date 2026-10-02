@@ -56,7 +56,14 @@ export interface AiOrderRow {
   id: string; marketId: string; marketName: string; credits: number; amountCents: number; status: 'PENDING' | 'PAID' | 'CANCELED';
   txid: string; pixPayload: string | null; pixQrPng: string | null; createdAt: string; paidAt: string | null;
 }
-export interface AiWallet { balance: number; monthlyCap: number | null; monthUsed: number; effectiveCap: number; monthStart: string }
+export interface AiWallet {
+  balance: number; monthlyCap: number | null; monthUsed: number; effectiveCap: number; monthStart: string;
+  /** Créditos do plano que sobram no mês (vencem na virada). */
+  included?: number;
+  includedMonthly?: number;
+  /** Inclusos + comprados. */
+  available?: number;
+}
 export interface AiLedgerRow { delta: number; kind: string; task: string | null; note: string | null; createdAt: string }
 
 export interface AiFallbackRow {

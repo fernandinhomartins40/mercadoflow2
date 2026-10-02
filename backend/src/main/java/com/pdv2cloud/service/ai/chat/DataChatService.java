@@ -90,6 +90,14 @@ public class DataChatService {
         this.jevShadow = jevShadow;
     }
 
+    /** O que cada plano dá vem do catálogo (plan_features). */
+    private com.pdv2cloud.service.billing.Entitlements entitlements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEntitlements(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.Entitlements entitlements) {
+        this.entitlements = entitlements;
+    }
+
     public DataChatService(
         AiOrchestrator orchestrator,
         AiUsageRecorder usageRecorder,
@@ -178,6 +186,10 @@ public class DataChatService {
     public ChatAnswer ask(UUID marketId, String question, List<LlmClient.ChatMessage> history) {
         if (question == null || question.isBlank()) {
             return new ChatAnswer(false, null, List.of(), null, "Pergunta vazia.");
+        }
+        if (entitlements != null && !entitlements.has(marketId, "copilot_questions")) {
+            return new ChatAnswer(false, null, List.of(), null,
+                "Perguntar ao Copiloto sobre as suas vendas faz parte do plano Essencial em diante. Veja os planos em Loja → Plano.");
         }
 
         // Camada de decisão (Jev): pergunta de número direto responde com texto

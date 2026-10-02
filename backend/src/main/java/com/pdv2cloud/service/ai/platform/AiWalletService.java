@@ -41,22 +41,79 @@ public class AiWalletService {
         this.asaas = asaas;
     }
 
+    /** Créditos inclusos no plano (plan_features.ai_monthly_credits). */
+    private com.pdv2cloud.service.billing.Entitlements entitlements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEntitlements(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.Entitlements entitlements) {
+        this.entitlements = entitlements;
+    }
+
     public AiWalletService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
-    public record Wallet(int balance, Integer monthlyCap, int monthUsed, int effectiveCap, LocalDate monthStart) {}
+    /**
+     * @param balance créditos comprados (não vencem)
+     * @param included créditos do plano que sobram neste mês (vencem na virada)
+     * @param includedMonthly créditos que o plano dá por mês
+     * @param available o que dá para gastar agora (inclusos + comprados)
+     */
+    public record Wallet(int balance, Integer monthlyCap, int monthUsed, int effectiveCap, LocalDate monthStart,
+                         int included, int includedMonthly, int available) {}
 
     public Wallet wallet(UUID marketId) {
         rollMonth(marketId);
+        refreshIncluded(marketId);
         int defaultCap = jdbc.queryForObject("select default_monthly_cap_credits from ai_platform_settings where id = 'default'",
             Map.of(), Integer.class);
         List<Wallet> w = jdbc.query("select * from ai_wallets where market_id = :m", Map.of("m", marketId), (rs, i) -> {
             Integer cap = (Integer) rs.getObject("monthly_cap");
-            return new Wallet(rs.getInt("balance"), cap, rs.getInt("month_used"), cap != null ? cap : defaultCap,
-                rs.getDate("month_start").toLocalDate());
+            int included = rs.getInt("included_balance");
+            int granted = rs.getInt("included_granted");
+            // O teto do mês protege o gasto comprado; o que o plano dá entra por cima dele.
+            int baseCap = cap != null ? cap : defaultCap;
+            return new Wallet(rs.getInt("balance"), cap, rs.getInt("month_used"), baseCap + granted,
+                rs.getDate("month_start").toLocalDate(), included, granted, included + rs.getInt("balance"));
         });
-        return w.isEmpty() ? new Wallet(0, null, 0, defaultCap, LocalDate.now().withDayOfMonth(1)) : w.get(0);
+        return w.isEmpty() ? new Wallet(0, null, 0, defaultCap, LocalDate.now().withDayOfMonth(1), 0, 0, 0) : w.get(0);
+    }
+
+    /**
+     * Créditos do plano: renovados na virada do mês (o que sobrou vence) e
+     * completados na hora quando o plano sobe no meio do mês.
+     */
+    void refreshIncluded(UUID marketId) {
+        if (entitlements == null) {
+            return;
+        }
+        int allowance;
+        try {
+            allowance = Math.max(0, entitlements.amount(marketId, "ai_monthly_credits", 0));
+        } catch (RuntimeException e) {
+            return;
+        }
+        jdbc.update("insert into ai_wallets (market_id) values (:m) on conflict do nothing", Map.of("m", marketId));
+        Map<String, Object> before = jdbc.queryForMap("select included_granted, included_month < date_trunc('month', now())::date "
+            + "or included_month is null as new_month from ai_wallets where market_id = :m", Map.of("m", marketId));
+        boolean newMonth = Boolean.TRUE.equals(before.get("new_month"));
+        int delta = newMonth ? allowance : allowance - ((Number) before.get("included_granted")).intValue();
+        List<Map<String, Object>> rows = jdbc.queryForList("update ai_wallets set "
+                + "included_balance = case when included_month is null or included_month < date_trunc('month', now())::date then :a "
+                + "  when :a > included_granted then included_balance + (:a - included_granted) else included_balance end, "
+                + "included_granted = case when included_month is null or included_month < date_trunc('month', now())::date then :a "
+                + "  else greatest(included_granted, :a) end, "
+                + "included_month = date_trunc('month', now())::date, updated_at = now() "
+                + "where market_id = :m and (included_month is null or included_month < date_trunc('month', now())::date "
+                + "  or :a > included_granted) returning included_granted",
+            Map.of("m", marketId, "a", allowance));
+        if (!rows.isEmpty() && delta > 0) {
+            jdbc.update("insert into ai_ledger (market_id, delta, kind, reference, note) values (:m, :d, 'PLAN_MONTHLY', :r, :n)",
+                new MapSqlParameterSource().addValue("m", marketId).addValue("d", delta)
+                    .addValue("r", LocalDate.now().withDayOfMonth(1).toString())
+                    .addValue("n", newMonth ? "Créditos do plano no mês (" + allowance + ")"
+                        : "Créditos do plano: complemento pela mudança de plano"));
+        }
     }
 
     /** Pode gastar {@code credits} agora? (saldo e teto do mês) */
@@ -65,7 +122,7 @@ public class AiWalletService {
             return true;
         }
         Wallet w = wallet(marketId);
-        return w.balance() >= credits && w.monthUsed() + credits <= w.effectiveCap();
+        return w.available() >= credits && w.monthUsed() + credits <= w.effectiveCap();
     }
 
     /**
@@ -81,8 +138,10 @@ public class AiWalletService {
             return true;
         }
         rollMonth(marketId);
-        int n = jdbc.update("update ai_wallets set balance = balance - :c, month_used = month_used + :c, updated_at = now() "
-            + "where market_id = :m and balance >= :c", Map.of("m", marketId, "c", credits));
+        // Gasta primeiro o que o plano dá no mês; o comprado fica para depois.
+        int n = jdbc.update("update ai_wallets set included_balance = included_balance - least(included_balance, :c), "
+            + "balance = balance - greatest(0, :c - included_balance), month_used = month_used + :c, updated_at = now() "
+            + "where market_id = :m and included_balance + balance >= :c", Map.of("m", marketId, "c", credits));
         if (n == 0) {
             return false;
         }

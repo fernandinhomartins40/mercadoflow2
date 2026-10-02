@@ -178,6 +178,58 @@ public class AsaasService {
         return new Checkout(invoiceUrl, false);
     }
 
+    /** Novo valor mensal (plano + adicionais), já na fatura em aberto. */
+    public void updateValue(String subscriptionId, int cents, String description) {
+        ObjectNode upd = json.createObjectNode();
+        upd.put("value", BigDecimal.valueOf(cents, 2));
+        if (description != null) {
+            upd.put("description", description);
+        }
+        upd.put("updatePendingPayments", true);
+        call("POST", "/subscriptions/" + subscriptionId, upd);
+    }
+
+    /** Pausa: a próxima cobrança vai para depois da pausa. */
+    public void reschedule(String subscriptionId, LocalDate nextDueDate) {
+        ObjectNode upd = json.createObjectNode();
+        upd.put("nextDueDate", nextDueDate.toString());
+        upd.put("updatePendingPayments", true);
+        call("POST", "/subscriptions/" + subscriptionId, upd);
+    }
+
+    public record Invoice(String id, String dueDate, BigDecimal value, String status, String method, String invoiceUrl,
+                          String nfseUrl) {}
+
+    /** Faturas da rede no Asaas, com o link da nota fiscal quando houver. */
+    public List<Invoice> invoices(UUID rootId) {
+        List<String> c = jdbc.queryForList("select customer_id from billing_customers where market_id = :m and provider = 'ASAAS'",
+            Map.of("m", rootId), String.class);
+        if (c.isEmpty()) {
+            return List.of();
+        }
+        Map<String, String> nfse = new java.util.HashMap<>();
+        try {
+            for (JsonNode n : call("GET", "/invoices?customer=" + c.get(0) + "&limit=50", null).path("data")) {
+                String url = text(n, "pdfUrl");
+                if (text(n, "payment") != null && url != null) {
+                    nfse.put(text(n, "payment"), url);
+                }
+            }
+        } catch (RuntimeException e) {
+            log.debug("Notas fiscais indisponíveis: {}", e.getMessage());
+        }
+        List<Invoice> out = new java.util.ArrayList<>();
+        for (JsonNode p : call("GET", "/payments?customer=" + c.get(0) + "&limit=30", null).path("data")) {
+            String ref = text(p, "externalReference");
+            if (ref != null && (ref.startsWith("ai:") || ref.startsWith("confere:")) && "PENDING".equals(text(p, "status"))) {
+                continue; // Pix de crédito ainda não pago não é fatura da assinatura
+            }
+            out.add(new Invoice(text(p, "id"), text(p, "dueDate"), p.path("value").decimalValue(), text(p, "status"),
+                paymentMethod(text(p, "billingType")), text(p, "invoiceUrl"), nfse.get(text(p, "id"))));
+        }
+        return out;
+    }
+
     /** Cancela a assinatura no Asaas (as faturas futuras deixam de ser geradas). */
     public void cancelSubscription(String subscriptionId) {
         if (subscriptionId != null && !subscriptionId.isBlank()) {

@@ -94,7 +94,8 @@ export const DESTINATIONS: Destination[] = [
     icon: Store,
     pages: [
       { to: '/app/pdvs', label: 'Caixas e agente', icon: Store, alsoMatches: ['/app/download-agente'] },
-      { to: '/app/planos', label: 'Plano e consumo', icon: CreditCard },
+      { to: '/app/assinatura', label: 'Minha assinatura', icon: CreditCard },
+      { to: '/app/planos', label: 'Planos', icon: Sparkles },
       { to: '/app/configuracoes', label: 'Conta', icon: Settings },
       { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true },
       ...(FEATURE_STATE_PRICES_ENABLED

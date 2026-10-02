@@ -192,6 +192,12 @@ public class SubscriptionService {
     @Transactional
     public Subscription cancel(UUID marketId, boolean atPeriodEnd, String reason) {
         Subscription s = of(marketId);
+        if (atPeriodEnd && s.currentPeriodEnd() == null) {
+            // Assinatura do cartão: o fim do período pago fica no espelho do Stripe.
+            jdbc.update("update subscriptions set current_period_end = (select current_period_end from markets where id = :m) "
+                + "where market_id = :m", Map.of("m", s.marketId()));
+            s = of(s.marketId());
+        }
         if (atPeriodEnd && s.currentPeriodEnd() != null && s.currentPeriodEnd().isAfter(LocalDateTime.now())) {
             jdbc.update("update subscriptions set cancel_at_period_end = true, updated_at = now() where market_id = :m",
                 Map.of("m", s.marketId()));
@@ -257,9 +263,59 @@ public class SubscriptionService {
         log.debug("Assinatura sincronizada do mercado {} ({}): {} {}", root.getId(), reason, status, plan);
     }
 
+    /**
+     * Pausa de 1 ou 2 meses: a conta fica com os limites do Grátis (dados
+     * guardados) e o fim do período pago anda junto, então nada do que já foi
+     * pago se perde. O ciclo diário retoma sozinho no fim da pausa.
+     */
+    @Transactional
+    public Subscription pause(UUID marketId, int months, String reason) {
+        Subscription s = of(marketId);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime periodEnd = (s.currentPeriodEnd() != null && s.currentPeriodEnd().isAfter(now) ? s.currentPeriodEnd() : now)
+            .plusMonths(months);
+        LocalDateTime until = now.plusMonths(months);
+        jdbc.update("update subscriptions set status = 'PAUSED', paused_from = now(), paused_until = :u, current_period_end = :e, "
+                + "updated_at = now() where market_id = :m",
+            new MapSqlParameterSource().addValue("m", s.marketId()).addValue("u", Timestamp.valueOf(until))
+                .addValue("e", Timestamp.valueOf(periodEnd)));
+        Subscription after = applyAndRecord(s, reason);
+        notifications.notify(s.marketId(), "PAUSED", "paused:" + now.toLocalDate(), NotificationService.Severity.INFO,
+            "Assinatura pausada até " + until.format(DAY),
+            "Os seus dados ficam guardados e a conta usa os limites do Grátis. A assinatura volta sozinha em "
+                + until.format(DAY) + "; a próxima cobrança fica para " + periodEnd.format(DAY) + ".",
+            "Minha assinatura", "/app/assinatura", true);
+        return after;
+    }
+
+    /** Fim da pausa (no dia, ou antes, a pedido do cliente). */
+    @Transactional
+    public Subscription resume(UUID marketId, String reason) {
+        Subscription s = of(marketId);
+        if (s.status() != Status.PAUSED) {
+            return s;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        jdbc.update("update subscriptions set status = 'ACTIVE', paused_from = null, paused_until = null, updated_at = now() "
+            + "where market_id = :m", Map.of("m", s.marketId()));
+        Subscription after = applyAndRecord(s, reason);
+        notifications.notify(s.marketId(), "RESUMED", "resumed:" + now.toLocalDate(), NotificationService.Severity.INFO,
+            "Sua assinatura voltou", "Todos os recursos do plano estão liberados de novo.", null, null, true);
+        return after;
+    }
+
+    /** Por que cancelou (ou pausou), para o painel entender a saída. */
+    public void recordExit(UUID marketId, String reason, String comment, String outcome, String actor) {
+        jdbc.update("insert into subscription_cancel_feedback (market_id, reason, comment, outcome, actor) values (:m, :r, :c, :o, :a)",
+            new MapSqlParameterSource().addValue("m", rootOf(marketId)).addValue("r", reason == null || reason.isBlank() ? "OUTRO" : reason)
+                .addValue("c", comment == null ? null : comment.length() > 600 ? comment.substring(0, 600) : comment)
+                .addValue("o", outcome).addValue("a", actor));
+    }
+
     // ── Ciclo diário ─────────────────────────────────────────────────────
 
-    public record LifecycleResult(int trialsEnded, int trialReminders, int restricted, int backToFree, int canceledAtEnd) {}
+    public record LifecycleResult(int trialsEnded, int trialReminders, int restricted, int backToFree, int canceledAtEnd,
+                                  int resumed) {}
 
     /** Roda todo dia: teste que acabou, carência vencida, restrição longa, cancelamento no fim do período. */
     public LifecycleResult runLifecycle() {
@@ -313,7 +369,12 @@ public class SubscriptionService {
             toFree(s, "Cancelada no fim do período pago");
             canceled++;
         }
-        return new LifecycleResult(trialsEnded, reminders, restricted, backToFree, canceled);
+        int resumed = 0;
+        for (Subscription s : list("status = 'PAUSED' and paused_until is not null and paused_until <= now()")) {
+            resume(s.marketId(), "Fim da pausa");
+            resumed++;
+        }
+        return new LifecycleResult(trialsEnded, reminders, restricted, backToFree, canceled, resumed);
     }
 
     // ── Apoio ────────────────────────────────────────────────────────────
@@ -321,8 +382,10 @@ public class SubscriptionService {
     private Subscription toFree(Subscription s, String reason) {
         jdbc.update("update subscriptions set status = 'FREE', plan_code = 'FREE', provider = 'NONE', provider_subscription_id = null, "
             + "current_period_end = null, cancel_at_period_end = false, trial_plan = null, trial_ends_at = null, "
-            + "past_due_since = null, restricted_since = null, paused_until = null, updated_at = now() where market_id = :m",
+            + "past_due_since = null, restricted_since = null, paused_until = null, paused_from = null, "
+            + "updated_at = now() where market_id = :m",
             Map.of("m", s.marketId()));
+        jdbc.update("delete from subscription_addons where market_id = :m", Map.of("m", s.marketId()));
         return applyAndRecord(s, reason);
     }
 

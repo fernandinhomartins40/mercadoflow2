@@ -5,6 +5,7 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import PlanCatalogPanel from '../components/admin/PlanCatalogPanel';
 import BillingRulesPanel from '../components/admin/BillingRulesPanel';
 import AsaasBillingPanel from '../components/admin/AsaasBillingPanel';
+import PlanFeaturesPanel from '../components/admin/PlanFeaturesPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
 import NetworkContractsPanel from '../components/admin/NetworkContractsPanel';
 import subscriptionService, {
@@ -285,6 +286,7 @@ const SuperAdminSubscriptions: React.FC = () => {
             <BillingRulesPanel />
             <AsaasBillingPanel />
             <PlanCatalogPanel />
+            <PlanFeaturesPanel />
           </div>
         )}
         {tab === 'redes' && <NetworkContractsPanel markets={overview?.subscriptions ?? []} />}

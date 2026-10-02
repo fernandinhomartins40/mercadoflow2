@@ -50,6 +50,22 @@ public class PlanService {
     private final PlanCatalogService planCatalogService;
     private final ProductEventService productEventService;
 
+    /** O que cada plano dá vem do catálogo (plan_features). */
+    private com.pdv2cloud.service.billing.Entitlements entitlements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEntitlements(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.Entitlements entitlements) {
+        this.entitlements = entitlements;
+    }
+
+    /** Adicionais (loja e usuário extra) somam aos limites do plano. */
+    private org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setJdbc(org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
     public PlanService(
         MarketRepository marketRepository,
         MarketUsageCounterRepository usageRepository,
@@ -121,6 +137,18 @@ public class PlanService {
             catalog.getUserSeatLimit()
         );
 
+        int extraStores = addon(root.getId(), "EXTRA_STORE");
+        int extraSeats = addon(root.getId(), "EXTRA_SEAT");
+        if (extraStores > 0 && !PlanType.isUnlimited(branchLimit)) {
+            branchLimit += extraStores;
+            if (!PlanType.isUnlimited(pdvLimit) && !PlanType.isUnlimited(pdvPerBranch)) {
+                pdvLimit += extraStores * pdvPerBranch;
+            }
+        }
+        if (extraSeats > 0 && !PlanType.isUnlimited(seatLimit)) {
+            seatLimit += extraSeats;
+        }
+
         return new EffectiveLimits(
             plan, invoiceLimit, branchLimit, pdvPerBranch, pdvLimit, seatLimit,
             catalog.getHistoryRetentionDays(),
@@ -132,6 +160,32 @@ public class PlanService {
     @Transactional(readOnly = true)
     public EffectiveLimits limitsFor(UUID marketId) {
         return limitsFor(requireMarket(marketId));
+    }
+
+    /** Quantidade contratada de um adicional na rede (0 sem adicional). */
+    private int addon(UUID rootId, String code) {
+        if (jdbc == null || rootId == null) {
+            return 0;
+        }
+        try {
+            java.util.List<Integer> q = jdbc.queryForList("select quantity from subscription_addons where market_id = :m and addon_code = :c",
+                java.util.Map.of("m", rootId, "c", code), Integer.class);
+            return q.isEmpty() ? 0 : q.get(0);
+        } catch (RuntimeException e) {
+            return 0;
+        }
+    }
+
+    /** Recurso ligado no catálogo do plano (ou na escada antiga, se o catálogo não responder). */
+    private boolean feature(EffectiveLimits limits, String key, PlanType.IntelligenceTier fallback) {
+        if (entitlements != null) {
+            try {
+                return entitlements.has(limits.plan(), key);
+            } catch (RuntimeException ignored) {
+                // cai na escada antiga
+            }
+        }
+        return hasTier(limits, fallback);
     }
 
     private static int resolveOverride(Integer override, int planDefault) {
@@ -596,7 +650,7 @@ public class PlanService {
      * plano. Agora é recurso declarado do Profissional.
      */
     public boolean canUseNetworkIntelligence(EffectiveLimits limits) {
-        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+        return feature(limits, "network_intelligence", PlanType.IntelligenceTier.AVANCADO);
     }
 
     /**
@@ -609,12 +663,12 @@ public class PlanService {
      * O Essencial continua vendo o resumo; o detalhe histórico é do avançado.
      */
     public boolean canSeeFullOutcomes(EffectiveLimits limits) {
-        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+        return feature(limits, "full_outcomes", PlanType.IntelligenceTier.AVANCADO);
     }
 
     /** Perfis de cliente, frequência e ciclo de recompra. */
     public boolean canUseCustomerIntelligence(EffectiveLimits limits) {
-        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+        return feature(limits, "customer_intelligence", PlanType.IntelligenceTier.AVANCADO);
     }
 
     /**
@@ -625,7 +679,7 @@ public class PlanService {
      * mesmo critério usado para separar o gratuito.
      */
     public boolean canUsePriceSimulation(EffectiveLimits limits) {
-        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+        return feature(limits, "price_simulation", PlanType.IntelligenceTier.AVANCADO);
     }
 
     /**
@@ -636,7 +690,7 @@ public class PlanService {
      * boa parte dos clientes maiores.
      */
     public boolean canUseDataExport(EffectiveLimits limits) {
-        return hasTier(limits, PlanType.IntelligenceTier.AVANCADO);
+        return feature(limits, "data_export", PlanType.IntelligenceTier.AVANCADO);
     }
 
     /**
@@ -666,11 +720,20 @@ public class PlanService {
      * decisões de porte diferente — por isso escala bem como degrau.
      */
     public int forecastHorizonDays(EffectiveLimits limits, int requested) {
-        int cap = switch (tierOf(limits)) {
+        int ladder = switch (tierOf(limits)) {
             case BASICO -> FREE_FORECAST_DAYS;
             case COMPLETO -> FULL_FORECAST_DAYS;
             case AVANCADO -> ADVANCED_FORECAST_DAYS;
         };
+        int cap = ladder;
+        if (entitlements != null) {
+            try {
+                cap = entitlements.amount(limits.plan(), "forecast_days", ladder);
+            } catch (RuntimeException ignored) {
+                cap = ladder;
+            }
+        }
+        cap = Math.max(cap, 1);
         return Math.min(requested, cap);
     }
 

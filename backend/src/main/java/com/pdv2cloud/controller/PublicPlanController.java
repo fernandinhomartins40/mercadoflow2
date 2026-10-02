@@ -32,9 +32,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicPlanController {
 
     private final PlanCatalogService planCatalogService;
+    private final com.pdv2cloud.service.billing.Entitlements entitlements;
 
-    public PublicPlanController(PlanCatalogService planCatalogService) {
+    public PublicPlanController(PlanCatalogService planCatalogService, com.pdv2cloud.service.billing.Entitlements entitlements) {
         this.planCatalogService = planCatalogService;
+        this.entitlements = entitlements;
     }
 
     @GetMapping
@@ -57,6 +59,8 @@ public class PublicPlanController {
             item.put("custom", entry.getMonthlyPriceCents() == null || entry.getMonthlyPriceCents() < 0);
             item.put("purchasable", entry.getPurchasable());
             item.put("highlights", highlightsFor(entry));
+            // O que o plano faz, do mesmo catálogo que o sistema consulta.
+            item.put("features", entitlements.featuresOf(PlanType.fromString(entry.getCode())));
             plans.add(item);
         }
         return ResponseEntity.ok(plans);
@@ -71,8 +75,8 @@ public class PublicPlanController {
     private List<String> highlightsFor(PlanCatalogEntry entry) {
         List<String> items = new ArrayList<>();
 
-        items.add(limitText(entry.getMonthlyInvoiceLimit(), "notas fiscais por semana", "Notas fiscais ilimitadas"));
-
+        // Notas por semana ficam fora da vitrine: são teto técnico contra abuso,
+        // alto o bastante para uma loja do porte do plano nunca sentir.
         boolean singleBranch = entry.getBranchLimit() != null && entry.getBranchLimit() == 1;
         if (singleBranch) {
             items.add(entry.getPdvPerBranchLimit() != null && entry.getPdvPerBranchLimit() == 1
@@ -100,10 +104,6 @@ public class PublicPlanController {
         } else {
             items.add(format(days) + " dias de histórico");
         }
-
-        items.add(Boolean.TRUE.equals(entry.getFullInsights())
-            ? "Inteligência completa de capital de giro e promoções"
-            : "Prévia da inteligência de capital e promoções");
 
         if (entry.getMonthlyPriceCents() != null && entry.getMonthlyPriceCents() == 0) {
             items.add("Sem cartão de crédito");

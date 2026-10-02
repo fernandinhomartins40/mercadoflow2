@@ -35,6 +35,14 @@ public class CopilotSettingsService {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /** O que cada plano dá vem do catálogo (plan_features). */
+    private com.pdv2cloud.service.billing.Entitlements entitlements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setEntitlements(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.Entitlements entitlements) {
+        this.entitlements = entitlements;
+    }
+
     public CopilotSettingsService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -94,6 +102,9 @@ public class CopilotSettingsService {
             : cur.autonomy().allowedSuppliers();
         boolean accepting = Boolean.parseBoolean(String.valueOf(body.get("autonomyAccepted")));
         if (level == 3) {
+            if (entitlements != null && !entitlements.has(marketId, "copilot_autonomy")) {
+                throw new IllegalArgumentException("O Copiloto fazer sozinho faz parte do plano Profissional.");
+            }
             if (!AUTONOMOUS.contains(agent)) {
                 throw new IllegalArgumentException("Este agente não age sozinho: a ação dele depende da loja (preço no caixa, liquidação).");
             }
@@ -219,6 +230,9 @@ public class CopilotSettingsService {
         boolean optIn = body.get("whatsappOptIn") == null ? cur.whatsappOptIn() : Boolean.parseBoolean(String.valueOf(body.get("whatsappOptIn")));
         if (optIn && phone == null) {
             throw new IllegalArgumentException("Informe o número do WhatsApp com DDD para receber os avisos.");
+        }
+        if (optIn && !cur.whatsappOptIn() && entitlements != null && !entitlements.has(marketId, "copilot_whatsapp")) {
+            throw new IllegalArgumentException("O Copiloto no WhatsApp faz parte do plano Profissional.");
         }
         jdbc.update("insert into ai_copilot_prefs (market_id, quiet_start, quiet_end, whatsapp_phone, whatsapp_opt_in, whatsapp_opt_in_at, updated_by) "
                 + "values (:m, :s, :e, :p, :o, case when :o then now() end, :u) on conflict (market_id) do update set "
