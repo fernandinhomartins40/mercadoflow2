@@ -61,6 +61,14 @@ public class User {
 
     private LocalDateTime lastLoginAt;
 
+    /** Papel de equipe (DONO, GERENTE, COMPRADOR, CONFERENTE, FINANCEIRO, LEITURA). */
+    @Column(name = "team_role", length = 16)
+    private String teamRole;
+
+    /** Verificação em duas etapas ligada. */
+    @Column(name = "totp_enabled", nullable = false)
+    private Boolean totpEnabled = false;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

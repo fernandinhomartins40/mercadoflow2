@@ -29,7 +29,7 @@ const Sidebar: React.FC = () => {
       <nav aria-label="Navegação principal" className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-3">
         {DESTINATIONS.map((destination) => {
           const isActive = destination.key === active.destination.key;
-          const pages = visiblePages(destination, isAdmin);
+          const pages = visiblePages(destination, isAdmin, role === 'MARKET_OWNER');
           const Icon = destination.icon;
           return (
             <div key={destination.key}>

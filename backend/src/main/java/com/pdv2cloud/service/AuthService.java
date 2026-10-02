@@ -178,16 +178,46 @@ public class AuthService {
         long tokenTtl = Boolean.TRUE.equals(request.getKeepConnected())
             ? Duration.ofDays(30).toMillis()
             : Duration.ofDays(1).toMillis();
-        String token = tokenProvider.generateToken(auth, tokenTtl);
 
         User user = userRepository.findForAuthenticationByEmail(request.getEmail()).orElseThrow();
         if (user.getRole() == UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Use o login do painel Super Admin");
         }
-        touchLastLogin(user);
         UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;
+        // Segunda etapa ligada: o token só sai depois do código do aplicativo.
+        if (Boolean.TRUE.equals(user.getTotpEnabled()) && twoFactor != null) {
+            String challenge = twoFactor.challenge(user.getId(), Boolean.TRUE.equals(request.getKeepConnected()));
+            return new LoginResponse(null, user.getId(), user.getRole().name(), marketId, true, challenge);
+        }
+        String token = tokenProvider.generateToken(auth, tokenTtl);
+        touchLastLogin(user);
         return new LoginResponse(token, user.getId(), user.getRole().name(), marketId);
     }
+
+    /** Segunda etapa: confere o código e emite o token. Devolve também se é para manter conectado. */
+    public java.util.Map.Entry<LoginResponse, Boolean> loginSecondStep(String challenge, String code) {
+        if (twoFactor == null) {
+            throw new IllegalStateException("Verificação em duas etapas indisponível");
+        }
+        com.pdv2cloud.service.team.TwoFactorService.Challenge c = twoFactor.complete(challenge, code);
+        User user = userRepository.findById(c.userId()).orElseThrow();
+        org.springframework.security.core.userdetails.UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
+        if (!details.isEnabled()) {
+            throw new IllegalArgumentException("Conta sem acesso no momento.");
+        }
+        Authentication auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
+        long ttl = c.keep() ? Duration.ofDays(30).toMillis() : Duration.ofDays(1).toMillis();
+        String token = tokenProvider.generateToken(auth, ttl);
+        touchLastLogin(user);
+        UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;
+        return java.util.Map.entry(new LoginResponse(token, user.getId(), user.getRole().name(), marketId), c.keep());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.team.TwoFactorService twoFactor;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.security.CustomUserDetailsService userDetailsService;
 
     public LoginResponse superAdminLogin(LoginRequest request) {
         Authentication auth = authenticationManager.authenticate(

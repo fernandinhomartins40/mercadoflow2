@@ -68,6 +68,11 @@ public class TenantAccessFilter extends OncePerRequestFilter {
                 writeRestricted(response);
                 return;
             }
+            com.pdv2cloud.service.team.TeamRole denied = deniedByTeamRole(request);
+            if (denied != null) {
+                writeTeamForbidden(response, denied);
+                return;
+            }
 
             filterChain.doFilter(request, response);
         } finally {
@@ -126,6 +131,54 @@ public class TenantAccessFilter extends OncePerRequestFilter {
             log.warn("Não consegui ler o estado da assinatura de {}: {}", marketId, ex.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Papel de equipe: Comprador, Conferente, Financeiro e Leitura só fazem o
+     * que a função deles pede ({@link com.pdv2cloud.service.team.TeamPermissions}).
+     * Devolve o papel quando a ação é negada.
+     */
+    private com.pdv2cloud.service.team.TeamRole deniedByTeamRole(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof AppUserDetails user)) {
+            return null;
+        }
+        com.pdv2cloud.service.team.TeamRole role = user.getTeamRole();
+        if (role == null || role == com.pdv2cloud.service.team.TeamRole.DONO) {
+            return null;
+        }
+        String method = request.getMethod();
+        String uri = request.getRequestURI();
+        var access = com.pdv2cloud.service.team.TeamPermissions.classify(method, uri);
+        if (access == null) {
+            return null;
+        }
+        if (role == com.pdv2cloud.service.team.TeamRole.CONFERENTE
+            && com.pdv2cloud.service.team.TeamPermissions.conferenteShellRead(method, uri)) {
+            return null;
+        }
+        boolean purchasingDecision = false;
+        if (access.area() == com.pdv2cloud.service.team.TeamPermissions.Area.COPILOT_DECISION && jdbc != null) {
+            Matcher m = Pattern.compile("/copilot/decisions/([0-9a-fA-F-]{36})/").matcher(uri + "/");
+            if (m.find()) {
+                try {
+                    purchasingDecision = jdbc.queryForList("select agent from ai_decisions where id = :id",
+                        java.util.Map.of("id", UUID.fromString(m.group(1))), String.class).stream()
+                        .anyMatch(a -> "COMPRAS".equals(a) || "RECEBIMENTO".equals(a));
+                } catch (RuntimeException ignored) {
+                    purchasingDecision = false;
+                }
+            }
+        }
+        return com.pdv2cloud.service.team.TeamPermissions.allowed(role, access, purchasingDecision) ? null : role;
+    }
+
+    private void writeTeamForbidden(HttpServletResponse response, com.pdv2cloud.service.team.TeamRole role) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write("{\"error\":\"forbidden_role\",\"teamRole\":\"" + role.name() + "\",\"userMessage\":\""
+            + com.pdv2cloud.service.team.TeamPermissions.message(role) + "\"}");
     }
 
     private void writeRestricted(HttpServletResponse response) throws IOException {

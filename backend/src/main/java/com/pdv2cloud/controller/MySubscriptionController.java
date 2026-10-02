@@ -126,7 +126,7 @@ public class MySubscriptionController {
     }
 
     @PutMapping("/addons/{code}")
-    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
     public ResponseEntity<?> setAddon(@PathVariable UUID marketId, @PathVariable String code, @RequestBody Map<String, Object> body,
                                       Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
@@ -140,7 +140,7 @@ public class MySubscriptionController {
 
     /** Pausa de 1 ou 2 meses no lugar do cancelamento (lojas sazonais). */
     @PostMapping("/pause")
-    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
     public ResponseEntity<?> pause(@PathVariable UUID marketId, @RequestBody Map<String, Object> body, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
         try {
@@ -165,7 +165,7 @@ public class MySubscriptionController {
     }
 
     @PostMapping("/resume")
-    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
     public ResponseEntity<?> resume(@PathVariable UUID marketId, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
         subscriptions.resume(subscriptions.rootOf(marketId), "Pausa encerrada pelo cliente (" + auth.getName() + ")");
@@ -174,7 +174,7 @@ public class MySubscriptionController {
 
     /** Cancela no fim do período pago, guardando o motivo. */
     @PostMapping("/cancel")
-    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
     public ResponseEntity<?> cancel(@PathVariable UUID marketId, @RequestBody Map<String, Object> body, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
         try {

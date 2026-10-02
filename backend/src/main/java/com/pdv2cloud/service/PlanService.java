@@ -131,11 +131,15 @@ public class PlanService {
 
         // seatLimitOverride tem precedência; userSeatLimit é o campo legado,
         // preenchido em cadastros antigos antes de existir plano de verdade.
+        // O cadastro grava userSeatLimit = 2 (limite do gratuito) em toda conta
+        // nova; tratá-lo como negociado prendia quem paga em 2 pessoas. Ele só
+        // vale quando dá MAIS que o plano (concessão antiga).
         Integer legacySeat = root.getUserSeatLimit();
-        int seatLimit = resolveOverride(
-            root.getSeatLimitOverride() != null ? root.getSeatLimitOverride() : legacySeat,
-            catalog.getUserSeatLimit()
-        );
+        int seatLimit = root.getSeatLimitOverride() != null
+            ? resolveOverride(root.getSeatLimitOverride(), catalog.getUserSeatLimit())
+            : legacySeat != null && legacySeat > 0 && legacySeat > catalog.getUserSeatLimit() && !PlanType.isUnlimited(catalog.getUserSeatLimit())
+                ? legacySeat
+                : catalog.getUserSeatLimit();
 
         int extraStores = addon(root.getId(), "EXTRA_STORE");
         int extraSeats = addon(root.getId(), "EXTRA_SEAT");

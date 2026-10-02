@@ -738,6 +738,47 @@ carência e depois só consulta; Asaas e Stripe lado a lado (S2); Copiloto dentr
   As suítes do Copiloto passam a rodar com o mercado de teste no Profissional, com os créditos do
   plano zerados, para medir só o saldo comprado.
 
+### Ciclo 20 — Assinaturas S4: equipe, papéis por função e verificação em duas etapas
+
+- **Papéis por função:** Dono, Gerente, Comprador, Conferente, Financeiro e Leitura (`users.team_role`).
+  - O papel de sistema continua guardando as rotas: o Dono é `MARKET_OWNER`; os demais,
+    `MARKET_MANAGER`.
+  - Um filtro único (`TeamPermissions`, no `TenantAccessFilter`) decide por área da rota: equipe,
+    assinatura, Confere, compras, decisões do Copiloto, operação e ações que só leem. Assim a rota
+    pergunta "pode comprar?" em vez de "é dono ou gerente?".
+  - O 403 vem com a frase do papel.
+  - Gerente: tudo, menos assinatura e equipe.
+  - Comprador: lê tudo; altera compras, fornecedores e Confere, e decide no Copiloto só os agentes
+    de Compras e Recebimento.
+  - Conferente: só o Confere (o app redireciona).
+  - Financeiro: lê tudo e cuida da assinatura.
+  - Leitura: lê e pergunta ao Copiloto, sem alterar nada.
+- **Equipe** (`/app/equipe`, só para o dono):
+  - convite por e-mail com link de 7 dias e uso único, e botão para mandar o mesmo link pelo
+    WhatsApp;
+  - papel e loja (matriz = rede toda; filial = só a filial);
+  - reenviar (o link anterior deixa de valer) e cancelar convite;
+  - mudar papel e loja (vale na hora), desativar e reativar, último acesso;
+  - contador do plano com convites em aberto, e "Comprar usuário extra" quando lota.
+- **Aceite** (`/aceitar-convite`): a pessoa cria a senha (mesma regra do cadastro) e já entra.
+- **Transferência de titularidade:** o dono pede com a senha, e a pessoa (da matriz) aceita em Conta.
+  Os papéis trocam, o mercado passa a apontar para o novo dono e o antigo fica como gerente.
+- **Verificação em duas etapas** (opcional, dono e financeiro):
+  - TOTP sem biblioteca nova, conferido com o vetor da RFC 6238;
+  - QR e chave para o aplicativo e 8 códigos de recuperação de uso único;
+  - no login, um desafio de 5 minutos com até 5 tentativas e limite por IP; também no Confere;
+  - desligar pede senha e código.
+- **Correção antiga:** o cadastro grava `user_seat_limit = 2` em toda conta, e o limite era tratado
+  como negociado. Com isso, quem pagava ficava preso em 2 pessoas. Agora o campo só vale quando dá
+  mais que o plano.
+- **Migração V75:** `team_role`, colunas de TOTP, `team_invites` (RLS), `ownership_transfers` e
+  `mfa_challenges`.
+- **Testes:**
+  - backend 336/336 (permissões por papel, TOTP);
+  - ponta a ponta do S4 49/49;
+  - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20,
+    S1 40/40, S2 42/42 e S3 47/47.
+
 ## Itens bloqueados
 
 - **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em

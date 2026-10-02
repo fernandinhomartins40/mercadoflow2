@@ -12,7 +12,7 @@ const DestinationSubnav: React.FC = () => {
   const { role } = useAuth();
   const { pathname } = useLocation();
   const { destination, page } = resolveLocation(pathname);
-  const pages = visiblePages(destination, role === 'ADMIN');
+  const pages = visiblePages(destination, role === 'ADMIN', role === 'MARKET_OWNER');
   if (pages.length < 2) return null;
 
   return (

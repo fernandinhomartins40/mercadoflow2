@@ -43,7 +43,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // contas criadas em massa. Login conta por IP e por e-mail — o segundo
         // segura a forca bruta distribuida em muitos IPs contra uma conta so.
         if ("POST".equalsIgnoreCase(request.getMethod())) {
-            if ("/api/v1/auth/login".equals(path) || "/api/v1/super-admin/auth/login".equals(path)) {
+            if ("/api/v1/auth/login".equals(path) || "/api/v1/auth/login/2fa".equals(path) || "/api/v1/super-admin/auth/login".equals(path)) {
                 String kind = path.startsWith("/api/v1/super-admin") ? "sa-login" : "login";
                 CachedBodyHttpServletRequest cached = new CachedBodyHttpServletRequest(request);
                 boolean allowed = consume(authCache, kind + ":ip:" + clientIp(request), this::createLoginIpBucket);

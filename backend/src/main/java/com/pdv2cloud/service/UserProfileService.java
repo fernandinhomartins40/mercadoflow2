@@ -16,6 +16,8 @@ public class UserProfileService {
     public MeResponse getProfile(String email) {
         User user = userRepository.findForAuthenticationByEmail(email).orElseThrow();
         UUID marketId = user.getMarket() != null ? user.getMarket().getId() : null;
-        return new MeResponse(user.getId(), user.getEmail(), user.getName(), user.getRole().name(), marketId);
+        com.pdv2cloud.service.team.TeamRole team = com.pdv2cloud.service.team.TeamRole.of(user.getTeamRole(), user.getRole());
+        return new MeResponse(user.getId(), user.getEmail(), user.getName(), user.getRole().name(), marketId,
+            team == null ? null : team.name(), Boolean.TRUE.equals(user.getTotpEnabled()));
     }
 }

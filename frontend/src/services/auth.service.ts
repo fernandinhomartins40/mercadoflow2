@@ -1,11 +1,15 @@
 import api from './api';
 
+export type TeamRole = 'DONO' | 'GERENTE' | 'COMPRADOR' | 'CONFERENTE' | 'FINANCEIRO' | 'LEITURA';
+
 export interface AuthProfile {
   userId: string;
   role: string;
   marketId: string;
   email: string;
   name: string;
+  teamRole?: TeamRole | null;
+  twoFactorEnabled?: boolean;
 }
 
 export interface LoginResponse {
@@ -13,6 +17,9 @@ export interface LoginResponse {
   userId: string;
   role: string;
   marketId: string;
+  /** Verificação em duas etapas: falta o código do aplicativo. */
+  mfaRequired?: boolean;
+  mfaChallenge?: string;
 }
 
 export interface RegisterRequest {
@@ -37,6 +44,11 @@ export interface RegisterResponse {
 const authService = {
   async login(email: string, password: string, keepConnected = false): Promise<LoginResponse> {
     const response = await api.post('/v1/auth/login', { email, password, keepConnected });
+    return response.data;
+  },
+
+  async loginSecondStep(challenge: string, code: string): Promise<LoginResponse> {
+    const response = await api.post('/v1/auth/login/2fa', { challenge, code });
     return response.data;
   },
 

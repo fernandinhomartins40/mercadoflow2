@@ -12,4 +12,11 @@ public class MeResponse {
     private String name;
     private String role;
     private UUID marketId;
+    /** Papel de equipe (Dono, Gerente, ...). */
+    private String teamRole;
+    private boolean twoFactorEnabled;
+
+    public MeResponse(UUID userId, String email, String name, String role, UUID marketId) {
+        this(userId, email, name, role, marketId, null, false);
+    }
 }

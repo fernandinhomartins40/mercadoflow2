@@ -58,9 +58,25 @@ public class AuthController {
         // users, e sem tenant na sessao a policy users_modify recusa a linha de
         // qualquer usuario ligado a um mercado (UPDATE afeta 0 linhas -> 500).
         LoginResponse response = TenantContext.runAsSystem(() -> authService.login(request));
+        if (response.isMfaRequired()) {
+            // Sem cookie: a sessão só existe depois do código do aplicativo.
+            return ResponseEntity.ok(response);
+        }
         boolean keepConnected = request.getKeepConnected() != null && request.getKeepConnected();
         ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), keepConnected);
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+    }
+
+    /** Segunda etapa do login: código do aplicativo autenticador (ou de recuperação). */
+    @PostMapping("/login/2fa")
+    public ResponseEntity<?> loginSecondStep(@RequestBody java.util.Map<String, String> body, HttpServletRequest http) {
+        try {
+            var result = TenantContext.runAsSystem(() -> authService.loginSecondStep(body.get("challenge"), body.get("code")));
+            ResponseCookie cookie = buildCookie(result.getKey().getToken(), http.isSecure(), result.getValue());
+            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(result.getKey());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(java.util.Map.of("error", "mfa_failed", "userMessage", e.getMessage()));
+        }
     }
 
     /** "Esqueci minha senha": resposta sempre igual, exista ou não a conta. */

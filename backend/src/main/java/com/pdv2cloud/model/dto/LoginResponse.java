@@ -11,4 +11,11 @@ public class LoginResponse {
     private UUID userId;
     private String role;
     private UUID marketId;
+    /** Segunda etapa pendente: o token só sai depois do código. */
+    private boolean mfaRequired;
+    private String mfaChallenge;
+
+    public LoginResponse(String token, UUID userId, String role, UUID marketId) {
+        this(token, userId, role, marketId, false, null);
+    }
 }

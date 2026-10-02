@@ -31,7 +31,9 @@ const PasswordVisibilityIcon: React.FC<{ visible: boolean }> = ({ visible }) =>
   );
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, loginSecondStep } = useAuth();
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const navigate = useNavigate();
   const rememberedLogin = loadRememberedLogin(ADMIN_LOGIN_STORAGE_KEY, {
     legacyEmailKey: ADMIN_LEGACY_EMAIL_KEY,
@@ -54,7 +56,12 @@ const Login: React.FC = () => {
     setError(null);
     try {
       const normalizedEmail = email.trim();
-      await login(normalizedEmail, password, keepConnected);
+      const pending = await login(normalizedEmail, password, keepConnected);
+      if (pending) {
+        // Duas etapas: falta o código do aplicativo autenticador.
+        setChallenge(pending);
+        return;
+      }
       if (rememberMe) {
         persistRememberedLogin(ADMIN_LOGIN_STORAGE_KEY, {
           email: normalizedEmail,
@@ -67,12 +74,61 @@ const Login: React.FC = () => {
       }
       navigate('/app');
     } catch (err: any) {
+      if (!err?.response) {
+        setError('Não foi possível entrar agora. Tente de novo.');
+        return;
+      }
       // Conta bloqueada (senha certa): mostra o motivo e o que fazer. Senha errada: mensagem em português.
       const data = err?.response?.data;
       if (err?.response?.status === 429) setError('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
       else setError(data?.userMessage || (err?.response?.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar agora. Tente de novo.'));
     }
   };
+
+  const handleCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challenge) return;
+    setError(null);
+    try {
+      await loginSecondStep(challenge, code.trim());
+      navigate('/app');
+    } catch (err: any) {
+      const message: string | undefined = err?.response?.data?.userMessage;
+      setError(message || 'Código não confere.');
+      if (message && /Entre de novo/.test(message)) {
+        setChallenge(null);
+        setCode('');
+      }
+    }
+  };
+
+  if (challenge) {
+    return (
+      <div className="login-page lg-canvas">
+        <div className="lg-thick login-card">
+          <AuthBrand />
+          <div className="login-heading">
+            <h2>Verificação em duas etapas</h2>
+            <p>Digite o código de 6 números do seu aplicativo autenticador. Sem o celular, use um código de recuperação.</p>
+          </div>
+          <form onSubmit={handleCode}>
+            <div className="form-group">
+              <label htmlFor="mfa-code">Código</label>
+              <input id="mfa-code" className="input" inputMode="numeric" autoComplete="one-time-code" autoFocus
+                value={code} onChange={(e) => setCode(e.target.value)} maxLength={9} />
+            </div>
+            {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
+            <Button type="submit">Confirmar</Button>
+            <p className="login-switch" style={{ marginTop: 12 }}>
+              <button type="button" className="link-button" onClick={() => { setChallenge(null); setCode(''); setError(null); }}>
+                Voltar
+              </button>
+            </p>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-page lg-canvas">

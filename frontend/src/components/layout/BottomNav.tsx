@@ -25,7 +25,7 @@ const BottomNav: React.FC = () => {
         {DESTINATIONS.map((destination) => {
           const Icon = destination.icon;
           const isActive = destination.key === active;
-          const first = visiblePages(destination, role === 'ADMIN')[0];
+          const first = visiblePages(destination, role === 'ADMIN', role === 'MARKET_OWNER')[0];
           return (
             <li key={destination.key}>
               {/* Link, não NavLink: o destino fica ativo em qualquer página dele, não só na primeira. */}

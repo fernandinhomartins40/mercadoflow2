@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
-import authService from '../services/auth.service';
+import authService, { TeamRole } from '../services/auth.service';
 
 interface AuthState {
+  teamRole?: TeamRole | null;
+  twoFactorEnabled?: boolean;
   role: string | null;
   marketId: string | null;
   userId: string | null;
@@ -12,7 +14,10 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string, keepConnected?: boolean) => Promise<void>;
+  /** Devolve o desafio quando a conta pede o código do aplicativo (duas etapas). */
+  login: (email: string, password: string, keepConnected?: boolean) => Promise<string | null>;
+  loginSecondStep: (challenge: string, code: string) => Promise<void>;
+  refresh: () => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -55,6 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userId: me.userId,
           email: me.email,
           name: me.name,
+          teamRole: me.teamRole ?? null,
+          twoFactorEnabled: !!me.twoFactorEnabled,
         });
       } catch {
         setState({
@@ -71,8 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     load();
   }, [location.pathname, location.search]);
 
-  const login = async (email: string, password: string, keepConnected = false) => {
-    await authService.login(email, password, keepConnected);
+  const loadMe = async () => {
     const me = await authService.me();
     setState({
       role: me.role,
@@ -80,7 +86,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userId: me.userId,
       email: me.email,
       name: me.name,
+      teamRole: me.teamRole ?? null,
+      twoFactorEnabled: !!me.twoFactorEnabled,
     });
+  };
+
+  const login = async (email: string, password: string, keepConnected = false) => {
+    const response = await authService.login(email, password, keepConnected);
+    if (response.mfaRequired && response.mfaChallenge) {
+      return response.mfaChallenge;
+    }
+    await loadMe();
+    return null;
+  };
+
+  const loginSecondStep = async (challenge: string, code: string) => {
+    await authService.loginSecondStep(challenge, code);
+    await loadMe();
   };
 
   const logout = async () => {
@@ -89,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, loading }}>
+    <AuthContext.Provider value={{ ...state, login, loginSecondStep, refresh: loadMe, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

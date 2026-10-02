@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.*;
 @Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/markets/{marketId}/billing")
-@PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+@PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
 @Slf4j
 public class BillingController {
 

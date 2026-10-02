@@ -2,12 +2,13 @@ import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import AiSettingsCard from '../components/settings/AiSettingsCard';
 import AiCreditsCard from '../components/settings/AiCreditsCard';
+import SecurityCard from '../components/settings/SecurityCard';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
 
 const Settings: React.FC = () => {
-  const { marketId, role, name, email, logout } = useAuth();
+  const { marketId, role, teamRole, name, email, logout } = useAuth();
   const [copied, setCopied] = useState<string | null>(null);
 
   const apiBaseUrl = useMemo(() => {
@@ -27,7 +28,10 @@ const Settings: React.FC = () => {
   };
 
   const userInitial = (name || email || '?').trim().charAt(0).toUpperCase();
-  const roleLabel = role === 'ADMIN' ? 'Administrador' : role === 'MARKET_OWNER' ? 'Dono da loja' : role === 'MARKET_MANAGER' ? 'Gerente' : 'Usuário';
+  const TEAM_LABEL: Record<string, string> = {
+    DONO: 'Dono da loja', GERENTE: 'Gerente', COMPRADOR: 'Comprador', CONFERENTE: 'Conferente', FINANCEIRO: 'Financeiro', LEITURA: 'Leitura',
+  };
+  const roleLabel = role === 'ADMIN' ? 'Administrador' : (teamRole && TEAM_LABEL[teamRole]) || (role === 'MARKET_OWNER' ? 'Dono da loja' : role === 'MARKET_MANAGER' ? 'Gerente' : 'Usuário');
   // IA só para quem assume o gasto da chave; o backend aplica a mesma regra.
   const showAi = role === 'MARKET_OWNER' || role === 'ADMIN';
 
@@ -69,6 +73,8 @@ const Settings: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <SecurityCard />
 
         {/* Dados do mercado */}
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>

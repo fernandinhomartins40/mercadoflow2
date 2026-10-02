@@ -33,6 +33,8 @@ export interface DestinationPage {
   alsoMatches?: string[];
   exact?: boolean;
   adminOnly?: boolean;
+  /** Só para o dono da conta (equipe). */
+  ownerOnly?: boolean;
 }
 
 export interface Destination {
@@ -95,6 +97,7 @@ export const DESTINATIONS: Destination[] = [
     pages: [
       { to: '/app/pdvs', label: 'Caixas e agente', icon: Store, alsoMatches: ['/app/download-agente'] },
       { to: '/app/assinatura', label: 'Minha assinatura', icon: CreditCard },
+      { to: '/app/equipe', label: 'Equipe', icon: Users, ownerOnly: true },
       { to: '/app/planos', label: 'Planos', icon: Sparkles },
       { to: '/app/configuracoes', label: 'Conta', icon: Settings },
       { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true },
@@ -113,8 +116,8 @@ const pageMatches = (page: DestinationPage, pathname: string) =>
       || (page.alsoMatches ?? []).some((p) => (p.endsWith('/') ? pathname.startsWith(p) : pathname === p));
 
 /** Páginas do destino visíveis para o papel do usuário. */
-export const visiblePages = (destination: Destination, isAdmin: boolean) =>
-  destination.pages.filter((page) => !page.adminOnly || isAdmin);
+export const visiblePages = (destination: Destination, isAdmin: boolean, isOwner = true) =>
+  destination.pages.filter((page) => (!page.adminOnly || isAdmin) && (!page.ownerOnly || isOwner || isAdmin));
 
 /** Destino e página ativos para a rota atual (o Hoje é o padrão). */
 export const resolveLocation = (pathname: string) => {

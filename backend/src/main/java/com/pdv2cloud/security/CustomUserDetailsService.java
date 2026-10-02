@@ -36,7 +36,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             isUserEnabled(user),
             Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
             user.getMarket() != null ? user.getMarket().getId() : null,
-            user.getRole()
+            user.getRole(),
+            com.pdv2cloud.service.team.TeamRole.of(user.getTeamRole(), user.getRole())
         );
     }
 

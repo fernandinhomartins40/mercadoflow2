@@ -16,7 +16,9 @@ interface PublicTerms { version: string; text: string; trialReads: number; enabl
 export const PENDING_ACCEPT = 'confere:accept';
 
 export const Welcome: React.FC = () => {
-  const { login } = useAuth();
+  const { login, loginSecondStep } = useAuth();
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const [tab, setTab] = useState<'entrar' | 'criar'>('criar');
   const [terms, setTerms] = useState<PublicTerms | null>(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', marketName: '', cnpj: '', accept: false });
@@ -31,9 +33,24 @@ export const Welcome: React.FC = () => {
     setBusy(true);
     setError(null);
     try {
-      await login(form.email.trim().toLowerCase(), form.password, true);
+      const pending = await login(form.email.trim().toLowerCase(), form.password, true);
+      if (pending) setChallenge(pending);
     } catch (err) {
       setError(errorText(err, 'E-mail ou senha incorretos.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challenge) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await loginSecondStep(challenge, code.trim());
+    } catch (err) {
+      setError(errorText(err, 'Código não confere.'));
     } finally {
       setBusy(false);
     }
@@ -88,7 +105,13 @@ export const Welcome: React.FC = () => {
           ))}
         </div>
         {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-lg text-red-800">{error}</p>}
-        {tab === 'entrar' ? (
+        {challenge ? (
+          <form onSubmit={doCode} className="flex flex-col gap-4">
+            <Field label="Código do aplicativo autenticador" inputMode="numeric" autoComplete="one-time-code" required
+              value={code} onChange={(e) => setCode(e.target.value)} hint="6 números, ou um código de recuperação." />
+            <BigButton type="submit" disabled={busy}>{busy ? 'Conferindo…' : 'Confirmar'}</BigButton>
+          </form>
+        ) : tab === 'entrar' ? (
           <form onSubmit={doLogin} className="flex flex-col gap-4">
             <Field label="E-mail" type="email" autoComplete="email" required value={form.email} onChange={set('email')} />
             <Field label="Senha" type="password" autoComplete="current-password" required value={form.password} onChange={set('password')} />

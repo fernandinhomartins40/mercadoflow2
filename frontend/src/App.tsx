@@ -40,6 +40,8 @@ const SuperAdminCustomers = lazy(() => import('./screens/SuperAdminCustomers'));
 const SuperAdminCollections = lazy(() => import('./screens/SuperAdminCollections'));
 const Plans = lazy(() => import('./screens/Plans'));
 const MySubscription = lazy(() => import('./screens/MySubscription'));
+const Team = lazy(() => import('./screens/Team'));
+const AcceptInvite = lazy(() => import('./screens/AcceptInvite'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
 const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawlerRunDetails'));
@@ -54,12 +56,16 @@ const PageLoader = () => (
 );
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userId, loading } = useAuth();
+  const { userId, teamRole, loading } = useAuth();
   if (loading) {
     return <PageLoader />;
   }
   if (!userId) {
     return <Navigate to="/login" replace />;
+  }
+  // Conferente usa só o Confere.
+  if (teamRole === 'CONFERENTE') {
+    return <Navigate to="/confere/" replace />;
   }
   return <>{children}</>;
 };
@@ -127,6 +133,7 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/esqueci-senha" element={<ForgotPassword />} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />
+        <Route path="/aceitar-convite" element={<AcceptInvite />} />
         <Route path="/register" element={<Register />} />
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />
         <Route path="/" element={<Landing />} />
@@ -164,6 +171,7 @@ const App: React.FC = () => {
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/planos" element={secure(<Plans />)} />
         <Route path="/app/assinatura" element={secure(<MySubscription />)} />
+        <Route path="/app/equipe" element={secure(<Team />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
         <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />

@@ -49,7 +49,7 @@ public class SubscriptionController {
     }
 
     @PostMapping("/subscription/trial")
-    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
     public ResponseEntity<Map<String, Object>> trial(@PathVariable UUID marketId, @RequestBody Map<String, Object> body,
                                                      Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);

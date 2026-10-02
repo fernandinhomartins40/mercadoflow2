@@ -44,6 +44,10 @@ api.interceptors.response.use(
     if (typeof serverMessage === 'string' && serverMessage.trim()) {
       error.message = serverError ? `${serverError}: ${serverMessage}` : serverMessage;
     }
+    // Papel da equipe sem permissão para a ação: a frase vem pronta.
+    if (error.response?.status === 403 && typeof error.response?.data?.userMessage === 'string') {
+      error.message = error.response.data.userMessage;
+    }
     // Conta só para consulta (pagamento em aberto): a frase vem pronta e a faixa do topo se atualiza.
     if (error.response?.status === 402 && typeof error.response?.data?.userMessage === 'string') {
       error.message = error.response.data.userMessage;
@@ -56,7 +60,7 @@ api.interceptors.response.use(
       }
       // /parear-agente autentica sozinha no próprio fluxo: redirecionar para
       // /login perderia o código de pareamento que veio na query string.
-      const publicPaths = ['/', '/login', '/register', '/esqueci-senha', '/redefinir-senha', '/download-agente', '/parear-agente', '/super-admin/login'];
+      const publicPaths = ['/', '/login', '/register', '/esqueci-senha', '/redefinir-senha', '/aceitar-convite', '/download-agente', '/parear-agente', '/super-admin/login'];
       const isPublic = publicPaths.includes(window.location.pathname);
       if (!isPublic) {
         if (window.location.pathname === '/confere' || window.location.pathname.startsWith('/confere/')) {
