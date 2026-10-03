@@ -18,6 +18,7 @@ import {
   Supplier,
   SupplierOrder,
   SupplierOrderItem,
+  RecommendationItem,
 } from '../types/analytics.types';
 import SupplierModal from '../components/suppliers/SupplierModal';
 import CapitalPlanTab from '../components/capital/CapitalPlanTab';
@@ -48,7 +49,9 @@ import {
   ArrowRight,
   Zap,
 } from 'lucide-react';
-import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ActionHub, ExplainStrip, PageHero } from '../components/flow/Flow';
+import BuyDesk, { buyHeadline } from './comprar/BuyDesk';
+import { goesToOrder } from '../components/intelligence/RecommendationCard';
 import { ListChecks as HxListChecks, Plus as HxPlus, ShoppingCart as HxShoppingCart, Wallet as HxWallet } from 'lucide-react';
 
 /* ─── Formatadores ─── */
@@ -771,7 +774,7 @@ const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onCl
 
   return (
     <div className="app-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="app-modal-panel sm:max-w-lg">
+      <div className="app-modal-panel sm:max-w-lg" role="dialog" aria-modal="true" aria-label={`Receber ${order.orderNumber}`}>
         <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-soft)' }}>
           <div>
             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Receber {order.orderNumber}</p>
@@ -1282,7 +1285,7 @@ const SuggestionRow: React.FC<{
    PÁGINA PRINCIPAL COM ABAS
 ════════════════════════════════════════════════════════════════════ */
 
-type Tab = 'capital' | 'lista' | 'pedidos' | 'fornecedores';
+type Tab = 'decidir' | 'capital' | 'lista' | 'pedidos' | 'fornecedores';
 
 interface NewOrderState { supplier?: Supplier | null; highlightProductId?: string; selectedProductIds?: string[] }
 
@@ -1291,9 +1294,18 @@ const ShoppingListPage: React.FC = () => {
   const { dashboard, loading: dLoading } = useMarketData();
   const { overview, items, productIds, loading, error, addItem, updateItem, removeItem } = useShoppingList();
 
-  // Abre em Pedidos: é o que o comprador faz todo dia (enviar, receber) e onde
-  // as compras sugeridas pela análise já aparecem prontas para o pedido.
-  const [tab, setTab] = useState<Tab>('pedidos');
+  // Abre na mesa "Decidir agora": só o que pede uma ação hoje (sugestões do
+  // Jev, pedidos para enviar, entregas a caminho), um de cada vez.
+  const [tab, setTab] = useState<Tab>('decidir');
+  const [suggestions, setSuggestions] = useState<RecommendationItem[]>([]);
+  const loadSuggestions = useCallback(async () => {
+    if (!marketId) return;
+    try {
+      const recs: RecommendationItem[] = await marketService.getPendingRecommendations(marketId);
+      setSuggestions((recs || []).filter(goesToOrder));
+    } catch { setSuggestions([]); }
+  }, [marketId]);
+  useEffect(() => { void loadSuggestions(); }, [loadSuggestions]);
 
   // Lista
   const [recordModal, setRecordModal] = useState<ShoppingListItem | null>(null);
@@ -1340,7 +1352,8 @@ const ShoppingListPage: React.FC = () => {
     catch { /* silent */ } finally { setSuppliersLoading(false); setSuppliersLoaded(true); }
   }, [marketId]);
 
-  useEffect(() => { if (tab === 'pedidos' && !ordersLoaded && !newOrder) fetchOrders(); }, [tab, ordersLoaded, fetchOrders, newOrder]);
+  useEffect(() => { if ((tab === 'pedidos' || tab === 'decidir') && !ordersLoaded && !newOrder) fetchOrders(); }, [tab, ordersLoaded, fetchOrders, newOrder]);
+  useEffect(() => { if (tab === 'decidir') { void fetchOrders(); void loadSuggestions(); } }, [tab]); // eslint-disable-line
   useEffect(() => { if (tab === 'fornecedores' && !suppliersLoaded) fetchSuppliers(); }, [tab, suppliersLoaded, fetchSuppliers]);
   useEffect(() => { if (tab === 'pedidos' && !newOrder) fetchOrders(); }, [statusFilter]); // eslint-disable-line
 
@@ -1376,9 +1389,12 @@ const ShoppingListPage: React.FC = () => {
     [dashboard?.replenishmentCandidates, productIds]
   );
 
+  const drafts = orders.filter(o => o.status === 'RASCUNHO');
+  const head = buyHeadline(drafts, suggestions, orders.filter(o => o.status === 'ENVIADO'));
   const TABS: Array<{ key: Tab; label: string; icon: React.ReactNode; badge?: number }> = [
+    { key: 'decidir', label: 'Decidir agora', icon: <Zap className="h-4 w-4" />, badge: (drafts.length + (suggestions.length ? 1 : 0)) || undefined },
     { key: 'pedidos', label: 'Pedidos', icon: <ClipboardList className="h-4 w-4" />, badge: orders.filter(o => o.status === 'RASCUNHO').length || undefined },
-    { key: 'capital', label: 'O que comprar', icon: <Zap className="h-4 w-4" /> },
+    { key: 'capital', label: 'Onde investir', icon: <HxWallet className="h-4 w-4" /> },
     { key: 'lista', label: 'Lista de compras', icon: <ShoppingCart className="h-4 w-4" />, badge: overview.pendingItems || undefined },
     { key: 'fornecedores', label: 'Fornecedores', icon: <Building2 className="h-4 w-4" /> },
   ];
@@ -1442,10 +1458,37 @@ const ShoppingListPage: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Compre com contexto. <mark>Revise antes de enviar.</mark></>} subtitle="Do que comprar ao pedido enviado e recebido do fornecedor." side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }, { label: 'Ver lista de compras', icon: HxListChecks, onClick: () => setTab('lista') }, { label: 'Onde investir', icon: HxWallet, onClick: () => setTab('capital') }]} />} />
+        <PageHero
+          title={tab === 'decidir' ? <>{head.lead} <mark>{head.mark}</mark></> : <>Compre com contexto. <mark>Revise antes de enviar.</mark></>}
+          subtitle={tab === 'decidir' ? 'Um pedido por vez: o Jev monta, você revisa e envia.' : 'Do que comprar ao pedido enviado e recebido do fornecedor.'}
+          side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }, { label: 'Lista de compras', icon: HxListChecks, onClick: () => setTab('lista') }, { label: 'Fornecedores', icon: Building2, onClick: () => setTab('fornecedores') }]} />} />
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
+
+        {/* ── DECIDIR AGORA ── */}
+        {tab === 'decidir' && marketId && (
+          <>
+            <BuyDesk
+              marketId={marketId}
+              orders={orders}
+              suggestions={suggestions}
+              listPending={items.filter(i => !i.checked)}
+              loading={ordersLoading && !ordersLoaded}
+              onOrdersChanged={fetchOrders}
+              onSuggestionsChanged={loadSuggestions}
+              onOpenOrder={openOrderDetail}
+              onReceive={setReceiveOrder}
+              onOrderFromList={(ids) => { setTab('pedidos'); setNewOrder({ selectedProductIds: ids }); }}
+              onGoList={() => setTab('lista')}
+            />
+            <ExplainStrip items={[
+              { icon: Zap, title: 'Jev monta', text: 'Pela venda das semanas e pelo que está acabando.' },
+              { icon: ClipboardList, title: 'Você revisa', text: 'Quantidade, custo e o que tirar.' },
+              { icon: Send, title: 'Sai pronto', text: 'WhatsApp, e-mail ou PDF para o fornecedor.' },
+            ]} />
+          </>
+        )}
 
         {/* ── ABA: ONDE INVESTIR ── */}
         {tab === 'capital' && marketId && (

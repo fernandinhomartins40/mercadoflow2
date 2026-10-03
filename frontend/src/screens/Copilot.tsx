@@ -36,6 +36,9 @@ const EXPLAIN: Record<string, { title: string; text: string }[]> = {
   ],
 };
 
+/** Ainda espera o lojista (as decididas ficam na lista só até ele seguir). */
+const isOpen = (d: CopilotDecision) => d.status === 'PENDENTE' || d.status === 'INFORMATIVA';
+
 const Copilot: React.FC = () => {
   const { marketId } = useAuth();
   const [view, setView] = useState<View>('decidir');
@@ -77,8 +80,9 @@ const Copilot: React.FC = () => {
   }, [marketId]);
 
   const onValue = useCallback((id: string, v: number | null) => setValues((cur) => (cur[id] === v ? cur : { ...cur, [id]: v })), []);
-  const pending = open ?? [];
-  const current = pending.find((d) => d.id === selected) ?? null;
+  const all = open ?? [];
+  const pending = all.filter(isOpen);
+  const current = all.find((d) => d.id === selected) ?? pending[0] ?? null;
   const total = useMemo(() => pending.reduce((a, d) => a + (valueOf(d, values[d.id] ?? undefined) ?? 0), 0), [pending, values]);
   const currentValue = current ? valueOf(current, values[current.id] ?? undefined) : null;
 
@@ -106,18 +110,21 @@ const Copilot: React.FC = () => {
     setNote(r.pausado ? 'Pausado: nenhum agente faz nada sozinho até você retomar.' : 'Retomado: os agentes voltam a agir dentro dos seus limites.');
   };
 
-  const decided = () => {
-    // Mostra o resultado por um instante e passa para a próxima.
-    setTimeout(() => {
-      loadOpen().catch(() => {});
-    }, 1600);
+  // O resultado fica aberto (com o link para o pedido, o encarte ou o WhatsApp)
+  // até o lojista escolher outra; a decidida sai da lista quando ele seguir.
+  const decided = (r: CopilotDecision) => {
+    setOpen((list) => (list ?? []).map((d) => (d.id === r.id ? r : d)));
+  };
+  const pick = (id: string) => {
+    setSelected(id);
+    setOpen((list) => (list ?? []).filter((d) => isOpen(d) || d.id === id));
   };
 
   const later = () => {
     if (!current) return;
     const i = pending.findIndex((d) => d.id === current.id);
     const next = pending[(i + 1) % pending.length];
-    if (next) setSelected(next.id);
+    if (next) pick(next.id);
   };
 
   const side = (
@@ -153,7 +160,7 @@ const Copilot: React.FC = () => {
       {note && <p role="status" className="fx-muted" style={{ margin: 0 }}>{note}</p>}
 
       {view === 'decidir' && marketId && (
-        !open ? <Loader2 className="animate-spin" aria-label="Carregando" /> : pending.length === 0 ? (
+        !open ? <Loader2 className="animate-spin" aria-label="Carregando" /> : all.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: 40 }}>
             <CheckCircle2 size={40} style={{ color: 'var(--fx-green)' }} aria-hidden="true" />
             <h2 className="fx-section-title" style={{ marginTop: 10 }}>Nada esperando você</h2>
@@ -165,19 +172,20 @@ const Copilot: React.FC = () => {
               <Card as="section" aria-label="Agora importa">
                 <PanelTitle title="Agora importa" sub="Decisões que pedem a sua atenção" />
                 <div className="fx-stack" style={{ marginTop: 16, gap: 8 }} role="list">
-                  {pending.map((d) => {
+                  {all.map((d) => {
                     const a = agentOf(d);
                     const I = a.icon;
                     const v = valueOf(d, values[d.id] ?? undefined);
                     return (
                       <div role="listitem" key={d.id}>
                         <button type="button" className={`fx-row ${current?.id === d.id ? 'selected' : ''}`} aria-current={current?.id === d.id || undefined}
-                          onClick={() => setSelected(d.id)}>
+                          onClick={() => pick(d.id)}>
                           <span className="fx-list-row">
                             <span className="fx-icon-tile" style={d.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : undefined}><I aria-hidden="true" /></span>
                             <span style={{ minWidth: 0 }}>
                               <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <b style={{ fontSize: 16 }}>{a.action}</b>{d.urgent && <Chip tone="red">Urgente</Chip>}
+                                <b style={{ fontSize: 16 }}>{a.action}</b>{d.urgent && isOpen(d) && <Chip tone="red">Urgente</Chip>}
+                                {!isOpen(d) && <Chip tone={d.status === 'RECUSADA' ? 'gray' : 'green'}>{d.status === 'RECUSADA' ? 'Recusada' : d.status === 'DESFEITA' ? 'Desfeita' : 'Aprovada'}</Chip>}
                               </span>
                               <span style={{ display: 'block', fontSize: 14, color: 'var(--fx-ink-2)' }}>{d.title}</span>
                               <span className="fx-muted" style={{ fontSize: 13 }}>{a.label} · {ago(d.createdAt)}</span>

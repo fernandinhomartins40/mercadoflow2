@@ -103,7 +103,7 @@ public class DailyBriefService {
         }
         // O que os agentes prepararam e espera o sim (caixa de decisões do Copiloto).
         List<Map<String, Object>> decisions = jdbc.queryForList(
-            "select id, title, level from ai_decisions where market_id = :m and status = 'PENDENTE' "
+            "select id, title, level, urgent from ai_decisions where market_id = :m and status = 'PENDENTE' "
                 + "order by urgent desc, created_at desc limit 1", Map.of("m", marketId));
         if (!decisions.isEmpty()) {
             Map<String, Object> top = decisions.get(0);
@@ -116,8 +116,22 @@ public class DailyBriefService {
             item.put("id", String.valueOf(top.get("id")));
             item.put("titulo", top.get("title"));
             item.put("impacto", null);
+            item.put("nivel", ((Number) top.get("level")).intValue());
+            item.put("urgente", Boolean.TRUE.equals(top.get("urgent")));
             items.add(item);
         }
+        // Os números do texto, para a tela montar o painel sem reler a frase.
+        Map<String, Object> numbers = new LinkedHashMap<>();
+        numbers.put("tipo", "numeros");
+        numbers.put("id", "numeros");
+        numbers.put("titulo", weekday);
+        numbers.put("impacto", null);
+        numbers.put("receitaOntem", revenue);
+        numbers.put("cuponsOntem", Math.round(number(y.get("cupons"))));
+        numbers.put("variacao", revenue > 0 && previous > 0 ? (revenue - previous) / previous * 100 : null);
+        numbers.put("pendentes", pending);
+        numbers.put("impactoPendente", number(recs.get("impacto")));
+        items.add(numbers);
         String text = sb.toString();
         jdbc.update("insert into ai_daily_briefs (market_id, day, text, items) values (:m, :d, :t, cast(:i as jsonb)) "
                 + "on conflict (market_id, day) do update set text = excluded.text, items = excluded.items, created_at = now()",
