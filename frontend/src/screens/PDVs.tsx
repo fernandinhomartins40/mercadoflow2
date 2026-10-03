@@ -11,6 +11,8 @@ import {
   Check, CheckCircle2, Copy, Download, Monitor, Plus, RefreshCw,
   Shield, Trash2, Wifi, WifiOff, X,
 } from 'lucide-react';
+import { ActionHub, PageHero } from '../components/flow/Flow';
+import { Download as HxDownload, KeyRound as HxKeyRound, Monitor as HxMonitor, MonitorSmartphone as HxMonitorSmartphone } from 'lucide-react';
 
 /* ── Types ── */
 interface PDVItem {
@@ -178,15 +180,7 @@ const PDVs: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Caixas e agente</h1>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Veja se as vendas estão chegando e conecte novos caixas.
-            </p>
-          </div>
-        </div>
+        <PageHero title={<>Sua conexão com a loja, <mark>em um lugar.</mark></>} subtitle="Veja se as vendas estão chegando e conecte novos caixas." side={<ActionHub icon={HxMonitorSmartphone} actions={[{ label: 'Ver caixas', icon: HxMonitor, onClick: () => setTab('pdvs') }, { label: 'Chaves do agente', icon: HxKeyRound, onClick: () => setTab('agente') }, { label: 'Instalar agente', icon: HxDownload, onClick: () => setTab('download') }]} />} />
 
         {activation.status && <ConnectionStatus status={activation.status} onInstall={() => setTab('download')} />}
 

@@ -63,7 +63,7 @@ const AgentDownload: React.FC = () => {
     <Layout>
       <div className="page analytics-page">
         <PageHeader
-          title="Download do agente"
+          title={<>Baixe o agente. <mark>Ligue o caixa.</mark></>}
           subtitle="Baixe e instale o Agente Mercado Flow."
           actions={
             <Button variant="secondary" onClick={fetchInstallerInfo} disabled={loading}>

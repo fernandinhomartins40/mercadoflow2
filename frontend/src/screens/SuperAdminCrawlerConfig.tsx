@@ -285,7 +285,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     <SuperAdminLayout>
       <div className="page super-admin-page super-admin-crawler-page">
         <PageHeader
-          title="Crawler"
+          title={<mark>Crawler</mark>}
           subtitle="Coleta manual por mercado."
           actions={latestRun?.id ?<ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</ButtonLink> : null}
         />

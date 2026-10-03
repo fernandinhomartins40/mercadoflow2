@@ -225,8 +225,8 @@ const CatalogAdmin: React.FC = () => {
     <Layout>
       <div className="page analytics-page catalog-admin-page admin-catalog-page">
         <PageHeader
-          title="Catálogo global"
-          subtitle="Consulta e manutencao da base enriquecida por GTIN unico."
+          title={<>Catálogo <mark>global.</mark></>}
+          subtitle="Consulta e manutenção da base enriquecida por GTIN unico."
         />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

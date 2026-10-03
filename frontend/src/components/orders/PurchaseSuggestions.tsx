@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Sparkles, X } from 'lucide-react';
-import ProductImage from '../product/ProductImage';
+import { Check, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Forest, PanelTitle, Thumb } from '../flow/Flow';
 import DecisionFeedback from '../intelligence/DecisionFeedback';
 import { goesToOrder } from '../intelligence/RecommendationCard';
 import { useRecommendationDecision } from '../../hooks/useRecommendationDecision';
@@ -9,7 +9,6 @@ import { marketService } from '../../services/market.service';
 import { formatMoney } from '../../utils/formatters';
 import type { RecommendationItem } from '../../types/analytics.types';
 
-const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 const LIMIT = 5;
 
 /**
@@ -40,76 +39,63 @@ const PurchaseSuggestions: React.FC<{ marketId: string; onOrdersChanged: () => v
   if (loading || (suggestions.length === 0 && !feedback)) return null;
 
   const shown = suggestions.slice(0, LIMIT);
+  const total = suggestions.reduce((sum, r) => sum + Number(r.expectedImpactValue || 0), 0);
+
   return (
-    <section
-      aria-labelledby="purchase-suggestions-title"
-      className="flex flex-col gap-3 rounded-2xl p-4 sm:p-5"
-      style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="purchase-suggestions-title" className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          <Sparkles className="h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />
-          Sugestões para comprar
-        </h2>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {suggestions.length === 1 ? '1 sugestão' : `${suggestions.length} sugestões`} pelas vendas da loja
-        </span>
-      </div>
+    <div className="fx-split wide-left">
+      <section aria-labelledby="purchase-suggestions-title" className="fx-card fx-card-pad">
+        <PanelTitle icon={Sparkles} title={<span id="purchase-suggestions-title">O que comprar</span>}
+          sub={`${suggestions.length === 1 ? '1 sugestão' : `${suggestions.length} sugestões`} pelas vendas da loja`} />
 
-      {feedback ? (
-        <DecisionFeedback feedback={feedback} marketId={marketId} onChange={setFeedback} onUndone={reload} />
-      ) : null}
-      {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
+        {feedback ? <div style={{ marginTop: 12 }}><DecisionFeedback feedback={feedback} marketId={marketId} onChange={setFeedback} onUndone={reload} /></div> : null}
+        {error ? <p role="alert" className="fx-chip red" style={{ marginTop: 12, whiteSpace: 'normal' }}>{error}</p> : null}
 
-      <ul className="flex flex-col gap-2">
-        {shown.map((rec) => (
-          <li
-            key={rec.id}
-            className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center"
-            style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
-                <ProductImage src={rec.productImage} alt="" className="h-full w-full object-contain" />
+        <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
+          {shown.map((rec) => (
+            <li key={rec.id} className="fx-row" style={{ flexWrap: 'wrap', cursor: 'default' }}>
+              <Thumb name={rec.productName || rec.title} src={rec.productImage} size={48} />
+              <span className="min-w-0 flex-1" style={{ flexBasis: 220 }}>
+                <b className="block" style={{ fontSize: 15.5 }}>{rec.title}</b>
+                <span className="block text-[13.5px]" style={{ color: 'var(--fx-muted)' }}>{rec.rationale}</span>
               </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{rec.title}</span>
-                <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {rec.rationale ? `${rec.rationale} ` : ''}
-                  {rec.expectedImpactValue ? `Impacto ${formatMoney(rec.expectedImpactValue)}.` : ''}
-                </span>
+              {rec.parameters?.quantidade ? <span className="fx-chip gray fx-num">{rec.parameters.quantidade} un.</span> : null}
+              {rec.expectedImpactValue ? <b className="fx-num" style={{ fontSize: 15, whiteSpace: 'nowrap' }}>{formatMoney(rec.expectedImpactValue)}</b> : null}
+              <span className="flex shrink-0 gap-2">
+                <button type="button" disabled={deciding === rec.id} onClick={() => decide(rec.id, 'ACEITA')} className="fx-btn dark small">
+                  <Check aria-hidden="true" />{deciding === rec.id ? 'Pondo...' : 'Pôr no pedido'}
+                </button>
+                <button type="button" disabled={deciding === rec.id} onClick={() => decide(rec.id, 'REJEITADA')} aria-label={`Não comprar: ${rec.title}`} className="fx-btn ghost small">
+                  <X aria-hidden="true" /><span className="sm:sr-only">Não comprar</span>
+                </button>
               </span>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                disabled={deciding === rec.id}
-                onClick={() => decide(rec.id, 'ACEITA')}
-                className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-50 sm:flex-none ${FOCUS}`}
-                style={{ background: 'var(--brand-700)' }}
-              >
-                <Check className="h-4 w-4" aria-hidden="true" /> {deciding === rec.id ? 'Pondo...' : 'Pôr no pedido'}
-              </button>
-              <button
-                type="button"
-                disabled={deciding === rec.id}
-                onClick={() => decide(rec.id, 'REJEITADA')}
-                aria-label={`Não comprar: ${rec.title}`}
-                className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${FOCUS}`}
-                style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)', background: 'var(--surface-base)' }}
-              >
-                <X className="h-4 w-4" aria-hidden="true" /> <span className="sm:sr-only">Não comprar</span>
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {suggestions.length > LIMIT ? (
-        <Link to="/app/inteligencia" className={`self-start text-sm font-semibold no-underline ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
-          Ver todas as {suggestions.length} sugestões
-        </Link>
-      ) : null}
-    </section>
+            </li>
+          ))}
+        </ul>
+        {suggestions.length > LIMIT ? (
+          <Link to="/app/inteligencia" className="fx-btn ghost" style={{ marginTop: 12 }}>Ver todas as {suggestions.length} sugestões</Link>
+        ) : null}
+      </section>
+
+      <Forest as="aside" aria-label="Antes de comprar">
+        <PanelTitle icon={ShieldCheck} title="Antes de comprar" sub="O que o Jev já conferiu por você" />
+        <div className="fx-white" style={{ marginTop: 18 }}>
+          <small>Impacto das sugestões</small>
+          <span style={{ display: 'block', marginTop: 6 }}><span className="fx-money" style={{ fontSize: 28 }}>{formatMoney(total)}</span></span>
+        </div>
+        <ul style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, display: 'grid', gap: 12 }}>
+          {[
+            ['Venda das últimas semanas', 'A quantidade cobre o giro até a próxima entrega.'],
+            ['Último preço pago', 'Vem do fornecedor da última compra.'],
+            ['Você revisa antes de enviar', 'Pôr no pedido só cria o rascunho.'],
+          ].map(([t, d]) => (
+            <li key={t} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span className="fx-chip lime" style={{ padding: 4, borderRadius: 999 }}><Check size={14} aria-hidden="true" /></span>
+              <span><b style={{ display: 'block', fontSize: 15 }}>{t}</b><small>{d}</small></span>
+            </li>
+          ))}
+        </ul>
+      </Forest>
+    </div>
   );
 };
 

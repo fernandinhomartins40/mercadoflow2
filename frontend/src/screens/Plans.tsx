@@ -15,6 +15,8 @@ import subscriptionService, {
 } from '../services/subscription.service';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ActionHub, PageHero } from '../components/flow/Flow';
+import { CreditCard as HxCreditCard, Layers as HxLayers } from 'lucide-react';
 
 /**
  * Comparativo de planos com o consumo atual do mercado em destaque.
@@ -168,14 +170,7 @@ const Plans: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Planos
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Comece de graça e cresça conforme sua operação
-          </p>
-        </div>
+        <PageHero title={<>Comece de graça. <mark>Cresça com a loja.</mark></>} subtitle="Escolha o plano conforme sua operação. O Grátis continua grátis." side={<ActionHub icon={HxLayers} actions={[{ label: 'Minha assinatura', icon: HxCreditCard, to: '/app/assinatura' }]} />} />
 
         {usage && (
           <div
@@ -297,20 +292,20 @@ const Plans: React.FC = () => {
               return (
                 <div
                   key={plan.code}
-                  className="flex flex-col gap-3 rounded-xl p-5"
-                  style={{
-                    background: 'var(--surface-base)',
-                    border: recommended ? '2px solid var(--brand-500, #22c55e)' : '1px solid var(--border-soft)',
-                  }}
+                  className={`flex flex-col gap-3 p-6 ${recommended ? 'fx-forest' : 'fx-card'}`}
+                  style={recommended ? ({
+                    '--text-primary': 'var(--fx-on-forest)', '--text-muted': 'var(--fx-on-forest-muted)',
+                    '--brand-500': 'var(--fx-lime)', '--border-soft': 'var(--fx-forest-line)',
+                  } as React.CSSProperties) : undefined}
                 >
                   <div className="flex items-center justify-between">
-                    <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                    <h2 className="text-[19px] font-extrabold" style={{ color: 'var(--text-primary)', letterSpacing: '-.02em' }}>
                       {plan.name}
                     </h2>
                     {recommended && (
                       <span
                         className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
-                        style={{ background: '#dcfce7', color: '#15803d' }}
+                        style={{ background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}
                       >
                         <Sparkles size={10} />
                         Recomendado
@@ -336,7 +331,7 @@ const Plans: React.FC = () => {
                   </div>
 
                   <div>
-                    <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-[32px] font-extrabold" style={{ color: 'var(--text-primary)', letterSpacing: '-.04em' }}>
                       {formatPrice(plan.monthlyPriceCents)}
                     </span>
                     {plan.monthlyPriceCents > 0 && (
@@ -353,13 +348,13 @@ const Plans: React.FC = () => {
                   <ul className="flex flex-col gap-2" aria-label={`O que o plano ${plan.name} inclui`}>
                     {(plan.highlights || []).map((item) => (
                       <li key={item} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                        <Check size={13} className="mt-0.5 shrink-0" style={{ color: '#16a34a' }} />
+                        <Check size={13} className="mt-0.5 shrink-0" style={{ color: recommended ? 'var(--fx-lime)' : 'var(--fx-green)' }} />
                         {item}
                       </li>
                     ))}
                     {(plan.features || []).filter((f) => f.enabled).map((f) => (
                       <li key={f.key} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-primary)' }}>
-                        <Check size={13} className="mt-0.5 shrink-0" style={{ color: '#16a34a' }} />
+                        <Check size={13} className="mt-0.5 shrink-0" style={{ color: recommended ? 'var(--fx-lime)' : 'var(--fx-green)' }} />
                         {featureText(f)}
                       </li>
                     ))}
@@ -370,8 +365,7 @@ const Plans: React.FC = () => {
                       type="button"
                       disabled={trialing !== null || redirecting !== null}
                       onClick={() => startTrial(plan)}
-                      className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60"
-                      style={{ background: 'var(--brand-500, #22c55e)', color: '#fff' }}
+                      className={`mt-auto fx-btn ${recommended ? 'lime' : 'dark'}`}
                     >
                       <Clock size={14} />
                       {trialing === plan.code ? 'Liberando...' : `Testar ${sub?.trialDays ?? 7} dias grátis`}
@@ -411,12 +405,7 @@ const Plans: React.FC = () => {
                           if (methods.length === 1) void subscribe(plan.code, methods[0]);
                           else setChoosing(plan.code);
                         }}
-                        className={`${canTrial ? '' : 'mt-auto '}flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-60`}
-                        style={
-                          recommended
-                            ? { background: 'var(--brand-500, #22c55e)', color: '#fff' }
-                            : { border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }
-                        }
+                        className={`${canTrial ? '' : 'mt-auto '}fx-btn ${recommended ? 'lime' : 'ghost'}`}
                       >
                         <CreditCard size={14} />
                         {redirecting === plan.code ? 'Abrindo pagamento...' : 'Assinar'}

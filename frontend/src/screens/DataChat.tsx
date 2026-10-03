@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { PageHero, PanelTitle } from '../components/flow/Flow';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { speak, stopSpeaking, useVoice } from '../hooks/useVoice';
@@ -226,35 +227,23 @@ const DataChat: React.FC = () => {
 
   return (
     <Layout>
-      <div className="mx-auto flex w-full flex-col gap-4" style={{ maxWidth: '48rem' }}>
+      <div className="mx-auto flex w-full flex-col gap-4" style={{ maxWidth: '56rem' }}>
+        {messages.length === 0 && (
+          <PageHero title={<>Pergunte. <mark>A loja responde.</mark></>}
+            subtitle="As respostas vêm sempre dos números da sua loja. Nada é estimado." />
+        )}
         {/* Conversa */}
         <div className="flex flex-col gap-4">
           {messages.length === 0 && (
-            <div
-              className="rounded-xl p-6"
-              style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
-            >
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" style={{ color: 'var(--brand-500)' }} />
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  Sobre o que você quer saber?
-                </p>
-              </div>
-              <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                As respostas vêm sempre dos números da sua loja — nada é estimado.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
+            <div className="fx-forest">
+              <PanelTitle icon={MessageSquare} title="Sobre o que você quer saber?" sub="Comece por uma destas ou escreva a sua pergunta." />
+              <div className="mt-5 flex flex-wrap gap-2">
                 {suggestions.map(s => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="rounded-full px-3 py-1.5 text-xs font-medium transition hover:opacity-80"
-                    style={{
-                      border: '1px solid var(--border-strong)',
-                      background: 'var(--surface-soft)',
-                      color: 'var(--text-primary)',
-                    }}
+                    className="fx-hub-btn"
                   >
                     {s}
                   </button>
@@ -269,11 +258,12 @@ const DataChat: React.FC = () => {
               className={m.autor === 'usuario' ? 'flex justify-end' : 'flex justify-start'}
             >
               <div
-                className="max-w-[85%] rounded-xl px-4 py-3"
+                className="max-w-[85%] px-5 py-4"
                 style={m.autor === 'usuario'
-                  ? { background: 'var(--brand-500)', color: '#fff' }
+                  ? { background: 'var(--fx-forest)', color: '#fff', borderRadius: '22px 22px 6px 22px' }
                   : {
-                    border: `1px solid ${m.erro ? '#fecaca' : 'var(--border-soft)'}`,
+                    borderRadius: '22px 22px 22px 6px',
+                    border: `1px solid ${m.erro ? '#fecaca' : 'var(--fx-line)'}`,
                     background: m.erro ? '#fef2f2' : 'var(--surface-base)',
                     color: m.erro ? '#991b1b' : 'var(--text-primary)',
                   }}
@@ -281,7 +271,7 @@ const DataChat: React.FC = () => {
                 {m.erro && (
                   <AlertTriangle className="mb-1 inline-block h-3.5 w-3.5 mr-1.5" />
                 )}
-                <span className="whitespace-pre-wrap text-sm leading-relaxed">{m.texto}</span>
+                <span className="whitespace-pre-wrap text-[15.5px] leading-relaxed">{m.texto}</span>
 
                 {/* De onde vieram os números desta resposta. */}
                 {m.consultasUsadas && m.consultasUsadas.length > 0 && (

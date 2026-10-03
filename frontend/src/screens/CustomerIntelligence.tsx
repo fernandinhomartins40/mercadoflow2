@@ -10,6 +10,9 @@ import {
 import {
   Users, Repeat, Download, Loader2, Lock, FileSpreadsheet,
 } from 'lucide-react';
+import { ActionHub, PageHero, PanelTitle } from '../components/flow/Flow';
+import type { LucideIcon } from 'lucide-react';
+import { MessageCircleQuestion as HxMessageCircleQuestion, Tag as HxTag, Users as HxUsers } from 'lucide-react';
 
 /**
  * Base de clientes: quem volta e o que faz voltar.
@@ -41,17 +44,10 @@ const card: React.CSSProperties = {
 const Section: React.FC<{
   icon: React.FC<any>; title: string; hint?: string; children: React.ReactNode;
 }> = ({ icon: Icon, title, hint, children }) => (
-  <div className="rounded-xl overflow-hidden" style={card}>
-    <div className="flex items-center gap-3 px-5 py-4 border-b"
-      style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-soft)' }}>
-      <Icon className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
-      <div>
-        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
-        {hint && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{hint}</p>}
-      </div>
-    </div>
-    <div className="p-5">{children}</div>
-  </div>
+  <section className="fx-card fx-card-pad">
+    <PanelTitle icon={Icon as LucideIcon} title={title} sub={hint} />
+    <div style={{ marginTop: 18 }}>{children}</div>
+  </section>
 );
 
 /** Convite de upgrade que mostra o que o recurso faria. */
@@ -145,10 +141,7 @@ const CustomerIntelligence: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Clientes</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Quem volta à loja, com que frequência e o que traz o cliente de volta.</p>
-        </div>
+        <PageHero title={<>Quem volta é quem <mark>sustenta a loja.</mark></>} subtitle="Quem volta à loja, com que frequência e o que traz o cliente de volta." side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/promocoes' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
 
         {locked ? (
           <PlanInvite

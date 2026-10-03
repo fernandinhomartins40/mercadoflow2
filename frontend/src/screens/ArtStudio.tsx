@@ -16,6 +16,7 @@ import { brDate, formatPrice } from '../features/art-studio/render';
 import { canvasBlob, downloadBlob, jpegPagesToPdf, posterPages, sceneCanvas, slugify } from '../features/art-studio/export';
 import { loadImage } from '../features/art-studio/assets';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
+import { ActionHub, PageHero } from '../components/flow/Flow';
 
 /**
  * Encartes e cartazes (F18). O lojista diz o que quer ofertar — ou aceita a
@@ -1029,10 +1030,7 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Encartes e cartazes</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Monte a arte das ofertas em minutos, com os preços e os produtos que as vendas indicam.</p>
-        </div>
+        <PageHero title={<>Ofertas que <mark>vendem por você.</mark></>} subtitle="Monte a arte das ofertas em minutos, com os preços e os produtos que as vendas indicam." />
         <button type="button" onClick={create} disabled={creating} className={BTN_PRIMARY}>
           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Novo encarte
         </button>

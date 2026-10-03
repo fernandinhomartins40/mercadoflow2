@@ -5,6 +5,8 @@ import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import subscriptionService, { MarketSubscription, PlanFeature, featureText, formatLimit } from '../services/subscription.service';
 import { useAuth } from '../context/AuthContext';
+import { ActionHub, PageHero } from '../components/flow/Flow';
+import { CreditCard as HxCreditCard, Layers as HxLayers, Users as HxUsers } from 'lucide-react';
 
 /**
  * Minha assinatura: plano e estado, o que o plano inclui, uso, créditos,
@@ -60,8 +62,8 @@ const EXIT_REASONS: { code: string; label: string }[] = [
   { code: 'OUTRO', label: 'Outro motivo' },
 ];
 
-const CARD = 'flex flex-col gap-3 rounded-xl p-4';
-const CARD_STYLE = { background: 'var(--surface-base)', border: '1px solid var(--border-soft)' };
+const CARD = 'fx-card fx-card-pad flex flex-col gap-3';
+const CARD_STYLE = undefined;
 const H2 = 'text-base font-bold';
 
 const Meter: React.FC<{ label: string; used: number; limit: number }> = ({ label, used, limit }) => {
@@ -168,28 +170,25 @@ const MySubscription: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Minha assinatura</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Plano, uso, adicionais e faturas da sua conta</p>
-        </div>
+        <PageHero title={<>Sua assinatura, <mark>sem surpresa.</mark></>} subtitle="Plano, uso, adicionais e faturas da sua conta." side={<ActionHub icon={HxCreditCard} actions={[{ label: 'Comparar planos', icon: HxLayers, to: '/app/planos' }, { label: 'Equipe e acessos', icon: HxUsers, to: '/app/equipe' }]} />} />
 
         {notice && <p role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>{notice}</p>}
         {error && <p role="alert" className="rounded-xl p-3 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>{error}</p>}
 
         {/* Plano e estado */}
-        <section className={CARD} style={CARD_STYLE} aria-label="Plano atual">
+        <section className="fx-forest flex flex-col gap-3" aria-label="Plano atual">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Plano {data.plan.name}</h2>
+            <h2 style={{ margin: 0, fontSize: 'clamp(24px, 2.6vw, 34px)', fontWeight: 800, letterSpacing: '-.035em' }}>Plano {data.plan.name}</h2>
             <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: status.bg, color: status.fg }} data-testid="sub-status">
               {status.text}
             </span>
           </div>
           {data.monthlyTotalCents > 0 && (
-            <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-              {brl(data.monthlyTotalCents)}<span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}> /mês</span>
+            <p style={{ margin: 0 }}>
+              <span className="fx-money" style={{ fontSize: 30 }}>{brl(data.monthlyTotalCents)}</span><span className="text-sm" style={{ color: 'var(--fx-on-forest-muted)' }}> /mês</span>
             </p>
           )}
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p style={{ margin: 0, fontSize: 15, color: 'var(--fx-on-forest-muted)' }}>
             {s.status === 'TRIAL' && s.trialEndsAt && `Teste grátis até ${day(s.trialEndsAt)}. `}
             {s.status === 'PAUSED' && data.pausedUntil && `Pausada até ${day(data.pausedUntil)}; a conta usa os limites do Grátis. `}
             {s.currentPeriodEnd && s.status !== 'FREE' && (s.cancelAtPeriodEnd
@@ -199,19 +198,16 @@ const MySubscription: React.FC = () => {
             {s.status === 'FREE' && 'O plano Grátis é para sempre. Assine quando quiser mais.'}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Link to="/app/planos" className="rounded-lg px-3 py-1.5 text-sm font-semibold"
-              style={{ background: 'var(--brand-500, #22c55e)', color: '#fff' }}>
+            <Link to="/app/planos" className="fx-btn lime">
               {s.status === 'FREE' || s.status === 'TRIAL' ? 'Ver planos' : 'Mudar de plano'}
             </Link>
             {late && (
-              <button type="button" disabled={busy !== null} onClick={payNow} className="rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60"
-                style={{ background: '#dc2626', color: '#fff' }}>
+              <button type="button" disabled={busy !== null} onClick={payNow} className="fx-btn" style={{ background: 'var(--fx-red)', color: '#fff' }}>
                 {busy === 'pay' ? 'Abrindo...' : 'Pagar agora'}
               </button>
             )}
             {data.canResume && (
-              <button type="button" disabled={busy !== null} onClick={resume} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60"
-                style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}>
+              <button type="button" disabled={busy !== null} onClick={resume} className="fx-btn ghost">
                 <Play size={14} /> Voltar agora
               </button>
             )}

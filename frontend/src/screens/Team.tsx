@@ -4,6 +4,7 @@ import { Copy, MessageCircle, RotateCw, ShieldCheck, UserPlus, X } from 'lucide-
 import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { ActionHub, PageHero } from '../components/flow/Flow';
 
 /**
  * Equipe: quem tem acesso à conta, com que papel e em que loja. O dono convida
@@ -27,8 +28,8 @@ interface Overview {
   transfer: { id: string; to_name: string; to_email: string; expires_at: string }[];
 }
 
-const CARD = 'flex flex-col gap-3 rounded-xl p-4';
-const CARD_STYLE = { background: 'var(--surface-base)', border: '1px solid var(--border-soft)' };
+const CARD = 'fx-card fx-card-pad flex flex-col gap-3';
+const CARD_STYLE = undefined;
 const INPUT = 'rounded-lg px-3 py-2 text-sm';
 const INPUT_STYLE = { background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' };
 const when = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : 'nunca entrou');
@@ -105,16 +106,7 @@ const Team: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Equipe</h1>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Quem acessa a conta, com que papel e em que loja</p>
-          </div>
-          <p className="text-sm" style={{ color: 'var(--text-primary)' }} data-testid="seats">
-            {unlimited ? `${data.seats.active} pessoas` : `${data.seats.active} de ${data.seats.limit} pessoas`}
-            {data.seats.pending > 0 && ` · ${data.seats.pending} convite(s) em aberto`}
-          </p>
-        </div>
+        <PageHero title={<>Quem cuida da loja <mark>com você.</mark></>} subtitle="Quem acessa a conta, com que papel e em que loja." side={<p className="fx-chip gray" style={{ fontSize: 14, padding: "8px 14px" }} data-testid="seats">{unlimited ? `${data.seats.active} pessoas` : `${data.seats.active} de ${data.seats.limit} pessoas`}{data.seats.pending > 0 && ` · ${data.seats.pending} convite(s) em aberto`}</p>} />
 
         {notice && <p role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>{notice}</p>}
         {error && <p role="alert" className="rounded-xl p-3 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>{error}</p>}

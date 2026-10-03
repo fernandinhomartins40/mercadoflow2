@@ -985,7 +985,7 @@ const SuperAdminAi: React.FC = () => {
     <SuperAdminLayout>
       <div className="flex min-w-0 flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">IA e APIs</h1>
+          <h1 className="text-xl font-bold text-slate-900">IA e <mark>APIs</mark></h1>
           <p className="text-sm text-slate-600">A plataforma compra a IA nos provedores e revende créditos aos mercados. Comece pelo passo a passo.</p>
         </div>
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}

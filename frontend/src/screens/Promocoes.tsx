@@ -13,6 +13,8 @@ import {
   Plus, Calendar, TrendingUp, TrendingDown, Minus, Zap, AlertTriangle,
   ChevronDown, ChevronUp, ArrowRight, RefreshCw, BarChart2, Tag,
 } from 'lucide-react';
+import { ActionHub, PageHero } from '../components/flow/Flow';
+import { CalendarPlus as HxCalendarPlus, Newspaper as HxNewspaper, Sparkles as HxSparkles, Tag as HxTag } from 'lucide-react';
 
 /* ─── Formatadores ─── */
 const fmtMoney = (v?: number | null) =>
@@ -499,10 +501,7 @@ const Promocoes: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Promoções</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Descubra o que promover, crie campanhas e meça se cada promoção realmente traciona vendas</p>
-        </div>
+        <PageHero title={<>Encontre a próxima <mark>oportunidade de venda.</mark></>} subtitle="Descubra o que promover, crie campanhas e meça se cada promoção realmente vende mais." side={<ActionHub icon={HxTag} actions={[{ label: 'O que promover', icon: HxSparkles, onClick: () => setTab('inteligencia') }, { label: 'Criar campanha', icon: HxCalendarPlus, onClick: () => setTab('campanhas') }, { label: 'Montar encarte', icon: HxNewspaper, to: '/app/encartes' }]} />} />
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 

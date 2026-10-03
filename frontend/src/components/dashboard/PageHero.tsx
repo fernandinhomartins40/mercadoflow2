@@ -34,9 +34,9 @@ const PageHero: React.FC<PageHeroProps> = ({
 
   const copyBlock = (
     <div className={cn('flex min-w-0 flex-col gap-3', copyClassName)}>
-      <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">{badge}</p>
-      {typeof title === 'string' ? <h1 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h1> : title}
-      {typeof description === 'string' ? <p className="text-sm leading-6 text-slate-500">{description}</p> : description}
+      {badge ? <p className="text-[13px] font-semibold" style={{ color: 'var(--fx-green)' }}>{badge}</p> : null}
+      {typeof title === 'string' ? <h1 className="fx-title" style={{ fontSize: 'clamp(30px, 4vw, 52px)' }}>{title}</h1> : title}
+      {typeof description === 'string' ? <p className="fx-sub">{description}</p> : description}
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );

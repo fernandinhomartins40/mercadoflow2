@@ -54,7 +54,7 @@ const SuperAdminDashboard: React.FC = () => {
         ) : (
           <>
             <PageHeader
-              title="Visão geral"
+              title={<>Visão <mark>geral</mark></>}
               subtitle="Contas, acesso e catálogo em uma leitura rápida."
               actions={
                 <>

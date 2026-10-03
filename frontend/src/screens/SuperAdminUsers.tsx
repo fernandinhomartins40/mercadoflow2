@@ -553,7 +553,7 @@ const SuperAdminUsers: React.FC = () => {
     <SuperAdminLayout>
       <div className="page super-admin-page">
         <PageHeader
-          title="Assinaturas e acesso"
+          title={<>Assinaturas e <mark>acesso</mark></>}
           subtitle="Gerencie contas, usuários e permissões."
           actions={
             <>

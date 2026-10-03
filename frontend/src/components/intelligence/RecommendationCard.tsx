@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
-import ProductImage from '../product/ProductImage';
+import { Thumb } from '../flow/Flow';
 import type { RecommendationItem } from '../../types/analytics.types';
 
 const money = (v?: number | null) =>
@@ -15,8 +15,6 @@ export const ACTION_LABEL: Record<string, string> = {
   INVESTIGAR: 'Investigar',
 };
 
-const TONE = { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af' };
-
 /** Compra com quantidade: aceitar já coloca o produto no rascunho de pedido (D-011). */
 export const goesToOrder = (rec: RecommendationItem) =>
   rec.actionType === 'COMPRAR'
@@ -30,34 +28,21 @@ const RecommendationCard: React.FC<{
   deciding: boolean;
 }> = ({ rec, onDecide, deciding }) => {
   const [showTrace, setShowTrace] = useState(false);
-  const tone = TONE;
 
   return (
-    <article
-      className="flex flex-col gap-3 rounded-xl p-4"
-      style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}
-    >
+    <article className="fx-card fx-card-pad flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        {rec.productImage ? (
-          <ProductImage
-            src={rec.productImage}
-            alt={rec.productName || ''}
-            className="h-12 w-12 shrink-0 rounded-lg object-cover"
-          />
-        ) : null}
+        <Thumb name={rec.productName || rec.title} src={rec.productImage} size={52} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span
-            className="w-fit rounded-full px-2 py-0.5 text-[0.68rem] font-semibold"
-            style={{ background: tone.bg, color: tone.text, border: `1px solid ${tone.border}` }}
-          >
+          <span className="fx-chip lime w-fit">
             {ACTION_LABEL[rec.actionType] || rec.actionType}
           </span>
-          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <p className="text-[16px] font-bold" style={{ color: 'var(--fx-ink)', margin: 0 }}>
             {rec.title}
           </p>
           {rec.rationale ? (
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+            <p className="text-[14px] leading-relaxed" style={{ color: 'var(--fx-muted)', margin: 0 }}>
               {rec.rationale}
             </p>
           ) : null}
@@ -66,7 +51,7 @@ const RecommendationCard: React.FC<{
 
       <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--text-soft)' }}>
         {rec.expectedImpactValue ? (
-          <span>Impacto estimado: <strong style={{ color: tone.text }}>{money(rec.expectedImpactValue)}</strong></span>
+          <span>Impacto estimado <span className="fx-money" style={{ fontSize: 15 }}>{money(rec.expectedImpactValue)}</span></span>
         ) : null}
         {rec.confidence != null ? (
           <span>Confiança: <strong>{Math.round(Number(rec.confidence) * 100)}%</strong></span>
@@ -104,8 +89,7 @@ const RecommendationCard: React.FC<{
           type="button"
           disabled={deciding}
           onClick={() => onDecide(rec.id, 'ACEITA')}
-          className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:opacity-50 sm:w-auto"
-          style={{ background: 'var(--brand-500)', color: '#fff' }}
+          className="fx-btn dark"
         >
           <Check className="h-4 w-4" /> {goesToOrder(rec) ? 'Aceitar e pôr no pedido' : 'Aceitar'}
         </button>
@@ -113,8 +97,7 @@ const RecommendationCard: React.FC<{
           type="button"
           disabled={deciding}
           onClick={() => onDecide(rec.id, 'REJEITADA')}
-          className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium disabled:opacity-50 sm:w-auto"
-          style={{ border: '1px solid var(--border-soft)', color: 'var(--text-soft)' }}
+          className="fx-btn ghost"
         >
           <X className="h-4 w-4" /> Não faz sentido
         </button>

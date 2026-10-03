@@ -16,6 +16,7 @@ import workingCapitalService, {
   TrafficDriver,
 } from '../../services/workingCapital.service';
 import type { GatedList } from '../../services/subscription.service';
+import { Forest, PanelTitle, StepTrack, Thumb } from '../flow/Flow';
 
 /**
  * Inteligência de promoções: o que descontar, por quê, e quando.
@@ -35,16 +36,12 @@ const SectionHeader: React.FC<{
   title: string;
   hint?: string;
 }> = ({ icon, title, hint }) => (
-  <header className="mb-2 flex flex-wrap items-center gap-2">
-    {icon}
-    <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-      {title}
-    </h2>
-    {hint && (
-      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        {hint}
-      </span>
-    )}
+  <header className="mb-3 flex items-center gap-3">
+    <span className="fx-icon-tile" style={{ width: 42, height: 42 }}>{icon}</span>
+    <span className="min-w-0">
+      <h2 className="fx-section-title" style={{ fontSize: 18 }}>{title}</h2>
+      {hint && <span className="block text-[13.5px]" style={{ color: 'var(--fx-muted)' }}>{hint}</span>}
+    </span>
   </header>
 );
 
@@ -57,11 +54,8 @@ const CandidateCard: React.FC<{
   const accentBg = isTraction ? '#dcfce7' : '#fef3c7';
 
   return (
-    <div
-      className="flex items-start gap-3 rounded-xl p-3"
-      style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
-    >
-      <ProductImage src={candidate.imageUrl} alt={candidate.name} className="h-12 w-12 shrink-0 rounded-lg" />
+    <div className="fx-row" style={{ alignItems: 'flex-start', cursor: 'default' }}>
+      <Thumb name={candidate.name} src={candidate.imageUrl} size={52} />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -132,12 +126,7 @@ const CandidateCard: React.FC<{
           <button
             type="button"
             onClick={() => onCreateCampaign(candidate)}
-            className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
-            style={{
-              background: 'var(--surface-soft)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-soft)',
-            }}
+            className="fx-btn dark small"
           >
             Criar promoção
           </button>
@@ -236,10 +225,17 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 p-6 text-sm" style={{ color: 'var(--text-muted)' }}>
-        <RefreshCw size={16} className="animate-spin" />
-        Analisando histórico de preços, cestas e sazonalidade...
-      </div>
+      <Forest aria-busy="true">
+        <PanelTitle icon={Sparkles} title="Jev está analisando" sub="Histórico de preços, cestas e sazonalidade da loja" />
+        <div className="fx-white" style={{ marginTop: 18 }}>
+          <StepTrack steps={[
+            { label: 'Preços', hint: 'Quando cada um mudou', state: 'done' },
+            { label: 'Cestas', hint: 'O que sai junto', state: 'now' },
+            { label: 'Sazonalidade', hint: 'Dias e meses fortes', state: 'next' },
+          ]} />
+        </div>
+        <p className="fx-muted" style={{ margin: '14px 0 0', display: 'flex', gap: 8, alignItems: 'center' }}><RefreshCw size={16} className="animate-spin" aria-hidden="true" />Leva alguns segundos.</p>
+      </Forest>
     );
   }
 
@@ -268,22 +264,32 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
   const dowPoints = seasonality.filter((s) => s.periodType === 'DOW');
   const monthPoints = seasonality.filter((s) => s.periodType === 'MONTH');
 
+  const best = [...traction, ...clearance].sort((x, y) => Number(y.score || 0) - Number(x.score || 0))[0];
   const nothingToShow = traction.length === 0 && clearance.length === 0 && driverRows.length === 0;
 
   if (nothingToShow) {
     return (
-      <div
-        className="rounded-xl p-6 text-center text-sm"
-        style={{ background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
-      >
-        Ainda não há histórico suficiente de variação de preço para identificar promoções e seus
-        efeitos. Conforme as notas chegarem, esta tela mostra o que vale descontar.
-      </div>
+      <Forest>
+        <PanelTitle icon={Sparkles} title="Jev está aprendendo a sua loja" sub="Ainda não há variação de preço suficiente para medir promoções." />
+        <div className="fx-white" style={{ marginTop: 18 }}>
+          <StepTrack steps={[
+            { label: 'Notas chegando', hint: 'Cada venda do caixa', state: 'done' },
+            { label: 'Preços variando', hint: 'Antes, durante e depois', state: 'now' },
+            { label: 'O que vale descontar', hint: 'Aparece aqui', state: 'next' },
+          ]} />
+        </div>
+        <p style={{ margin: '14px 0 0', fontSize: 14.5, color: 'var(--fx-on-forest-muted)' }}>
+          Conforme as notas chegarem, esta tela mostra o que promover para puxar a loja e o que liquidar para liberar capital.
+        </p>
+      </Forest>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {(traction.length > 0 || clearance.length > 0) && (
+        <div className="fx-split wide-left">
+          <div className="fx-card fx-card-pad flex flex-col gap-6">
       {/* Candidatos a tração */}
       {traction.length > 0 && (
         <section>
@@ -318,6 +324,37 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
         </section>
       )}
 
+          </div>
+          <Forest as="aside" aria-label="Depois da análise" style={{ position: 'sticky', top: 84 }}>
+            <PanelTitle icon={Sparkles} title="Depois da análise" sub="O que o Jev encontrou nas suas vendas" />
+            <div className="fx-kpis" style={{ marginTop: 18, gridTemplateColumns: '1fr 1fr' }}>
+              <div className="fx-kpi"><span>Puxam a loja</span><b>{traction.length}</b><small>produtos</small></div>
+              <div className="fx-kpi"><span>Liberam capital</span><b>{clearance.length}</b><small>produtos</small></div>
+            </div>
+            {best && (
+              <div className="fx-white" style={{ marginTop: 14 }}>
+                <small>Maior prioridade agora</small>
+                <div className="flex items-center gap-3" style={{ marginTop: 8 }}>
+                  <Thumb name={best.name} src={best.imageUrl} size={52} />
+                  <span className="min-w-0">
+                    <b className="block" style={{ fontSize: 16 }}>{best.name}</b>
+                    <small>{best.suggestedDiscountPercent != null ? `Desconto sugerido de ${fmtNumber(best.suggestedDiscountPercent, 1)}%` : best.reason}</small>
+                  </span>
+                </div>
+                {onCreateCampaign && (
+                  <button type="button" className="fx-btn dark" style={{ width: '100%', marginTop: 14 }} onClick={() => onCreateCampaign(best)}>
+                    <Sparkles aria-hidden="true" />Criar promoção
+                  </button>
+                )}
+              </div>
+            )}
+            <p style={{ margin: '14px 0 0', fontSize: 14, color: 'var(--fx-on-forest-muted)' }}>
+              Descontar num pico natural costuma ser margem desperdiçada. O Jev considera a margem e os dias fortes antes de sugerir.
+            </p>
+          </Forest>
+        </div>
+      )}
+
       {/* Ranking de tração medida */}
       {driverRows.length > 0 && (
         <section>
@@ -327,10 +364,9 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
             hint="receita adicional gerada nos demais produtos"
           />
           <div
-            className="overflow-x-auto rounded-xl"
-            style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
+            className="table-shell"
           >
-            <table className="w-full text-left text-xs">
+            <table className="table">
               <thead>
                 <tr style={{ color: 'var(--text-muted)' }}>
                   <th className="px-3 py-2 font-semibold">Produto em promoção</th>
@@ -373,8 +409,7 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
           <div className="grid gap-4 lg:grid-cols-2">
             {dowPoints.length > 0 && (
               <div
-                className="rounded-xl p-4"
-                style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
+                className="fx-card fx-card-pad"
               >
                 <p className="mb-3 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                   Por dia da semana
@@ -389,8 +424,7 @@ const PromoIntelligenceTab: React.FC<PromoIntelligenceTabProps> = ({ marketId, o
 
             {monthPoints.length > 0 && (
               <div
-                className="rounded-xl p-4"
-                style={{ background: 'var(--surface-base)', border: '1px solid var(--border-soft)' }}
+                className="fx-card fx-card-pad"
               >
                 <p className="mb-3 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                   Por mês

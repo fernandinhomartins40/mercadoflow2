@@ -9,13 +9,13 @@ interface ButtonLinkProps extends LinkProps {
 
 const ButtonLink: React.FC<ButtonLinkProps> = ({ variant = 'primary', className, children, ...props }) => {
   const baseClassName =
-    'inline-flex h-10 min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-semibold leading-none no-underline whitespace-nowrap transition-colors duration-150';
+    'inline-flex h-11 min-h-11 items-center justify-center gap-2 rounded-full px-5 text-center text-[15px] font-semibold leading-none no-underline whitespace-nowrap transition-colors duration-150';
   const variantClassName =
     variant === 'secondary'
-      ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+      ? 'border border-[var(--fx-line-2)] bg-white text-[var(--fx-ink)] hover:bg-[var(--fx-lime-soft)]'
       : variant === 'ghost'
-      ? 'border border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-      : 'border border-transparent bg-green-500 text-white hover:bg-green-600';
+      ? 'border border-transparent bg-transparent text-[var(--fx-ink-2)] hover:bg-[var(--fx-ground)]'
+      : 'border border-transparent bg-[var(--fx-forest)] text-white hover:bg-[var(--fx-forest-2)]';
 
   return (
     <Link className={cn(baseClassName, variantClassName, className)} {...props}>

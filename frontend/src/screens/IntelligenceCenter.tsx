@@ -360,7 +360,7 @@ const IntelligenceCenter: React.FC = () => {
   return (
     <Layout>
       <PageHeader
-        title="Todas as decisões"
+        title={<>Tudo o que a análise <mark>encontrou.</mark></>}
         subtitle="A lista completa do que a análise encontrou, com o histórico e o resultado do que você decidiu."
         actions={
           <button

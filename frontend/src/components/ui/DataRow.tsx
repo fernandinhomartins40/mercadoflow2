@@ -7,16 +7,11 @@ interface DataRowProps {
   className?: string;
 }
 
-/**
- * Linha label → valor com fundo suave. Substitui dashboard-stat-row e settings-line-card.
- */
+/** Linha rótulo e valor. */
 const DataRow: React.FC<DataRowProps> = ({ label, value, className }) => (
-  <div
-    className={cn('flex min-w-0 items-center justify-between gap-4 rounded-lg px-4 py-3', className)}
-    style={{ background: 'var(--surface-soft)', border: '1px solid var(--border-soft)' }}
-  >
-    <span className="min-w-0 text-sm" style={{ color: 'var(--text-muted)' }}>{label}</span>
-    <strong className="shrink-0 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</strong>
+  <div className={cn('fx-datarow', className)}>
+    <span className="min-w-0 text-sm" style={{ color: 'var(--fx-muted)' }}>{label}</span>
+    <strong className="shrink-0 text-sm font-bold" style={{ color: 'var(--fx-ink)' }}>{value}</strong>
   </div>
 );
 

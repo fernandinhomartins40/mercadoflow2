@@ -1,26 +1,16 @@
 import React from 'react';
-import { cn } from '../../lib/cn';
+import { PageHero } from '../flow/Flow';
 
 interface PageHeaderProps {
-  title: string;
-  subtitle?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({
-  title,
-  subtitle,
-  actions,
-  className,
-}) => (
-  <header className={cn('flex flex-wrap items-center justify-between gap-4 pb-5', className)}>
-    <div>
-      <h1 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h1>
-      {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
-    </div>
-    {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-  </header>
+/** Título de página no visual Flow (telas que ainda não têm título próprio). */
+const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, actions }) => (
+  <PageHero title={title} subtitle={subtitle} side={actions} />
 );
 
 export default PageHeader;

@@ -266,11 +266,52 @@ export interface CopilotLesson {
   updatedAt: string;
 }
 
+/** Itens de uma decisão, para editar item a item na tela. */
+export interface DecisionItem {
+  id: string;
+  /** COMPRAR | REDUZIR | LIQUIDAR | PROMOVER | PRECO | FALTA | SOBRA | PROBLEMA */
+  action: string;
+  name: string;
+  image: string | null;
+  detail: string | null;
+  qty: number | null;
+  suggestedQty: number | null;
+  unit: string | null;
+  unitCost: number | null;
+  value: number | null;
+  price: number | null;
+  suggestedPrice: number | null;
+  discountPct: number | null;
+  supplier: string | null;
+  status: string | null;
+  reasons: string[];
+}
+
+export interface DecisionItems {
+  kind: 'RECOMENDACOES' | 'ENTREGA' | 'TEXTO';
+  supplier: string | null;
+  reference: string | null;
+  items: DecisionItem[];
+  message: string | null;
+}
+
+/** O que o lojista mudou antes de aprovar. */
+export interface DecisionAdjustments {
+  excluir?: string[];
+  quantidades?: Record<string, number>;
+  descontos?: Record<string, number>;
+  precos?: Record<string, number>;
+  precosLiquidacao?: Record<string, number>;
+  mensagem?: string;
+}
+
 export const copilotAgentsService = {
   inbox: async (marketId: string, view: 'abertas' | 'decididas' | 'silenciadas' | 'sozinho' = 'abertas'): Promise<CopilotInbox> =>
     (await api.get(`/v1/markets/${marketId}/copilot/decisions`, { params: { view } })).data,
-  approve: async (marketId: string, id: string): Promise<CopilotDecision> =>
-    (await api.post(`/v1/markets/${marketId}/copilot/decisions/${id}/approve`, {})).data,
+  approve: async (marketId: string, id: string, ajustes?: DecisionAdjustments): Promise<CopilotDecision> =>
+    (await api.post(`/v1/markets/${marketId}/copilot/decisions/${id}/approve`, ajustes ?? {})).data,
+  items: async (marketId: string, id: string): Promise<DecisionItems> =>
+    (await api.get(`/v1/markets/${marketId}/copilot/decisions/${id}/items`)).data,
   refuse: async (marketId: string, id: string, motivo?: string): Promise<CopilotDecision> =>
     (await api.post(`/v1/markets/${marketId}/copilot/decisions/${id}/refuse`, { motivo })).data,
   explain: async (marketId: string, id: string): Promise<{ texto: string; ia: boolean; doCache: boolean; aviso: string | null }> =>

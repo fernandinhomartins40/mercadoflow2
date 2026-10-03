@@ -100,7 +100,23 @@ public class DecisionService {
      * nas transações próprias dela, e uma recomendação já decidida na Central
      * não derruba as outras.
      */
+    /** Itens editáveis e ajustes na aprovação. */
+    private DecisionItemsService items;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setItems(DecisionItemsService items) {
+        this.items = items;
+    }
+
     public Decision approve(UUID marketId, UUID id, String actor) {
+        return approve(marketId, id, actor, null);
+    }
+
+    /**
+     * Aprovar com os ajustes da tela (itens tirados, quantidade, desconto,
+     * preço, mensagem editada). Os ajustes ficam no resultado para o histórico.
+     */
+    public Decision approve(UUID marketId, UUID id, String actor, Map<String, Object> adjustments) {
         Decision d = get(marketId, id);
         if (!"PENDENTE".equals(d.status())) {
             throw new IllegalStateException("Esta decisão não está mais esperando resposta.");
@@ -111,11 +127,20 @@ public class DecisionService {
         if (claimed == 0) {
             throw new IllegalStateException("Esta decisão já foi respondida.");
         }
-        Map<String, Object> result = Map.of("executado", false);
+        Map<String, Object> result = new java.util.LinkedHashMap<>(Map.of("executado", false));
+        Map<String, Object> summary = new java.util.LinkedHashMap<>();
+        Map<String, Object> payload = items == null ? d.payload() : items.apply(marketId, d.payload(), adjustments, actor, summary);
+        if (adjustments != null && !adjustments.isEmpty()) {
+            jdbc.update("update ai_decisions set payload = cast(:p as jsonb) where market_id = :m and id = :id",
+                new MapSqlParameterSource().addValue("m", marketId).addValue("id", id).addValue("p", json(payload)));
+        }
         CopilotAgent agent = agents.get(d.agent());
         if (d.level() >= 2 && agent != null) {
-            result = new java.util.LinkedHashMap<>(agent.execute(marketId, d.payload(), actor));
+            result = new java.util.LinkedHashMap<>(agent.execute(marketId, payload, actor));
             result.put("executado", true);
+        }
+        if (!summary.isEmpty()) {
+            result.put("ajustes", summary);
         }
         jdbc.update("update ai_decisions set result = cast(:r as jsonb) where market_id = :m and id = :id",
             new MapSqlParameterSource().addValue("m", marketId).addValue("id", id).addValue("r", json(result)));

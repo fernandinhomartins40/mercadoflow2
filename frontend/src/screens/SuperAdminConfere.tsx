@@ -582,7 +582,7 @@ const SuperAdminConfere: React.FC = () => {
     <SuperAdminLayout>
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">MercadoFlow Confere</h1>
+          <h1 className="text-xl font-bold text-slate-900">MercadoFlow <mark>Confere</mark></h1>
           <p className="text-sm text-slate-600">PWA grátis de conferência de mercadoria. Leitura grátis com certificado A1; sem ele, leituras de crédito revendidas do Meu Danfe.</p>
           <a href="/confere/" target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-semibold text-green-700 hover:underline">Abrir o app</a>
         </div>

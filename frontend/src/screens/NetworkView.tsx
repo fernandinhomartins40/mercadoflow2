@@ -9,6 +9,9 @@ import {
 import {
   Store, ArrowRightLeft, Tag, TrendingUp, Loader2, CalendarDays, Sparkles, RefreshCw,
 } from 'lucide-react';
+import { ActionHub, PageHero, PanelTitle } from '../components/flow/Flow';
+import type { LucideIcon } from 'lucide-react';
+import { CalendarDays as HxCalendarDays, MessageCircleQuestion as HxMessageCircleQuestion, Sparkles as HxSparkles } from 'lucide-react';
 
 /**
  * Visão de rede + resumo semanal.
@@ -44,19 +47,10 @@ const card: React.CSSProperties = {
 const Section: React.FC<{
   icon: React.FC<any>; title: string; hint?: string; children: React.ReactNode;
 }> = ({ icon: Icon, title, hint, children }) => (
-  <div className="rounded-xl overflow-hidden" style={card}>
-    <div
-      className="flex items-center gap-3 px-5 py-4 border-b"
-      style={{ borderColor: 'var(--border-soft)', background: 'var(--surface-soft)' }}
-    >
-      <Icon className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
-      <div>
-        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
-        {hint && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{hint}</p>}
-      </div>
-    </div>
-    <div className="p-5">{children}</div>
-  </div>
+  <section className="fx-card fx-card-pad">
+    <PanelTitle icon={Icon as LucideIcon} title={title} sub={hint} />
+    <div style={{ marginTop: 18 }}>{children}</div>
+  </section>
 );
 
 const NetworkView: React.FC = () => {
@@ -129,10 +123,7 @@ const NetworkView: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Semana e rede</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Como foi a semana e, com mais de uma loja, a comparação entre elas.</p>
-        </div>
+        <PageHero title={<>Como foi a <mark>sua semana.</mark></>} subtitle="O resumo da semana e, com mais de uma loja, a comparação entre elas." side={<ActionHub icon={HxCalendarDays} actions={[{ label: 'Abrir o Copiloto', icon: HxSparkles, to: '/app/copiloto' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
 
         {/* ── Resumo semanal ── */}
         <Section

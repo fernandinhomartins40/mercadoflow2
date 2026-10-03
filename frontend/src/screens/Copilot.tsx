@@ -1,540 +1,103 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { AlertTriangle, BellOff, CalendarClock, Check, Copy, KeyRound, Loader2, Megaphone, MessageCircle, PiggyBank, RefreshCw, ShoppingCart, Sparkles, Sun, Tag, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, ClipboardCheck, History, Inbox, Loader2, Pause, Play, RefreshCw, Send, Settings2, User } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import PageHeader from '../components/layout/PageHeader';
-import { SegmentedTabs } from '../components/ui';
+import { Card, Chip, ExplainStrip, PageHero, PanelTitle, PillTabs, brl } from '../components/flow/Flow';
 import { useAuth } from '../context/AuthContext';
-import { useSuppliers } from '../hooks/useSuppliers';
-import {
-  copilotAgentsService,
-  type CopilotAgentSettings,
-  type CopilotDecision,
-  type CopilotInbox,
-  type CopilotLesson,
-  type CopilotPrefs,
-  mcpService,
-  type McpKeyRow,
-  type AutonomyConfig,
-} from '../services/aiPlatform.service';
+import { copilotAgentsService, type CopilotDecision } from '../services/aiPlatform.service';
+import DecisionDesk from './copilot/DecisionDesk';
+import HistoryView from './copilot/HistoryView';
+import HowItWorks from './copilot/HowItWorks';
+import { agentOf, ago, valueOf } from './copilot/shared';
 
 /**
- * Copiloto: a caixa de decisões dos agentes. Cada cartão traz o que o agente
- * viu, os números e a ação preparada; nada acontece sem o sim do lojista, e o
- * que ele recusa vira lição para o agente não insistir.
+ * Mesa do Copiloto: as decisões que os agentes deixaram prontas, uma aberta
+ * por vez para ajustar e decidir; o Histórico com o rastro de cada uma; e o
+ * painel "Como ele trabalha". Nada acontece sem o sim do lojista (ou dentro
+ * dos limites que ele deu para o Jev agir sozinho).
  */
 
-type Tab = 'abertas' | 'decididas' | 'sozinho' | 'silenciadas' | 'agentes';
+type View = 'decidir' | 'historico';
 
-const AGENT: Record<string, { label: string; icon: React.ElementType }> = {
-  GERENTE: { label: 'Gerente', icon: Sun },
-  COMPRAS: { label: 'Compras', icon: ShoppingCart },
-  RECEBIMENTO: { label: 'Recebimento', icon: MessageCircle },
-  CAPITAL: { label: 'Capital parado', icon: PiggyBank },
-  PRECO: { label: 'Preço', icon: Tag },
-  PROMOCOES: { label: 'Promoções', icon: Megaphone },
-  CENARIOS: { label: 'Cenários', icon: CalendarClock },
-};
-
-const LEVELS = [
-  { value: 0, label: 'Só avisar' },
-  { value: 1, label: 'Avisar e sugerir' },
-  { value: 2, label: 'Deixar pronto para eu aprovar' },
-  { value: 3, label: 'Fazer sozinho, dentro dos meus limites' },
-];
-
-const REASONS = ['Não preciso agora', 'Valor alto demais', 'Já resolvi', 'Não confio nesse fornecedor'];
-
-const STATUS_LABEL: Record<string, string> = {
-  APROVADA: 'Aprovada', RECUSADA: 'Recusada', EXPIRADA: 'Expirou', SILENCIADA: 'Silenciada', INFORMATIVA: 'Aviso', PENDENTE: 'Esperando você',
-  DESFEITA: 'Desfeita',
-};
-
-const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
-const money = (v: number | null | undefined) => (v == null ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
-const apiError = (e: unknown, fallback: string) =>
-  (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
-
-/** Por que o aviso chegou (ou não): transparência sobre a triagem, sem custo de texto. */
-const triage = (d: CopilotDecision) => {
-  const f = d.funnel;
-  if (f.julgamento !== 'JEV') return 'Triado pela regra do sistema.';
-  const p = f.probabilidadeVale;
-  if (d.status === 'SILENCIADA') return `O Jev julgou que não valia avisar${p != null ? ` (${Math.round((1 - p) * 100)}% de certeza)` : ''}.`;
-  if (p != null && p >= 0.5) return `O Jev julgou que vale avisar (${Math.round(p * 100)}% de certeza).`;
-  return 'O Jev ficou em dúvida; na dúvida, o aviso chega a você.';
-};
-
-const approveLabel = (d: CopilotDecision) =>
-  d.level < 2 ? 'Vou fazer' : d.kind === 'PEDIDO' ? 'Aprovar pedido' : d.kind === 'MENSAGEM_FORNECEDOR' ? 'Abrir no WhatsApp'
-    : d.kind === 'PROMOCAO' ? 'Montar o encarte' : 'Aprovar';
-
-const DecisionCard: React.FC<{ marketId: string; decision: CopilotDecision; onChange: () => void }> = ({ marketId, decision: d, onChange }) => {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [refusing, setRefusing] = useState(false);
-  const [reason, setReason] = useState('');
-  const [why, setWhy] = useState<string | null>(d.explanation);
-  const [whyNote, setWhyNote] = useState<string | null>(null);
-  const [done, setDone] = useState<CopilotDecision | null>(null);
-  const agent = AGENT[d.agent] ?? { label: d.agent, icon: Sparkles };
-  const Icon = agent.icon;
-  const open = d.status === 'PENDENTE' || d.status === 'INFORMATIVA';
-  const view = done ?? d;
-
-  const approve = async () => {
-    setBusy('approve');
-    setError(null);
-    try {
-      const r = await copilotAgentsService.approve(marketId, d.id);
-      setDone(r);
-      if (r.result?.whatsappUrl) window.open(r.result.whatsappUrl, '_blank', 'noopener');
-    } catch (e) {
-      setError(apiError(e, 'Não foi possível aprovar agora.'));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const refuse = async (motivo: string) => {
-    setBusy('refuse');
-    setError(null);
-    try {
-      setDone(await copilotAgentsService.refuse(marketId, d.id, motivo || undefined));
-      setRefusing(false);
-    } catch (e) {
-      setError(apiError(e, 'Não foi possível registrar.'));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const undo = async () => {
-    if (!window.confirm('Desfazer? Os itens saem do rascunho de pedido e as sugestões voltam para a caixa.')) return;
-    setBusy('undo');
-    setError(null);
-    try {
-      setDone(await copilotAgentsService.undo(marketId, d.id));
-    } catch (e) {
-      setError(apiError(e, 'Não foi possível desfazer.'));
-    } finally {
-      setBusy(null);
-    }
-  };
-  const canUndo = view.status === 'APROVADA' && !!view.decidedAt && Date.now() - new Date(view.decidedAt).getTime() < 24 * 3600 * 1000;
-
-  const explain = async () => {
-    if (why) { setWhy(null); return; }
-    setBusy('why');
-    try {
-      const r = await copilotAgentsService.explain(marketId, d.id);
-      setWhy(r.texto);
-      setWhyNote(r.aviso);
-    } catch {
-      setWhyNote('Não foi possível explicar agora.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return (
-    <li className="card flex flex-col gap-3 p-4" aria-labelledby={`dec-${d.id}`}>
-      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-        <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>
-          <Icon className="h-3.5 w-3.5" aria-hidden="true" />{agent.label}
-        </span>
-        {d.autoExecuted && (
-          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-blue-800"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />Feito pelo Copiloto</span>
-        )}
-        {d.urgent && (view.status === 'PENDENTE' || view.status === 'INFORMATIVA') && (
-          <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-red-800"><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />Urgente</span>
-        )}
-        <span style={{ color: 'var(--text-muted)' }}>{STATUS_LABEL[view.status] ?? view.status} · {when(view.decidedAt ?? d.createdAt)}</span>
-      </div>
-      <h3 id={`dec-${d.id}`} className="text-base font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>{d.title}</h3>
-      <p className="whitespace-pre-line text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{d.body}</p>
-      {d.impact != null && d.impact > 0 && (
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Impacto estimado: <strong style={{ color: 'var(--text-primary)' }}>{money(d.impact)}</strong></p>
-      )}
-
-      {why && (
-        <div className="rounded-xl p-3 text-sm leading-relaxed" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>
-          {why}
-          {whyNote && <span className="mt-1 block text-xs" style={{ color: 'var(--text-muted)' }}>{whyNote}</span>}
-        </div>
-      )}
-
-      {view.result?.executado && view.result.noPedido != null && (
-        <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
-          {view.result.noPedido} {view.result.noPedido === 1 ? 'item foi' : 'itens foram'} para o rascunho de pedido.
-          {view.result.semFornecedor ? ` ${view.result.semFornecedor} sem fornecedor conhecido: escolha na lista de compras.` : ''}
-          {view.result.foraDoPedido ? ` ${view.result.foraDoPedido} sem quantidade para o pedido: inclua à mão.` : ''}
-          {' '}<Link to="/app/lista-compras" className="font-semibold underline">Revisar o pedido</Link>
-        </p>
-      )}
-      {view.result?.executado && view.result.aceitas != null && (
-        <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
-          {view.result.aceitas} {view.result.aceitas === 1 ? 'sugestão aceita' : 'sugestões aceitas'}: o resultado é medido em 30 dias.
-          {view.result.encarteUrl && <>{' '}<Link to={view.result.encarteUrl} className="font-semibold underline">Abrir o rascunho do encarte</Link></>}
-        </p>
-      )}
-      {view.result?.whatsappUrl && (
-        <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
-          Mensagem pronta. <a href={view.result.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline">Abrir no WhatsApp de novo</a>
-        </p>
-      )}
-      {view.status === 'RECUSADA' && view.decisionNote && (
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Motivo: {view.decisionNote}. O agente não volta a propor isso nos próximos 14 dias.</p>
-      )}
-      {view.status === 'DESFEITA' && (
-        <p role="status" className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>
-          Desfeita: as sugestões voltaram para a caixa e os itens saíram do rascunho de pedido.
-        </p>
-      )}
-      {canUndo && (
-        <div>
-          <button type="button" onClick={undo} disabled={!!busy}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${FOCUS}`} style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
-            {busy === 'undo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}Desfazer
-          </button>
-        </div>
-      )}
-      {d.funnel?.autonomia && d.funnel.autonomia !== 'feito sozinho' && d.funnel.autonomia !== 'nivel' && view.status === 'PENDENTE' && (
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Não fez sozinho: {d.funnel.autonomia}. Ficou esperando o seu sim.</p>
-      )}
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-
-      {open && !done && (
-        refusing ? (
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Por que não? (ajuda o agente a aprender)</span>
-            <div className="flex flex-wrap gap-2">
-              {REASONS.map((r) => (
-                <button key={r} type="button" disabled={!!busy} onClick={() => refuse(r)}
-                  className={`rounded-full px-3 py-1.5 text-sm ${FOCUS}`} style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>{r}</button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Outro motivo (opcional)"
-                aria-label="Outro motivo" className="min-w-0 flex-1 rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-              <button type="button" disabled={!!busy} onClick={() => refuse(reason)} className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--text-primary)' }}>Recusar</button>
-              <button type="button" onClick={() => setRefusing(false)} className={`rounded-lg px-3 py-2 text-sm ${FOCUS}`} style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {d.status === 'PENDENTE' && (
-              <button type="button" onClick={approve} disabled={!!busy}
-                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>
-                {busy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{approveLabel(d)}
-              </button>
-            )}
-            {d.kind === 'AVISO' && (
-              <Link to="/app/inteligencia" className={`rounded-lg px-4 py-2 text-sm font-semibold no-underline ${FOCUS}`} style={{ background: 'var(--brand-700)', color: '#fff' }}>Ver na Central</Link>
-            )}
-            <button type="button" onClick={() => setRefusing(true)} disabled={!!busy}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${FOCUS}`} style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
-              <X className="h-4 w-4" />{d.status === 'INFORMATIVA' ? 'Dispensar' : 'Recusar'}
-            </button>
-            <button type="button" onClick={explain} disabled={busy === 'why'} aria-expanded={!!why}
-              className={`ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
-              {busy === 'why' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{why ? 'Fechar' : 'Por quê?'}
-            </button>
-          </div>
-        )
-      )}
-      {d.funnel?.julgamento && (
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {triage(d)}
-        </p>
-      )}
-    </li>
-  );
-};
-
-const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; platform: AutonomyConfig | null; onSaved: (a: CopilotAgentSettings[]) => void }> = ({ marketId, agent, platform, onSaved }) => {
-  const [form, setForm] = useState(agent);
-  const [cap, setCap] = useState(agent.autonomy.cap ?? '');
-  const [dailyCap, setDailyCap] = useState(agent.autonomy.dailyCap ?? '');
-  const [allowed, setAllowed] = useState<string[]>(agent.autonomy.allowedSuppliers);
-  const [accept, setAccept] = useState(false);
-  const [state, setState] = useState<string | null>(null);
-  const { suppliers } = useSuppliers(form.level === 3 ? marketId : '');
-  useEffect(() => setForm(agent), [agent]);
-  const canAlone = agent.autonomy.available && !!platform?.enabled;
-  const save = async () => {
-    setState('…');
-    try {
-      onSaved(await copilotAgentsService.saveAgent(marketId, agent.agent, {
-        enabled: form.enabled, level: form.level, dailyLimit: form.dailyLimit, minImpact: form.minImpact,
-        ...(form.level === 3 ? {
-          autonomyCap: cap === '' ? null : Number(cap), autonomyDailyCap: dailyCap === '' ? null : Number(dailyCap),
-          allowedSuppliers: allowed, autonomyAccepted: accept,
-        } : {}),
-      }));
-      setState('Salvo.');
-    } catch (e) {
-      setState(apiError(e, 'Não foi possível salvar.'));
-    }
-  };
-  const id = `agente-${agent.agent}`;
-  return (
-    <li className="card flex flex-col gap-3 p-4" aria-labelledby={id}>
-      <label className="flex items-center justify-between gap-3">
-        <span id={id} className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{agent.label}</span>
-        <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} className="h-5 w-5 accent-green-700" aria-label={`Ligar o agente ${AGENT[agent.agent]?.label ?? agent.agent}`} />
-      </label>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          O que ele pode fazer
-          <select value={form.level} onChange={(e) => setForm({ ...form, level: Number(e.target.value) })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
-            {LEVELS.filter((l) => l.value < 3 || agent.autonomy.available).map((l) => (
-              <option key={l.value} value={l.value} disabled={l.value === 3 && !canAlone}>{l.label}{l.value === 3 && !canAlone ? ' (ainda não liberado)' : ''}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Avisos por dia, no máximo
-          <input type="number" min={0} max={50} value={form.dailyLimit} onChange={(e) => setForm({ ...form, dailyLimit: Number(e.target.value) })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Só avisar a partir de (R$)
-          <input type="number" min={0} step={50} value={form.minImpact} onChange={(e) => setForm({ ...form, minImpact: Number(e.target.value) })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-        </label>
-      </div>
-      {form.level === 3 && (
-        <fieldset className="flex flex-col gap-3 rounded-xl p-3" style={{ background: 'var(--surface-soft)' }}>
-          <legend className="px-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Limites para fazer sozinho</legend>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            O agente monta o rascunho de pedido sozinho e te avisa. Nada é enviado ao fornecedor: você revisa o rascunho. Pode desfazer em até 24 horas ou pausar tudo a qualquer momento.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Teto por pedido (R$){platform ? `, até ${money(platform.maxActionCap)}` : ''}
-              <input type="number" min={1} step={50} value={cap} onChange={(e) => setCap(e.target.value)} className="rounded-lg px-2 py-2"
-                style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-            </label>
-            <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Teto por dia (R$)
-              <input type="number" min={1} step={50} value={dailyCap} onChange={(e) => setDailyCap(e.target.value)} className="rounded-lg px-2 py-2"
-                style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-            </label>
-          </div>
-          <div role="group" aria-label="Fornecedores permitidos" className="flex flex-col gap-1.5">
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Só com estes fornecedores (os de sempre)</span>
-            {suppliers.length === 0 && <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum fornecedor cadastrado ainda.</span>}
-            {suppliers.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-                <input type="checkbox" className="h-4 w-4 accent-green-700" checked={allowed.includes(s.id)}
-                  onChange={(e) => setAllowed(e.target.checked ? [...allowed, s.id] : allowed.filter((x) => x !== s.id))} />
-                {s.nomeFantasia || s.razaoSocial}
-              </label>
-            ))}
-          </div>
-          {agent.autonomy.acceptedAt ? (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Você aceitou em {when(agent.autonomy.acceptedAt)}.</p>
-          ) : (
-            <label className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-              <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-0.5 h-5 w-5 accent-green-700" />
-              <span>Aceito que o Copiloto monte o rascunho de pedido sozinho dentro desses limites e me avise.</span>
-            </label>
-          )}
-        </fieldset>
-      )}
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={save} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Salvar</button>
-        {state && <span role="status" className="text-sm" style={{ color: 'var(--text-muted)' }}>{state}</span>}
-      </div>
-    </li>
-  );
-};
-
-const PrefsCard: React.FC<{ marketId: string; prefs: CopilotPrefs }> = ({ marketId, prefs }) => {
-  const [form, setForm] = useState({ quietStart: prefs.quietStart.slice(0, 5), quietEnd: prefs.quietEnd.slice(0, 5) });
-  const [state, setState] = useState<string | null>(null);
-  const save = async () => {
-    try {
-      await copilotAgentsService.savePrefs(marketId, form);
-      setState('Salvo.');
-    } catch (e) {
-      setState(apiError(e, 'Não foi possível salvar.'));
-    }
-  };
-  return (
-    <section className="card flex flex-col gap-3 p-4" aria-labelledby="silencio">
-      <h2 id="silencio" className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}><BellOff className="h-4 w-4" />Horário de silêncio</h2>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nesse horário os agentes não mandam aviso fora do app; o que não for urgente espera.</p>
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>Das
-          <input type="time" value={form.quietStart} onChange={(e) => setForm({ ...form, quietStart: e.target.value })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>às
-          <input type="time" value={form.quietEnd} onChange={(e) => setForm({ ...form, quietEnd: e.target.value })} className="rounded-lg px-2 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-        </label>
-        <button type="button" onClick={save} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Salvar horário</button>
-        {state && <span role="status" className="text-sm" style={{ color: 'var(--text-muted)' }}>{state}</span>}
-      </div>
-    </section>
-  );
-};
-
-const WhatsAppCard: React.FC<{ marketId: string; prefs: CopilotPrefs; onSaved: (p: CopilotPrefs) => void }> = ({ marketId, prefs, onSaved }) => {
-  const [phone, setPhone] = useState(prefs.whatsappPhone ? prefs.whatsappPhone.replace(/^55/, '') : '');
-  const [consent, setConsent] = useState(prefs.whatsappOptIn);
-  const [state, setState] = useState<string | null>(null);
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const p = await copilotAgentsService.savePrefs(marketId, { whatsappPhone: phone, whatsappOptIn: consent });
-      onSaved(p);
-      setState(p.whatsappOptIn ? 'Pronto: os avisos chegam no seu WhatsApp.' : 'Salvo. Você não recebe avisos no WhatsApp.');
-    } catch (err) {
-      setState(apiError(err, 'Não foi possível salvar.'));
-    }
-  };
-  return (
-    <form onSubmit={save} className="card flex flex-col gap-3 p-4" aria-labelledby="whatsapp-titulo">
-      <h2 id="whatsapp-titulo" className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-        <MessageCircle className="h-4 w-4" />Avisos no WhatsApp
-      </h2>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        O resumo do dia e os avisos dos agentes chegam no seu WhatsApp, com o botão Aprovar. Fora do horário de silêncio e sem repetir.
-      </p>
-      <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-        Número com DDD
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="(11) 98765-4321" maxLength={20}
-          className="max-w-xs rounded-lg px-3 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-      </label>
-      <label className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-5 w-5 accent-green-700" />
-        <span>Aceito receber avisos do MercadoFlow no WhatsApp. Posso cancelar quando quiser respondendo PARAR.</span>
-      </label>
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Salvar WhatsApp</button>
-        {state && <span role="status" className="text-sm" style={{ color: 'var(--text-muted)' }}>{state}</span>}
-      </div>
-    </form>
-  );
-};
-
-const McpCard: React.FC<{ marketId: string }> = ({ marketId }) => {
-  const [keys, setKeys] = useState<McpKeyRow[] | null>(null);
-  const [tools, setTools] = useState<string[]>([]);
-  const [name, setName] = useState('');
-  const [secret, setSecret] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [state, setState] = useState<string | null>(null);
-  const endpoint = `${window.location.origin}/api/v1/mcp`;
-  useEffect(() => {
-    mcpService.list(marketId).then((r) => { setKeys(r.chaves); setTools(r.ferramentas); }).catch(() => setState('Não foi possível carregar.'));
-  }, [marketId]);
-  const create = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const r = await mcpService.create(marketId, name);
-      setSecret(r.secret);
-      setCopied(false);
-      setName('');
-      setKeys((await mcpService.list(marketId)).chaves);
-      setState(null);
-    } catch (err) {
-      setState(apiError(err, 'Não foi possível criar a chave.'));
-    }
-  };
-  const revoke = async (id: string) => {
-    if (!window.confirm('Revogar esta chave? A integração que usa ela para de funcionar na hora.')) return;
-    setKeys(await mcpService.revoke(marketId, id));
-  };
-  const copy = async () => {
-    if (!secret) return;
-    try { await navigator.clipboard.writeText(secret); setCopied(true); } catch { setCopied(false); }
-  };
-  return (
-    <section className="card flex flex-col gap-3 p-4" aria-labelledby="mcp-titulo">
-      <h2 id="mcp-titulo" className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-        <KeyRound className="h-4 w-4" />Integração com outros assistentes (MCP)
-      </h2>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        Deixe o Claude, o ChatGPT ou outro assistente consultar os números da sua loja, só para leitura. Cada chave é de uma integração e pode ser revogada a qualquer momento.
-      </p>
-      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
-        Endereço: <span className="select-all rounded px-1.5 py-0.5 font-mono text-xs" style={{ background: 'var(--surface-soft)' }}>{endpoint}</span>
-        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>Cabeçalho: Authorization: Bearer (a chave). {tools.length} consultas disponíveis.</span>
-      </p>
-      {secret && (
-        <div role="status" className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          <strong>Copie a chave agora: ela não aparece de novo.</strong>
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="select-all break-all font-mono text-xs">{secret}</span>
-            <button type="button" onClick={copy} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${FOCUS}`} style={{ border: '1px solid currentColor' }}>
-              <Copy className="h-3.5 w-3.5" />{copied ? 'Copiada' : 'Copiar'}
-            </button>
-          </span>
-        </div>
-      )}
-      <form onSubmit={create} className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Nome da integração
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Ex.: Claude do escritório"
-            className="rounded-lg px-3 py-2" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-        </label>
-        <button type="submit" disabled={!name.trim()} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>Criar chave</button>
-        {state && <span role="alert" className="text-sm text-red-700">{state}</span>}
-      </form>
-      {keys && keys.length > 0 && (
-        <ul className="flex flex-col gap-2 text-sm">
-          {keys.map((k) => (
-            <li key={k.id} className="flex flex-wrap items-center gap-2" style={{ color: k.revokedAt ? 'var(--text-muted)' : 'var(--text-primary)' }}>
-              <span className="font-medium">{k.name}</span>
-              <span className="font-mono text-xs">{k.keyPrefix}…</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {k.revokedAt ? `revogada em ${when(k.revokedAt)}` : k.lastUsedAt ? `${k.calls} consultas, última em ${when(k.lastUsedAt)}` : 'ainda não usada'}
-              </span>
-              {!k.revokedAt && (
-                <button type="button" onClick={() => revoke(k.id)} className={`ml-auto rounded-lg px-2 py-1 text-xs ${FOCUS}`} style={{ border: '1px solid var(--border-strong)' }}>Revogar</button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+const EXPLAIN: Record<string, { title: string; text: string }[]> = {
+  RECEBIMENTO: [
+    { title: 'Jev conferiu a nota', text: 'Identificou o que faltou e preparou as opções.' },
+    { title: 'Você escolhe a solução', text: 'Revise e ajuste a mensagem se quiser.' },
+    { title: 'Envio após sua aprovação', text: 'A mensagem sai pronta no WhatsApp.' },
+  ],
+  COMPRAS: [
+    { title: 'Jev calculou o pedido', text: 'Pela venda das últimas semanas e pelo estoque.' },
+    { title: 'Você ajusta', text: 'O que você corta, ele aprende para a próxima.' },
+    { title: 'Vai para o rascunho', text: 'Nada é enviado ao fornecedor sem você revisar.' },
+  ],
+  DEFAULT: [
+    { title: 'Você decide', text: 'Aprove, recuse ou ajuste as sugestões.' },
+    { title: 'Jev executa dentro das permissões', text: 'Ações automáticas seguem as suas regras.' },
+    { title: 'Tudo fica registrado', text: 'Você sempre pode rever no Histórico.' },
+  ],
 };
 
 const Copilot: React.FC = () => {
   const { marketId } = useAuth();
-  const [tab, setTab] = useState<Tab>('abertas');
-  const [inbox, setInbox] = useState<CopilotInbox | null>(null);
-  const [agents, setAgents] = useState<CopilotAgentSettings[] | null>(null);
-  const [prefs, setPrefs] = useState<CopilotPrefs | null>(null);
-  const [lessons, setLessons] = useState<CopilotLesson[]>([]);
-  const [platform, setPlatform] = useState<AutonomyConfig | null>(null);
-  const [paused, setPaused] = useState(false);
+  const [view, setView] = useState<View>('decidir');
+  const [open, setOpen] = useState<CopilotDecision[] | null>(null);
+  const [history, setHistory] = useState<CopilotDecision[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<string, number | null>>({});
+  const [config, setConfig] = useState(false);
   const [anyAlone, setAnyAlone] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const loadOpen = useCallback(async () => {
     if (!marketId) return;
-    if (tab === 'agentes') {
-      const r = await copilotAgentsService.agents(marketId);
-      setAgents(r.agentes);
-      setPrefs(r.preferencias);
-      setLessons(r.licoes);
-      setPlatform(r.autonomia);
-      setPaused(r.pausado);
-      setAnyAlone(r.agentes.some((a) => a.level === 3));
-    } else {
-      setInbox(await copilotAgentsService.inbox(marketId, tab));
-    }
-  }, [marketId, tab]);
+    const r = await copilotAgentsService.inbox(marketId, 'abertas');
+    const list = [...r.decisoes].sort((a, b) => Number(b.urgent) - Number(a.urgent));
+    setOpen(list);
+    setSelected((cur) => (cur && list.some((d) => d.id === cur) ? cur : list[0]?.id ?? null));
+  }, [marketId]);
 
-  useEffect(() => { load().catch(() => setNote('Não foi possível carregar o Copiloto.')); }, [load]);
+  const loadHistory = useCallback(async () => {
+    if (!marketId) return;
+    const [dec, alone, mute] = await Promise.all([
+      copilotAgentsService.inbox(marketId, 'decididas'),
+      copilotAgentsService.inbox(marketId, 'sozinho'),
+      copilotAgentsService.inbox(marketId, 'silenciadas'),
+    ]);
+    const all = new Map<string, CopilotDecision>();
+    [...dec.decisoes, ...alone.decisoes, ...mute.decisoes].forEach((d) => all.set(d.id, d));
+    setHistory([...all.values()].sort((a, b) => new Date(b.decidedAt ?? b.createdAt).getTime() - new Date(a.decidedAt ?? a.createdAt).getTime()));
+  }, [marketId]);
+
+  useEffect(() => { loadOpen().catch(() => setNote('Não foi possível carregar o Copiloto.')); }, [loadOpen]);
+  useEffect(() => { if (view === 'historico') loadHistory().catch(() => setNote('Não foi possível carregar o histórico.')); }, [view, loadHistory]);
   useEffect(() => {
     if (!marketId) return;
-    copilotAgentsService.agents(marketId).then((r) => { setPaused(r.pausado); setAnyAlone(r.agentes.some((a) => a.level === 3)); setPlatform(r.autonomia); }).catch(() => {});
+    copilotAgentsService.agents(marketId).then((r) => { setPaused(r.pausado); setAnyAlone(r.agentes.some((a) => a.level === 3)); }).catch(() => {});
   }, [marketId]);
+
+  const onValue = useCallback((id: string, v: number | null) => setValues((cur) => (cur[id] === v ? cur : { ...cur, [id]: v })), []);
+  const pending = open ?? [];
+  const current = pending.find((d) => d.id === selected) ?? null;
+  const total = useMemo(() => pending.reduce((a, d) => a + (valueOf(d, values[d.id] ?? undefined) ?? 0), 0), [pending, values]);
+  const currentValue = current ? valueOf(current, values[current.id] ?? undefined) : null;
+
+  const check = async () => {
+    if (!marketId) return;
+    setChecking(true);
+    setNote(null);
+    try {
+      const r = await copilotAgentsService.run(marketId);
+      setNote(r.created > 0 ? `${r.created} ${r.created === 1 ? 'novidade' : 'novidades'} para você.`
+        : r.signals > 0 ? 'Nada novo: os agentes já avisaram tudo o que encontraram.' : 'Nada que precise de você agora.');
+      setView('decidir');
+      await loadOpen();
+    } catch {
+      setNote('Não foi possível verificar agora.');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const togglePause = async () => {
     if (!marketId) return;
@@ -543,113 +106,103 @@ const Copilot: React.FC = () => {
     setNote(r.pausado ? 'Pausado: nenhum agente faz nada sozinho até você retomar.' : 'Retomado: os agentes voltam a agir dentro dos seus limites.');
   };
 
-  const check = async () => {
-    if (!marketId) return;
-    setChecking(true);
-    setNote(null);
-    try {
-      const r = await copilotAgentsService.run(marketId);
-      setNote(r.created > 0
-        ? `${r.created} ${r.created === 1 ? 'novidade' : 'novidades'} para você.`
-        : r.signals > 0 ? 'Nada novo: os agentes já avisaram tudo o que encontraram.' : 'Nada que precise de você agora.');
-      if (tab !== 'abertas') setTab('abertas'); else await load();
-    } catch {
-      setNote('Não foi possível verificar agora.');
-    } finally {
-      setChecking(false);
-    }
+  const decided = () => {
+    // Mostra o resultado por um instante e passa para a próxima.
+    setTimeout(() => {
+      loadOpen().catch(() => {});
+    }, 1600);
   };
 
-  const open = (inbox?.pendentes ?? 0) + (inbox?.avisos ?? 0);
+  const later = () => {
+    if (!current) return;
+    const i = pending.findIndex((d) => d.id === current.id);
+    const next = pending[(i + 1) % pending.length];
+    if (next) setSelected(next.id);
+  };
+
+  const side = (
+    <>
+      <PillTabs<View> label="Copiloto" value={view} onChange={setView}
+        tabs={[{ key: 'decidir', label: 'Para decidir', icon: Inbox, count: pending.length }, { key: 'historico', label: 'Histórico', icon: History }]} />
+      <button type="button" className="fx-btn ghost small" onClick={check} disabled={checking}>
+        <RefreshCw className={checking ? 'animate-spin' : ''} aria-hidden="true" />Verificar agora
+      </button>
+      {anyAlone && (
+        <button type="button" className={`fx-btn small ${paused ? 'dark' : 'ghost'}`} onClick={togglePause} aria-pressed={paused}>
+          {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}{paused ? 'Retomar o que ele faz sozinho' : 'Pausar tudo'}
+        </button>
+      )}
+      <button type="button" className="fx-btn ghost small" onClick={() => setConfig(true)}><Settings2 aria-hidden="true" />Como ele trabalha</button>
+    </>
+  );
 
   return (
     <Layout>
-      <PageHeader
-        title="Copiloto"
-        subtitle="O que os agentes viram e deixaram pronto. Nada acontece sem o seu sim."
-        actions={
-          <>
-          {anyAlone && (
-            <button type="button" onClick={togglePause} aria-pressed={paused}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold ${FOCUS}`}
-              style={paused ? { background: '#b91c1c', color: '#fff' } : { border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}>
-              {paused ? 'Retomar o que ele faz sozinho' : 'Pausar tudo'}
-            </button>
-          )}
-          <button type="button" onClick={check} disabled={checking}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-60 ${FOCUS}`}
-            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}>
-            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />Verificar agora
-          </button>
-          </>
-        }
-      />
-      <div className="flex flex-col gap-4">
-        <SegmentedTabs<Tab>
-          label="Caixa do Copiloto"
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { key: 'abertas', label: 'Para decidir', badge: tab === 'abertas' ? open : undefined },
-            { key: 'decididas', label: 'Decididas' },
-            ...(anyAlone ? [{ key: 'sozinho' as Tab, label: 'Feitas sozinho' }] : []),
-            { key: 'silenciadas', label: 'Silenciadas' },
-            { key: 'agentes', label: 'Agentes' },
-          ]}
+      {view === 'decidir' ? (
+        <PageHero
+          title={pending.length === 0 ? <>Nada esperando <mark>você.</mark></>
+            : currentValue != null ? <>Sua próxima decisão vale <mark>{brl(currentValue)}</mark></>
+              : <>Sua loja pede <mark>{pending.length} {pending.length === 1 ? 'decisão.' : 'decisões.'}</mark></>}
+          subtitle={pending.length === 0 ? 'Os agentes olham as vendas, as compras e as entregas a cada 5 minutos e avisam aqui quando algo precisar de você.'
+            : `${pending.length} ${pending.length === 1 ? 'decisão' : 'decisões'}${total > 0 ? ` · ${brl(total)} em oportunidades` : ''}. Nada acontece sem o seu sim.`}
+          side={side}
         />
-        {note && <p role="status" className="text-sm" style={{ color: 'var(--text-muted)' }}>{note}</p>}
+      ) : (
+        <PageHero title={<>Cada decisão deixa um <mark>rastro.</mark></>} subtitle="Veja o que você aprovou, o que o Jev executou e por quê." side={side} />
+      )}
+      {note && <p role="status" className="fx-muted" style={{ margin: 0 }}>{note}</p>}
 
-        {tab === 'silenciadas' && (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Sinais que o Jev julgou que não valiam um aviso. Ficam aqui para você conferir se ele está acertando.
-          </p>
-        )}
-
-        {tab !== 'agentes' && marketId && (
-          !inbox ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : inbox.decisoes.length === 0 ? (
-            <div className="card p-6 text-center">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {tab === 'abertas' ? 'Nada esperando você' : 'Nada por aqui ainda'}
-              </p>
-              <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-                {tab === 'abertas'
-                  ? 'Os agentes olham as vendas, as compras e as entregas a cada 5 minutos e avisam aqui quando algo precisar de você.'
-                  : 'As decisões aparecem aqui depois que você responde.'}
-              </p>
+      {view === 'decidir' && marketId && (
+        !open ? <Loader2 className="animate-spin" aria-label="Carregando" /> : pending.length === 0 ? (
+          <Card style={{ textAlign: 'center', padding: 40 }}>
+            <CheckCircle2 size={40} style={{ color: 'var(--fx-green)' }} aria-hidden="true" />
+            <h2 className="fx-section-title" style={{ marginTop: 10 }}>Nada esperando você</h2>
+            <p className="fx-muted">Quando algo precisar de você, aparece aqui. Os urgentes também chegam no WhatsApp.</p>
+          </Card>
+        ) : (
+          <>
+            <div className="fx-split">
+              <Card as="section" aria-label="Agora importa">
+                <PanelTitle title="Agora importa" sub="Decisões que pedem a sua atenção" />
+                <div className="fx-stack" style={{ marginTop: 16, gap: 8 }} role="list">
+                  {pending.map((d) => {
+                    const a = agentOf(d);
+                    const I = a.icon;
+                    const v = valueOf(d, values[d.id] ?? undefined);
+                    return (
+                      <div role="listitem" key={d.id}>
+                        <button type="button" className={`fx-row ${current?.id === d.id ? 'selected' : ''}`} aria-current={current?.id === d.id || undefined}
+                          onClick={() => setSelected(d.id)}>
+                          <span className="fx-list-row">
+                            <span className="fx-icon-tile" style={d.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : undefined}><I aria-hidden="true" /></span>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <b style={{ fontSize: 16 }}>{a.action}</b>{d.urgent && <Chip tone="red">Urgente</Chip>}
+                              </span>
+                              <span style={{ display: 'block', fontSize: 14, color: 'var(--fx-ink-2)' }}>{d.title}</span>
+                              <span className="fx-muted" style={{ fontSize: 13 }}>{a.label} · {ago(d.createdAt)}</span>
+                            </span>
+                            <span className="v">{v != null ? brl(v) : ''}<small>{v != null ? a.valueLabel : ''}</small></span>
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+              {current && <DecisionDesk key={current.id} marketId={marketId} decision={current} onDecided={decided} onValue={onValue}
+                onLater={pending.length > 1 ? later : undefined} />}
             </div>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {inbox.decisoes.map((d) => <DecisionCard key={d.id} marketId={marketId} decision={d} onChange={load} />)}
-            </ul>
-          )
-        )}
+            <ExplainStrip items={(EXPLAIN[current?.agent ?? ''] ?? EXPLAIN.DEFAULT).map((e, i) => ({
+              icon: [ClipboardCheck, User, Send][i], ...e,
+            }))} />
+          </>
+        )
+      )}
 
-        {tab === 'agentes' && marketId && (
-          !agents || !prefs ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : (
-            <>
-              <ul className="flex flex-col gap-3">
-                {agents.map((a) => <AgentRow key={a.agent} marketId={marketId} agent={a} platform={platform}
-                  onSaved={(rows) => { setAgents(rows); setAnyAlone(rows.some((x) => x.level === 3)); }} />)}
-              </ul>
-              <PrefsCard marketId={marketId} prefs={prefs} />
-              <WhatsAppCard marketId={marketId} prefs={prefs} onSaved={setPrefs} />
-              <McpCard marketId={marketId} />
-              <section className="card flex flex-col gap-2 p-4" aria-labelledby="licoes">
-                <h2 id="licoes" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>O que a loja já aprendeu</h2>
-                {lessons.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Ainda nada. As lições vêm das conferências, do resultado medido das decisões e do que você recusa.
-                  </p>
-                ) : (
-                  <ul className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-primary)' }}>
-                    {lessons.map((l) => <li key={l.id}>• {l.text}</li>)}
-                  </ul>
-                )}
-              </section>
-            </>
-          )
-        )}
-      </div>
+      {view === 'historico' && marketId && <HistoryView marketId={marketId} decisions={history} onChanged={() => { loadHistory(); loadOpen(); }} />}
+
+      {config && marketId && <HowItWorks marketId={marketId} onClose={() => setConfig(false)} onAloneChange={setAnyAlone} />}
     </Layout>
   );
 };

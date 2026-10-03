@@ -32,14 +32,13 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => (
   <div
     className={cn(
-      'flex items-center justify-center rounded-xl border border-dashed text-center text-sm leading-6',
+      'fx-empty',
       compact ? 'min-h-[100px] px-4 py-6 sm:px-6 sm:py-8' : 'min-h-[160px] p-6 sm:min-h-[200px] sm:p-8',
       className,
     )}
-    style={{ borderColor: 'var(--border-strong)', background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
   >
     <div className="flex flex-col items-center gap-3">
-      {icon ? <div className="opacity-60" style={{ color: 'var(--text-soft)' }}>{icon}</div> : null}
+      {icon ? <div className="grid h-12 w-12 place-items-center rounded-full" style={{ background: 'var(--fx-lime)', color: 'var(--fx-forest)' }}>{icon}</div> : null}
       <span>{message}</span>
       {action ? <div className="mt-2">{action}</div> : null}
     </div>

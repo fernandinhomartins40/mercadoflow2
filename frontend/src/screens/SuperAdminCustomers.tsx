@@ -112,7 +112,7 @@ const SuperAdminCustomers: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              Clientes
+              <mark>Clientes</mark>
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {fmtNumber(customers.length)} contas · ordenadas por risco

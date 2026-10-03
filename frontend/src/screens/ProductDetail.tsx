@@ -483,8 +483,8 @@ const ProductDetail: React.FC = () => {
 
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={overview.name}
-              subtitle="Painel de desempenho — receita, sazonalidade, datas comemorativas e sinal de compra."
+              title={<mark>{overview.name}</mark>}
+              subtitle="Receita, sazonalidade, datas comemorativas e o sinal de compra deste produto."
               actions={
                 <>
                   <ButtonLink variant="secondary" to="/app/produtos">← Produtos</ButtonLink>

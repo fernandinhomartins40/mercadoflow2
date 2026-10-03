@@ -46,10 +46,10 @@ export const statusToTone = (status?: string | null): StatusTone => {
 };
 
 const toneClasses: Record<StatusTone, string> = {
-  success: 'bg-green-50 text-green-700 border-green-200',
-  warning: 'bg-amber-50 text-amber-700 border-amber-200',
-  danger: 'bg-red-50 text-red-700 border-red-200',
-  neutral: 'bg-slate-50 text-slate-600 border-slate-200',
+  success: 'green',
+  warning: 'amber',
+  danger: 'red',
+  neutral: 'gray',
 };
 
 const StatusPill: React.FC<StatusPillProps> = ({
@@ -63,7 +63,7 @@ const StatusPill: React.FC<StatusPillProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium',
+        'fx-chip',
         toneClasses[resolvedTone],
         className,
       )}

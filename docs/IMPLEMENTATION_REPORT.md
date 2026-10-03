@@ -824,10 +824,56 @@ carência e depois só consulta; Asaas e Stripe lado a lado (S2); Copiloto dentr
   - regressão: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20,
     S1 40/40, S2 42/42, S3 47/47 e S4 49/49.
 
+## Redesenho Flow: todos os painéis no conceito novo (out/2026)
+
+- **Visual Flow** (`styles/flow.css` e `components/flow/Flow.tsx`):
+  - fundo menta;
+  - título enorme com uma frase marcada em verde-limão;
+  - hub de ações (nó limão com linhas curvas até os botões);
+  - painéis verde-floresta para "o que o Jev preparou";
+  - linhas selecionáveis com borda limão;
+  - abas em pílula, trilha de etapas e faixa de explicação.
+- **Casca nova** do app do mercado e do painel do super admin:
+  - topo com a trilha "Área / Página";
+  - chips com as páginas irmãs;
+  - "Mapa" com busca;
+  - doca escura no pé da tela. No mercado ela tem o campo para perguntar ao Jev; no super admin, a busca de telas.
+- **Herança automática para as telas antigas:**
+  - os tokens antigos e a paleta slate/green do Tailwind apontam para o Flow dentro de `.fx-app`;
+  - as primitivas (Card, Section, SegmentedTabs, Chip, Stat, MetricsCard, Button, Table, EmptyState) foram
+    redesenhadas.
+- **Telas refeitas à mão:**
+  - Hoje: decisões em lista e o porquê em painel floresta;
+  - Copiloto: mesa de decisão interativa e Histórico "Memória da loja";
+  - Comprar: "O que comprar" ao lado de "Antes de comprar";
+  - Produtos: lista e detalhe floresta com hub;
+  - Promoções: "Jev está analisando" e "Depois da análise";
+  - Caixas: "Restabelecer a conexão" com etapas;
+  - Minha assinatura, Planos (o recomendado em floresta), Perguntar, Semana e rede, Clientes, Equipe, Conta, Mapa
+    da loja e Encartes.
+- **Mesa do Copiloto interativa:** `GET /decisions/{id}/items` e aprovação com ajustes:
+  - tirar itens;
+  - mudar quantidade, desconto ou preço;
+  - editar a mensagem.
+  O que o lojista tira vira recusa registrada, para o agente aprender.
+- **Correções no caminho:**
+  - a mensagem da entrega começa com o texto do agente (formato do Confere, com a avaria) e só é refeita quando
+    o lojista muda uma escolha;
+  - o que faltou vai para reposição; o que veio a mais ou com problema, para abatimento;
+  - o histórico do fornecedor e o resumo do agente voltaram a aparecer na mesa;
+  - o erro da API mostra a mensagem específica, não o texto genérico;
+  - o WhatsApp exige o número quando o aviso é aceito;
+  - a página não rola mais para o lado no celular.
+- **Testes:**
+  - backend 336/336;
+  - ponta a ponta: F0 34/34, F1 15/15, F2 32/32, F3a 38/38, F3b 38/38, F4 31/31, F5 25/25, S0 20/20, S1 40/40,
+    S2 42/42, S3 47/47, S4 49/49 e S5 36/36.
+  - As suítes do Copiloto foram reescritas para a mesa nova: lista "Agora importa", painel "Como ele trabalha" e
+    filtros do Histórico.
+
 ## Itens bloqueados
 
-- **Publicação**: commit e push das mudanças desta sessão aguardam decisão do owner. O push dispara o deploy em
-  produção, e o working tree mistura estas mudanças com 21 arquivos de trabalho local do owner.
+- Nenhum.
 
 ## Riscos restantes
 

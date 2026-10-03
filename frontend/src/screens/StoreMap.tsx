@@ -22,6 +22,7 @@ import { addFixture, duplicate, moveBy, remove, rotate } from '../features/store
 import IsoView from '../features/store-map/view3d/IsoView';
 import AisleWalk, { describeSide } from '../features/store-map/view3d/AisleWalk';
 import { findAisles, longestAisle } from '../features/store-map/view3d/aisles';
+import { ActionHub, PageHero } from '../components/flow/Flow';
 
 /**
  * Loja Viva (F17, D-022): a planta da loja, montada em um toque a partir do
@@ -225,10 +226,7 @@ const StoreMap: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Mapa da loja</h1>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Onde fica cada setor, onde a loja mais vende e o que mudar de lugar.</p>
-          </div>
+          <PageHero title={<>Onde a loja <mark>mais vende.</mark></>} subtitle="Onde fica cada setor, onde a loja mais vende e o que mudar de lugar." />
           {plan && saveLabel && (
             <span className="text-sm" role="status" style={{ color: saveState === 'error' ? '#b91c1c' : 'var(--text-muted)' }}>
               {saveState === 'saved' && <CheckCircle2 className="mr-1 inline h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />}

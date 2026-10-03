@@ -48,6 +48,8 @@ import {
   ArrowRight,
   Zap,
 } from 'lucide-react';
+import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ListChecks as HxListChecks, Plus as HxPlus, ShoppingCart as HxShoppingCart, Wallet as HxWallet } from 'lucide-react';
 
 /* ─── Formatadores ─── */
 const fmtMoney = (v?: number | null) =>
@@ -1440,11 +1442,7 @@ const ShoppingListPage: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pedido inteligente</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Do que comprar ao pedido enviado e recebido do fornecedor.</p>
-        </div>
+        <PageHero title={<>Compre com contexto. <mark>Revise antes de enviar.</mark></>} subtitle="Do que comprar ao pedido enviado e recebido do fornecedor." side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }, { label: 'Ver lista de compras', icon: HxListChecks, onClick: () => setTab('lista') }, { label: 'Onde investir', icon: HxWallet, onClick: () => setTab('capital') }]} />} />
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
@@ -1562,11 +1560,11 @@ const ShoppingListPage: React.FC = () => {
 
           {/* Barra flutuante de seleção */}
           {selectedIds.size > 0 && (
-            <div className="sticky bottom-4 z-40 mx-auto flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-5 py-3 shadow-2xl"
-              style={{ background: '#1e293b', border: '1px solid #334155', color: '#fff' }}>
+            <div className="sticky bottom-28 z-40 mx-auto flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-5 py-3 shadow-2xl"
+              style={{ background: 'var(--fx-dock)', border: '1px solid var(--fx-forest-line)', color: '#fff' }}>
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ background: 'var(--brand-500)' }}>
+                  style={{ background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}>
                   {selectedIds.size}
                 </div>
                 <span className="text-sm font-medium">
@@ -1578,7 +1576,7 @@ const ShoppingListPage: React.FC = () => {
                   type="button"
                   onClick={() => setSelectedIds(new Set())}
                   className="rounded-lg px-3 py-1.5 text-xs font-medium transition hover:opacity-70"
-                  style={{ color: '#94a3b8', border: '1px solid #334155' }}>
+                  style={{ color: 'var(--fx-on-forest-muted)', border: '1px solid var(--fx-forest-line)' }}>
                   Limpar
                 </button>
                 <button
@@ -1589,7 +1587,7 @@ const ShoppingListPage: React.FC = () => {
                     setNewOrder({ selectedProductIds: ids });
                   }}
                   className="flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition hover:opacity-90"
-                  style={{ background: 'var(--brand-500)', color: '#fff' }}>
+                  style={{ background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}>
                   <ClipboardList className="h-3.5 w-3.5" />
                   Criar pedido
                 </button>

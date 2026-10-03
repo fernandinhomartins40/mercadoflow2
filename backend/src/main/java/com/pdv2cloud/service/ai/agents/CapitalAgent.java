@@ -41,8 +41,12 @@ public class CapitalAgent extends RecommendationBundleAgent {
         if (r.get("estoque") != null) {
             sb.append(": ").append(ComprasAgent.money(ComprasAgent.decimal(r.get("estoque")))).append(" parados");
         }
-        if (r.get("cobertura") != null) {
-            sb.append(", ").append(ComprasAgent.integer(ComprasAgent.decimal(r.get("cobertura")))).append(" dias de estoque");
+        // Cobertura zero aqui quer dizer "sem venda para medir", não "sem estoque": liquidar o que não tem estoque não faria sentido.
+        BigDecimal cover = r.get("cobertura") == null ? null : ComprasAgent.decimal(r.get("cobertura"));
+        if (cover != null && cover.signum() > 0) {
+            sb.append(", ").append(ComprasAgent.integer(cover)).append(" dias de estoque");
+        } else if (cover != null) {
+            sb.append(", sem venda no período");
         }
         return sb.toString();
     }

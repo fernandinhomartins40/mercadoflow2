@@ -15,6 +15,9 @@ import {
   Search, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight,
   ShoppingCart, Zap, Map, ArrowRight, RefreshCw, Plus,
 } from 'lucide-react';
+import { ActionHub, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
+import { History, ListChecks, MessageCircleQuestion, Package } from 'lucide-react';
+import { Combine as HxCombine, Package as HxPackage, TrendingUp as HxTrendingUp, Zap as HxZap } from 'lucide-react';
 
 const fmtMoney = (v?: number | null) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
@@ -40,10 +43,12 @@ const DesempenhoTab: React.FC = () => {
   const [size] = useState(20);
   const [category, setCategory] = useState('');
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
+  const [selected, setSelected] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'REVENUE' | 'QUANTITY' | 'TRANSACTIONS' | 'PRICE' | 'TURNOVER' | 'TREND' | 'PROMO' | 'NAME'>('REVENUE');
   const querySearch = searchParams.get('search') || '';
 
   const products = useMemo(() => pageData?.content || [], [pageData]);
+  const current = products.find((x) => x.productId === selected) ?? products[0] ?? null;
   const totalPages = pageData?.totalPages ?? 0;
   const totalElements = pageData?.totalElements ?? 0;
 
@@ -110,22 +115,22 @@ const DesempenhoTab: React.FC = () => {
         <form onSubmit={(e) => { e.preventDefault(); const n = new URLSearchParams(searchParams); setPage(0); searchInput.trim() ? n.set('search', searchInput.trim()) : n.delete('search'); setSearchParams(n); }} className="flex w-full gap-2 sm:w-auto">
           <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-soft)' }} />
-            <input className="h-10 w-full rounded-lg pl-9 pr-4 text-sm outline-none sm:w-60" style={inputStyle} placeholder="Buscar produto..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+            <input className="input pl-9 sm:w-72" placeholder="Buscar produto..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
           </div>
           <Button type="submit">Buscar</Button>
           {querySearch && <Button variant="ghost" type="button" onClick={() => { setSearchInput(''); setPage(0); const n = new URLSearchParams(searchParams); n.delete('search'); setSearchParams(n); }}>Limpar</Button>}
         </form>
-        <input className="h-10 w-full rounded-lg px-3 text-sm outline-none sm:w-44" style={inputStyle} placeholder="Filtrar categoria" value={category} onChange={(e) => { setPage(0); setCategory(e.target.value); }} />
+        <input className="input sm:w-52" placeholder="Filtrar categoria" value={category} onChange={(e) => { setPage(0); setCategory(e.target.value); }} />
         <p className="ml-auto text-sm" style={{ color: 'var(--text-muted)' }}>{totalElements} produtos</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {sortOptions.map((opt) => (
           <button key={opt.key} type="button" onClick={() => { setPage(0); setSortBy(opt.key as any); }}
-            className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
+            className="rounded-full px-4 py-2 text-[14px] font-semibold transition"
             style={sortBy === opt.key
-              ? { border: '1px solid var(--brand-600)', background: 'var(--surface-success)', color: 'var(--brand-700)' }
-              : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
+              ? { border: '1px solid var(--fx-forest)', background: 'var(--fx-forest)', color: '#fff' }
+              : { border: '1px solid var(--fx-line-2)', background: '#fff', color: 'var(--fx-ink-2)' }}>
             {opt.label}
           </button>
         ))}
@@ -138,52 +143,65 @@ const DesempenhoTab: React.FC = () => {
       ) : products.length === 0 ? (
         <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}><p style={{ color: 'var(--text-muted)' }}>Nenhum produto encontrado.</p></div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {/* Lista, não grade de cartões: comparar dezenas de produtos exige
-              ler as mesmas colunas de relance, não rolar fotos. */}
-          {products.map((product) => {
-            const status = statusLabel(product);
-            const trend = Number(product.revenueTrendPercentage || 0);
-            return (
-              <li key={product.productId} className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <Link
-                  to={`/app/produtos/${product.productId}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]"
-                >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}>
-                    <ProductImage src={product.imageUrl} alt="" className="max-h-full max-w-full object-contain" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{product.name}</span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                      <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" style={status.style}>{status.text}</span>
-                      {product.category || 'Sem categoria'}
+        <div className="fx-split wide-left">
+          <ul className="fx-card fx-card-pad flex flex-col gap-2" style={{ listStyle: 'none', margin: 0 }}>
+            {/* Lista, não grade de cartões: comparar dezenas de produtos exige
+                ler as mesmas colunas de relance, não rolar fotos. */}
+            {products.map((product) => {
+              const status = statusLabel(product);
+              const trend = Number(product.revenueTrendPercentage || 0);
+              const on = current?.productId === product.productId;
+              return (
+                <li key={product.productId}>
+                  <button type="button" onClick={() => setSelected(product.productId)} aria-current={on || undefined}
+                    className={`fx-row ${on ? 'selected' : ''}`} style={{ flexWrap: 'wrap' }}>
+                    <Thumb name={product.name || ''} src={product.imageUrl} size={48} />
+                    <span className="min-w-0 flex-1">
+                      <b className="block truncate" style={{ fontSize: 15.5 }}>{product.name}</b>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px]" style={{ color: 'var(--fx-muted)' }}>
+                        <span className="fx-chip" style={{ ...status.style, fontSize: 12, padding: '1px 9px' }}>{status.text}</span>
+                        {product.category || 'Sem categoria'}
+                      </span>
                     </span>
-                  </span>
-                </Link>
-                <dl className="grid grid-cols-3 gap-3 text-left sm:w-[360px] sm:shrink-0 sm:text-right">
-                  <div>
-                    <dt className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Receita · 90 dias</dt>
-                    <dd className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(product.revenue)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Vende por dia</dt>
-                    <dd className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(product.salesVelocity || 0), 1)} un.</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Tendência</dt>
-                    <dd className="flex items-center gap-1 text-sm font-semibold sm:justify-end" style={{ color: trend > 3 ? 'var(--brand-700)' : trend < -3 ? '#b91c1c' : 'var(--text-muted)' }}>
-                      <TrendIcon value={trend} />{trend > 0 ? '+' : ''}{formatDecimal(trend, 1)}%
-                    </dd>
-                  </div>
-                </dl>
-                <div className="sm:shrink-0">
-                  <ShoppingListButton tone="subtle" inList={productIds.has(product.productId)} onAdd={async () => addItem({ productId: product.productId, quantityTarget: Math.max(1, Math.round(Number(product.salesVelocity || 0) || 1)), sourceTag: 'PRODUTOS', reasonSummary: `Adicionar ${product.name} à lista.` })} />
+                    <span className="grid grid-cols-3 gap-4 text-right" style={{ minWidth: 0 }}>
+                      <span><small className="block text-[12px]" style={{ color: 'var(--fx-muted)' }}>90 dias</small><b className="fx-num text-[14.5px]">{fmtMoney(product.revenue)}</b></span>
+                      <span><small className="block text-[12px]" style={{ color: 'var(--fx-muted)' }}>por dia</small><b className="fx-num text-[14.5px]">{formatDecimal(Number(product.salesVelocity || 0), 1)} un.</b></span>
+                      <span><small className="block text-[12px]" style={{ color: 'var(--fx-muted)' }}>tendência</small>
+                        <b className="fx-num inline-flex items-center gap-1 text-[14.5px]" style={{ color: trend > 3 ? 'var(--fx-green)' : trend < -3 ? 'var(--fx-red)' : 'var(--fx-muted)' }}><TrendIcon value={trend} />{trend > 0 ? '+' : ''}{formatDecimal(trend, 1)}%</b></span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {current && (
+            <Forest as="aside" aria-label="Produto selecionado" style={{ position: 'sticky', top: 84 }}>
+              <PanelTitle icon={Package} title="Detalhe do produto" sub="O que as vendas dizem sobre ele" />
+              <div className="flex items-center gap-4" style={{ marginTop: 20 }}>
+                <Thumb name={current.name || ''} src={current.imageUrl} size={84} />
+                <div className="min-w-0">
+                  <span className="fx-chip lime" style={{ marginBottom: 6 }}>{statusLabel(current).text}</span>
+                  <h3 style={{ margin: 0, fontSize: 'clamp(20px, 2vw, 26px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15 }}>{current.name}</h3>
+                  <p className="fx-muted" style={{ margin: '4px 0 0' }}>{current.category || 'Sem categoria'}</p>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
+              </div>
+              <div className="fx-kpis" style={{ marginTop: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                <div className="fx-kpi"><span>Receita em 90 dias</span><b style={{ fontSize: 22 }}>{fmtMoney(current.revenue)}</b></div>
+                <div className="fx-kpi"><span>Vende por dia</span><b style={{ fontSize: 22 }}>{formatDecimal(Number(current.salesVelocity || 0), 1)}</b><small>unidades</small></div>
+                <div className="fx-kpi"><span>Tendência</span><b style={{ fontSize: 22, color: Number(current.revenueTrendPercentage || 0) < -3 ? 'var(--fx-red)' : 'var(--fx-green)' }}>{Number(current.revenueTrendPercentage || 0) > 0 ? '+' : ''}{formatDecimal(Number(current.revenueTrendPercentage || 0), 1)}%</b></div>
+              </div>
+              <div style={{ marginTop: 22 }}>
+                <ActionHub icon={Package} onForest label="O que fazer com este produto" actions={[
+                  productIds.has(current.productId)
+                    ? { label: 'Já está na lista', icon: ListChecks, to: '/app/lista-compras' }
+                    : { label: 'Adicionar à lista', icon: Plus, onClick: () => { void addItem({ productId: current.productId, quantityTarget: Math.max(1, Math.round(Number(current.salesVelocity || 0) || 1)), sourceTag: 'PRODUTOS', reasonSummary: `Adicionar ${current.name} à lista.` }); } },
+                  { label: 'Ver histórico', icon: History, to: `/app/produtos/${current.productId}` },
+                  { label: 'Perguntar sobre ele', icon: MessageCircleQuestion, to: `/app/perguntar?q=${encodeURIComponent(`Como está vendendo ${current.name}?`)}` },
+                ]} />
+              </div>
+            </Forest>
+          )}
+        </div>
       )}
 
       {!loading && pageData && totalPages > 1 && (
@@ -676,10 +694,7 @@ const Products: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Produtos</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Desempenho, combos e previsão de demanda</p>
-        </div>
+        <PageHero title={<>Entenda cada produto. <mark>Decida o próximo passo.</mark></>} subtitle="Desempenho, combos e previsão de demanda de tudo o que a loja vende." side={<ActionHub icon={HxPackage} actions={[{ label: 'Ver desempenho', icon: HxTrendingUp, onClick: () => setTab('desempenho') }, { label: 'Explorar combos', icon: HxCombine, onClick: () => setTab('combos') }, { label: 'Prever a demanda', icon: HxZap, onClick: () => setTab('previsao') }]} />} />
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 

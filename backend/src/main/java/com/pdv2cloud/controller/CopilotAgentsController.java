@@ -80,14 +80,26 @@ public class CopilotAgentsController {
     }
 
     @PostMapping("/decisions/{id}/approve")
-    public ResponseEntity<?> approve(@PathVariable UUID marketId, @PathVariable UUID id, Authentication auth) {
+    public ResponseEntity<?> approve(@PathVariable UUID marketId, @PathVariable UUID id,
+                                     @RequestBody(required = false) Map<String, Object> adjustments, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
         try {
-            return ResponseEntity.ok(decisions.approve(marketId, id, auth.getName()));
+            return ResponseEntity.ok(decisions.approve(marketId, id, auth.getName(), adjustments));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
         }
     }
+
+    /** Itens da decisão para a tela editar (produto, foto, quantidade, custo, motivo). */
+    @GetMapping("/decisions/{id}/items")
+    public com.pdv2cloud.service.ai.agents.DecisionItemsService.Items items(@PathVariable UUID marketId, @PathVariable UUID id,
+                                                                          Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return decisionItems.items(marketId, decisions.get(marketId, id));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.ai.agents.DecisionItemsService decisionItems;
 
     @PostMapping("/decisions/{id}/refuse")
     public ResponseEntity<?> refuse(@PathVariable UUID marketId, @PathVariable UUID id,

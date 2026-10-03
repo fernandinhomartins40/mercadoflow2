@@ -26,7 +26,7 @@ const Card: React.FC<CardProps> = ({ children, className, padding = 'none' }) =>
   return (
     <div
       className={cn(
-        'min-w-0 rounded-xl border border-slate-200 bg-white',
+        'fx-card min-w-0',
         PADDING_CLASS[padding],
         className,
       )}

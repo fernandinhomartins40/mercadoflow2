@@ -20,19 +20,19 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidthOnMobile?: boolean;
 }
 
-// Liquid glass: cor sólida com a luz do vidro (tingido) ou vidro claro (secundário).
+// Flow: floresta na ação principal, branco na secundária, limão para confirmar.
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'lg-tinted border border-transparent',
-  secondary: 'lg-soft border border-transparent',
-  ghost: 'border border-transparent bg-transparent text-slate-600 hover:bg-slate-900/5 hover:text-slate-900',
-  danger: 'lg-tinted border border-transparent [--tint:#e5383d]',
-  success: 'lg-tinted border border-transparent [--tint:#059669]',
-  warning: 'lg-tinted border border-transparent [--tint:#f59e0b]',
+  primary: 'border border-transparent bg-[var(--fx-forest)] text-white hover:bg-[var(--fx-forest-2)]',
+  secondary: 'border border-[var(--fx-line-2)] bg-white text-[var(--fx-ink)] hover:bg-[var(--fx-lime-soft)]',
+  ghost: 'border border-transparent bg-transparent text-[var(--fx-ink-2)] hover:bg-[var(--fx-ground)] hover:text-[var(--fx-ink)]',
+  danger: 'border border-transparent bg-[var(--fx-red)] text-white hover:brightness-95',
+  success: 'border border-transparent bg-[var(--fx-lime)] text-[var(--fx-lime-ink)] hover:bg-[var(--fx-lime-strong)]',
+  warning: 'border border-transparent bg-[#E8A317] text-[#2A1800] hover:brightness-95',
 };
 
 const SIZE_CLASS: Record<ButtonSize, string> = {
   sm: 'h-9 min-h-9 px-3 text-sm',
-  md: 'h-10 min-h-10 px-4 text-sm',
+  md: 'h-11 min-h-11 px-5 text-[15px]',
   lg: 'h-12 min-h-12 px-7 text-base',
 };
 

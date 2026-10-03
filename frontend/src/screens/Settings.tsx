@@ -6,6 +6,8 @@ import SecurityCard from '../components/settings/SecurityCard';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
+import { ActionHub, PageHero } from '../components/flow/Flow';
+import { CreditCard as HxCreditCard, UserCog as HxUserCog, Users as HxUsers } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { marketId, role, teamRole, name, email, logout } = useAuth();
@@ -38,13 +40,7 @@ const Settings: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Conta</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Seus dados de acesso e informações do mercado
-          </p>
-        </div>
+        <PageHero title={<>Sua conta, <mark>do seu jeito.</mark></>} subtitle="Seus dados de acesso, a segurança e as informações do mercado." side={<ActionHub icon={HxUserCog} actions={[{ label: 'Minha assinatura', icon: HxCreditCard, to: '/app/assinatura' }, { label: 'Equipe', icon: HxUsers, to: '/app/equipe' }]} />} />
 
         {/* Duas colunas no desktop: conta à esquerda, IA à direita (antes tudo espremido em 670 px). */}
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
