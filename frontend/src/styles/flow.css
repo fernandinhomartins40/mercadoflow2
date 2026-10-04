@@ -569,3 +569,28 @@
 @media (max-width: 1000px) { .fx-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .fx-map { grid-template-columns: minmax(0, 1fr); } }
 .fx-forest[style*="text-align: center"] .fx-panel-title { text-align: center; }
+
+/* ── Barras de rolagem: finas e arredondadas, no tom de cada superfície ── */
+html, .fx-app, .fx-app * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fx-line-2) transparent;
+}
+.fx-forest, .fx-forest *, .fx-map, .fx-map *, .fx-dock, .fx-dock * {
+  scrollbar-color: rgba(255, 255, 255, .22) transparent;
+}
+html::-webkit-scrollbar, .fx-app::-webkit-scrollbar, .fx-app *::-webkit-scrollbar { width: 10px; height: 10px; }
+html::-webkit-scrollbar-track, .fx-app::-webkit-scrollbar-track, .fx-app *::-webkit-scrollbar-track { background: transparent; }
+html::-webkit-scrollbar-corner, .fx-app *::-webkit-scrollbar-corner { background: transparent; }
+html::-webkit-scrollbar-thumb, .fx-app::-webkit-scrollbar-thumb, .fx-app *::-webkit-scrollbar-thumb {
+  background: var(--fx-line-2); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box;
+}
+html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { background-color: var(--fx-muted); }
+.fx-forest::-webkit-scrollbar-thumb, .fx-forest *::-webkit-scrollbar-thumb,
+.fx-map::-webkit-scrollbar-thumb, .fx-map *::-webkit-scrollbar-thumb,
+.fx-dock::-webkit-scrollbar-thumb, .fx-dock *::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, .22); }
+.fx-forest *::-webkit-scrollbar-thumb:hover, .fx-map::-webkit-scrollbar-thumb:hover, .fx-map *::-webkit-scrollbar-thumb:hover { background-color: var(--fx-lime); }
+/* Os brancos dentro do painel escuro voltam ao tom claro. */
+.fx-forest .fx-white, .fx-forest .fx-white *, .fx-forest .fx-item, .fx-forest .fx-item * { scrollbar-color: var(--fx-line-2) transparent; }
+.fx-forest .fx-white *::-webkit-scrollbar-thumb, .fx-forest .fx-item *::-webkit-scrollbar-thumb { background-color: var(--fx-line-2); }
+.fx-app .fx-seg-tabs { scrollbar-width: none; }
+.fx-app .fx-seg-tabs::-webkit-scrollbar { display: none; }
