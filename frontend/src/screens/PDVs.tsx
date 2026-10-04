@@ -131,6 +131,25 @@ const PDVs: React.FC = () => {
   }, [role, marketId]);
 
   /* ── PDV create ── */
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [pdvNotice, setPdvNotice] = useState<string | null>(null);
+  const removePdv = async (pdv: PDVItem) => {
+    if (!marketId) return;
+    if (!window.confirm(`Remover o caixa "${pdv.name}"?\n\nO agente desse caixa para de enviar notas. As vendas que ele já mandou continuam nos relatórios.`)) return;
+    setRemoving(pdv.id); setPdvError(null); setPdvNotice(null);
+    try {
+      const r = await marketService.deletePdv(marketId, pdv.id);
+      setPdvNotice(r.resultado === 'APAGADO'
+        ? `Caixa "${pdv.name}" removido.`
+        : `Caixa "${pdv.name}" removido. As ${r.notas.toLocaleString('pt-BR')} notas dele continuam no histórico de vendas.`);
+      await loadPdvs();
+    } catch (e: any) {
+      setPdvError(e?.response?.data?.message || 'Não foi possível remover o caixa.');
+    } finally {
+      setRemoving(null);
+    }
+  };
+
   const createPdv = async () => {
     if (!marketId || !pdvName.trim()) { setPdvError('Informe o nome do PDV'); return; }
     setPdvSaving(true); setPdvError(null);
@@ -217,10 +236,15 @@ const PDVs: React.FC = () => {
                           <b style={{ display: 'block', fontSize: 15.5 }}>{pdv.name}</b>
                           <span className="fx-muted" style={{ fontSize: 13 }}>{pdv.serialNumber ? `Série ${pdv.serialNumber} · ` : ''}desde {fmtDate(pdv.createdAt)}</span>
                         </span>
+                        <button type="button" className="fx-btn ghost small" onClick={() => removePdv(pdv)} disabled={removing === pdv.id}
+                          aria-label={`Remover o caixa ${pdv.name}`} style={{ color: 'var(--fx-red)' }}>
+                          <Trash2 aria-hidden="true" />{removing === pdv.id ? 'Removendo...' : 'Remover'}
+                        </button>
                       </li>
                     ))}
                   </ul>
                 )}
+                {pdvNotice && <p role="status" className="fx-chip green" style={{ whiteSpace: 'normal', marginTop: 12, padding: '8px 12px' }}>{pdvNotice}</p>}
                 <form className="fx-white" style={{ marginTop: 16, background: 'var(--fx-card-2)', display: 'grid', gap: 10 }}
                   onSubmit={(e) => { e.preventDefault(); void createPdv(); }}>
                   <b>Cadastrar caixa</b>

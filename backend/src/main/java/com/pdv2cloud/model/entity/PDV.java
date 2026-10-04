@@ -45,4 +45,8 @@ public class PDV {
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+    /** Removido pelo lojista mas com notas: some da lista e do limite, o histórico fica. */
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
 }

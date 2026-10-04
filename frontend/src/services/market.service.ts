@@ -250,6 +250,12 @@ export const marketService = {
     return response.data;
   },
 
+  /** Sem notas, apaga; com notas, arquiva (o histórico fica). Revoga as chaves do agente do caixa. */
+  async deletePdv(marketId: string, pdvId: string): Promise<{ resultado: 'APAGADO' | 'ARQUIVADO'; notas: number; chavesRevogadas: number }> {
+    const response = await api.delete(`/v1/markets/${marketId}/pdvs/${pdvId}`);
+    return response.data;
+  },
+
   async getCampaigns(marketId: string) {
     const response = await api.get(`/v1/markets/${marketId}/campaigns`);
     return response.data;

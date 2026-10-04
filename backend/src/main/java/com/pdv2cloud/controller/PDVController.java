@@ -16,6 +16,10 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import java.time.LocalDateTime;
+import java.util.Map;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,15 +37,48 @@ public class PDVController {
     private final MarketRepository marketRepository;
     private final MarketAccessService marketAccessService;
     private final PlanService planService;
+    private final NamedParameterJdbcTemplate jdbc;
 
     public PDVController(PDVRepository pdvRepository,
                          MarketRepository marketRepository,
                          MarketAccessService marketAccessService,
-                         PlanService planService) {
+                         PlanService planService,
+                         NamedParameterJdbcTemplate jdbc) {
         this.pdvRepository = pdvRepository;
         this.marketRepository = marketRepository;
         this.marketAccessService = marketAccessService;
         this.planService = planService;
+        this.jdbc = jdbc;
+    }
+
+    /**
+     * Remove um caixa. Sem notas, é apagado; com notas, é arquivado (o histórico
+     * de vendas continua apontando para ele). Nos dois casos as chaves do agente
+     * ligadas a ele são revogadas, para o caixa parar de enviar notas.
+     */
+    @DeleteMapping("/{pdvId}")
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable("marketId") UUID marketId,
+                                                      @PathVariable("pdvId") UUID pdvId,
+                                                      Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        PDV pdv = pdvRepository.findById(pdvId)
+            .filter(p -> p.getMarket() != null && marketId.equals(p.getMarket().getId()) && p.getArchivedAt() == null)
+            .orElseThrow(() -> new IllegalArgumentException("Caixa não encontrado"));
+        Map<String, Object> params = Map.of("p", pdvId, "m", marketId);
+        int revoked = jdbc.update("update agent_api_keys set is_active = false where pdv_id = :p and market_id = :m and is_active", params);
+        Long invoices = jdbc.queryForObject("select count(*) from invoices where pdv_id = :p and market_id = :m", params, Long.class);
+        String outcome;
+        if (invoices == null || invoices == 0) {
+            jdbc.update("update agent_pairing_sessions set pdv_id = null where pdv_id = :p", params);
+            jdbc.update("update agent_api_keys set pdv_id = null where pdv_id = :p and market_id = :m", params);
+            pdvRepository.delete(pdv);
+            outcome = "APAGADO";
+        } else {
+            pdv.setArchivedAt(LocalDateTime.now());
+            pdvRepository.save(pdv);
+            outcome = "ARQUIVADO";
+        }
+        return ResponseEntity.ok(Map.of("resultado", outcome, "notas", invoices == null ? 0 : invoices, "chavesRevogadas", revoked));
     }
 
     @GetMapping
