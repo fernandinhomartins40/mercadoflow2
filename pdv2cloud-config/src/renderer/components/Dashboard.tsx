@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { colors, typography, spacing, borderRadius, shadows, Icons } from '../styles/theme';
+import { colors, flow, typography, spacing, borderRadius, shadows, Icons } from '../styles/theme';
 
 interface DashboardProps {
   serviceInstalled: boolean;
@@ -479,30 +479,40 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
   const remoteRecentInvoices = Array.isArray(remoteSync?.recentInvoices) ? remoteSync!.recentInvoices : [];
   const showHistoricalInfo = Boolean(remoteSync?.reachable && remoteTotalInvoices > 0 && Number(queue.sent || 0) === 0);
 
+  const HEADLINE: Record<string, [string, string]> = {
+    'Tudo funcionando': ['O caixa está', 'enviando as vendas.'],
+    'Serviço parado': ['O serviço está', 'parado.'],
+    'Sem conexão com servidor': ['Sem conexão', 'com o MercadoFlow.'],
+    'Verificando conexão': ['Verificando', 'a conexão.'],
+    'Serviço não instalado': ['Vamos', 'instalar o serviço.'],
+    'Carregando...': ['Lendo o', 'estado do caixa.'],
+  };
+  const [lead, mark] = HEADLINE[statusInfo.title] ?? [statusInfo.title, ''];
+  const ok = statusInfo.title === 'Tudo funcionando';
+  const chip: React.CSSProperties = {
+    padding: '5px 12px', borderRadius: 999, fontSize: 13, color: flow.onForest,
+    background: 'rgba(255, 255, 255, 0.07)', border: `1px solid ${flow.forestLine}`, fontFamily: typography.fontFamily.sans,
+  };
+
   return (
-    <div style={{
-      backgroundColor: colors.background.primary,
-      borderRadius: borderRadius.lg,
-      boxShadow: shadows.md,
-      border: `1px solid ${colors.neutral[200]}`,
-      overflow: 'hidden',
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
       {updateAvailable && (
         <div style={{
-          background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`,
+          background: flow.lime,
+          borderRadius: borderRadius.lg,
           padding: spacing.lg,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-            <div style={{ color: colors.text.inverse }}>
+            <div style={{ color: flow.limeInk }}>
               <Icons.Download />
             </div>
             <div>
               <div style={{
                 fontWeight: typography.fontWeight.semibold,
-                color: colors.text.inverse,
+                color: flow.limeInk,
                 marginBottom: spacing.xs,
                 fontSize: typography.fontSize.base,
                 fontFamily: typography.fontFamily.sans,
@@ -511,8 +521,8 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               </div>
               <div style={{
                 fontSize: typography.fontSize.sm,
-                color: colors.text.inverse,
-                opacity: 0.9,
+                color: flow.limeInk,
+                opacity: 0.85,
                 fontFamily: typography.fontFamily.sans,
               }}>
                 Versão {latestVersion} está pronta para instalar
@@ -524,8 +534,8 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
             disabled={installing}
             style={{
               padding: `${spacing.sm} ${spacing.lg}`,
-              backgroundColor: colors.background.primary,
-              color: colors.primary[700],
+              backgroundColor: flow.forest,
+              color: '#fff',
               border: 'none',
               borderRadius: borderRadius.md,
               fontSize: typography.fontSize.sm,
@@ -540,120 +550,46 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
         </div>
       )}
 
-      <div style={{ padding: spacing['2xl'] }}>
-        <div style={{
-          backgroundColor: statusInfo.bgColor,
-          border: `2px solid ${statusInfo.borderColor}`,
-          borderRadius: borderRadius.lg,
-          padding: spacing.xl,
-          marginBottom: spacing.lg,
+      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+        <section aria-label="Estado do caixa" style={{
+          background: `radial-gradient(700px 400px at 100% 0%, rgba(215, 242, 107, 0.08), transparent 60%), ${flow.forest}`,
+          color: flow.onForest,
+          borderRadius: borderRadius.xl,
+          padding: 'clamp(20px, 3vw, 32px)',
+          boxShadow: shadows.lg,
+          fontFamily: typography.fontFamily.sans,
         }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.lg }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              backgroundColor: statusInfo.color,
-              borderRadius: borderRadius.lg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: colors.text.inverse,
-              flexShrink: 0,
-            }}>
-              {statusInfo.icon}
-            </div>
-            <div style={{ flex: 1 }}>
-              <h2 style={{
-                fontSize: typography.fontSize['2xl'],
-                fontWeight: typography.fontWeight.bold,
-                color: colors.text.primary,
-                margin: 0,
-                marginBottom: spacing.xs,
-                fontFamily: typography.fontFamily.sans,
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.lg, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: spacing.lg, alignItems: 'flex-start', minWidth: 0, flex: '1 1 420px' }}>
+              <span style={{
+                width: 58, height: 58, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center',
+                background: ok ? flow.lime : statusInfo.color, color: ok ? flow.limeInk : '#fff',
+                boxShadow: `0 0 0 6px ${ok ? 'rgba(215, 242, 107, 0.18)' : 'rgba(255, 255, 255, 0.08)'}`,
               }}>
-                {statusInfo.title}
-              </h2>
-              <p style={{
-                fontSize: typography.fontSize.base,
-                color: colors.text.secondary,
-                margin: 0,
-                marginBottom: spacing.md,
-                fontFamily: typography.fontFamily.sans,
-              }}>
-                {statusInfo.subtitle}
-              </p>
-
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: spacing.sm,
-              }}>
-                <div style={{
-                  padding: `${spacing.xs} ${spacing.md}`,
-                  backgroundColor: colors.background.primary,
-                  borderRadius: borderRadius.full,
-                  border: `1px solid ${colors.neutral[200]}`,
-                  fontSize: typography.fontSize.xs,
-                  color: colors.text.secondary,
-                  fontFamily: typography.fontFamily.sans,
-                }}>
-                  Pastas monitoradas: <strong>{watchPathsCount}</strong>
-                </div>
-                <div style={{
-                  padding: `${spacing.xs} ${spacing.md}`,
-                  backgroundColor: colors.background.primary,
-                  borderRadius: borderRadius.full,
-                  border: `1px solid ${colors.neutral[200]}`,
-                  fontSize: typography.fontSize.xs,
-                  color: colors.text.secondary,
-                  fontFamily: typography.fontFamily.sans,
-                }}>
-                  Mercado: <strong>{marketLabel || 'não identificado'}</strong>
-                </div>
-                <div style={{
-                  padding: `${spacing.xs} ${spacing.md}`,
-                  backgroundColor: colors.background.primary,
-                  borderRadius: borderRadius.full,
-                  border: `1px solid ${colors.neutral[200]}`,
-                  fontSize: typography.fontSize.xs,
-                  color: colors.text.secondary,
-                  fontFamily: typography.fontFamily.sans,
-                }}>
-                  Na web: <strong>{remoteSync?.reachable ? remoteTotalInvoices : '--'}</strong>
-                </div>
-                <div style={{
-                  padding: `${spacing.xs} ${spacing.md}`,
-                  backgroundColor: colors.background.primary,
-                  borderRadius: borderRadius.full,
-                  border: `1px solid ${colors.neutral[200]}`,
-                  fontSize: typography.fontSize.xs,
-                  color: colors.text.secondary,
-                  fontFamily: typography.fontFamily.sans,
-                }}>
-                  Último envio: <strong>{formatShortTime(lastProcessed)}</strong>
+                {statusInfo.icon}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <h1 style={{ margin: 0, fontSize: 'clamp(28px, 3.6vw, 44px)', fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.04 }}>
+                  {lead}{mark ? ' ' : ''}
+                  {mark && <mark style={{ background: flow.lime, color: flow.ink, padding: '0 0.12em', borderRadius: '0.1em', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>{mark}</mark>}
+                </h1>
+                <p style={{ margin: '10px 0 0', fontSize: 15.5, color: flow.onForestMuted, lineHeight: 1.5 }}>{statusInfo.subtitle}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg }}>
+                  <span style={chip}>Pastas monitoradas: <strong>{watchPathsCount}</strong></span>
+                  <span style={chip}>Mercado: <strong>{marketLabel || 'não identificado'}</strong></span>
+                  <span style={chip}>Na web: <strong>{remoteSync?.reachable ? remoteTotalInvoices : '--'}</strong></span>
+                  <span style={chip}>Último envio: <strong>{formatShortTime(lastProcessed)}</strong></span>
                 </div>
               </div>
             </div>
-            <div style={{ textAlign: 'right', minWidth: '100px' }}>
-              <div style={{
-                fontSize: typography.fontSize.xs,
-                color: colors.text.tertiary,
-                marginBottom: spacing.xs,
-                fontFamily: typography.fontFamily.sans,
-              }}>
-                Última verificação
-              </div>
-              <div style={{
-                fontSize: typography.fontSize.lg,
-                fontWeight: typography.fontWeight.semibold,
-                color: colors.text.primary,
-                fontFamily: typography.fontFamily.mono,
-              }}>
+            <div style={{ textAlign: 'right', minWidth: 110 }}>
+              <div style={{ fontSize: 13, color: flow.onForestMuted, marginBottom: 4 }}>Última verificação</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: flow.lime, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
                 {formatShortTime(lastUpdate)}
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
         <div style={{
           display: 'flex',
@@ -807,18 +743,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
             marginBottom: spacing.xl,
           }}>
             <div style={{
-              backgroundColor: colors.primary[50],
+              backgroundColor: '#fff',
               borderRadius: borderRadius.lg,
               padding: spacing.lg,
-              border: `1px solid ${colors.primary[200]}`,
+              border: `1px solid ${flow.line}`,
+              boxShadow: flow.shadow,
             }}>
               <div style={{
-                fontSize: typography.fontSize.xs,
+                fontSize: '13.5px',
                 fontWeight: typography.fontWeight.semibold,
-                color: colors.primary[700],
-                marginBottom: spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                color: flow.muted,
+                marginBottom: spacing.sm,
                 fontFamily: typography.fontFamily.sans,
               }}>
                 Encontradas
@@ -833,7 +768,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               </div>
               <div style={{
                 fontSize: typography.fontSize.xs,
-                color: colors.primary[600],
+                color: flow.muted,
                 marginTop: spacing.xs,
                 fontFamily: typography.fontFamily.sans,
               }}>
@@ -842,18 +777,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
             </div>
 
             <div style={{
-              backgroundColor: colors.success[50],
+              backgroundColor: '#fff',
               borderRadius: borderRadius.lg,
               padding: spacing.lg,
-              border: `1px solid ${colors.success[200]}`,
+              border: `1px solid ${flow.line}`,
+              boxShadow: flow.shadow,
             }}>
               <div style={{
-                fontSize: typography.fontSize.xs,
+                fontSize: '13.5px',
                 fontWeight: typography.fontWeight.semibold,
-                color: colors.success[700],
-                marginBottom: spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                color: flow.muted,
+                marginBottom: spacing.sm,
                 fontFamily: typography.fontFamily.sans,
               }}>
                 Enviadas
@@ -868,7 +802,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               </div>
               <div style={{
                 fontSize: typography.fontSize.xs,
-                color: colors.success[600],
+                color: flow.muted,
                 marginTop: spacing.xs,
                 fontFamily: typography.fontFamily.sans,
               }}>
@@ -877,18 +811,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
             </div>
 
             <div style={{
-              backgroundColor: colors.warning[50],
+              backgroundColor: '#fff',
               borderRadius: borderRadius.lg,
               padding: spacing.lg,
-              border: `1px solid ${colors.warning[200]}`,
+              border: `1px solid ${flow.line}`,
+              boxShadow: flow.shadow,
             }}>
               <div style={{
-                fontSize: typography.fontSize.xs,
+                fontSize: '13.5px',
                 fontWeight: typography.fontWeight.semibold,
-                color: colors.warning[700],
-                marginBottom: spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                color: flow.muted,
+                marginBottom: spacing.sm,
                 fontFamily: typography.fontFamily.sans,
               }}>
                 Na fila
@@ -903,7 +836,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               </div>
               <div style={{
                 fontSize: typography.fontSize.xs,
-                color: colors.warning[600],
+                color: flow.muted,
                 marginTop: spacing.xs,
                 fontFamily: typography.fontFamily.sans,
               }}>
@@ -912,18 +845,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
             </div>
 
             <div style={{
-              backgroundColor: colors.error[50],
+              backgroundColor: '#fff',
               borderRadius: borderRadius.lg,
               padding: spacing.lg,
-              border: `1px solid ${colors.error[200]}`,
+              border: `1px solid ${flow.line}`,
+              boxShadow: flow.shadow,
             }}>
               <div style={{
-                fontSize: typography.fontSize.xs,
+                fontSize: '13.5px',
                 fontWeight: typography.fontWeight.semibold,
-                color: colors.error[700],
-                marginBottom: spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                color: flow.muted,
+                marginBottom: spacing.sm,
                 fontFamily: typography.fontFamily.sans,
               }}>
                 Com erro
@@ -938,7 +870,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               </div>
               <div style={{
                 fontSize: typography.fontSize.xs,
-                color: colors.error[600],
+                color: flow.muted,
                 marginTop: spacing.xs,
                 fontFamily: typography.fontFamily.sans,
               }}>
@@ -947,18 +879,17 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
             </div>
 
             <div style={{
-              backgroundColor: colors.neutral[50],
+              backgroundColor: '#fff',
               borderRadius: borderRadius.lg,
               padding: spacing.lg,
-              border: `1px solid ${colors.neutral[200]}`,
+              border: `1px solid ${flow.line}`,
+              boxShadow: flow.shadow,
             }}>
               <div style={{
-                fontSize: typography.fontSize.xs,
+                fontSize: '13.5px',
                 fontWeight: typography.fontWeight.semibold,
-                color: colors.neutral[700],
-                marginBottom: spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                color: flow.muted,
+                marginBottom: spacing.sm,
                 fontFamily: typography.fontFamily.sans,
               }}>
                 Confirmadas na web
@@ -973,7 +904,7 @@ const Dashboard: React.FC<DashboardProps> = ({ serviceInstalled }) => {
               </div>
               <div style={{
                 fontSize: typography.fontSize.xs,
-                color: colors.neutral[600],
+                color: flow.muted,
                 marginTop: spacing.xs,
                 fontFamily: typography.fontFamily.sans,
               }}>

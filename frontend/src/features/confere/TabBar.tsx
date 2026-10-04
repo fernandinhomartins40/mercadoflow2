@@ -24,11 +24,11 @@ const TabLink: React.FC<{ tab: Tab; active: boolean }> = ({ tab, active }) => {
   const Icon = tab.icon;
   return (
     <Link to={tab.to} onClick={tap} aria-current={active ? 'page' : undefined}
-      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
-      <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-[#E3F4EA] text-[#0A7A3D]' : 'text-[#6B7A71]'}`}>
+      className="cf-tab flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
+      <span className="cf-tab-ico flex h-8 w-12 items-center justify-center rounded-full transition-colors">
         <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
       </span>
-      <span className={`text-[11px] font-bold leading-none ${active ? 'text-[#0A7A3D]' : 'text-[#6B7A71]'}`}>{tab.label}</span>
+      <span className="cf-tab-label text-[11px] font-bold leading-none">{tab.label}</span>
     </Link>
   );
 };
@@ -38,13 +38,13 @@ export const TabBar: React.FC = () => {
   const [a, b, c, d] = TABS;
   return (
     <nav aria-label="Menu do app" className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
-      <div className="lg-bar pointer-events-auto relative mx-auto flex h-[68px] max-w-xl items-center rounded-[28px] px-1">
+      <div className="cf-dock pointer-events-auto relative mx-auto flex h-[68px] max-w-xl items-center rounded-[28px] px-1">
         <TabLink tab={a} active={a.match(pathname)} />
         <TabLink tab={b} active={b.match(pathname)} />
         <div className="flex w-[84px] shrink-0 justify-center">
           <Link to="/confere/ler" onClick={tap} aria-label="Conferir: ler nota"
-            className="cf-fab -mt-9 flex h-[70px] w-[70px] flex-col items-center justify-center text-white transition-transform">
-            <ScanBarcode className="h-7 w-7 drop-shadow" strokeWidth={2.3} aria-hidden="true" />
+            className="cf-fab -mt-9 flex h-[70px] w-[70px] flex-col items-center justify-center transition-transform">
+            <ScanBarcode className="h-7 w-7" strokeWidth={2.3} aria-hidden="true" />
             <span className="mt-0.5 text-[11px] font-extrabold" aria-hidden="true">Conferir</span>
           </Link>
         </div>
@@ -59,7 +59,7 @@ export const TabBar: React.FC = () => {
 export const TabLayout: React.FC = () => {
   const { pathname } = useLocation();
   return (
-    <div className="min-h-[100dvh] lg-canvas text-[#0F1A14] antialiased" style={{ fontSize: 17 }}>
+    <div className="fx-confere min-h-[100dvh] lg-canvas text-[#0B1F16] antialiased" style={{ fontSize: 17 }}>
       <div key={pathname} className="cf-enter mx-auto w-full max-w-xl pb-[calc(112px+env(safe-area-inset-bottom))]">
         <Outlet />
       </div>

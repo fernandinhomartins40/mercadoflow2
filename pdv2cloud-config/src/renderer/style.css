@@ -5,34 +5,34 @@
 /* ── Tokens CSS alinhados ao painel admin/superadmin ─────────────────────── */
 :root {
   /* Marca — verde (brand-500/600/700, igual ao web) */
-  --brand-500: #22c55e;
-  --brand-600: #16a34a;
-  --brand-700: #15803d;
+  --brand-500: #157A3D;
+  --brand-600: #0F6332;
+  --brand-700: #0F3A29;
 
   /* Surfaces — escala slate (cool), igual ao web */
   --surface-base:    #ffffff;   /* cards, topbar */
-  --surface-soft:    #f8fafc;   /* fundo da página — slate-50 */
-  --surface-muted:   #f1f5f9;   /* fundo secundário — slate-100 */
+  --surface-soft:    #EEF3EF;   /* fundo da página — slate-50 */
+  --surface-muted:   #F6F9F6;   /* fundo secundário — slate-100 */
   --surface-success: #f0fdf4;
   --surface-warning: #fffbeb;
   --surface-danger:  #fef2f2;
   --surface-info:    #eff6ff;
 
   /* Borders */
-  --border-soft:    #e2e8f0;   /* slate-200 */
-  --border-strong:  #cbd5e1;   /* slate-300 */
+  --border-soft:    #E1E8E2;   /* slate-200 */
+  --border-strong:  #CCD8CF;   /* slate-300 */
   --border-success: #bbf7d0;
   --border-warning: #fde68a;
   --border-danger:  #fecaca;
   --border-info:    #bfdbfe;
 
   /* Texto */
-  --text-primary:   #0f172a;   /* slate-900 */
-  --text-muted:     #64748b;   /* slate-500 */
+  --text-primary:   #0B1F16;   /* slate-900 */
+  --text-muted:     #5F7067;   /* slate-500 */
   --text-soft:      #94a3b8;   /* slate-400 */
 
   /* Sidebar (dark) — mesmas cores do WorkspaceSidebar.tsx */
-  --sidebar-bg:       #0f172a;  /* slate-900 */
+  --sidebar-bg:       #0F3A29;  /* slate-900 */
   --sidebar-border:   #1e293b;  /* slate-800 */
   --sidebar-active:   #22c55e;  /* green-500 */
   --sidebar-text:     #94a3b8;  /* slate-400 */

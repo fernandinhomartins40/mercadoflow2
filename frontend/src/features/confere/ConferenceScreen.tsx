@@ -275,13 +275,13 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
   if (error) {
     return (
       <div className="flex flex-col gap-4 p-5">
-        <button type="button" onClick={() => navigate('/confere/')} className="flex items-center gap-2 text-lg font-semibold text-[#06592C]"><ArrowLeft className="h-6 w-6" />Voltar</button>
+        <button type="button" onClick={() => navigate('/confere/')} className="flex items-center gap-2 text-lg font-semibold text-[#0F3A29]"><ArrowLeft className="h-6 w-6" />Voltar</button>
         <p className="rounded-2xl bg-amber-50 p-5 text-lg text-amber-900">{error}</p>
       </div>
     );
   }
   if (!doc) {
-    return <div className="flex h-[60dvh] items-center justify-center" role="status"><div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0A7A3D] border-t-transparent" /><span className="sr-only">Abrindo a nota</span></div>;
+    return <div className="flex h-[60dvh] items-center justify-center" role="status"><div className="h-10 w-10 animate-spin rounded-full border-4 border-[#157A3D] border-t-transparent" /><span className="sr-only">Abrindo a nota</span></div>;
   }
 
   const syncLabel = sync === 'offline' ? 'Sem sinal: salvo no celular' : sync === 'pending' ? 'Salvando…' : 'Salvo';
@@ -292,11 +292,11 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => navigate('/confere/')} aria-label="Voltar às notas" className="lg-card flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm"><ArrowLeft className="h-6 w-6" /></button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-bold leading-tight text-[#0F1A14]">{doc.emitterName ?? 'Fornecedor'}</p>
-          <p className="truncate text-sm leading-tight text-[#5B6B62]">NF {doc.number}{volumesText(doc)}{doc.totalValue ? `, ${money(doc.totalValue)}` : ''}</p>
+          <p className="truncate text-base font-bold leading-tight text-[#0B1F16]">{doc.emitterName ?? 'Fornecedor'}</p>
+          <p className="truncate text-sm leading-tight text-[#5F7067]">NF {doc.number}{volumesText(doc)}{doc.totalValue ? `, ${money(doc.totalValue)}` : ''}</p>
         </div>
         <span role="status" aria-label={syncLabel} title={syncLabel}
-          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${sync === 'offline' ? 'bg-amber-200 text-amber-900' : sync === 'pending' ? 'bg-white text-stone-600' : 'bg-green-100 text-[#06592C]'}`}>
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${sync === 'offline' ? 'bg-amber-200 text-amber-900' : sync === 'pending' ? 'bg-white text-stone-600' : 'bg-green-100 text-[#0F3A29]'}`}>
           {sync === 'offline' ? 'Sem sinal' : sync === 'pending' ? 'Salvando' : 'Salvo'}
         </span>
         {extra}
@@ -331,7 +331,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
               <p className="mt-1 text-lg">{extras.join(', ')}</p>
             </section>
           )}
-          <a href="/app" className="rounded-3xl bg-[#0F1A14] p-4 text-white">
+          <a href="/app" className="rounded-3xl bg-[#0B1F16] p-4 text-white">
             <span className="block text-sm font-bold text-[#B6F36A]">MercadoFlow</span>
             <span className="mt-1 block text-lg font-bold">Quanto desses produtos você vende por dia?</span>
             <span className="mt-1 block text-white/70">Conecte o caixa ao MercadoFlow e veja a venda, o estoque e o que comprar, produto por produto.</span>
@@ -341,7 +341,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <div className="lg-bar flex flex-col gap-2 rounded-[28px] p-2">
             {!clean && (
               <a href={`https://wa.me/?text=${encodeURIComponent(whatsappText())}`} target="_blank" rel="noreferrer"
-                className="flex h-14 items-center justify-center gap-3 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
+                className="flex h-14 items-center justify-center gap-3 rounded-[20px] lg-tinted [--tint:#157A3D] text-lg font-bold">
                 <Send className="h-6 w-6" />Mandar para o fornecedor
               </a>
             )}
@@ -350,7 +350,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                 className="lg-soft flex h-14 items-center justify-center gap-2 whitespace-nowrap rounded-[20px] px-2 text-base font-bold max-[400px]:text-sm">
                 <RotateCcw className="h-5 w-5" />Reabrir contagem
               </button>
-              <Link to="/confere/ler" className={`flex h-14 items-center justify-center gap-2 rounded-[20px] text-base font-bold ${clean ? 'lg-tinted [--tint:#0a7a3d]' : 'lg-soft'}`}>
+              <Link to="/confere/ler" className={`flex h-14 items-center justify-center gap-2 rounded-[20px] text-base font-bold ${clean ? 'lg-tinted [--tint:#157A3D]' : 'lg-soft'}`}>
                 <ScanBarcode className="h-5 w-5" />Ler outra nota
               </Link>
             </div>
@@ -436,7 +436,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
               <ArrowLeft className="h-6 w-6" />Voltar
             </button>
             <button type="button" onClick={finish} disabled={closing}
-              className="flex h-16 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[20px] lg-tinted [--tint:#0a7a3d] px-3 text-lg font-bold max-[400px]:text-base disabled:opacity-60">
+              className="flex h-16 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[20px] lg-tinted [--tint:#157A3D] px-3 text-lg font-bold max-[400px]:text-base disabled:opacity-60">
               <PackageCheck className="h-6 w-6 shrink-0 max-[420px]:hidden" />{closing ? 'Encerrando…' : 'Confirmar e encerrar'}
             </button>
           </div>
@@ -540,9 +540,9 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
 
       <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#DCE5DF]" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done} aria-label="Itens conferidos">
-          <div className="h-full rounded-full bg-[#0A7A3D] transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} />
+          <div className="h-full rounded-full bg-[#157A3D] transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} />
         </div>
-        <span className="shrink-0 text-sm font-bold tabular-nums text-[#5B6B62]">{done}/{items.length} conferidos</span>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-[#5F7067]">{done}/{items.length} conferidos</span>
       </div>
 
       {toast && <div className="fixed inset-x-4 top-4 z-50 rounded-2xl bg-stone-900 px-5 py-4 text-lg font-semibold text-white shadow-xl" role="status">{toast}</div>}
@@ -562,7 +562,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                     {ic?.issue && <span className="block text-sm font-semibold text-red-700">{ISSUES.find((x) => x.key === ic.issue)?.label}</span>}
                   </span>
                   <span className={`flex h-11 min-w-11 items-center justify-center rounded-xl px-2 text-base font-extrabold tabular-nums ${
-                    res.result === 'PENDENTE' ? 'bg-stone-100 text-stone-400' : blind || res.result === 'OK' ? 'bg-[#0A7A3D] text-white' : 'bg-red-600 text-white'}`}>
+                    res.result === 'PENDENTE' ? 'bg-stone-100 text-stone-400' : blind || res.result === 'OK' ? 'bg-[#157A3D] text-white' : 'bg-red-600 text-white'}`}>
                     {res.result === 'PENDENTE' ? '—' : blind ? qtyFmt(ic?.counted) : res.result === 'OK' ? <Check className="h-6 w-6" /> : (res.diff > 0 ? '+' : '') + qtyFmt(res.diff)}
                   </span>
                 </button>
@@ -578,24 +578,24 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
             <div className="flex shrink-0 items-center justify-between text-sm font-bold text-stone-500">
               <span>Item {safeIndex + 1} de {items.length}</span>
               {r.result !== 'PENDENTE' && !blind && (
-                <span className={`rounded-full px-3 py-0.5 ${r.result === 'OK' ? 'bg-green-100 text-[#06592C]' : 'bg-red-100 text-red-800'}`}>
+                <span className={`rounded-full px-3 py-0.5 ${r.result === 'OK' ? 'bg-green-100 text-[#0F3A29]' : 'bg-red-100 text-red-800'}`}>
                   {r.result === 'OK' ? 'Confere' : r.result === 'FALTA' ? `Falta ${qtyFmt(-r.diff)}` : `Sobra ${qtyFmt(r.diff)}`}
                 </span>
               )}
-              {blind && <span className="flex items-center gap-1 rounded-full bg-[#EEF3F0] px-3 py-0.5 text-[#34443B]"><EyeOff className="h-4 w-4" />Cega</span>}
+              {blind && <span className="flex items-center gap-1 rounded-full bg-[#EEF3EF] px-3 py-0.5 text-[#34443B]"><EyeOff className="h-4 w-4" />Cega</span>}
             </div>
 
             <div className="flex min-h-0 shrink items-center gap-3">
               <Photo item={item} className="aspect-square h-[clamp(64px,24dvh,220px)] max-w-[45%]" />
               <div className="min-w-0 flex-1">
-                <h2 className="line-clamp-3 text-[clamp(1.1rem,3dvh,1.6rem)] font-extrabold leading-tight text-[#0F1A14]">{displayName(item)}</h2>
+                <h2 className="line-clamp-3 text-[clamp(1.1rem,3dvh,1.6rem)] font-extrabold leading-tight text-[#0B1F16]">{displayName(item)}</h2>
                 {item.catalogName && item.catalogName !== item.name && <p className="mt-0.5 truncate text-sm text-stone-500">{item.name}</p>}
                 {item.ean && <p className="mt-0.5 font-mono text-sm text-stone-500">{item.ean}</p>}
               </div>
             </div>
 
             {!blind && (
-              <p className="shrink-0 rounded-2xl bg-[#EEF3F0] px-4 py-[clamp(6px,1.2dvh,12px)] text-[clamp(1.05rem,2.6dvh,1.35rem)] text-stone-800">Na nota: <QtyLine item={item} /></p>
+              <p className="shrink-0 rounded-2xl bg-[#EEF3EF] px-4 py-[clamp(6px,1.2dvh,12px)] text-[clamp(1.05rem,2.6dvh,1.35rem)] text-stone-800">Na nota: <QtyLine item={item} /></p>
             )}
             {(priceUp || item.lot || item.expiry || c?.issue) && (
               <div className="flex shrink-0 flex-wrap gap-1.5 text-sm font-semibold">
@@ -606,7 +606,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                   </span>
                 )}
                 {(item.lot || item.expiry) && (
-                  <span className="rounded-full bg-[#EEF3F0] px-3 py-1 text-[#34443B]">
+                  <span className="rounded-full bg-[#EEF3EF] px-3 py-1 text-[#34443B]">
                     {item.lot ? `Lote ${item.lot}` : ''}{item.lot && item.expiry ? ', ' : ''}{item.expiry ? `validade ${item.expiry.split('-').reverse().join('/')}` : ''}
                   </span>
                 )}
@@ -626,17 +626,17 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
                     const v = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
                     update(item.number, { counted: v === '' ? null : Number(v) });
                   }}
-                  className="h-[clamp(56px,10dvh,80px)] w-full rounded-2xl border-4 border-yellow-400 bg-yellow-50 text-center text-[clamp(2rem,6dvh,3rem)] font-extrabold tabular-nums text-stone-900 outline-none focus:border-[#0A7A3D]" />
+                  className="h-[clamp(56px,10dvh,80px)] w-full rounded-2xl border-4 border-yellow-400 bg-yellow-50 text-center text-[clamp(2rem,6dvh,3rem)] font-extrabold tabular-nums text-stone-900 outline-none focus:border-[#157A3D]" />
                 <span className="text-sm font-semibold text-stone-600">{item.unit ?? 'unidades'} contadas</span>
               </label>
               <button type="button" aria-label="Mais um" onClick={() => update(item.number, { counted: Math.round(((c?.counted ?? 0) + 1) * 1000) / 1000 })}
-                className="flex h-[clamp(56px,10dvh,80px)] w-[clamp(56px,10dvh,80px)] shrink-0 items-center justify-center rounded-2xl lg-tinted [--tint:#0a7a3d]"><Plus className="h-8 w-8" /></button>
+                className="flex h-[clamp(56px,10dvh,80px)] w-[clamp(56px,10dvh,80px)] shrink-0 items-center justify-center rounded-2xl lg-tinted [--tint:#157A3D]"><Plus className="h-8 w-8" /></button>
             </div>
 
             <div className="flex shrink-0 gap-2">
               {!blind && (
                 <button type="button" onClick={confirmExpected}
-                  className="flex h-[clamp(48px,8dvh,64px)] flex-[1.6] items-center justify-center gap-2 rounded-2xl border-2 border-[#0A7A3D] bg-white/80 text-lg font-bold text-[#06592C] shadow-[inset_0_1px_1px_rgba(255,255,255,1)] active:bg-green-50">
+                  className="flex h-[clamp(48px,8dvh,64px)] flex-[1.6] items-center justify-center gap-2 rounded-2xl border-2 border-[#157A3D] bg-white/80 text-lg font-bold text-[#0F3A29] shadow-[inset_0_1px_1px_rgba(255,255,255,1)] active:bg-green-50">
                   <Check className="h-6 w-6" />Veio certo
                 </button>
               )}
@@ -677,12 +677,12 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           </button>
           {mode === 'passo' && !last ? (
             <button type="button" onClick={next}
-              className="flex h-14 min-w-0 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
+              className="flex h-14 min-w-0 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#157A3D] text-lg font-bold">
               Próximo<ArrowRight className="h-6 w-6" />
             </button>
           ) : (
             <button type="button" onClick={() => setPhase('revisar')}
-              className="flex h-14 min-w-0 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">
+              className="flex h-14 min-w-0 flex-[1.4] items-center justify-center gap-2 rounded-[20px] lg-tinted [--tint:#157A3D] text-lg font-bold">
               Revisar<ArrowRight className="h-6 w-6" />
             </button>
           )}
@@ -725,9 +725,9 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <label className="flex flex-col gap-1.5">
             <span className="text-base font-semibold">Observação (opcional)</span>
             <input value={c?.note ?? ''} maxLength={140} onChange={(e) => update(item.number, { note: e.target.value, counted: c?.counted ?? null })}
-              placeholder="Ex.: 2 caixas amassadas" className="h-14 rounded-2xl border border-[#CFDAD3] bg-[#F7FAF8] px-4 text-lg outline-none transition focus:border-[#0A7A3D] focus:bg-white focus:ring-4 focus:ring-[#0A7A3D]/15" />
+              placeholder="Ex.: 2 caixas amassadas" className="h-14 rounded-2xl border border-[#CFDAD3] bg-[#F7FAF8] px-4 text-lg outline-none transition focus:border-[#157A3D] focus:bg-white focus:ring-4 focus:ring-[#157A3D]/15" />
           </label>
-          <button type="button" onClick={() => setSheet(null)} className="h-14 rounded-[20px] lg-tinted [--tint:#0a7a3d] text-lg font-bold">Pronto</button>
+          <button type="button" onClick={() => setSheet(null)} className="h-14 rounded-[20px] lg-tinted [--tint:#157A3D] text-lg font-bold">Pronto</button>
         </Sheet>
       )}
 
@@ -736,13 +736,13 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
           <div className="lg-glass grid grid-cols-2 rounded-full p-1" role="tablist" aria-label="Modo">
             {([['passo', 'Um por vez'], ['lista', 'Lista']] as const).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => { setMode(k); setSheet(null); }}
-                className={`flex h-12 items-center justify-center gap-1 rounded-full text-base font-bold ${mode === k ? 'lg-tab-on' : 'text-[#5B6B62]'}`}>
+                className={`flex h-12 items-center justify-center gap-1 rounded-full text-base font-bold ${mode === k ? 'lg-tab-on' : 'text-[#5F7067]'}`}>
                 {k === 'lista' && <List className="h-5 w-5" />}{label}
               </button>
             ))}
           </div>
           <label className="lg-card flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold">
-            <input type="checkbox" checked={blind} onChange={(e) => { setBlind(e.target.checked); blindRef.current = e.target.checked; push(countsRef.current); }} className="h-6 w-6 accent-[#0A7A3D]" />
+            <input type="checkbox" checked={blind} onChange={(e) => { setBlind(e.target.checked); blindRef.current = e.target.checked; push(countsRef.current); }} className="h-6 w-6 accent-[#157A3D]" />
             <EyeOff className="h-5 w-5 text-stone-500" />Conferência cega (esconde a quantidade da nota)
           </label>
           <p className="text-sm text-stone-600">{syncLabel}. Dica: arraste o produto para o lado para trocar de item.</p>

@@ -2,217 +2,73 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Dashboard from './components/Dashboard';
 import ServiceControl from './components/ServiceControl';
 import OnboardingWizard from './components/OnboardingWizard';
-import { colors, typography, spacing, borderRadius, Icons } from './styles/theme';
+import { colors, flow, typography, spacing, Icons } from './styles/theme';
 
-// ── Sidebar ───────────────────────────────────────────────────────────────
-type NavItem = { id: string; label: string; icon: keyof typeof Icons };
+// ── Topo (visual Flow, igual aos painéis web) ─────────────────────────────
+type NavItem = { id: 'dashboard' | 'service'; label: string; icon: keyof typeof Icons };
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Painel',    icon: 'Database' },
-  { id: 'service',   label: 'Serviço',   icon: 'Settings' },
+  { id: 'dashboard', label: 'Painel',  icon: 'Database' },
+  { id: 'service',   label: 'Serviço', icon: 'Settings' },
 ];
 
-const Sidebar: React.FC<{ active: string; onSelect: (id: string) => void }> = ({ active, onSelect }) => (
-  <aside style={{
-    width: '220px',
-    minWidth: '220px',
-    height: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: colors.background.sidebar,   // slate-900
-    borderRight: `1px solid ${colors.neutral[800]}`,
-    position: 'fixed',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    zIndex: 30,
-  }}>
-    {/* Brand */}
-    <div style={{
-      height: '56px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: spacing.md,
-      padding: `0 ${spacing.lg}`,
-      borderBottom: `1px solid ${colors.neutral[800]}`,
-    }}>
-      <div style={{
-        width: '32px',
-        height: '32px',
-        borderRadius: borderRadius.md,
-        backgroundColor: colors.primary[500],   // verde — igual ao logo mark do web
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#ffffff',
-        fontSize: '13px',
-        fontWeight: 700,
-        fontFamily: typography.fontFamily.sans,
-        flexShrink: 0,
-      }}>
-        MF
-      </div>
-      <div>
-        <p style={{
-          margin: 0,
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.semibold,
-          color: '#ffffff',
-          fontFamily: typography.fontFamily.sans,
-          lineHeight: 1.2,
-        }}>
-          Mercado Flow
-        </p>
-        <p style={{
-          margin: 0,
-          fontSize: '11px',
-          color: colors.neutral[400],
-          fontFamily: typography.fontFamily.sans,
-          lineHeight: 1.2,
-        }}>
-          Agente Coletor
-        </p>
-      </div>
-    </div>
-
-    {/* Nav */}
-    <nav style={{ flex: 1, padding: `${spacing.md} ${spacing.sm}`, overflowY: 'auto' }}>
-      <p style={{
-        margin: `0 0 ${spacing.xs} ${spacing.md}`,
-        fontSize: '10px',
-        fontWeight: 600,
-        textTransform: 'uppercase',
-        letterSpacing: '0.08em',
-        color: colors.neutral[500],
-        fontFamily: typography.fontFamily.sans,
-      }}>
-        Monitoramento
-      </p>
-      {NAV_ITEMS.map((item) => {
-        const isActive = active === item.id;
-        const IconComp = Icons[item.icon];
-        return (
-          <button
-            key={item.id}
-            onClick={() => onSelect(item.id)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.md,
-              padding: `${spacing.sm} ${spacing.md}`,
-              borderRadius: borderRadius.md,
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: typography.fontFamily.sans,
-              fontSize: typography.fontSize.sm,
-              fontWeight: typography.fontWeight.medium,
-              minHeight: '36px',
-              marginBottom: '2px',
-              transition: 'background-color 0.1s',
-              backgroundColor: isActive ? colors.primary[500] : 'transparent',
-              color: isActive ? '#ffffff' : colors.neutral[400],
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) e.currentTarget.style.backgroundColor = colors.neutral[800];
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              color: isActive ? '#ffffff' : colors.neutral[500],
-              flexShrink: 0,
-            }}>
-              <IconComp />
-            </span>
-            {item.label}
-          </button>
-        );
-      })}
-    </nav>
-  </aside>
-);
-
-// ── Topbar ────────────────────────────────────────────────────────────────
-const PAGE_TITLES: Record<string, { section: string; title: string }> = {
-  dashboard: { section: 'Monitoramento', title: 'Painel' },
-  service:   { section: 'Monitoramento', title: 'Controle do Serviço' },
-};
-
-const Topbar: React.FC<{
-  page: string;
+const TopBar: React.FC<{
+  active: string;
+  onSelect: (id: 'dashboard' | 'service') => void;
   onOpenOnboarding: () => void;
-}> = ({ page, onOpenOnboarding }) => {
-  const meta = PAGE_TITLES[page] || PAGE_TITLES.dashboard;
+}> = ({ active, onSelect, onOpenOnboarding }) => {
+  const current = NAV_ITEMS.find((i) => i.id === active) ?? NAV_ITEMS[0];
   return (
     <header style={{
-      position: 'fixed',
-      top: 0,
-      left: '220px',
-      right: 0,
-      height: '56px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: `0 ${spacing.xl}`,
-      backgroundColor: colors.background.primary,     // branco — igual ao WorkspaceTopbar web
-      borderBottom: `1px solid ${colors.neutral[200]}`,  // border-soft
-      zIndex: 20,
-      gap: spacing.lg,
+      position: 'sticky', top: 0, zIndex: 20,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.lg,
+      padding: `10px ${spacing.xl}`,
+      background: 'rgba(238, 243, 239, 0.9)', backdropFilter: 'blur(10px)',
+      borderBottom: `1px solid ${flow.line}`,
+      fontFamily: typography.fontFamily.sans,
     }}>
-      <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, minWidth: 0 }}>
         <span style={{
-          display: 'block',
-          fontSize: '10px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: colors.neutral[400],                  // text-soft
-          fontFamily: typography.fontFamily.sans,
-          lineHeight: 1,
-          marginBottom: '2px',
-        }}>
-          {meta.section}
+          width: 36, height: 36, borderRadius: '50%', background: flow.green, color: '#fff',
+          display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0,
+        }}>MF</span>
+        <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', color: flow.ink, whiteSpace: 'nowrap' }}>
+          Mercado<span style={{ fontWeight: 600 }}>Flow</span>
         </span>
-        <h2 style={{
-          margin: 0,
-          fontSize: typography.fontSize.base,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.text.primary,
-          fontFamily: typography.fontFamily.sans,
-          lineHeight: 1,
-        }}>
-          {meta.title}
-        </h2>
+        <span style={{ width: 1, height: 22, background: flow.line2, margin: '0 4px' }} aria-hidden="true" />
+        <span style={{ fontSize: 14, color: flow.muted, whiteSpace: 'nowrap' }}>
+          Agente do caixa <span aria-hidden="true">/</span> <b style={{ color: flow.ink }}>{current.label}</b>
+        </span>
       </div>
 
-      <button
-        onClick={onOpenOnboarding}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: spacing.sm,
-          padding: `${spacing.sm} ${spacing.lg}`,
-          backgroundColor: colors.background.primary,
-          color: colors.text.primary,
-          border: `1px solid ${colors.neutral[200]}`,
-          borderRadius: borderRadius.md,
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer',
-          fontFamily: typography.fontFamily.sans,
-          minHeight: '36px',
-          transition: 'background-color 0.15s',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.neutral[100])}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = colors.background.primary)}
-      >
-        <Icons.Settings />
-        Configurar
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+        <nav aria-label="Seções do agente" style={{
+          display: 'flex', gap: 4, padding: 5, borderRadius: 999, background: '#fff',
+          border: `1px solid ${flow.line}`, boxShadow: flow.shadow,
+        }}>
+          {NAV_ITEMS.map((item) => {
+            const on = active === item.id;
+            const IconComp = Icons[item.icon];
+            return (
+              <button key={item.id} type="button" onClick={() => onSelect(item.id)} aria-current={on ? 'page' : undefined}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 38, padding: '0 16px',
+                  borderRadius: 999, border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14.5, fontWeight: 650,
+                  background: on ? flow.forest : 'transparent', color: on ? '#fff' : flow.muted,
+                }}>
+                <span style={{ display: 'flex', width: 18, height: 18 }}><IconComp /></span>{item.label}
+              </button>
+            );
+          })}
+        </nav>
+        <button type="button" onClick={onOpenOnboarding} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 18px',
+          borderRadius: 999, border: `1px solid ${flow.line2}`, background: '#fff', color: flow.ink,
+          fontFamily: 'inherit', fontSize: 14.5, fontWeight: 700, cursor: 'pointer',
+        }}>
+          <span style={{ display: 'flex', width: 18, height: 18 }}><Icons.Settings /></span>Configurar
+        </button>
+      </div>
     </header>
   );
 };
@@ -294,49 +150,31 @@ const App: React.FC = () => {
 
   return (
     <div style={{
-      display: 'flex',
       minHeight: '100vh',
-      backgroundColor: colors.background.secondary,  // surface-soft
+      background: `radial-gradient(1000px 460px at 85% -10%, rgba(215, 242, 107, 0.18), transparent 60%), ${flow.ground}`,
       fontFamily: typography.fontFamily.sans,
+      color: flow.ink,
     }}>
-      <Sidebar active={activePage} onSelect={(id) => setActivePage(id as any)} />
-
-      {/* Main shell */}
-      <div style={{
-        marginLeft: '220px',
-        flex: 1,
+      <TopBar active={activePage} onSelect={setActivePage} onOpenOnboarding={() => setShowOnboarding(true)} />
+      <main style={{
+        padding: `${spacing.xl} ${spacing.xl} ${spacing['2xl']}`,
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100vh',
-        minWidth: 0,
+        gap: spacing.xl,
+        maxWidth: '1200px',
+        margin: '0 auto',
       }}>
-        <Topbar page={activePage} onOpenOnboarding={() => setShowOnboarding(true)} />
-
-        {/* Content */}
-        <main style={{
-          flex: 1,
-          padding: spacing.xl,
-          paddingTop: `calc(56px + ${spacing.xl})`,  // topbar height + gap
-          display: 'flex',
-          flexDirection: 'column',
-          gap: spacing.xl,
-          maxWidth: '1200px',
-          width: '100%',
-          margin: '0 auto',
-          alignSelf: 'stretch',
-        }}>
-          {activePage === 'dashboard' && (
-            <Dashboard key={refreshKey} serviceInstalled={serviceInstalled} />
-          )}
-          {activePage === 'service' && (
-            <ServiceControl
-              serviceInstalled={serviceInstalled}
-              onServiceInstalled={handleServiceInstalled}
-              onServiceStatusChanged={handleServiceInstalled}
-            />
-          )}
-        </main>
-      </div>
+        {activePage === 'dashboard' && (
+          <Dashboard key={refreshKey} serviceInstalled={serviceInstalled} />
+        )}
+        {activePage === 'service' && (
+          <ServiceControl
+            serviceInstalled={serviceInstalled}
+            onServiceInstalled={handleServiceInstalled}
+            onServiceStatusChanged={handleServiceInstalled}
+          />
+        )}
+      </main>
     </div>
   );
 };

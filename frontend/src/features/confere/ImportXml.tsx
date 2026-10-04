@@ -43,7 +43,7 @@ const ImportXml: React.FC<{ marketId: string }> = ({ marketId }) => {
       <div className="flex flex-col gap-4 px-4 pb-6 pt-1">
         <p className="text-lg text-stone-700">Recebeu o XML da nota por e-mail ou WhatsApp? Importe aqui e confira do mesmo jeito. Não gasta leitura.</p>
         <label className="flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-stone-300 bg-white text-xl font-bold">
-          <FileUp className="h-10 w-10 text-[#0A7A3D]" aria-hidden="true" />{busy ? 'Enviando…' : 'Escolher o XML'}
+          <FileUp className="h-10 w-10 text-[#157A3D]" aria-hidden="true" />{busy ? 'Enviando…' : 'Escolher o XML'}
           <input type="file" accept=".xml,text/xml,application/xml" className="sr-only" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) send(f, f.name); e.target.value = ''; }} />
         </label>

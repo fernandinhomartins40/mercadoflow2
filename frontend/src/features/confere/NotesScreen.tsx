@@ -31,10 +31,10 @@ const NotesScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
   return (
     <>
       <TabHeader title="Notas" action={
-        <Link to="/confere/importar" aria-label="Importar XML" className="flex h-11 w-11 items-center justify-center rounded-full shadow-sm lg-card"><FileUp className="h-5 w-5 text-[#0A7A3D]" /></Link>
+        <Link to="/confere/importar" aria-label="Importar XML" className="flex h-11 w-11 items-center justify-center rounded-full shadow-sm lg-card"><FileUp className="h-5 w-5 text-[#157A3D]" /></Link>
       } />
       <div className="flex flex-col gap-4 px-4 pt-1">
-        <label className="flex h-12 items-center gap-2 rounded-2xl px-4 lg-card focus-within:ring-2 focus-within:ring-[#0A7A3D]/40">
+        <label className="flex h-12 items-center gap-2 rounded-2xl px-4 lg-card focus-within:ring-2 focus-within:ring-[#157A3D]/40">
           <Search className="h-5 w-5 text-[#8A978F]" aria-hidden="true" />
           <span className="sr-only">Buscar nota</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Fornecedor ou número da nota" className="min-w-0 flex-1 bg-transparent text-base outline-none" />
@@ -42,8 +42,8 @@ const NotesScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
         <div className="grid grid-cols-3 lg-glass rounded-full p-1" role="tablist" aria-label="Situação">
           {FILTERS.map(([k, label]) => (
             <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)}
-              className={`flex h-10 items-center justify-center gap-1 rounded-full text-sm font-bold transition ${filter === k ? 'lg-tab-on' : 'text-[#5B6B62]'}`}>
-              {label}{docs && <span className={`tabular-nums ${filter === k ? 'text-[#0A7A3D]' : ''}`}>{count(k)}</span>}
+              className={`flex h-10 items-center justify-center gap-1 rounded-full text-sm font-bold transition ${filter === k ? 'lg-tab-on' : 'text-[#5F7067]'}`}>
+              {label}{docs && <span className={`tabular-nums ${filter === k ? 'text-[#157A3D]' : ''}`}>{count(k)}</span>}
             </button>
           ))}
         </div>
@@ -53,7 +53,7 @@ const NotesScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
             <SearchX className="h-10 w-10 text-[#8A978F]" aria-hidden="true" />
             <p className="text-lg font-bold">{q ? 'Nenhuma nota com esse nome ou número' : filter === 'DONE' ? 'Nenhuma nota conferida ainda' : 'Nada para conferir'}</p>
-            <p className="text-base text-[#5B6B62]">Toque em <strong>Conferir</strong> para ler uma nota nova.</p>
+            <p className="text-base text-[#5F7067]">Toque em <strong>Conferir</strong> para ler uma nota nova.</p>
           </div>
         ) : (
           <ul className="flex flex-col gap-2">{list.map((d) => <DocCard key={d.id} d={d} />)}</ul>

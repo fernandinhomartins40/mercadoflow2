@@ -1,98 +1,102 @@
-// Design tokens alinhados ao painel admin/superadmin do MercadoFlow
-// Referência: WorkspaceSidebar.tsx, WorkspaceTopbar.tsx, tailwind.css (:root)
+// Design tokens alinhados aos painéis do MercadoFlow (visual Flow, out/2026).
 
 import React from 'react';
 
+// Visual Flow (out/2026), o mesmo dos painéis web: fundo menta, verde-floresta
+// para o que importa, limão para destacar e a doca escura.
+export const flow = {
+  ground: '#EEF3EF', card: '#FFFFFF', card2: '#F6F9F6', line: '#E1E8E2', line2: '#CCD8CF',
+  ink: '#0B1F16', ink2: '#2F4339', muted: '#5F7067', forest: '#0F3A29', forest2: '#164A35', dock: '#0D2E21',
+  onForest: '#F2F8F3', onForestMuted: '#A9C2B4', forestLine: 'rgba(255, 255, 255, 0.1)',
+  lime: '#D7F26B', limeStrong: '#C9EA45', limeSoft: '#F4FBDD', limeLine: '#CFE57A', limeInk: '#142400',
+  green: '#157A3D', red: '#C2362B', redSoft: '#FDE4E1', amber: '#9A5B00', amberSoft: '#FFF3D6',
+  shadow: '0 1px 0 rgba(11, 31, 22, 0.03), 0 10px 30px -18px rgba(11, 31, 22, 0.28)',
+};
+
 export const colors = {
-  // Cor de marca — verde, igual ao painel web (brand-500/600/700)
+  // Marca: verde do Flow, escurecendo até o verde-floresta.
   primary: {
-    50:  '#f0fdf4',  // surface-success
-    100: '#dcfce7',  // brand-100
-    200: '#bbf7d0',  // brand-200
-    300: '#86efac',
-    400: '#4ade80',
-    500: '#22c55e',  // brand-500 — bg-green-500 (sidebar item ativo, logo mark)
-    600: '#16a34a',  // brand-600 — hover do botão primário
-    700: '#15803d',  // brand-700 — texto sobre fundo success
-    800: '#166534',
-    900: '#14532d',
+    50:  '#F4FBDD',
+    100: '#E9F6C4',
+    200: '#CFE57A',
+    300: '#A9D17A',
+    400: '#3F9A62',
+    500: '#157A3D',
+    600: '#0F6332',
+    700: '#0F3A29',
+    800: '#0B2E20',
+    900: '#0D2E21',
   },
-  // Sucesso — mesmo que primary (verde)
   success: {
-    50:  '#f0fdf4',
-    100: '#dcfce7',
-    200: '#bbf7d0',
-    300: '#86efac',
-    400: '#4ade80',
-    500: '#22c55e',
-    600: '#16a34a',
-    700: '#15803d',
-    800: '#166534',
+    50:  '#E2F3E7',
+    100: '#CDEBD6',
+    200: '#A9D9B6',
+    300: '#7EC495',
+    400: '#3F9A62',
+    500: '#157A3D',
+    600: '#0F6332',
+    700: '#0F3A29',
+    800: '#0B2E20',
   },
-  // Alerta
   warning: {
-    50:  '#fffbeb',
-    100: '#fef3c7',
-    200: '#fde68a',
-    300: '#fcd34d',
-    400: '#fbbf24',
-    500: '#f59e0b',
-    600: '#d97706',
-    700: '#b45309',
-    800: '#92400e',
+    50:  '#FFF3D6',
+    100: '#FDE9BC',
+    200: '#F2D9A4',
+    300: '#E9C27A',
+    400: '#D9A441',
+    500: '#B97A12',
+    600: '#9A5B00',
+    700: '#7C4900',
+    800: '#5E3700',
   },
-  // Erro/crítico
   error: {
-    50:  '#fef2f2',
-    100: '#fee2e2',
-    200: '#fecaca',
-    300: '#fca5a5',
-    400: '#f87171',
-    500: '#ef4444',
-    600: '#dc2626',
-    700: '#b91c1c',
-    800: '#991b1b',
-    900: '#7f1d1d',
+    50:  '#FDE4E1',
+    100: '#FBD3CE',
+    200: '#F5C2BC',
+    300: '#EC9B92',
+    400: '#DE6A5E',
+    500: '#C2362B',
+    600: '#C2362B',
+    700: '#A92D23',
+    800: '#8A241C',
+    900: '#6B1C16',
   },
-  // Info (azul — apenas para status info, não cor de marca)
   info: {
-    50:  '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6',
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
+    50:  '#EEF5F8',
+    100: '#DCEAF1',
+    200: '#BDD7E4',
+    300: '#93BED3',
+    400: '#5E9DBC',
+    500: '#2F7EA3',
+    600: '#226588',
+    700: '#1B506C',
+    800: '#163F55',
   },
-  // Neutros slate — painel usa escala slate (cool), não gray (warm)
+  // Neutros no tom menta do Flow.
   neutral: {
-    50:  '#f8fafc',  // surface-soft — fundo da página
-    100: '#f1f5f9',  // surface-muted
-    200: '#e2e8f0',  // border-soft
-    300: '#cbd5e1',  // border-strong
-    400: '#94a3b8',  // text-soft — sidebar texto inativo
-    500: '#64748b',  // text-muted — sidebar ícones inativos
-    600: '#475569',
-    700: '#334155',
-    800: '#1e293b',  // slate-800 — sidebar borda interna
-    900: '#0f172a',  // slate-900 — sidebar fundo
+    50:  '#F6F9F6',
+    100: '#EEF3EF',
+    200: '#E1E8E2',
+    300: '#CCD8CF',
+    400: '#7D8C84',
+    500: '#5F7067',
+    600: '#2F4339',
+    700: '#2F4339',
+    800: '#164A35',
+    900: '#0F3A29',
   },
-  // Surfaces — espelham as variáveis CSS do web
   background: {
-    primary:   '#ffffff',  // surface-base — cards, topbar
-    secondary: '#f8fafc',  // surface-soft — fundo da página
-    tertiary:  '#f1f5f9',  // surface-muted
-    sidebar:   '#0f172a',  // slate-900 — sidebar fundo
+    primary:   '#FFFFFF',
+    secondary: '#EEF3EF',
+    tertiary:  '#F6F9F6',
+    sidebar:   '#0F3A29',
   },
-  // Texto — espelham text-primary / text-muted / text-soft
   text: {
-    primary:   '#0f172a',  // slate-900
-    secondary: '#64748b',  // slate-500
-    tertiary:  '#94a3b8',  // slate-400
-    inverse:   '#ffffff',
-    sidebar:   '#94a3b8',  // texto inativo na sidebar
+    primary:   '#0B1F16',
+    secondary: '#5F7067',
+    tertiary:  '#7D8C84',
+    inverse:   '#FFFFFF',
+    sidebar:   '#A9C2B4',
   },
 };
 
@@ -114,8 +118,8 @@ export const typography = {
   fontWeight: {
     normal:   400,
     medium:   500,
-    semibold: 600,
-    bold:     700,
+    semibold: 650,
+    bold:     800,
   },
   lineHeight: {
     tight:   1.25,
@@ -135,18 +139,18 @@ export const spacing = {
 };
 
 export const borderRadius = {
-  sm:   '6px',   // radius-sm
-  md:   '10px',  // radius-md
-  lg:   '12px',  // radius-lg
-  xl:   '16px',  // radius-xl
-  '2xl': '20px',
+  sm:   '8px',
+  md:   '12px',
+  lg:   '18px',
+  xl:   '22px',
+  '2xl': '26px',
   full: '9999px',
 };
 
 export const shadows = {
-  sm: '0 1px 2px 0 rgba(0,0,0,0.05)',
-  md: '0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04)',
-  lg: '0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04)',
+  sm: '0 1px 0 rgba(11, 31, 22, 0.03)',
+  md: '0 1px 0 rgba(11, 31, 22, 0.03), 0 10px 30px -18px rgba(11, 31, 22, 0.28)',
+  lg: '0 24px 60px -28px rgba(11, 31, 22, 0.45)',
 };
 
 // Ícones SVG (lucide-compatible stroke style)

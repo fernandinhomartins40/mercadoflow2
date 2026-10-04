@@ -29,7 +29,7 @@ const Wallet: React.FC<{ status: ConfereStatus }> = ({ status }) => {
         </span>
       </div>
       <div className="mt-5 flex gap-2">
-        <Link to="/confere/creditos" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/95 text-base max-[360px]:text-sm font-bold text-[#06592C] active:scale-[0.98]">
+        <Link to="/confere/creditos" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/95 text-base max-[360px]:text-sm font-bold text-[#0F3A29] active:scale-[0.98]">
           <Plus className="h-5 w-5" aria-hidden="true" />Comprar
         </Link>
         {!a1 && (
@@ -60,11 +60,11 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
         <Wallet status={status} />
 
         <ul className="grid grid-cols-3 gap-2" aria-label="Resumo das notas">
-          {([['A conferir', counts.todo, 'text-amber-700'], ['Conferidas', counts.done, 'text-[#0A7A3D]'], ['Na Sefaz', counts.wait, 'text-stone-600']] as const).map(([label, n, color]) => (
+          {([['A conferir', counts.todo, 'text-amber-700'], ['Conferidas', counts.done, 'text-[#157A3D]'], ['Na Sefaz', counts.wait, 'text-stone-600']] as const).map(([label, n, color]) => (
             <li key={label}>
               <Link to="/confere/notas" className="flex flex-col rounded-2xl px-3 py-3 lg-card">
                 <span className={`text-2xl font-extrabold tabular-nums ${color}`}>{docs === null ? '–' : n}</span>
-                <span className="text-sm font-semibold text-[#5B6B62]">{label}</span>
+                <span className="text-sm font-semibold text-[#5F7067]">{label}</span>
               </Link>
             </li>
           ))}
@@ -73,7 +73,7 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
         <InstallApp />
 
         <section className="flex flex-col gap-3">
-          <SectionTitle action={all.length > 0 && <Link to="/confere/notas" className="text-sm font-bold text-[#0A7A3D]">Ver todas</Link>}>
+          <SectionTitle action={all.length > 0 && <Link to="/confere/notas" className="text-sm font-bold text-[#157A3D]">Ver todas</Link>}>
             Para conferir
           </SectionTitle>
           {docs === null ? (
@@ -82,16 +82,16 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
             </ul>
           ) : toCheck.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-[#CFDAD3] bg-white/60 px-6 py-8 text-center">
-              <PackageOpen className="h-10 w-10 text-[#0A7A3D]" aria-hidden="true" />
+              <PackageOpen className="h-10 w-10 text-[#157A3D]" aria-hidden="true" />
               <p className="text-lg font-bold">Nenhuma nota esperando</p>
-              <p className="text-base text-[#5B6B62]">Quando o caminhão chegar, toque em <strong>Conferir</strong> e aponte a câmera para o DANFE.</p>
+              <p className="text-base text-[#5F7067]">Quando o caminhão chegar, toque em <strong>Conferir</strong> e aponte a câmera para o DANFE.</p>
             </div>
           ) : (
             <ul className="flex flex-col gap-2">{toCheck.slice(0, 5).map((d) => <DocCard key={d.id} d={d} />)}</ul>
           )}
         </section>
 
-        <a href="/app" className="relative overflow-hidden rounded-3xl bg-[#0F1A14] p-5 text-white">
+        <a href="/app" className="relative overflow-hidden rounded-3xl bg-[#0B1F16] p-5 text-white">
           <span className="flex items-center justify-between">
             <span className="text-sm font-bold text-[#B6F36A]">MercadoFlow</span>
             <ArrowUpRight className="h-5 w-5 text-white/60" aria-hidden="true" />

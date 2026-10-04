@@ -33,7 +33,7 @@ const PartnersScreen: React.FC<{ status: ConfereStatus; marketId: string; onChan
       <TopBar title="Fabricantes" back="/confere/conta" />
       <div className="flex flex-col gap-4 px-4 pb-6 pt-1">
         <section className="rounded-3xl p-5 lg-card">
-          <ShieldCheck className="h-9 w-9 text-[#0A7A3D]" aria-hidden="true" />
+          <ShieldCheck className="h-9 w-9 text-[#157A3D]" aria-hidden="true" />
           <h2 className="mt-2 text-xl font-extrabold">Como já é hoje</h2>
           <p className="mt-1 text-lg text-stone-700">
             As notas entram nos números do ecossistema só somadas com as de outros mercados da região, sem o nome do seu mercado
@@ -42,7 +42,7 @@ const PartnersScreen: React.FC<{ status: ConfereStatus; marketId: string; onChan
         </section>
 
         <section className={`rounded-3xl p-5 ${on ? 'cf-wallet text-white' : 'lg-card'}`}>
-          <Factory className={`h-9 w-9 ${on ? 'text-[#B6F36A]' : 'text-[#0A7A3D]'}`} aria-hidden="true" />
+          <Factory className={`h-9 w-9 ${on ? 'text-[#B6F36A]' : 'text-[#157A3D]'}`} aria-hidden="true" />
           <h2 className="mt-2 text-xl font-extrabold">{on ? 'Você aparece para os fabricantes' : 'Receber ofertas dos fabricantes'}</h2>
           <p className={`mt-1 text-lg ${on ? 'text-white/85' : 'text-stone-700'}`}>
             Se você autorizar, os fabricantes dos produtos que você compra veem o nome e o bairro do seu mercado e quanto você

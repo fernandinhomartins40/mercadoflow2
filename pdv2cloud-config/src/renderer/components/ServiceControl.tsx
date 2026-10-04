@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { colors, typography, spacing, borderRadius, shadows, Icons, components } from '../styles/theme';
+import { colors, flow, typography, spacing, borderRadius, shadows, Icons, components } from '../styles/theme';
 
 interface ServiceControlProps {
   serviceInstalled: boolean;
@@ -234,13 +234,16 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
           marginBottom: spacing.sm
         }}>
           <h3 style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: colors.text.primary,
+            fontSize: 'clamp(24px, 3vw, 34px)',
+            fontWeight: 800,
+            letterSpacing: '-0.04em',
+            lineHeight: 1.08,
+            color: flow.ink,
             margin: 0,
             fontFamily: typography.fontFamily.sans
           }}>
-            Controle do Serviço
+            O coletor está{' '}
+            <mark style={{ background: flow.lime, color: flow.ink, padding: '0 0.12em', borderRadius: '0.1em' }}>{isRunning ? 'ligado.' : 'desligado.'}</mark>
           </h3>
           <div style={{
             display: 'inline-flex',
@@ -288,8 +291,8 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
           disabled={isRunning}
           style={{
             padding: spacing.md,
-            backgroundColor: isRunning ? colors.neutral[200] : colors.success[600],
-            color: isRunning ? colors.neutral[500] : colors.text.inverse,
+            backgroundColor: isRunning ? colors.neutral[200] : flow.lime,
+            color: isRunning ? colors.neutral[500] : flow.limeInk,
             border: 'none',
             borderRadius: borderRadius.md,
             fontSize: typography.fontSize.sm,
@@ -302,8 +305,8 @@ const ServiceControl: React.FC<ServiceControlProps> = ({ serviceInstalled, onSer
             gap: spacing.xs,
             fontFamily: typography.fontFamily.sans
           }}
-          onMouseEnter={(e) => !isRunning && (e.currentTarget.style.backgroundColor = colors.success[700])}
-          onMouseLeave={(e) => !isRunning && (e.currentTarget.style.backgroundColor = colors.success[600])}
+          onMouseEnter={(e) => !isRunning && (e.currentTarget.style.backgroundColor = flow.limeStrong)}
+          onMouseLeave={(e) => !isRunning && (e.currentTarget.style.backgroundColor = flow.lime)}
         >
           <Icons.Play />
           Iniciar

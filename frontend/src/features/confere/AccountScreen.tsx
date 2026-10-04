@@ -24,8 +24,8 @@ const AccountScreen: React.FC<{ status: ConfereStatus }> = ({ status }) => {
           </span>
           <span className="min-w-0">
             <span className="block truncate text-lg font-extrabold">{status.marketName}</span>
-            {status.marketCnpj && <span className="block text-sm text-[#5B6B62]">CNPJ {maskCnpj(status.marketCnpj)}</span>}
-            {email && <span className="block truncate text-sm text-[#5B6B62]">{email}</span>}
+            {status.marketCnpj && <span className="block text-sm text-[#5F7067]">CNPJ {maskCnpj(status.marketCnpj)}</span>}
+            {email && <span className="block truncate text-sm text-[#5F7067]">{email}</span>}
           </span>
         </section>
 

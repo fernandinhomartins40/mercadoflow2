@@ -63,16 +63,16 @@ const InstallApp: React.FC<{ tone?: 'light' | 'dark' }> = ({ tone = 'light' }) =
     <>
       {tone === 'dark' ? (
         <button type="button" onClick={install}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#B6F36A] text-lg font-bold text-[#0F1A14]">
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#B6F36A] text-lg font-bold text-[#0B1F16]">
           <Download className="h-5 w-5" aria-hidden="true" />Instalar o app no celular
         </button>
       ) : (
         <button type="button" onClick={install}
           className="flex w-full items-center gap-3 rounded-3xl p-4 text-left lg-card active:scale-[0.99]">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#E3F4EA] text-[#0A7A3D]"><Download className="h-5 w-5" aria-hidden="true" /></span>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#E2F3E7] text-[#157A3D]"><Download className="h-5 w-5" aria-hidden="true" /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-base font-bold">Instalar o app no celular</span>
-            <span className="block text-sm text-[#5B6B62]">Abre direto da tela inicial, em tela cheia</span>
+            <span className="block text-sm text-[#5F7067]">Abre direto da tela inicial, em tela cheia</span>
           </span>
         </button>
       )}

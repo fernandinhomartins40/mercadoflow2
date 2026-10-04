@@ -61,7 +61,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
         </p>
         {cert && (
           <section className="flex flex-col gap-2 rounded-3xl p-5 lg-card">
-            <p className="flex items-center gap-2 text-xl font-bold text-[#0A7A3D]"><ShieldCheck className="h-6 w-6" aria-hidden="true" />Certificado ativo</p>
+            <p className="flex items-center gap-2 text-xl font-bold text-[#157A3D]"><ShieldCheck className="h-6 w-6" aria-hidden="true" />Certificado ativo</p>
             <p className="text-lg">{cert.holder}</p>
             <p className="text-base text-stone-600">CNPJ {maskCnpj(cert.cnpj)}, vence em {new Date(cert.notAfter).toLocaleDateString('pt-BR')}</p>
             {cert.expired && <p className="text-lg font-semibold text-red-700">Vencido: envie o certificado novo.</p>}
@@ -78,7 +78,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
         <form onSubmit={save} className="flex flex-col gap-4 rounded-3xl p-5 lg-card">
           <h2 className="text-xl font-extrabold">{cert ? 'Trocar o certificado' : 'Enviar o certificado'}</h2>
           <label className="flex h-20 cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-stone-300 text-lg font-semibold">
-            <Upload className="h-6 w-6 text-[#0A7A3D]" aria-hidden="true" />{file ? file.name : 'Escolher arquivo .pfx ou .p12'}
+            <Upload className="h-6 w-6 text-[#157A3D]" aria-hidden="true" />{file ? file.name : 'Escolher arquivo .pfx ou .p12'}
             <input type="file" accept=".pfx,.p12,application/x-pkcs12" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
           <Field label="Senha do certificado" type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />

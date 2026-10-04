@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { colors, typography, spacing, borderRadius, shadows, Icons, components } from '../styles/theme';
+import { colors, flow, typography, spacing, borderRadius, shadows, Icons, components } from '../styles/theme';
 import type { FolderCandidate, PairingStart, ScanResult } from '../global';
 
 /**
@@ -398,7 +398,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               style={{
                 fontSize: typography.fontSize['2xl'],
                 fontWeight: typography.fontWeight.bold,
-                letterSpacing: '0.3em',
                 color: colors.text.primary,
                 fontFamily: typography.fontFamily.mono,
               }}
@@ -609,8 +608,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               fontSize: typography.fontSize.xs,
               fontWeight: typography.fontWeight.semibold,
               color: colors.text.tertiary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
               marginBottom: spacing.xs,
             }}
           >
@@ -627,8 +624,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               fontSize: typography.fontSize.xs,
               fontWeight: typography.fontWeight.semibold,
               color: colors.text.tertiary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
               marginBottom: spacing.xs,
             }}
           >
@@ -645,8 +640,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               fontSize: typography.fontSize.xs,
               fontWeight: typography.fontWeight.semibold,
               color: colors.text.tertiary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
               marginBottom: spacing.xs,
             }}
           >
@@ -810,24 +803,27 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       >
         <div
           style={{
-            background: `linear-gradient(135deg, ${colors.primary[600]} 0%, ${colors.primary[700]} 100%)`,
+            background: `radial-gradient(600px 300px at 100% 0%, rgba(215, 242, 107, 0.1), transparent 60%), ${flow.forest}`,
             padding: spacing['2xl'],
-            color: colors.text.inverse,
+            color: flow.onForest,
           }}
         >
+          <p style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 14px', fontSize: 14, color: flow.onForestMuted }}>
+            <span style={{ width: 30, height: 30, borderRadius: '50%', background: flow.green, color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 11 }}>MF</span>
+            Agente do caixa · Assistente de configuração
+          </p>
           <h1
             style={{
-              fontSize: typography.fontSize['2xl'],
-              fontWeight: typography.fontWeight.bold,
+              fontSize: 'clamp(26px, 3.4vw, 38px)',
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              lineHeight: 1.08,
               margin: 0,
-              marginBottom: spacing.sm,
             }}
           >
-            Agente Mercado Flow
+            Ligue o caixa ao{' '}
+            <mark style={{ background: flow.lime, color: flow.ink, padding: '0 0.12em', borderRadius: '0.1em' }}>MercadoFlow.</mark>
           </h1>
-          <p style={{ fontSize: typography.fontSize.sm, opacity: 0.9, margin: 0 }}>
-            Assistente de configuração
-          </p>
         </div>
 
         <div style={{ padding: spacing.xl, borderBottom: `1px solid ${colors.neutral[200]}` }}>

@@ -50,3 +50,48 @@
   .cf-fab::before { animation: none; }
   .cf-enter { animation: none; }
 }
+
+/* ── Visual Flow no Confere (out/2026): o mesmo da aplicação ──────────────
+   Fundo menta, cartões brancos, painel floresta para o saldo, doca escura
+   com o "Conferir" em limão (o nó do hub). Tudo escopado em .fx-confere. */
+.fx-confere {
+  --cf-ink: #0B1F16; --cf-muted: #5F7067; --cf-line: #E1E8E2; --cf-forest: #0F3A29; --cf-dock: #0D2E21;
+  --cf-lime: #D7F26B; --cf-lime-ink: #142400; --cf-green: #157A3D;
+  color: var(--cf-ink);
+  background:
+    radial-gradient(900px 420px at 90% -10%, rgba(215, 242, 107, .20), transparent 60%),
+    radial-gradient(700px 500px at -10% 20%, rgba(21, 122, 61, .06), transparent 60%),
+    #EEF3EF !important;
+}
+.fx-confere .lg-card {
+  background: #fff !important; border: 1px solid var(--cf-line) !important; backdrop-filter: none !important;
+  box-shadow: 0 1px 0 rgba(11, 31, 22, .03), 0 10px 30px -18px rgba(11, 31, 22, .28) !important;
+}
+.fx-confere header.lg-bar {
+  background: color-mix(in srgb, #EEF3EF 88%, transparent) !important; backdrop-filter: blur(10px);
+  border: 0 !important; border-bottom: 1px solid var(--cf-line) !important; border-radius: 0 !important; box-shadow: none !important;
+}
+.fx-confere header.lg-bar h1 { font-weight: 800; letter-spacing: -.04em; }
+.fx-confere .lg-tinted { background: var(--cf-forest) !important; color: #fff !important; box-shadow: none !important; border-color: transparent !important; }
+.fx-confere .lg-tinted:hover { background: #164A35 !important; }
+.fx-confere .lg-soft { background: #fff !important; color: var(--cf-ink) !important; border: 1px solid #CCD8CF !important; box-shadow: none !important; }
+.fx-confere .cf-wallet {
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(215, 242, 107, .18) 0%, transparent 55%),
+    var(--cf-forest) !important;
+}
+.fx-confere .cf-wallet .lg-soft, .fx-confere .cf-wallet button:first-child { }
+
+/* Doca escura no pé, igual à do painel. */
+.cf-dock {
+  background: var(--cf-dock, #0D2E21) !important; border: 1px solid rgba(255, 255, 255, .08) !important;
+  backdrop-filter: none !important; box-shadow: 0 24px 60px -28px rgba(11, 31, 22, .55) !important;
+}
+.cf-dock .cf-tab { color: #A9C2B4; }
+.cf-dock .cf-tab[aria-current="page"] .cf-tab-ico { background: var(--cf-lime, #D7F26B); color: var(--cf-lime-ink, #142400); }
+.cf-dock .cf-tab[aria-current="page"] .cf-tab-label { color: var(--cf-lime, #D7F26B); }
+.fx-confere .cf-fab { box-shadow: 0 0 0 7px rgba(215, 242, 107, .22), 0 10px 26px -8px rgba(80, 110, 0, .6); color: var(--cf-lime-ink, #142400) !important; }
+.fx-confere .cf-fab::before { background: conic-gradient(from 0deg, #D7F26B, #ffffff 20%, #C9EA45 45%, #ffffff 70%, #D7F26B); }
+.fx-confere .cf-fab::after { background: radial-gradient(120% 90% at 28% 18%, rgba(255, 255, 255, .6) 0%, transparent 55%), #D7F26B; backdrop-filter: none; }
+.fx-confere header.lg-bar::before, .fx-confere header.lg-bar::after, .fx-confere .lg-card::before, .fx-confere .lg-card::after { display: none !important; }
+.fx-confere.lg-canvas::before { display: none !important; }

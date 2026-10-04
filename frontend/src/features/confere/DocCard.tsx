@@ -16,7 +16,7 @@ export const docState = (d: DocumentSummary): 'DONE' | 'TODO' | 'WAIT' =>
 
 const STATE = {
   TODO: { label: 'A conferir', cls: 'bg-amber-100 text-amber-900', icon: Clock3 },
-  DONE: { label: 'Conferida', cls: 'bg-[#E3F4EA] text-[#0A7A3D]', icon: BadgeCheck },
+  DONE: { label: 'Conferida', cls: 'bg-[#E2F3E7] text-[#157A3D]', icon: BadgeCheck },
   WAIT: { label: 'Aguardando Sefaz', cls: 'bg-stone-100 text-stone-600', icon: Hourglass },
 };
 
@@ -27,12 +27,12 @@ const DocCard: React.FC<{ d: DocumentSummary }> = ({ d }) => {
   const date = d.issuedAt ? new Date(d.issuedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : null;
   const body = (
     <>
-      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-extrabold ${state === 'DONE' ? 'bg-[#E3F4EA] text-[#0A7A3D]' : 'bg-[#0F1A14] text-white'}`} aria-hidden="true">
+      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-extrabold ${state === 'DONE' ? 'bg-[#E2F3E7] text-[#157A3D]' : 'bg-[#0B1F16] text-white'}`} aria-hidden="true">
         {initials(d.emitterName)}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-base font-bold">{d.emitterName ?? 'Fornecedor'}</span>
-        <span className="block truncate text-sm text-[#5B6B62]">
+        <span className="block truncate text-sm text-[#5F7067]">
           NF {d.number ?? d.accessKey.slice(25, 34)}{d.itemsCount ? `, ${d.itemsCount} itens` : ''}{d.totalValue ? `, ${money(d.totalValue)}` : ''}
         </span>
         <span className="mt-1.5 flex items-center gap-2">

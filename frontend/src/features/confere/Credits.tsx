@@ -58,7 +58,7 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
           <section className="flex flex-col items-center gap-4 rounded-3xl p-5 lg-card text-center">
             {order.status === 'PAID' ? (
               <>
-                <CheckCircle2 className="h-16 w-16 text-[#0A7A3D]" aria-hidden="true" />
+                <CheckCircle2 className="h-16 w-16 text-[#157A3D]" aria-hidden="true" />
                 <h2 className="text-2xl font-extrabold">Pagamento confirmado</h2>
                 <p className="text-lg">{order.reads} leituras entraram no seu saldo.</p>
                 <BigButton onClick={() => setOrder(null)}>Pronto</BigButton>
@@ -75,7 +75,7 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
                 <p className="text-base text-stone-700">Abra o app do banco, escolha Pix e leia o QR code, ou copie o código:</p>
                 {order.pixPayload && (
                   <button type="button" onClick={() => { navigator.clipboard?.writeText(order.pixPayload ?? ''); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
-                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-green-700 text-lg font-bold text-[#0A7A3D]">
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-green-700 text-lg font-bold text-[#157A3D]">
                     <Copy className="h-5 w-5" aria-hidden="true" />{copied ? 'Código copiado' : 'Copiar código Pix'}
                   </button>
                 )}
@@ -90,11 +90,11 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
             {status.plans.map((p) => {
               const best = status.plans.length > 1 && p.id === [...status.plans].sort((x, y) => x.priceCents / x.reads - y.priceCents / y.reads)[0].id;
               return (
-              <div key={p.id} className={`flex flex-col gap-3 rounded-3xl p-5 ${best ? 'ring-2 ring-[#0A7A3D]' : 'lg-card'}`}>
-                {best && <span className="-mb-1 self-start rounded-full bg-[#E3F4EA] px-2.5 py-0.5 text-xs font-bold text-[#0A7A3D]">Mais em conta por nota</span>}
+              <div key={p.id} className={`flex flex-col gap-3 rounded-3xl p-5 ${best ? 'ring-2 ring-[#157A3D]' : 'lg-card'}`}>
+                {best && <span className="-mb-1 self-start rounded-full bg-[#E2F3E7] px-2.5 py-0.5 text-xs font-bold text-[#157A3D]">Mais em conta por nota</span>}
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-xl font-bold">{p.name}</span>
-                  <span className="text-2xl font-extrabold tabular-nums text-[#0A7A3D]">{money(p.priceCents)}</span>
+                  <span className="text-2xl font-extrabold tabular-nums text-[#157A3D]">{money(p.priceCents)}</span>
                 </div>
                 <span className="text-base text-stone-600">{p.reads} leituras, {money(Math.round(p.priceCents / p.reads))} cada</span>
                 <div className="flex gap-2">
