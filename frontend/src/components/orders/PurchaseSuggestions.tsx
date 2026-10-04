@@ -77,7 +77,7 @@ const PurchaseSuggestions: React.FC<{ marketId: string; onOrdersChanged: () => v
       </section>
 
       <Forest as="aside" aria-label="Antes de comprar">
-        <PanelTitle icon={ShieldCheck} title="Antes de comprar" sub="O que o Jev já conferiu por você" />
+        <PanelTitle icon={ShieldCheck} title="Antes de comprar" sub="O que o Tino já conferiu por você" />
         <div className="fx-white" style={{ marginTop: 18 }}>
           <small>Impacto das sugestões</small>
           <span style={{ display: 'block', marginTop: 6 }}><span className="fx-money" style={{ fontSize: 28 }}>{formatMoney(total)}</span></span>

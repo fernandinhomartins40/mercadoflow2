@@ -10,7 +10,7 @@ import '../../styles/flow.css';
 
 /**
  * Casca do app do mercado (visual Flow): topo com a trilha e o perfil, doca
- * escura no pé com o Mapa da loja, o Início, a pergunta ao Jev e as áreas.
+ * escura no pé com o Mapa da loja, o Início, a pergunta ao Tino e as áreas.
  */
 
 const ASK: Record<string, string> = {
@@ -78,7 +78,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           {!asking && (
             <Link to="/app/perguntar" className="fx-pill-btn"><MessageSquare size={17} aria-hidden="true" /><span className="lbl">Perguntar aos dados</span></Link>
           )}
-          <span className="fx-watch" role="status"><i aria-hidden="true" />Jev acompanhando a loja</span>
+          <span className="fx-watch" role="status"><i aria-hidden="true" />Tino acompanhando a loja</span>
           <button type="button" className="fx-avatar" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}
             aria-label="Sua conta">{initialsOf(name, email)}</button>
           {menuOpen && (
@@ -134,7 +134,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           })}
           {found('Perguntar aos dados', 'pergunta ia jev') && (
             <section>
-              <h4>Jev</h4>
+              <h4>Tino</h4>
               <div className="grid">
                 <Link to="/app/perguntar" className="tile"><Sparkles aria-hidden="true" />Perguntar aos dados</Link>
                 <Link to="/app/copiloto" className="tile"><History aria-hidden="true" />Histórico</Link>
@@ -151,11 +151,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <Link to="/app" className={`fx-dock-btn ${pathname === '/app' ? 'current' : ''}`}><Home aria-hidden="true" /><span className="lbl">Início</span></Link>
         <form className="fx-ask" onSubmit={submitAsk} role="search">
           <Sparkles className="spark" aria-hidden="true" />
-          <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={ASK[destination.key] ?? ASK.hoje} aria-label="Pergunte ou peça algo ao Jev" />
-          <button type="button" className="mic" aria-label="Falar com o Jev" onClick={() => navigate('/app/perguntar?voz=1')}><Mic size={20} /></button>
+          <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={ASK[destination.key] ?? ASK.hoje} aria-label="Pergunte ou peça algo ao Tino" />
+          <button type="button" className="mic" aria-label="Falar com o Tino" onClick={() => navigate('/app/perguntar?voz=1')}><Mic size={20} /></button>
           <button type="submit" className="send" aria-label="Enviar"><ArrowRight size={20} /></button>
         </form>
-        <Link to="/app/perguntar" className="fx-dock-btn ask-mobile" aria-label="Perguntar ao Jev"><Sparkles aria-hidden="true" /></Link>
+        <Link to="/app/perguntar" className="fx-dock-btn ask-mobile" aria-label="Perguntar ao Tino"><Sparkles aria-hidden="true" /></Link>
         <span className="sep" aria-hidden="true" />
         {DESTINATIONS.filter((d) => d.key !== 'hoje').map((d) => {
           const I = d.icon;

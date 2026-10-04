@@ -12,10 +12,12 @@ import ShoppingListButton from '../components/common/ShoppingListButton';
 import ProductImage from '../components/product/ProductImage';
 import { ProductPerformance } from '../types/analytics.types';
 import {
-  Search, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight,
+  AlertTriangle, Search, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight,
   ShoppingCart, Zap, Map, ArrowRight, RefreshCw, Plus,
 } from 'lucide-react';
 import { ActionHub, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
+import ProductAttention, { attentionList } from './produtos/ProductAttention';
+import { useMarketData } from '../hooks/useMarketData';
 import { History, ListChecks, MessageCircleQuestion, Package } from 'lucide-react';
 import { Combine as HxCombine, Package as HxPackage, TrendingUp as HxTrendingUp, Zap as HxZap } from 'lucide-react';
 
@@ -679,14 +681,19 @@ const PrevisaoTab: React.FC<{ marketId: string }> = ({ marketId }) => {
    PÁGINA PRINCIPAL — CATÁLOGO
 ════════════════════════════════════════════════════════════ */
 
-type ProductsTab = 'desempenho' | 'combos' | 'previsao';
+type ProductsTab = 'atencao' | 'desempenho' | 'combos' | 'previsao';
 
 const Products: React.FC = () => {
   const { marketId } = useAuth();
-  const [tab, setTab] = useState<ProductsTab>('desempenho');
+  const [tab, setTab] = useState<ProductsTab>('atencao');
+  const { dashboard } = useMarketData();
+  const attention = useMemo(() => attentionList(dashboard), [dashboard]);
+  const low = attention.filter((a) => a.why === 'acabando').length;
+  const down = attention.filter((a) => a.why === 'caindo').length;
 
-  const TABS: Array<{ key: ProductsTab; label: string; icon: React.ReactNode }> = [
-    { key: 'desempenho', label: 'Desempenho', icon: <TrendingUp className="h-4 w-4" /> },
+  const TABS: Array<{ key: ProductsTab; label: string; icon: React.ReactNode; badge?: number }> = [
+    { key: 'atencao', label: 'Pedem atenção', icon: <AlertTriangle className="h-4 w-4" />, badge: attention.length || undefined },
+    { key: 'desempenho', label: 'Todos os produtos', icon: <TrendingUp className="h-4 w-4" /> },
     { key: 'combos', label: 'Combos', icon: <ShoppingCart className="h-4 w-4" /> },
     { key: 'previsao', label: 'Previsão', icon: <Zap className="h-4 w-4" /> },
   ];
@@ -694,10 +701,18 @@ const Products: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Entenda cada produto. <mark>Decida o próximo passo.</mark></>} subtitle="Desempenho, combos e previsão de demanda de tudo o que a loja vende." side={<ActionHub icon={HxPackage} actions={[{ label: 'Ver desempenho', icon: HxTrendingUp, onClick: () => setTab('desempenho') }, { label: 'Explorar combos', icon: HxCombine, onClick: () => setTab('combos') }, { label: 'Prever a demanda', icon: HxZap, onClick: () => setTab('previsao') }]} />} />
+        <PageHero
+          title={tab === 'atencao' && attention.length > 0
+            ? <>Entenda cada produto. <mark>{attention.length} {attention.length === 1 ? 'pede' : 'pedem'} atenção.</mark></>
+            : <>Entenda cada produto. <mark>Decida o próximo passo.</mark></>}
+          subtitle={tab === 'atencao' && attention.length > 0
+            ? [low ? `${low} acabando` : '', down ? `${down} vendendo menos` : '', 'um de cada vez, com o motivo e o que fazer'].filter(Boolean).join(' · ')
+            : 'Desempenho, combos e previsão de demanda de tudo o que a loja vende.'}
+          side={<ActionHub icon={HxPackage} actions={[{ label: 'Ver desempenho', icon: HxTrendingUp, onClick: () => setTab('desempenho') }, { label: 'Explorar combos', icon: HxCombine, onClick: () => setTab('combos') }, { label: 'Prever a demanda', icon: HxZap, onClick: () => setTab('previsao') }]} />} />
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 
+        {tab === 'atencao' && <ProductAttention items={attention} />}
         {tab === 'desempenho' && <DesempenhoTab />}
         {tab === 'combos' && marketId && <CombosTab marketId={marketId} />}
         {tab === 'previsao' && marketId && <PrevisaoTab marketId={marketId} />}

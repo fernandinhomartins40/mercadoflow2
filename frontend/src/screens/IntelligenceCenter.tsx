@@ -8,7 +8,9 @@ import { Section, Empty, StatGrid, Stat } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import DecisionFeedback from '../components/intelligence/DecisionFeedback';
 import useRecommendationDecision from '../hooks/useRecommendationDecision';
-import RecommendationCard, { ACTION_LABEL } from '../components/intelligence/RecommendationCard';
+import { ACTION_LABEL, goesToOrder } from '../components/intelligence/RecommendationCard';
+import RecommendationDesk from '../components/intelligence/RecommendationDesk';
+import { Forest, PanelTitle, Thumb } from '../components/flow/Flow';
 import { marketService } from '../services/market.service';
 import { aiCreditsService } from '../services/aiPlatform.service';
 import { formatDecimal } from '../utils/formatters';
@@ -272,6 +274,8 @@ const IntelligenceCenter: React.FC = () => {
   const [detecting, setDetecting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('recomendacoes');
+  const [selRec, setSelRec] = useState<string | null>(null);
+  const [selOpp, setSelOpp] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!marketId) return;
@@ -349,6 +353,9 @@ const IntelligenceCenter: React.FC = () => {
     [history],
   );
 
+  const currentRec = recommendations.find((r) => r.id === selRec) ?? recommendations[0] ?? null;
+  const currentOpp = opportunities.find((o) => o.id === selOpp) ?? opportunities[0] ?? null;
+
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'recomendacoes', label: 'O que fazer', count: recommendations.length },
     { key: 'oportunidades', label: 'O que está acontecendo', count: opportunities.length },
@@ -360,8 +367,10 @@ const IntelligenceCenter: React.FC = () => {
   return (
     <Layout>
       <PageHeader
-        title={<>Tudo o que a análise <mark>encontrou.</mark></>}
-        subtitle="A lista completa do que a análise encontrou, com o histórico e o resultado do que você decidiu."
+        title={recommendations.length > 0
+          ? <>{recommendations.length === 1 ? 'Uma decisão espera' : `${fmt.int(recommendations.length)} decisões esperam`} você. <mark>{fmt.money(totalImpact)} em jogo.</mark></>
+          : <>Nada esperando você. <mark>Tudo decidido.</mark></>}
+        subtitle={`${fmt.int(opportunities.length)} ${opportunities.length === 1 ? 'assunto aberto' : 'assuntos abertos'} · ${fmt.int(accepted)} ${accepted === 1 ? 'decisão tomada' : 'decisões tomadas'}. Uma de cada vez: veja o porquê e decida.`}
         actions={
           <button
             type="button"
@@ -377,17 +386,6 @@ const IntelligenceCenter: React.FC = () => {
       />
 
       <div className="flex flex-col gap-6">
-        <StatGrid>
-          <Stat label="Aguardando sua decisão" value={fmt.int(recommendations.length)} />
-          <Stat
-            label="Impacto estimado"
-            value={fmt.money(totalImpact)}
-            sub="Soma das recomendações pendentes"
-          />
-          <Stat label="Oportunidades abertas" value={fmt.int(opportunities.length)} />
-          <Stat label="Decisões tomadas" value={fmt.int(accepted)} sub={`${history.length} no total`} />
-        </StatGrid>
-
         <SegmentedTabs
           tabs={tabs.map((t) => ({ key: t.key, label: `${t.label} (${t.count})` }))}
           value={tab}
@@ -422,15 +420,28 @@ const IntelligenceCenter: React.FC = () => {
                 com os dados mais recentes.
               </Empty>
             ) : (
-              <div className="flex flex-col gap-3">
-                {recommendations.map((r) => (
-                  <RecommendationCard
-                    key={r.id}
-                    rec={r}
-                    onDecide={handleDecide}
-                    deciding={deciding === r.id}
-                  />
-                ))}
+              <div className="fx-split">
+                <ul className="fx-card fx-card-pad fx-stack" style={{ listStyle: 'none', margin: 0, gap: 8 }} aria-label="Decisões pendentes">
+                  {recommendations.map((r) => {
+                    const on = (currentRec?.id ?? '') === r.id;
+                    return (
+                      <li key={r.id}>
+                        <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => setSelRec(r.id)}>
+                          <Thumb name={r.productName || r.title} src={r.productImage} size={46} />
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                              <b style={{ fontSize: 15.5 }}>{ACTION_LABEL[r.actionType] || r.actionType}</b>
+                              {goesToOrder(r) && <span className="fx-chip lime">vai ao pedido</span>}
+                            </span>
+                            <span className="fx-muted" style={{ display: 'block', fontSize: 14 }}>{r.title}</span>
+                          </span>
+                          {r.expectedImpactValue ? <b className="fx-num" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>{fmt.money(r.expectedImpactValue)}</b> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {currentRec && <RecommendationDesk key={currentRec.id} rec={currentRec} deciding={deciding === currentRec.id} onDecide={handleDecide} />}
               </div>
             )}
           </Section>
@@ -450,10 +461,33 @@ const IntelligenceCenter: React.FC = () => {
                 ainda não há vendas suficientes registradas para gerar análise.
               </Empty>
             ) : (
-              <div className="flex flex-col gap-3">
-                {opportunities.map((o) => (
-                  <OpportunityCard key={o.id} opp={o} onDismiss={handleDismiss} />
-                ))}
+              <div className="fx-split">
+                <ul className="fx-card fx-card-pad fx-stack" style={{ listStyle: 'none', margin: 0, gap: 8 }} aria-label="Assuntos abertos">
+                  {opportunities.map((o) => {
+                    const on = (currentOpp?.id ?? '') === o.id;
+                    const Icon = typeConfig(o.type).icon;
+                    return (
+                      <li key={o.id}>
+                        <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => setSelOpp(o.id)}>
+                          <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Icon aria-hidden="true" /></span>
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <b style={{ display: 'block', fontSize: 15.5 }}>{o.title}</b>
+                            <span className="fx-muted" style={{ fontSize: 13.5 }}>{typeConfig(o.type).label}</span>
+                          </span>
+                          {o.expectedImpactValue ? <b className="fx-num" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>{fmt.money(o.expectedImpactValue)}</b> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {currentOpp && (
+                  <Forest as="aside" aria-label="Assunto aberto">
+                    <PanelTitle icon={typeConfig(currentOpp.type).icon} title="Por trás do assunto" sub="O que a análise viu e o porquê" />
+                    <div style={{ marginTop: 18 }}>
+                      <OpportunityCard key={currentOpp.id} opp={currentOpp} onDismiss={handleDismiss} />
+                    </div>
+                  </Forest>
+                )}
               </div>
             )}
 

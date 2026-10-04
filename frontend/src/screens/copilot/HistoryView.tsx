@@ -6,21 +6,21 @@ import { copilotAgentsService, type CopilotDecision } from '../../services/aiPla
 import { agentOf, apiError, valueOf, when } from './shared';
 
 /**
- * Histórico: a memória da loja. Cada decisão com quem decidiu (você ou o Jev)
+ * Histórico: a memória da loja. Cada decisão com quem decidiu (você ou o Tino)
  * e, ao lado, o rastro dela: a sugestão, a resposta e o que aconteceu.
  */
 
 type Filter = 'tudo' | 'aprovadas' | 'sozinho' | 'recusadas' | 'silenciadas';
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'tudo', label: 'Tudo' }, { key: 'aprovadas', label: 'Aprovadas' }, { key: 'sozinho', label: 'Feitas sozinho' },
-  { key: 'recusadas', label: 'Recusadas' }, { key: 'silenciadas', label: 'Silenciadas pelo Jev' },
+  { key: 'recusadas', label: 'Recusadas' }, { key: 'silenciadas', label: 'Silenciadas pelo Tino' },
 ];
 
 const statusChip = (d: CopilotDecision) => {
-  if (d.autoExecuted) return <Chip tone="green" icon={Sparkles}>Feita pelo Jev</Chip>;
+  if (d.autoExecuted) return <Chip tone="green" icon={Sparkles}>Feita pelo Tino</Chip>;
   if (d.status === 'APROVADA') return <Chip tone="green" icon={User}>Aprovada por você</Chip>;
   if (d.status === 'RECUSADA') return <Chip tone="gray" icon={User}>Recusada por você</Chip>;
-  if (d.status === 'SILENCIADA') return <Chip tone="gray" icon={Sparkles}>Silenciada pelo Jev</Chip>;
+  if (d.status === 'SILENCIADA') return <Chip tone="gray" icon={Sparkles}>Silenciada pelo Tino</Chip>;
   if (d.status === 'DESFEITA') return <Chip tone="gray" icon={Undo2}>Desfeita</Chip>;
   if (d.status === 'EXPIRADA') return <Chip tone="gray">Expirou</Chip>;
   return <Chip tone="gray">{d.status}</Chip>;
@@ -30,7 +30,7 @@ const subline = (d: CopilotDecision) => {
   if (d.status === 'RECUSADA' && d.decisionNote) return `"${d.decisionNote}"`;
   if (d.status === 'SILENCIADA') {
     const p = d.funnel?.probabilidadeVale;
-    return `O Jev julgou que não valia avisar${p != null ? ` · ${Math.round((1 - p) * 100)}%` : ''}.`;
+    return `O Tino julgou que não valia avisar${p != null ? ` · ${Math.round((1 - p) * 100)}%` : ''}.`;
   }
   if (d.autoExecuted) return 'Executada dentro dos limites que você definiu.';
   if (d.result?.noPedido != null) return `${d.result.noPedido} item(ns) foram para o rascunho de pedido.`;
@@ -64,7 +64,7 @@ const HistoryView: React.FC<{ marketId: string; decisions: CopilotDecision[]; on
   return (
     <div className="fx-split wide-left">
       <Card>
-        <PanelTitle icon={History} title="Memória da loja" sub="Todas as decisões, ações e alertas do Jev na sua loja." />
+        <PanelTitle icon={History} title="Memória da loja" sub="Todas as decisões, ações e alertas do Tino na sua loja." />
         <div className="fx-filters" role="group" aria-label="Filtrar">
           {FILTERS.map((f) => <button key={f.key} type="button" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>)}
         </div>
@@ -115,7 +115,7 @@ const HistoryView: React.FC<{ marketId: string; decisions: CopilotDecision[]; on
               <li>
                 <span className={`dot ${sel.status === 'PENDENTE' ? 'off' : ''}`}>{sel.status === 'RECUSADA' ? <XCircle size={18} /> : sel.autoExecuted ? <Sparkles size={18} /> : <User size={18} />}</span>
                 <span>
-                  <b>{sel.autoExecuted ? 'Feita pelo Jev' : sel.status === 'RECUSADA' ? 'Sua recusa registrada' : sel.status === 'SILENCIADA' ? 'Silenciada pelo Jev' : 'Sua aprovação registrada'}</b>
+                  <b>{sel.autoExecuted ? 'Feita pelo Tino' : sel.status === 'RECUSADA' ? 'Sua recusa registrada' : sel.status === 'SILENCIADA' ? 'Silenciada pelo Tino' : 'Sua aprovação registrada'}</b>
                   <span>{sel.autoExecuted ? 'Dentro dos limites que você definiu.' : sel.status === 'RECUSADA' ? (sel.decisionNote ? `Motivo: ${sel.decisionNote}` : 'Sem motivo informado.') : sel.status === 'SILENCIADA' ? 'Não valia um aviso; fica aqui para você conferir.' : `Por ${sel.decidedBy ?? 'você'}.`}</span>
                 </span>
                 <time>{when(sel.decidedAt)}</time>

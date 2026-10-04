@@ -77,7 +77,7 @@ const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; platfo
           {form.level === 3 && (
             <fieldset className="fx-stack" style={{ gap: 10, border: '1px solid var(--fx-line)', borderRadius: 14, padding: 12 }}>
               <legend style={{ fontWeight: 700, padding: '0 4px' }}>Limites para fazer sozinho</legend>
-              <p className="fx-muted" style={{ margin: 0, fontSize: 13.5 }}>O Jev monta o rascunho de pedido sozinho e te avisa. Nada é enviado ao fornecedor. Dá para desfazer em 24 horas ou pausar tudo.</p>
+              <p className="fx-muted" style={{ margin: 0, fontSize: 13.5 }}>O Tino monta o rascunho de pedido sozinho e te avisa. Nada é enviado ao fornecedor. Dá para desfazer em 24 horas ou pausar tudo.</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <label className="fx-field">Teto por pedido (R$)
                   <input type="number" min={1} step={50} value={cap} onChange={(e) => setCap(e.target.value)} />

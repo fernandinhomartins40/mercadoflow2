@@ -27,7 +27,7 @@ export interface HubAction {
 }
 
 /** Nó verde-limão ligado por linhas curvas às ações da tela (até 3). */
-export const ActionHub: React.FC<{ icon: LucideIcon; actions: HubAction[]; label?: string; onForest?: boolean }> = ({ icon: Icon, actions, label, onForest }) => {
+export const ActionHub: React.FC<{ icon: React.ElementType; actions: HubAction[]; label?: string; onForest?: boolean }> = ({ icon: Icon, actions, label, onForest }) => {
   const list = actions.slice(0, 3);
   const row = 64;
   const h = list.length * row - 12;
@@ -65,7 +65,7 @@ export const Forest: React.FC<React.HTMLAttributes<HTMLElement> & { as?: 'sectio
 export const Card: React.FC<React.HTMLAttributes<HTMLElement> & { as?: 'section' | 'div' | 'article'; pad?: boolean }> = ({ as = 'section', pad = true, className = '', children, ...rest }) =>
   React.createElement(as, { className: `fx-card ${pad ? 'fx-card-pad' : ''} ${className}`, ...rest }, children);
 
-export const PanelTitle: React.FC<{ icon?: LucideIcon; title: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode }> = ({ icon: Icon, title, sub, right }) => (
+export const PanelTitle: React.FC<{ icon?: React.ElementType; title: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode }> = ({ icon: Icon, title, sub, right }) => (
   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, justifyContent: 'space-between', flexWrap: 'wrap' }}>
     <div style={{ display: 'flex', gap: 14, alignItems: 'center', minWidth: 0 }}>
       {Icon && <span className="fx-icon-tile"><Icon aria-hidden="true" /></span>}

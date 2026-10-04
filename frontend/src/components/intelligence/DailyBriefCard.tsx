@@ -63,7 +63,7 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
     else setHeard(`Não entendi "${text}". Diga "detalhe", "depois", "repete" ou faça uma pergunta.`);
   };
 
-  // Responder falando: a lista fixa resolve no aparelho; só o que ela não reconhece vai ao Jev.
+  // Responder falando: a lista fixa resolve no aparelho; só o que ela não reconhece vai ao Tino.
   const voice = useVoice({
     marketId,
     onText: async (text) => {
@@ -114,7 +114,7 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
           <span className={`fx-brief-orb ${speaking ? 'on' : ''}`} aria-hidden="true"><Sparkles /></span>
           <div style={{ minWidth: 0 }}>
             <h2 id="resumo-do-dia-titulo" className="fx-panel-title">Resumo do dia</h2>
-            <p className="fx-panel-sub">{greeting} O Jev leu as vendas e as decisões da loja.</p>
+            <p className="fx-panel-sub">{greeting} O Tino leu as vendas e as decisões da loja.</p>
           </div>
         </div>
         <div className="fx-brief-tools">
@@ -182,7 +182,7 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
                     <span>{t.titulo}{t.impacto ? <small>{brl(Number(t.impacto))} em jogo</small> : null}</span>
                     <ChevronRight aria-hidden="true" />
                   </Link>
-                  <button type="button" className="fx-brief-ask" onClick={() => ask(`O que fazer com: ${t.titulo}?`)} aria-label={`Perguntar ao Jev sobre ${t.titulo}`} title="Perguntar ao Jev">
+                  <button type="button" className="fx-brief-ask" onClick={() => ask(`O que fazer com: ${t.titulo}?`)} aria-label={`Perguntar ao Tino sobre ${t.titulo}`} title="Perguntar ao Tino">
                     <MessageCircleQuestion aria-hidden="true" />
                   </button>
                 </li>

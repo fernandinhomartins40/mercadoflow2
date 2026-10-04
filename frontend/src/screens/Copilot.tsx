@@ -13,25 +13,25 @@ import { agentOf, ago, valueOf } from './copilot/shared';
  * Mesa do Copiloto: as decisões que os agentes deixaram prontas, uma aberta
  * por vez para ajustar e decidir; o Histórico com o rastro de cada uma; e o
  * painel "Como ele trabalha". Nada acontece sem o sim do lojista (ou dentro
- * dos limites que ele deu para o Jev agir sozinho).
+ * dos limites que ele deu para o Tino agir sozinho).
  */
 
 type View = 'decidir' | 'historico';
 
 const EXPLAIN: Record<string, { title: string; text: string }[]> = {
   RECEBIMENTO: [
-    { title: 'Jev conferiu a nota', text: 'Identificou o que faltou e preparou as opções.' },
+    { title: 'Tino conferiu a nota', text: 'Identificou o que faltou e preparou as opções.' },
     { title: 'Você escolhe a solução', text: 'Revise e ajuste a mensagem se quiser.' },
     { title: 'Envio após sua aprovação', text: 'A mensagem sai pronta no WhatsApp.' },
   ],
   COMPRAS: [
-    { title: 'Jev calculou o pedido', text: 'Pela venda das últimas semanas e pelo estoque.' },
+    { title: 'Tino calculou o pedido', text: 'Pela venda das últimas semanas e pelo estoque.' },
     { title: 'Você ajusta', text: 'O que você corta, ele aprende para a próxima.' },
     { title: 'Vai para o rascunho', text: 'Nada é enviado ao fornecedor sem você revisar.' },
   ],
   DEFAULT: [
     { title: 'Você decide', text: 'Aprove, recuse ou ajuste as sugestões.' },
-    { title: 'Jev executa dentro das permissões', text: 'Ações automáticas seguem as suas regras.' },
+    { title: 'Tino executa dentro das permissões', text: 'Ações automáticas seguem as suas regras.' },
     { title: 'Tudo fica registrado', text: 'Você sempre pode rever no Histórico.' },
   ],
 };
@@ -155,7 +155,7 @@ const Copilot: React.FC = () => {
           side={side}
         />
       ) : (
-        <PageHero title={<>Cada decisão deixa um <mark>rastro.</mark></>} subtitle="Veja o que você aprovou, o que o Jev executou e por quê." side={side} />
+        <PageHero title={<>Cada decisão deixa um <mark>rastro.</mark></>} subtitle="Veja o que você aprovou, o que o Tino executou e por quê." side={side} />
       )}
       {note && <p role="status" className="fx-muted" style={{ margin: 0 }}>{note}</p>}
 

@@ -9,7 +9,7 @@ import { AGENT, REASONS, agentOf, apiError, certainty, when } from './shared';
 
 /**
  * A decisão aberta, como mesa de trabalho: etapas, itens editáveis (quantidade,
- * escolha, desconto, preço), a mensagem que o Jev preparou e o impacto. O que
+ * escolha, desconto, preço), a mensagem que o Tino preparou e o impacto. O que
  * o lojista muda vai junto na aprovação.
  */
 
@@ -17,10 +17,10 @@ type Choice = 'repor' | 'abater' | 'ignorar';
 
 const STEPS: Record<string, [string, string, string, string, string, string]> = {
   RECEBIMENTO: ['Conferido', '', 'Escolher solução', 'Defina o que pedir ao fornecedor', 'Enviar ao fornecedor', 'Mensagem enviada após sua aprovação'],
-  COMPRAS: ['Jev calculou', 'Pela venda e pelo estoque', 'Ajustar o pedido', 'Mude quantidades ou tire itens', 'Rascunho do pedido', 'Nada é enviado sem você revisar'],
-  CAPITAL: ['Jev encontrou', 'Estoque que não gira', 'Escolher o que liquidar', 'Marque e ajuste o preço', 'Preço no caixa', 'Medido em 30 dias'],
-  PROMOCOES: ['Jev sugeriu', 'Pela margem e pela cesta', 'Ajustar o desconto', 'Veja preço e impacto', 'Encarte', 'Você revisa e publica'],
-  PRECO: ['Jev comparou', 'Com o preço da região', 'Ajustar o preço', 'Defina o preço novo', 'Preço no caixa', 'Medido em 30 dias'],
+  COMPRAS: ['Tino calculou', 'Pela venda e pelo estoque', 'Ajustar o pedido', 'Mude quantidades ou tire itens', 'Rascunho do pedido', 'Nada é enviado sem você revisar'],
+  CAPITAL: ['Tino encontrou', 'Estoque que não gira', 'Escolher o que liquidar', 'Marque e ajuste o preço', 'Preço no caixa', 'Medido em 30 dias'],
+  PROMOCOES: ['Tino sugeriu', 'Pela margem e pela cesta', 'Ajustar o desconto', 'Veja preço e impacto', 'Encarte', 'Você revisa e publica'],
+  PRECO: ['Tino comparou', 'Com o preço da região', 'Ajustar o preço', 'Defina o preço novo', 'Preço no caixa', 'Medido em 30 dias'],
 };
 
 const STAT_LABEL: Record<string, [string, string]> = {
@@ -210,7 +210,7 @@ const DecisionDesk: React.FC<{
               <h2>{agent.action}</h2>
               {d.urgent && pending && <Chip tone="red">Urgente</Chip>}
               {cert && <Chip tone="ghost">{cert}</Chip>}
-              {d.autoExecuted && <Chip tone="lime" icon={Sparkles}>Feito pelo Jev</Chip>}
+              {d.autoExecuted && <Chip tone="lime" icon={Sparkles}>Feito pelo Tino</Chip>}
             </div>
             <p className="fx-desk-meta">{meta}</p>
           </div>
@@ -229,7 +229,7 @@ const DecisionDesk: React.FC<{
       {!data ? <Loader2 className="animate-spin" style={{ margin: '24px auto', display: 'block' }} aria-label="Carregando" /> : view.status !== 'PENDENTE' && view.status !== 'INFORMATIVA' ? (
         <div className="fx-done">
           <span className="ok">{view.status === 'RECUSADA' ? <X size={30} /> : view.status === 'DESFEITA' ? <Undo2 size={28} /> : <Check size={30} />}</span>
-          <h3>{view.status === 'RECUSADA' ? 'Recusada' : view.status === 'DESFEITA' ? 'Desfeita' : view.autoExecuted ? 'Feito pelo Jev' : 'Aprovada'}</h3>
+          <h3>{view.status === 'RECUSADA' ? 'Recusada' : view.status === 'DESFEITA' ? 'Desfeita' : view.autoExecuted ? 'Feito pelo Tino' : 'Aprovada'}</h3>
           <p>
             {view.status === 'RECUSADA' && `${view.decisionNote ? `Motivo: ${view.decisionNote}. ` : ''}O agente não volta a propor isso nos próximos 14 dias.`}
             {view.status === 'DESFEITA' && 'As sugestões voltaram para a caixa e os itens saíram do rascunho.'}
@@ -293,7 +293,7 @@ const DecisionDesk: React.FC<{
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                     <span style={{ display: 'flex', gap: 12 }}>
                       <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><MessageSquare aria-hidden="true" /></span>
-                      <span><h3>Mensagem preparada pelo Jev</h3><small>Como será enviada ao fornecedor (pode editar)</small></span>
+                      <span><h3>Mensagem preparada pelo Tino</h3><small>Como será enviada ao fornecedor (pode editar)</small></span>
                     </span>
                     <span className="fx-muted" style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 14 }}><Pencil size={15} />Editar mensagem</span>
                   </div>
@@ -305,7 +305,7 @@ const DecisionDesk: React.FC<{
               ) : null}
               {refusing ? (
                 <div className="fx-stack" style={{ gap: 10 }}>
-                  <b>Por que não? O Jev aprende com a sua resposta.</b>
+                  <b>Por que não? O Tino aprende com a sua resposta.</b>
                   <div className="fx-actions">
                     {REASONS.map((r) => <button key={r} type="button" className="fx-btn ghost small" disabled={!!busy} onClick={() => refuse(r)}>{r}</button>)}
                   </div>
@@ -346,7 +346,7 @@ const DecisionDesk: React.FC<{
               </button>
             </div>
           </div>
-          {why && <div className="fx-white" style={{ marginTop: 12, lineHeight: 1.55 }}><b style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Sparkles size={16} />Por que o Jev sugeriu isso</b><p style={{ margin: '6px 0 0' }}>{why}</p></div>}
+          {why && <div className="fx-white" style={{ marginTop: 12, lineHeight: 1.55 }}><b style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Sparkles size={16} />Por que o Tino sugeriu isso</b><p style={{ margin: '6px 0 0' }}>{why}</p></div>}
         </>
       )}
     </div>
@@ -355,17 +355,17 @@ const DecisionDesk: React.FC<{
 
 function closing(agent: string) {
   if (agent === 'COMPRAS') return 'Os itens vão para o rascunho de pedido de cada fornecedor. Nada é enviado sem você revisar.';
-  if (agent === 'CAPITAL') return 'O Jev registra a liquidação e mede em 30 dias se o dinheiro voltou. O preço você muda no caixa.';
-  if (agent === 'PROMOCOES') return 'O Jev monta o rascunho do encarte no Estúdio com esses preços. Você revisa e publica.';
-  return 'Ao aprovar, o Jev registra a decisão e mede o resultado.';
+  if (agent === 'CAPITAL') return 'O Tino registra a liquidação e mede em 30 dias se o dinheiro voltou. O preço você muda no caixa.';
+  if (agent === 'PROMOCOES') return 'O Tino monta o rascunho do encarte no Estúdio com esses preços. Você revisa e publica.';
+  return 'Ao aprovar, o Tino registra a decisão e mede o resultado.';
 }
 
 function impactText(agent: string) {
-  if (agent === 'RECEBIMENTO') return 'Recuperação solicitada ao fornecedor. Depois do envio, o Jev acompanha a resposta.';
+  if (agent === 'RECEBIMENTO') return 'Recuperação solicitada ao fornecedor. Depois do envio, o Tino acompanha a resposta.';
   if (agent === 'COMPRAS') return 'Valor do pedido com as quantidades que você deixou.';
   if (agent === 'CAPITAL') return 'Dinheiro parado nos produtos marcados.';
   if (agent === 'PROMOCOES') return 'Preço final dos produtos no encarte.';
-  return 'Estimativa do Jev para esta decisão.';
+  return 'Estimativa do Tino para esta decisão.';
 }
 
 const RecommendationItems: React.FC<{
@@ -418,7 +418,7 @@ const RecommendationItems: React.FC<{
 
       {reduce.length > 0 && (
         <div className="fx-stack" style={{ gap: 8 }}>
-          <div className="fx-group-head"><b>Comprar menos na próxima</b><span>o Jev viu sobra</span></div>
+          <div className="fx-group-head"><b>Comprar menos na próxima</b><span>o Tino viu sobra</span></div>
           <div className="fx-items">
             {reduce.map((i) => (
               <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`} style={{ gridTemplateColumns: 'auto minmax(0,1fr) auto' }}>

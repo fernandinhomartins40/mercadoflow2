@@ -12,7 +12,7 @@ import { formatMoney } from '../../utils/formatters';
 import type { RecommendationItem, ShoppingListItem, SupplierOrder } from '../../types/analytics.types';
 
 /**
- * Mesa de compras: à esquerda, só o que pede uma ação hoje (sugestões do Jev,
+ * Mesa de compras: à esquerda, só o que pede uma ação hoje (sugestões do Tino,
  * pedidos para enviar, entregas a caminho, lista sem pedido); à direita, o item
  * escolhido aberto no painel floresta, com as etapas e o botão de decidir.
  */
@@ -35,7 +35,7 @@ export const buyHeadline = (drafts: SupplierOrder[], suggestions: Recommendation
     const total = drafts.reduce((a, o) => a + Number(o.totalValue || 0), 0);
     return { lead: 'Compre com contexto.', mark: `${drafts.length} ${drafts.length === 1 ? 'pedido pronto' : 'pedidos prontos'} · ${formatMoney(total)}` };
   }
-  if (suggestions.length) return { lead: 'Compre com contexto.', mark: `O Jev sugere ${suggestions.length} ${suggestions.length === 1 ? 'compra' : 'compras'}.` };
+  if (suggestions.length) return { lead: 'Compre com contexto.', mark: `O Tino sugere ${suggestions.length} ${suggestions.length === 1 ? 'compra' : 'compras'}.` };
   if (sent.length) return { lead: 'Tudo enviado.', mark: `${sent.length} ${sent.length === 1 ? 'entrega a caminho' : 'entregas a caminho'}.` };
   return { lead: 'Nada para comprar', mark: 'agora.' };
 };
@@ -75,7 +75,7 @@ const BuyDesk: React.FC<{
         <span className="fx-brief-orb" style={{ margin: '0 auto' }} aria-hidden="true"><Check /></span>
         <h2 className="fx-panel-title" style={{ marginTop: 14 }}>Nada esperando você em Comprar</h2>
         <p className="fx-panel-sub" style={{ maxWidth: 520, margin: '6px auto 0' }}>
-          Quando o Jev ver um produto acabando, a sugestão aparece aqui pronta para ir ao pedido. Você também pode montar um pedido agora.
+          Quando o Tino ver um produto acabando, a sugestão aparece aqui pronta para ir ao pedido. Você também pode montar um pedido agora.
         </p>
       </Forest>
     );
@@ -94,7 +94,7 @@ const BuyDesk: React.FC<{
             let value: number | null = null;
             let chip: React.ReactNode = null;
             if (e.kind === 'sugestoes') {
-              title = `O Jev sugere ${suggestions.length} ${suggestions.length === 1 ? 'compra' : 'compras'}`;
+              title = `O Tino sugere ${suggestions.length} ${suggestions.length === 1 ? 'compra' : 'compras'}`;
               sub = 'Pelo que vende e pelo que está acabando';
               value = sugImpact || null;
               chip = <Chip tone="lime">Novo</Chip>;
@@ -148,7 +148,7 @@ const BuyDesk: React.FC<{
   );
 };
 
-/* ── Sugestões do Jev: marcar e pôr no pedido ── */
+/* ── Sugestões do Tino: marcar e pôr no pedido ── */
 const SuggestionsPanel: React.FC<{ marketId: string; suggestions: RecommendationItem[]; onChanged: () => Promise<void> }> = ({ marketId, suggestions, onChanged }) => {
   const { deciding, feedback, setFeedback, error, decide } = useRecommendationDecision(marketId, suggestions, onChanged);
   const [off, setOff] = useState<Set<string>>(new Set());
@@ -164,10 +164,10 @@ const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recommendation
 
   return (
     <Forest as="aside" aria-label="Sugestões de compra">
-      <PanelTitle icon={Sparkles} title="Antes de comprar" sub="O Jev olhou a venda das últimas semanas e o que está acabando" />
+      <PanelTitle icon={Sparkles} title="Antes de comprar" sub="O Tino olhou a venda das últimas semanas e o que está acabando" />
       <div className="fx-desk-steps" style={{ marginTop: 18 }}>
         <StepTrack steps={[
-          { label: 'Jev calculou', hint: 'Venda e estoque', state: 'done' },
+          { label: 'Tino calculou', hint: 'Venda e estoque', state: 'done' },
           { label: 'Você escolhe', hint: 'Tire o que não quer', state: 'now' },
           { label: 'Vai ao pedido', hint: 'Do fornecedor de sempre', state: 'next' },
         ]} />
@@ -274,7 +274,7 @@ const OrderPanel: React.FC<{
       </div>
       <div className="fx-desk-steps">
         <StepTrack steps={draft ? [
-          { label: 'Montado', hint: 'Pelo Jev ou por você', state: 'done' },
+          { label: 'Montado', hint: 'Pelo Tino ou por você', state: 'done' },
           { label: 'Revisar', hint: 'Quantidades e custo', state: 'now' },
           { label: 'Enviar ao fornecedor', hint: 'WhatsApp, e-mail ou PDF', state: 'next' },
         ] : [
@@ -351,7 +351,7 @@ const ListPanel: React.FC<{ items: ShoppingListItem[]; onOrder: (ids: string[]) 
   const chosen = items.filter((i) => !off.has(i.id));
   return (
     <Forest as="aside" aria-label="Lista de compras">
-      <PanelTitle icon={ListChecks} title="Na lista, sem pedido" sub="Produtos que você ou o Jev anotaram para comprar" />
+      <PanelTitle icon={ListChecks} title="Na lista, sem pedido" sub="Produtos que você ou o Tino anotaram para comprar" />
       <div className="fx-items" role="list" aria-label="Produtos da lista" style={{ marginTop: 18 }}>
         {items.slice(0, 12).map((i) => (
           <div key={i.id} role="listitem" className={`fx-item with-check ${off.has(i.id) ? 'off' : ''}`}>

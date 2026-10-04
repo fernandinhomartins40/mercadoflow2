@@ -10,7 +10,9 @@ import {
 import {
   Users, Repeat, Download, Loader2, Lock, FileSpreadsheet,
 } from 'lucide-react';
-import { ActionHub, PageHero, PanelTitle } from '../components/flow/Flow';
+import { ActionHub, Card, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
+import { useShoppingList } from '../hooks/useShoppingList';
+import { History as HxHistory, ListChecks as HxListChecks, Plus as HxPlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { MessageCircleQuestion as HxMessageCircleQuestion, Tag as HxTag, Users as HxUsers } from 'lucide-react';
 
@@ -92,6 +94,14 @@ const CustomerIntelligence: React.FC = () => {
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [habId, setHabId] = useState<string | null>(null);
+  const { addItem, productIds } = useShoppingList();
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const inList = (id: string) => productIds.has(id) || added.has(id);
+  const putInList = async (productId: string, name: string) => {
+    await addItem({ productId, quantityTarget: 1, sourceTag: 'CLIENTES', reasonSummary: `${name} traz o cliente de volta: não deixar faltar.` });
+    setAdded((s) => new Set(s).add(productId));
+  };
 
   const load = useCallback(async () => {
     if (!marketId) return;
@@ -138,10 +148,20 @@ const CustomerIntelligence: React.FC = () => {
     );
   }
 
+  const hab = repurchase.find((r) => r.productId === habId) ?? repurchase[0] ?? null;
+  const share = overview?.recurringSharePercent;
+
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Quem volta é quem <mark>sustenta a loja.</mark></>} subtitle="Quem volta à loja, com que frequência e o que traz o cliente de volta." side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/promocoes' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
+        <PageHero
+          title={share != null && overview && overview.totalCustomers > 0
+            ? <>Quem volta sustenta a loja. <mark>{fmt.pct(share)} dos clientes voltam.</mark></>
+            : <>Quem volta é quem <mark>sustenta a loja.</mark></>}
+          subtitle={overview?.recurringAverageTicket != null
+            ? `Quem volta gasta ${fmt.money(overview.recurringAverageTicket)} por compra; quem veio uma vez, ${fmt.money(overview.singleAverageTicket)}.`
+            : 'Quem volta à loja, com que frequência e o que traz o cliente de volta.'}
+          side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/promocoes' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
 
         {locked ? (
           <PlanInvite
@@ -156,115 +176,75 @@ const CustomerIntelligence: React.FC = () => {
           />
         ) : (
           <>
-            <Section
-              icon={Users}
-              title="Sua base de clientes"
-              hint={note}
-            >
-              {!overview || overview.totalCustomers === 0 ? (
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Ainda não há clientes identificados. O CPF precisa ser informado na
-                  nota para o cliente entrar na análise.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    {[
-                      ['Clientes identificados', fmt.int(overview.totalCustomers)],
-                      ['Recorrentes', fmt.int(overview.recurringCustomers)],
-                      ['Compraram uma vez só', fmt.int(overview.singlePurchaseCustomers)],
-                      ['Volta a cada', fmt.days(overview.averageDaysBetweenPurchases)],
-                    ].map(([label, value]) => (
-                      <div key={label}>
-                        <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>
-                          {label}
-                        </p>
-                        <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* O contraste que justifica investir em recorrência. */}
-                  {overview.recurringAverageTicket != null && (
-                    <div className="flex flex-wrap gap-6 border-t pt-3"
-                      style={{ borderColor: 'var(--border-soft)' }}>
-                      <div>
-                        <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>
-                          Ticket de quem volta
-                        </p>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>
-                          {fmt.money(overview.recurringAverageTicket)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>
-                          Ticket de quem veio uma vez
-                        </p>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          {fmt.money(overview.singleAverageTicket)}
-                        </p>
-                      </div>
-                      {overview.recurringSharePercent != null && (
-                        <div>
-                          <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>
-                            Da base é recorrente
-                          </p>
-                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            {fmt.pct(overview.recurringSharePercent)}
-                          </p>
+            {!overview || overview.totalCustomers === 0 ? (
+              <Forest>
+                <PanelTitle icon={Users} title="Ainda não há clientes identificados" sub={note || 'O CPF precisa ser informado na nota para o cliente entrar na análise.'} />
+                <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Peça o CPF na nota: com ele, o Tino mostra quem volta, de quanto em quanto tempo e o que traz o cliente de volta.</p>
+              </Forest>
+            ) : (
+              <>
+                <div className="fx-kpis">
+                  <div className="fx-kpi"><span>Clientes identificados</span><b>{fmt.int(overview.totalCustomers)}</b>{note ? <small>{note}</small> : null}</div>
+                  <div className="fx-kpi"><span>Voltam sempre</span><b>{fmt.int(overview.recurringCustomers)}</b><small>{overview.recurringSharePercent != null ? `${fmt.pct(overview.recurringSharePercent)} da base` : ''}</small></div>
+                  <div className="fx-kpi"><span>Volta a cada</span><b>{fmt.days(overview.averageDaysBetweenPurchases)}</b></div>
+                  <div className="fx-kpi" style={{ background: 'var(--fx-lime-soft)', borderColor: 'var(--fx-lime-line)' }}><span>Ticket de quem volta</span><b>{fmt.money(overview.recurringAverageTicket)}</b><small>quem veio uma vez: {fmt.money(overview.singleAverageTicket)}</small></div>
+                </div>
+                {repurchase.length > 0 && hab && (
+                  <div className="fx-split">
+                    <Card as="section" aria-label="O que traz o cliente de volta">
+                      <PanelTitle icon={Repeat} title="O que traz o cliente de volta" sub="Produtos que criam hábito, da maior recompra para a menor" />
+                      <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
+                        {repurchase.map((r) => {
+                          const on = r.productId === hab.productId;
+                          return (
+                            <li key={r.productId}>
+                              <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined}
+                                onClick={() => {
+                                  setHabId(r.productId);
+                                  if (window.innerWidth < 1100) requestAnimationFrame(() => document.getElementById('habit-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                                }}>
+                                <Thumb name={r.name} src={r.imageUrl} size={46} />
+                                <span style={{ minWidth: 0, flex: 1 }}>
+                                  <b style={{ display: 'block', fontSize: 15.5 }}>{r.name}</b>
+                                  <span className="fx-muted" style={{ fontSize: 13 }}>{fmt.int(r.distinctCustomers)} clientes · volta a cada {fmt.days(r.averageDaysBetween)}</span>
+                                </span>
+                                <span className="fx-chip lime">{fmt.pct(r.repurchaseRate)}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Card>
+                    <div id="habit-panel" style={{ minWidth: 0, scrollMarginTop: 80 }}>
+                      <Forest as="aside" aria-label={`Hábito: ${hab.name}`}>
+                        <PanelTitle icon={Repeat} title="Por que ele traz o cliente" sub="Recompra de quem levou o produto" />
+                        <div className="flex items-center gap-4" style={{ marginTop: 20 }}>
+                          <Thumb name={hab.name} src={hab.imageUrl} size={84} />
+                          <h3 style={{ margin: 0, fontSize: 'clamp(20px, 2vw, 28px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.12 }}>{hab.name}</h3>
                         </div>
-                      )}
+                        <p className="fx-desk-lead">
+                          {fmt.int(hab.repurchasingCustomers)} de {fmt.int(hab.distinctCustomers)} clientes voltaram para levar de novo, em média a cada {fmt.days(hab.averageDaysBetween)}.
+                          {' '}É produto de hábito: não deixe faltar e use como chamariz nas ofertas.
+                        </p>
+                        <div className="fx-kpis" style={{ marginTop: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
+                          <div className="fx-kpi"><span>Recompra</span><b style={{ fontSize: 24 }}>{fmt.pct(hab.repurchaseRate)}</b></div>
+                          <div className="fx-kpi"><span>Clientes</span><b style={{ fontSize: 24 }}>{fmt.int(hab.distinctCustomers)}</b></div>
+                          <div className="fx-kpi"><span>Volta a cada</span><b style={{ fontSize: 24 }}>{fmt.days(hab.averageDaysBetween)}</b></div>
+                        </div>
+                        <div style={{ marginTop: 20 }}>
+                          <ActionHub icon={Repeat} onForest label="O que fazer com este produto" actions={[
+                            inList(hab.productId)
+                              ? { label: 'Já está na lista', icon: HxListChecks, to: '/app/lista-compras' }
+                              : { label: 'Não deixar faltar', icon: HxPlus, onClick: () => { void putInList(hab.productId, hab.name); } },
+                            { label: 'Usar como chamariz', icon: HxTag, to: '/app/promocoes' },
+                            { label: 'Ver histórico', icon: HxHistory, to: `/app/produtos/${hab.productId}` },
+                          ]} />
+                        </div>
+                      </Forest>
                     </div>
-                  )}
-                </div>
-              )}
-            </Section>
-
-            {repurchase.length > 0 && (
-              <Section
-                icon={Repeat}
-                title="O que traz o cliente de volta"
-                hint="Produtos com maior taxa de recompra — os que criam hábito"
-              >
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr style={{ color: 'var(--text-muted)' }}>
-                        <th className="pb-2 text-left font-medium">Produto</th>
-                        <th className="pb-2 text-right font-medium">Clientes</th>
-                        <th className="pb-2 text-right font-medium">Recompraram</th>
-                        <th className="pb-2 text-right font-medium">Taxa</th>
-                        <th className="pb-2 text-right font-medium">Intervalo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {repurchase.map(r => (
-                        <tr key={r.productId} className="border-t"
-                          style={{ borderColor: 'var(--border-soft)' }}>
-                          <td className="py-2.5" style={{ color: 'var(--text-primary)' }}>
-                            {r.name}
-                          </td>
-                          <td className="py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>
-                            {fmt.int(r.distinctCustomers)}
-                          </td>
-                          <td className="py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>
-                            {fmt.int(r.repurchasingCustomers)}
-                          </td>
-                          <td className="py-2.5 text-right font-semibold"
-                            style={{ color: 'var(--brand-700)' }}>
-                            {fmt.pct(r.repurchaseRate)}
-                          </td>
-                          <td className="py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>
-                            {fmt.days(r.averageDaysBetween)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Section>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

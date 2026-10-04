@@ -9,7 +9,7 @@ import {
 import {
   Store, ArrowRightLeft, Tag, TrendingUp, Loader2, CalendarDays, Sparkles, RefreshCw,
 } from 'lucide-react';
-import { ActionHub, PageHero, PanelTitle } from '../components/flow/Flow';
+import { ActionHub, Card, Forest, PageHero, PanelTitle } from '../components/flow/Flow';
 import type { LucideIcon } from 'lucide-react';
 import { CalendarDays as HxCalendarDays, MessageCircleQuestion as HxMessageCircleQuestion, Sparkles as HxSparkles } from 'lucide-react';
 
@@ -66,6 +66,7 @@ const NetworkView: React.FC = () => {
   const [digests, setDigests] = useState<WeeklyDigest[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [weekId, setWeekId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!marketId) return;
@@ -119,103 +120,79 @@ const NetworkView: React.FC = () => {
   }
 
   const latest = digests[0];
+  const week = digests.find((d) => d.id === weekId) ?? latest ?? null;
+  const pct = latest?.numeros?.variacaoPercent != null ? Number(latest.numeros.variacaoPercent) : null;
 
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Como foi a <mark>sua semana.</mark></>} subtitle="O resumo da semana e, com mais de uma loja, a comparação entre elas." side={<ActionHub icon={HxCalendarDays} actions={[{ label: 'Abrir o Copiloto', icon: HxSparkles, to: '/app/copiloto' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
+        <PageHero
+          title={latest ? <>Sua semana fechou em <mark>{fmt.money(latest.numeros?.faturamento)}{pct != null ? `, ${pct >= 0 ? '+' : ''}${pct}%.` : '.'}</mark></> : <>Como foi a <mark>sua semana.</mark></>}
+          subtitle="O resumo da semana e, com mais de uma loja, a comparação entre elas."
+          side={<ActionHub icon={HxCalendarDays} actions={[{ label: 'Abrir o Copiloto', icon: HxSparkles, to: '/app/copiloto' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
 
-        {/* ── Resumo semanal ── */}
-        <Section
-          icon={CalendarDays}
-          title="Como foi sua semana"
-          hint={latest
-            ? `${fmt.date(latest.semanaDe)} a ${fmt.date(latest.semanaAte)}`
-            : 'Ainda sem resumo gerado'}
-        >
-          {latest ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-                {latest.resumo}
-              </p>
-
-              {/* Origem do texto: IA do cliente ou o gerador do sistema. */}
-              {!latest.textoDoSistema && (
-                <span
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.68rem] font-medium"
-                  style={{ background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
-                >
-                  <Sparkles className="h-3 w-3" />
-                  escrito pela IA{latest.provedor ? ` (${latest.provedor})` : ''}
-                </span>
-              )}
-
-              <div className="flex flex-wrap gap-4 border-t pt-3"
-                style={{ borderColor: 'var(--border-soft)' }}>
-                {[
-                  ['Faturamento', fmt.money(latest.numeros?.faturamento)],
-                  ['Cupons', fmt.num(latest.numeros?.cupons)],
-                  ['Ticket médio', fmt.money(latest.numeros?.ticketMedio)],
-                  ...(latest.numeros?.variacaoPercent != null
-                    ? [['vs. semana anterior', `${latest.numeros.variacaoPercent}%`]]
-                    : []),
-                ].map(([label, value]) => (
-                  <div key={label as string}>
-                    <p className="text-[0.68rem]" style={{ color: 'var(--text-soft)' }}>{label}</p>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {digests.length > 1 && (
-                <div className="border-t pt-3" style={{ borderColor: 'var(--border-soft)' }}>
-                  <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                    Semanas anteriores
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {digests.slice(1, 5).map(d => (
-                      <div key={d.id} className="flex items-baseline gap-3 text-xs">
-                        <span style={{ color: 'var(--text-soft)' }}>{fmt.date(d.semanaDe)}</span>
-                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          {fmt.money(d.numeros?.faturamento)}
+        {/* ── Semanas: a lista à esquerda, a semana aberta no painel ── */}
+        {latest && week ? (
+          <div className="fx-split">
+            <Card as="section" aria-label="Semanas">
+              <PanelTitle icon={CalendarDays} title="Suas semanas" sub="O resumo chega toda segunda de manhã" />
+              <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
+                {digests.slice(0, 8).map((d) => {
+                  const on = d.id === week.id;
+                  const v = d.numeros?.variacaoPercent != null ? Number(d.numeros.variacaoPercent) : null;
+                  return (
+                    <li key={d.id}>
+                      <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined}
+                        onClick={() => {
+                          setWeekId(d.id);
+                          if (window.innerWidth < 1100) requestAnimationFrame(() => document.getElementById('week-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                        }}>
+                        <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><CalendarDays aria-hidden="true" /></span>
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <b style={{ display: 'block', fontSize: 15.5 }}>{fmt.date(d.semanaDe)} a {fmt.date(d.semanaAte)}</b>
+                          <span className="fx-muted" style={{ fontSize: 13 }}>{fmt.num(d.numeros?.cupons)} cupons</span>
                         </span>
-                        {d.numeros?.variacaoPercent != null && (
-                          <span style={{
-                            color: Number(d.numeros.variacaoPercent) >= 0 ? '#15803d' : '#b91c1c',
-                          }}>
-                            {Number(d.numeros.variacaoPercent) >= 0 ? '+' : ''}
-                            {d.numeros.variacaoPercent}%
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                        <span style={{ textAlign: 'right' }}>
+                          <b className="fx-num" style={{ display: 'block', fontSize: 15.5 }}>{fmt.money(d.numeros?.faturamento)}</b>
+                          {v != null && <span className={`fx-chip ${v >= 0 ? 'green' : 'red'}`} style={{ fontSize: 12, padding: '1px 8px' }}>{v >= 0 ? '+' : ''}{v}%</span>}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+            <div id="week-panel" style={{ minWidth: 0, scrollMarginTop: 80 }}>
+              <Forest as="aside" aria-label="Semana aberta">
+                <PanelTitle icon={Sparkles} title={`Semana de ${fmt.date(week.semanaDe)}`} sub={`${fmt.date(week.semanaDe)} a ${fmt.date(week.semanaAte)}`}
+                  right={!week.textoDoSistema ? <span className="fx-chip ghost"><Sparkles size={13} aria-hidden="true" />escrito pelo Tino</span> : undefined} />
+                <div className="fx-kpis" style={{ marginTop: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                  <div className="fx-kpi"><span>Faturamento</span><b style={{ fontSize: 22 }}>{fmt.money(week.numeros?.faturamento)}</b>
+                    {week.numeros?.variacaoPercent != null && <small>{Number(week.numeros.variacaoPercent) >= 0 ? '+' : ''}{week.numeros.variacaoPercent}% vs semana anterior</small>}</div>
+                  <div className="fx-kpi"><span>Cupons</span><b style={{ fontSize: 22 }}>{fmt.num(week.numeros?.cupons)}</b></div>
+                  <div className="fx-kpi"><span>Ticket médio</span><b style={{ fontSize: 22 }}>{fmt.money(week.numeros?.ticketMedio)}</b></div>
                 </div>
-              )}
+                <div className="fx-white" style={{ marginTop: 14 }}>
+                  <p style={{ margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{week.resumo}</p>
+                </div>
+                <div style={{ marginTop: 20 }}>
+                  <ActionHub icon={CalendarDays} onForest label="O que fazer com esta semana" actions={[
+                    { label: 'Perguntar sobre a semana', icon: HxMessageCircleQuestion, to: `/app/perguntar?q=${encodeURIComponent(`O que explica as vendas da semana de ${fmt.date(week.semanaDe)}?`)}` },
+                    { label: 'Abrir o Copiloto', icon: HxSparkles, to: '/app/copiloto' },
+                  ]} />
+                </div>
+              </Forest>
             </div>
-          ) : (
-            <div className="flex flex-col items-start gap-3">
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                O resumo é gerado toda segunda de manhã. Você pode gerar o da
-                semana passada agora.
-              </p>
-              <button
-                type="button"
-                onClick={generateDigest}
-                disabled={generating}
-                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--brand-500)' }}
-              >
-                {generating
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <RefreshCw className="h-4 w-4" />}
-                Gerar agora
-              </button>
-            </div>
-          )}
-        </Section>
+          </div>
+        ) : (
+          <Forest>
+            <PanelTitle icon={CalendarDays} title="O primeiro resumo ainda não saiu" sub="Ele é gerado toda segunda de manhã" />
+            <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Você pode gerar o da semana passada agora.</p>
+            <button type="button" onClick={generateDigest} disabled={generating} className="fx-btn lime" style={{ marginTop: 14 }}>
+              {generating ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}Gerar agora
+            </button>
+          </Forest>
+        )}
 
         {/* ── Rede: só para quem tem filiais ── */}
         {planLocked ? (

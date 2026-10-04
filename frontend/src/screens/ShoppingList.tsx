@@ -1295,7 +1295,7 @@ const ShoppingListPage: React.FC = () => {
   const { overview, items, productIds, loading, error, addItem, updateItem, removeItem } = useShoppingList();
 
   // Abre na mesa "Decidir agora": só o que pede uma ação hoje (sugestões do
-  // Jev, pedidos para enviar, entregas a caminho), um de cada vez.
+  // Tino, pedidos para enviar, entregas a caminho), um de cada vez.
   const [tab, setTab] = useState<Tab>('decidir');
   const [suggestions, setSuggestions] = useState<RecommendationItem[]>([]);
   const loadSuggestions = useCallback(async () => {
@@ -1460,7 +1460,7 @@ const ShoppingListPage: React.FC = () => {
       <div className="flex flex-col gap-5">
         <PageHero
           title={tab === 'decidir' ? <>{head.lead} <mark>{head.mark}</mark></> : <>Compre com contexto. <mark>Revise antes de enviar.</mark></>}
-          subtitle={tab === 'decidir' ? 'Um pedido por vez: o Jev monta, você revisa e envia.' : 'Do que comprar ao pedido enviado e recebido do fornecedor.'}
+          subtitle={tab === 'decidir' ? 'Um pedido por vez: o Tino monta, você revisa e envia.' : 'Do que comprar ao pedido enviado e recebido do fornecedor.'}
           side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }, { label: 'Lista de compras', icon: HxListChecks, onClick: () => setTab('lista') }, { label: 'Fornecedores', icon: Building2, onClick: () => setTab('fornecedores') }]} />} />
 
         {/* Abas */}
@@ -1483,7 +1483,7 @@ const ShoppingListPage: React.FC = () => {
               onGoList={() => setTab('lista')}
             />
             <ExplainStrip items={[
-              { icon: Zap, title: 'Jev monta', text: 'Pela venda das semanas e pelo que está acabando.' },
+              { icon: Zap, title: 'Tino monta', text: 'Pela venda das semanas e pelo que está acabando.' },
               { icon: ClipboardList, title: 'Você revisa', text: 'Quantidade, custo e o que tirar.' },
               { icon: Send, title: 'Sai pronto', text: 'WhatsApp, e-mail ou PDF para o fornecedor.' },
             ]} />

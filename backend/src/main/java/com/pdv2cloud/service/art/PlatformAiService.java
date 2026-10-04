@@ -152,7 +152,7 @@ public class PlatformAiService {
                 Map.of(), (rs, i) -> new Credentials(rs.getString("encrypted_api_key"), rs.getString("model")));
         }
         if (rows.isEmpty()) {
-            throw new IllegalArgumentException("Cadastre a chave do DeepSeek no painel antes de usar a IA");
+            throw new IllegalArgumentException("A IA de criação ainda não está ligada. Fale com o suporte do MercadoFlow.");
         }
         if (!cipher.isConfigured()) {
             throw new IllegalArgumentException("A chave mestra de criptografia não está configurada no servidor");

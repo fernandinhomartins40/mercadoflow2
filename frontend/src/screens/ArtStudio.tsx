@@ -16,7 +16,8 @@ import { brDate, formatPrice } from '../features/art-studio/render';
 import { canvasBlob, downloadBlob, jpegPagesToPdf, posterPages, sceneCanvas, slugify } from '../features/art-studio/export';
 import { loadImage } from '../features/art-studio/assets';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
-import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ActionHub, Card, Forest, PageHero, PanelTitle, StepTrack, Thumb, brl } from '../components/flow/Flow';
+import { Newspaper, Pencil } from 'lucide-react';
 
 /**
  * Encartes e cartazes (F18). O lojista diz o que quer ofertar — ou aceita a
@@ -1007,6 +1008,7 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
   const [themes, setThemes] = useState<ArtTheme[]>([]);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const load = useCallback(() => {
     artService.campaigns(marketId).then(setCampaigns).catch((err) => { setCampaigns([]); setError(apiMessage(err, 'Não foi possível carregar os encartes.')); });
@@ -1027,66 +1029,112 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
     }
   };
 
+  const live = (campaigns ?? []).filter((c) => c.status === 'PUBLISHED').length;
+  const current = (campaigns ?? []).find((c) => c.id === selected) ?? campaigns?.[0] ?? null;
+  const coverOf = (c: ArtCampaign) => c.publishedImages.find((i) => i.format === 'post') ?? c.publishedImages[0];
+
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <PageHero title={<>Ofertas que <mark>vendem por você.</mark></>} subtitle="Monte a arte das ofertas em minutos, com os preços e os produtos que as vendas indicam." />
-        <button type="button" onClick={create} disabled={creating} className={BTN_PRIMARY}>
-          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Novo encarte
-        </button>
-      </div>
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      <PageHero
+        title={campaigns && campaigns.length > 0
+          ? <>Ofertas que vendem por você. <mark>{live === 0 ? 'Nenhuma no ar.' : `${live} no ar.`}</mark></>
+          : <>Ofertas que <mark>vendem por você.</mark></>}
+        subtitle="Monte a arte das ofertas em minutos, com os preços e os produtos que as vendas indicam."
+        side={<ActionHub icon={Newspaper} actions={[
+          { label: creating ? 'Criando...' : 'Novo encarte', icon: Plus, onClick: () => { if (!creating) void create(); } },
+          { label: 'O que promover', icon: Sparkles, to: '/app/promocoes' },
+        ]} />} />
+      {error && <p role="alert" className="text-sm" style={{ color: 'var(--fx-red)' }}>{error}</p>}
       {campaigns === null ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[0, 1, 2].map((i) => <div key={i} className="h-72 animate-pulse rounded-2xl" style={{ background: 'var(--surface-soft)' }} />)}</div>
+        <div className="fx-split"><div className="fx-card h-72 animate-pulse" /><div className="fx-forest h-72" /></div>
       ) : campaigns.length === 0 ? (
-        <Panel>
-          <div className="grid items-center gap-6 py-6 md:grid-cols-[1fr_1.2fr]">
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Seu primeiro encarte</h2>
-              <ol className="flex flex-col gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                <li><strong style={{ color: 'var(--text-primary)' }}>1. O que ofertar.</strong> Aceite a sugestão das vendas ou busque os produtos.</li>
-                <li><strong style={{ color: 'var(--text-primary)' }}>2. Como vai ficar.</strong> Escolha o tema; a arte se monta sozinha em story, post, A4 e TV.</li>
-                <li><strong style={{ color: 'var(--text-primary)' }}>3. Divulgar.</strong> Baixe, imprima os cartazes ou publique o link para o WhatsApp.</li>
-              </ol>
-              <button type="button" onClick={create} disabled={creating} className={`${BTN_PRIMARY} self-start`}>Começar agora</button>
-            </div>
-            <div className="hidden justify-center md:flex"><Sparkles className="h-24 w-24" style={{ color: 'var(--brand-600)', opacity: 0.25 }} aria-hidden="true" /></div>
+        <Forest>
+          <PanelTitle icon={Newspaper} title="Seu primeiro encarte" sub="Três passos e a arte sai pronta para o WhatsApp, a impressora e a TV" />
+          <div className="fx-white" style={{ marginTop: 18 }}>
+            <StepTrack steps={[
+              { label: 'O que ofertar', hint: 'A sugestão das vendas ou a sua busca', state: 'now' },
+              { label: 'Como vai ficar', hint: 'Story, post, A4 e TV', state: 'next' },
+              { label: 'Divulgar', hint: 'Baixar, imprimir ou publicar', state: 'next' },
+            ]} />
+            <button type="button" onClick={create} disabled={creating} className="fx-btn dark" style={{ marginTop: 16 }}>
+              {creating ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}Começar agora
+            </button>
           </div>
-        </Panel>
+        </Forest>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {campaigns.map((c) => {
-            const cover = c.publishedImages.find((i) => i.format === 'post') ?? c.publishedImages[0];
-            const count = c.content.products?.length ?? 0;
-            return (
-              <li key={c.id} className="flex flex-col overflow-hidden rounded-2xl" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <Link to={`/app/encartes/${c.id}`} className={`relative block aspect-[4/5] overflow-hidden ${FOCUS}`} style={{ background: 'var(--surface-soft)' }}>
-                  {cover ? <img src={cover.url} alt="" className="h-full w-full object-cover object-top" loading="lazy" />
-                    : <span className="flex h-full items-center justify-center text-sm" style={{ color: 'var(--text-muted)' }}>Rascunho</span>}
-                  <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-xs font-semibold"
-                    style={c.status === 'PUBLISHED' ? { background: 'var(--brand-600)', color: '#fff' } : { background: 'rgba(255,255,255,.92)', color: '#44403c' }}>
-                    {c.status === 'PUBLISHED' ? 'Publicado' : 'Rascunho'}
-                  </span>
-                </Link>
-                <div className="flex flex-1 flex-col gap-1 p-3">
-                  <Link to={`/app/encartes/${c.id}`} className="truncate font-semibold hover:underline" style={{ color: 'var(--text-primary)' }}>{c.title}</Link>
-                  <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {count} {count === 1 ? 'produto' : 'produtos'}{c.validUntil ? `, até ${brDate(c.validUntil)}` : ''}
-                  </span>
-                  <div className="mt-auto flex gap-3 pt-2 text-sm font-semibold">
-                    <button type="button" style={{ color: 'var(--brand-700)' }} onClick={async () => { const d = await artService.duplicateCampaign(marketId, c.id); navigate(`/app/encartes/${d.id}`); }}>Duplicar</button>
-                    {c.publicSlug && c.status === 'PUBLISHED' && <a href={`/encarte/${c.publicSlug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-700)' }}>Ver página</a>}
-                    <button type="button" className="ml-auto text-red-700" onClick={async () => {
-                      if (!window.confirm(`Excluir "${c.title}"? A página publicada sai do ar.`)) return;
-                      await artService.deleteCampaign(marketId, c.id);
+        <div className="fx-split">
+          <Card as="section" aria-label="Seus encartes">
+            <PanelTitle title="Seus encartes" sub="Os mais recentes primeiro" />
+            <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
+              {campaigns.map((c) => {
+                const cover = coverOf(c);
+                const count = c.content.products?.length ?? 0;
+                const on = c.id === current?.id;
+                return (
+                  <li key={c.id}>
+                    <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined}
+                      onClick={() => {
+                        setSelected(c.id);
+                        if (window.innerWidth < 1100) requestAnimationFrame(() => document.getElementById('art-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                      }}>
+                      {cover ? <img src={cover.url} alt="" className="fx-thumb" style={{ width: 52, height: 52, objectFit: 'cover', objectPosition: 'top' }} loading="lazy" />
+                        : <span className="fx-icon-tile" style={{ width: 52, height: 52 }}><Newspaper aria-hidden="true" /></span>}
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <b style={{ display: 'block', fontSize: 15.5 }}>{c.title}</b>
+                        <span className="fx-muted" style={{ fontSize: 13 }}>{count} {count === 1 ? 'produto' : 'produtos'}{c.validUntil ? ` · até ${brDate(c.validUntil)}` : ''}</span>
+                      </span>
+                      <span className={`fx-chip ${c.status === 'PUBLISHED' ? 'lime' : 'gray'}`}>{c.status === 'PUBLISHED' ? 'No ar' : 'Rascunho'}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+          {current && (
+            <div id="art-panel" style={{ minWidth: 0, scrollMarginTop: 80 }}>
+              <Forest as="aside" aria-label={`Encarte ${current.title}`}>
+                <PanelTitle icon={Newspaper} title={current.title}
+                  sub={`${current.content.products?.length ?? 0} produtos${current.validUntil ? ` · válido até ${brDate(current.validUntil)}` : ''}`}
+                  right={<span className={`fx-chip ${current.status === 'PUBLISHED' ? 'lime' : 'ghost'}`}>{current.status === 'PUBLISHED' ? 'No ar' : 'Rascunho'}</span>} />
+                {coverOf(current) ? (
+                  <div style={{ marginTop: 18, borderRadius: 18, overflow: 'hidden', background: 'rgba(255,255,255,.06)', aspectRatio: '4 / 3' }}>
+                    <img src={coverOf(current)!.url} alt={`Arte do encarte ${current.title}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  </div>
+                ) : (
+                  <div className="fx-items" role="list" aria-label="Produtos do encarte" style={{ marginTop: 18 }}>
+                    {(current.content.products ?? []).slice(0, 8).map((it) => (
+                      <div key={it.key} role="listitem" className="fx-item" style={{ gridTemplateColumns: 'auto minmax(0, 1fr) auto' }}>
+                        <Thumb name={it.name} src={it.imageUrl} size={44} />
+                        <div style={{ minWidth: 0 }}>
+                          <div className="fx-item-name">{it.name}</div>
+                          {it.deal && <div className="fx-item-detail">{it.deal}</div>}
+                        </div>
+                        <div className="fx-item-val">
+                          {it.oldPrice != null && <span style={{ textDecoration: 'line-through' }}>{brl(it.oldPrice)}</span>}
+                          <b>{it.price != null ? brl(it.price) : '—'}</b>
+                        </div>
+                      </div>
+                    ))}
+                    {(current.content.products ?? []).length === 0 && <p className="fx-white" style={{ margin: 0 }}>Ainda sem produtos. Continue o encarte para escolher o que ofertar.</p>}
+                  </div>
+                )}
+                <div className="fx-white" style={{ marginTop: 14 }}>
+                  <div className="fx-actions">
+                    <Link to={`/app/encartes/${current.id}`} className="fx-btn dark"><Pencil aria-hidden="true" />{current.status === 'PUBLISHED' ? 'Editar' : 'Continuar e publicar'}</Link>
+                    {current.publicSlug && current.status === 'PUBLISHED' && <a href={`/encarte/${current.publicSlug}`} target="_blank" rel="noreferrer" className="fx-btn ghost"><ExternalLink aria-hidden="true" />Ver página</a>}
+                    <button type="button" className="fx-btn ghost" onClick={async () => { const d = await artService.duplicateCampaign(marketId, current.id); navigate(`/app/encartes/${d.id}`); }}><Copy aria-hidden="true" />Duplicar</button>
+                    <button type="button" className="fx-btn ghost" style={{ color: 'var(--fx-red)' }} onClick={async () => {
+                      if (!window.confirm(`Excluir "${current.title}"? A página publicada sai do ar.`)) return;
+                      await artService.deleteCampaign(marketId, current.id);
+                      setSelected(null);
                       load();
-                    }}>Excluir</button>
+                    }}><Trash2 aria-hidden="true" />Excluir</button>
                   </div>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
+              </Forest>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

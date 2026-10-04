@@ -505,7 +505,7 @@ const Promocoes: React.FC = () => {
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 
-        {marketId && tab === 'inteligencia' && <PromoIntelligenceTab marketId={marketId} />}
+        {marketId && tab === 'inteligencia' && <PromoIntelligenceTab marketId={marketId} onCreateCampaign={() => setTab('campanhas')} />}
         {marketId && tab === 'campanhas' && <CampanhasTab marketId={marketId} />}
         {marketId && tab === 'efetividade' && <EfetividadeTab marketId={marketId} />}
       </div>

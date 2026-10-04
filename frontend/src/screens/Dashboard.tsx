@@ -9,6 +9,7 @@ import UsageBanner from '../components/billing/UsageBanner';
 import ActivationChecklist from '../components/activation/ActivationChecklist';
 import CollectingBanner from '../components/activation/CollectingBanner';
 import { ACTION_LABEL, goesToOrder } from '../components/intelligence/RecommendationCard';
+import RecommendationDesk from '../components/intelligence/RecommendationDesk';
 import { ActionHub, Card, Chip, ExplainStrip, Forest, PageHero, PanelTitle, Row, Thumb } from '../components/flow/Flow';
 import DecisionFeedback from '../components/intelligence/DecisionFeedback';
 import DailyBriefCard from '../components/intelligence/DailyBriefCard';
@@ -158,56 +159,6 @@ const WeekChart: React.FC<{ days: Array<{ label?: string; revenue?: number | nul
   );
 };
 
-/** A decisão aberta no painel floresta: o porquê, o número e o sim ou não. */
-const DecisionPanel: React.FC<{
-  rec: RecommendationItem;
-  deciding: boolean;
-  onDecide: (id: string, decision: 'ACEITA' | 'REJEITADA') => void;
-}> = ({ rec, deciding, onDecide }) => {
-  const [trace, setTrace] = useState(false);
-  return (
-    <Forest as="aside" aria-label="Decisão selecionada">
-      <PanelTitle icon={Sparkles} title="Por trás da decisão" sub="O que o Jev viu nas suas vendas" />
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center', margin: '20px 0 0' }}>
-        <Thumb name={rec.productName || rec.title} src={rec.productImage} size={64} />
-        <div style={{ minWidth: 0 }}>
-          <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <Chip tone="lime">{ACTION_LABEL[rec.actionType] || rec.actionType}</Chip>
-            {rec.confidence != null && <Chip tone="ghost">Certeza {Math.round(Number(rec.confidence) * 100)}%</Chip>}
-          </span>
-          <h3 style={{ margin: 0, fontSize: 'clamp(20px, 2vw, 26px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15 }}>{rec.title}</h3>
-        </div>
-      </div>
-      {rec.rationale && <p style={{ margin: '16px 0 0', fontSize: 15.5, lineHeight: 1.55, color: 'var(--fx-on-forest)' }}>{rec.rationale}</p>}
-      <div className="fx-white" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span>
-            <small>Impacto estimado</small>
-            <span style={{ display: 'block', marginTop: 4 }}><span className="fx-money" style={{ fontSize: 26 }}>{formatMoney(rec.expectedImpactValue)}</span></span>
-          </span>
-          {goesToOrder(rec) && <small style={{ maxWidth: 220 }}>Aceitar já coloca {rec.parameters?.quantidade} un. no pedido do fornecedor.</small>}
-        </div>
-        {rec.calculationTrace && (
-          <>
-            <button type="button" className="fx-btn ghost small" style={{ marginTop: 14 }} aria-expanded={trace} onClick={() => setTrace((v) => !v)}>
-              <ChevronDown aria-hidden="true" style={{ transform: trace ? 'rotate(180deg)' : 'none' }} />Como chegamos nesse número
-            </button>
-            {trace && <pre style={{ margin: '10px 0 0', whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.55, background: 'var(--fx-card-2)', borderRadius: 12, padding: 12, color: 'var(--fx-ink-2)' }}>{rec.calculationTrace}</pre>}
-          </>
-        )}
-        <div className="fx-actions" style={{ marginTop: 16 }}>
-          <button type="button" className="fx-btn dark" disabled={deciding} onClick={() => onDecide(rec.id, 'ACEITA')}>
-            <Check aria-hidden="true" />{goesToOrder(rec) ? 'Aceitar e pôr no pedido' : 'Aceitar'}
-          </button>
-          <button type="button" className="fx-btn ghost" disabled={deciding} onClick={() => onDecide(rec.id, 'REJEITADA')}>
-            <X aria-hidden="true" />Não faz sentido
-          </button>
-        </div>
-      </div>
-    </Forest>
-  );
-};
-
 // ── Tela ────────────────────────────────────────────────────────────────────
 
 const Dashboard: React.FC = () => {
@@ -284,37 +235,17 @@ const Dashboard: React.FC = () => {
         title={feed.loading ? <>{greeting()}, {first}.</>
           : n === 0 ? <>{greeting()}, {first}. A loja está <mark>em dia.</mark></>
             : <>{greeting()}, {first}. Hoje a loja pede <mark>{n} {n === 1 ? 'decisão' : 'decisões'}.</mark></>}
-        subtitle={`${todayLabel()}${pendingImpact > 0 ? ` · ${formatMoney(pendingImpact)} de impacto esperando você` : ''}`}
+        subtitle={[
+          todayLabel(),
+          salesLoading ? '' : `${formatMoney(today.value)} vendidos hoje${today.change != null ? ` (${signedPercent(today.change)} vs ${lastSameWeekday()})` : ''}`,
+          pendingImpact > 0 ? `${formatMoney(pendingImpact)} esperando sua decisão` : '',
+        ].filter(Boolean).join(' · ')}
         side={hub}
       />
 
       {activation.collecting && activation.status && (
         <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
       )}
-
-      <div className="fx-kpis" style={{ marginBottom: 18 }}>
-        <div className="fx-kpi">
-          <span>Vendas hoje</span>
-          <b>{salesLoading ? '…' : formatMoney(today.value)}</b>
-          {today.change != null ? <Delta change={today.change} label={`vs ${lastSameWeekday()}`} /> : !salesLoading && <small>sem venda no mesmo dia da semana passada</small>}
-        </div>
-        <div className="fx-kpi">
-          <span>Últimos 7 dias</span>
-          <b>{salesLoading ? '…' : formatMoney(week.value)}</b>
-          {week.change != null ? <Delta change={week.change} label="vs 7 dias anteriores" /> : !salesLoading && <small>sem vendas nos 7 dias anteriores</small>}
-        </div>
-        <a className="fx-kpi" href="#fazer-agora" style={{ textDecoration: 'none', color: 'inherit', background: n > 0 ? 'var(--fx-lime-soft)' : undefined, borderColor: n > 0 ? 'var(--fx-lime-line)' : undefined }}
-          onClick={(e) => { e.preventDefault(); document.getElementById('fazer-agora')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
-          <span>Para decidir</span>
-          <b>{feed.loading ? '…' : n}</b>
-          <small>{pendingImpact > 0 ? `${formatMoney(pendingImpact)} de impacto estimado` : 'nada pendente'}</small>
-        </a>
-        <Link className="fx-kpi" to="/app/lista-compras" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <span>Pedidos para enviar</span>
-          <b>{feed.loading ? '…' : feed.drafts.length}</b>
-          <small>{feed.drafts.length > 0 ? 'em rascunho, prontos para o fornecedor' : 'nenhum rascunho aberto'}</small>
-        </Link>
-      </div>
 
       <DailyBriefCard marketId={marketId} />
 
@@ -363,7 +294,7 @@ const Dashboard: React.FC = () => {
           )}
         </Card>
 
-        {current ? <DecisionPanel key={current.id} rec={current} deciding={deciding === current.id} onDecide={decide} /> : (
+        {current ? <RecommendationDesk key={current.id} rec={current} deciding={deciding === current.id} onDecide={decide} /> : (
           <Forest as="aside" aria-label="Pedidos para enviar">
             <PanelTitle icon={ClipboardList} title="Pedidos para enviar" sub="Rascunhos prontos para o fornecedor" />
             <DraftList drafts={feed.drafts} />
@@ -400,28 +331,19 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="fx-split" style={{ marginTop: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-        <Card>
-          <PanelTitle icon={TrendingUp} title="Mais vendidos" right={<Link to="/app/produtos" className="fx-btn ghost small">Produtos</Link>} />
-          {topProducts.length === 0
-            ? <p className="fx-muted">Sem vendas no período.</p>
-            : <ul className="fx-stack" style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, gap: 8 }}>{topProducts.map((p) => <ProductLine key={p.productId} product={p} />)}</ul>}
-        </Card>
-        <Card>
-          <PanelTitle icon={TrendingDown} title="Vendendo menos" sub="Produtos com queda relevante" />
-          {slowMovers.length === 0 ? (
-            <p className="fx-muted" style={{ marginTop: 14 }}>
-              {/* Com poucos dias de venda, "em dia" seria uma conclusão sem base. */}
-              {activation.collecting ? 'Ainda coletando vendas.' : 'Nenhum produto com queda relevante.'}
-            </p>
-          ) : (
-            <ul className="fx-stack" style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, gap: 8 }}>{slowMovers.map((p) => <ProductLine key={p.productId} product={p} />)}</ul>
-          )}
-        </Card>
-      </div>
+      <Link to="/app/produtos" className="fx-row" style={{ marginTop: 18, color: 'var(--fx-ink)' }}>
+        <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><TrendingDown aria-hidden="true" /></span>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <b style={{ display: 'block', fontSize: 15.5 }}>Produtos que pedem atenção</b>
+          <span className="fx-muted" style={{ fontSize: 13.5 }}>
+            {slowMovers.length > 0 ? `${slowMovers.length} vendendo menos` : 'Acabando, vendendo menos ou em alta'}{topProducts.length > 0 ? ` · mais vendido: ${topProducts[0].name}` : ''}
+          </span>
+        </span>
+        <ArrowRight aria-hidden="true" style={{ color: 'var(--fx-muted)' }} />
+      </Link>
 
       <ExplainStrip items={[
-        { icon: PackageSearch, title: 'Jev lê cada venda', text: 'As notas do PDV chegam a cada poucos minutos.' },
+        { icon: PackageSearch, title: 'Tino lê cada venda', text: 'As notas do PDV chegam a cada poucos minutos.' },
         { icon: Sparkles, title: 'Você decide o que vale', text: 'Aceite, recuse ou ajuste as sugestões.' },
         { icon: Send, title: 'O pedido sai pronto', text: 'Nada vai ao fornecedor sem o seu sim.' },
       ]} />

@@ -11,7 +11,7 @@ import {
   Check, CheckCircle2, Copy, Download, Monitor, Plus, RefreshCw,
   Shield, Trash2, Wifi, WifiOff, X,
 } from 'lucide-react';
-import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ActionHub, Card, Forest, PageHero, PanelTitle } from '../components/flow/Flow';
 import { Download as HxDownload, KeyRound as HxKeyRound, Monitor as HxMonitor, MonitorSmartphone as HxMonitorSmartphone } from 'lucide-react';
 
 /* ── Types ── */
@@ -177,12 +177,23 @@ const PDVs: React.FC = () => {
     { key: 'download', label: 'Instalar agente' },
   ];
 
+  const st = activation.status;
+  const connected = st?.steps.find((x) => x.key === 'CONNECT_AGENT')?.done ?? false;
+  const silentFor = (() => {
+    const at = st?.agent.lastHeartbeatAt;
+    if (!at) return null;
+    const min = Math.max(0, Math.round((Date.now() - new Date(at).getTime()) / 60000));
+    return min < 60 ? `${min} min` : min < 2880 ? `${Math.round(min / 60)} h` : `${Math.round(min / 1440)} dias`;
+  })();
+  const headline = !st ? <>Sua conexão com a loja, <mark>em um lugar.</mark></>
+    : !connected ? <>Vamos <mark>ligar o caixa.</mark></>
+      : st.agent.online ? <>As vendas estão <mark>chegando agora.</mark></>
+        : <>Sem sinal do caixa <mark>{silentFor ? `há ${silentFor}.` : 'agora.'}</mark></>;
+
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Sua conexão com a loja, <mark>em um lugar.</mark></>} subtitle="Veja se as vendas estão chegando e conecte novos caixas." side={<ActionHub icon={HxMonitorSmartphone} actions={[{ label: 'Ver caixas', icon: HxMonitor, onClick: () => setTab('pdvs') }, { label: 'Chaves do agente', icon: HxKeyRound, onClick: () => setTab('agente') }, { label: 'Instalar agente', icon: HxDownload, onClick: () => setTab('download') }]} />} />
-
-        {activation.status && <ConnectionStatus status={activation.status} onInstall={() => setTab('download')} />}
+        <PageHero title={headline} subtitle="Veja se as vendas estão chegando e conecte novos caixas." side={<ActionHub icon={HxMonitorSmartphone} actions={[{ label: 'Ver caixas', icon: HxMonitor, onClick: () => setTab('pdvs') }, { label: 'Chaves do agente', icon: HxKeyRound, onClick: () => setTab('agente') }, { label: 'Instalar agente', icon: HxDownload, onClick: () => setTab('download') }]} />} />
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
@@ -191,67 +202,41 @@ const PDVs: React.FC = () => {
         {tab === 'pdvs' && (
           <div className="flex flex-col gap-5">
 
-            <div className="grid gap-5 lg:grid-cols-[1fr_300px] lg:items-start">
-              {/* Lista */}
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Caixas cadastrados</p>
-                  <button type="button" onClick={loadPdvs} disabled={pdvsLoading}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition hover:opacity-80"
-                    style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
-                    <RefreshCw className={`h-3 w-3 ${pdvsLoading ? 'animate-spin' : ''}`} /> Atualizar
-                  </button>
-                </div>
-                {pdvsLoading ? (
-                  <div className="flex justify-center py-10"><div className="h-5 w-5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>
-                ) : pdvs.length === 0 ? (
-                  <div className="py-10 text-center">
-                    <Monitor className="mx-auto mb-2 h-8 w-8 opacity-20" style={{ color: 'var(--text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum caixa cadastrado. Ao conectar o agente, o caixa aparece aqui.</p>
-                  </div>
+            <div className="fx-split">
+              <Card as="section" aria-label="Seus caixas">
+                <PanelTitle title="Seus caixas" sub="Cada caixa envia as notas pelo agente"
+                  right={<button type="button" onClick={loadPdvs} disabled={pdvsLoading} className="fx-btn ghost small"><RefreshCw className={pdvsLoading ? 'animate-spin' : ''} aria-hidden="true" />Atualizar</button>} />
+                {pdvsLoading ? <p className="fx-muted" style={{ marginTop: 16 }}>Carregando…</p> : pdvs.length === 0 ? (
+                  <p className="fx-muted" style={{ marginTop: 16 }}>Nenhum caixa cadastrado. Ao conectar o agente, o caixa aparece aqui.</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
-                        {['Nome', 'Serial', 'Criado em'].map(h => (
-                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pdvs.map((pdv, i) => (
-                        <tr key={pdv.id} style={{ borderBottom: i < pdvs.length - 1 ? '1px solid var(--border-soft)' : undefined }}>
-                          <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{pdv.name}</td>
-                          <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--text-soft)' }}>{pdv.serialNumber || '—'}</td>
-                          <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-soft)' }}>{fmtDate(pdv.createdAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
+                    {pdvs.map((pdv) => (
+                      <li key={pdv.id} className="fx-row" style={{ cursor: 'default' }}>
+                        <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Monitor aria-hidden="true" /></span>
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <b style={{ display: 'block', fontSize: 15.5 }}>{pdv.name}</b>
+                          <span className="fx-muted" style={{ fontSize: 13 }}>{pdv.serialNumber ? `Série ${pdv.serialNumber} · ` : ''}desde {fmtDate(pdv.createdAt)}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-                {pdvError && <p className="px-4 pb-3 text-xs text-red-600">{pdvError}</p>}
-              </div>
-
-              {/* Formulário novo PDV */}
-              <div className="rounded-xl p-4 flex flex-col gap-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Cadastrar caixa</p>
-                <input
-                  placeholder="Nome do caixa (ex.: Caixa 1)"
-                  value={pdvName} onChange={e => setPdvName(e.target.value)}
-                  className="h-9 w-full rounded-lg px-3 text-sm outline-none"
-                  style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-                <input
-                  placeholder="Número de série (opcional)"
-                  value={pdvSerial} onChange={e => setPdvSerial(e.target.value)}
-                  className="h-9 w-full rounded-lg px-3 text-sm outline-none"
-                  style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
-                {pdvError && <p className="text-xs text-red-600">{pdvError}</p>}
-                <button type="button" onClick={createPdv} disabled={pdvSaving || !pdvName.trim()}
-                  className="flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                  style={{ background: 'var(--brand-500)', color: '#fff' }}>
-                  <Plus className="h-4 w-4" /> {pdvSaving ? 'Salvando...' : 'Adicionar caixa'}
-                </button>
-              </div>
+                <form className="fx-white" style={{ marginTop: 16, background: 'var(--fx-card-2)', display: 'grid', gap: 10 }}
+                  onSubmit={(e) => { e.preventDefault(); void createPdv(); }}>
+                  <b>Cadastrar caixa</b>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                    <input className="input" placeholder="Nome do caixa (ex.: Caixa 1)" value={pdvName} onChange={e => setPdvName(e.target.value)} aria-label="Nome do caixa" />
+                    <input className="input" placeholder="Número de série (opcional)" value={pdvSerial} onChange={e => setPdvSerial(e.target.value)} aria-label="Número de série" />
+                  </div>
+                  {pdvError && <p role="alert" className="text-sm" style={{ color: 'var(--fx-red)', margin: 0 }}>{pdvError}</p>}
+                  <button type="submit" disabled={pdvSaving || !pdvName.trim()} className="fx-btn dark small" style={{ justifySelf: 'start' }}>
+                    <Plus aria-hidden="true" />{pdvSaving ? 'Salvando...' : 'Adicionar caixa'}
+                  </button>
+                </form>
+              </Card>
+              {activation.status
+                ? <ConnectionStatus status={activation.status} onInstall={() => setTab('download')} />
+                : <Forest><p className="fx-muted" style={{ margin: 0 }}>Lendo o estado da conexão…</p></Forest>}
             </div>
           </div>
         )}
