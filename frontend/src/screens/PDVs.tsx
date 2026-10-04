@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ActionHub, Card, Forest, PageHero, PanelTitle } from '../components/flow/Flow';
 import { Download as HxDownload, KeyRound as HxKeyRound, Monitor as HxMonitor, MonitorSmartphone as HxMonitorSmartphone } from 'lucide-react';
+import { confirmDialog } from '../components/common/Dialogs';
 
 /* ── Types ── */
 interface PDVItem {
@@ -135,7 +136,7 @@ const PDVs: React.FC = () => {
   const [pdvNotice, setPdvNotice] = useState<string | null>(null);
   const removePdv = async (pdv: PDVItem) => {
     if (!marketId) return;
-    if (!window.confirm(`Remover o caixa "${pdv.name}"?\n\nO agente desse caixa para de enviar notas. As vendas que ele já mandou continuam nos relatórios.`)) return;
+    if (!(await confirmDialog(`Remover o caixa "${pdv.name}"?\n\nO agente desse caixa para de enviar notas. As vendas que ele já mandou continuam nos relatórios.`))) return;
     setRemoving(pdv.id); setPdvError(null); setPdvNotice(null);
     try {
       const r = await marketService.deletePdv(marketId, pdv.id);
@@ -176,7 +177,7 @@ const PDVs: React.FC = () => {
   /* ── Key revoke ── */
   const revokeKey = async (key: AgentKeyRow) => {
     if (!resolvedMarketId) return;
-    if (!window.confirm(`Excluir a chave "${key.name}"? O agente perde acesso imediatamente.`)) return;
+    if (!(await confirmDialog(`Excluir a chave "${key.name}"? O agente perde acesso imediatamente.`))) return;
     setBusyKeyId(key.id);
     try {
       await api.delete(`/v1/agent-keys/${key.id}`, { params: { marketId: resolvedMarketId } });

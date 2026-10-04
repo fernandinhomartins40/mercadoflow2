@@ -18,6 +18,7 @@ import { loadImage } from '../features/art-studio/assets';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
 import { ActionHub, Card, Forest, PageHero, PanelTitle, StepTrack, Thumb, brl } from '../components/flow/Flow';
 import { Newspaper, Pencil } from 'lucide-react';
+import { confirmDialog } from '../components/common/Dialogs';
 
 /**
  * Encartes e cartazes (F18). O lojista diz o que quer ofertar — ou aceita a
@@ -1124,7 +1125,7 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
                     {current.publicSlug && current.status === 'PUBLISHED' && <a href={`/encarte/${current.publicSlug}`} target="_blank" rel="noreferrer" className="fx-btn ghost"><ExternalLink aria-hidden="true" />Ver página</a>}
                     <button type="button" className="fx-btn ghost" onClick={async () => { const d = await artService.duplicateCampaign(marketId, current.id); navigate(`/app/encartes/${d.id}`); }}><Copy aria-hidden="true" />Duplicar</button>
                     <button type="button" className="fx-btn ghost" style={{ color: 'var(--fx-red)' }} onClick={async () => {
-                      if (!window.confirm(`Excluir "${current.title}"? A página publicada sai do ar.`)) return;
+                      if (!(await confirmDialog(`Excluir "${current.title}"? A página publicada sai do ar.`))) return;
                       await artService.deleteCampaign(marketId, current.id);
                       setSelected(null);
                       load();

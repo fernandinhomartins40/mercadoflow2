@@ -8,6 +8,7 @@ import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHero from '../components/dashboard/PageHero';
 import PanelSection from '../components/dashboard/PanelSection';
 import api from '../services/api';
+import { confirmDialog } from '../components/common/Dialogs';
 
 interface CrawlerRun {
   id: string;
@@ -234,7 +235,7 @@ const SuperAdminCrawlerRunDetails: React.FC = () => {
 
   const handleResume = async () => {
     if (!details?.run?.id) return;
-    if (!window.confirm('Criar uma nova rodada retomando os checkpoints completos deste run?')) return;
+    if (!(await confirmDialog('Criar uma nova rodada retomando os checkpoints completos deste run?'))) return;
     setResuming(true);
     setError(null);
     setSuccess(null);

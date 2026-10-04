@@ -53,6 +53,7 @@ import { ActionHub, ExplainStrip, PageHero } from '../components/flow/Flow';
 import BuyDesk, { buyHeadline } from './comprar/BuyDesk';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
 import { ListChecks as HxListChecks, Plus as HxPlus, ShoppingCart as HxShoppingCart, Wallet as HxWallet } from 'lucide-react';
+import { confirmDialog } from '../components/common/Dialogs';
 
 /* ─── Formatadores ─── */
 const fmtMoney = (v?: number | null) =>
@@ -1020,7 +1021,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
         {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => { if (!order) { setStep('supplier'); } else if (window.confirm('Voltar? O rascunho do pedido será mantido na aba Pedidos.')) { handleFinish(); } }}
+            <button type="button" onClick={async () => { if (!order) { setStep('supplier'); } else if ((await confirmDialog('Voltar? O rascunho do pedido será mantido na aba Pedidos.'))) { handleFinish(); } }}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition hover:opacity-80"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
               <ChevronLeft className="h-4 w-4" /> Voltar
@@ -1174,7 +1175,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
               </button>
               {order && orderItems.length > 0 && (
                 <button type="button" onClick={async () => {
-                  if (!window.confirm('Enviar o pedido? Ele não poderá mais ser editado.')) return;
+                  if (!(await confirmDialog('Enviar o pedido? Ele não poderá mais ser editado.'))) return;
                   try { const u = await marketService.sendSupplierOrder(marketId, order.id); onCreated(u); }
                   catch (e: any) { setErr(e?.message || 'Erro ao enviar'); }
                 }}
@@ -1711,7 +1712,7 @@ const ShoppingListPage: React.FC = () => {
                                     </button>
                                   )}
                                   {order.status === 'RASCUNHO' && (
-                                    <button type="button" aria-label={`Excluir ${order.orderNumber}`} onClick={async () => { if (!window.confirm(`Excluir ${order.orderNumber}?`)) return; await marketService.deleteSupplierOrder(marketId!, order.id); fetchOrders(); }}
+                                    <button type="button" aria-label={`Excluir ${order.orderNumber}`} onClick={async () => { if (!(await confirmDialog(`Excluir ${order.orderNumber}?`))) return; await marketService.deleteSupplierOrder(marketId!, order.id); fetchOrders(); }}
                                       className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition hover:opacity-70" style={{ color: '#dc2626', border: '1px solid var(--border-soft)' }}>
                                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                                     </button>
@@ -1794,7 +1795,7 @@ const ShoppingListPage: React.FC = () => {
                             <ClipboardList className="h-3 w-3" /> Novo pedido
                           </button>
                           <button type="button" onClick={async () => {
-                            if (!window.confirm(`Remover ${s.nomeFantasia || s.razaoSocial}?`)) return;
+                            if (!(await confirmDialog(`Remover ${s.nomeFantasia || s.razaoSocial}?`))) return;
                             await marketService.deleteSupplier(marketId!, s.id);
                             setSuppliers(prev => prev.filter(x => x.id !== s.id));
                           }} className="rounded-lg p-1.5 transition hover:opacity-70" style={{ color: '#ef4444' }}>

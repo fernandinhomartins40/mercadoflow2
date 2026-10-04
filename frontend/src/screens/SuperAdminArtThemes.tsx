@@ -14,6 +14,7 @@ import { derivePalette } from '../features/art-studio/palette';
 import { useScene } from '../features/art-studio/scene';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
 import RegionEditor from '../features/art-studio/RegionEditor';
+import { confirmDialog } from '../components/common/Dialogs';
 
 /**
  * Criador de temas de encarte (superadmin).
@@ -81,7 +82,7 @@ const AiKeyCard: React.FC<{ settings: PlatformAiSettings | null; onChange: (s: P
   };
 
   const remove = async () => {
-    if (!window.confirm('Remover a chave do DeepSeek? O criador de temas volta a sugerir as áreas só pela análise da imagem.')) return;
+    if (!(await confirmDialog('Remover a chave do DeepSeek? O criador de temas volta a sugerir as áreas só pela análise da imagem.'))) return;
     setBusy('remove');
     try {
       onChange(await artAdminService.removeAiKey());
@@ -432,7 +433,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
           : <Button onClick={() => patch({ status: 'PUBLISHED' }, 'Tema publicado')} disabled={readyCount === 0}
               title={readyCount === 0 ? 'Suba ao menos um fundo com a área de produtos' : undefined}>Publicar para os mercados</Button>}
         <Button variant="ghost" aria-label="Excluir o tema" onClick={async () => {
-          if (!window.confirm(`Excluir o tema "${theme.name}"? Os encartes já publicados continuam no ar.`)) return;
+          if (!(await confirmDialog(`Excluir o tema "${theme.name}"? Os encartes já publicados continuam no ar.`))) return;
           await artAdminService.deleteTheme(id);
           navigate('/super-admin/temas');
         }}><Trash2 className="h-4 w-4" /></Button>
@@ -518,7 +519,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
                   </Button>
                 )}
                 <Button variant="ghost" size="sm" onClick={async () => {
-                  if (!window.confirm(`Remover o fundo de ${FORMATS[format].label}?`)) return;
+                  if (!(await confirmDialog(`Remover o fundo de ${FORMATS[format].label}?`))) return;
                   setTheme(await artAdminService.deleteFormat(id, format));
                 }} disabled={busy}>Remover fundo</Button>
               </div>

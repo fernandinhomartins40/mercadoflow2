@@ -6,6 +6,7 @@ import {
   aiAdminService, type AiLedgerRow, type AiOrderRow, type AiOverview, type AiPlanRow, type AiProviderRow, type AiRouteRow,
   type AiSettingsRow, type AiWallet, type ConsoleResult, type ConsoleTask, type WhatsAppConfig, type AiFallbackRow,
 } from '../services/aiPlatform.service';
+import { confirmDialog } from '../components/common/Dialogs';
 
 /**
  * IA e APIs: chaves da plataforma, roteamento por tarefa, orçamento, mercados
@@ -244,7 +245,7 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
     } catch (e) { setMsg({ ok: false, text: errorText(e, 'O teste falhou.') }); } finally { setBusy(null); }
   };
   const remove = async () => {
-    if (!window.confirm(`Remover a chave de ${info.name}?`)) return;
+    if (!(await confirmDialog(`Remover a chave de ${info.name}?`))) return;
     try { onChange(await aiAdminService.removeKey(p.provider)); setEditing(true); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível remover.') }); }
   };
   return (
@@ -650,7 +651,7 @@ const PilotCard: React.FC<{ data: AiOverview; onPilots: (rows: AiOverview['pilot
     try { onPilots(await aiAdminService.addPilot(id)); setMsg({ ok: true, text: `Mercado adicionado com ${data.settings.pilotGrantCredits} créditos de teste.` }); setHits([]); setQ(''); }
     catch (e) { setMsg({ ok: false, text: errorText(e, 'Não foi possível adicionar.') }); }
   };
-  const remove = async (id: string) => { if (window.confirm('Tirar este mercado do piloto?')) onPilots(await aiAdminService.removePilot(id)); };
+  const remove = async (id: string) => { if ((await confirmDialog('Tirar este mercado do piloto?'))) onPilots(await aiAdminService.removePilot(id)); };
   const pilotIds = new Set(data.pilots.map((p) => p.marketId));
   return (
     <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="pilot-title">
@@ -879,7 +880,7 @@ const PlansOrdersCard: React.FC<{ plans: AiPlanRow[]; onPlans: (p: AiPlanRow[]) 
   };
   const toggle = async (p: AiPlanRow) => onPlans(await aiAdminService.savePlan({ ...p, active: !p.active }));
   const act = async (o: AiOrderRow, a: 'confirm' | 'cancel') => {
-    if (!window.confirm(a === 'confirm' ? `Confirmar o pagamento de ${brl(o.amountCents / 100)} de ${o.marketName}?` : 'Cancelar este pedido?')) return;
+    if (!(await confirmDialog(a === 'confirm' ? `Confirmar o pagamento de ${brl(o.amountCents / 100)} de ${o.marketName}?` : 'Cancelar este pedido?'))) return;
     try { await (a === 'confirm' ? aiAdminService.confirm(o.id) : aiAdminService.cancel(o.id)); load(); } catch (e) { setMsg({ ok: false, text: errorText(e, 'Erro') }); }
   };
   return (

@@ -23,6 +23,7 @@ import IsoView from '../features/store-map/view3d/IsoView';
 import AisleWalk, { describeSide } from '../features/store-map/view3d/AisleWalk';
 import { findAisles, longestAisle } from '../features/store-map/view3d/aisles';
 import { ActionHub, PageHero } from '../components/flow/Flow';
+import { confirmDialog } from '../components/common/Dialogs';
 
 /**
  * Loja Viva (F17, D-022): a planta da loja, montada em um toque a partir do
@@ -478,7 +479,7 @@ const StoreMap: React.FC = () => {
                           min={Math.max(4, ...plan.fixtures.map((f) => f.y + f.h))} max={200} onCommit={(height) => apply({ ...plan, height })} />
                       </div>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Também dá para puxar as paredes da loja na planta.</p>
-                      <button type="button" onClick={() => { if (window.confirm('Apagar a planta e escolher outra de novo?')) { history.reset(null); latestPlan.current = null; setSelectedIds([]); } }}
+                      <button type="button" onClick={async () => { if ((await confirmDialog('Apagar a planta e escolher outra de novo?'))) { history.reset(null); latestPlan.current = null; setSelectedIds([]); } }}
                         className="self-start text-sm font-medium underline" style={{ color: 'var(--text-muted)' }}>
                         Recomeçar com outra planta
                       </button>

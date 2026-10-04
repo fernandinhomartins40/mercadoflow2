@@ -598,3 +598,27 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 .fx-field > .input, .fx-field > textarea { font-weight: 400; }
 .fx-field-hint { font-weight: 500; font-size: 12px; color: var(--fx-muted); }
 .fx-field textarea { border: 1px solid var(--fx-line-2); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 15px; color: var(--fx-ink); background: #fff; }
+
+/* ── Diálogos da aplicação (confirmar, avisar, perguntar) ── */
+.fx-dialog-shade {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px;
+  background: rgba(11, 31, 22, .45); backdrop-filter: blur(4px);
+  animation: fx-dialog-fade .14s ease-out;
+}
+.fx-dialog {
+  width: min(440px, 100%); background: #fff; color: #0B1F16; border-radius: 22px; padding: 24px;
+  box-shadow: 0 30px 80px -30px rgba(11, 31, 22, .55); font-family: inherit;
+  animation: fx-dialog-pop .16s ease-out;
+}
+.fx-dialog-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: #D7F26B; color: #142400; margin-bottom: 14px; }
+.fx-dialog.danger .fx-dialog-icon { background: #FDE4E1; color: #C2362B; }
+.fx-dialog-icon svg { width: 22px; height: 22px; }
+.fx-dialog h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.3; color: #0B1F16; }
+.fx-dialog p { margin: 8px 0 0; font-size: 15px; line-height: 1.55; color: #2F4339; white-space: pre-line; }
+.fx-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.fx-dialog .fx-btn { min-height: 44px; }
+.fx-btn.danger { background: #C2362B; color: #fff; }
+.fx-btn.danger:hover:not(:disabled) { background: #A92D23; }
+@keyframes fx-dialog-fade { from { opacity: 0; } }
+@keyframes fx-dialog-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .fx-dialog-shade, .fx-dialog { animation: none; } }

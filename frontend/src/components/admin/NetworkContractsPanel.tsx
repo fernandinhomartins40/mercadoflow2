@@ -20,6 +20,7 @@ import subscriptionService, {
   SubscriptionRow,
   formatPrice,
 } from '../../services/subscription.service';
+import { confirmDialog } from '../common/Dialogs';
 
 /**
  * Contratos sob medida (plano Rede) e cobrança por fatura.
@@ -202,7 +203,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
 
   const endContract = async (contract: NetworkContract) => {
     if (!contract.market) return;
-    if (!window.confirm(`Encerrar o contrato de ${contract.market.name}? A cobrança será cancelada.`)) {
+    if (!(await confirmDialog(`Encerrar o contrato de ${contract.market.name}? A cobrança será cancelada.`))) {
       return;
     }
     setSaving(true);

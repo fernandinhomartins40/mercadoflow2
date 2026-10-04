@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import PageHeader from '../components/layout/PageHeader';
+import { alertDialog } from '../components/common/Dialogs';
 
 interface InstallerInfo {
   filename: string;
@@ -53,7 +54,7 @@ const AgentDownload: React.FC = () => {
       link.click();
       document.body.removeChild(link);
     } catch {
-      alert('Erro ao iniciar o download');
+      void alertDialog('Erro ao iniciar o download');
     } finally {
       setDownloading(false);
     }

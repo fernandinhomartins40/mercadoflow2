@@ -4,6 +4,7 @@ import { confereService } from '../../services/confere.service';
 import type { ConfereStatus } from '../../types/confere.types';
 import { maskCnpj } from '../../utils/formMasks';
 import { BigButton, Field, TopBar, errorText } from './ui';
+import { confirmDialog } from '../../components/common/Dialogs';
 
 /** Certificado A1: com ele as notas vêm da Sefaz, grátis e sem limite. */
 const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; refresh: () => void }> = ({ status, marketId, refresh }) => {
@@ -45,7 +46,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
   };
 
   const remove = async () => {
-    if (!window.confirm('Remover o certificado? As notas deixam de chegar sozinhas.')) return;
+    if (!(await confirmDialog('Remover o certificado? As notas deixam de chegar sozinhas.'))) return;
     await confereService.removeCertificate(marketId);
     refresh();
   };

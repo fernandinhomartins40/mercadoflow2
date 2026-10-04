@@ -5,6 +5,7 @@ import Button from '../components/common/Button';
 import { confereAdminService, money, type ConfereIcons } from '../services/confere.service';
 import IconCropper from '../features/confere/IconCropper';
 import type { AdminAccount, AdminOrder, ConferePlan, ConfereSettings, ConfereStats, IntelligencePreview } from '../types/confere.types';
+import { confirmDialog, promptDialog } from '../components/common/Dialogs';
 
 /**
  * MercadoFlow Confere no superadmin: chave do Meu Danfe (revenda de leituras),
@@ -209,7 +210,7 @@ const PlansCard: React.FC = () => {
                 </td>
                 <td className="text-right">
                   <button type="button" aria-label={`Excluir ${p.name}`} className="rounded p-1 text-slate-500 hover:text-red-700"
-                    onClick={async () => { if (window.confirm(`Excluir o plano ${p.name}?`)) setPlans(await confereAdminService.deletePlan(p.id)); }}>
+                    onClick={async () => { if ((await confirmDialog(`Excluir o plano ${p.name}?`))) setPlans(await confereAdminService.deletePlan(p.id)); }}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </td>
@@ -239,7 +240,7 @@ const OrdersCard: React.FC<{ onChange: () => void }> = ({ onChange }) => {
     const text = action === 'confirm'
       ? `Confirmar o pagamento de ${money(o.amountCents)} de ${o.marketName} (identificador ${o.txid})? ${o.reads} leituras entram na hora.`
       : `Cancelar o pedido de ${o.marketName}?`;
-    if (!window.confirm(text)) return;
+    if (!(await confirmDialog(text))) return;
     await (action === 'confirm' ? confereAdminService.confirm(o.id) : confereAdminService.cancel(o.id));
     load();
     onChange();
@@ -297,7 +298,7 @@ const AccountsCard: React.FC<{ version: number }> = ({ version }) => {
   useEffect(() => { load(); }, [load, version]);
 
   const adjust = async (a: AdminAccount) => {
-    const value = window.prompt(`Quantas leituras dar a ${a.marketName}? (use negativo para tirar)`, '10');
+    const value = (await promptDialog(`Quantas leituras dar a ${a.marketName}? (use negativo para tirar)`, '10'));
     if (!value) return;
     const delta = Number(value);
     if (!Number.isInteger(delta) || delta === 0) return;
@@ -357,7 +358,7 @@ const IconCard: React.FC = () => {
           </label>
           {icons?.custom && (
             <Button type="button" variant="ghost" onClick={async () => {
-              if (!window.confirm('Voltar ao ícone padrão do Confere?')) return;
+              if (!(await confirmDialog('Voltar ao ícone padrão do Confere?'))) return;
               setIcons(await confereAdminService.resetIcons());
               setMsg({ ok: true, text: 'Ícone padrão de volta.' });
             }}>Usar o padrão</Button>
