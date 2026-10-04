@@ -5,6 +5,7 @@ import ButtonLink from '../components/common/ButtonLink';
 import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHeader from '../components/layout/PageHeader';
 import PanelSection from '../components/dashboard/PanelSection';
+import GrantAccessPanel from '../components/admin/GrantAccessPanel';
 import api from '../services/api';
 
 interface SuperAdminOverview {
@@ -216,6 +217,7 @@ const SuperAdminUsers: React.FC = () => {
   const [marketForm, setMarketForm] = useState(EMPTY_MARKET_FORM);
   const [editingUserId, setEditingUserId] = useState('');
   const [editingMarketId, setEditingMarketId] = useState('');
+  const [grantFor, setGrantFor] = useState<{ id: string; name: string } | null>(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [marketModalOpen, setMarketModalOpen] = useState(false);
 
@@ -641,6 +643,7 @@ const SuperAdminUsers: React.FC = () => {
                       </td>
                       <td data-label="Ações" className="table-action-cell catalog-admin-action-cell">
                         <div className="catalog-admin-row-actions">
+                          <Button onClick={() => setGrantFor({ id: market.id, name: market.name })}>Liberar acesso</Button>
                           <Button variant="secondary" onClick={() => startEditMarket(market)}>Editar</Button>
                           {market.billingStatus === 'PENDING' ? (
                             <Button variant="secondary" onClick={() => activateTrial(market)}>Liberar teste</Button>
@@ -786,6 +789,24 @@ const SuperAdminUsers: React.FC = () => {
                 </label>
                 <label className="fx-field super-admin-saas-modal-notes">Observações internas<textarea className="input super-admin-notes super-admin-saas-modal-notes" placeholder="Observações internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} /></label>
               </div>
+            </div>
+          </div>
+        ) : null}
+
+        {grantFor ? (
+          <div className="catalog-admin-modal-backdrop" role="presentation" onClick={() => setGrantFor(null)}>
+            <div className="catalog-admin-modal card super-admin-saas-modal" role="dialog" aria-modal="true" aria-labelledby="grant-modal-title"
+              onClick={(event) => event.stopPropagation()} style={{ maxWidth: 560 }}>
+              <div className="catalog-admin-modal-head">
+                <div>
+                  <span className="section-kicker">Liberar acesso</span>
+                  <h3 id="grant-modal-title">{grantFor.name}</h3>
+                </div>
+                <div className="catalog-admin-modal-head-actions">
+                  <Button variant="secondary" onClick={() => setGrantFor(null)}>Fechar</Button>
+                </div>
+              </div>
+              <GrantAccessPanel marketId={grantFor.id} marketName={grantFor.name} onChanged={() => { void load(); }} />
             </div>
           </div>
         ) : null}
