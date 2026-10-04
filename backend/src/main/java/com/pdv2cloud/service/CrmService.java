@@ -96,7 +96,7 @@ public class CrmService {
             activityRepository.timelineOf(marketId, PageRequest.of(0, 50));
         List<CustomerTask> tasks = taskRepository.findByMarket(marketId);
         List<SubscriptionEvent> events =
-            eventRepository.findTop50ByMarketIdOrderByCreatedAtDesc(marketId);
+            eventRepository.findTop50ByMarket_IdOrderByCreatedAtDesc(marketId);
 
         HealthAssessment health = assessHealth(market, usage, invoices);
 

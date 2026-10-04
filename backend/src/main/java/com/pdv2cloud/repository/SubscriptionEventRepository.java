@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface SubscriptionEventRepository extends JpaRepository<SubscriptionEvent, UUID> {
 
-    List<SubscriptionEvent> findTop50ByMarketIdOrderByCreatedAtDesc(UUID marketId);
+    List<SubscriptionEvent> findTop50ByMarket_IdOrderByCreatedAtDesc(UUID marketId);
 
     @Query("select e from SubscriptionEvent e join fetch e.market order by e.createdAt desc")
     Page<SubscriptionEvent> findAllWithMarket(Pageable pageable);

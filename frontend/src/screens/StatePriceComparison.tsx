@@ -248,12 +248,13 @@ const StatePriceComparisonContent: React.FC = () => {
               <div className="state-price-filters">
                 <input
                   className="input"
-                  placeholder="Nome, GTIN ou marca"
+                  aria-label="Nome, GTIN ou marca" placeholder="Nome, GTIN ou marca"
                   value={draftFilters.search}
                   onChange={(event) => setDraftFilters((current) => ({ ...current, search: event.target.value }))}
                 />
                 <select
                   className="input"
+                  aria-label="Filtrar por estado"
                   value={draftFilters.state}
                   onChange={(event) => setDraftFilters((current) => ({ ...current, state: event.target.value }))}
                 >
@@ -262,6 +263,7 @@ const StatePriceComparisonContent: React.FC = () => {
                 </select>
                 <select
                   className="input"
+                  aria-label="Filtrar por fonte"
                   value={draftFilters.provider}
                   onChange={(event) => setDraftFilters((current) => ({ ...current, provider: event.target.value }))}
                 >
@@ -402,6 +404,7 @@ const StatePriceComparisonContent: React.FC = () => {
                   Cole um JSON com `provider` e `observations`. O backend faz o upsert da fonte e persiste as observacoes em lote.
                 </p>
                 <textarea
+                  aria-label="JSON para importar"
                   className="input state-price-import-textarea"
                   value={importPayload}
                   onChange={(event) => setImportPayload(event.target.value)}

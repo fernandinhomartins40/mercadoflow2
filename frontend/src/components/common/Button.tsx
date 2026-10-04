@@ -22,11 +22,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 // Flow: floresta na ação principal, branco na secundária, limão para confirmar.
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'border border-transparent bg-[var(--fx-forest)] text-white hover:bg-[var(--fx-forest-2)]',
+  primary: 'border border-transparent bg-[var(--fx-forest,#0F3A29)] text-white hover:bg-[var(--fx-forest-2,#164A35)]',
   secondary: 'border border-[var(--fx-line-2)] bg-white text-[var(--fx-ink)] hover:bg-[var(--fx-lime-soft)]',
   ghost: 'border border-transparent bg-transparent text-[var(--fx-ink-2)] hover:bg-[var(--fx-ground)] hover:text-[var(--fx-ink)]',
-  danger: 'border border-transparent bg-[var(--fx-red)] text-white hover:brightness-95',
-  success: 'border border-transparent bg-[var(--fx-lime)] text-[var(--fx-lime-ink)] hover:bg-[var(--fx-lime-strong)]',
+  danger: 'border border-transparent bg-[var(--fx-red,#C2362B)] text-white hover:brightness-95',
+  success: 'border border-transparent bg-[var(--fx-lime,#D7F26B)] text-[var(--fx-lime-ink)] hover:bg-[var(--fx-lime-strong)]',
   warning: 'border border-transparent bg-[#E8A317] text-[#2A1800] hover:brightness-95',
 };
 

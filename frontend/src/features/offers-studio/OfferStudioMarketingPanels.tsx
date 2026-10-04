@@ -348,7 +348,7 @@ const OfferStudioMarketingPanels: React.FC<OfferStudioMarketingPanelsProps> = ({
       >
         <div className="offer-studio-copy-box">
           <p>Texto gerado automaticamente com base nos produtos e no tema do encarte.</p>
-          <textarea className="textarea" rows={12} value={socialCopy} readOnly />
+          <textarea className="textarea" aria-label="Texto para redes sociais" rows={12} value={socialCopy} readOnly />
         </div>
       </StudioCollapsibleSection>
     </div>

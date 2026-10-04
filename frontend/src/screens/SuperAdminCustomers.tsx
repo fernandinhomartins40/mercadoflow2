@@ -182,6 +182,7 @@ const SuperAdminCustomers: React.FC = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Buscar cliente"
               placeholder="Buscar por nome, CNPJ, e-mail ou responsável"
               className="w-full rounded-lg py-2 pl-9 pr-3 text-sm"
               style={{

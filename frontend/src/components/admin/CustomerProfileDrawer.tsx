@@ -400,6 +400,8 @@ const CustomerProfileDrawer: React.FC<Props> = ({ marketId, onClose, onChanged }
                     </p>
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
+                        <label className="flex flex-col" style={{ minWidth: 0 }}>
+                        <span className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Tipo</span>
                         <select
                           value={noteType}
                           onChange={(e) => setNoteType(e.target.value as ActivityType)}
@@ -410,6 +412,9 @@ const CustomerProfileDrawer: React.FC<Props> = ({ marketId, onClose, onChanged }
                             <option key={t} value={t}>{ACTIVITY_META[t].label}</option>
                           ))}
                         </select>
+                        </label>
+                        <label className="flex flex-1 flex-col" style={{ minWidth: 0 }}>
+                        <span className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Resumo</span>
                         <input
                           value={noteTitle}
                           onChange={(e) => setNoteTitle(e.target.value)}
@@ -417,8 +422,11 @@ const CustomerProfileDrawer: React.FC<Props> = ({ marketId, onClose, onChanged }
                           className="flex-1 rounded-lg px-2 py-1.5 text-xs"
                           style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
                         />
+                        </label>
                       </div>
+                      <span className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Detalhes (opcional)</span>
                       <textarea
+                        aria-label="Detalhes da interação"
                         value={noteBody}
                         onChange={(e) => setNoteBody(e.target.value)}
                         placeholder="Detalhes (opcional)"
@@ -492,7 +500,9 @@ const CustomerProfileDrawer: React.FC<Props> = ({ marketId, onClose, onChanged }
                       Novo follow-up
                     </p>
                     <div className="flex flex-col gap-2">
+                      <span className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>O que fazer</span>
                       <input
+                        aria-label="O que fazer"
                         value={taskTitle}
                         onChange={(e) => setTaskTitle(e.target.value)}
                         placeholder="Ex.: Retornar ligação sobre upgrade"
@@ -502,12 +512,16 @@ const CustomerProfileDrawer: React.FC<Props> = ({ marketId, onClose, onChanged }
                       <div className="flex gap-2">
                         <input
                           type="date"
+                          aria-label="Prazo"
+                          title="Prazo"
                           value={taskDue}
                           onChange={(e) => setTaskDue(e.target.value)}
                           className="rounded-lg px-2 py-1.5 text-xs"
                           style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
                         />
                         <select
+                          aria-label="Prioridade"
+                          title="Prioridade"
                           value={taskPriority}
                           onChange={(e) => setTaskPriority(e.target.value as TaskPriority)}
                           className="rounded-lg px-2 py-1.5 text-xs"

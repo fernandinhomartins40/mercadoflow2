@@ -163,10 +163,10 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
           <div className="flex flex-col gap-4 p-4 sm:p-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo unitário <span style={{ color: '#ef4444' }}>*</span></label>
+                <label htmlFor="f-shoppinglist-1" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo unitário <span style={{ color: '#ef4444' }}>*</span></label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-soft)' }}>R$</span>
-                  <input type="text" inputMode="decimal" placeholder="0,00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
+                  <input id="f-shoppinglist-1" type="text" inputMode="decimal" placeholder="0,00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
                     className="h-10 w-full rounded-lg pl-8 pr-3 text-sm outline-none"
                     style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }} />
                 </div>
@@ -178,10 +178,10 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
                 )}
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Preço de venda</label>
+                <label htmlFor="f-shoppinglist-2" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Preço de venda</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-soft)' }}>R$</span>
-                  <input type="text" inputMode="decimal" placeholder="0,00" value={unitSalePrice} onChange={(e) => setUnitSalePrice(e.target.value)}
+                  <input id="f-shoppinglist-2" type="text" inputMode="decimal" placeholder="0,00" value={unitSalePrice} onChange={(e) => setUnitSalePrice(e.target.value)}
                     className="h-10 w-full rounded-lg pl-8 pr-3 text-sm outline-none"
                     style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }} />
                 </div>
@@ -191,8 +191,8 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Qtd. comprada</label>
-                <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
+                <label htmlFor="f-shoppinglist-3" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Qtd. comprada</label>
+                <input id="f-shoppinglist-3" type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
                   className="h-10 w-full rounded-lg px-3 text-sm outline-none"
                   style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }} />
               </div>
@@ -211,8 +211,8 @@ const RecordPurchaseModal: React.FC<{ item: ShoppingListItem; marketId: string; 
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observação</label>
-              <textarea rows={2} placeholder="Lote, validade..." value={note} onChange={(e) => setNote(e.target.value)}
+              <label htmlFor="f-shoppinglist-4" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observação</label>
+              <textarea id="f-shoppinglist-4" rows={2} placeholder="Lote, validade..." value={note} onChange={(e) => setNote(e.target.value)}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
                 style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }} />
             </div>
@@ -282,7 +282,7 @@ const CatalogSearch: React.FC<{ marketId: string; productIds: Set<string>; onAdd
     <div className="relative">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-        <input type="text" placeholder="Buscar produto no catálogo..." value={query}
+        <input type="text" aria-label="Buscar produto no catálogo" placeholder="Buscar produto no catálogo..." value={query}
           className="h-10 w-full rounded-xl pl-9 pr-9 text-sm outline-none"
           style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => search(e.target.value), 350); }}
@@ -472,7 +472,7 @@ const ProductSearchDropdown: React.FC<{ marketId: string; existingIds: Set<strin
     <div className="relative">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-        <input type="text" placeholder="Buscar produto para adicionar ao pedido..." value={query}
+        <input type="text" aria-label="Buscar produto para adicionar ao pedido" placeholder="Buscar produto para adicionar ao pedido..." value={query}
           className="h-10 w-full rounded-xl pl-9 pr-9 text-sm outline-none"
           style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); if (debRef.current) clearTimeout(debRef.current); debRef.current = setTimeout(() => search(e.target.value), 350); }}
@@ -553,14 +553,14 @@ const AddItemForm: React.FC<{
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Quantidade *</label>
-          <input type="number" min="0.001" step="any" value={qty} onChange={(e) => setQty(e.target.value)}
+          <label htmlFor="f-shoppinglist-5" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Quantidade *</label>
+          <input id="f-shoppinglist-5" type="number" min="0.001" step="any" value={qty} onChange={(e) => setQty(e.target.value)}
             className="h-9 w-full rounded-lg px-3 text-sm outline-none"
             style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Unidade</label>
-          <select value={unitType} onChange={(e) => { setUnitType(e.target.value); setUnitsPerPack(''); }}
+          <label htmlFor="f-shoppinglist-6" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Unidade</label>
+          <select id="f-shoppinglist-6" value={unitType} onChange={(e) => { setUnitType(e.target.value); setUnitsPerPack(''); }}
             className="h-9 w-full rounded-lg px-2 text-sm outline-none"
             style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
             {UNIT_TYPES.map(u => <option key={u} value={u}>{UNIT_LABELS[u] || u}</option>)}
@@ -568,35 +568,35 @@ const AddItemForm: React.FC<{
         </div>
         {needsPack && (
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Un./embalagem</label>
-            <input type="number" min="1" step="1" placeholder="ex: 12" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)}
+            <label htmlFor="f-shoppinglist-7" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Un./embalagem</label>
+            <input id="f-shoppinglist-7" type="number" min="1" step="1" placeholder="ex: 12" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)}
               className="h-9 w-full rounded-lg px-3 text-sm outline-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
             {totalUnits && <p className="mt-0.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>{totalUnits} unidades no total</p>}
           </div>
         )}
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo por {(UNIT_LABELS[unitType] || 'unidade').toLowerCase()} *</label>
+          <label htmlFor="f-shoppinglist-8" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Custo por {(UNIT_LABELS[unitType] || 'unidade').toLowerCase()} *</label>
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-soft)' }}>R$</span>
-            <input type="text" inputMode="decimal" placeholder="0,00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
+            <input id="f-shoppinglist-8" type="text" inputMode="decimal" placeholder="0,00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
               className="h-9 w-full rounded-lg pl-7 pr-2 text-sm outline-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Preço de venda (un.)</label>
+          <label htmlFor="f-shoppinglist-9" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Preço de venda (un.)</label>
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-soft)' }}>R$</span>
-            <input type="text" inputMode="decimal" placeholder="0,00" value={unitSalePrice} onChange={(e) => setUnitSalePrice(e.target.value)}
+            <input id="f-shoppinglist-9" type="text" inputMode="decimal" placeholder="0,00" value={unitSalePrice} onChange={(e) => setUnitSalePrice(e.target.value)}
               className="h-9 w-full rounded-lg pl-7 pr-2 text-sm outline-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
           </div>
           {margin !== null && <p className="mt-0.5 text-xs font-semibold" style={{ color: margin >= 20 ? '#16a34a' : margin >= 10 ? '#d97706' : '#dc2626' }}>Margem: {formatDecimal(margin, 1)}%</p>}
         </div>
         <div className={needsPack ? 'sm:col-span-2' : 'sm:col-span-4'}>
-          <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observação</label>
-          <input type="text" placeholder="Lote, validade..." value={note} onChange={(e) => setNote(e.target.value)}
+          <label htmlFor="f-shoppinglist-10" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observação</label>
+          <input id="f-shoppinglist-10" type="text" placeholder="Lote, validade..." value={note} onChange={(e) => setNote(e.target.value)}
             className="h-9 w-full rounded-lg px-3 text-sm outline-none"
             style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
         </div>
@@ -728,7 +728,7 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
           {confirm === 'cancel' && (
             <div className="mx-5 mb-3 rounded-xl p-4" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
               <p className="mb-2 text-sm font-semibold text-red-700">Cancelar pedido?</p>
-              <input type="text" placeholder="Motivo (opcional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
+              <input type="text" aria-label="Motivo do cancelamento" placeholder="Motivo (opcional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
                 className="mb-3 h-9 w-full rounded-lg px-3 text-sm outline-none"
                 style={{ border: '1px solid #fecaca', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
               <div className="flex gap-2">
@@ -785,8 +785,8 @@ const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onCl
 
         <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Data de recebimento</label>
-            <input type="datetime-local" value={receivedAt} onChange={(e) => setReceivedAt(e.target.value)}
+            <label htmlFor="f-shoppinglist-11" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Data de recebimento</label>
+            <input id="f-shoppinglist-11" type="datetime-local" value={receivedAt} onChange={(e) => setReceivedAt(e.target.value)}
               className="h-9 w-full rounded-lg px-3 text-sm outline-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
           </div>
@@ -799,7 +799,7 @@ const ReceiveOrderModal: React.FC<{ order: SupplierOrder; marketId: string; onCl
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Pedido: {formatQuantityTrim(Number(item.quantityRequested))} {UNIT_LABELS[item.unitType] || item.unitType}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <input type="number" min="0" step="any" value={qtys[item.id] ?? String(item.quantityRequested)} onChange={(e) => setQtys(p => ({ ...p, [item.id]: e.target.value }))}
+                  <input type="number" min="0" step="any" aria-label={`Quantidade recebida de ${item.productName}`} value={qtys[item.id] ?? String(item.quantityRequested)} onChange={(e) => setQtys(p => ({ ...p, [item.id]: e.target.value }))}
                     className="h-9 w-20 rounded-lg px-2 text-center text-sm outline-none"
                     style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
                   <span className="text-xs" style={{ color: 'var(--text-soft)' }}>{UNIT_LABELS[item.unitType] || item.unitType}</span>
@@ -986,8 +986,8 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
             )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observações do pedido</label>
-            <textarea rows={2} placeholder="Condição de pagamento, prazo de entrega..." value={notes} onChange={(e) => setNotes(e.target.value)}
+            <label htmlFor="f-shoppinglist-12" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Observações do pedido</label>
+            <textarea id="f-shoppinglist-12" rows={2} placeholder="Condição de pagamento, prazo de entrega..." value={notes} onChange={(e) => setNotes(e.target.value)}
               className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />
           </div>
@@ -1048,7 +1048,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
               <p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Buscar produto</p>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                <input type="text" placeholder="Digite para buscar qualquer produto..." value={searchQuery}
+                <input type="text" aria-label="Digite para buscar qualquer produto" placeholder="Digite para buscar qualquer produto..." value={searchQuery}
                   className="h-10 w-full rounded-xl pl-9 pr-9 text-sm outline-none"
                   style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}
                   onChange={(e) => {

@@ -471,7 +471,7 @@ const SuperAdminCatalogManager: React.FC = () => {
           <div className="catalog-admin-search-row">
             <input
               className="input"
-              placeholder="Buscar por GTIN, nome, marca..."
+              aria-label="Buscar por GTIN, nome, marca" placeholder="Buscar por GTIN, nome, marca..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />

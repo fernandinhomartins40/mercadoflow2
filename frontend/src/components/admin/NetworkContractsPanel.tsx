@@ -356,6 +356,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
           </h3>
           {availableMarkets.length > 0 && (
             <select
+              aria-label="Escolher mercado para novo contrato"
               value=""
               onChange={(e) => {
                 const market = availableMarkets.find((m) => m.marketId === e.target.value);
@@ -474,10 +475,10 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
             <div className="mt-4 grid gap-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  <label htmlFor="f-networkcontractspanel-1" className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Valor mensal (R$) *
                   </label>
-                  <input
+                  <input id="f-networkcontractspanel-1"
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     placeholder="1.250,00"
@@ -488,10 +489,10 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  <label htmlFor="f-networkcontractspanel-2" className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Vencimento (dias)
                   </label>
-                  <input
+                  <input id="f-networkcontractspanel-2"
                     value={form.daysUntilDue}
                     onChange={(e) => setForm({ ...form, daysUntilDue: e.target.value })}
                     inputMode="numeric"
@@ -513,10 +514,10 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
                   ['seatLimit', 'Usuários'],
                 ] as const).map(([field, label]) => (
                   <div key={field}>
-                    <label className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    <label htmlFor="f-networkcontractspanel-3" className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
                       {label}
                     </label>
-                    <input
+                    <input id="f-networkcontractspanel-3"
                       value={form[field]}
                       onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                       placeholder="-1 = ilimitado"
@@ -529,10 +530,10 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  <label htmlFor="f-networkcontractspanel-4" className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
                     Contato
                   </label>
-                  <input
+                  <input id="f-networkcontractspanel-4"
                     value={form.contactName}
                     onChange={(e) => setForm({ ...form, contactName: e.target.value })}
                     className="w-full rounded-lg px-3 py-2 text-sm"
@@ -540,10 +541,10 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  <label htmlFor="f-networkcontractspanel-5" className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
                     E-mail da fatura
                   </label>
-                  <input
+                  <input id="f-networkcontractspanel-5"
                     value={form.contactEmail}
                     onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
                     type="email"
@@ -554,10 +555,10 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
               </div>
 
               <div>
-                <label className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                <label htmlFor="f-networkcontractspanel-6" className="mb-1 block text-[11px]" style={{ color: 'var(--text-muted)' }}>
                   Observações
                 </label>
-                <textarea
+                <textarea id="f-networkcontractspanel-6"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   rows={2}

@@ -80,8 +80,8 @@ const SuperAdminLogin: React.FC = () => {
         </div>
         <form className="super-admin-login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>E-mail</label>
-            <input
+            <label htmlFor="f-superadminlogin-1">E-mail</label>
+            <input id="f-superadminlogin-1"
               className="input"
               type="email"
               autoComplete="email"
@@ -91,9 +91,9 @@ const SuperAdminLogin: React.FC = () => {
             />
           </div>
           <div className="form-group">
-            <label>Senha</label>
+            <label htmlFor="f-superadminlogin-2">Senha</label>
             <div className="input-with-icon">
-              <input
+              <input id="f-superadminlogin-2"
                 className="input"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"

@@ -342,10 +342,10 @@ const PlanCatalogPanel: React.FC = () => {
 
             <div className="mt-4 flex flex-col gap-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <label htmlFor="f-plancatalogpanel-1" className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                   Novo valor mensal (R$)
                 </label>
-                <input
+                <input id="f-plancatalogpanel-1"
                   value={dialog.input}
                   onChange={(e) => setDialog({ ...dialog, input: e.target.value })}
                   placeholder="197,00"
@@ -376,10 +376,10 @@ const PlanCatalogPanel: React.FC = () => {
               </label>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <label htmlFor="f-plancatalogpanel-2" className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                   Motivo (opcional)
                 </label>
-                <input
+                <input id="f-plancatalogpanel-2"
                   value={dialog.reason}
                   onChange={(e) => setDialog({ ...dialog, reason: e.target.value })}
                   placeholder="Ex.: reajuste anual"

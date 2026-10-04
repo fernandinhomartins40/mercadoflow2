@@ -117,12 +117,12 @@ const DesempenhoTab: React.FC = () => {
         <form onSubmit={(e) => { e.preventDefault(); const n = new URLSearchParams(searchParams); setPage(0); searchInput.trim() ? n.set('search', searchInput.trim()) : n.delete('search'); setSearchParams(n); }} className="flex w-full gap-2 sm:w-auto">
           <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-soft)' }} />
-            <input className="input pl-9 sm:w-72" placeholder="Buscar produto..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+            <input className="input pl-9 sm:w-72" aria-label="Buscar produto" placeholder="Buscar produto..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
           </div>
           <Button type="submit">Buscar</Button>
           {querySearch && <Button variant="ghost" type="button" onClick={() => { setSearchInput(''); setPage(0); const n = new URLSearchParams(searchParams); n.delete('search'); setSearchParams(n); }}>Limpar</Button>}
         </form>
-        <input className="input sm:w-52" placeholder="Filtrar categoria" value={category} onChange={(e) => { setPage(0); setCategory(e.target.value); }} />
+        <input className="input sm:w-52" aria-label="Filtrar categoria" placeholder="Filtrar categoria" value={category} onChange={(e) => { setPage(0); setCategory(e.target.value); }} />
         <p className="ml-auto text-sm" style={{ color: 'var(--text-muted)' }}>{totalElements} produtos</p>
       </div>
 

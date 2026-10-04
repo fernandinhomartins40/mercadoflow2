@@ -156,11 +156,11 @@ const NewSupplierForm: React.FC<{
     <div className="flex flex-col gap-4">
       {/* Busca CNPJ */}
       <div>
-        <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+        <label htmlFor="f-suppliermodal-1" className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
           CNPJ do fornecedor
         </label>
         <div className="flex gap-2">
-          <input
+          <input id="f-suppliermodal-1"
             ref={inputRef}
             type="text"
             inputMode="numeric"
@@ -229,8 +229,8 @@ const NewSupplierForm: React.FC<{
               { label: 'Telefone', key: 'telefone' as const, span: 1 },
             ].map(({ label, key, span }) => (
               <div key={key} className={span === 2 ? 'col-span-2' : ''}>
-                <label className="mb-1 block text-[0.65rem]" style={{ color: 'var(--text-muted)' }}>{label}</label>
-                <input
+                <label htmlFor="f-suppliermodal-2" className="mb-1 block text-[0.65rem]" style={{ color: 'var(--text-muted)' }}>{label}</label>
+                <input id="f-suppliermodal-2"
                   type="text"
                   value={(draft as any)[key] ?? ''}
                   onChange={(e) => setDraft(prev => prev ? { ...prev, [key]: e.target.value } : prev)}
@@ -341,7 +341,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ marketId, onClose, onSele
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
                   <input
                     type="text"
-                    placeholder="Buscar por nome ou CNPJ..."
+                    aria-label="Buscar por nome ou CNPJ" placeholder="Buscar por nome ou CNPJ..."
                     className="h-9 w-full rounded-lg pl-8 pr-3 text-sm outline-none"
                     style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-base)' }}
                     value={search}

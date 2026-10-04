@@ -577,20 +577,20 @@ const SuperAdminUsers: React.FC = () => {
 
         <PanelSection kicker="Assinaturas" title="Plano, acesso e contato">
           <div className="filter-bar-controls page-data-grid super-admin-filters-grid">
-            <input className="input" placeholder="Buscar por nome ou CNPJ" value={marketDraftFilters.search} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, search: e.target.value })} />
-            <select className="input" value={marketDraftFilters.planType} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, planType: e.target.value })}>
+            <input className="input" aria-label="Buscar conta por nome ou CNPJ" placeholder="Buscar por nome ou CNPJ" value={marketDraftFilters.search} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, search: e.target.value })} />
+            <select className="input" aria-label="Filtrar por plano" value={marketDraftFilters.planType} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, planType: e.target.value })}>
               <option value="">Todos os planos</option>
               {PLAN_OPTIONS.map((option) => (
                 <option key={option} value={option}>{formatPlanType(option)}</option>
               ))}
             </select>
-            <select className="input" value={marketDraftFilters.billingStatus} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, billingStatus: e.target.value })}>
+            <select className="input" aria-label="Filtrar por situação da cobrança" value={marketDraftFilters.billingStatus} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, billingStatus: e.target.value })}>
               <option value="">Toda a cobrança</option>
               {BILLING_STATUS_OPTIONS.map((option) => (
                 <option key={option} value={option}>{formatBillingStatus(option)}</option>
               ))}
             </select>
-            <select className="input" value={marketDraftFilters.active} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, active: e.target.value })}>
+            <select className="input" aria-label="Filtrar por conta ativa" value={marketDraftFilters.active} onChange={(e) => setMarketDraftFilters({ ...marketDraftFilters, active: e.target.value })}>
               <option value="">Todos os status</option>
               <option value="true">Somente ativos</option>
               <option value="false">Somente bloqueados</option>
@@ -671,14 +671,14 @@ const SuperAdminUsers: React.FC = () => {
           action={<ButtonLink to="/super-admin" variant="secondary">Voltar ao painel</ButtonLink>}
         >
           <div className="filter-bar-controls page-data-grid super-admin-filters-grid">
-            <input className="input" placeholder="Buscar por nome, e-mail ou conta" value={userDraftFilters.search} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, search: e.target.value })} />
-            <select className="input" value={userDraftFilters.role} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, role: e.target.value })}>
+            <input className="input" aria-label="Buscar usuário por nome, e-mail ou conta" placeholder="Buscar por nome, e-mail ou conta" value={userDraftFilters.search} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, search: e.target.value })} />
+            <select className="input" aria-label="Filtrar por papel" value={userDraftFilters.role} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, role: e.target.value })}>
               <option value="">Todos os papéis</option>
               {USER_ROLE_OPTIONS.map((option) => (
                 <option key={option} value={option}>{formatRole(option)}</option>
               ))}
             </select>
-            <select className="input" value={userDraftFilters.active} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, active: e.target.value })}>
+            <select className="input" aria-label="Filtrar por usuário ativo" value={userDraftFilters.active} onChange={(e) => setUserDraftFilters({ ...userDraftFilters, active: e.target.value })}>
               <option value="">Todos os status</option>
               <option value="true">Somente ativos</option>
               <option value="false">Somente bloqueados</option>
@@ -762,29 +762,29 @@ const SuperAdminUsers: React.FC = () => {
                 </div>
               </div>
               <div className="super-admin-saas-modal-grid">
-                <input className="input" placeholder="Nome da conta" value={marketForm.name} onChange={(e) => setMarketForm({ ...marketForm, name: e.target.value })} />
-                <input className="input" placeholder="CNPJ" value={marketForm.cnpj} onChange={(e) => setMarketForm({ ...marketForm, cnpj: e.target.value })} />
-                <select className="input" value={marketForm.planType} onChange={(e) => setMarketForm({ ...marketForm, planType: e.target.value })}>
+                <label className="fx-field">Nome da conta<input className="input" placeholder="Nome da conta" value={marketForm.name} onChange={(e) => setMarketForm({ ...marketForm, name: e.target.value })} /></label>
+                <label className="fx-field">CNPJ<input className="input" placeholder="CNPJ" value={marketForm.cnpj} onChange={(e) => setMarketForm({ ...marketForm, cnpj: e.target.value })} /></label>
+                <label className="fx-field">Plano<select className="input" value={marketForm.planType} onChange={(e) => setMarketForm({ ...marketForm, planType: e.target.value })}>
                   {PLAN_OPTIONS.map((option) => (
                     <option key={option} value={option}>{formatPlanType(option)}</option>
                   ))}
-                </select>
-                <select className="input" value={marketForm.billingStatus} onChange={(e) => setMarketForm({ ...marketForm, billingStatus: e.target.value })}>
+                </select></label>
+                <label className="fx-field">Situação da cobrança<select className="input" value={marketForm.billingStatus} onChange={(e) => setMarketForm({ ...marketForm, billingStatus: e.target.value })}>
                   {BILLING_STATUS_OPTIONS.map((option) => (
                     <option key={option} value={option}>{formatBillingStatus(option)}</option>
                   ))}
-                </select>
-                <input className="input" placeholder="Limite de usuários" value={marketForm.userSeatLimit} onChange={(e) => setMarketForm({ ...marketForm, userSeatLimit: e.target.value })} />
-                <input className="input" type="datetime-local" value={marketForm.accessExpiresAt} onChange={(e) => setMarketForm({ ...marketForm, accessExpiresAt: e.target.value })} />
-                <input className="input" type="datetime-local" value={marketForm.trialEndsAt} onChange={(e) => setMarketForm({ ...marketForm, trialEndsAt: e.target.value })} />
-                <input className="input" placeholder="Contato principal" value={marketForm.contactName} onChange={(e) => setMarketForm({ ...marketForm, contactName: e.target.value })} />
-                <input className="input" placeholder="E-mail do contato" value={marketForm.contactEmail} onChange={(e) => setMarketForm({ ...marketForm, contactEmail: e.target.value })} />
-                <input className="input" placeholder="Telefone do contato" value={marketForm.contactPhone} onChange={(e) => setMarketForm({ ...marketForm, contactPhone: e.target.value })} />
+                </select></label>
+                <label className="fx-field">Limite de usuários<input className="input" placeholder="Limite de usuários" value={marketForm.userSeatLimit} onChange={(e) => setMarketForm({ ...marketForm, userSeatLimit: e.target.value })} /></label>
+                <label className="fx-field">Acesso vale até<input className="input" type="datetime-local" value={marketForm.accessExpiresAt} onChange={(e) => setMarketForm({ ...marketForm, accessExpiresAt: e.target.value })} /><small className="fx-field-hint">Vazio: sem data de fim</small></label>
+                <label className="fx-field">Teste termina em<input className="input" type="datetime-local" value={marketForm.trialEndsAt} onChange={(e) => setMarketForm({ ...marketForm, trialEndsAt: e.target.value })} /></label>
+                <label className="fx-field">Contato principal<input className="input" placeholder="Contato principal" value={marketForm.contactName} onChange={(e) => setMarketForm({ ...marketForm, contactName: e.target.value })} /></label>
+                <label className="fx-field">E-mail do contato<input className="input" placeholder="E-mail do contato" value={marketForm.contactEmail} onChange={(e) => setMarketForm({ ...marketForm, contactEmail: e.target.value })} /></label>
+                <label className="fx-field">Telefone do contato<input className="input" placeholder="Telefone do contato" value={marketForm.contactPhone} onChange={(e) => setMarketForm({ ...marketForm, contactPhone: e.target.value })} /></label>
                 <label className="checkbox super-admin-inline-checkbox super-admin-saas-modal-checkbox">
                   <input type="checkbox" checked={marketForm.active} onChange={(e) => setMarketForm({ ...marketForm, active: e.target.checked })} />
                   <span>Conta ativa</span>
                 </label>
-                <textarea className="input super-admin-notes super-admin-saas-modal-notes" placeholder="Observações internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} />
+                <label className="fx-field super-admin-saas-modal-notes">Observações internas<textarea className="input super-admin-notes super-admin-saas-modal-notes" placeholder="Observações internas" value={marketForm.notes} onChange={(e) => setMarketForm({ ...marketForm, notes: e.target.value })} /></label>
               </div>
             </div>
           </div>
@@ -812,20 +812,20 @@ const SuperAdminUsers: React.FC = () => {
                 </div>
               </div>
               <div className="super-admin-saas-modal-grid">
-                <input className="input" placeholder="Nome" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
-                <input className="input" placeholder="E-mail" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
-                <input className="input" placeholder={editingUserId ?'Nova senha (opcional)' : 'Senha inicial'} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
-                <select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, marketId: e.target.value === 'SUPER_ADMIN' ?'' : userForm.marketId })}>
+                <label className="fx-field">Nome<input className="input" placeholder="Nome" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} /></label>
+                <label className="fx-field">E-mail<input className="input" placeholder="E-mail" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} /></label>
+                <label className="fx-field">Senha<input className="input" placeholder={editingUserId ?'Nova senha (opcional)' : 'Senha inicial'} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} /></label>
+                <label className="fx-field">Papel<select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, marketId: e.target.value === 'SUPER_ADMIN' ?'' : userForm.marketId })}>
                   {USER_ROLE_OPTIONS.map((option) => (
                     <option key={option} value={option}>{formatRole(option)}</option>
                   ))}
-                </select>
-                <select className="input" value={userForm.marketId} onChange={(e) => setUserForm({ ...userForm, marketId: e.target.value })} disabled={userForm.role === 'SUPER_ADMIN'}>
+                </select></label>
+                <label className="fx-field">Conta (mercado)<select className="input" value={userForm.marketId} onChange={(e) => setUserForm({ ...userForm, marketId: e.target.value })} disabled={userForm.role === 'SUPER_ADMIN'}>
                   <option value="">Sem conta vinculada</option>
                   {marketOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </select></label>
                 <label className="checkbox super-admin-inline-checkbox super-admin-saas-modal-checkbox">
                   <input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })} />
                   <span>Usuário ativo</span>

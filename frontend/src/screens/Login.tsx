@@ -140,8 +140,8 @@ const Login: React.FC = () => {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>E-mail</label>
-            <input
+            <label htmlFor="f-login-1">E-mail</label>
+            <input id="f-login-1"
               className="input"
               type="email"
               autoComplete="email"
@@ -150,9 +150,9 @@ const Login: React.FC = () => {
             />
           </div>
           <div className="form-group">
-            <label>Senha</label>
+            <label htmlFor="f-login-2">Senha</label>
             <div className="input-with-icon">
-              <input
+              <input id="f-login-2"
                 className="input"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"

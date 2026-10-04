@@ -594,3 +594,7 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 .fx-forest .fx-white *::-webkit-scrollbar-thumb, .fx-forest .fx-item *::-webkit-scrollbar-thumb { background-color: var(--fx-line-2); }
 .fx-app .fx-seg-tabs { scrollbar-width: none; }
 .fx-app .fx-seg-tabs::-webkit-scrollbar { display: none; }
+.fx-field { font-weight: 650; color: var(--fx-ink-2); min-width: 0; }
+.fx-field > .input, .fx-field > textarea { font-weight: 400; }
+.fx-field-hint { font-weight: 500; font-size: 12px; color: var(--fx-muted); }
+.fx-field textarea { border: 1px solid var(--fx-line-2); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 15px; color: var(--fx-ink); background: #fff; }

@@ -327,6 +327,7 @@ const DataChat: React.FC = () => {
           style={{ background: 'var(--surface-app, transparent)' }}
         >
           <input
+            aria-label="Sua pergunta"
             value={input}
             onChange={e => setInput(e.target.value)}
             disabled={sending || available === null}

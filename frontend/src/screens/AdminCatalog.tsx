@@ -240,27 +240,28 @@ const CatalogAdmin: React.FC = () => {
         <div className="filter-bar-controls catalog-admin-filters-grid">
           <input
             className="input"
-            placeholder="Buscar por nome ou GTIN"
+            aria-label="Buscar por nome ou GTIN" placeholder="Buscar por nome ou GTIN"
             value={draftFilters.search}
             onChange={(e) => setDraftFilters((current) => ({ ...current, search: e.target.value }))}
             onKeyDown={handleFilterKeyDown}
           />
           <input
             className="input"
-            placeholder="Filtrar por marca"
+            aria-label="Filtrar por marca" placeholder="Filtrar por marca"
             value={draftFilters.brand}
             onChange={(e) => setDraftFilters((current) => ({ ...current, brand: e.target.value }))}
             onKeyDown={handleFilterKeyDown}
           />
           <input
             className="input"
-            placeholder="Filtrar por categoria"
+            aria-label="Filtrar por categoria" placeholder="Filtrar por categoria"
             value={draftFilters.category}
             onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
             onKeyDown={handleFilterKeyDown}
           />
           <select
             className="input"
+            aria-label="Filtrar por imagem"
             value={draftFilters.imageStatus}
             onChange={(e) =>
               setDraftFilters((current) => ({

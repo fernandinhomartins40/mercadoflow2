@@ -225,8 +225,8 @@ const PDVs: React.FC = () => {
                   onSubmit={(e) => { e.preventDefault(); void createPdv(); }}>
                   <b>Cadastrar caixa</b>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
-                    <input className="input" placeholder="Nome do caixa (ex.: Caixa 1)" value={pdvName} onChange={e => setPdvName(e.target.value)} aria-label="Nome do caixa" />
-                    <input className="input" placeholder="Número de série (opcional)" value={pdvSerial} onChange={e => setPdvSerial(e.target.value)} aria-label="Número de série" />
+                    <label className="fx-field">Nome do caixa<input className="input" placeholder="Ex.: Caixa 1" value={pdvName} onChange={e => setPdvName(e.target.value)} /></label>
+                    <label className="fx-field">Número de série (opcional)<input className="input" placeholder="Fica na etiqueta do computador" value={pdvSerial} onChange={e => setPdvSerial(e.target.value)} /></label>
                   </div>
                   {pdvError && <p role="alert" className="text-sm" style={{ color: 'var(--fx-red)', margin: 0 }}>{pdvError}</p>}
                   <button type="submit" disabled={pdvSaving || !pdvName.trim()} className="fx-btn dark small" style={{ justifySelf: 'start' }}>
@@ -352,14 +352,15 @@ const PDVs: React.FC = () => {
               <div className="flex flex-col gap-3 rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nova chave</p>
                 {role === 'ADMIN' && !marketId && (
-                  <select value={manualMarketId} onChange={e => setManualMarketId(e.target.value)}
+                  <select aria-label="Mercado da chave" value={manualMarketId} onChange={e => setManualMarketId(e.target.value)}
                     className="h-9 w-full rounded-lg px-3 text-sm outline-none"
                     style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
                     <option value="">Selecione o mercado</option>
                     {markets.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 )}
-                <input placeholder="Nome da chave (ex: Caixa Loja Centro)"
+                <label className="fx-field" htmlFor="pdv-key-name">Nome da chave</label>
+                <input id="pdv-key-name" placeholder="Ex.: Caixa Loja Centro"
                   value={keyName} onChange={e => setKeyName(e.target.value)}
                   className="h-9 w-full rounded-lg px-3 text-sm outline-none"
                   style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }} />

@@ -473,7 +473,7 @@ public class SubscriptionAdminService {
 
     @Transactional(readOnly = true)
     public List<SubscriptionEvent> historyFor(UUID marketId) {
-        return eventRepository.findTop50ByMarketIdOrderByCreatedAtDesc(marketId);
+        return eventRepository.findTop50ByMarket_IdOrderByCreatedAtDesc(marketId);
     }
 
     @Transactional(readOnly = true)

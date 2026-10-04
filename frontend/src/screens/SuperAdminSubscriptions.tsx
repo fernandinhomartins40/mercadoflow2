@@ -9,6 +9,7 @@ import PlanFeaturesPanel from '../components/admin/PlanFeaturesPanel';
 import RevenuePanel from '../components/admin/RevenuePanel';
 import NoticeTemplatesPanel from '../components/admin/NoticeTemplatesPanel';
 import AccountSheet from '../components/admin/AccountSheet';
+import GrantAccessPanel from '../components/admin/GrantAccessPanel';
 import BillingReportPanel from '../components/admin/BillingReportPanel';
 import NetworkContractsPanel from '../components/admin/NetworkContractsPanel';
 import subscriptionService, {
@@ -479,6 +480,7 @@ const SuperAdminSubscriptions: React.FC = () => {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Buscar conta"
                   placeholder="Buscar por mercado, e-mail ou CNPJ"
                   className="w-full rounded-lg py-2 pl-9 pr-3 text-sm"
                   style={{
@@ -612,14 +614,24 @@ const SuperAdminSubscriptions: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => openDetail(row)}
-                          className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
-                          style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-                        >
-                          Gerenciar
-                        </button>
+                        <span className="inline-flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openDetail(row)}
+                            className="rounded-full px-3 py-1 text-[11px] font-bold"
+                            style={{ background: 'var(--fx-forest, #0F3A29)', color: '#fff' }}
+                          >
+                            Liberar acesso
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDetail(row)}
+                            className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
+                            style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          >
+                            Gerenciar
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -649,6 +661,13 @@ const SuperAdminSubscriptions: React.FC = () => {
               {detail.contactEmail} · cliente desde {fmtDate(detail.createdAt)}
             </p>
 
+            <div className="mt-4">
+              <GrantAccessPanel marketId={detail.marketId} marketName={detail.marketName}
+                onChanged={() => { void subscriptionService.getHistory(detail.marketId).then(setHistory).catch(() => {}); void load(); }} />
+            </div>
+
+            <details className="mt-4 rounded-lg p-3" style={{ background: 'var(--surface-soft)' }}>
+              <summary className="cursor-pointer text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Ajuste técnico: plano e status sem período</summary>
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Plano
@@ -693,7 +712,9 @@ const SuperAdminSubscriptions: React.FC = () => {
               </div>
             </div>
 
-            <AccountSheet marketId={detail.marketId} onChanged={() => { void subscriptionService.getHistory(detail.marketId).then(setHistory); }} />
+            </details>
+
+            <AccountSheet marketId={detail.marketId} onChanged={() => { void subscriptionService.getHistory(detail.marketId).then(setHistory).catch(() => {}); }} />
 
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>

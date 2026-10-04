@@ -121,15 +121,19 @@ const CampanhasTab: React.FC<{ marketId: string }> = ({ marketId }) => {
         <div className="rounded-xl p-5" style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}>
           <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nova campanha promocional</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            <input className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} placeholder="Nome da campanha" value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} placeholder="Descrição (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>Nome da campanha
+              <input className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} placeholder="Ex.: Semana do café" value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>Descrição (opcional)
+              <input className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} placeholder="Ex.: Café e açúcar com desconto" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </label>
             <div className="flex flex-col gap-1">
-              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Data início</label>
-              <input type="date" className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <label htmlFor="f-promocoes-1" className="text-xs" style={{ color: 'var(--text-muted)' }}>Data início</label>
+              <input id="f-promocoes-1" type="date" className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Data fim</label>
-              <input type="date" className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <label htmlFor="f-promocoes-2" className="text-xs" style={{ color: 'var(--text-muted)' }}>Data fim</label>
+              <input id="f-promocoes-2" type="date" className="h-10 rounded-lg px-3 text-sm outline-none" style={inputStyle} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
           <div className="mt-3 flex gap-2">
@@ -450,7 +454,7 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
             </button>
           ))}
         </div>
-        <input type="text" placeholder="Buscar produto..." className="h-9 w-full min-w-0 rounded-lg px-3 text-sm outline-none sm:ml-auto sm:w-auto sm:basis-48"
+        <input type="text" aria-label="Buscar produto" placeholder="Buscar produto..." className="h-9 w-full min-w-0 rounded-lg px-3 text-sm outline-none sm:ml-auto sm:w-auto sm:basis-48"
           style={inputStyle} value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 

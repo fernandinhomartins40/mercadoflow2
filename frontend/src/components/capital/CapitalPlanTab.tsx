@@ -330,11 +330,11 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
       >
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-full min-w-0 flex-1 sm:w-auto sm:basis-56">
-            <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <label htmlFor="f-capitalplantab-1" className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
               <Wallet size={13} className="mr-1 inline" />
               Quanto você tem para comprar?
             </label>
-            <input
+            <input id="f-capitalplantab-1"
               value={budgetInput}
               onChange={(e) => setBudgetInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && applyBudget()}
