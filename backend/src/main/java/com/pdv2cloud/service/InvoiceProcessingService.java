@@ -50,6 +50,9 @@ public class InvoiceProcessingService {
     @Autowired
     private InvoiceRejectionService rejectionService;
 
+    @Autowired
+    private com.pdv2cloud.service.industry.MarketLocationService marketLocationService;
+
     /**
      * Registra o estouro de cota na trilha de assinatura uma única vez por
      * ciclo. Sem isso, um agente com fila cheia geraria um evento por nota
@@ -134,6 +137,13 @@ public class InvoiceProcessingService {
 
             // A nota entrou: se estava na lista de recusadas, sai dela.
             rejectionService.resolve(marketId, dto.getChaveNFe());
+
+            // O endereço do emitente localiza a loja para os dados anônimos da indústria.
+            try {
+                marketLocationService.fromInvoice(marketId, dto);
+            } catch (Exception exc) {
+                log.warn("Endereço do emitente não gravado para {}: {}", marketId, exc.getMessage());
+            }
 
             return IngestResponse.success(savedInvoice.getId(), dto.getChaveNFe());
         } catch (Exception e) {

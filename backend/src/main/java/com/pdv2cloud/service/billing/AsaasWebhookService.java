@@ -28,10 +28,18 @@ public class AsaasWebhookService {
     private static final Logger log = LoggerFactory.getLogger(AsaasWebhookService.class);
 
     public enum Outcome { DUPLICATE, IGNORED, CREDITS_AI, CREDITS_CONFERE, SUBSCRIPTION_PAID, SUBSCRIPTION_LATE, SUBSCRIPTION_CANCELED,
-        EXCEPTION }
+        EXCEPTION, INDUSTRY_PAID, INDUSTRY_LATE }
 
     private BillingInsightsService insights;
     private NotificationService notifications;
+
+    private com.pdv2cloud.service.industry.IndustryBillingService industryBilling;
+
+    /** Faturas da indústria chegam com a referência "ind:<fatura>". */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setIndustryBilling(com.pdv2cloud.service.industry.IndustryBillingService industryBilling) {
+        this.industryBilling = industryBilling;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setInsights(BillingInsightsService insights, NotificationService notifications) {
@@ -78,11 +86,19 @@ public class AsaasWebhookService {
                     confere.markOrderPaidByGateway(UUID.fromString(ref.substring(8)));
                     return Outcome.CREDITS_CONFERE;
                 }
+                if (ref != null && ref.startsWith("ind:") && industryBilling != null) {
+                    industryBilling.markPaid(UUID.fromString(ref.substring(4)), "asaas");
+                    return Outcome.INDUSTRY_PAID;
+                }
                 if (subId != null) {
                     return subscriptionPaid(subId, ref, payment);
                 }
             }
             case "PAYMENT_OVERDUE" -> {
+                if (ref != null && ref.startsWith("ind:") && industryBilling != null) {
+                    industryBilling.markOverdue(UUID.fromString(ref.substring(4)));
+                    return Outcome.INDUSTRY_LATE;
+                }
                 if (subId != null) {
                     UUID root = activeRoot(subId);
                     if (root != null) {

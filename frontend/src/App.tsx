@@ -6,6 +6,14 @@ import { buildOffersUrl, resolveOffersWorkspace } from './lib/offersApp';
 import { FEATURE_OFFER_TEMPLATES_ENABLED, FEATURE_STATE_PRICES_ENABLED } from './config/features';
 
 const Login = lazy(() => import('./screens/Login'));
+const IndustryHome = lazy(() => import('./screens/industria/IndustryHome'));
+const IndustryMap = lazy(() => import('./screens/industria/IndustryMap'));
+const IndustryProducts = lazy(() => import('./screens/industria/IndustryProducts'));
+const IndustryCategory = lazy(() => import('./screens/industria/IndustryCategory'));
+const IndustryAccount = lazy(() => import('./screens/industria/IndustryAccount'));
+const SuperAdminIndustries = lazy(() => import('./screens/SuperAdminIndustries'));
+const SuperAdminIndustryData = lazy(() => import('./screens/SuperAdminIndustryData'));
+const SuperAdminIndustryBilling = lazy(() => import('./screens/SuperAdminIndustryBilling'));
 const ForgotPassword = lazy(() => import('./screens/ForgotPassword'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword'));
 const Register = lazy(() => import('./screens/Register'));
@@ -56,12 +64,16 @@ const PageLoader = () => (
 );
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userId, teamRole, loading } = useAuth();
+  const { userId, teamRole, role, loading } = useAuth();
   if (loading) {
     return <PageLoader />;
   }
   if (!userId) {
     return <Navigate to="/login" replace />;
+  }
+  // Indústria tem portal próprio e nunca abre telas de mercado.
+  if (role === 'INDUSTRY_USER') {
+    return <Navigate to="/industria" replace />;
   }
   // Conferente usa só o Confere.
   if (teamRole === 'CONFERENTE') {
@@ -71,6 +83,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const secure = (element: React.ReactNode) => <ProtectedRoute>{element}</ProtectedRoute>;
+
+const IndustryRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { userId, role, loading } = useAuth();
+  if (loading) {
+    return <PageLoader />;
+  }
+  if (!userId) {
+    return <Navigate to="/login" replace />;
+  }
+  if (role !== 'INDUSTRY_USER') {
+    return <Navigate to="/app" replace />;
+  }
+  return <>{children}</>;
+};
+const secureIndustry = (element: React.ReactNode) => <IndustryRoute>{element}</IndustryRoute>;
 
 const SuperAdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userId, role, loading } = useSuperAdminAuth();
@@ -189,6 +216,14 @@ const App: React.FC = () => {
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/temas" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/confere" element={secureSuperAdmin(<SuperAdminConfere />)} />
+        <Route path="/super-admin/industria" element={secureSuperAdmin(<SuperAdminIndustries />)} />
+        <Route path="/super-admin/industria/dados" element={secureSuperAdmin(<SuperAdminIndustryData />)} />
+        <Route path="/super-admin/industria/cobranca" element={secureSuperAdmin(<SuperAdminIndustryBilling />)} />
+        <Route path="/industria" element={secureIndustry(<IndustryHome />)} />
+        <Route path="/industria/mapa" element={secureIndustry(<IndustryMap />)} />
+        <Route path="/industria/produtos" element={secureIndustry(<IndustryProducts />)} />
+        <Route path="/industria/categoria" element={secureIndustry(<IndustryCategory />)} />
+        <Route path="/industria/conta" element={secureIndustry(<IndustryAccount />)} />
         <Route path="/super-admin/ia" element={secureSuperAdmin(<SuperAdminAi />)} />
         <Route path="/super-admin/temas/:themeId" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />

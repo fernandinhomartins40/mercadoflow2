@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Bot, Briefcase, ClipboardCheck, CreditCard, Database, Globe2, Home, LayoutGrid, LayoutTemplate, LogOut, Palette,
-  Receipt, Search, Sparkles, UserSquare2, Users, X, type LucideIcon,
+  ArrowRight, Bot, Briefcase, ClipboardCheck, CreditCard, Database, Factory, Globe2, Home, LayoutGrid, LayoutTemplate, LogOut, Palette,
+  Receipt, Search, ShieldCheck, Sparkles, UserSquare2, Users, X, type LucideIcon,
 } from 'lucide-react';
 import type { WorkspaceNavSection } from './WorkspaceSidebar';
 import { Link, useLocation } from 'react-router-dom';
@@ -18,11 +18,14 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/super-admin/ofertas': { title: 'Templates de ofertas', subtitle: 'Base visual compartilhada para as contas da plataforma', section: 'Dados' },
   '/super-admin/ia': { title: 'IA e APIs', subtitle: 'Chaves, roteamento, orçamento, piloto e console da IA da plataforma', section: 'Inteligência' },
   '/super-admin/confere': { title: 'Confere', subtitle: 'App grátis de conferência: leitura de notas, créditos e pagamentos', section: 'Conteúdo' },
+  '/super-admin/industria': { title: 'Indústrias', subtitle: 'Empresas, carteira de produtos, contratos e prévia', section: 'Indústria' },
+  '/super-admin/industria/dados': { title: 'Privacidade e dados', subtitle: 'Regras de anonimato, lojas e agregados', section: 'Indústria' },
+  '/super-admin/industria/cobranca': { title: 'Cobrança da indústria', subtitle: 'Faturas por produto analisado', section: 'Indústria' },
   '/super-admin/temas': { title: 'Temas de encarte', subtitle: 'Fundos, selos e áreas que o editor dos mercados usa para montar as artes', section: 'Conteúdo' },
 };
 
 const SECTION_ICON: Record<string, LucideIcon> = {
-  Comercial: Briefcase, Dados: Database, 'Inteligência': Sparkles, 'Conteúdo': Palette,
+  Comercial: Briefcase, 'Indústria': Factory, Dados: Database, 'Inteligência': Sparkles, 'Conteúdo': Palette,
 };
 
 /** Casca do painel do super admin no visual Flow: topo, mapa e doca, como no app do mercado. */
@@ -61,6 +64,14 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         { to: '/super-admin/clientes', label: 'Clientes', hint: 'Ficha, saúde e follow-ups', icon: UserSquare2 },
         { to: '/super-admin/assinaturas', label: 'Assinaturas', hint: 'Planos, preços e contratos', icon: CreditCard },
         { to: '/super-admin/cobranca', label: 'Cobrança', hint: 'Inadimplência e régua', icon: Receipt },
+      ],
+    },
+    {
+      title: 'Indústria',
+      items: [
+        { to: '/super-admin/industria', label: 'Indústrias', hint: 'Carteira, contratos e prévia', icon: Factory, exact: true },
+        { to: '/super-admin/industria/dados', label: 'Privacidade e dados', hint: 'Anonimato, lojas e agregados', icon: ShieldCheck },
+        { to: '/super-admin/industria/cobranca', label: 'Cobrança da indústria', hint: 'Faturas por produto', icon: Receipt },
       ],
     },
     {

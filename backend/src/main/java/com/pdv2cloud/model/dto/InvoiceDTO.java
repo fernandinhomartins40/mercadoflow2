@@ -31,4 +31,19 @@ public class InvoiceDTO {
     private List<InvoiceItemDTO> items;
 
     private String rawXmlHash;
+
+    /** Endereço do emitente (enderEmit): na NFC-e do caixa, é a própria loja. */
+    @Valid
+    private Emitente emitente;
+
+    @Data
+    public static class Emitente {
+        private String logradouro;
+        private String numero;
+        private String bairro;
+        private String municipio;
+        private String codigoMunicipio;
+        private String uf;
+        private String cep;
+    }
 }

@@ -5,7 +5,10 @@ import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import subscriptionService, { MarketSubscription, PlanFeature, featureText, formatLimit } from '../services/subscription.service';
 import { useAuth } from '../context/AuthContext';
-import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ActionHub, Card, PageHero, PanelTitle } from '../components/flow/Flow';
+import { marketDataService } from '../services/industry.service';
+import { confirmDialog } from '../components/common/Dialogs';
+import { ShieldCheck } from 'lucide-react';
 import { CreditCard as HxCreditCard, Layers as HxLayers, Users as HxUsers } from 'lucide-react';
 
 /**
@@ -383,9 +386,50 @@ const MySubscription: React.FC = () => {
             )}
           </section>
         )}
+        {marketId && <DataParticipationCard marketId={marketId} />}
       </div>
     </Layout>
   );
 };
 
 export default MySubscription;
+
+/**
+ * "Seus dados e a indústria": a venda da loja entra, somada com a de outras
+ * lojas e sem o nome dela, nos dados que os fabricantes acompanham. No plano
+ * Grátis isso faz parte do plano; nos pagos, o dono pode sair.
+ */
+const DataParticipationCard: React.FC<{ marketId: string }> = ({ marketId }) => {
+  const [d, setD] = useState<Awaited<ReturnType<typeof marketDataService.get>> | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => { marketDataService.get(marketId).then(setD).catch(() => setD(null)); }, [marketId]);
+  if (!d) return null;
+  const toggle = async () => {
+    if (d.participates && !(await confirmDialog('Tirar a venda da sua loja dos dados da indústria? Você pode voltar quando quiser.', { confirmLabel: 'Tirar minha loja' }))) return;
+    try {
+      await marketDataService.set(marketId, !d.participates);
+      setD(await marketDataService.get(marketId));
+      setMsg(d.participates ? 'Sua loja saiu. A mudança vale a partir do próximo cálculo.' : 'Sua loja voltou a participar.');
+    } catch (e) {
+      setMsg((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não deu certo. Tente de novo.');
+    }
+  };
+  return (
+    <Card as="section" aria-label="Seus dados e a indústria">
+      <PanelTitle icon={ShieldCheck} title="Seus dados e a indústria"
+        sub={d.participates ? 'Sua loja participa, sem aparecer.' : 'Sua loja não participa.'} />
+      <ul style={{ margin: '14px 0 0', paddingLeft: 20, lineHeight: 1.7, maxWidth: '70ch' }}>
+        <li>Os fabricantes acompanham quanto os produtos deles vendem por cidade e bairro.</li>
+        <li>A venda da sua loja entra <b>somada com a de outras lojas</b>. Nenhum número mostra uma loja só, e o nome do seu mercado nunca aparece.</li>
+        <li>Dados dos seus clientes (CPF, cesta de compras) nunca saem da sua conta.</li>
+        <li>{d.freePlan ? 'No plano Grátis, a participação faz parte do plano.' : 'No seu plano, você decide se participa.'}</li>
+      </ul>
+      {d.canLeave && (
+        <button type="button" className="fx-btn ghost small" style={{ marginTop: 14 }} onClick={toggle}>
+          {d.participates ? 'Tirar minha loja' : 'Voltar a participar'}
+        </button>
+      )}
+      {msg && <p role="status" style={{ marginTop: 10 }}>{msg}</p>}
+    </Card>
+  );
+};

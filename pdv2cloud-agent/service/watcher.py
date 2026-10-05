@@ -163,6 +163,7 @@ class FileWatcher:
             "numero": invoice.numero,
             "valorTotal": float(invoice.valor_total),
             "cpfCnpjDestinatario": invoice.cpf_cnpj_destinatario,
+            "emitente": invoice.emitente,
             "items": [
                 {
                     "codigoEAN": item.codigo_ean,

@@ -42,6 +42,8 @@ class InvoiceData:
     valor_total: Decimal
     cpf_cnpj_destinatario: Optional[str]
     items: List[InvoiceItem]
+    # Endereço do emitente (enderEmit): na NFC-e do caixa é a própria loja.
+    emitente: Optional[dict] = None
 
 
 def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> InvoiceData:
@@ -73,6 +75,18 @@ def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> Invoice
     total = inf_nfe.find(".//nfe:ICMSTot", namespaces=ns)
 
     cnpj_emitente = _text(emit, "nfe:CNPJ", ns)
+    ender = emit.find("nfe:enderEmit", namespaces=ns) if emit is not None else None
+    emitente = None
+    if ender is not None:
+        emitente = {
+            "logradouro": _text(ender, "nfe:xLgr", ns),
+            "numero": _text(ender, "nfe:nro", ns),
+            "bairro": _text(ender, "nfe:xBairro", ns),
+            "municipio": _text(ender, "nfe:xMun", ns),
+            "codigoMunicipio": _text(ender, "nfe:cMun", ns),
+            "uf": _text(ender, "nfe:UF", ns),
+            "cep": _text(ender, "nfe:CEP", ns),
+        }
     data_emissao = _text(ide, "nfe:dhEmi", ns) or _text(ide, "nfe:dEmi", ns)
     serie = _text(ide, "nfe:serie", ns)
     numero = _text(ide, "nfe:nNF", ns)
@@ -118,6 +132,7 @@ def parse_xml(xml_path: Path, xsd_paths: Optional[List[Path]] = None) -> Invoice
         valor_total=valor_total,
         cpf_cnpj_destinatario=cpf_cnpj_destinatario,
         items=items,
+        emitente=emitente,
     )
 
 

@@ -279,6 +279,33 @@ public class AsaasService {
         return new Charge(id, text(payment, "invoiceUrl"), payload);
     }
 
+    // ── Cobrança de quem não é mercado (indústria) ───────────────────────
+
+    /** Cria o cliente no Asaas e devolve o id (a indústria guarda o id na própria tabela). */
+    public String createCustomer(String name, String cpfCnpj, String email, String externalReference) {
+        ObjectNode body = json.createObjectNode();
+        body.put("name", name);
+        body.put("cpfCnpj", cpfCnpj);
+        if (email != null && !email.isBlank()) {
+            body.put("email", email);
+        }
+        body.put("externalReference", externalReference);
+        return call("POST", "/customers", body).path("id").asText();
+    }
+
+    /** Fatura avulsa em que o pagador escolhe boleto, Pix ou cartão. */
+    public Charge invoice(String customerId, int cents, LocalDate dueDate, String description, String externalReference) {
+        ObjectNode body = json.createObjectNode();
+        body.put("customer", customerId);
+        body.put("billingType", "UNDEFINED");
+        body.put("value", BigDecimal.valueOf(cents, 2));
+        body.put("dueDate", dueDate.toString());
+        body.put("description", description);
+        body.put("externalReference", externalReference);
+        JsonNode payment = call("POST", "/payments", body);
+        return new Charge(payment.path("id").asText(), text(payment, "invoiceUrl"), null);
+    }
+
     // ── Avisos (webhook) ─────────────────────────────────────────────────
 
     /** Gera um token novo e cadastra (ou recadastra) o aviso de pagamento no Asaas. */
