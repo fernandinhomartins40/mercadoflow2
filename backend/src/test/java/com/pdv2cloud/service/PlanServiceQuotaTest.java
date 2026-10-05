@@ -82,19 +82,20 @@ class PlanServiceQuotaTest {
         assertTrue(decision.historical(), "e tem de ser marcado como histórico");
     }
 
-    /** Nota de operação com a cota cheia é recusada — é o que o limite faz. */
+    /**
+     * Nota de operação com a cota cheia ENTRA (desde 05/10/2026): o plano
+     * limita a análise, não o envio. Segue contada como operação.
+     */
     @Test
-    void notaDeOperacaoComCotaCheiaEDeRecusada() {
+    void notaDeOperacaoComCotaCheiaEntraMesmoAssim() {
         givenMarket(PlanType.FREE, marco);
         givenUsage(1_000);
 
         PlanService.QuotaDecision decision =
             planService.canIngest(marketId, LocalDateTime.now());
 
-        assertFalse(decision.allowed());
+        assertTrue(decision.allowed(), "nenhuma nota é recusada por plano");
         assertFalse(decision.historical());
-        assertTrue(decision.message().contains("semanal"),
-            "a mensagem precisa dizer que a cota é semanal e quando renova");
     }
 
     /** Nota de operação com cota disponível entra e consome. */
@@ -124,7 +125,8 @@ class PlanServiceQuotaTest {
 
         PlanService.QuotaDecision decision = planService.canIngest(marketId, marco);
 
-        assertFalse(decision.allowed(), "no marco já é operação, então a cota vale");
+        assertTrue(decision.allowed(), "a nota entra sempre");
+        assertFalse(decision.historical(), "no marco já é operação, não acervo");
     }
 
     /** Um segundo antes do marco ainda é acervo. */
@@ -162,14 +164,16 @@ class PlanServiceQuotaTest {
      * Sem data de emissão, trata como operação.
      *
      * Errar para o lado conservador: uma nota sem data que passasse como
-     * histórico seria a brecha para burlar a cota inteira.
+     * histórico ficaria fora da contagem de uso.
      */
     @Test
     void semDataDeEmissaoTrataComoOperacao() {
         givenMarket(PlanType.FREE, marco);
         givenUsage(1_000);
 
-        assertFalse(planService.canIngest(marketId, null).allowed());
+        PlanService.QuotaDecision decision = planService.canIngest(marketId, null);
+        assertTrue(decision.allowed(), "a nota entra sempre");
+        assertFalse(decision.historical(), "sem data, conta como operação");
     }
 
     /** O ciclo é semanal e começa na segunda-feira. */
