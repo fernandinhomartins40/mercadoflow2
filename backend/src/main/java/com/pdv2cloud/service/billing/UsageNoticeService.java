@@ -19,6 +19,8 @@ public class UsageNoticeService {
 
     private static final Logger log = LoggerFactory.getLogger(UsageNoticeService.class);
 
+    static final boolean INGEST_LIMIT_ENFORCED = false;
+
     private final NamedParameterJdbcTemplate jdbc;
     private final PlanService plans;
     private final NotificationService notifications;
@@ -31,6 +33,12 @@ public class UsageNoticeService {
 
     /** Devolve quantos avisos novos saíram. */
     public int run() {
+        // Desde 05/10/2026 nenhuma nota é recusada por plano: não há limite de
+        // envio a avisar. Mantido desligado (e não apagado) caso o envio volte
+        // a ter teto um dia.
+        if (!INGEST_LIMIT_ENFORCED) {
+            return 0;
+        }
         int sent = 0;
         List<UUID> roots = jdbc.queryForList("select id from markets where parent_market_id is null and coalesce(is_active, true)",
             Map.of(), UUID.class);

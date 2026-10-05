@@ -329,17 +329,11 @@ public class PlanService {
                 networkInvoicesThisCycle(limits.networkRootId()));
         }
 
-        int used = networkInvoicesThisCycle(limits.networkRootId());
-        if (used >= limits.monthlyInvoices()) {
-            return QuotaDecision.denied(limits.monthlyInvoices(), used, limits.plan(),
-                String.format(
-                    "Limite semanal do plano %s atingido (%d notas por semana na rede). "
-                        + "A cota renova toda segunda-feira e seus dados seguem disponíveis. "
-                        + "Para enviar mais agora, faça upgrade.",
-                    limits.plan().getDisplayName(), limits.monthlyInvoices()
-                ));
-        }
-        return QuotaDecision.allowed(limits.monthlyInvoices(), used);
+        // Nota nunca é recusada por plano (decisão de 05/10/2026): toda venda
+        // é base de dados, para os cálculos da loja e para os agregados da
+        // indústria. O plano limita o que a loja ANALISA, não o que ENVIA.
+        // O contador segue existindo só como informação de uso.
+        return QuotaDecision.allowed(limits.monthlyInvoices(), networkInvoicesThisCycle(limits.networkRootId()));
     }
 
     /**

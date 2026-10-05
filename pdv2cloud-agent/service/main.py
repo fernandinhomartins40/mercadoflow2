@@ -183,6 +183,8 @@ class ServiceApp:
                 deleted = self.queue_manager.cleanup_sent(max_age_days=30)
                 if deleted:
                     logger.info("Cleaned up %s SENT items older than retention window", deleted)
+                # O servidor deixou de recusar nota por plano: o que parou por cota volta.
+                self.queue_manager.requeue_all_dead_letters_once("requeue-sem-cota.done")
             except Exception as exc:
                 logger.warning("Queue maintenance failed: %s", exc)
 
@@ -256,15 +258,27 @@ class ServiceApp:
             # Debounce: aguarda o watcher confirmar que o arquivo fechou
             time.sleep(2)
 
-            self.process_queue()
-            schedule.run_pending()
-            update_status(
-                self.queue_manager,
-                self.connection_manager.is_online(),
-                self.last_processed,
-                self.last_error,
-                update_info=self._update_info,
-            )
+            # Nada aqui pode matar a thread: em 05/10/2026 um "database is
+            # locked" escapou de process_queue, a thread morreu em silêncio e o
+            # agente passou horas só enfileirando, sem enviar nota alguma.
+            try:
+                self.process_queue()
+                schedule.run_pending()
+                update_status(
+                    self.queue_manager,
+                    self.connection_manager.is_online(),
+                    self.last_processed,
+                    self.last_error,
+                    update_info=self._update_info,
+                )
+            except Exception as exc:
+                logger.error("Main loop iteration failed, retrying: %s", exc, exc_info=True)
+                time.sleep(5)
+                # Item que ficou em PROCESSING com a falha volta para a fila.
+                try:
+                    self.queue_manager.reset_stuck_processing(max_age_minutes=0)
+                except Exception:
+                    pass
 
     def stop(self):
         self.stop_event.set()

@@ -1,7 +1,7 @@
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine, text
+from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine, event, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import enum
 import logging
@@ -59,11 +59,24 @@ class QueueManager:
     def _init_db(self, after_recovery: bool = False):
         """Inicializa o banco. Se corrompido, faz backup e recria."""
         try:
+            # O watcher grava (enfileirando milhares de XML) ao mesmo tempo em
+            # que o envio lê e marca. Sem espera e sem WAL, o SQLite responde
+            # "database is locked" na hora — foi o que parou o envio de uma
+            # carga de 57 mil notas em 05/10/2026. timeout=30: espera a trava
+            # sair; WAL: leitura e escrita deixam de se bloquear.
             engine = create_engine(
                 f"sqlite:///{DB_PATH}",
                 echo=False,
-                connect_args={"check_same_thread": False},
+                connect_args={"check_same_thread": False, "timeout": 30},
             )
+
+            @event.listens_for(engine, "connect")
+            def _sqlite_pragmas(dbapi_conn, _record):
+                cur = dbapi_conn.cursor()
+                cur.execute("PRAGMA journal_mode=WAL")
+                cur.execute("PRAGMA synchronous=NORMAL")
+                cur.execute("PRAGMA busy_timeout=30000")
+                cur.close()
             # Verifica integridade antes de confiar no banco
             with engine.connect() as conn:
                 result = conn.execute(text("PRAGMA integrity_check")).fetchone()
@@ -291,6 +304,36 @@ class QueueManager:
                     changed,
                 )
             return changed
+        finally:
+            session.close()
+
+    def requeue_all_dead_letters_once(self, marker_name: str) -> int:
+        """
+        Devolve à fila, uma vez só, tudo o que está em DEAD_LETTER.
+
+        Até 05/10/2026 o servidor recusava notas acima da cota do plano, e o
+        agente gravava a recusa como erro desconhecido: depois de duas
+        tentativas e duas ressurreições a nota parava para sempre. O servidor
+        agora aceita todas, então essas notas precisam voltar. Como a recusa
+        não ficou registrada com motivo próprio, volta tudo: nota que o
+        servidor já tem responde DUPLICATE, e XML de fato quebrado volta para
+        DEAD_LETTER sozinho.
+        """
+        marker = DB_PATH.parent / marker_name
+        if marker.exists():
+            return 0
+        session = self.Session()
+        try:
+            items = session.query(QueuedInvoice).filter(QueuedInvoice.status == ProcessStatus.DEAD_LETTER).all()
+            for item in items:
+                item.status = ProcessStatus.PENDING
+                item.tentativas = 0
+                item.ressurreicoes = 0
+                item.erro_detalhes = None
+            session.commit()
+            marker.write_text(datetime.utcnow().isoformat(), encoding="utf-8")
+            logger.info("Notas paradas devolvidas à fila (fim da cota de envio): %d", len(items))
+            return len(items)
         finally:
             session.close()
 
