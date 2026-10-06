@@ -3,6 +3,7 @@ package com.pdv2cloud.service;
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.WorkingCapitalService.CapitalMetric;
 import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
+import com.pdv2cloud.service.intelligence.HaloEffectsReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -61,13 +62,16 @@ public class PromoIntelligenceService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final CapitalMetricsReader capitalMetricsReader;
+    private final HaloEffectsReader haloEffectsReader;
 
     public PromoIntelligenceService(
         NamedParameterJdbcTemplate jdbcTemplate,
-        CapitalMetricsReader capitalMetricsReader
+        CapitalMetricsReader capitalMetricsReader,
+        HaloEffectsReader haloEffectsReader
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.capitalMetricsReader = capitalMetricsReader;
+        this.haloEffectsReader = haloEffectsReader;
     }
 
     // ── 1. Efeito halo ───────────────────────────────────────────────────────
@@ -422,7 +426,9 @@ public class PromoIntelligenceService {
             byProduct.put(metric.productId(), metric);
         }
 
-        List<TrafficDriver> drivers = rankTrafficDrivers(marketId, windowDays);
+        // O halo vem pronto do job noturno. Calcular aqui custava até 40 consultas
+        // de 180 dias a cada rodada da detecção (5 em 5 minutos) e a cada tela.
+        List<TrafficDriver> drivers = haloEffectsReader.trafficDrivers(marketId, windowDays);
 
         // ── Tração ──
         List<PromoCandidate> traction = new ArrayList<>();

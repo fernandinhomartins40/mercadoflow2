@@ -138,6 +138,16 @@ public class MarketController {
         return ResponseEntity.ok(advancedAnalyticsService.getCockpit(id, startDate, endDate));
     }
 
+    /** Sinais de produto para Comprar e Produtos, sem o custo do cockpit inteiro. */
+    @GetMapping("/{id}/analytics/product-signals")
+    public ResponseEntity<Map<String, List<ProductPerformanceDTO>>> getProductSignals(
+        @PathVariable("id") UUID id,
+        Authentication authentication) {
+
+        marketAccessService.assertCanAccessMarket(id, authentication);
+        return ResponseEntity.ok(advancedAnalyticsService.getProductSignals(id));
+    }
+
     @GetMapping("/{id}/products")
     public ResponseEntity<Page<ProductAnalyticsDTO>> getProducts(
         @PathVariable("id") UUID id,

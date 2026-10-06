@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
 import authService, { TeamRole } from '../services/auth.service';
+import { clearCached } from '../hooks/useCached';
 
 interface AuthState {
   teamRole?: TeamRole | null;
@@ -107,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await authService.logout();
+    clearCached();
     setState({ role: null, marketId: null, userId: null, email: null, name: null });
   };
 

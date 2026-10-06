@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { DESTINATIONS, resolveLocation, visiblePages } from '../../config/navigation';
 import { activationService } from '../../services/activation.service';
+import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
 import '../../styles/flow.css';
@@ -36,15 +37,14 @@ const minutesAgo = (iso: string | null) => {
 
 /** Selo dos caixas no topo: verde enviando, vermelho parado, cinza sem agente. */
 const AgentSeal: React.FC<{ marketId: string | null }> = ({ marketId }) => {
-  const [status, setStatus] = useState<ActivationStatus | null>(null);
+  // Cache compartilhado entre as telas: trocar de tela não pede o estado de novo.
+  const { data: status, refresh } = useCached<ActivationStatus>(marketId ? `ativacao:${marketId}` : null,
+    () => activationService.getStatus(marketId!), 60_000);
   useEffect(() => {
     if (!marketId) return undefined;
-    let alive = true;
-    const load = () => activationService.getStatus(marketId).then((s) => { if (alive) setStatus(s); }).catch(() => {});
-    load();
-    const t = setInterval(load, 120_000);
-    return () => { alive = false; clearInterval(t); };
-  }, [marketId]);
+    const t = setInterval(() => { void refresh(); }, 120_000);
+    return () => clearInterval(t);
+  }, [marketId, refresh]);
   if (!status) return null;
   const { agent } = status;
   const tone = agent.online ? '#22B45B' : agent.pairedPdvs > 0 ? 'var(--fx-red)' : 'var(--fx-muted)';

@@ -2,7 +2,6 @@ package com.pdv2cloud.service.intelligence;
 
 import com.pdv2cloud.model.entity.ProductHaloEffect;
 import com.pdv2cloud.repository.ProductHaloEffectRepository;
-import com.pdv2cloud.service.PromoIntelligenceService;
 import com.pdv2cloud.service.PromoIntelligenceService.HaloEffect;
 import com.pdv2cloud.service.PromoIntelligenceService.HaloTarget;
 import com.pdv2cloud.service.PromoIntelligenceService.TrafficDriver;
@@ -19,17 +18,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Leitura do efeito halo, preferindo a versão MATERIALIZADA.
+ * Leitura do efeito halo, SEMPRE da versão materializada.
  *
- * O cálculo on-line do halo era o mais caro do sistema: para cada um de até 40
- * drivers, um SQL com 5 CTEs, sem cache, a cada abertura da aba de inteligência
- * de promoções. Além do custo, o ranking podia mudar entre dois cliques, o que
- * mina a confiança em uma recomendação.
+ * O cálculo on-line do halo é o mais caro do sistema: para cada um de até 40
+ * drivers, um SQL com 5 CTEs sobre 180 dias. Ele só roda de madrugada, no
+ * ProductIntelligenceJob, que grava `product_halo_effects`.
  *
- * Agora o caminho normal é ler `product_halo_effects`, gravada de madrugada pelo
- * ProductIntelligenceJob. O fallback para o cálculo on-line permanece, pelo
- * mesmo motivo do capital: loja nova ou job desligado devem deixar a tela lenta,
- * nunca vazia.
+ * Antes havia um fallback on-line para loja sem halo gravado ou janela
+ * diferente de 180 dias. Em produção esse fallback rodava dentro das telas e da
+ * detecção de 5 em 5 minutos e chegava a prender a conexão por minutos. Sem halo
+ * gravado, a lista vem vazia até a próxima madrugada.
  */
 @Service
 @Slf4j
@@ -42,27 +40,17 @@ public class HaloEffectsReader {
     private static final int MATERIALIZED_WINDOW_DAYS = 180;
 
     private final ProductHaloEffectRepository repository;
-    private final PromoIntelligenceService promoIntelligenceService;
 
-    public HaloEffectsReader(
-        ProductHaloEffectRepository repository,
-        PromoIntelligenceService promoIntelligenceService
-    ) {
+    public HaloEffectsReader(ProductHaloEffectRepository repository) {
         this.repository = repository;
-        this.promoIntelligenceService = promoIntelligenceService;
     }
 
     /** Efeitos halo do mercado (driver → target). */
     @Transactional(readOnly = true)
     public List<HaloEffect> haloEffects(UUID marketId, int windowDays) {
-        if (windowDays > 0 && windowDays != MATERIALIZED_WINDOW_DAYS) {
-            return promoIntelligenceService.computeHaloEffects(marketId, windowDays);
-        }
-
         List<ProductHaloEffect> rows = repository.findPositiveByMarket(marketId);
         if (rows.isEmpty()) {
-            log.debug("Sem halo materializado para o mercado {}; calculando on-line", marketId);
-            return promoIntelligenceService.computeHaloEffects(marketId, windowDays);
+            log.debug("Sem halo materializado para o mercado {}; aguarda o job noturno", marketId);
         }
         return rows.stream().map(this::toHaloEffect).toList();
     }
@@ -76,14 +64,9 @@ public class HaloEffectsReader {
      */
     @Transactional(readOnly = true)
     public List<TrafficDriver> trafficDrivers(UUID marketId, int windowDays) {
-        if (windowDays > 0 && windowDays != MATERIALIZED_WINDOW_DAYS) {
-            return promoIntelligenceService.rankTrafficDrivers(marketId, windowDays);
-        }
-
         List<ProductHaloEffect> rows = repository.findPositiveByMarket(marketId);
         if (rows.isEmpty()) {
-            log.debug("Sem halo materializado para o mercado {}; ranqueando on-line", marketId);
-            return promoIntelligenceService.rankTrafficDrivers(marketId, windowDays);
+            return List.of();
         }
 
         Map<UUID, DriverAccumulator> byDriver = new LinkedHashMap<>();

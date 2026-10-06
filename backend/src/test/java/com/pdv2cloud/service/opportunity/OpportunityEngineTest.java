@@ -73,8 +73,6 @@ class OpportunityEngineTest {
     @Test
     @DisplayName("situação nova vira oportunidade")
     void createsNewOpportunity() {
-        when(opportunityRepository.findByMarketIdAndFingerprint(eq(marketId), any()))
-            .thenReturn(Optional.empty());
 
         OpportunityEngine engine = engineWith(sample("COMPRA:1"));
         OpportunityEngine.DetectionResult result = engine.detectForMarket(marketId);
@@ -95,8 +93,8 @@ class OpportunityEngineTest {
         existing.setStatus(Opportunity.Status.VISTA);
         existing.setDetectionCount(3);
 
-        when(opportunityRepository.findByMarketIdAndFingerprint(marketId, "COMPRA:1"))
-            .thenReturn(Optional.of(existing));
+        existing.setFingerprint("COMPRA:1");
+        when(opportunityRepository.findAllByMarket(marketId)).thenReturn(List.of(existing));
 
         OpportunityEngine engine = engineWith(sample("COMPRA:1"));
         OpportunityEngine.DetectionResult result = engine.detectForMarket(marketId);
@@ -108,6 +106,35 @@ class OpportunityEngineTest {
     }
 
     @Test
+    @DisplayName("redetectar sem mudança e com registro recente não grava nada")
+    void unchangedRecentIsNotRewritten() {
+        Opportunity existing = new Opportunity();
+        existing.setFingerprint("COMPRA:1");
+        existing.setStatus(Opportunity.Status.VISTA);
+        existing.setDetectionCount(3);
+        existing.setTitle("Repor arroz");
+        existing.setDescription("cobertura baixa");
+        existing.setEvidence(OpportunityEngine.normalize(Map.of("giroDiario", 12.5)));
+        existing.setExpectedImpactValue(new BigDecimal("1500.00"));
+        existing.setConfidence(new BigDecimal("0.8500"));
+        existing.setPriorityScore(new BigDecimal("88.0"));
+        existing.setLastDetectedAt(java.time.LocalDateTime.now().minusMinutes(10));
+        when(opportunityRepository.findAllByMarket(marketId)).thenReturn(List.of(existing));
+
+        OpportunityEngine.DetectionResult result = engineWith(sample("COMPRA:1")).detectForMarket(marketId);
+
+        assertEquals(0, result.updated(), "sem mudança, a linha não é tocada");
+        assertEquals(3, existing.getDetectionCount());
+    }
+
+    @Test
+    @DisplayName("evidência com BigDecimal fica igual depois de normalizada (sem regravação espúria)")
+    void normalizedEvidenceIsStable() {
+        Map<String, Object> raw = Map.of("valor", new BigDecimal("12.50"), "dias", 3);
+        assertEquals(OpportunityEngine.normalize(raw), OpportunityEngine.normalize(OpportunityEngine.normalize(raw)));
+    }
+
+    @Test
     @DisplayName("o que o usuário DESCARTOU não ressuscita")
     void dismissedStaysDismissed() {
         Opportunity dismissed = new Opportunity();
@@ -115,8 +142,8 @@ class OpportunityEngineTest {
         dismissed.setDetectionCount(2);
         dismissed.setTitle("titulo original");
 
-        when(opportunityRepository.findByMarketIdAndFingerprint(marketId, "COMPRA:1"))
-            .thenReturn(Optional.of(dismissed));
+        dismissed.setFingerprint("COMPRA:1");
+        when(opportunityRepository.findAllByMarket(marketId)).thenReturn(List.of(dismissed));
 
         OpportunityEngine engine = engineWith(sample("COMPRA:1"));
         OpportunityEngine.DetectionResult result = engine.detectForMarket(marketId);
@@ -134,8 +161,8 @@ class OpportunityEngineTest {
         concluded.setStatus(Opportunity.Status.CONCLUIDA);
         concluded.setDetectionCount(1);
 
-        when(opportunityRepository.findByMarketIdAndFingerprint(marketId, "COMPRA:1"))
-            .thenReturn(Optional.of(concluded));
+        concluded.setFingerprint("COMPRA:1");
+        when(opportunityRepository.findAllByMarket(marketId)).thenReturn(List.of(concluded));
 
         OpportunityEngine engine = engineWith(sample("COMPRA:1"));
 
@@ -159,8 +186,6 @@ class OpportunityEngineTest {
             }
         };
 
-        when(opportunityRepository.findByMarketIdAndFingerprint(eq(marketId), any()))
-            .thenReturn(Optional.empty());
 
         OpportunityEngine engine = new OpportunityEngine(
             List.of(quebrado, saudavel), opportunityRepository, marketRepository, productRepository);
@@ -174,8 +199,6 @@ class OpportunityEngineTest {
     @Test
     @DisplayName("reconciliação fecha o obsoleto e expira o vencido")
     void reconcilesStaleAndExpired() {
-        when(opportunityRepository.findByMarketIdAndFingerprint(eq(marketId), any()))
-            .thenReturn(Optional.empty());
         when(opportunityRepository.closeStale(eq(marketId), any(), any())).thenReturn(4);
         when(opportunityRepository.expireOverdue(eq(marketId), any())).thenReturn(2);
 

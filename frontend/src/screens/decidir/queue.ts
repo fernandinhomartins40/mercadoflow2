@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { invalidateCached, useCached } from '../../hooks/useCached';
 import { marketService } from '../../services/market.service';
 import { copilotAgentsService, type CopilotDecision } from '../../services/aiPlatform.service';
 import { ACTION_LABEL } from '../../components/intelligence/RecommendationCard';
@@ -85,25 +86,27 @@ export const sortQueue = (items: QueueItem[]) =>
 const isOpen = (d: CopilotDecision) => d.status === 'PENDENTE' || d.status === 'INFORMATIVA';
 
 export const useDecisionQueue = (marketId: string | null | undefined, enabled = true) => {
-  const [recs, setRecs] = useState<RecommendationItem[]>([]);
-  const [tino, setTino] = useState<CopilotDecision[]>([]);
-  const [loading, setLoading] = useState(true);
+  const on = !!marketId && enabled;
+  const recsQ = useCached<RecommendationItem[]>(on ? `recs:${marketId}` : null,
+    () => marketService.getPendingRecommendations(marketId!).then((r: RecommendationItem[]) => r || []), 30_000);
+  const tinoQ = useCached<CopilotDecision[]>(on ? `tino:${marketId}` : null,
+    () => copilotAgentsService.inbox(marketId!, 'abertas').then((r) => r.decisoes || []), 30_000);
+  // Decidir atualiza uma decisão do Tino na hora, sem esperar a próxima busca.
+  const [localTino, setTino] = useState<CopilotDecision[] | null>(null);
+  useEffect(() => { setTino(null); }, [tinoQ.data]);
 
+  const recs = recsQ.data ?? [];
+  const tino = localTino ?? tinoQ.data ?? [];
   const reload = useCallback(async () => {
-    if (!marketId || !enabled) { setLoading(false); return; }
-    // Uma fonte fora do ar não apaga a outra.
-    const [r, t] = await Promise.allSettled([
-      marketService.getPendingRecommendations(marketId),
-      copilotAgentsService.inbox(marketId, 'abertas'),
-    ]);
-    if (r.status === 'fulfilled') setRecs(r.value || []);
-    if (t.status === 'fulfilled') setTino(t.value.decisoes || []);
-    setLoading(false);
-  }, [marketId, enabled]);
-
-  useEffect(() => { reload(); }, [reload]);
+    if (!marketId) return;
+    invalidateCached(`recs:${marketId}`);
+    invalidateCached(`tino:${marketId}`);
+    await Promise.allSettled([recsQ.refresh(), tinoQ.refresh()]);
+  }, [marketId, recsQ, tinoQ]);
 
   const items = sortQueue([...tino.filter(isOpen).map(fromDecision), ...recs.map(fromRecommendation)]);
   const total = items.reduce((a, i) => a + (i.value ?? 0), 0);
-  return { items, recs, tino, setTino, total, loading, reload };
+  const loading = on && recsQ.loading && tinoQ.loading;
+  const setTinoList = (fn: (cur: CopilotDecision[]) => CopilotDecision[]) => setTino((cur) => fn(cur ?? tinoQ.data ?? []));
+  return { items, recs, tino, setTino: setTinoList, total, loading, reload };
 };

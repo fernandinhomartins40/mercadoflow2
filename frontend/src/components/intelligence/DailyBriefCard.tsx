@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Loader2, Mic, Pause, RefreshCw, Sparkles, Square, Volume2 } from 'lucide-react';
 import { copilotAgentsService, copilotService, type DailyBrief } from '../../services/aiPlatform.service';
+import { useCached } from '../../hooks/useCached';
 import { canSpeak as speechAvailable, speak, stopSpeaking, useVoice } from '../../hooks/useVoice';
 import { parseBrief, type BriefAction } from '../../utils/voiceCommands';
 
@@ -67,12 +68,9 @@ const DailyBriefCard: React.FC<{ marketId: string | null | undefined }> = ({ mar
     },
   });
 
-  useEffect(() => {
-    if (!marketId) return;
-    let alive = true;
-    copilotService.brief(marketId).then((b) => { if (alive) setBrief(b); }).catch(() => {});
-    return () => { alive = false; };
-  }, [marketId]);
+  // O resumo é gerado de manhã: guardado por 10 minutos entre as visitas ao Início.
+  const cached = useCached<DailyBrief>(marketId ? `resumo:${marketId}` : null, () => copilotService.brief(marketId!), 10 * 60_000);
+  useEffect(() => { if (cached.data) setBrief(cached.data); }, [cached.data]);
 
   useEffect(() => () => { if (canSpeak) window.speechSynthesis.cancel(); }, []);
 

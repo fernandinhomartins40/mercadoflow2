@@ -133,6 +133,22 @@ public class AdvancedAnalyticsService {
         return cockpit;
     }
 
+    /**
+     * Só os sinais de produto que Comprar e Produtos usam (repor, caindo, em
+     * alta, parados). O cockpit inteiro faz de 15 a 20 varreduras das notas;
+     * isto faz a leitura de desempenho uma vez.
+     */
+    public java.util.Map<String, List<ProductPerformanceDTO>> getProductSignals(UUID marketId) {
+        Window window = resolveWindow(null, null, 90);
+        List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null, null, null);
+        java.util.Map<String, List<ProductPerformanceDTO>> out = new java.util.LinkedHashMap<>();
+        out.put("replenishmentCandidates", fetchReplenishmentCandidates(performance, 8));
+        out.put("slowMovers", topProducts(performance, "TREND_ASC", 5));
+        out.put("topProducts", topProducts(performance, "REVENUE", 5));
+        out.put("lowTurnoverProducts", topProducts(performance, "TURNOVER_ASC", 5));
+        return out;
+    }
+
     public Page<ProductPerformanceDTO> getProductPerformance(
         UUID marketId,
         LocalDate startDate,

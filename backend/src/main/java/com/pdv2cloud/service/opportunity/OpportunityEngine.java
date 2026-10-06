@@ -7,9 +7,15 @@ import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.OpportunityRepository;
 import com.pdv2cloud.repository.ProductRepository;
 import com.pdv2cloud.service.opportunity.OpportunityDetector.DetectedOpportunity;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +51,19 @@ public class OpportunityEngine {
      * exatas, um atraso de minutos no job fecharia tudo indevidamente.
      */
     private static final int STALE_HOURS = 36;
+
+    /**
+     * Sem mudança nos números, a linha só é tocada uma vez por este intervalo,
+     * para manter {@code last_detected_at} longe do corte de {@link #STALE_HOURS}.
+     *
+     * Antes cada rodada (a cada 5 minutos, pelo ciclo adaptativo) regravava
+     * todas as oportunidades abertas: em produção eram 17 mil UPDATEs por linha
+     * e a tabela de 2 MB de dados ocupava 1,6 GB.
+     */
+    private static final int HEARTBEAT_HOURS = 1;
+
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
+    private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() { };
 
     private final List<OpportunityDetector> detectors;
     private final OpportunityRepository opportunityRepository;
@@ -105,16 +124,23 @@ public class OpportunityEngine {
         int created = 0;
         int updated = 0;
 
-        for (DetectedOpportunity d : detected) {
-            Optional<Opportunity> existing =
-                opportunityRepository.findByMarketIdAndFingerprint(marketId, d.fingerprint());
+        // Uma consulta só: buscar por fingerprint dentro do laço forçava um flush
+        // a cada volta, e cada flush regravava tudo o que já estava carregado.
+        Map<String, Opportunity> known = new HashMap<>();
+        for (Opportunity o : opportunityRepository.findAllByMarket(marketId)) {
+            known.put(o.getFingerprint(), o);
+        }
 
-            if (existing.isPresent()) {
-                if (refresh(existing.get(), d, now)) {
+        for (DetectedOpportunity d : detected) {
+            Opportunity existing = known.get(d.fingerprint());
+            if (existing != null) {
+                if (refresh(existing, d, now)) {
                     updated++;
                 }
             } else {
-                opportunityRepository.save(build(market, d, now));
+                Opportunity o = build(market, d, now);
+                opportunityRepository.save(o);
+                known.put(d.fingerprint(), o);
                 created++;
             }
         }
@@ -139,7 +165,7 @@ public class OpportunityEngine {
         o.setCategory(d.category());
         o.setTitle(truncate(d.title(), 300));
         o.setDescription(d.description());
-        o.setEvidence(d.evidence());
+        o.setEvidence(normalize(d.evidence()));
         o.setExpectedImpactValue(d.expectedImpactValue());
         o.setConfidence(d.confidence());
         o.setPriorityScore(d.priorityScore());
@@ -152,7 +178,8 @@ public class OpportunityEngine {
     }
 
     /**
-     * Atualiza os números de uma oportunidade já conhecida.
+     * Atualiza os números de uma oportunidade já conhecida, só quando algo
+     * mudou ou quando o último registro de detecção passou de uma hora.
      *
      * @return true se a linha foi de fato tocada
      */
@@ -164,17 +191,59 @@ public class OpportunityEngine {
             return false;
         }
 
-        o.setTitle(truncate(d.title(), 300));
-        o.setDescription(d.description());
-        o.setEvidence(d.evidence());
-        o.setExpectedImpactValue(d.expectedImpactValue());
-        o.setConfidence(d.confidence());
-        o.setPriorityScore(d.priorityScore());
-        o.setExpiresAt(d.expiresAt());
+        String title = truncate(d.title(), 300);
+        Map<String, Object> evidence = normalize(d.evidence());
+        boolean changed = !Objects.equals(o.getTitle(), title)
+            || !Objects.equals(o.getDescription(), d.description())
+            || !Objects.equals(o.getEvidence(), evidence)
+            || !sameNumber(o.getExpectedImpactValue(), d.expectedImpactValue())
+            || !sameNumber(o.getConfidence(), d.confidence())
+            || !sameNumber(o.getPriorityScore(), d.priorityScore())
+            || !Objects.equals(o.getExpiresAt(), d.expiresAt());
+        boolean heartbeatDue = o.getLastDetectedAt() == null
+            || o.getLastDetectedAt().isBefore(now.minusHours(HEARTBEAT_HOURS));
+        if (!changed && !heartbeatDue) {
+            return false;
+        }
+
+        if (changed) {
+            o.setTitle(title);
+            o.setDescription(d.description());
+            o.setEvidence(evidence);
+            o.setExpectedImpactValue(d.expectedImpactValue());
+            o.setConfidence(d.confidence());
+            o.setPriorityScore(d.priorityScore());
+            o.setExpiresAt(d.expiresAt());
+        }
         o.setLastDetectedAt(now);
         o.setDetectionCount(o.getDetectionCount() + 1);
-        opportunityRepository.save(o);
         return true;
+    }
+
+    /**
+     * Passa a evidência pelo mesmo caminho JSON que o Hibernate usa para o
+     * retrato da linha. Sem isso um BigDecimal virava Double no retrato, a
+     * comparação nunca batia e a linha parecia alterada a cada flush.
+     */
+    static Map<String, Object> normalize(Map<String, Object> evidence) {
+        if (evidence == null) {
+            return null;
+        }
+        try {
+            return JSON.readValue(JSON.writeValueAsString(evidence), MAP);
+        } catch (Exception e) {
+            return evidence;
+        }
+    }
+
+    private static boolean sameNumber(Object a, Object b) {
+        if (a instanceof BigDecimal x && b instanceof BigDecimal y) {
+            return x.compareTo(y) == 0;
+        }
+        if (a instanceof Number x && b instanceof Number y) {
+            return Double.compare(x.doubleValue(), y.doubleValue()) == 0;
+        }
+        return Objects.equals(a, b);
     }
 
     private Product resolveProduct(UUID productId) {

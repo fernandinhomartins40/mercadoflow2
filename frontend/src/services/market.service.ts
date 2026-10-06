@@ -97,6 +97,11 @@ export const marketService = {
     return response.data;
   },
 
+  async getProductSignals(marketId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/analytics/product-signals`);
+    return response.data;
+  },
+
   async getCockpit(marketId: string, startDate?: string, endDate?: string) {
     const params: any = {};
     if (startDate && startDate.trim()) params.startDate = startDate.trim();

@@ -36,9 +36,6 @@ public class InvoiceProcessingService {
     private ProductCatalogService productCatalogService;
 
     @Autowired
-    private PriceIntelligenceService priceIntelligenceService;
-
-    @Autowired
     private MarketBasketService marketBasketService;
 
     @Autowired
@@ -115,11 +112,10 @@ public class InvoiceProcessingService {
 
             Invoice savedInvoice = invoiceRepository.save(invoice);
             productCatalogService.recordInvoiceCatalogData(savedInvoice);
-            try {
-                priceIntelligenceService.recomputeFromInvoice(savedInvoice);
-            } catch (Exception ignored) {
-                log.warn("Price intelligence update failed for invoice {}", dto.getChaveNFe());
-            }
+            // A linha do tempo de preço NÃO é refeita aqui: refazer o histórico
+            // inteiro de cada produto a cada nota gerava milhões de gravações na
+            // carga do agente. O PriceIntelligenceJob faz o mesmo a cada 15 min,
+            // uma vez por produto que vendeu desde o último checkpoint.
             // Invalidate market basket cache so next request recomputes with fresh data
             marketBasketService.invalidate(marketId);
 

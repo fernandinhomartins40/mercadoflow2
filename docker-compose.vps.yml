@@ -25,13 +25,24 @@ services:
     # mas esta maquina hospeda outras 5 aplicacoes e mais 4 instancias
     # PostgreSQL. Prometer 5 GB de cache ao planejador o faz escolher planos que
     # assumem dados em memoria que nao existe.
+    # Medido em 2026-10-06 (docs/DIAGNOSTICO-LENTIDAO.md): com 640 MB o banco
+    # vivia no teto (550 MB) e lia do disco o que devia estar em cache. A VPS
+    # tinha 3,5 GB livres. JIT desligado: nas consultas analíticas curtas ele
+    # gastava mais compilando do que economizava. random_page_cost 1.1 = SSD.
+    # pg_stat_statements mostra quais consultas pesam de verdade.
     command: >
       postgres
-      -c effective_cache_size=768MB
-      -c shared_buffers=192MB
+      -c effective_cache_size=1GB
+      -c shared_buffers=384MB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
       -c max_connections=50
-    mem_limit: 640m
-    memswap_limit: 640m
+      -c jit=off
+      -c random_page_cost=1.1
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=top
+    mem_limit: 1536m
+    memswap_limit: 1536m
     # Sem teto de CPU (consultas do usuario competem com o boot do backend), mas
     # com peso cheio: sob disputa ele e servido antes dos jobs e coletores.
     cpu_shares: 1024

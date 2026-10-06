@@ -16,6 +16,7 @@ import { networkService, weeklyDigestService, type WeeklyDigest } from '../servi
 import { customerService, exportService } from '../services/advanced.service';
 import { formatDecimal, formatMoney } from '../utils/formatters';
 import { GROUP_LABEL, useDecisionQueue } from './decidir/queue';
+import { useCached } from '../hooks/useCached';
 
 /**
  * Início: como está a loja. Os 4 números do dia (ou da semana, ou do mês),
@@ -171,21 +172,24 @@ const WhyDrawer: React.FC<{ panel: OperationPanel; metric: OperationMetric; onCl
 
 // ── Extras do rodapé: semana, rede, clientes, planilha ──────────────────────
 
+/** Mudam devagar: guardados por 10 minutos entre uma visita e outra. */
 const useExtras = (marketId: string | null) => {
-  const [digest, setDigest] = useState<WeeklyDigest | null>(null);
-  const [network, setNetwork] = useState(false);
-  const [recurring, setRecurring] = useState<number | null>(null);
-  const [exportable, setExportable] = useState(false);
-  useEffect(() => {
-    if (!marketId) return;
-    weeklyDigestService.list(marketId).then((l) => setDigest(l[0] ?? null)).catch(() => {});
-    networkService.status(marketId).then((s) => setNetwork(!!s.rede)).catch(() => {});
-    customerService.overview(marketId).then((r) => {
-      if (!r.bloqueadoPorPlano && r.resumo && r.resumo.totalCustomers > 0) setRecurring(r.resumo.recurringSharePercent ?? null);
-    }).catch(() => {});
-    exportService.status(marketId).then((s) => setExportable(s.disponivel)).catch(() => {});
-  }, [marketId]);
-  return { digest, network, recurring, exportable };
+  const { data } = useCached(marketId ? `inicio-extras:${marketId}` : null, async () => {
+    const [weekly, net, cust, exp] = await Promise.allSettled([
+      weeklyDigestService.list(marketId!),
+      networkService.status(marketId!),
+      customerService.overview(marketId!),
+      exportService.status(marketId!),
+    ]);
+    const c = cust.status === 'fulfilled' ? cust.value : null;
+    return {
+      digest: (weekly.status === 'fulfilled' ? weekly.value[0] : null) ?? null as WeeklyDigest | null,
+      network: net.status === 'fulfilled' && !!net.value.rede,
+      recurring: c && !c.bloqueadoPorPlano && c.resumo && c.resumo.totalCustomers > 0 ? c.resumo.recurringSharePercent ?? null : null,
+      exportable: exp.status === 'fulfilled' && exp.value.disponivel,
+    };
+  }, 10 * 60_000);
+  return data ?? { digest: null, network: false, recurring: null, exportable: false };
 };
 
 // ── Tela ────────────────────────────────────────────────────────────────────
@@ -195,23 +199,16 @@ const Dashboard: React.FC = () => {
   const activation = useActivation();
   const ready = !activation.loading && !activation.showChecklist;
   const [period, setPeriod] = useState<OperationPeriod>('dia');
-  const [panel, setPanel] = useState<OperationPanel | null>(null);
-  const [panelError, setPanelError] = useState(false);
   const [why, setWhy] = useState<OperationMetric | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
   const queue = useDecisionQueue(marketId, ready);
   const extras = useExtras(ready ? marketId ?? null : null);
 
-  useEffect(() => {
-    if (!marketId || !ready) return;
-    let alive = true;
-    setPanelError(false);
-    operationService.get(marketId, period)
-      .then((p) => { if (alive) setPanel(p); })
-      .catch(() => { if (alive) setPanelError(true); });
-    return () => { alive = false; };
-  }, [marketId, period, ready, tick]);
+  // O número do dia muda a cada nota: fresco por 1 minuto, depois atualiza em segundo plano.
+  const op = useCached<OperationPanel>(marketId && ready ? `operacao:${marketId}:${period}` : null,
+    () => operationService.get(marketId!, period), 60_000);
+  const panel = op.data ?? null;
+  const panelError = !!op.error && !panel;
 
   const sales = panel?.metrics.find((m) => m.key === 'vendas');
   const first = (name || 'gestor').split(' ')[0];
@@ -289,7 +286,7 @@ const Dashboard: React.FC = () => {
 
       {/* Os números do período: tocar abre o porquê. */}
       {panelError ? (
-        <Card><p className="fx-muted" style={{ margin: 0 }}>Não foi possível carregar os números agora. <button type="button" className="fx-btn ghost small" onClick={() => setTick((t) => t + 1)}>Tentar de novo</button></p></Card>
+        <Card><p className="fx-muted" style={{ margin: 0 }}>Não foi possível carregar os números agora. <button type="button" className="fx-btn ghost small" onClick={() => { void op.refresh(); }}>Tentar de novo</button></p></Card>
       ) : !panel ? (
         <div className="fx-kpis" aria-hidden="true">
           {[0, 1, 2, 3].map((i) => <div key={i} className="fx-kpi animate-pulse" style={{ height: 112 }} />)}

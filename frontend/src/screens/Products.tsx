@@ -18,6 +18,7 @@ import {
 import { ActionHub, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
 import ProductAttention, { attentionList, type Why } from './produtos/ProductAttention';
 import { useMarketData } from '../hooks/useMarketData';
+import { useCached } from '../hooks/useCached';
 import { History, ListChecks, MessageCircleQuestion, Package } from 'lucide-react';
 import { Combine as HxCombine, Package as HxPackage, TrendingUp as HxTrendingUp, Zap as HxZap } from 'lucide-react';
 
@@ -38,9 +39,6 @@ const DesempenhoTab: React.FC = () => {
   const { addItem, productIds } = useShoppingList();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [pageData, setPageData] = useState<{ content: ProductPerformance[]; totalPages: number; totalElements: number; number: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [size] = useState(20);
   const [category, setCategory] = useState('');
@@ -49,22 +47,23 @@ const DesempenhoTab: React.FC = () => {
   const [sortBy, setSortBy] = useState<'REVENUE' | 'QUANTITY' | 'TRANSACTIONS' | 'PRICE' | 'TURNOVER' | 'TREND' | 'PROMO' | 'NAME'>('REVENUE');
   const querySearch = searchParams.get('search') || '';
 
+  useEffect(() => { setSearchInput(querySearch); }, [querySearch]);
+  useEffect(() => { setPage(0); }, [querySearch]);
+
+  // Guardado por 2 minutos: voltar à lista ou à página anterior não espera de novo.
+  const perf = useCached<{ content: ProductPerformance[]; totalPages: number; totalElements: number; number: number }>(
+    marketId ? `desempenho:${marketId}:${page}:${size}:${category}:${querySearch}:${sortBy}` : null,
+    () => marketService.getProductPerformance(marketId!, page, size, category || undefined, querySearch || undefined, sortBy),
+    2 * 60_000,
+  );
+  const pageData = perf.data ?? null;
+  const loading = perf.loading;
+  const error = perf.error && !pageData ? 'Erro ao carregar produtos' : null;
+
   const products = useMemo(() => pageData?.content || [], [pageData]);
   const current = products.find((x) => x.productId === selected) ?? products[0] ?? null;
   const totalPages = pageData?.totalPages ?? 0;
   const totalElements = pageData?.totalElements ?? 0;
-
-  useEffect(() => { setSearchInput(querySearch); }, [querySearch]);
-  useEffect(() => { setPage(0); }, [querySearch]);
-
-  useEffect(() => {
-    if (!marketId) { setLoading(false); return; }
-    setLoading(true);
-    marketService.getProductPerformance(marketId, page, size, category || undefined, querySearch || undefined, sortBy)
-      .then((data) => { setPageData(data); setError(null); })
-      .catch((err: any) => { setError(err?.message || 'Erro ao carregar produtos'); setPageData(null); })
-      .finally(() => setLoading(false));
-  }, [marketId, page, size, category, querySearch, sortBy]);
 
   // Badge reflects current momentum + trend, not just historical turnover band
   const statusLabel = (p: ProductPerformance) => {

@@ -1305,7 +1305,6 @@ const ShoppingListPage: React.FC = () => {
       setSuggestions((recs || []).filter(goesToOrder));
     } catch { setSuggestions([]); }
   }, [marketId]);
-  useEffect(() => { void loadSuggestions(); }, [loadSuggestions]);
 
   // Lista
   const [recordModal, setRecordModal] = useState<ShoppingListItem | null>(null);
@@ -1352,10 +1351,9 @@ const ShoppingListPage: React.FC = () => {
     catch { /* silent */ } finally { setSuppliersLoading(false); setSuppliersLoaded(true); }
   }, [marketId]);
 
-  useEffect(() => { if (tab === 'pedidos' && !ordersLoaded && !newOrder) fetchOrders(); }, [tab, ordersLoaded, fetchOrders, newOrder]);
-  useEffect(() => { if (tab === 'pedidos') { void fetchOrders(); void loadSuggestions(); } }, [tab]); // eslint-disable-line
+  // Uma busca por entrada na aba (antes eram três efeitos pedindo os mesmos pedidos).
+  useEffect(() => { if (tab === 'pedidos') { void fetchOrders(); void loadSuggestions(); } }, [tab, fetchOrders, loadSuggestions]);
   useEffect(() => { if (tab === 'fornecedores' && !suppliersLoaded) fetchSuppliers(); }, [tab, suppliersLoaded, fetchSuppliers]);
-  useEffect(() => { if (tab === 'pedidos' && !newOrder) fetchOrders(); }, [statusFilter]); // eslint-disable-line
 
   const openOrderDetail = useCallback(async (order: SupplierOrder) => {
     if (!marketId) return;

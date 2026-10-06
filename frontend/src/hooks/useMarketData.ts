@@ -1,33 +1,22 @@
-import { useEffect, useState } from 'react';
-import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
-import { MarketCockpit } from '../types/analytics.types';
+import { marketService } from '../services/market.service';
+import { useCached } from './useCached';
+import type { ProductPerformance } from '../types/analytics.types';
+
+/** Os sinais de produto que Comprar e Produtos usam (não o cockpit inteiro). */
+export interface ProductSignals {
+  replenishmentCandidates: ProductPerformance[];
+  slowMovers: ProductPerformance[];
+  topProducts: ProductPerformance[];
+  lowTurnoverProducts: ProductPerformance[];
+}
 
 export const useMarketData = () => {
   const { marketId } = useAuth();
-  const [dashboard, setDashboard] = useState<MarketCockpit | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!marketId) {
-        setError('ID do mercado não encontrado');
-        setLoading(false);
-        return;
-      }
-      try {
-        const data = await marketService.getCockpit(marketId);
-        setDashboard(data);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Erro ao carregar dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [marketId]);
-
-  return { dashboard, loading, error };
+  const { data, loading, error } = useCached<ProductSignals>(
+    marketId ? `signals:${marketId}` : null,
+    () => marketService.getProductSignals(marketId!),
+    5 * 60_000,
+  );
+  return { dashboard: data ?? null, loading, error: error ? 'Erro ao carregar os produtos' : null };
 };
