@@ -1,7 +1,7 @@
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine, event, text
+from sqlalchemy import Column, String, Integer, DateTime, Text, Enum, create_engine, event, func, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import enum
 import logging
@@ -163,9 +163,15 @@ class QueueManager:
     def next_pending(self, limit: int = 50):
         session = self.Session()
         try:
+            # Mais recentes primeiro: a chave da NFC-e traz o AAMM da emissão nas
+            # posições 3 a 6. Com uma carga grande (dezenas de milhares de
+            # notas), mandar em ordem cronológica deixava o painel zerado por
+            # um dia inteiro, porque as análises olham os últimos 90 dias e a
+            # venda recente era a última a chegar.
             return (
                 session.query(QueuedInvoice)
                 .filter_by(status=ProcessStatus.PENDING)
+                .order_by(func.substr(QueuedInvoice.chave_nfe, 3, 4).desc(), QueuedInvoice.id.desc())
                 .limit(limit)
                 .all()
             )

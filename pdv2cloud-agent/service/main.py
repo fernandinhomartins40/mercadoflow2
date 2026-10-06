@@ -189,12 +189,19 @@ class ServiceApp:
                 logger.warning("Queue maintenance failed: %s", exc)
 
             self.file_watcher.start()
-            try:
-                scanned = self.file_watcher.scan_existing()
-                if scanned:
-                    logger.info("Initial scan enqueued %s existing files", scanned)
-            except Exception as exc:
-                logger.warning("Initial scan failed: %s", exc)
+
+            # A varredura inicial lê e abre até 5.000 XML: numa pasta grande
+            # isso leva minutos. Em segundo plano, o envio do que já está na
+            # fila começa na hora em vez de esperar a varredura a cada reinício.
+            def _initial_scan():
+                try:
+                    scanned = self.file_watcher.scan_existing()
+                    if scanned:
+                        logger.info("Initial scan enqueued %s existing files", scanned)
+                except Exception as exc:
+                    logger.warning("Initial scan failed: %s", exc)
+
+            threading.Thread(target=_initial_scan, daemon=True).start()
 
             threading.Thread(target=self.file_watcher.loop, args=(self.stop_event,), daemon=True).start()
 
