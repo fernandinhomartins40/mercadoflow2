@@ -186,9 +186,28 @@ public class OpportunityEngine {
     private boolean refresh(Opportunity o, DetectedOpportunity d, LocalDateTime now) {
         // Decisão do usuário prevalece sobre redetecção: o que ele descartou
         // fica descartado, e o que ele concluiu não reabre sozinho.
-        if (o.getStatus() == Opportunity.Status.DESCARTADA
-            || o.getStatus() == Opportunity.Status.CONCLUIDA) {
+        if (o.getStatus() == Opportunity.Status.DESCARTADA) {
             return false;
+        }
+        if (o.getStatus() == Opportunity.Status.CONCLUIDA) {
+            if (!closedBySystem(o)) {
+                return false;
+            }
+            // Encerrada pelo sistema (sumiu da detecção, ou correção de dados) e
+            // detectada de novo: a situação voltou, então reabre.
+            o.setStatus(Opportunity.Status.NOVA);
+            o.setStatusChangedAt(now);
+            o.setStatusChangedBy(null);
+            o.setTitle(truncate(d.title(), 300));
+            o.setDescription(d.description());
+            o.setEvidence(normalize(d.evidence()));
+            o.setExpectedImpactValue(d.expectedImpactValue());
+            o.setConfidence(d.confidence());
+            o.setPriorityScore(d.priorityScore());
+            o.setExpiresAt(d.expiresAt());
+            o.setLastDetectedAt(now);
+            o.setDetectionCount(o.getDetectionCount() + 1);
+            return true;
         }
 
         String title = truncate(d.title(), 300);
@@ -218,6 +237,15 @@ public class OpportunityEngine {
         o.setLastDetectedAt(now);
         o.setDetectionCount(o.getDetectionCount() + 1);
         return true;
+    }
+
+    /**
+     * Encerrada sem decisão de alguém: por não ter sido redetectada (closeStale
+     * não grava autor) ou pelas correções de dados de 06/10/2026.
+     */
+    static boolean closedBySystem(Opportunity o) {
+        String by = o.getStatusChangedBy();
+        return by == null || by.startsWith("auditoria ") || by.startsWith("correcao ");
     }
 
     /**

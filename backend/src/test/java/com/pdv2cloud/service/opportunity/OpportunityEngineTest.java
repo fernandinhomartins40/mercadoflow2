@@ -159,6 +159,7 @@ class OpportunityEngineTest {
     void concludedStaysConcluded() {
         Opportunity concluded = new Opportunity();
         concluded.setStatus(Opportunity.Status.CONCLUIDA);
+        concluded.setStatusChangedBy("dono@loja.com");
         concluded.setDetectionCount(1);
 
         concluded.setFingerprint("COMPRA:1");
@@ -168,6 +169,21 @@ class OpportunityEngineTest {
 
         assertEquals(0, engine.detectForMarket(marketId).updated());
         assertEquals(Opportunity.Status.CONCLUIDA, concluded.getStatus());
+    }
+
+    @Test
+    @DisplayName("encerrada pelo sistema reabre quando a situação volta")
+    void systemClosedReopens() {
+        Opportunity closed = new Opportunity();
+        closed.setFingerprint("COMPRA:1");
+        closed.setStatus(Opportunity.Status.CONCLUIDA);
+        closed.setStatusChangedBy("auditoria 2026-10-06: estoque desconhecido");
+        closed.setDetectionCount(5);
+        when(opportunityRepository.findAllByMarket(marketId)).thenReturn(List.of(closed));
+
+        assertEquals(1, engineWith(sample("COMPRA:1")).detectForMarket(marketId).updated());
+        assertEquals(Opportunity.Status.NOVA, closed.getStatus());
+        assertNull(closed.getStatusChangedBy());
     }
 
     @Test

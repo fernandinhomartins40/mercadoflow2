@@ -635,7 +635,12 @@ public class WorkingCapitalService {
          * custo de uma consulta por produto (milhares de round-trips num
          * portfólio real); agregar no banco resolve sem esse custo.
          */
-        double momentum = MetricDefinitions.momentum(sale.dailyRevenue());
+        // Produto de venda esporádica não tem ritmo mensurável: com a série do
+        // calendário, uma semana sem venda dava ritmo 0 e "comprar menos" para
+        // milhares de itens (medido em produção em 06/10/2026). Fica neutro.
+        double momentum = sale.salesDays() >= MIN_SALES_DAYS_FOR_MOMENTUM
+            ? MetricDefinitions.momentum(sale.dailyRevenue())
+            : 1.0;
 
         // ── Margem e GMROI ──
         BigDecimal unitCost = cost != null ? cost.unitCost() : null;
@@ -931,6 +936,9 @@ public class WorkingCapitalService {
      * cálculo de todo produto sem venda.
      */
     static final int MIN_COMPLETE_DAYS_FOR_VELOCITY = 14;
+
+    /** Dias com venda na janela abaixo dos quais o ritmo não é medido. */
+    static final int MIN_SALES_DAYS_FOR_MOMENTUM = 14;
 
     static double sumOnDays(java.sql.Array dates, java.sql.Array values, List<LocalDate> completeDays)
         throws java.sql.SQLException {

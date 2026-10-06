@@ -54,6 +54,12 @@ public class CapitalOpportunityDetector implements OpportunityDetector {
                 // seria inventar (auditoria 06/10/2026). Fica só o sinal de giro.
                 continue;
             }
+            boolean relevant = "A".equals(m.abcClass()) || "B".equals(m.abcClass()) || m.inventoryUnits() != null;
+            if ((m.capitalStatus() == CapitalStatus.LIQUIDAR || m.capitalStatus() == CapitalStatus.REDUZIR) && !relevant) {
+                // Cauda (curva C) sem estoque conhecido: "comprar menos" de milhares
+                // de itens de venda esporádica é ruído, não decisão.
+                continue;
+            }
             if (m.capitalStatus() == CapitalStatus.LIQUIDAR
                 || m.capitalStatus() == CapitalStatus.REDUZIR) {
                 out.add(frozenCapital(m));
