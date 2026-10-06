@@ -85,7 +85,11 @@ public class IncrementalRefreshService {
      * A decisão de rodar ou não é do próprio serviço, com base no ritmo da loja
      * — o job apenas oferece a oportunidade a cada poucos minutos.
      */
-    @Transactional
+    /**
+     * Sem transação própria: capital, detecção e recomendações têm cada uma a
+     * sua. Antes era tudo uma transação longa, que segurava locks enquanto a
+     * ingestão do agente gravava notas e, ao falhar, desfazia tudo.
+     */
     public RefreshResult refreshMarket(UUID marketId) {
         long startedAt = System.currentTimeMillis();
         LocalDateTime now = LocalDateTime.now();
@@ -125,7 +129,8 @@ public class IncrementalRefreshService {
          * a maior parte dos ciclos: madrugada, domingo fechado, hora morta.
          * Quando há movimento, recalcular é o trabalho legítimo.
          */
-        materializer.materializeMarket(marketId);
+        // Só o capital: halo, tração e sazonalidade ficam no noturno (janela longa).
+        materializer.materializeCapital(marketId);
 
         OpportunityEngine.DetectionResult detection = opportunityEngine.detectForMarket(marketId);
         int recommendations = recommendationEngine.generateForMarket(marketId);

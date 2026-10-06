@@ -9,6 +9,7 @@ import { activationService } from '../../services/activation.service';
 import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
+import HistoryNotice from '../intelligence/HistoryNotice';
 import '../../styles/flow.css';
 
 /**
@@ -141,6 +142,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(14px, 1.6vw, 22px)' }}>
           <SubscriptionBanner />
+          <HistoryNotice />
           {children}
         </div>
       </main>

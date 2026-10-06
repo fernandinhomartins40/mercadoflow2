@@ -103,12 +103,14 @@ public class IntelligenceCenterController {
      * portfólio inteiro), por isso é POST e restrita a dono/gerente.
      */
     @PostMapping("/rebuild")
-    public ResponseEntity<ProductIntelligenceMaterializer.MaterializationResult> rebuild(
+    public ResponseEntity<java.util.Map<String, Integer>> rebuild(
         @PathVariable("marketId") UUID marketId,
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(materializer.materializeMarket(marketId));
+        // Na requisição só o capital; halo, tração e sazonalidade são do noturno.
+        int[] r = materializer.materializeCapital(marketId);
+        return ResponseEntity.ok(java.util.Map.of("capitalMetrics", r[0], "inventoryEstimates", r[1]));
     }
 
     /**

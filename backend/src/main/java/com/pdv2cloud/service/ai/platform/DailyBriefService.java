@@ -90,7 +90,7 @@ public class DailyBriefService {
         }
         Map<String, Object> recs = jdbc.queryForMap(
             "select count(*) as total, coalesce(sum(expected_impact_value), 0) as impacto from recommendations "
-                + "where market_id = :m and status = 'PROPOSTA'", Map.of("m", marketId));
+                + "where market_id = :m and status = 'PROPOSTA' and exists (select 1 from opportunities op where op.id = recommendations.opportunity_id and op.status in ('NOVA', 'VISTA', 'EM_ACAO'))", Map.of("m", marketId));
         long pending = ((Number) recs.get("total")).longValue();
         if (pending > 0) {
             sb.append(' ').append(pending == 1 ? "Há 1 recomendação esperando" : "Há " + pending + " recomendações esperando")

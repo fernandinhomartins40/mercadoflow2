@@ -63,12 +63,15 @@ public class PromoIntelligenceService {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final CapitalMetricsReader capitalMetricsReader;
     private final HaloEffectsReader haloEffectsReader;
+    private final com.pdv2cloud.service.intelligence.DataCompletenessService completeness;
 
     public PromoIntelligenceService(
         NamedParameterJdbcTemplate jdbcTemplate,
         CapitalMetricsReader capitalMetricsReader,
-        HaloEffectsReader haloEffectsReader
+        HaloEffectsReader haloEffectsReader,
+        com.pdv2cloud.service.intelligence.DataCompletenessService completeness
     ) {
+        this.completeness = completeness;
         this.jdbcTemplate = jdbcTemplate;
         this.capitalMetricsReader = capitalMetricsReader;
         this.haloEffectsReader = haloEffectsReader;
@@ -176,14 +179,26 @@ public class PromoIntelligenceService {
             "    and i.data_emissao >= :since and it.valor_unitario > 0 " +
             "  group by cast(i.data_emissao as date) " +
             "), " +
+            // Só dias com histórico completo, e com o movimento da loja no dia: sem
+            // isso, dias de promoção que caíam em meses com notas faltando pareciam
+            // dias fracos e o efeito saía invertido (auditoria 06/10/2026: -94,8%).
+            "day_traffic as ( " +
+            "  select cast(data_emissao as date) as sale_date, count(*) as receipts " +
+            "  from invoices where market_id = :marketId and data_emissao >= :since " +
+            "    and cast(data_emissao as date) = any(cast(:completeDays as date[])) " +
+            "  group by 1 " +
+            "), " +
             "flagged_days as ( " +
-            "  select sale_date, " +
-            "         case when day_avg_price < :promoPrice then true else false end as is_promo " +
-            "  from driver_daily where day_avg_price is not null " +
+            "  select dd.sale_date, t.receipts, " +
+            "         case when dd.day_avg_price < :promoPrice then true else false end as is_promo " +
+            "  from driver_daily dd join day_traffic t on t.sale_date = dd.sale_date " +
+            "  where dd.day_avg_price is not null " +
             "), " +
             "day_counts as ( " +
             "  select count(*) filter (where is_promo)     as promo_days, " +
-            "         count(*) filter (where not is_promo) as normal_days " +
+            "         count(*) filter (where not is_promo) as normal_days, " +
+            "         coalesce(sum(receipts) filter (where is_promo), 0)     as promo_receipts, " +
+            "         coalesce(sum(receipts) filter (where not is_promo), 0) as normal_receipts " +
             "  from flagged_days " +
             "), " +
             // Produtos que dividem cupom com o driver: candidatos legítimos a halo.
@@ -211,7 +226,7 @@ public class PromoIntelligenceService {
             "  group by it.product_id, fd.is_promo " +
             ") " +
             "select td.product_id, p.name, cp.co_count, " +
-            "       dc.promo_days, dc.normal_days, " +
+            "       dc.promo_days, dc.normal_days, dc.promo_receipts, dc.normal_receipts, " +
             "       coalesce(sum(td.qty)     filter (where td.is_promo), 0)     as promo_qty, " +
             "       coalesce(sum(td.qty)     filter (where not td.is_promo), 0) as normal_qty, " +
             "       coalesce(sum(td.revenue) filter (where td.is_promo), 0)     as promo_revenue " +
@@ -219,7 +234,7 @@ public class PromoIntelligenceService {
             "join products p on p.id = td.product_id " +
             "join co_purchased cp on cp.product_id = td.product_id " +
             "cross join day_counts dc " +
-            "group by td.product_id, p.name, cp.co_count, dc.promo_days, dc.normal_days";
+            "group by td.product_id, p.name, cp.co_count, dc.promo_days, dc.normal_days, dc.promo_receipts, dc.normal_receipts";
 
         BigDecimal promoPrice = driver.medianPrice()
             .multiply(BigDecimal.valueOf(PROMO_THRESHOLD_RATIO));
@@ -228,7 +243,9 @@ public class PromoIntelligenceService {
             .addValue("driverId", driver.productId())
             .addValue("since", since.atStartOfDay())
             .addValue("promoPrice", promoPrice)
-            .addValue("minCoOccurrence", MIN_CO_OCCURRENCE);
+            .addValue("minCoOccurrence", MIN_CO_OCCURRENCE)
+            .addValue("completeDays", com.pdv2cloud.service.intelligence.ProductTractionService.dayArray(
+                completeness.coverage(marketId).completeBetween(since, LocalDate.now().plusDays(1))));
 
         List<HaloEffect> out = new ArrayList<>();
         // RowCallbackHandler explícito: com `return` dentro do lambda o compilador
@@ -242,19 +259,25 @@ public class PromoIntelligenceService {
 
             double promoQty = rs.getDouble("promo_qty");
             double normalQty = rs.getDouble("normal_qty");
-            double promoVelocity = promoQty / promoDays;
-            double normalVelocity = normalQty / normalDays;
-            if (normalVelocity <= 0) {
+            double promoReceipts = rs.getDouble("promo_receipts");
+            double normalReceipts = rs.getDouble("normal_receipts");
+            if (promoReceipts <= 0 || normalReceipts <= 0) {
                 return;
             }
-
-            double liftPercent = (promoVelocity / normalVelocity - 1.0) * 100.0;
-
-            // Receita incremental: o que se vendeu a mais do que a linha de base
-            // teria produzido nos mesmos dias.
+            // Venda do alvo por 100 cupons da loja: compara dias de movimento diferente.
+            double promoRate = promoQty / promoReceipts * 100.0;
+            double normalRate = normalQty / normalReceipts * 100.0;
+            double promoVelocity = promoQty / promoDays;
+            double normalVelocity = normalQty / normalDays;
+            if (normalRate <= 0) {
+                return;
+            }
+            double liftPercent = (promoRate / normalRate - 1.0) * 100.0;
+            // Receita incremental: o que se vendeu a mais do que a taxa normal (por
+            // cupom) teria produzido com o mesmo movimento dos dias de promoção.
             double promoRevenue = rs.getDouble("promo_revenue");
             double baselineRevenue = promoQty > 0
-                ? promoRevenue / promoQty * normalVelocity * promoDays
+                ? promoRevenue / promoQty * (normalRate / 100.0) * promoReceipts
                 : 0.0;
             double incremental = promoRevenue - baselineRevenue;
 

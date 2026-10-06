@@ -41,6 +41,9 @@ export interface OperationPanel {
   rising: OperationProduct[];
   falling: OperationProduct[];
   margin: { percent: number | null; coverage: number };
+  /** false quando o período de comparação ainda não tem todas as notas. */
+  comparable: boolean;
+  previousCompleteShare: number;
 }
 
 export const operationService = {

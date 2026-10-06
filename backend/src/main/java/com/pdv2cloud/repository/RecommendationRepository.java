@@ -12,7 +12,9 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
 
     @Query("select r from Recommendation r "
         + "join fetch r.opportunity o left join fetch o.product "
-        + "where r.market.id = :marketId and r.status = 'PROPOSTA' "
+        // Só de oportunidade ainda aberta: a que foi concluída (a situação sumiu)
+        // não pede mais decisão.
+        + "where r.market.id = :marketId and r.status = 'PROPOSTA' and o.status in ('NOVA', 'VISTA', 'EM_ACAO') "
         + "order by r.expectedImpactValue desc nulls last, r.createdAt desc")
     List<Recommendation> findPendingByMarket(@Param("marketId") UUID marketId);
 

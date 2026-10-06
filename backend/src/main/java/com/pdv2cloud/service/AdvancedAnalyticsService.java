@@ -40,6 +40,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -60,6 +61,9 @@ public class AdvancedAnalyticsService {
 
     @Autowired
     private NamedParameterJdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private com.pdv2cloud.service.intelligence.DataCompletenessService completeness;
 
     @Autowired
     private InvoiceRepository invoiceRepository;
@@ -167,6 +171,7 @@ public class AdvancedAnalyticsService {
 
         List<ProductPerformanceDTO> rows = loadProductPerformancePage(params, sortBy, pageable);
         enrichPageWithScores(rows, marketId, window);
+        applyCompleteTrend(marketId, window, rows);
         return new PageImpl<>(rows, pageable, total);
     }
 
@@ -485,7 +490,64 @@ public class AdvancedAnalyticsService {
             double velocity = row.getSalesVelocity() != null ? row.getSalesVelocity().doubleValue() : 0.0;
             row.setTurnoverBand(MetricDefinitions.turnoverBand(velocity, portfolioVelocities));
         }
+        applyCompleteTrend(marketId, window, rows);
         return rows;
+    }
+
+    /** A janela anterior precisa de pelo menos esta fatia de dias completos para haver tendência. */
+    static final double MIN_TREND_COVERAGE = 0.5;
+
+    /**
+     * Tendência só com dias de histórico completo: receita por dia completo da
+     * janela atual contra a da janela anterior. Sem base suficiente, nula.
+     *
+     * Auditoria de 06/10/2026: comparar 90 dias cheios com 90 dias em que o
+     * agente ainda não tinha enviado as notas dava +361% na loja inteira, e todo
+     * produto aparecia "em alta".
+     */
+    private void applyCompleteTrend(UUID marketId, Window window, List<ProductPerformanceDTO> rows) {
+        if (rows.isEmpty()) return;
+        com.pdv2cloud.service.intelligence.DataCompletenessService.Coverage cov = completeness.coverage(marketId);
+        LocalDate curFrom = window.start();
+        LocalDate curTo = window.end().plusDays(1);
+        LocalDate prevFrom = curFrom.minusDays(window.lengthDays());
+        List<LocalDate> cur = cov.completeBetween(curFrom, curTo);
+        List<LocalDate> prev = cov.completeBetween(prevFrom, curFrom);
+        boolean enough = !cur.isEmpty() && prev.size() >= MIN_TREND_COVERAGE * window.lengthDays();
+        if (!enough) {
+            rows.forEach(r -> r.setRevenueTrendPercentage(null));
+            return;
+        }
+        Map<UUID, double[]> sums = new HashMap<>();
+        jdbcTemplate.query(
+            "select it.product_id, " +
+            "  sum(case when i.data_emissao >= :curFrom then it.valor_total else 0 end) cur, " +
+            "  sum(case when i.data_emissao < :curFrom then it.valor_total else 0 end) prev " +
+            "from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "where i.market_id = :m and i.data_emissao >= :prevFrom and i.data_emissao < :curTo " +
+            "  and cast(i.data_emissao as date) = any(cast(:days as date[])) " +
+            "  and it.product_id = any(cast(:ids as uuid[])) group by 1",
+            new MapSqlParameterSource("m", marketId)
+                .addValue("curFrom", curFrom.atStartOfDay())
+                .addValue("prevFrom", prevFrom.atStartOfDay())
+                .addValue("curTo", curTo.atStartOfDay())
+                .addValue("days", com.pdv2cloud.service.intelligence.ProductTractionService.dayArray(
+                    java.util.stream.Stream.concat(prev.stream(), cur.stream()).toList()))
+                .addValue("ids", rows.stream().map(r -> r.getProductId().toString()).collect(java.util.stream.Collectors.joining(",", "{", "}"))),
+            rs -> { sums.put(uuid(rs, "product_id"), new double[] { rs.getDouble("cur"), rs.getDouble("prev") }); });
+        for (ProductPerformanceDTO r : rows) {
+            double[] v = sums.get(r.getProductId());
+            r.setRevenueTrendPercentage(completeTrend(v == null ? 0 : v[0], cur.size(), v == null ? 0 : v[1], prev.size()));
+        }
+    }
+
+    /** Variação da receita por dia completo; nula sem venda no período anterior. */
+    static Double completeTrend(double cur, int curDays, double prev, int prevDays) {
+        if (curDays <= 0 || prevDays <= 0) return null;
+        double c = cur / curDays;
+        double p = prev / prevDays;
+        if (p <= 0) return null;
+        return BigDecimal.valueOf((c - p) / p * 100.0).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     /**

@@ -46,7 +46,7 @@ public class ComprasAgent implements CopilotAgent {
     public List<AgentSignal> signals(UUID marketId) {
         List<Map<String, Object>> recs = jdbc.queryForList(
             "select id, title, parameters->>'quantidade' as qtd, parameters->>'valorEstimado' as valor, expected_impact_value "
-                + "from recommendations where market_id = :m and status = 'PROPOSTA' and action_type = 'COMPRAR' "
+                + "from recommendations where market_id = :m and status = 'PROPOSTA' and action_type = 'COMPRAR' and exists (select 1 from opportunities op where op.id = recommendations.opportunity_id and op.status in ('NOVA', 'VISTA', 'EM_ACAO')) "
                 + "order by expected_impact_value desc nulls last, id limit 40", Map.of("m", marketId));
         if (recs.isEmpty()) {
             return List.of();

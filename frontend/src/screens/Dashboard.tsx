@@ -17,11 +17,14 @@ import { customerService, exportService } from '../services/advanced.service';
 import { formatDecimal, formatMoney } from '../utils/formatters';
 import { GROUP_LABEL, useDecisionQueue } from './decidir/queue';
 import { useCached } from '../hooks/useCached';
+import { tractionService, type ProductTraction } from '../services/traction.service';
+import workingCapitalService, { type CapitalMetric } from '../services/workingCapital.service';
 
 /**
- * Início: como está a loja. Os 4 números do dia (ou da semana, ou do mês),
- * sempre contra o mesmo trecho da semana anterior, as vendas por hora, os
- * departamentos e as 3 decisões que mais valem. Tocar num número abre o porquê.
+ * Início: onde o capital rende. Abre com quem PUXA a venda (tração medida no
+ * cupom) e com o GIRO (o que vende mais rápido e o que está perdendo ritmo);
+ * as decisões que mais valem; e, por último, como a loja vendeu no período,
+ * como contexto. Tocar num número abre o porquê.
  */
 
 const greeting = () => {
@@ -170,6 +173,75 @@ const WhyDrawer: React.FC<{ panel: OperationPanel; metric: OperationMetric; onCl
   );
 };
 
+// ── Tração e giro: o centro da decisão ──────────────────────────────────────
+
+const money2 = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const TractionCard: React.FC<{ items: ProductTraction[] | undefined }> = ({ items }) => (
+  <Card>
+    <PanelTitle title="Quem puxa a venda"
+      sub="Cupons com estes produtos levam mais em OUTROS itens do que cupons do mesmo tamanho sem eles (90 dias, só dias completos)" />
+    {!items ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : items.length === 0 ? (
+      <p className="fx-muted" style={{ margin: '14px 0 0' }}>Ainda sem cálculo de tração. Ele roda de madrugada e precisa de pelo menos 3 semanas de histórico completo.</p>
+    ) : (
+      <ul className="fx-stack" style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, gap: 8 }}>
+        {items.slice(0, 5).map((t) => (
+          <li key={t.productId}>
+            <Row to={`/app/produtos/${t.productId}`}>
+              <Thumb name={t.name} src={t.imageUrl} size={42} />
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <b style={{ display: 'block', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</b>
+                <span className="fx-muted" style={{ display: 'block', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {t.baskets.toLocaleString('pt-BR')} cupons{t.partners.length > 0 ? ` · vem com ${t.partners.slice(0, 2).map((x) => x.name).join(', ')}` : ''}
+                </span>
+              </span>
+              <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                <b className="fx-num" style={{ display: 'block', color: 'var(--fx-green)' }}>+{money2(t.liftPerBasket)}</b>
+                <small className="fx-muted">por cupom</small>
+              </span>
+            </Row>
+          </li>
+        ))}
+      </ul>
+    )}
+  </Card>
+);
+
+const GiroCard: React.FC<{ portfolio: CapitalMetric[] | undefined }> = ({ portfolio }) => {
+  const [view, setView] = useState<'rapido' | 'perdendo'>('rapido');
+  const list = (portfolio ?? []).filter((m) => (view === 'rapido' ? m.capitalStatus === 'INVEST' : m.capitalStatus === 'REDUZIR' || m.capitalStatus === 'LIQUIDAR'))
+    .sort((a, b) => (view === 'rapido' ? Number(b.dailyVelocity) - Number(a.dailyVelocity) : Number(a.momentumScore ?? 1) - Number(b.momentumScore ?? 1)))
+    .slice(0, 5);
+  const noStock = (portfolio ?? []).every((m) => m.inventoryUnits == null);
+  return (
+    <Forest as="aside" aria-label="Giro">
+      <PanelTitle title="Giro" sub={noStock ? 'Pela venda por dia. Sem compras registradas, o estoque e o dinheiro parado ainda não aparecem.' : 'Pela venda por dia e pelo estoque registrado'}
+        right={<PillTabs<'rapido' | 'perdendo'> label="Giro" value={view} onChange={setView} tabs={[{ key: 'rapido', label: 'Vale reforçar' }, { key: 'perdendo', label: 'Perdendo giro' }]} />} />
+      {!portfolio ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : list.length === 0 ? (
+        <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Nenhum produto neste grupo agora.</p>
+      ) : (
+        <ul className="fx-stack" style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, gap: 8 }}>
+          {list.map((m) => (
+            <li key={m.productId}>
+              <Row to={`/app/produtos/${m.productId}`}>
+                <Thumb name={m.name} src={m.imageUrl} size={40} />
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <b style={{ display: 'block', fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</b>
+                  <span className="fx-muted" style={{ fontSize: 12.5 }}>Curva {m.abcClass}{m.momentumScore != null ? ` · ritmo ${formatDecimal(Number(m.momentumScore), 2)}x` : ''}</span>
+                </span>
+                <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <b className="fx-num" style={{ display: 'block' }}>{formatDecimal(Number(m.dailyVelocity), 1)}</b>
+                  <small className="fx-muted">por dia</small>
+                </span>
+              </Row>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Forest>
+  );
+};
+
 // ── Extras do rodapé: semana, rede, clientes, planilha ──────────────────────
 
 /** Mudam devagar: guardados por 10 minutos entre uma visita e outra. */
@@ -202,6 +274,10 @@ const Dashboard: React.FC = () => {
   const [why, setWhy] = useState<OperationMetric | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const queue = useDecisionQueue(marketId, ready);
+  const traction = useCached<ProductTraction[]>(marketId && ready ? `tracao:${marketId}` : null,
+    () => tractionService.list(marketId!, true, 50), 10 * 60_000);
+  const portfolio = useCached<CapitalMetric[]>(marketId && ready ? `giro:${marketId}` : null,
+    () => workingCapitalService.getPortfolio(marketId!, 90).then((r) => r.items), 10 * 60_000);
   const extras = useExtras(ready ? marketId ?? null : null);
 
   // O número do dia muda a cada nota: fresco por 1 minuto, depois atualiza em segundo plano.
@@ -223,18 +299,25 @@ const Dashboard: React.FC = () => {
     ]} />
   );
 
+  const pulling = traction.data ?? [];
   const title = useMemo(() => {
+    if (pulling.length > 0) {
+      return <><mark>{pulling.length} {pulling.length === 1 ? 'produto puxa' : 'produtos puxam'}</mark> a venda da sua loja.</>;
+    }
     if (!panel || !sales) return <>{greeting()}, {first}.</>;
     if (period === 'dia' && !panel.today) {
       return panel.lastSaleAt ? <>Ainda sem vendas de hoje. <mark>Último dia: {new Date(`${panel.referenceDate}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.</mark></>
         : <>{greeting()}, {first}. <mark>Sem vendas ainda.</mark></>;
     }
     return <>{PERIOD_TITLE[period]} a loja vendeu <mark>{formatMoney(sales.value)}.</mark></>;
-  }, [panel, sales, period, first]);
+  }, [panel, sales, period, first, pulling.length]);
 
-  const subtitle = !panel || !sales ? undefined
+  const subtitle = pulling.length > 0
+    ? `Quando entram no cupom, o cliente leva até ${money2(Math.max(...pulling.map((t) => t.liftPerBasket)))} a mais em outros produtos. Não deixe faltar.`
+    : !panel || !sales ? undefined
     : period === 'dia' && !panel.today
       ? <>Mostrando {dayLabel(panel.referenceDate).toLowerCase()}. <Link to="/app/pdvs">Ver os caixas</Link></>
+      : !panel.comparable ? 'Sem base de comparação: o período anterior ainda não tem todas as notas.'
       : sales.change == null ? `Sem vendas no mesmo período da semana anterior para comparar.`
         : `${pct(sales.change)} ${panel.comparisonLabel}.`;
 
@@ -272,17 +355,25 @@ const Dashboard: React.FC = () => {
       <UsageBanner />
       <PageHero title={title} subtitle={subtitle} side={hub} />
 
-      <PillTabs<OperationPeriod> label="Período" value={period} onChange={setPeriod} tabs={[
-        { key: 'dia', label: panel && !panel.today && period === 'dia' ? 'Último dia' : 'Hoje' },
-        { key: 'semana', label: 'Semana' },
-        { key: 'mes', label: 'Mês' },
-      ]} />
-
       {activation.collecting && activation.status && (
         <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
       )}
 
       <DailyBriefCard marketId={marketId} />
+
+      <div className="fx-split">
+        <TractionCard items={traction.data} />
+        <GiroCard portfolio={portfolio.data} />
+      </div>
+
+      <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
+
+      <h2 className="fx-section-title" style={{ margin: '8px 0 0' }}>Como a loja vendeu</h2>
+      <PillTabs<OperationPeriod> label="Período" value={period} onChange={setPeriod} tabs={[
+        { key: 'dia', label: panel && !panel.today && period === 'dia' ? 'Último dia' : 'Hoje' },
+        { key: 'semana', label: 'Semana' },
+        { key: 'mes', label: 'Mês' },
+      ]} />
 
       {/* Os números do período: tocar abre o porquê. */}
       {panelError ? (
@@ -325,32 +416,7 @@ const Dashboard: React.FC = () => {
         </Card>
       )}
 
-      <div className="fx-split">
-        <DepartmentsCard panel={panel} />
-
-        <Forest as="aside" aria-label="Decida agora">
-          <PanelTitle icon={Sparkles} title="Decida agora" sub={n > 0 ? `${n} ${n === 1 ? 'decisão espera' : 'decisões esperam'} você${queue.total > 0 ? ` · ${formatMoney(queue.total)} em jogo` : ''}` : 'Nada esperando você'} />
-          {queue.loading ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : top.length === 0 ? (
-            <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>A análise roda toda madrugada. Quando algo pedir sua decisão, aparece aqui.</p>
-          ) : (
-            <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
-              {top.map((it, i) => (
-                <li key={it.key}>
-                  <Link to={`/app/decidir?item=${encodeURIComponent(it.key)}`} className="fx-row" style={{ color: 'var(--fx-ink)' }}>
-                    <span aria-hidden="true" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, display: 'grid', placeItems: 'center', fontWeight: 800, background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}>{i + 1}</span>
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{it.title}</b>
-                      <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.source === 'tino' ? 'Tino preparou' : ''].filter(Boolean).join(' · ')}</span>
-                    </span>
-                    {it.value != null && <b className="fx-num" style={{ whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          {n > 3 && <Link to="/app/decidir" className="fx-btn lime" style={{ marginTop: 14, width: '100%' }}>Ver as {n} decisões<ArrowRight aria-hidden="true" /></Link>}
-        </Forest>
-      </div>
+      <DepartmentsCard panel={panel} />
 
       {/* Uma linha para cada coisa que antes era uma página inteira. */}
       <div className="fx-stack" style={{ gap: 10 }}>
@@ -391,6 +457,32 @@ const Dashboard: React.FC = () => {
     </Layout>
   );
 };
+
+/** As decisões que mais valem, do maior impacto para o menor. */
+const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: ReturnType<typeof useDecisionQueue>['items'] }> = ({ n, total, loading, top }) => (
+  <Forest as="section" aria-label="Decida agora">
+    <PanelTitle icon={Sparkles} title="Decida agora" sub={n > 0 ? `${n} ${n === 1 ? 'decisão espera' : 'decisões esperam'} você${total > 0 ? ` · ${formatMoney(total)} em jogo` : ''}` : 'Nada esperando você'} />
+    {loading ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : top.length === 0 ? (
+      <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>A análise roda de madrugada e a cada lote de notas. Quando algo pedir sua decisão, aparece aqui.</p>
+    ) : (
+      <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
+        {top.map((it, i) => (
+          <li key={it.key}>
+            <Link to={`/app/decidir?item=${encodeURIComponent(it.key)}`} className="fx-row" style={{ color: 'var(--fx-ink)' }}>
+              <span aria-hidden="true" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, display: 'grid', placeItems: 'center', fontWeight: 800, background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}>{i + 1}</span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{it.title}</b>
+                <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.source === 'tino' ? 'Tino preparou' : ''].filter(Boolean).join(' · ')}</span>
+              </span>
+              {it.value != null && <b className="fx-num" style={{ whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    )}
+    {n > 3 && <Link to="/app/decidir" className="fx-btn lime" style={{ marginTop: 14, width: '100%' }}>Ver as {n} decisões<ArrowRight aria-hidden="true" /></Link>}
+  </Forest>
+);
 
 /** Departamentos e mais vendidos no mesmo cartão: duas leituras da mesma venda. */
 const DepartmentsCard: React.FC<{ panel: OperationPanel | null }> = ({ panel }) => {

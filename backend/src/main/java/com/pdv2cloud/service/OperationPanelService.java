@@ -39,10 +39,16 @@ public class OperationPanelService {
     static final double MIN_COST_COVERAGE = 0.6;
     private static final String OTHERS = "Outros";
 
-    private final NamedParameterJdbcTemplate jdbc;
+    /** Fatia mínima de dias completos no período anterior para mostrar variação. */
+    static final double MIN_PREVIOUS_COMPLETE = 0.9;
 
-    public OperationPanelService(NamedParameterJdbcTemplate jdbc) {
+    private final NamedParameterJdbcTemplate jdbc;
+    private final com.pdv2cloud.service.intelligence.DataCompletenessService completeness;
+
+    public OperationPanelService(NamedParameterJdbcTemplate jdbc,
+                                 com.pdv2cloud.service.intelligence.DataCompletenessService completeness) {
         this.jdbc = jdbc;
+        this.completeness = completeness;
     }
 
     public enum Period { DIA, SEMANA, MES;
@@ -83,7 +89,10 @@ public class OperationPanelService {
         List<ProductMove> topProducts,
         List<ProductMove> rising,
         List<ProductMove> falling,
-        Margin margin
+        Margin margin,
+        /** false quando o período de comparação ainda não tem as notas todas. */
+        boolean comparable,
+        double previousCompleteShare
     ) { }
 
     /** Uma linha por produto (ou "sem produto"), com as duas janelas. */
@@ -105,16 +114,23 @@ public class OperationPanelService {
         LocalDateTime cutoff = today || lastSale == null ? now : refDate.plusDays(1).atStartOfDay();
         Window w = window(period, refDate, cutoff);
 
+        // Período anterior sem histórico completo não serve de base: a variação
+        // mostraria a falta de notas, não a loja (auditoria 06/10/2026).
+        com.pdv2cloud.service.intelligence.DataCompletenessService.Coverage cov = completeness.coverage(marketId);
+        double prevShare = cov.share(w.prevStart().toLocalDate(),
+            w.prevEnd().toLocalDate().plusDays(w.prevEnd().toLocalTime().equals(java.time.LocalTime.MIDNIGHT) ? 0 : 1));
+        boolean comparable = prevShare >= MIN_PREVIOUS_COMPLETE;
+
         BigDecimal[] receipts = receipts(marketId, w);
         List<ItemRow> items = items(marketId, w);
         long curLines = items.stream().mapToLong(ItemRow::curLines).sum();
         long prevLines = items.stream().mapToLong(ItemRow::prevLines).sum();
 
         List<Metric> metrics = List.of(
-            metric("vendas", receipts[0], receipts[1]),
-            metric("clientes", receipts[2], receipts[3]),
-            metric("ticket", ratio(receipts[0], receipts[2], 2), ratio(receipts[1], receipts[3], 2)),
-            metric("itens", ratio(BigDecimal.valueOf(curLines), receipts[2], 1), ratio(BigDecimal.valueOf(prevLines), receipts[3], 1))
+            metric("vendas", receipts[0], receipts[1], comparable),
+            metric("clientes", receipts[2], receipts[3], comparable),
+            metric("ticket", ratio(receipts[0], receipts[2], 2), ratio(receipts[1], receipts[3], 2), comparable),
+            metric("itens", ratio(BigDecimal.valueOf(curLines), receipts[2], 1), ratio(BigDecimal.valueOf(prevLines), receipts[3], 1), comparable)
         );
 
         List<SeriesPoint> series = period == Period.DIA ? hourly(marketId, refDate, w) : daily(marketId, w);
@@ -130,11 +146,14 @@ public class OperationPanelService {
             period == Period.DIA ? "média das últimas 4 " + weekdayPlural(refDate) : "semana anterior",
             metrics,
             series,
-            departments(items),
+            comparable ? departments(items) : departments(items).stream()
+                .map(d -> new Department(d.name(), d.revenue(), d.previous(), null, d.share())).toList(),
             topProducts(items),
-            movers(items, true),
-            movers(items, false),
-            margin(marketId, items)
+            comparable ? movers(items, true) : List.of(),
+            comparable ? movers(items, false) : List.of(),
+            margin(marketId, items),
+            comparable,
+            prevShare
         );
     }
 
@@ -155,8 +174,8 @@ public class OperationPanelService {
         return current.subtract(previous).divide(previous, 6, RoundingMode.HALF_UP).doubleValue() * 100.0;
     }
 
-    private static Metric metric(String key, BigDecimal value, BigDecimal previous) {
-        return new Metric(key, value, previous, change(value, previous));
+    private static Metric metric(String key, BigDecimal value, BigDecimal previous, boolean comparable) {
+        return new Metric(key, value, previous, comparable ? change(value, previous) : null);
     }
 
     private static BigDecimal ratio(BigDecimal a, BigDecimal b, int scale) {

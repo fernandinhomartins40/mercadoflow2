@@ -116,8 +116,8 @@ public class InvoiceProcessingService {
             // inteiro de cada produto a cada nota gerava milhões de gravações na
             // carga do agente. O PriceIntelligenceJob faz o mesmo a cada 15 min,
             // uma vez por produto que vendeu desde o último checkpoint.
-            // Invalidate market basket cache so next request recomputes with fresh data
-            marketBasketService.invalidate(marketId);
+            // A cesta NÃO é invalidada a cada nota: na carga do agente isso a fazia ser
+            // recalculada sem parar. O cache dela vence sozinho em 10 minutos.
 
             // Só conta o que de fato entrou: duplicatas e falhas não consomem cota.
             // Carga histórica é medida em contador próprio e fica fora do limite.

@@ -52,7 +52,7 @@ abstract class RecommendationBundleAgent implements CopilotAgent {
             "select id, title, action_type, parameters::text as params, parameters->>'produtoId' as produto, "
                 + "parameters->>'descontoPercent' as desconto, parameters->>'precoAtual' as preco, parameters->>'precoReferencia' as referencia, "
                 + "parameters->>'valorEstoque' as estoque, parameters->>'coberturaDias' as cobertura, expected_impact_value "
-                + "from recommendations where market_id = :m and status = 'PROPOSTA' and action_type in (:t) "
+                + "from recommendations where market_id = :m and status = 'PROPOSTA' and action_type in (:t) and exists (select 1 from opportunities op where op.id = recommendations.opportunity_id and op.status in ('NOVA', 'VISTA', 'EM_ACAO')) "
                 + "order by expected_impact_value desc nulls last, id limit 30",
             new MapSqlParameterSource().addValue("m", marketId).addValue("t", actionTypes()));
         if (recs.isEmpty()) {

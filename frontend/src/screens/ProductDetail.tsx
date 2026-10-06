@@ -10,6 +10,7 @@ import ProductImage from '../components/product/ProductImage';
 import PriceSimulator from '../components/product/PriceSimulator';
 import ProductSpecSheet from '../components/product/ProductSpecSheet';
 import { ActionHub, PageHero, PillTabs } from '../components/flow/Flow';
+import ProductTractionPanel from './produtos/ProductTractionPanel';
 import { Section, DataRow, Stat, Chip, Empty, RailCard, StatGrid } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
@@ -399,7 +400,7 @@ const ProductDetail: React.FC = () => {
   const [dashboard, setDashboard] = useState<ProductDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'vendas' | 'preco' | 'junto'>('vendas');
+  const [view, setView] = useState<'tracao' | 'vendas' | 'preco' | 'junto'>('tracao');
 
   useEffect(() => {
     const load = async () => {
@@ -506,11 +507,14 @@ const ProductDetail: React.FC = () => {
         {purchaseSignal && <PurchaseSignalBanner signal={purchaseSignal} />}
 
         {/* ── Entender: uma leitura de cada vez ── */}
-        <PillTabs<'vendas' | 'preco' | 'junto'> label="Ver do produto" value={view} onChange={setView} tabs={[
+        <PillTabs<'tracao' | 'vendas' | 'preco' | 'junto'> label="Ver do produto" value={view} onChange={setView} tabs={[
+          { key: 'tracao', label: 'Tração e giro' },
           { key: 'vendas', label: 'Vendas' },
           { key: 'preco', label: 'Preço' },
           { key: 'junto', label: 'Vende junto', count: relatedPairs.length },
         ]} />
+
+        {view === 'tracao' && productId && <ProductTractionPanel productId={productId} />}
 
         {view === 'vendas' && (
           <>

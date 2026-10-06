@@ -33,9 +33,12 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class PriceIntelligenceService {
 
     private static final BigDecimal ZERO_MONEY = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -58,31 +61,74 @@ public class PriceIntelligenceService {
     @Autowired
     private PriceIntelligenceCheckpointRepository checkpointRepository;
 
-    @Transactional
+    /** Produtos refeitos por transação: um deploy no meio perde no máximo um lote. */
+    private static final int SYNC_BATCH = 100;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    /**
+     * Refaz a linha do tempo de preço dos produtos vendidos desde o checkpoint,
+     * em lotes, guardando onde parou.
+     *
+     * Auditoria de 06/10/2026: era uma transação só para milhares de produtos;
+     * cada deploy recriava o contêiner no meio, nada era salvo e o checkpoint
+     * ficou parado em 12/08 — o job rodava sem parar e segurava os outros.
+     */
     public void syncMarket(UUID marketId) {
-        LocalDateTime checkpoint = checkpointRepository.findById(marketId)
-            .map(PriceIntelligenceCheckpoint::getLastObservedAt)
-            .orElse(null);
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        PriceIntelligenceCheckpoint cp = tx.execute(s -> checkpointRepository.findById(marketId).orElse(null));
+        LocalDateTime checkpoint = cp != null ? cp.getLastObservedAt() : null;
+        LocalDateTime target = cp != null ? cp.getTargetObservedAt() : null;
+        UUID cursor = cp != null ? cp.getCursorProductId() : null;
 
-        Set<UUID> productsToRecompute = new LinkedHashSet<>(checkpoint == null
-            ? productObservationRepository.findDistinctProductIdsByMarketId(marketId)
-            : productObservationRepository.findDistinctProductIdsByMarketIdAndObservedAtAfter(marketId, checkpoint));
-        productsToRecompute.addAll(productObservationRepository.findDistinctProductIdsByMarketIdWithoutDailyStats(marketId));
-
-        if (productsToRecompute.isEmpty()) {
+        if (target == null) {
+            target = tx.execute(s -> checkpoint == null
+                ? productObservationRepository.findMaxObservedAtByMarketId(marketId)
+                : productObservationRepository.findMaxObservedAtByMarketIdAndObservedAtAfter(marketId, checkpoint));
+            cursor = null;
+        }
+        if (target == null) {
             return;
         }
+        final LocalDateTime targetFinal = target;
 
-        for (UUID productId : productsToRecompute) {
-            recomputeProduct(marketId, productId);
-        }
+        List<UUID> products = tx.execute(s -> {
+            java.util.Set<UUID> ids = new java.util.TreeSet<>(java.util.Comparator.comparing(UUID::toString));
+            ids.addAll(checkpoint == null
+                ? productObservationRepository.findDistinctProductIdsByMarketId(marketId)
+                : productObservationRepository.findDistinctProductIdsByMarketIdAndObservedAtAfter(marketId, checkpoint));
+            ids.addAll(productObservationRepository.findDistinctProductIdsByMarketIdWithoutDailyStats(marketId));
+            return new ArrayList<>(ids);
+        });
+        final String after = cursor != null ? cursor.toString() : null;
+        List<UUID> pending = products.stream().filter(id -> after == null || id.toString().compareTo(after) > 0).toList();
 
-        LocalDateTime maxObservedAt = checkpoint == null
-            ? productObservationRepository.findMaxObservedAtByMarketId(marketId)
-            : productObservationRepository.findMaxObservedAtByMarketIdAndObservedAtAfter(marketId, checkpoint);
-        if (maxObservedAt != null) {
-            saveCheckpoint(marketId, maxObservedAt);
+        for (int from = 0; from < pending.size(); from += SYNC_BATCH) {
+            List<UUID> batch = pending.subList(from, Math.min(pending.size(), from + SYNC_BATCH));
+            UUID last = batch.get(batch.size() - 1);
+            tx.executeWithoutResult(s -> {
+                for (UUID productId : batch) {
+                    recomputeProduct(marketId, productId);
+                }
+                saveProgress(marketId, checkpoint, targetFinal, last);
+            });
         }
+        tx.executeWithoutResult(s -> saveProgress(marketId, targetFinal, null, null));
+        log.info("Linha do tempo de preco do mercado {}: {} produto(s) refeito(s) ate {}", marketId, pending.size(), targetFinal);
+    }
+
+    private void saveProgress(UUID marketId, LocalDateTime lastObservedAt, LocalDateTime target, UUID cursor) {
+        PriceIntelligenceCheckpoint entity = checkpointRepository.findById(marketId).orElseGet(() -> {
+            PriceIntelligenceCheckpoint created = new PriceIntelligenceCheckpoint();
+            created.setMarketId(marketId);
+            return created;
+        });
+        entity.setLastObservedAt(lastObservedAt);
+        entity.setTargetObservedAt(target);
+        entity.setCursorProductId(cursor);
+        entity.setUpdatedAt(LocalDateTime.now());
+        checkpointRepository.save(entity);
     }
 
     @Transactional

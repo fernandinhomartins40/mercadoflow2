@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ActionHub, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
 import ProductAttention, { attentionList, type Why } from './produtos/ProductAttention';
+import TractionList from './produtos/TractionList';
 import { useMarketData } from '../hooks/useMarketData';
 import { useCached } from '../hooks/useCached';
 import { History, ListChecks, MessageCircleQuestion, Package } from 'lucide-react';
@@ -220,10 +221,10 @@ const DesempenhoTab: React.FC = () => {
    PÁGINA PRINCIPAL — CATÁLOGO
 ════════════════════════════════════════════════════════════ */
 
-type ProductsFilter = 'todos' | Why;
+type ProductsFilter = 'tracao' | 'todos' | Why;
 
 const FILTER_LABEL: Record<ProductsFilter, string> = {
-  todos: 'Todos', acabando: 'Acabando', caindo: 'Vendendo menos', subindo: 'Em alta', parado: 'Parados',
+  tracao: 'Puxam venda', todos: 'Todos', acabando: 'Acabando', caindo: 'Vendendo menos', subindo: 'Em alta', parado: 'Parados',
 };
 
 /**
@@ -236,10 +237,11 @@ const Products: React.FC = () => {
   const { dashboard } = useMarketData();
   const attention = useMemo(() => attentionList(dashboard), [dashboard]);
   const count = (w: Why) => attention.filter((a) => a.why === w).length;
-  const filter = (params.get('filtro') as ProductsFilter) || 'todos';
+  // Abre em quem puxa a venda: é a decisão central (onde pôr o capital).
+  const filter = (params.get('filtro') as ProductsFilter) || 'tracao';
   const setFilter = (f: ProductsFilter) => setParams((prev) => {
     const next = new URLSearchParams(prev);
-    if (f === 'todos') next.delete('filtro'); else next.set('filtro', f);
+    if (f === 'tracao') next.delete('filtro'); else next.set('filtro', f);
     return next;
   }, { replace: true });
   const low = count('acabando');
@@ -256,18 +258,18 @@ const Products: React.FC = () => {
           side={<ActionHub icon={HxPackage} actions={[
             { label: `Acabando${low ? ` (${low})` : ''}`, icon: HxZap, onClick: () => setFilter('acabando') },
             { label: `Vendendo menos${down ? ` (${down})` : ''}`, icon: HxTrendingUp, onClick: () => setFilter('caindo') },
-            { label: 'Todos os produtos', icon: HxCombine, onClick: () => setFilter('todos') },
+            { label: 'Puxam venda', icon: HxCombine, onClick: () => setFilter('tracao') },
           ]} />} />
 
         <div className="fx-filters" role="group" aria-label="Filtrar produtos">
-          {(['todos', 'acabando', 'caindo', 'subindo', 'parado'] as ProductsFilter[]).map((f) => {
-            const n = f === 'todos' ? 0 : count(f as Why);
-            if (f !== 'todos' && n === 0) return null;
+          {(['tracao', 'todos', 'acabando', 'caindo', 'subindo', 'parado'] as ProductsFilter[]).map((f) => {
+            const n = f === 'todos' || f === 'tracao' ? 0 : count(f as Why);
+            if (f !== 'todos' && f !== 'tracao' && n === 0) return null;
             return <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{FILTER_LABEL[f]}{n > 0 ? ` (${n})` : ''}</button>;
           })}
         </div>
 
-        {filter === 'todos' ? <DesempenhoTab /> : <ProductAttention items={attention.filter((a) => a.why === filter)} />}
+        {filter === 'tracao' ? <TractionList /> : filter === 'todos' ? <DesempenhoTab /> : <ProductAttention items={attention.filter((a) => a.why === filter)} />}
       </div>
     </Layout>
   );

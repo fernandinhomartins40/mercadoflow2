@@ -86,12 +86,15 @@ public class WorkingCapitalService {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ExpectedDemandService expectedDemandService;
     private final SalesWindowResolver salesWindowResolver;
+    private final com.pdv2cloud.service.intelligence.DataCompletenessService completeness;
 
     public WorkingCapitalService(
         NamedParameterJdbcTemplate jdbcTemplate,
         ExpectedDemandService expectedDemandService,
-        SalesWindowResolver salesWindowResolver
+        SalesWindowResolver salesWindowResolver,
+        com.pdv2cloud.service.intelligence.DataCompletenessService completeness
     ) {
+        this.completeness = completeness;
         this.jdbcTemplate = jdbcTemplate;
         this.expectedDemandService = expectedDemandService;
         this.salesWindowResolver = salesWindowResolver;
@@ -272,7 +275,9 @@ public class WorkingCapitalService {
             // canônico (EMA7/SMA28) do MetricDefinitions. Vem agregada na
             // mesma query: uma consulta por produto seriam milhares de
             // round-trips num portfólio real.
-            "       array_agg(d.day_revenue order by d.sale_date) as daily_revenue " +
+            "       array_agg(d.day_revenue order by d.sale_date) as daily_revenue, " +
+            "       array_agg(d.sale_date order by d.sale_date)   as daily_dates, " +
+            "       array_agg(d.day_qty order by d.sale_date)     as daily_qty " +
             "from daily d " +
             "join products p on p.id = d.product_id " +
             "group by d.product_id, p.name, p.category, p.ean, p.image_url";
@@ -295,6 +300,10 @@ public class WorkingCapitalService {
         MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId)
             .addValue("since", since.atStartOfDay());
 
+        // Momento só sobre dias com histórico completo, na ordem do calendário e
+        // com zero nos dias sem venda (auditoria 06/10/2026: a série só tinha os
+        // dias COM venda, e os buracos de envio do agente viravam "aceleração").
+        List<LocalDate> completeDays = completeness.coverage(marketId).completeBetween(since, windowEnd.plusDays(1));
         List<SalesAggregate> out = new ArrayList<>();
         jdbcTemplate.query(sql, params, rs -> {
             out.add(new SalesAggregate(
@@ -309,8 +318,10 @@ public class WorkingCapitalService {
                 rs.getDouble("avg_daily_qty"),
                 rs.getDouble("stddev_daily_qty"),
                 rs.getDate("last_sale_date") != null ? rs.getDate("last_sale_date").toLocalDate() : null,
-                readDailySeries(rs.getArray("daily_revenue")),
-                windowDays
+                calendarSeries(rs.getArray("daily_dates"), rs.getArray("daily_revenue"), completeDays),
+                windowDays,
+                sumOnDays(rs.getArray("daily_dates"), rs.getArray("daily_qty"), completeDays),
+                completeDays.size()
             ));
         });
         return out;
@@ -326,7 +337,22 @@ public class WorkingCapitalService {
      */
     private Map<UUID, CostInfo> loadCosts(UUID marketId) {
         String sql =
-            "with purchase_costs as ( " +
+            "with " + "confere_ok as ( " +
+            // Entrada conferida no app Confere. Só vale quando o custo é coerente com o
+            // preço de venda da MESMA unidade (0,30 a 1,05): medido em 06/10/2026, a NF-e
+            // às vezes traz o custo da lata contra o preço do pack, ou o da caixa inteira.
+            "  select e.product_id, e.received_units, e.unit_cost, coalesce(e.received_at, now()) as received_at " +
+            "  from confere_stock_entries e " +
+            "  where e.market_id = :marketId and e.product_id is not null and e.received_units > 0 and e.unit_cost > 0 " +
+            "    and e.unit_cost between 0.30 * (select avg(it.valor_unitario) from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "                                    where i.market_id = :marketId and it.product_id = e.product_id) " +
+            "                    and 1.05 * (select avg(it.valor_unitario) from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "                                    where i.market_id = :marketId and it.product_id = e.product_id) " +
+            "), " +
+            "confere_costs as ( " +
+            "  select distinct on (product_id) product_id, unit_cost, received_at from confere_ok order by product_id, received_at desc " +
+            "), " +
+            "purchase_costs as ( " +
             "  select distinct on (product_id) " +
             "         product_id, unit_cost, unit_sale_price, margin_percent, purchased_at " +
             "  from purchase_price_history " +
@@ -353,13 +379,15 @@ public class WorkingCapitalService {
             "  where so.market_id = :marketId and soi.unit_cost > 0 " +
             "  order by soi.product_id, so.order_date desc " +
             ") " +
-            "select coalesce(pc.product_id, oc.product_id)          as product_id, " +
-            "       coalesce(pc.unit_cost, oc.unit_cost)            as unit_cost, " +
-            "       coalesce(pc.unit_sale_price, oc.unit_sale_price) as unit_sale_price, " +
-            "       coalesce(pc.margin_percent, oc.margin_percent)  as margin_percent, " +
-            "       case when pc.product_id is not null then 'PURCHASE_HISTORY' else 'SUPPLIER_ORDER' end as cost_source " +
+            "select coalesce(pc.product_id, cc.product_id, oc.product_id)  as product_id, " +
+            "       coalesce(pc.unit_cost, cc.unit_cost, oc.unit_cost)       as unit_cost, " +
+            "       coalesce(pc.unit_sale_price, oc.unit_sale_price)          as unit_sale_price, " +
+            "       coalesce(pc.margin_percent, oc.margin_percent)            as margin_percent, " +
+            "       case when pc.product_id is not null then 'PURCHASE_HISTORY' " +
+            "            when cc.product_id is not null then 'NFE_ENTRADA' else 'SUPPLIER_ORDER' end as cost_source " +
             "from purchase_costs pc " +
-            "full outer join order_costs oc on oc.product_id = pc.product_id";
+            "full outer join confere_costs cc on cc.product_id = pc.product_id " +
+            "full outer join order_costs oc on oc.product_id = coalesce(pc.product_id, cc.product_id)";
 
         Map<UUID, CostInfo> out = new HashMap<>();
         jdbcTemplate.query(sql, new MapSqlParameterSource("marketId", marketId), rs -> {
@@ -388,13 +416,28 @@ public class WorkingCapitalService {
      */
     private Map<UUID, InventoryInfo> computeInventory(UUID marketId, Map<UUID, CostInfo> costs) {
         String sql =
-            "with purchases as ( " +
+            "with " + "confere_ok as ( " +
+            // Entrada conferida no app Confere. Só vale quando o custo é coerente com o
+            // preço de venda da MESMA unidade (0,30 a 1,05): medido em 06/10/2026, a NF-e
+            // às vezes traz o custo da lata contra o preço do pack, ou o da caixa inteira.
+            "  select e.product_id, e.received_units, e.unit_cost, coalesce(e.received_at, now()) as received_at " +
+            "  from confere_stock_entries e " +
+            "  where e.market_id = :marketId and e.product_id is not null and e.received_units > 0 and e.unit_cost > 0 " +
+            "    and e.unit_cost between 0.30 * (select avg(it.valor_unitario) from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "                                    where i.market_id = :marketId and it.product_id = e.product_id) " +
+            "                    and 1.05 * (select avg(it.valor_unitario) from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "                                    where i.market_id = :marketId and it.product_id = e.product_id) " +
+            "), " +
+            "purchase_rows as ( " +
+            "  select product_id, quantity_purchased as q, purchased_at as at from purchase_price_history where market_id = :marketId " +
+            "  union all select product_id, received_units, received_at from confere_ok " +
+            "), " +
+            "purchases as ( " +
             "  select product_id, " +
-            "         sum(quantity_purchased) as purchased_units, " +
-            "         max(purchased_at)       as last_purchase_at, " +
-            "         min(purchased_at)       as first_purchase_at " +
-            "  from purchase_price_history " +
-            "  where market_id = :marketId " +
+            "         sum(q)   as purchased_units, " +
+            "         max(at)  as last_purchase_at, " +
+            "         min(at)  as first_purchase_at " +
+            "  from purchase_rows " +
             "  group by product_id " +
             "), " +
             "sales as ( " +
@@ -439,12 +482,16 @@ public class WorkingCapitalService {
             BigDecimal units;
 
             if (purchased.signum() <= 0) {
-                units = BigDecimal.ZERO;
+                // Desconhecido, não zero: tratar como zero fazia a cobertura dar
+                // 0 dia e o sistema sugerir compra de todo produto vendido
+                // (896 sugestões abertas na auditoria de 06/10/2026).
+                units = null;
                 confidence = 0.0;
                 reason = "SEM_COMPRA_REGISTRADA";
             } else if (balance.signum() < 0) {
-                // Vendeu mais do que comprou: houve entrada fora do sistema.
-                units = BigDecimal.ZERO;
+                // Vendeu mais do que comprou: houve entrada fora do sistema, e o
+                // estoque real é desconhecido — não zero (zero gerava compra falsa).
+                units = null;
                 confidence = 0.15;
                 reason = "ENTRADA_NAO_REGISTRADA";
             } else {
@@ -459,12 +506,12 @@ public class WorkingCapitalService {
             }
 
             CostInfo cost = costs.get(productId);
-            BigDecimal value = cost != null && cost.unitCost() != null
+            BigDecimal value = units != null && cost != null && cost.unitCost() != null
                 ? units.multiply(cost.unitCost()).setScale(2, RoundingMode.HALF_UP)
                 : null;
 
             out.put(productId, new InventoryInfo(
-                units.setScale(3, RoundingMode.HALF_UP),
+                units != null ? units.setScale(3, RoundingMode.HALF_UP) : null,
                 value,
                 purchased,
                 sold,
@@ -561,8 +608,12 @@ public class WorkingCapitalService {
         int leadTimeDays,
         BigDecimal inTransitUnits
     ) {
-        // Velocidade canônica: quantidade / dias da janela (MetricDefinitions).
-        double dailyVelocity = MetricDefinitions.dailyVelocity(sale.quantity().doubleValue(), windowDays);
+        // Venda por dia sobre os dias com histórico completo: dividir pelos 90 dias
+        // da janela com notas faltando subestimava o giro (auditoria 06/10/2026).
+        // Com poucos dias completos, volta à definição canônica.
+        double dailyVelocity = sale.completeDays() >= MIN_COMPLETE_DAYS_FOR_VELOCITY
+            ? MetricDefinitions.dailyVelocity(sale.completeQuantity(), sale.completeDays())
+            : MetricDefinitions.dailyVelocity(sale.quantity().doubleValue(), windowDays);
 
         String abcClass = cumulativeShare <= ABC_A_CUTOFF ? "A"
             : cumulativeShare <= ABC_B_CUTOFF ? "B" : "C";
@@ -664,8 +715,10 @@ public class WorkingCapitalService {
         double transit = inTransitUnits != null ? inTransitUnits.doubleValue() : 0.0;
         double suggested = Math.max(0, targetStock - currentUnits - transit);
 
-        BigDecimal suggestedUnits = BigDecimal.valueOf(suggested).setScale(3, RoundingMode.HALF_UP);
-        BigDecimal suggestedValue = unitCost != null && unitCost.signum() > 0
+        // Sem estoque conhecido não há como dizer QUANTO comprar: só o giro.
+        BigDecimal suggestedUnits = inventoryUnits == null ? null
+            : BigDecimal.valueOf(suggested).setScale(3, RoundingMode.HALF_UP);
+        BigDecimal suggestedValue = suggestedUnits != null && unitCost != null && unitCost.signum() > 0
             ? suggestedUnits.multiply(unitCost).setScale(2, RoundingMode.HALF_UP)
             : null;
 
@@ -877,6 +930,55 @@ public class WorkingCapitalService {
      * já trata a lista vazia como neutro, e um null aqui viraria NPE dentro do
      * cálculo de todo produto sem venda.
      */
+    static final int MIN_COMPLETE_DAYS_FOR_VELOCITY = 14;
+
+    static double sumOnDays(java.sql.Array dates, java.sql.Array values, List<LocalDate> completeDays)
+        throws java.sql.SQLException {
+        if (dates == null || values == null || completeDays.isEmpty()) return 0;
+        Object[] ds = (Object[]) dates.getArray();
+        List<Double> vs = readDailySeries(values);
+        java.util.Set<LocalDate> ok = new java.util.HashSet<>(completeDays);
+        double sum = 0;
+        for (int i = 0; i < ds.length && i < vs.size(); i++) {
+            LocalDate d = ds[i] instanceof java.sql.Date sd ? sd.toLocalDate()
+                : ds[i] instanceof LocalDate ld ? ld : LocalDate.parse(String.valueOf(ds[i]));
+            if (ok.contains(d)) sum += vs.get(i);
+        }
+        return sum;
+    }
+
+    /** Menos que isto de dias completos e o momento fica neutro (não há base). */
+    static final int MIN_COMPLETE_DAYS_FOR_MOMENTUM = 28;
+
+    /**
+     * Série de receita por dia COMPLETO da janela, em ordem, com zero onde o
+     * produto não vendeu. Sem dias completos suficientes devolve vazio, e o
+     * momento fica neutro em vez de inventar tendência.
+     */
+    static List<Double> calendarSeries(java.sql.Array dates, java.sql.Array revenues, List<LocalDate> completeDays)
+        throws java.sql.SQLException {
+        if (completeDays.size() < MIN_COMPLETE_DAYS_FOR_MOMENTUM || dates == null || revenues == null) {
+            return List.of();
+        }
+        Object[] ds = (Object[]) dates.getArray();
+        List<Double> rev = readDailySeries(revenues);
+        Map<LocalDate, Double> byDay = new HashMap<>();
+        for (int i = 0; i < ds.length && i < rev.size(); i++) {
+            LocalDate d = ds[i] instanceof java.sql.Date sd ? sd.toLocalDate()
+                : ds[i] instanceof LocalDate ld ? ld : LocalDate.parse(String.valueOf(ds[i]));
+            byDay.put(d, rev.get(i));
+        }
+        return denseSeries(byDay, completeDays);
+    }
+
+    static List<Double> denseSeries(Map<LocalDate, Double> byDay, List<LocalDate> completeDays) {
+        List<Double> out = new ArrayList<>(completeDays.size());
+        for (LocalDate d : completeDays) {
+            out.add(byDay.getOrDefault(d, 0.0));
+        }
+        return out;
+    }
+
     private static List<Double> readDailySeries(java.sql.Array array) throws java.sql.SQLException {
         if (array == null) {
             return List.of();
@@ -903,7 +1005,9 @@ public class WorkingCapitalService {
         UUID productId, String name, String category, String ean, String imageUrl,
         BigDecimal revenue, BigDecimal quantity, int salesDays,
         double avgDailyQty, double stddevDailyQty, LocalDate lastSaleDate,
-        List<Double> dailyRevenue, int windowDays
+        List<Double> dailyRevenue, int windowDays,
+        /** Quantidade vendida só nos dias com histórico completo, e quantos são. */
+        double completeQuantity, int completeDays
     ) {}
 
     private record CostInfo(

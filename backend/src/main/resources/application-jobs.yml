@@ -19,11 +19,16 @@ spring:
   # complementar `!jobs`; mantemos somente beans necessarios aos agendamentos.
   main:
     web-application-type: none
+  # Auditoria 06/10/2026: com 1 linha (o padrao) os 25 jobs rodavam em fila;
+  # o de preco, preso desde 12/08, segurava previsao, resumo e alertas.
+  task:
+    scheduling:
+      pool:
+        size: 3
   datasource:
     hikari:
-      # Jobs rodam em serie, de madrugada. 10 conexoes ociosas o dia inteiro
-      # (o default do Spring Boot) so ocupavam slots do PostgreSQL compartilhado.
-      maximum-pool-size: 4
+      # 3 jobs ao mesmo tempo + folga para o lock consultivo e a deteccao.
+      maximum-pool-size: 6
       minimum-idle: 1
       idle-timeout: 300000
 

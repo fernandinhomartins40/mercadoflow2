@@ -35,7 +35,13 @@ public class MarketBasketAnalysisJob {
         List<Market> markets = marketRepository.findAllActive();
         LocalDateTime computedAt = LocalDateTime.now();
         for (Market market : markets) {
-            List<MarketBasketDTO> rules = marketBasketService.analyzeMarketBasket(market.getId(), 0.01, 0.5);
+            // Corte por lift e contagem, não por suporte de 1% + confiança de 50%:
+            // num supermercado com milhares de itens quase nenhum par passa
+            // naquele corte (auditoria 06/10/2026: 6 de 3.299 pares no Super
+            // Novo, enquanto 1.896 saíam juntos o dobro do acaso).
+            List<MarketBasketDTO> rules = marketBasketService.analyzeMarketBasket(market.getId(), 0.0, 0.0).stream()
+                .filter(r -> r.getLift() >= 1.5 && r.getPairCount() >= 5)
+                .toList();
             persist(market, rules, computedAt);
         }
         log.info("Market basket analysis completed");

@@ -20,5 +20,13 @@ public class PriceIntelligenceCheckpoint {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    /** Último produto já refeito na rodada em andamento (lotes retomáveis, V81). */
+    @Column(name = "cursor_product_id")
+    private UUID cursorProductId;
+
+    /** Até onde a rodada em andamento vai: vira o novo checkpoint quando terminar. */
+    @Column(name = "target_observed_at")
+    private LocalDateTime targetObservedAt;
 }
 

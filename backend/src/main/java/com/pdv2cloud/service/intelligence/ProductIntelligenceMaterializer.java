@@ -28,7 +28,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Materializa a inteligência de produto nas tabelas criadas pela V31.
@@ -76,6 +78,9 @@ public class ProductIntelligenceMaterializer {
     /** Janela do halo: promoções são esparsas, precisa de mais histórico. */
     private static final int HALO_WINDOW_DAYS = 180;
 
+    /** Mês com menos dias completos que isto não ganha índice sazonal mensal. */
+    private static final int MIN_MONTH_COMPLETE_DAYS = 10;
+
     private final WorkingCapitalService workingCapitalService;
     private final PromoIntelligenceService promoIntelligenceService;
     private final CustomerIntelligenceService customerIntelligenceService;
@@ -86,6 +91,10 @@ public class ProductIntelligenceMaterializer {
     private final ProductInventoryEstimateRepository inventoryEstimateRepository;
     private final ProductSeasonalityRepository seasonalityRepository;
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ProductTractionService tractionService;
+    private final DataCompletenessService completeness;
+    /** Cada etapa na sua transação: uma que falhe não desfaz as outras. */
+    private final TransactionTemplate tx;
 
     public ProductIntelligenceMaterializer(
         WorkingCapitalService workingCapitalService,
@@ -97,8 +106,14 @@ public class ProductIntelligenceMaterializer {
         ProductCapitalMetricRepository capitalMetricRepository,
         ProductInventoryEstimateRepository inventoryEstimateRepository,
         ProductSeasonalityRepository seasonalityRepository,
-        NamedParameterJdbcTemplate jdbcTemplate
+        NamedParameterJdbcTemplate jdbcTemplate,
+        ProductTractionService tractionService,
+        DataCompletenessService completeness,
+        PlatformTransactionManager transactionManager
     ) {
+        this.tractionService = tractionService;
+        this.completeness = completeness;
+        this.tx = new TransactionTemplate(transactionManager);
         this.workingCapitalService = workingCapitalService;
         this.promoIntelligenceService = promoIntelligenceService;
         this.customerIntelligenceService = customerIntelligenceService;
@@ -118,87 +133,86 @@ public class ProductIntelligenceMaterializer {
         int inventoryEstimates,
         int seasonalityRows,
         int haloEffects,
+        int tractionRows,
         int customerProfiles,
         int repurchaseRows,
         long durationMillis
     ) {}
 
     /**
-     * Materializa capital, estoque estimado e sazonalidade de um mercado.
+     * Materialização completa (job noturno): capital, sazonalidade, halo, tração
+     * e clientes, CADA UMA na sua transação e com o próprio log de falha.
      *
-     * Estratégia de escrita: apaga e regrava por mercado. É simples e correto —
-     * um produto que parou de vender some da tabela em vez de ficar com número
-     * velho — e cabe no volume de um job noturno. Um upsert incremental só se
-     * justificaria se a materialização passasse a rodar de hora em hora.
+     * Auditoria de 06/10/2026: tudo numa transação só fazia uma etapa quebrada
+     * desfazer as outras sem rastro — o halo nunca chegou a ser gravado e o
+     * capital ficou parado na última rodada boa.
      */
-    @Transactional
     public MaterializationResult materializeMarket(UUID marketId) {
         long startedAt = System.currentTimeMillis();
-
-        /*
-         * Lock consultivo por mercado.
-         *
-         * Duas rodadas podem coincidir: o job noturno das 03:00 e o refresh
-         * adaptativo, que roda a cada poucos minutos. Como a estratégia de
-         * escrita é apagar-e-regravar, sem lock o segundo apagaria o que o
-         * primeiro acabou de gravar (READ COMMITTED não protege contra isso) —
-         * ou os dois se travariam em deadlock ao competir pelas mesmas linhas.
-         *
-         * pg_advisory_xact_lock é liberado automaticamente no fim da transação,
-         * então não há risco de lock órfão se algo estourar. O segundo chamador
-         * espera em vez de falhar: o trabalho dele seria redundante de qualquer
-         * forma, e esperar alguns segundos é melhor que abortar um ciclo.
-         */
-        jdbcTemplate.query(
-            "select pg_advisory_xact_lock(hashtext(:lockKey))",
-            new MapSqlParameterSource("lockKey", "mat:" + marketId),
-            rs -> { /* o lock é o efeito; não há linha a ler */ });
-
-        List<CapitalMetric> portfolio =
-            workingCapitalService.computePortfolio(marketId, CAPITAL_WINDOW_DAYS);
-
-        int capital = 0;
-        int inventory = 0;
-        if (!portfolio.isEmpty()) {
-            capital = writeCapitalMetrics(marketId, portfolio);
-            inventory = writeInventoryEstimates(marketId, portfolio);
-        } else {
-            capitalMetricRepository.deleteByMarketId(marketId);
-            inventoryEstimateRepository.deleteByMarketId(marketId);
-        }
-
-        /*
-         * A ordem importa: writeSeasonality apaga TODA a sazonalidade do
-         * mercado antes de gravar (DOW e MONTH), então a horária precisa vir
-         * depois — senão seria apagada em seguida. Deixado em duas linhas
-         * separadas de propósito, para a dependência não ficar escondida numa
-         * expressão que depende da ordem de avaliação.
-         */
-        /*
-         * Histórico: a materialização é destrutiva (delete + insert), então sem
-         * este snapshot cada rodada apagaria o retrato anterior e o sistema
-         * nunca saberia se o giro de um produto está melhorando. Dado que não
-         * foi guardado não se recupera depois — e toda funcionalidade futura que
-         * dependa de série temporal precisa que ele comece a existir hoje.
-         */
-        if (!portfolio.isEmpty()) {
-            writeMetricHistory(marketId, portfolio);
-        }
-
-        int seasonality = writeSeasonality(marketId);
-        seasonality += writeHourlySeasonality(marketId);
-
-        int halo = writeHaloEffects(marketId);
-
-        // Perfis de cliente e recompra por produto: o CPF da nota, gravado desde
-        // a V1 e nunca lido, vira recorrência — sempre pseudonimizado.
-        CustomerIntelligenceService.CustomerIntelligenceResult customers =
-            customerIntelligenceService.materialize(marketId);
+        completeness.invalidate(marketId);
+        int[] capital = step(marketId, "capital", () -> materializeCapitalInTx(marketId), new int[] { 0, 0 });
+        int seasonality = step(marketId, "sazonalidade", () -> tx.execute(s -> {
+            lock(marketId, "season");
+            return writeSeasonality(marketId) + writeHourlySeasonality(marketId);
+        }), 0);
+        int halo = step(marketId, "halo", () -> tx.execute(s -> {
+            lock(marketId, "halo");
+            return writeHaloEffects(marketId);
+        }), 0);
+        int traction = step(marketId, "tracao", () -> tractionService.materialize(marketId), 0);
+        CustomerIntelligenceService.CustomerIntelligenceResult customers = step(marketId, "clientes",
+            () -> customerIntelligenceService.materialize(marketId), null);
 
         long elapsed = System.currentTimeMillis() - startedAt;
         return new MaterializationResult(
-            marketId, capital, inventory, seasonality, halo,
-            customers.profiles(), customers.repurchaseRows(), elapsed);
+            marketId, capital[0], capital[1], seasonality, halo, traction,
+            customers != null ? customers.profiles() : 0, customers != null ? customers.repurchaseRows() : 0, elapsed);
+    }
+
+    /**
+     * Só o capital (giro, ABC, estoque estimado, histórico do dia): é o que o
+     * ciclo adaptativo refaz quando entram notas. Halo, tração e sazonalidade
+     * precisam de janela longa e ficam no noturno.
+     */
+    public int[] materializeCapital(UUID marketId) {
+        return materializeCapitalInTx(marketId);
+    }
+
+    private int[] materializeCapitalInTx(UUID marketId) {
+        return tx.execute(s -> {
+            lock(marketId, "capital");
+            List<CapitalMetric> portfolio = workingCapitalService.computePortfolio(marketId, CAPITAL_WINDOW_DAYS);
+            if (portfolio.isEmpty()) {
+                capitalMetricRepository.deleteByMarketId(marketId);
+                inventoryEstimateRepository.deleteByMarketId(marketId);
+                return new int[] { 0, 0 };
+            }
+            int capital = writeCapitalMetrics(marketId, portfolio);
+            int inventory = writeInventoryEstimates(marketId, portfolio);
+            writeMetricHistory(marketId, portfolio);
+            return new int[] { capital, inventory };
+        });
+    }
+
+    /**
+     * Lock consultivo por mercado e etapa: o noturno e o ciclo adaptativo podem
+     * coincidir, e a escrita é apagar-e-regravar. Liberado no fim da transação.
+     */
+    private void lock(UUID marketId, String stepName) {
+        jdbcTemplate.query("select pg_advisory_xact_lock(hashtext(:k))",
+            new MapSqlParameterSource("k", "mat:" + stepName + ":" + marketId), rs -> { });
+    }
+
+    private <T> T step(UUID marketId, String name, java.util.function.Supplier<T> work, T fallback) {
+        long t0 = System.currentTimeMillis();
+        try {
+            T out = work.get();
+            log.info("Materializacao {} do mercado {} ok em {} ms", name, marketId, System.currentTimeMillis() - t0);
+            return out;
+        } catch (RuntimeException e) {
+            log.error("Materializacao {} do mercado {} falhou em {} ms", name, marketId, System.currentTimeMillis() - t0, e);
+            return fallback;
+        }
     }
 
     // ── Histórico de métricas ────────────────────────────────────────────────
@@ -493,7 +507,9 @@ public class ProductIntelligenceMaterializer {
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("marketId", marketId)
             .addValue("since", since.atStartOfDay())
-            .addValue("minObservations", MIN_SEASONALITY_OBSERVATIONS);
+            .addValue("minObservations", MIN_SEASONALITY_OBSERVATIONS)
+            .addValue("days", ProductTractionService.dayArray(
+                completeness.coverage(marketId).completeBetween(since, LocalDate.now().plusDays(1))));
 
         /*
          * A unidade de observação é (produto, dia, hora): quanto o produto
@@ -511,6 +527,7 @@ public class ProductIntelligenceMaterializer {
             "  join invoices i on i.id = it.invoice_id " +
             "  where i.market_id = :marketId " +
             "    and i.data_emissao >= :since " +
+            "    and cast(i.data_emissao as date) = any(cast(:days as date[])) " +
             "    and it.product_id is not null " +
             "  group by it.product_id, cast(i.data_emissao as date), " +
             "           extract(hour from i.data_emissao) " +
@@ -575,17 +592,31 @@ public class ProductIntelligenceMaterializer {
         seasonalityRepository.flush();
 
         LocalDate since = LocalDate.now().minusDays(SEASONALITY_WINDOW_DAYS);
+        List<LocalDate> days = completeness.coverage(marketId).completeBetween(since, LocalDate.now().plusDays(1));
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("marketId", marketId)
-            .addValue("since", since.atStartOfDay());
+            .addValue("since", since.atStartOfDay())
+            .addValue("days", ProductTractionService.dayArray(days))
+            .addValue("minMonthDays", MIN_MONTH_COMPLETE_DAYS);
 
         /*
          * daily: quantidade por produto e por dia (a unidade de observação).
          * Agregar por dia antes de tirar médias evita que um dia com muitas
          * notas pese mais do que um dia com poucas.
          */
+        /*
+         * Auditoria 06/10/2026: a média era sobre os dias EM QUE O PRODUTO VENDEU
+         * e sobre todos os dias, inclusive os meses em que o agente ainda não
+         * tinha mandado as notas. Agora: só dias completos (cal) e média por dia
+         * do calendário, com zero onde não vendeu. Mês com poucos dias completos
+         * não ganha índice.
+         */
         String sql =
-            "with daily as ( " +
+            "with cal as ( select d::date as dia, extract(dow from d)::int as dow, extract(month from d)::int as month " +
+            "  from unnest(cast(:days as date[])) d ), " +
+            "cal_dow as ( select dow, count(*) as n from cal group by dow ), " +
+            "cal_month as ( select month, count(*) as n from cal group by month having count(*) >= :minMonthDays ), " +
+            "daily as ( " +
             "  select it.product_id, " +
             "         cast(i.data_emissao as date) as sale_date, " +
             "         extract(dow from i.data_emissao)::int as dow, " +
@@ -595,23 +626,24 @@ public class ProductIntelligenceMaterializer {
             "  join invoices i on i.id = it.invoice_id " +
             "  where i.market_id = :marketId " +
             "    and i.data_emissao >= :since " +
+            "    and cast(i.data_emissao as date) = any(cast(:days as date[])) " +
             "    and it.product_id is not null " +
             "  group by it.product_id, cast(i.data_emissao as date), " +
             "           extract(dow from i.data_emissao), extract(month from i.data_emissao) " +
             "), " +
             "overall as ( " +
-            "  select product_id, avg(day_qty) as avg_qty, count(*) as total_days " +
+            "  select product_id, sum(day_qty) / nullif((select count(*) from cal), 0) as avg_qty, count(*) as total_days " +
             "  from daily group by product_id " +
             "), " +
             "by_dow as ( " +
-            "  select product_id, 'DOW' as period_type, dow as period_index, " +
-            "         avg(day_qty) as period_avg, count(*) as observations " +
-            "  from daily group by product_id, dow " +
+            "  select d.product_id, 'DOW' as period_type, d.dow as period_index, " +
+            "         sum(d.day_qty) / max(cd.n) as period_avg, count(*) as observations " +
+            "  from daily d join cal_dow cd on cd.dow = d.dow group by d.product_id, d.dow " +
             "), " +
             "by_month as ( " +
-            "  select product_id, 'MONTH' as period_type, month as period_index, " +
-            "         avg(day_qty) as period_avg, count(*) as observations " +
-            "  from daily group by product_id, month " +
+            "  select d.product_id, 'MONTH' as period_type, d.month as period_index, " +
+            "         sum(d.day_qty) / max(cm.n) as period_avg, count(*) as observations " +
+            "  from daily d join cal_month cm on cm.month = d.month group by d.product_id, d.month " +
             "), " +
             "combined as ( select * from by_dow union all select * from by_month ) " +
             "select c.product_id, c.period_type, c.period_index, c.observations, " +

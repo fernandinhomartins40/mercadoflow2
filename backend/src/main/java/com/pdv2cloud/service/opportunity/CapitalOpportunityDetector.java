@@ -49,6 +49,11 @@ public class CapitalOpportunityDetector implements OpportunityDetector {
         List<DetectedOpportunity> out = new ArrayList<>();
 
         for (CapitalMetric m : portfolio) {
+            if (m.capitalStatus() == CapitalStatus.LIQUIDAR && m.inventoryUnits() == null) {
+                // "Liquidar" afirma mercadoria parada; sem estoque conhecido isso
+                // seria inventar (auditoria 06/10/2026). Fica só o sinal de giro.
+                continue;
+            }
             if (m.capitalStatus() == CapitalStatus.LIQUIDAR
                 || m.capitalStatus() == CapitalStatus.REDUZIR) {
                 out.add(frozenCapital(m));
