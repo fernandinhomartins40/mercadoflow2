@@ -106,7 +106,7 @@ const Team: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Quem cuida da loja <mark>com você.</mark></>} subtitle="Quem acessa a conta, com que papel e em que loja." side={<p className="fx-chip gray" style={{ fontSize: 14, padding: "8px 14px" }} data-testid="seats">{unlimited ? `${data.seats.active} pessoas` : `${data.seats.active} de ${data.seats.limit} pessoas`}{data.seats.pending > 0 && ` · ${data.seats.pending} convite(s) em aberto`}</p>} />
+        <PageHero title={<>Quem cuida da loja <mark>com você.</mark></>} side={<p className="fx-chip gray" style={{ fontSize: 14, padding: "8px 14px" }} data-testid="seats">{unlimited ? `${data.seats.active} pessoas` : `${data.seats.active} de ${data.seats.limit} pessoas`}{data.seats.pending > 0 && ` · ${data.seats.pending} convite(s) em aberto`}</p>} />
 
         {notice && <p role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>{notice}</p>}
         {error && <p role="alert" className="rounded-xl p-3 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>{error}</p>}

@@ -16,7 +16,7 @@ import {
   ShoppingCart, Zap, Map, ArrowRight, RefreshCw, Plus,
 } from 'lucide-react';
 import { ActionHub, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
-import ProductAttention, { attentionList } from './produtos/ProductAttention';
+import ProductAttention, { attentionList, type Why } from './produtos/ProductAttention';
 import { useMarketData } from '../hooks/useMarketData';
 import { History, ListChecks, MessageCircleQuestion, Package } from 'lucide-react';
 import { Combine as HxCombine, Package as HxPackage, TrendingUp as HxTrendingUp, Zap as HxZap } from 'lucide-react';
@@ -218,504 +218,57 @@ const DesempenhoTab: React.FC = () => {
 };
 
 /* ════════════════════════════════════════════════════════════
-   ABA 2 — COMBOS (market basket)
-════════════════════════════════════════════════════════════ */
-
-interface BasketRule {
-  antecedent?: string[]; consequent?: string[];
-  antecedentNames?: string[]; consequentNames?: string[];
-  antecedentImages?: (string | null)[]; consequentImages?: (string | null)[];
-  support: number; confidence: number; lift: number;
-  leverage?: number | null; pairCount: number;
-}
-
-// Classifica força do combo pelo volume absoluto de co-ocorrências e lift
-function comboStrength(r: BasketRule): 'hot' | 'warm' | 'cool' {
-  const pairs = Number(r.pairCount || 0);
-  const lift  = Number(r.lift || 0);
-  const conf  = Number(r.confidence || 0);
-  if (pairs >= 20 && lift >= 1.5) return 'hot';
-  if (pairs >= 8  || conf >= 0.3)  return 'warm';
-  return 'cool';
-}
-
-// Traduz métricas estatísticas em orientações de gôndola
-function comboInsight(r: BasketRule): string {
-  const conf = Number(r.confidence || 0);
-  const lift = Number(r.lift || 0);
-  const pairs = Number(r.pairCount || 0);
-  if (conf >= 0.5 && lift >= 2)
-    return `Quem compra um, compra o outro em ${Math.round(conf * 100)}% das vezes — posicione lado a lado ou crie combo de preço.`;
-  if (lift >= 2)
-    return `${formatDecimal(lift, 1)}× mais provável de serem comprados juntos do que separados — vale destacar na gôndola.`;
-  if (pairs >= 20)
-    return `Já foram comprados juntos ${pairs} vezes — um dos combos mais frequentes da loja.`;
-  return `Aparecem juntos em ${Math.round(conf * 100)}% das cestas — teste posicionamento próximo por 30 dias.`;
-}
-
-const STRENGTH_CFG = {
-  hot: {
-    label: 'Top combo',
-    accent: '#16a34a',
-    badgeBg: '#dcfce7',
-    badgeText: '#15803d',
-    connectorBg: '#16a34a',
-    metricColor: '#15803d',
-    photoBorder: '#bbf7d0',
-  },
-  warm: {
-    label: 'Boa dupla',
-    accent: '#d97706',
-    badgeBg: '#fef3c7',
-    badgeText: '#92400e',
-    connectorBg: '#d97706',
-    metricColor: '#92400e',
-    photoBorder: '#fde68a',
-  },
-  cool: {
-    label: 'Par emergente',
-    accent: '#6366f1',
-    badgeBg: '#eef2ff',
-    badgeText: '#4338ca',
-    connectorBg: '#6366f1',
-    metricColor: '#4338ca',
-    photoBorder: '#c4b5fd',
-  },
-} as const;
-
-// Mini foto de produto com fallback de iniciais
-const ComboProductPhoto: React.FC<{ src?: string | null; name: string; size?: number; borderColor: string; accentColor: string }> = ({ src, name, size = 72, borderColor, accentColor }) => {
-  const [broken, setBroken] = React.useState(false);
-  const initials = name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-  return src && !broken ? (
-    <img src={src} alt={name} onError={() => setBroken(true)} loading="lazy"
-      style={{ width: size, height: size, objectFit: 'contain', borderRadius: 10, background: '#fff', padding: 5, border: `1.5px solid ${borderColor}` }} />
-  ) : (
-    <div style={{ width: size, height: size, borderRadius: 10, background: '#f8fafc', border: `1.5px solid ${borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ fontSize: size * 0.26, fontWeight: 700, color: accentColor }}>{initials || '?'}</span>
-    </div>
-  );
-};
-
-const CombosTab: React.FC<{ marketId: string }> = ({ marketId }) => {
-  const [rules, setRules] = useState<BasketRule[]>([]);
-  const [useCached, setUseCached] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'hot' | 'warm'>('all');
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const data = useCached
-        ? await marketService.getCachedMarketBasket(marketId)
-        : await analyticsService.getMarketBasket(marketId);
-      setRules(data || []); setError(null);
-    } catch (err: any) { setRules([]); setError(err?.message || 'Erro ao carregar combos'); }
-    finally { setLoading(false); setLoaded(true); }
-  };
-
-  useEffect(() => { load(); }, [marketId, useCached]); // eslint-disable-line
-
-  // Deduplica pares: só a direção com maior confidence fica
-  const deduped = useMemo((): BasketRule[] => {
-    const seenKeys: string[] = [];
-    const seenRules: BasketRule[] = [];
-    rules.forEach((r) => {
-      const ids = [(r.antecedent || [])[0] || '', (r.consequent || [])[0] || ''];
-      ids.sort();
-      const key = ids.join('|');
-      const existingIdx = seenKeys.indexOf(key);
-      if (existingIdx === -1) {
-        seenKeys.push(key);
-        seenRules.push(r);
-      } else if (Number(r.confidence) > Number(seenRules[existingIdx].confidence)) {
-        seenRules[existingIdx] = r;
-      }
-    });
-    return seenRules;
-  }, [rules]);
-
-  const filtered = useMemo(() =>
-    filter === 'all' ? deduped : deduped.filter((r) => comboStrength(r) === filter),
-  [deduped, filter]);
-
-  const hotCount  = useMemo(() => deduped.filter((r) => comboStrength(r) === 'hot').length,  [deduped]);
-  const warmCount = useMemo(() => deduped.filter((r) => comboStrength(r) === 'warm').length, [deduped]);
-  const topRule   = deduped[0];
-  const maxPairs  = useMemo(() => deduped.reduce((m, r) => Math.max(m, Number(r.pairCount || 0)), 1), [deduped]);
-
-  return (
-    <div className="flex flex-col gap-5">
-      {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
-          <input type="checkbox" checked={useCached} onChange={(e) => setUseCached(e.target.checked)} className="accent-green-600" />
-          {useCached ? 'Cache noturno' : 'Ao vivo'}
-        </label>
-        <button type="button" onClick={load} disabled={loading}
-          className="flex h-9 w-9 items-center justify-center rounded-lg transition"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} style={{ color: 'var(--text-muted)' }} />
-        </button>
-      </div>
-
-      {/* KPIs */}
-      {loaded && deduped.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-            <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Pares encontrados</span>
-            <p className="mt-1 text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{deduped.length}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-soft)' }}>nos últimos 90 dias</p>
-          </div>
-          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}>
-            <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Top combos</span>
-            <p className="mt-1 text-3xl font-bold" style={{ color: 'var(--brand-700)' }}>{hotCount}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-600)' }}>alta frequência + forte afinidade</p>
-          </div>
-          <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-            <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Par mais frequente</span>
-            {topRule ? (
-              <>
-                <p className="mt-1 text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{topRule.pairCount}×</p>
-                <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-soft)' }}>
-                  {(topRule.antecedentNames || [])[0]} + {(topRule.consequentNames || [])[0]}
-                </p>
-              </>
-            ) : <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>—</p>}
-          </div>
-        </div>
-      )}
-
-      {/* insight destaque */}
-      {topRule && (
-        <div className="flex items-start gap-3 rounded-xl p-4" style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}>
-          <Zap className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--brand-600)' }} />
-          <p className="text-sm" style={{ color: 'var(--brand-700)' }}>
-            <strong>{(topRule.antecedentNames || [])[0]}</strong> e <strong>{(topRule.consequentNames || [])[0]}</strong> são
-            o par mais comprado junto da sua loja — {topRule.pairCount} cestas em 90 dias.
-            {hotCount > 1 && ` Há mais ${hotCount - 1} combos quentes para explorar.`}
-          </p>
-        </div>
-      )}
-
-      {/* filtros */}
-      {deduped.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {([
-            { key: 'all',  label: 'Todos',       count: deduped.length, activeBg: STRENGTH_CFG.hot.badgeBg,  activeColor: 'var(--text-primary)' },
-            { key: 'hot',  label: 'Top combos',  count: hotCount,       activeBg: STRENGTH_CFG.hot.badgeBg,  activeColor: STRENGTH_CFG.hot.badgeText },
-            { key: 'warm', label: 'Boas duplas', count: warmCount,      activeBg: STRENGTH_CFG.warm.badgeBg, activeColor: STRENGTH_CFG.warm.badgeText },
-          ] as const).map((f) => (
-            <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-              className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
-              style={filter === f.key
-                ? { background: f.activeBg, color: f.activeColor, border: `1px solid ${f.activeColor}33` }
-                : { border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
-              {f.label} <span className="ml-1 opacity-70">{f.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-
-      {loading ? (
-        <div className="flex min-h-[200px] items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-xl p-10 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-          <ShoppingCart className="mx-auto mb-3 h-8 w-8 opacity-30" style={{ color: 'var(--text-muted)' }} />
-          <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
-            {deduped.length === 0 ? 'Nenhum combo encontrado' : 'Nenhum combo nesta categoria'}
-          </p>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-            {deduped.length === 0
-              ? 'São necessários pelo menos 3 cupons com os dois produtos juntos.'
-              : 'Tente o filtro "Todos" para ver todos os pares.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((rule, idx) => {
-            const nameA   = (rule.antecedentNames || [])[0] || 'Produto A';
-            const nameB   = (rule.consequentNames || [])[0] || 'Produto B';
-            const imgA    = (rule.antecedentImages || [])[0] ?? null;
-            const imgB    = (rule.consequentImages || [])[0] ?? null;
-            const conf    = Number(rule.confidence || 0);
-            const lift    = Number(rule.lift || 0);
-            const pairs   = Number(rule.pairCount || 0);
-            const strength = comboStrength(rule);
-            const cfg      = STRENGTH_CFG[strength];
-            const barPct   = Math.round((pairs / maxPairs) * 100);
-            const insight  = comboInsight(rule);
-
-            // Barra dinâmica: vermelho < 30%, amarelo 30-65%, verde > 65%
-            const barColor = barPct >= 66 ? '#22c55e' : barPct >= 31 ? '#f59e0b' : '#ef4444';
-
-            return (
-              <article key={idx} className="flex flex-col rounded-xl overflow-hidden"
-                style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-
-                {/* header neutro com badge colorido */}
-                <div className="flex items-center justify-between px-4 pt-3 pb-2"
-                  style={{ borderBottom: '1px solid var(--border-soft)' }}>
-                  <span className="text-xs font-semibold" style={{ color: 'var(--text-soft)' }}>#{idx + 1}</span>
-                  <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-                    style={{ background: cfg.badgeBg, color: cfg.badgeText }}>
-                    {cfg.label}
-                  </span>
-                </div>
-
-                {/* par visual: foto + conector + foto */}
-                <div className="flex items-center justify-center gap-2 px-4 py-4">
-                  <div className="flex flex-col items-center gap-1.5" style={{ flex: 1, maxWidth: 88 }}>
-                    <ComboProductPhoto src={imgA} name={nameA} size={72} borderColor={cfg.photoBorder} accentColor={cfg.accent} />
-                    <p className="text-center text-[11px] font-semibold leading-tight line-clamp-2"
-                      style={{ color: 'var(--text-primary)' }}>{nameA}</p>
-                  </div>
-
-                  {/* conector com cor do tier */}
-                  <div className="flex flex-col items-center gap-1 shrink-0">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-black"
-                      style={{ background: cfg.connectorBg, color: '#fff' }}>+</div>
-                    <span className="text-[10px] font-bold whitespace-nowrap rounded-full px-2 py-0.5"
-                      style={{ background: cfg.badgeBg, color: cfg.badgeText }}>
-                      {Math.round(conf * 100)}% juntos
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col items-center gap-1.5" style={{ flex: 1, maxWidth: 88 }}>
-                    <ComboProductPhoto src={imgB} name={nameB} size={72} borderColor={cfg.photoBorder} accentColor={cfg.accent} />
-                    <p className="text-center text-[11px] font-semibold leading-tight line-clamp-2"
-                      style={{ color: 'var(--text-primary)' }}>{nameB}</p>
-                  </div>
-                </div>
-
-                {/* métricas: fundo neutro, valores coloridos */}
-                <div className="grid grid-cols-3 mx-4 mb-3 rounded-lg overflow-hidden"
-                  style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
-                  <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Cestas</span>
-                    <span className="mt-0.5 text-base font-black" style={{ color: 'var(--text-primary)' }}>{pairs}</span>
-                  </div>
-                  <div className="flex flex-col items-center py-2.5 px-1"
-                    style={{ borderLeft: '1px solid var(--border-soft)', borderRight: '1px solid var(--border-soft)' }}>
-                    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Afinidade</span>
-                    <span className="mt-0.5 text-base font-black" style={{ color: cfg.metricColor }}>{formatDecimal(lift, 1)}x</span>
-                  </div>
-                  <div className="flex flex-col items-center py-2.5 px-1">
-                    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Juntos</span>
-                    <span className="mt-0.5 text-base font-black" style={{ color: cfg.metricColor }}>{Math.round(conf * 100)}%</span>
-                  </div>
-                </div>
-
-                {/* barra dinâmica: vermelho/amarelo/verde por frequência relativa */}
-                <div className="px-4 pb-2">
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-[10px]" style={{ color: 'var(--text-soft)' }}>Frequência relativa</span>
-                    <span className="text-[10px] font-bold" style={{ color: barColor }}>{barPct}%</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(barPct, 3)}%`, background: barColor }} />
-                  </div>
-                </div>
-
-                {/* insight */}
-                <div className="px-4 pt-1.5 pb-3">
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-soft)' }}>{insight}</p>
-                </div>
-
-                {/* CTAs */}
-                <div className="flex gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border-soft)' }}>
-                  <Link to="/app/mapa-loja"
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
-                    style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>
-                    <Map className="h-3.5 w-3.5" /> Organizar loja
-                  </Link>
-                  <Link to="/app/promocoes"
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
-                    style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}>
-                    Promoção <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ════════════════════════════════════════════════════════════
-   ABA 3 — PREVISÃO DE VENDAS
-════════════════════════════════════════════════════════════ */
-
-interface ForecastRow {
-  forecastDate: string; productId: string; productName: string;
-  predictedQuantity: number; confidenceLow?: number; confidenceHigh?: number;
-  trendDirection?: 'UP' | 'DOWN' | 'STABLE';
-}
-
-const ForecastTrendIcon: React.FC<{ direction?: string }> = ({ direction }) => {
-  if (direction === 'UP') return <TrendingUp className="h-3.5 w-3.5 text-green-500" />;
-  if (direction === 'DOWN') return <TrendingDown className="h-3.5 w-3.5 text-red-400" />;
-  return <Minus className="h-3.5 w-3.5" style={{ color: 'var(--text-soft)' }} />;
-};
-
-const PrevisaoTab: React.FC<{ marketId: string }> = ({ marketId }) => {
-  const [days, setDays] = useState(14);
-  const [rows, setRows] = useState<ForecastRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const data = await marketService.getDemandForecast(marketId, days);
-      setRows((data || []).sort((a: ForecastRow, b: ForecastRow) => Number(b.predictedQuantity || 0) - Number(a.predictedQuantity || 0)));
-      setError(null);
-    } catch (err: any) { setError(err?.message || 'Erro ao carregar previsão'); setRows([]); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { load(); }, [marketId, days]); // eslint-disable-line
-
-  const totalPredicted = useMemo(() => rows.reduce((s, r) => s + Number(r.predictedQuantity || 0), 0), [rows]);
-  const maxQty = useMemo(() => rows.reduce((m, r) => Math.max(m, Number(r.predictedQuantity || 0)), 1), [rows]);
-  const grouped = useMemo((): [string, ForecastRow[]][] => {
-    const keys: string[] = [];
-    const buckets: ForecastRow[][] = [];
-    rows.forEach((r) => {
-      const idx = keys.indexOf(r.forecastDate);
-      if (idx === -1) { keys.push(r.forecastDate); buckets.push([r]); }
-      else { buckets[idx].push(r); }
-    });
-    const pairs: [string, ForecastRow[]][] = keys.map((k, i) => [k, buckets[i]]);
-    pairs.sort(([a], [b]) => a.localeCompare(b));
-    return pairs;
-  }, [rows]);
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
-            <button type="button" onClick={() => setDays((d) => Math.max(1, d - 1))} className="px-2 py-1.5 transition" style={{ color: 'var(--text-muted)' }}><Minus className="h-4 w-4" /></button>
-            <span className="min-w-[3ch] text-center text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{days}</span>
-            <button type="button" onClick={() => setDays((d) => Math.min(30, d + 1))} className="px-2 py-1.5 transition" style={{ color: 'var(--text-muted)' }}><Plus className="h-4 w-4" /></button>
-          </div>
-          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>dias</span>
-          <button type="button" onClick={load} disabled={loading} className="flex h-9 w-9 items-center justify-center rounded-lg transition" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} style={{ color: 'var(--text-muted)' }} />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: 'Produtos previstos', value: rows.length },
-          { label: 'Volume estimado', value: `${formatDecimal(totalPredicted, 0)} un` },
-          { label: 'Maior demanda', value: rows[0] ? `${formatDecimal(Number(rows[0].predictedQuantity), 0)} un` : '—', sub: rows[0]?.productName, highlight: true },
-        ].map((k) => (
-          <div key={k.label} className="rounded-xl p-4" style={{ border: `1px solid ${(k as any).highlight && rows[0] ? 'var(--border-success)' : 'var(--border-soft)'}`, background: (k as any).highlight && rows[0] ? 'var(--surface-success)' : 'var(--surface-base)' }}>
-            <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{k.label}</span>
-            <p className="mt-1 text-2xl font-bold" style={{ color: (k as any).highlight && rows[0] ? 'var(--brand-700)' : 'var(--text-primary)' }}>{k.value}</p>
-            {(k as any).sub && <p className="text-xs truncate" style={{ color: 'var(--text-soft)' }}>{(k as any).sub}</p>}
-          </div>
-        ))}
-      </div>
-
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-
-      {loading ? (
-        <div className="flex min-h-[200px] items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>
-      ) : rows.length === 0 ? (
-        <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}><p style={{ color: 'var(--text-muted)' }}>Nenhuma previsão disponível.</p></div>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {grouped.map(([date, items]) => (
-            <div key={date}>
-              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                <span className="rounded px-2 py-0.5 text-xs" style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
-                  {new Date(date).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </span>
-                <span className="text-xs font-normal" style={{ color: 'var(--text-soft)' }}>{items.length} produtos</span>
-              </h3>
-              <div className="flex flex-col gap-2">
-                {items.map((row, idx) => {
-                  const pct = (Number(row.predictedQuantity || 0) / maxQty) * 100;
-                  return (
-                    <div key={`${row.productId}-${idx}`} className="flex items-center gap-3 rounded-lg p-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: 'var(--surface-muted)', color: 'var(--text-soft)' }}>{idx + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{row.productName || row.productId}</p>
-                          <ForecastTrendIcon direction={row.trendDirection} />
-                        </div>
-                        <div className="mt-1 h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-muted)' }}>
-                          <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
-                        </div>
-                        {row.confidenceLow != null && row.confidenceHigh != null && (
-                          <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-soft)' }}>Intervalo: {formatDecimal(Number(row.confidenceLow), 0)}–{formatDecimal(Number(row.confidenceHigh), 0)} un</p>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{formatDecimal(Number(row.predictedQuantity || 0), 0)} un</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ════════════════════════════════════════════════════════════
    PÁGINA PRINCIPAL — CATÁLOGO
 ════════════════════════════════════════════════════════════ */
 
-type ProductsTab = 'atencao' | 'desempenho' | 'combos' | 'previsao';
+type ProductsFilter = 'todos' | Why;
 
+const FILTER_LABEL: Record<ProductsFilter, string> = {
+  todos: 'Todos', acabando: 'Acabando', caindo: 'Vendendo menos', subindo: 'Em alta', parado: 'Parados',
+};
+
+/**
+ * Produtos: uma lista só com busca. Os filtros (acabando, vendendo menos, em
+ * alta, parados) mostram um produto de cada vez com o motivo e a ação; combos
+ * e previsão ficam na ficha de cada produto.
+ */
 const Products: React.FC = () => {
-  const { marketId } = useAuth();
-  const [tab, setTab] = useState<ProductsTab>('atencao');
+  const [params, setParams] = useSearchParams();
   const { dashboard } = useMarketData();
   const attention = useMemo(() => attentionList(dashboard), [dashboard]);
-  const low = attention.filter((a) => a.why === 'acabando').length;
-  const down = attention.filter((a) => a.why === 'caindo').length;
-
-  const TABS: Array<{ key: ProductsTab; label: string; icon: React.ReactNode; badge?: number }> = [
-    { key: 'atencao', label: 'Pedem atenção', icon: <AlertTriangle className="h-4 w-4" />, badge: attention.length || undefined },
-    { key: 'desempenho', label: 'Todos os produtos', icon: <TrendingUp className="h-4 w-4" /> },
-    { key: 'combos', label: 'Combos', icon: <ShoppingCart className="h-4 w-4" /> },
-    { key: 'previsao', label: 'Previsão', icon: <Zap className="h-4 w-4" /> },
-  ];
+  const count = (w: Why) => attention.filter((a) => a.why === w).length;
+  const filter = (params.get('filtro') as ProductsFilter) || 'todos';
+  const setFilter = (f: ProductsFilter) => setParams((prev) => {
+    const next = new URLSearchParams(prev);
+    if (f === 'todos') next.delete('filtro'); else next.set('filtro', f);
+    return next;
+  }, { replace: true });
+  const low = count('acabando');
+  const down = count('caindo');
 
   return (
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero
-          title={tab === 'atencao' && attention.length > 0
-            ? <>Entenda cada produto. <mark>{attention.length} {attention.length === 1 ? 'pede' : 'pedem'} atenção.</mark></>
-            : <>Entenda cada produto. <mark>Decida o próximo passo.</mark></>}
-          subtitle={tab === 'atencao' && attention.length > 0
-            ? [low ? `${low} acabando` : '', down ? `${down} vendendo menos` : '', 'um de cada vez, com o motivo e o que fazer'].filter(Boolean).join(' · ')
-            : 'Desempenho, combos e previsão de demanda de tudo o que a loja vende.'}
-          side={<ActionHub icon={HxPackage} actions={[{ label: 'Ver desempenho', icon: HxTrendingUp, onClick: () => setTab('desempenho') }, { label: 'Explorar combos', icon: HxCombine, onClick: () => setTab('combos') }, { label: 'Prever a demanda', icon: HxZap, onClick: () => setTab('previsao') }]} />} />
+          title={attention.length > 0
+            ? <>{attention.length} {attention.length === 1 ? 'produto pede' : 'produtos pedem'} <mark>sua atenção.</mark></>
+            : <>Seus produtos estão <mark>em dia.</mark></>}
+          subtitle={[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ') || undefined}
+          side={<ActionHub icon={HxPackage} actions={[
+            { label: `Acabando${low ? ` (${low})` : ''}`, icon: HxZap, onClick: () => setFilter('acabando') },
+            { label: `Vendendo menos${down ? ` (${down})` : ''}`, icon: HxTrendingUp, onClick: () => setFilter('caindo') },
+            { label: 'Todos os produtos', icon: HxCombine, onClick: () => setFilter('todos') },
+          ]} />} />
 
-        <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
+        <div className="fx-filters" role="group" aria-label="Filtrar produtos">
+          {(['todos', 'acabando', 'caindo', 'subindo', 'parado'] as ProductsFilter[]).map((f) => {
+            const n = f === 'todos' ? 0 : count(f as Why);
+            if (f !== 'todos' && n === 0) return null;
+            return <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{FILTER_LABEL[f]}{n > 0 ? ` (${n})` : ''}</button>;
+          })}
+        </div>
 
-        {tab === 'atencao' && <ProductAttention items={attention} />}
-        {tab === 'desempenho' && <DesempenhoTab />}
-        {tab === 'combos' && marketId && <CombosTab marketId={marketId} />}
-        {tab === 'previsao' && marketId && <PrevisaoTab marketId={marketId} />}
+        {filter === 'todos' ? <DesempenhoTab /> : <ProductAttention items={attention.filter((a) => a.why === filter)} />}
       </div>
     </Layout>
   );

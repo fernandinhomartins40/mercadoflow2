@@ -18,9 +18,8 @@ const ForgotPassword = lazy(() => import('./screens/ForgotPassword'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword'));
 const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
-const IntelligenceCenter = lazy(() => import('./screens/IntelligenceCenter'));
+const Decide = lazy(() => import('./screens/Decide'));
 const DataChat = lazy(() => import('./screens/DataChat'));
-const Copilot = lazy(() => import('./screens/Copilot'));
 const NetworkView = lazy(() => import('./screens/NetworkView'));
 const CustomerIntelligence = lazy(() => import('./screens/CustomerIntelligence'));
 const Products = lazy(() => import('./screens/Products'));
@@ -171,9 +170,10 @@ const App: React.FC = () => {
         <Route path="/confere/*" element={<ConfereApp />} />
 
         <Route path="/app" element={secure(<Dashboard />)} />
-        <Route path="/app/inteligencia" element={secure(<IntelligenceCenter />)} />
+        <Route path="/app/decidir" element={secure(<Decide />)} />
+        <Route path="/app/inteligencia" element={<Navigate to="/app/decidir" replace />} />
         <Route path="/app/perguntar" element={secure(<DataChat />)} />
-        <Route path="/app/copiloto" element={secure(<Copilot />)} />
+        <Route path="/app/copiloto" element={<Navigate to="/app/decidir" replace />} />
         <Route path="/app/rede" element={secure(<NetworkView />)} />
         <Route path="/app/clientes" element={secure(<CustomerIntelligence />)} />
         <Route path="/app/produtos" element={secure(<Products />)} />

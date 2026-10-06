@@ -323,7 +323,7 @@ const DecisionDesk: React.FC<{
                       {busy === 'approve' ? <Loader2 className="animate-spin" /> : <Send aria-hidden="true" />}{approveLabel(d)}
                     </button>
                   )}
-                  {d.kind === 'AVISO' && <Link to="/app/inteligencia" className="fx-btn dark">Ver na Central</Link>}
+                  {d.kind === 'AVISO' && <Link to="/app/decidir?filtro=outros" className="fx-btn dark">Ver os sinais da loja</Link>}
                   {onLater && <button type="button" className="fx-btn ghost" onClick={onLater}><Clock aria-hidden="true" />Decidir depois</button>}
                   <button type="button" className="fx-btn ghost" onClick={() => setRefusing(true)} disabled={!!busy}>
                     <X aria-hidden="true" />{d.status === 'INFORMATIVA' ? 'Dispensar' : 'Recusar'}

@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDecimal } from '../utils/formatters';
 import SegmentedTabs from '../components/ui/SegmentedTabs';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import ProductImage from '../components/product/ProductImage';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import { CampaignImpact, ProductPromoEffectiveness, PromoWindowSummary } from '../types/analytics.types';
-import PromoIntelligenceTab from '../components/promo/PromoIntelligenceTab';
 import {
   Plus, Calendar, TrendingUp, TrendingDown, Minus, Zap, AlertTriangle,
   ChevronDown, ChevronUp, ArrowRight, RefreshCw, BarChart2, Tag,
@@ -44,12 +43,12 @@ interface CampaignItem {
 /* ════════════════════════════════════════════════════════════
    ABA 1 — CAMPANHAS
 ════════════════════════════════════════════════════════════ */
-const CampanhasTab: React.FC<{ marketId: string }> = ({ marketId }) => {
+const CampanhasTab: React.FC<{ marketId: string; startOpen?: boolean }> = ({ marketId, startOpen = false }) => {
   const [items, setItems] = useState<CampaignItem[]>([]);
   const [impacts, setImpacts] = useState<CampaignImpact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(startOpen);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -488,30 +487,39 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
    PÁGINA PRINCIPAL
 ════════════════════════════════════════════════════════════ */
 
-type PromoTab = 'inteligencia' | 'campanhas' | 'efetividade';
+type PromoTab = 'campanhas' | 'resultado';
 
+/**
+ * Vender → Campanhas: criar a campanha, montar o encarte e ver o resultado.
+ * O "o que promover" mora no Decidir (filtro Promover), junto das outras
+ * decisões, para não haver duas listas de sugestões.
+ */
 const Promocoes: React.FC = () => {
   const { marketId } = useAuth();
-  // Abre na inteligencia: o supermercadista precisa saber O QUE promover
-  // antes de cadastrar a campanha.
-  const [tab, setTab] = useState<PromoTab>('inteligencia');
+  const [params, setParams] = useSearchParams();
+  const startOpen = params.get('nova') === '1';
+  const [tab, setTab] = useState<PromoTab>(params.get('aba') === 'resultado' ? 'resultado' : 'campanhas');
 
   const TABS: Array<{ key: PromoTab; label: string; icon: React.ReactNode }> = [
-    { key: 'inteligencia', label: 'O que promover', icon: <Zap className="h-4 w-4" /> },
     { key: 'campanhas', label: 'Campanhas', icon: <Calendar className="h-4 w-4" /> },
-    { key: 'efetividade', label: 'Efetividade', icon: <BarChart2 className="h-4 w-4" /> },
+    { key: 'resultado', label: 'Resultado das promoções', icon: <BarChart2 className="h-4 w-4" /> },
   ];
 
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Encontre a próxima <mark>oportunidade de venda.</mark></>} subtitle="Descubra o que promover, crie campanhas e meça se cada promoção realmente vende mais." side={<ActionHub icon={HxTag} actions={[{ label: 'O que promover', icon: HxSparkles, onClick: () => setTab('inteligencia') }, { label: 'Criar campanha', icon: HxCalendarPlus, onClick: () => setTab('campanhas') }, { label: 'Montar encarte', icon: HxNewspaper, to: '/app/encartes' }]} />} />
+        <PageHero
+          title={tab === 'resultado' ? <>A promoção <mark>vendeu mais?</mark></> : <>Suas <mark>campanhas.</mark></>}
+          side={<ActionHub icon={HxTag} actions={[
+            { label: 'Nova campanha', icon: HxCalendarPlus, onClick: () => { setTab('campanhas'); setParams({ nova: '1' }, { replace: true }); } },
+            { label: 'Montar encarte', icon: HxNewspaper, to: '/app/encartes' },
+            { label: 'O que promover', icon: HxSparkles, to: '/app/decidir?filtro=promover' },
+          ]} />} />
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 
-        {marketId && tab === 'inteligencia' && <PromoIntelligenceTab marketId={marketId} onCreateCampaign={() => setTab('campanhas')} />}
-        {marketId && tab === 'campanhas' && <CampanhasTab marketId={marketId} />}
-        {marketId && tab === 'efetividade' && <EfetividadeTab marketId={marketId} />}
+        {marketId && tab === 'campanhas' && <CampanhasTab key={startOpen ? 'nova' : 'lista'} marketId={marketId} startOpen={startOpen} />}
+        {marketId && tab === 'resultado' && <EfetividadeTab marketId={marketId} />}
       </div>
     </Layout>
   );

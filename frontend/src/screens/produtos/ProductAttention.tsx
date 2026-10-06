@@ -12,16 +12,17 @@ import type { ProductPerformance } from '../../types/analytics.types';
  * que faz sentido para ele.
  */
 
-export type Why = 'acabando' | 'caindo' | 'subindo';
+export type Why = 'acabando' | 'caindo' | 'subindo' | 'parado';
 export interface AttentionItem { why: Why; p: ProductPerformance }
 
 const WHY: Record<Why, { chip: string; tone: 'red' | 'amber' | 'lime'; icon: React.ElementType }> = {
   acabando: { chip: 'Acabando', tone: 'red', icon: Package },
   caindo: { chip: 'Vendendo menos', tone: 'amber', icon: TrendingDown },
   subindo: { chip: 'Em alta', tone: 'lime', icon: TrendingUp },
+  parado: { chip: 'Parado', tone: 'amber', icon: Package },
 };
 
-export const attentionList = (d?: { replenishmentCandidates?: ProductPerformance[]; slowMovers?: ProductPerformance[]; topProducts?: ProductPerformance[] } | null): AttentionItem[] => {
+export const attentionList = (d?: { replenishmentCandidates?: ProductPerformance[]; slowMovers?: ProductPerformance[]; topProducts?: ProductPerformance[]; lowTurnoverProducts?: ProductPerformance[] } | null): AttentionItem[] => {
   const seen = new Set<string>();
   const out: AttentionItem[] = [];
   const add = (why: Why, list?: ProductPerformance[]) => (list || []).forEach((p) => {
@@ -32,6 +33,7 @@ export const attentionList = (d?: { replenishmentCandidates?: ProductPerformance
   add('acabando', (d?.replenishmentCandidates || []).slice(0, 6));
   add('caindo', (d?.slowMovers || []).filter((p) => Number(p.revenueTrendPercentage || 0) < -10 && Number(p.revenue || 0) > 0).slice(0, 6));
   add('subindo', (d?.topProducts || []).filter((p) => Number(p.revenueTrendPercentage || 0) > 15).slice(0, 4));
+  add('parado', (d?.lowTurnoverProducts || []).filter((p) => Number(p.revenue || 0) > 0).slice(0, 6));
   return out;
 };
 
@@ -42,6 +44,7 @@ const advice = (it: AttentionItem) => {
   const v = formatDecimal(Number(it.p.salesVelocity || 0), 1);
   if (it.why === 'acabando') return `Vende ${v} por dia. Reponha antes que falte: uma semana de venda são ${weekQty(it.p)} unidades.`;
   if (it.why === 'caindo') return `A receita caiu ${formatDecimal(Math.abs(trendOf(it.p)), 0)}% contra o período anterior. Vale entender o porquê antes de comprar de novo; uma promoção pode girar o que está parado.`;
+  if (it.why === 'parado') return `Gira pouco: ${v} por dia. Antes de comprar de novo, veja se uma promoção ou outro lugar na gôndola faz ele andar.`;
   return `A receita subiu ${formatDecimal(trendOf(it.p), 0)}%. Garanta estoque para não perder a venda do pico.`;
 };
 
@@ -73,7 +76,7 @@ const ProductAttention: React.FC<{ items: AttentionItem[] }> = ({ items }) => {
     const ask: HubAction = { label: it.why === 'caindo' ? 'Por que caiu?' : 'Perguntar ao Tino', icon: MessageCircleQuestion,
       to: `/app/perguntar?q=${encodeURIComponent(it.why === 'caindo' ? `Por que ${it.p.name} está vendendo menos?` : `Como está vendendo ${it.p.name}?`)}` };
     const history: HubAction = { label: 'Ver histórico', icon: History, to: `/app/produtos/${it.p.productId}` };
-    if (it.why === 'caindo') return [ask, { label: 'Promover', icon: Tag, to: '/app/promocoes' }, history];
+    if (it.why === 'caindo' || it.why === 'parado') return [ask, { label: 'Promover', icon: Tag, to: '/app/decidir?filtro=promover' }, history];
     return [
       inList(it.p.productId) ? { label: 'Já está na lista', icon: ListChecks, to: '/app/lista-compras' } : { label: `Pôr ${weekQty(it.p)} un. na lista`, icon: Plus, onClick: () => { void put(it.p); } },
       history, ask,

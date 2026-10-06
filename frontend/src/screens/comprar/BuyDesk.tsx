@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Check, ClipboardList, ExternalLink, ListChecks, Loader2, Minus, PackageCheck, Plus, Send, Sparkles, Trash2, Truck, X,
 } from 'lucide-react';
@@ -30,14 +30,13 @@ const sinceLabel = (iso?: string | null) => {
 
 const supplierName = (o: SupplierOrder) => o.supplierFantasia || o.supplierName;
 
-export const buyHeadline = (drafts: SupplierOrder[], suggestions: RecommendationItem[], sent: SupplierOrder[]) => {
+export const buyHeadline = (drafts: SupplierOrder[], _suggestions: RecommendationItem[], sent: SupplierOrder[]) => {
   if (drafts.length) {
     const total = drafts.reduce((a, o) => a + Number(o.totalValue || 0), 0);
-    return { lead: 'Compre com contexto.', mark: `${drafts.length} ${drafts.length === 1 ? 'pedido pronto' : 'pedidos prontos'} · ${formatMoney(total)}` };
+    return { lead: `${drafts.length === 1 ? 'Um pedido pronto' : `${drafts.length} pedidos prontos`} para enviar.`, mark: formatMoney(total) };
   }
-  if (suggestions.length) return { lead: 'Compre com contexto.', mark: `O Tino sugere ${suggestions.length} ${suggestions.length === 1 ? 'compra' : 'compras'}.` };
   if (sent.length) return { lead: 'Tudo enviado.', mark: `${sent.length} ${sent.length === 1 ? 'entrega a caminho' : 'entregas a caminho'}.` };
-  return { lead: 'Nada para comprar', mark: 'agora.' };
+  return { lead: 'Nenhum pedido', mark: 'em aberto.' };
 };
 
 const BuyDesk: React.FC<{
@@ -62,7 +61,9 @@ const BuyDesk: React.FC<{
     ...(listPending.length ? [{ key: 'lista', kind: 'lista' as const }] : []),
   ], [suggestions.length, drafts, sent, listPending.length]);
   const [selected, setSelected] = useState<string | null>(null);
-  const current = entries.find((e) => e.key === selected) ?? entries[0] ?? null;
+  const navigate = useNavigate();
+  // As sugestões de compra são decididas no Decidir; aqui a linha só leva até lá.
+  const current = entries.find((e) => e.key === selected) ?? entries.find((e) => e.kind !== 'sugestoes') ?? null;
   const sugImpact = suggestions.reduce((a, r) => a + Number(r.expectedImpactValue || 0), 0);
 
   if (loading && entries.length === 0) {
@@ -73,10 +74,7 @@ const BuyDesk: React.FC<{
     return (
       <Forest style={{ textAlign: 'center', padding: 'clamp(28px, 4vw, 48px)' }}>
         <span className="fx-brief-orb" style={{ margin: '0 auto' }} aria-hidden="true"><Check /></span>
-        <h2 className="fx-panel-title" style={{ marginTop: 14 }}>Nada esperando você em Comprar</h2>
-        <p className="fx-panel-sub" style={{ maxWidth: 520, margin: '6px auto 0' }}>
-          Quando o Tino ver um produto acabando, a sugestão aparece aqui pronta para ir ao pedido. Você também pode montar um pedido agora.
-        </p>
+        <h2 className="fx-panel-title" style={{ marginTop: 14 }}>Nenhum pedido para enviar ou receber</h2>
       </Forest>
     );
   }
@@ -84,7 +82,7 @@ const BuyDesk: React.FC<{
   return (
     <div className="fx-split">
       <Card as="section" aria-label="Agora importa">
-        <PanelTitle title="Agora importa" sub="O que pede uma ação sua em compras" />
+        <PanelTitle title="Para enviar e receber" />
         <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
           {entries.map((e) => {
             const on = current?.key === e.key;
@@ -95,7 +93,7 @@ const BuyDesk: React.FC<{
             let chip: React.ReactNode = null;
             if (e.kind === 'sugestoes') {
               title = `O Tino sugere ${suggestions.length} ${suggestions.length === 1 ? 'compra' : 'compras'}`;
-              sub = 'Pelo que vende e pelo que está acabando';
+              sub = 'Abrir em Decidir para escolher e pôr no pedido';
               value = sugImpact || null;
               chip = <Chip tone="lime">Novo</Chip>;
             } else if (e.kind === 'rascunho') {
@@ -118,6 +116,7 @@ const BuyDesk: React.FC<{
             return (
               <li key={e.key}>
                 <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => {
+                  if (e.kind === 'sugestoes') { navigate('/app/decidir?filtro=comprar&item=lote%3Acomprar'); return; }
                   setSelected(e.key);
                   // No celular o painel fica embaixo da lista: leva o lojista até ele.
                   if (window.innerWidth < 1100) requestAnimationFrame(() => document.getElementById('buy-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -138,7 +137,6 @@ const BuyDesk: React.FC<{
       </Card>
 
       <div id="buy-panel" style={{ minWidth: 0, scrollMarginTop: 80 }}>
-      {current?.kind === 'sugestoes' && <SuggestionsPanel key="s" marketId={marketId} suggestions={suggestions} onChanged={async () => { await onSuggestionsChanged(); onOrdersChanged(); }} />}
       {(current?.kind === 'rascunho' || current?.kind === 'enviado') && (
         <OrderPanel key={current.order.id} marketId={marketId} order={current.order} onChanged={onOrdersChanged} onOpen={onOpenOrder} onReceive={onReceive} />
       )}
@@ -149,7 +147,7 @@ const BuyDesk: React.FC<{
 };
 
 /* ── Sugestões do Tino: marcar e pôr no pedido ── */
-const SuggestionsPanel: React.FC<{ marketId: string; suggestions: RecommendationItem[]; onChanged: () => Promise<void> }> = ({ marketId, suggestions, onChanged }) => {
+export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: RecommendationItem[]; onChanged: () => Promise<void> }> = ({ marketId, suggestions, onChanged }) => {
   const { deciding, feedback, setFeedback, error, decide } = useRecommendationDecision(marketId, suggestions, onChanged);
   const [off, setOff] = useState<Set<string>>(new Set());
   const [bulk, setBulk] = useState(false);

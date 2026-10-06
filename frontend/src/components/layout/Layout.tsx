@@ -1,24 +1,61 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowRight, CreditCard, History, Home, LayoutGrid, LogOut, MessageSquare, Mic, Search, Settings, Sparkles, X,
+  ArrowRight, History, Home, LayoutGrid, LogOut, Mic, Search, Settings2, Sparkles, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { DESTINATIONS, resolveLocation, visiblePages } from '../../config/navigation';
+import { activationService } from '../../services/activation.service';
+import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
 import '../../styles/flow.css';
 
 /**
- * Casca do app do mercado (visual Flow): topo com a trilha e o perfil, doca
- * escura no pé com o Mapa da loja, o Início, a pergunta ao Tino e as áreas.
+ * Casca do app do mercado (visual Flow): topo com a trilha, o selo dos caixas
+ * e o perfil (que guarda as páginas da loja); doca escura no pé com o mapa, o
+ * Início, a pergunta ao Tino e as áreas. A pergunta ao Tino mora só na doca.
  */
 
 const ASK: Record<string, string> = {
-  hoje: 'O que você quer resolver hoje?',
+  inicio: 'O que você quer saber da loja?',
+  decidir: 'O que você quer resolver agora?',
   comprar: 'O que você precisa comprar?',
   produtos: 'Qual produto você quer entender?',
   vender: 'O que você quer promover na loja?',
   loja: 'O que você precisa configurar na loja?',
+};
+
+const minutesAgo = (iso: string | null) => {
+  if (!iso) return null;
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return `há ${m} min`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `há ${h} h` : `há ${Math.round(h / 24)} d`;
+};
+
+/** Selo dos caixas no topo: verde enviando, vermelho parado, cinza sem agente. */
+const AgentSeal: React.FC<{ marketId: string | null }> = ({ marketId }) => {
+  const [status, setStatus] = useState<ActivationStatus | null>(null);
+  useEffect(() => {
+    if (!marketId) return undefined;
+    let alive = true;
+    const load = () => activationService.getStatus(marketId).then((s) => { if (alive) setStatus(s); }).catch(() => {});
+    load();
+    const t = setInterval(load, 120_000);
+    return () => { alive = false; clearInterval(t); };
+  }, [marketId]);
+  if (!status) return null;
+  const { agent } = status;
+  const tone = agent.online ? '#22B45B' : agent.pairedPdvs > 0 ? 'var(--fx-red)' : 'var(--fx-muted)';
+  const text = agent.online
+    ? `Caixas enviando${agent.lastHeartbeatAt ? ` · ${minutesAgo(agent.lastHeartbeatAt)}` : ''}`
+    : agent.pairedPdvs > 0 ? 'Agente parado: ver caixas' : 'Conectar os caixas';
+  return (
+    <Link to="/app/pdvs" className="fx-watch" role="status" style={{ textDecoration: 'none', color: agent.online ? undefined : tone, fontWeight: agent.online ? undefined : 700 }}>
+      <i aria-hidden="true" style={{ background: tone }} />{text}
+    </Link>
+  );
 };
 
 const initialsOf = (name?: string | null, email?: string | null) => {
@@ -30,7 +67,7 @@ const initialsOf = (name?: string | null, email?: string | null) => {
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { role, name, email, logout } = useAuth();
+  const { role, name, email, logout, marketId } = useAuth();
   const { destination, page } = resolveLocation(pathname);
   const isAdmin = role === 'ADMIN';
   const isOwner = role === 'MARKET_OWNER';
@@ -41,6 +78,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const asking = pathname === '/app/perguntar';
   const siblings = visiblePages(destination, isAdmin, isOwner);
+  const lojaPages = visiblePages(DESTINATIONS.find((d) => d.key === 'loja')!, isAdmin, isOwner);
 
   useEffect(() => { setMapOpen(false); setMenuOpen(false); }, [pathname]);
   useEffect(() => {
@@ -75,17 +113,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </nav>
         </div>
         <div className="fx-top-right">
-          {!asking && (
-            <Link to="/app/perguntar" className="fx-pill-btn"><MessageSquare size={17} aria-hidden="true" /><span className="lbl">Perguntar aos dados</span></Link>
-          )}
-          <span className="fx-watch" role="status"><i aria-hidden="true" />Tino acompanhando a loja</span>
+          <AgentSeal marketId={marketId ?? null} />
           <button type="button" className="fx-avatar" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}
             aria-label="Sua conta">{initialsOf(name, email)}</button>
           {menuOpen && (
             <div className="fx-menu" role="menu">
               <div className="who"><b>{name || 'Sua conta'}</b><span>{email}</span></div>
-              <Link to="/app/assinatura" role="menuitem"><CreditCard size={17} />Minha assinatura</Link>
-              <Link to="/app/configuracoes" role="menuitem"><Settings size={17} />Conta e segurança</Link>
+              {lojaPages.map((p) => {
+                const I = p.icon;
+                return <Link key={p.to} to={p.to} role="menuitem"><I size={17} />{p.label}</Link>;
+              })}
+              <Link to="/app/decidir?config=1" role="menuitem"><Settings2 size={17} />Como o Tino trabalha</Link>
               <button type="button" role="menuitem" onClick={logout}><LogOut size={17} />Sair</button>
             </div>
           )}
@@ -137,7 +175,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <h4>Tino</h4>
               <div className="grid">
                 <Link to="/app/perguntar" className="tile"><Sparkles aria-hidden="true" />Perguntar aos dados</Link>
-                <Link to="/app/copiloto" className="tile"><History aria-hidden="true" />Histórico</Link>
+                <Link to="/app/decidir?aba=resultado" className="tile"><History aria-hidden="true" />No que deu</Link>
               </div>
             </section>
           )}
@@ -151,13 +189,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <Link to="/app" className={`fx-dock-btn ${pathname === '/app' ? 'current' : ''}`}><Home aria-hidden="true" /><span className="lbl">Início</span></Link>
         <form className="fx-ask" onSubmit={submitAsk} role="search">
           <Sparkles className="spark" aria-hidden="true" />
-          <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={ASK[destination.key] ?? ASK.hoje} aria-label="Pergunte ou peça algo ao Tino" />
+          <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={ASK[destination.key] ?? ASK.inicio} aria-label="Pergunte ou peça algo ao Tino" />
           <button type="button" className="mic" aria-label="Falar com o Tino" onClick={() => navigate('/app/perguntar?voz=1')}><Mic size={20} /></button>
           <button type="submit" className="send" aria-label="Enviar"><ArrowRight size={20} /></button>
         </form>
         <Link to="/app/perguntar" className="fx-dock-btn ask-mobile" aria-label="Perguntar ao Tino"><Sparkles aria-hidden="true" /></Link>
         <span className="sep" aria-hidden="true" />
-        {DESTINATIONS.filter((d) => d.key !== 'hoje').map((d) => {
+        {DESTINATIONS.filter((d) => d.inDock && d.key !== 'inicio').map((d) => {
           const I = d.icon;
           const first = visiblePages(d, isAdmin, isOwner)[0];
           return (

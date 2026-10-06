@@ -622,3 +622,7 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 @keyframes fx-dialog-fade { from { opacity: 0; } }
 @keyframes fx-dialog-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
 @media (prefers-reduced-motion: reduce) { .fx-dialog-shade, .fx-dialog { animation: none; } }
+
+/* Painel de detalhe que acompanha a rolagem de uma lista longa (só lado a lado). */
+.fx-sticky { position: sticky; top: 76px; align-self: start; }
+@media (max-width: 1099px) { .fx-sticky { position: static; } }

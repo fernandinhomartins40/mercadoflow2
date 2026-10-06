@@ -1,18 +1,15 @@
 import {
-  Bot,
-  CalendarDays,
   CreditCard,
   Database,
   Globe2,
+  Home,
   Map,
   Megaphone,
-  Newspaper,
   PackageSearch,
   Settings,
   ShoppingCart,
   Sparkles,
   Store,
-  Sun,
   Tag,
   Users,
   type LucideIcon,
@@ -20,9 +17,13 @@ import {
 import { FEATURE_STATE_PRICES_ENABLED } from './features';
 
 /**
- * Arquitetura de informação do mercado (R-14, D-021): 5 destinos em vez de 14
- * itens de menu. Cada destino agrupa as telas de um mesmo trabalho; a barra
- * inferior do celular e a lateral do desktop leem daqui.
+ * Arquitetura de informação do mercado: cada área da doca responde a UMA
+ * pergunta do dono (docs/PROPOSTA-PAINEL-3-PASSOS.md).
+ *  - Início: como está a loja?        - Decidir: o que eu faço agora?
+ *  - Comprar: o que peço e para quem?  - Produtos: como vai este produto?
+ *  - Vender: como vendo mais?
+ * "Loja" (caixas, assinatura, equipe, conta) é de configurar uma vez: fica no
+ * menu do avatar, fora da doca. A doca, o mapa e as trilhas leem daqui.
  */
 
 export interface DestinationPage {
@@ -38,25 +39,35 @@ export interface DestinationPage {
 }
 
 export interface Destination {
-  key: 'hoje' | 'comprar' | 'produtos' | 'vender' | 'loja';
+  key: 'inicio' | 'decidir' | 'comprar' | 'produtos' | 'vender' | 'loja';
   label: string;
   /** Uma linha: para que serve o destino. */
   hint: string;
   icon: LucideIcon;
   pages: DestinationPage[];
+  /** Fora da doca (fica no menu do avatar e no mapa). */
+  inDock?: boolean;
 }
 
 export const DESTINATIONS: Destination[] = [
   {
-    key: 'hoje',
-    label: 'Hoje',
-    hint: 'Decisões e vendas do dia',
-    icon: Sun,
+    key: 'inicio',
+    label: 'Início',
+    hint: 'Como está a loja',
+    icon: Home,
+    inDock: true,
     pages: [
-      { to: '/app', label: 'Hoje', icon: Sun, exact: true },
-      { to: '/app/copiloto', label: 'Copiloto', icon: Bot },
-      { to: '/app/inteligencia', label: 'Todas as decisões', icon: Sparkles },
-      { to: '/app/rede', label: 'Semana e rede', icon: CalendarDays },
+      { to: '/app', label: 'Início', icon: Home, exact: true, alsoMatches: ['/app/rede', '/app/clientes'] },
+    ],
+  },
+  {
+    key: 'decidir',
+    label: 'Decidir',
+    hint: 'O que fazer agora',
+    icon: Sparkles,
+    inDock: true,
+    pages: [
+      { to: '/app/decidir', label: 'Decidir', icon: Sparkles, alsoMatches: ['/app/copiloto', '/app/inteligencia'] },
     ],
   },
   {
@@ -64,41 +75,41 @@ export const DESTINATIONS: Destination[] = [
     label: 'Comprar',
     hint: 'Pedidos e fornecedores',
     icon: ShoppingCart,
+    inDock: true,
     pages: [
-      { to: '/app/lista-compras', label: 'Pedido inteligente', icon: ShoppingCart },
+      { to: '/app/lista-compras', label: 'Pedidos', icon: ShoppingCart },
     ],
   },
   {
     key: 'produtos',
     label: 'Produtos',
-    hint: 'Desempenho e clientes',
+    hint: 'Como vai cada produto',
     icon: PackageSearch,
+    inDock: true,
     pages: [
-      { to: '/app/produtos', label: 'Catálogo', icon: PackageSearch, alsoMatches: ['/app/produtos/'] },
-      { to: '/app/clientes', label: 'Clientes', icon: Users },
+      { to: '/app/produtos', label: 'Produtos', icon: PackageSearch, alsoMatches: ['/app/produtos/'] },
     ],
   },
   {
     key: 'vender',
     label: 'Vender',
-    hint: 'Promoções, encartes e mapa da loja',
+    hint: 'Campanhas, encartes e mapa da loja',
     icon: Tag,
+    inDock: true,
     pages: [
-      { to: '/app/promocoes', label: 'Promoções', icon: Megaphone },
-      { to: '/app/encartes', label: 'Encartes', icon: Newspaper },
+      { to: '/app/promocoes', label: 'Campanhas', icon: Megaphone, alsoMatches: ['/app/encartes', '/app/encartes/'] },
       { to: '/app/mapa-loja', label: 'Mapa da loja', icon: Map },
     ],
   },
   {
     key: 'loja',
     label: 'Loja',
-    hint: 'Caixas, plano e conta',
+    hint: 'Caixas, assinatura e conta',
     icon: Store,
     pages: [
       { to: '/app/pdvs', label: 'Caixas e agente', icon: Store, alsoMatches: ['/app/download-agente'] },
-      { to: '/app/assinatura', label: 'Minha assinatura', icon: CreditCard },
+      { to: '/app/assinatura', label: 'Assinatura e planos', icon: CreditCard, alsoMatches: ['/app/planos'] },
       { to: '/app/equipe', label: 'Equipe', icon: Users, ownerOnly: true },
-      { to: '/app/planos', label: 'Planos', icon: Sparkles },
       { to: '/app/configuracoes', label: 'Conta', icon: Settings },
       { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true },
       ...(FEATURE_STATE_PRICES_ENABLED
@@ -119,7 +130,7 @@ const pageMatches = (page: DestinationPage, pathname: string) =>
 export const visiblePages = (destination: Destination, isAdmin: boolean, isOwner = true) =>
   destination.pages.filter((page) => (!page.adminOnly || isAdmin) && (!page.ownerOnly || isOwner || isAdmin));
 
-/** Destino e página ativos para a rota atual (o Hoje é o padrão). */
+/** Destino e página ativos para a rota atual (o Início é o padrão). */
 export const resolveLocation = (pathname: string) => {
   for (const destination of DESTINATIONS) {
     const page = destination.pages.find((p) => pageMatches(p, pathname));

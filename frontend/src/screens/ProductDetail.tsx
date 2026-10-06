@@ -5,13 +5,11 @@ import Layout from '../components/layout/Layout';
 import { buildOffersUrl } from '../lib/offersApp';
 import { FEATURE_OFFER_TEMPLATES_ENABLED } from '../config/features';
 import MetricsCard from '../components/dashboard/MetricsCard';
-import ButtonLink from '../components/common/ButtonLink';
-import ShoppingListButton from '../components/common/ShoppingListButton';
 import SalesChart from '../components/dashboard/SalesChart';
 import ProductImage from '../components/product/ProductImage';
 import PriceSimulator from '../components/product/PriceSimulator';
 import ProductSpecSheet from '../components/product/ProductSpecSheet';
-import PageHeader from '../components/layout/PageHeader';
+import { ActionHub, PageHero, PillTabs } from '../components/flow/Flow';
 import { Section, DataRow, Stat, Chip, Empty, RailCard, StatGrid } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useShoppingList } from '../hooks/useShoppingList';
@@ -26,7 +24,7 @@ import {
   ProductPurchaseSignal,
   SeasonalityPoint,
 } from '../types/analytics.types';
-import { AlertTriangle, TrendingUp, TrendingDown, Minus, ShoppingCart, Calendar, Zap, Clock } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, ShoppingCart, Calendar, Zap, Clock, ArrowLeft, ListChecks, Package, Tag } from 'lucide-react';
 
 /* ─── Formatadores ─── */
 const fmt = {
@@ -401,6 +399,7 @@ const ProductDetail: React.FC = () => {
   const [dashboard, setDashboard] = useState<ProductDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'vendas' | 'preco' | 'junto'>('vendas');
 
   useEffect(() => {
     const load = async () => {
@@ -471,204 +470,140 @@ const ProductDetail: React.FC = () => {
     );
   }
 
+  const trend = Number(overview.revenueTrendPercentage || 0);
+  const inList = productIds.has(overview.productId);
+
   return (
     <Layout>
       <div className="flex flex-col gap-6">
 
-        {/* ── Hero: imagem + dados principais ── */}
-        <div className="grid gap-6 lg:grid-cols-[200px_1fr] lg:items-start">
+        {/* ── Ver: o produto e como ele vai ── */}
+        <div className="grid gap-6 lg:grid-cols-[180px_1fr] lg:items-start">
           <div className="flex items-center justify-center overflow-hidden rounded-xl p-4 lg:aspect-square" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
             <ProductImage src={overview.imageUrl} alt={overview.name} className="max-h-full max-w-full object-contain" />
           </div>
-
-          <div className="flex flex-col gap-4">
-            <PageHeader
-              title={<mark>{overview.name}</mark>}
-              subtitle="Receita, sazonalidade, datas comemorativas e o sinal de compra deste produto."
-              actions={
-                <>
-                  <ButtonLink variant="secondary" to="/app/produtos">← Produtos</ButtonLink>
-                  {FEATURE_OFFER_TEMPLATES_ENABLED
-                    ? <ButtonLink variant="secondary" to={buildOffersUrl('/ofertas', 'admin', `productId=${overview.productId}`)}>Criar oferta</ButtonLink>
-                    : null}
-                  <ButtonLink variant="secondary" to="/app/alertas">Alertas</ButtonLink>
-                  <ShoppingListButton inList={productIds.has(overview.productId)} onAdd={addCurrentProductToList} stopPropagation={false} />
-                </>
-              }
+          <div className="flex flex-col gap-3">
+            <PageHero
+              title={<>{overview.name} <mark>{trend > 1 ? `vende ${formatDecimal(trend, 0)}% mais.` : trend < -1 ? `vende ${formatDecimal(Math.abs(trend), 0)}% menos.` : 'vende estável.'}</mark></>}
+              subtitle={`${fmt.money(overview.revenue)} em 90 dias · ${formatDecimal(Number(overview.salesVelocity || 0), 1)} por dia · última venda ${fmt.date(overview.lastSoldAt)}`}
+              side={<ActionHub icon={Package} label="O que fazer com este produto" actions={[
+                inList ? { label: 'Já está na lista', icon: ListChecks, to: '/app/lista-compras' } : { label: 'Pôr na lista de compras', icon: ListChecks, onClick: () => { void addCurrentProductToList(); } },
+                FEATURE_OFFER_TEMPLATES_ENABLED
+                  ? { label: 'Criar oferta', icon: Tag, to: buildOffersUrl('/ofertas', 'admin', `productId=${overview.productId}`) }
+                  : { label: 'Montar encarte', icon: Tag, to: '/app/encartes' },
+                { label: 'Voltar aos produtos', icon: ArrowLeft, to: '/app/produtos' },
+              ]} />}
             />
-
             <div className="flex flex-wrap gap-2">
               <Chip>{compactLabel(overview.category)}</Chip>
               <Chip>GTIN {overview.ean || '--'}</Chip>
-              <Chip>Última venda {fmt.date(overview.lastSoldAt)}</Chip>
-              {highSeasonNow && (
-                <Chip variant="success">Alta temporada: {highSeasonNow.title}</Chip>
+              {highSeasonNow && <Chip variant="success">Alta temporada: {highSeasonNow.title}</Chip>}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Agir: a decisão de compra, quando houver ── */}
+        {purchaseSignal && <PurchaseSignalBanner signal={purchaseSignal} />}
+
+        {/* ── Entender: uma leitura de cada vez ── */}
+        <PillTabs<'vendas' | 'preco' | 'junto'> label="Ver do produto" value={view} onChange={setView} tabs={[
+          { key: 'vendas', label: 'Vendas' },
+          { key: 'preco', label: 'Preço' },
+          { key: 'junto', label: 'Vende junto', count: relatedPairs.length },
+        ]} />
+
+        {view === 'vendas' && (
+          <>
+            <StatGrid cols={4}>
+              <MetricsCard title="Receita"     value={fmt.money(overview.revenue)}        icon="R$" />
+              <MetricsCard title="Preço médio" value={fmt.money(overview.averagePrice)}   icon="PM" />
+              <MetricsCard title="Compras"     value={fmt.qty(overview.transactionCount)} icon="NF" />
+              <MetricsCard title="Melhor dia"  value={bestWeekday?.label || '--'}         icon="D" />
+            </StatGrid>
+
+            <SalesChart
+              data={(dashboard.salesTrend || []).map((p) => ({ date: p.date, revenue: Number(p.revenue || 0) }))}
+              kicker="Vendas"
+              title="Faturamento por dia"
+              panelCopy="O ritmo de venda deste produto nos últimos 90 dias."
+              calloutLabel="Último dia"
+            />
+
+            {purchaseSignal && purchaseSignal.projections.length > 0 && <StockProjectionSection signal={purchaseSignal} />}
+
+            {weekdaySeasonality.length > 0 && (
+              <Section kicker="Semana" title="Dias que mais vendem" subtitle={weakestWeekday ? `Mais fraco: ${weakestWeekday.label}` : undefined}>
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {weekdaySeasonality.map((p) => <SeasonalityCard key={p.key} point={p} maxRevenue={maxSeasonalityRev} />)}
+                </div>
+              </Section>
+            )}
+
+            {seasonalPerformance.length > 0 && (
+              <Section kicker="Ano" title="Alta e baixa por época do ano">
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {seasonalPerformance.map((s) => <SeasonalCard key={s.key} season={s} />)}
+                </div>
+              </Section>
+            )}
+
+            {pdvPerformance.length > 1 && (
+              <Section kicker="Caixas" title="Em quais caixas vende mais">
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {pdvPerformance.map((b) => <PdvCard key={b.pdvId || b.pdvName} pdv={b} maxRevenue={maxPdvRev} />)}
+                </div>
+              </Section>
+            )}
+
+            <ProductSpecSheet sheet={dashboard.specSheet} />
+          </>
+        )}
+
+        {view === 'preco' && (
+          <>
+            {marketId && productId && (
+              <Section kicker="E se eu baixar o preço?" title="Simulação de desconto" subtitle="Pelo histórico deste produto na sua loja.">
+                <PriceSimulator marketId={marketId} productId={productId} />
+              </Section>
+            )}
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+              <SalesChart
+                data={(priceTimeline?.points || []).map((p) => ({ date: p.date, revenue: Number(p.weightedAveragePrice || 0) }))}
+                kicker="Preço"
+                title="Preço ao longo do tempo"
+                panelCopy="Preço médio pago pelo cliente em cada dia."
+                calloutLabel="Último preço"
+                formatter={fmt.money}
+              />
+              <Section kicker="Resumo" title="Como está o preço">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Stat label="Preço base"  value={fmt.money(overview.baselinePrice)}                sub="Sem promoção" />
+                  <Stat label="Preço atual" value={fmt.money(lastPrice || overview.averagePrice)}    sub={`${fmt.signedPct(deltaPrice)} no período`} />
+                  <Stat label="Promoções"   value={priceTimeline?.detectedPromotionWindows || 0}     sub="Janelas no período" />
+                  <Stat label="Em promoção" value={fmt.pct((overview.promoRevenueShare || 0) * 100)} sub="da receita" />
+                </div>
+              </Section>
+            </div>
+            {(priceEvents.length > 0 || promotionWindows.length > 0) && (
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Section kicker="Mudanças" title="Altas e quedas de preço"><PriceEventList events={priceEvents} /></Section>
+                <Section kicker="Promoções" title="Promoções deste produto"><PromoWindowList windows={promotionWindows} /></Section>
+              </div>
+            )}
+          </>
+        )}
+
+        {view === 'junto' && (
+          <Section kicker="Vende junto" title="Quem compra este produto também leva" subtitle={strongestPair ? 'Bom para gôndola próxima, combo e promoção cruzada.' : undefined}>
+            {relatedPairs.length === 0
+              ? <Empty>Nenhum produto sai junto com frequência.</Empty>
+              : (
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {relatedPairs.map((pair) => <PairCard key={`${pair.antecedentId || 'a'}-${pair.consequentId || 'b'}`} pair={pair} />)}
+                </div>
               )}
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              <DataRow label="Receita no período" value={fmt.money(overview.revenue)} />
-              <DataRow label="Vendas/dia"            value={`${formatDecimal(Number(overview.salesVelocity || 0), 1)}/dia`} />
-              <DataRow label="Participação em promo" value={fmt.pct((overview.promoRevenueShare || 0) * 100)} />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Sinal de compra inteligente ── */}
-        {purchaseSignal && (
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Decisão de compra
-            </p>
-            <PurchaseSignalBanner signal={purchaseSignal} />
-          </div>
-        )}
-
-        {/* ── Simulação de preço ──
-            Fica logo abaixo da decisão de compra porque é a outra metade da
-            mesma pergunta: quanto comprar e por quanto vender. */}
-        {marketId && productId && (
-          <Section
-            kicker="E se eu baixar o preço?"
-            title="Simulação de desconto"
-            subtitle="Projeção pelo histórico real deste produto na sua loja."
-          >
-            <PriceSimulator marketId={marketId} productId={productId} />
           </Section>
         )}
-
-        {/* ── KPIs ── */}
-        <StatGrid cols={4}>
-          <MetricsCard title="Receita"         value={fmt.money(overview.revenue)}       icon="R$" />
-          <MetricsCard title="Preço médio"     value={fmt.money(overview.averagePrice)}  icon="PM" />
-          <MetricsCard title="Transações"      value={fmt.qty(overview.transactionCount)} icon="NF" />
-          <MetricsCard title="Índice de preço" value={`${formatDecimal(Number(overview.priceIndex || 0), 2)}x`} icon="PX" />
-        </StatGrid>
-
-        {/* ── Insights rápidos ── */}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat label="Melhor dia"    value={bestWeekday?.label || '--'}     sub={bestWeekday ? fmt.money(bestWeekday.revenue) : 'Sem dados'} variant="success" />
-          <Stat label="Dia mais fraco" value={weakestWeekday?.label || '--'} sub={weakestWeekday ? fmt.money(weakestWeekday.revenue) : 'Sem comparação'} />
-          <Stat label="PDV mais forte" value={bestPdv?.pdvName || '--'} sub={bestPdv ? `${fmt.qty(bestPdv.quantitySold)} unidades` : 'Sem PDV dominante'} />
-          <Stat label="Compra casada"  value={strongestPair ? `Afinidade ${formatDecimal(Number(strongestPair.lift || 0), 2)}` : '--'} sub={strongestPair ? `${strongestPair.antecedentName} + ${strongestPair.consequentName}` : 'Sem associação forte'} />
-        </div>
-
-        {/* ── Gráfico de vendas + Decisões ── */}
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-          <SalesChart
-            data={(dashboard.salesTrend || []).map((p) => ({ date: p.date, revenue: Number(p.revenue || 0) }))}
-            kicker="Desempenho do produto"
-            title="Curva diária de faturamento"
-            panelCopy="A linha mostra o ritmo real de venda deste item ao longo do período."
-            calloutLabel="Último faturamento diário"
-          />
-
-          <Section kicker="Leitura rápida" title="O que decidir agora" subtitle="Compra, preço, promoção e mix em um bloco.">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Stat label="Compra"    value={`${formatDecimal(Number(overview.salesVelocity || 0), 1)}/dia`}     sub={Number(overview.salesVelocity || 0) >= 1 ? 'Mantenha reposição curta.' : 'Compre com cautela.'} />
-              <Stat label="Preço"     value={fmt.signedPct(deltaPrice)}         sub="Variação no período" variant={deltaPrice > 5 ? 'danger' : deltaPrice < -5 ? 'success' : 'default'} />
-              <Stat label="Promoção"  value={fmt.pct((overview.promoRevenueShare || 0) * 100)} sub="Participação em ação promo" />
-              <Stat label="Mix"       value={strongestPair ? formatDecimal(Number(strongestPair.lift || 0), 2) : '--'} sub={strongestPair ? 'Sinal de venda casada.' : 'Sem venda casada forte.'} />
-            </div>
-          </Section>
-        </div>
-
-        {/* ── Ficha técnica do catálogo enriquecido ── */}
-        <ProductSpecSheet sheet={dashboard.specSheet} />
-
-        {/* ── Datas comemorativas e sazonalidade ── */}
-        <Section
-          kicker="Datas comemorativas"
-          title="Alta e baixa por época do ano"
-          subtitle="Janelas onde este produto vende acima ou abaixo do ritmo normal — planeje compras e promoções com antecedência."
-        >
-          {seasonalPerformance.length === 0 ? (
-            <Empty>Dados insuficientes para calcular desempenho sazonal. Continue registrando vendas.</Empty>
-          ) : (
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {seasonalPerformance.map((s) => (
-                <SeasonalCard key={s.key} season={s} />
-              ))}
-            </div>
-          )}
-        </Section>
-
-        {/* ── Projeções de estoque (se houver) ── */}
-        {purchaseSignal && purchaseSignal.projections.length > 0 && (
-          <StockProjectionSection signal={purchaseSignal} />
-        )}
-
-        {/* ── Desempenho por caixa (PDV) ── */}
-        <Section kicker="Por caixa (PDV)" title="Em quais caixas este item vende melhor" subtitle="A leitura é por frente de caixa desta loja — útil para abastecimento e posicionamento no PDV.">
-          {pdvPerformance.length === 0
-            ? <Empty>Sem distribuição por PDV neste período.</Empty>
-            : (
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {pdvPerformance.map((b) => (
-                  <PdvCard key={b.pdvId || b.pdvName} pdv={b} maxRevenue={maxPdvRev} />
-                ))}
-              </div>
-            )}
-        </Section>
-
-        {/* ── Sazonalidade por dia da semana ── */}
-        <Section kicker="Sazonalidade semanal" title="Quando este item ganha ou perde tração" subtitle="Os dias mais fortes e fracos indicam quando reforçar compra ou revisar espaço.">
-          {weekdaySeasonality.length === 0
-            ? <Empty>Sem sazonalidade suficiente neste período.</Empty>
-            : (
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {weekdaySeasonality.map((p) => (
-                  <SeasonalityCard key={p.key} point={p} maxRevenue={maxSeasonalityRev} />
-                ))}
-              </div>
-            )}
-        </Section>
-
-        {/* ── Gráfico de preço + Resumo de preço ── */}
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-          <SalesChart
-            data={(priceTimeline?.points || []).map((p) => ({ date: p.date, revenue: Number(p.weightedAveragePrice || 0) }))}
-            kicker="Inteligência de preço"
-            title="Linha do tempo de preço"
-            panelCopy="Evolução do preço médio ponderado — alta, queda e janelas promocionais."
-            calloutLabel="Último preço observado"
-            formatter={fmt.money}
-          />
-
-          <Section kicker="Resumo de preço" title="Como o item está posicionado" subtitle="Baseline, preço atual e intensidade promocional.">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Stat label="Preço base"    value={fmt.money(overview.baselinePrice)}                        sub="Referência média sem promoção" />
-              <Stat label="Preço atual"   value={fmt.money(lastPrice || overview.averagePrice)}            sub="Último valor observado" />
-              <Stat label="Janelas promo" value={priceTimeline?.detectedPromotionWindows || 0}             sub="Períodos com promoção" />
-              <Stat label="Maior queda"   value={fmt.signedPct(priceTimeline?.maxDecreasePercent)}         sub="Melhor redução no período" variant="success" />
-            </div>
-          </Section>
-        </div>
-
-        {/* ── Eventos de preço + Promoções ── */}
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Section kicker="Eventos de preço" title="Movimentos relevantes de alta e queda">
-            <PriceEventList events={priceEvents} />
-          </Section>
-
-          <Section kicker="Promoções" title="Janelas que impactaram este item">
-            <PromoWindowList windows={promotionWindows} />
-          </Section>
-        </div>
-
-        {/* ── Compra casada ── */}
-        <Section kicker="Compra casada" title="Itens que ajudam este produto a vender mais" subtitle="Use estas relações para decidir proximidade na gôndola, combo e promoção cruzada.">
-          {relatedPairs.length === 0
-            ? <Empty>Nenhuma associação forte encontrada para este item.</Empty>
-            : (
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {relatedPairs.map((pair) => (
-                  <PairCard key={`${pair.antecedentId || 'a'}-${pair.consequentId || 'b'}`} pair={pair} />
-                ))}
-              </div>
-            )}
-        </Section>
-
       </div>
     </Layout>
   );

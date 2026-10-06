@@ -39,7 +39,7 @@ const Settings: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-6">
-        <PageHero title={<>Sua conta, <mark>do seu jeito.</mark></>} subtitle="Seus dados de acesso, a segurança e as informações do mercado." side={<ActionHub icon={HxUserCog} actions={[{ label: 'Minha assinatura', icon: HxCreditCard, to: '/app/assinatura' }, { label: 'Equipe', icon: HxUsers, to: '/app/equipe' }]} />} />
+        <PageHero title={<>Sua conta, <mark>do seu jeito.</mark></>} side={<ActionHub icon={HxUserCog} actions={[{ label: 'Minha assinatura', icon: HxCreditCard, to: '/app/assinatura' }, { label: 'Equipe', icon: HxUsers, to: '/app/equipe' }]} />} />
 
         {/* Duas colunas no desktop: conta à esquerda, IA à direita (antes tudo espremido em 670 px). */}
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">

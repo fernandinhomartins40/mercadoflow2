@@ -213,7 +213,7 @@ const PDVs: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={headline} subtitle="Veja se as vendas estão chegando e conecte novos caixas." side={<ActionHub icon={HxMonitorSmartphone} actions={[{ label: 'Ver caixas', icon: HxMonitor, onClick: () => setTab('pdvs') }, { label: 'Chaves do agente', icon: HxKeyRound, onClick: () => setTab('agente') }, { label: 'Instalar agente', icon: HxDownload, onClick: () => setTab('download') }]} />} />
+        <PageHero title={headline} side={<ActionHub icon={HxMonitorSmartphone} actions={[{ label: 'Ver caixas', icon: HxMonitor, onClick: () => setTab('pdvs') }, { label: 'Chaves do agente', icon: HxKeyRound, onClick: () => setTab('agente') }, { label: 'Instalar agente', icon: HxDownload, onClick: () => setTab('download') }]} />} />
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />

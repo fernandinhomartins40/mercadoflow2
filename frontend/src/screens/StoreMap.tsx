@@ -227,7 +227,7 @@ const StoreMap: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <PageHero title={<>Onde a loja <mark>mais vende.</mark></>} subtitle="Onde fica cada setor, onde a loja mais vende e o que mudar de lugar." />
+          <PageHero title={<>Onde a loja <mark>mais vende.</mark></>} />
           {plan && saveLabel && (
             <span className="text-sm" role="status" style={{ color: saveState === 'error' ? '#b91c1c' : 'var(--text-muted)' }}>
               {saveState === 'saved' && <CheckCircle2 className="mr-1 inline h-4 w-4" style={{ color: 'var(--brand-700)' }} aria-hidden="true" />}

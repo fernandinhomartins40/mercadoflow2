@@ -128,8 +128,7 @@ const NetworkView: React.FC = () => {
       <div className="flex flex-col gap-5">
         <PageHero
           title={latest ? <>Sua semana fechou em <mark>{fmt.money(latest.numeros?.faturamento)}{pct != null ? `, ${pct >= 0 ? '+' : ''}${pct}%.` : '.'}</mark></> : <>Como foi a <mark>sua semana.</mark></>}
-          subtitle="O resumo da semana e, com mais de uma loja, a comparação entre elas."
-          side={<ActionHub icon={HxCalendarDays} actions={[{ label: 'Abrir o Copiloto', icon: HxSparkles, to: '/app/copiloto' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
+          side={<ActionHub icon={HxCalendarDays} actions={[{ label: 'Decidir', icon: HxSparkles, to: '/app/decidir' }, { label: 'Voltar ao Início', icon: HxCalendarDays, to: '/app' }]} />} />
 
         {/* ── Semanas: a lista à esquerda, a semana aberta no painel ── */}
         {latest && week ? (
@@ -178,7 +177,7 @@ const NetworkView: React.FC = () => {
                 <div style={{ marginTop: 20 }}>
                   <ActionHub icon={CalendarDays} onForest label="O que fazer com esta semana" actions={[
                     { label: 'Perguntar sobre a semana', icon: HxMessageCircleQuestion, to: `/app/perguntar?q=${encodeURIComponent(`O que explica as vendas da semana de ${fmt.date(week.semanaDe)}?`)}` },
-                    { label: 'Abrir o Copiloto', icon: HxSparkles, to: '/app/copiloto' },
+                    { label: 'Decidir', icon: HxSparkles, to: '/app/decidir' },
                   ]} />
                 </div>
               </Forest>
@@ -186,8 +185,7 @@ const NetworkView: React.FC = () => {
           </div>
         ) : (
           <Forest>
-            <PanelTitle icon={CalendarDays} title="O primeiro resumo ainda não saiu" sub="Ele é gerado toda segunda de manhã" />
-            <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Você pode gerar o da semana passada agora.</p>
+            <PanelTitle icon={CalendarDays} title="O primeiro resumo ainda não saiu" sub="Sai toda segunda de manhã. Dá para gerar o da semana passada agora." />
             <button type="button" onClick={generateDigest} disabled={generating} className="fx-btn lime" style={{ marginTop: 14 }}>
               {generating ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}Gerar agora
             </button>
@@ -235,15 +233,7 @@ const NetworkView: React.FC = () => {
               Ver o plano Profissional
             </span>
           </a>
-        ) : isNetwork === false ? (
-          <div className="rounded-xl p-6 text-center" style={card}>
-            <Store className="mx-auto h-6 w-6" style={{ color: 'var(--text-soft)' }} />
-            <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
-              A comparação entre lojas aparece aqui quando você tiver mais de uma
-              filial cadastrada.
-            </p>
-          </div>
-        ) : (
+        ) : isNetwork === false ? null : (
           <>
             <Section
               icon={Store}

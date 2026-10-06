@@ -1040,10 +1040,10 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
         title={campaigns && campaigns.length > 0
           ? <>Ofertas que vendem por você. <mark>{live === 0 ? 'Nenhuma no ar.' : `${live} no ar.`}</mark></>
           : <>Ofertas que <mark>vendem por você.</mark></>}
-        subtitle="Monte a arte das ofertas em minutos, com os preços e os produtos que as vendas indicam."
         side={<ActionHub icon={Newspaper} actions={[
           { label: creating ? 'Criando...' : 'Novo encarte', icon: Plus, onClick: () => { if (!creating) void create(); } },
-          { label: 'O que promover', icon: Sparkles, to: '/app/promocoes' },
+          { label: 'O que promover', icon: Sparkles, to: '/app/decidir?filtro=promover' },
+          { label: 'Campanhas', icon: Newspaper, to: '/app/promocoes' },
         ]} />} />
       {error && <p role="alert" className="text-sm" style={{ color: 'var(--fx-red)' }}>{error}</p>}
       {campaigns === null ? (

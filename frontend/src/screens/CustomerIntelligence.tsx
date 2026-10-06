@@ -161,7 +161,7 @@ const CustomerIntelligence: React.FC = () => {
           subtitle={overview?.recurringAverageTicket != null
             ? `Quem volta gasta ${fmt.money(overview.recurringAverageTicket)} por compra; quem veio uma vez, ${fmt.money(overview.singleAverageTicket)}.`
             : 'Quem volta à loja, com que frequência e o que traz o cliente de volta.'}
-          side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/promocoes' }, { label: 'Perguntar aos dados', icon: HxMessageCircleQuestion, to: '/app/perguntar' }]} />} />
+          side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/decidir?filtro=promover' }, { label: 'Voltar ao Início', icon: HxUsers, to: '/app' }]} />} />
 
         {locked ? (
           <PlanInvite
@@ -178,8 +178,7 @@ const CustomerIntelligence: React.FC = () => {
           <>
             {!overview || overview.totalCustomers === 0 ? (
               <Forest>
-                <PanelTitle icon={Users} title="Ainda não há clientes identificados" sub={note || 'O CPF precisa ser informado na nota para o cliente entrar na análise.'} />
-                <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Peça o CPF na nota: com ele, o Tino mostra quem volta, de quanto em quanto tempo e o que traz o cliente de volta.</p>
+                <PanelTitle icon={Users} title="Ainda não há clientes identificados" sub="Peça o CPF na nota: com ele, o Tino mostra quem volta." />
               </Forest>
             ) : (
               <>
