@@ -48,6 +48,9 @@ const SuperAdminCollections = lazy(() => import('./screens/SuperAdminCollections
 const Plans = lazy(() => import('./screens/Plans'));
 const MySubscription = lazy(() => import('./screens/MySubscription'));
 const Team = lazy(() => import('./screens/Team'));
+const Integrations = lazy(() => import('./screens/Integrations'));
+const Developers = lazy(() => import('./screens/Developers'));
+const SuperAdminPartners = lazy(() => import('./screens/SuperAdminPartners'));
 const AcceptInvite = lazy(() => import('./screens/AcceptInvite'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
 const SuperAdminCrawlerConfig = lazy(() => import('./screens/SuperAdminCrawlerConfig'));
@@ -168,6 +171,7 @@ const App: React.FC = () => {
         <Route path="/parear-agente" element={<AgentPairing />} />
         <Route path="/encarte/:slug" element={<PublicEncarte />} />
         <Route path="/confere/*" element={<ConfereApp />} />
+        <Route path="/desenvolvedores" element={<Developers />} />
 
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/decidir" element={secure(<Decide />)} />
@@ -199,6 +203,7 @@ const App: React.FC = () => {
         <Route path="/app/planos" element={secure(<Plans />)} />
         <Route path="/app/assinatura" element={secure(<MySubscription />)} />
         <Route path="/app/equipe" element={secure(<Team />)} />
+        <Route path="/app/integracoes" element={secure(<Integrations />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
         <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />
@@ -216,6 +221,7 @@ const App: React.FC = () => {
         <Route path="/super-admin/crawler" element={secureSuperAdmin(<SuperAdminCrawlerConfig />)} />
         <Route path="/super-admin/temas" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/confere" element={secureSuperAdmin(<SuperAdminConfere />)} />
+        <Route path="/super-admin/parceiros" element={secureSuperAdmin(<SuperAdminPartners />)} />
         <Route path="/super-admin/industria" element={secureSuperAdmin(<SuperAdminIndustries />)} />
         <Route path="/super-admin/industria/dados" element={secureSuperAdmin(<SuperAdminIndustryData />)} />
         <Route path="/super-admin/industria/cobranca" element={secureSuperAdmin(<SuperAdminIndustryBilling />)} />

@@ -51,12 +51,37 @@ public class TenantAccessFilter extends OncePerRequestFilter {
     @Autowired(required = false)
     private NamedParameterJdbcTemplate jdbc;
 
+    /** Loja no caminho da API de parceiros: /api/v1/partner/markets/{id}/... */
+    private static final Pattern PARTNER_MARKET_PATH = Pattern.compile(
+        "^/api/v1/partner/markets/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:/.*)?$");
+
+    @Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerAuthService partnerAuth;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
             TenantContext.clear();
             populateTenantContext();
+
+            // ERP parceiro: só entra na loja que o autorizou (consentimento por escopo).
+            Authentication current = SecurityContextHolder.getContext().getAuthentication();
+            if (current != null && current.getPrincipal() instanceof PartnerPrincipal partner) {
+                java.util.regex.Matcher pm = PARTNER_MARKET_PATH.matcher(request.getRequestURI());
+                if (pm.matches()) {
+                    UUID marketId = UUID.fromString(pm.group(1));
+                    java.util.List<String> scopes = partnerAuth == null ? null : partnerAuth.scopesFor(partner.partnerId(), marketId);
+                    if (scopes == null) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"erro\":\"Esta loja nao autorizou o seu acesso, ou revogou.\"}");
+                        return;
+                    }
+                    request.setAttribute("partnerScopes", scopes);
+                    TenantContext.set(new TenantContext.TenantInfo(marketId, false));
+                }
+            }
 
             UUID pathMarketId = extractMarketId(request.getRequestURI());
             if (pathMarketId != null && !canAccess(pathMarketId)) {

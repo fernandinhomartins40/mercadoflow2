@@ -165,20 +165,26 @@ public class RecommendationEngine {
         params.put("objetivo", ev.get("objetivo"));
 
         boolean tracionador = "PRODUTO_TRACIONADOR".equals(o.getType());
+        // Sem custo real não há margem: o sistema não afirma teto seguro de desconto
+        // e pede custo e preço da ação na hora de decidir.
+        boolean costKnown = ev.get("margemPercent") != null;
+        params.put("custoConhecido", costKnown);
+        String marginLine = costKnown
+            ? String.format("Desconto sugerido de %s%% respeita o teto de 70%% da margem atual (%s%%).", num(desconto), num(ev.get("margemPercent")))
+            : String.format("Desconto de referência: %s%%. Sem custo registrado não há margem: informe o custo e o preço da ação para ver se compensa.", num(desconto));
         String trace = tracionador
             ? String.format(
                 "Este produto puxa a venda de %s outro(s) item(ns) quando entra em promoção.%n"
                     + "Receita incremental estimada na cesta: %s.%n"
-                    + "Desconto sugerido de %s%% respeita o teto de 70%% da margem atual (%s%%).%n"
+                    + "%s%n"
                     + "O ganho não está neste item — está na cesta que ele arrasta.",
-                num(ev.get("produtosAfetados")), money(o.getExpectedImpactValue()), num(desconto), num(ev.get("margemPercent")))
+                num(ev.get("produtosAfetados")), money(o.getExpectedImpactValue()), marginLine)
             : String.format(
                 "Capital exposto: %s, com cobertura de %s dia(s) e giro de %s un./dia.%n"
-                    + "Desconto sugerido de %s%% sobre o preço de %s, respeitando o teto de 70%% "
-                    + "da margem (%s%%).%n"
+                    + "Preço atual: %s. %s%n"
                     + "Aqui o desconto é o custo de recuperar dinheiro parado, não de ganhar cesta.",
                 money(ev.get("capitalEmRisco")), num(ev.get("coberturaDias")), num(ev.get("giroDiario")),
-                num(desconto), money(ev.get("precoAtual")), num(ev.get("margemPercent")));
+                money(ev.get("precoAtual")), marginLine);
 
         return newRecommendation(o, Recommendation.ActionType.PROMOVER,
             "Promover " + productName(o) + (desconto != null ? " com " + num(desconto) + "% de desconto" : ""),

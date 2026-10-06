@@ -195,6 +195,11 @@ public class RecommendationOrderService {
      * a própria recomendação usou no valor estimado.
      */
     static BigDecimal unitCost(SupplierOrderItem lastItem, Recommendation r, BigDecimal quantity) {
+        // O custo que o lojista informou na decisão vale mais que qualquer estimativa.
+        BigDecimal informed = r.getParameters() == null ? null : decimal(r.getParameters().get("custoInformado"));
+        if (informed != null && informed.signum() > 0) {
+            return informed;
+        }
         if (lastItem != null && lastItem.getUnitCost() != null) {
             String unit = lastItem.getUnitType();
             if (unit == null || "UN".equals(unit)) return lastItem.getUnitCost();

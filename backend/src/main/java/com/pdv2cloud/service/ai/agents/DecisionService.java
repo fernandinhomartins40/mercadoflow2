@@ -28,6 +28,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class DecisionService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerWebhookService partnerWebhooks;
+
     public static final String EXPLAIN_TASK = "AGENTE_EXPLICAR";
     static final String SYSTEM = "Você é o Copiloto de um supermercado brasileiro. Explique em português simples, em até "
         + "5 frases, por que o agente preparou esta decisão e o que o dono ganha ou arrisca. Use só os números e as lições "
@@ -121,6 +124,14 @@ public class DecisionService {
         if (!"PENDENTE".equals(d.status())) {
             throw new IllegalStateException("Esta decisão não está mais esperando resposta.");
         }
+        // Promover, liquidar e comprar não se aprovam às cegas: custo e preço por item.
+        if (items != null && java.util.Set.of("PROMOCOES", "CAPITAL", "COMPRAS").contains(d.agent())) {
+            List<String> missing = items.missingInputs(marketId, d.payload(), adjustments);
+            if (!missing.isEmpty()) {
+                throw new IllegalArgumentException("Informe custo e preço de: " + String.join(", ", missing.subList(0, Math.min(5, missing.size())))
+                    + (missing.size() > 5 ? " e mais " + (missing.size() - 5) : "") + ".");
+            }
+        }
         // Marca primeiro (condicional): dois toques seguidos não executam a ação duas vezes.
         int claimed = jdbc.update("update ai_decisions set status = 'APROVADA', decided_at = now(), decided_by = :u "
             + "where market_id = :m and id = :id and status = 'PENDENTE'", Map.of("m", marketId, "id", id, "u", actor));
@@ -138,6 +149,12 @@ public class DecisionService {
         if (d.level() >= 2 && agent != null) {
             result = new java.util.LinkedHashMap<>(agent.execute(marketId, payload, actor));
             result.put("executado", true);
+        }
+        // Preço aprovado no Copiloto também vai ao ERP integrado.
+        if ("PRECO".equals(d.agent()) && partnerWebhooks != null && payload.get("recommendationIds") instanceof List<?> recIds) {
+            for (Object rid : recIds) {
+                partnerWebhooks.priceApprovedFromRecommendation(marketId, UUID.fromString(String.valueOf(rid)), actor);
+            }
         }
         if (!summary.isEmpty()) {
             result.put("ajustes", summary);

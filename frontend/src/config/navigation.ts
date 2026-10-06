@@ -4,6 +4,7 @@ import {
   Globe2,
   Home,
   Map,
+  Plug,
   Megaphone,
   PackageSearch,
   Settings,
@@ -104,12 +105,13 @@ export const DESTINATIONS: Destination[] = [
   {
     key: 'loja',
     label: 'Loja',
-    hint: 'Caixas, assinatura e conta',
+    hint: 'Caixas, ERP, assinatura e conta',
     icon: Store,
     pages: [
       { to: '/app/pdvs', label: 'Caixas e agente', icon: Store, alsoMatches: ['/app/download-agente'] },
       { to: '/app/assinatura', label: 'Assinatura e planos', icon: CreditCard, alsoMatches: ['/app/planos'] },
       { to: '/app/equipe', label: 'Equipe', icon: Users, ownerOnly: true },
+      { to: '/app/integracoes', label: 'Integrações (ERP)', icon: Plug },
       { to: '/app/configuracoes', label: 'Conta', icon: Settings },
       { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true },
       ...(FEATURE_STATE_PRICES_ENABLED

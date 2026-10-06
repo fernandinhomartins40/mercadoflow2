@@ -1,0 +1,438 @@
+openapi: 3.0.3
+info:
+  title: MercadoFlow — API para ERPs parceiros
+  version: "1.0"
+  description: |
+    O seu ERP envia ao MercadoFlow o catálogo, o custo, o preço, o estoque e as notas de entrada de cada loja que
+    autorizou a integração. Em troca recebe a **entrada de mercadoria pronta**: o cadastro dos produtos e a entrada
+    conferida, lidos das notas fiscais de entrada que o Confere busca na SEFAZ (com embalagem, conversão para
+    unidade de venda, lote, validade e o que foi de fato recebido), além dos pedidos e preços que o lojista aprovar.
+
+    Regras:
+    - **Consentimento por loja e por escopo.** A loja autoriza o seu ERP em Integrações, no painel, e pode revogar
+      a qualquer momento. Sem autorização a resposta é 403.
+    - **Troca obrigatória.** As entradas prontas de uma loja só ficam disponíveis enquanto o seu ERP envia
+      estoque (`/stock`) e preços (`/prices`) dessa loja ao menos uma vez a cada 7 dias. Senão a resposta é 409.
+    - **Nada de inteligência de desempenho sai por esta API**: giro, tração, sazonalidade, previsão e
+      recomendações ficam no MercadoFlow.
+    - **Modo de teste.** Todo envio aceita `?dryRun=true`: valida item a item e responde o que faria, sem gravar.
+    - **Idempotência.** Mande o cabeçalho `Idempotency-Key` (até 120 caracteres) nos envios: repetir a mesma chave
+      em 24 horas devolve a mesma resposta, sem gravar de novo.
+    - **Limites.** 1000 itens por lote e 120 requisições por minuto por parceiro (429 ao passar).
+    - Produtos são identificados pelo **GTIN** (EAN-8, 12, 13 ou 14, com dígito verificador válido). Envie o produto
+      em `/products` antes de custo, preço, estoque ou entrada.
+servers:
+  - url: https://mercadoflow.com/api/v1/partner
+security:
+  - bearer: []
+tags:
+  - name: Acesso
+  - name: Enviar dados
+  - name: Entrada pronta
+  - name: Avisos
+paths:
+  /oauth/token:
+    post:
+      tags: [Acesso]
+      summary: Trocar client_id e client_secret por um token de 1 hora
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string, example: mfp_3q2... }
+                  token_type: { type: string, example: Bearer }
+                  expires_in: { type: integer, example: 3600 }
+        '401':
+          description: Credenciais inválidas ou parceiro suspenso
+  /me:
+    get:
+      tags: [Acesso]
+      summary: Quem é você e quais lojas autorizaram o seu ERP
+      responses:
+        '200':
+          description: Parceiro e lojas autorizadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  partnerId: { type: string, format: uuid }
+                  name: { type: string }
+                  status: { type: string, enum: [REGISTRADO, HOMOLOGADO, SUSPENSO] }
+                  webhook: { type: boolean }
+                  reciprocityDays: { type: integer, example: 7 }
+                  requestsPerMinute: { type: integer, example: 120 }
+                  markets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        marketId: { type: string, format: uuid }
+                        name: { type: string }
+                        scopes: { type: array, items: { $ref: '#/components/schemas/Scope' } }
+                        inboundAvailable: { type: boolean, description: A troca está em dia e as entradas prontas estão liberadas }
+                        lastStockAt: { type: string, format: date-time, nullable: true }
+                        lastPricesAt: { type: string, format: date-time, nullable: true }
+                        lastCostsAt: { type: string, format: date-time, nullable: true }
+  /markets/{marketId}/products:
+    post:
+      tags: [Enviar dados]
+      summary: Cadastro de produtos (escopo catalog:write)
+      description: Cria o produto pelo GTIN quando ainda não existe. Não sobrescreve o catálogo já enriquecido.
+      parameters: [ { $ref: '#/components/parameters/marketId' }, { $ref: '#/components/parameters/dryRun' }, { $ref: '#/components/parameters/idem' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  maxItems: 1000
+                  items:
+                    type: object
+                    required: [gtin, description]
+                    properties:
+                      gtin: { type: string, example: '7891000100103' }
+                      description: { type: string, example: Leite condensado 395 g }
+                      brand: { type: string }
+                      department: { type: string }
+                      unit: { type: string, example: UN }
+      responses: { '200': { $ref: '#/components/responses/Batch' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /markets/{marketId}/suppliers:
+    post:
+      tags: [Enviar dados]
+      summary: Fornecedores (escopo catalog:write)
+      parameters: [ { $ref: '#/components/parameters/marketId' }, { $ref: '#/components/parameters/dryRun' }, { $ref: '#/components/parameters/idem' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [cnpj, legalName]
+                    properties:
+                      cnpj: { type: string, example: '12345678000199' }
+                      legalName: { type: string }
+                      tradeName: { type: string }
+                      email: { type: string }
+                      phone: { type: string }
+      responses: { '200': { $ref: '#/components/responses/Batch' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /markets/{marketId}/costs:
+    post:
+      tags: [Enviar dados]
+      summary: Custo de compra por unidade de venda (escopo costs:write)
+      parameters: [ { $ref: '#/components/parameters/marketId' }, { $ref: '#/components/parameters/dryRun' }, { $ref: '#/components/parameters/idem' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [gtin, unitCost]
+                    properties:
+                      gtin: { type: string }
+                      unitCost: { type: number, example: 4.79 }
+                      at: { type: string, format: date-time, description: Quando o custo passou a valer (padrão agora) }
+      responses: { '200': { $ref: '#/components/responses/Batch' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /markets/{marketId}/prices:
+    post:
+      tags: [Enviar dados]
+      summary: Preço de venda e promoção vigente (escopo prices:write)
+      parameters: [ { $ref: '#/components/parameters/marketId' }, { $ref: '#/components/parameters/dryRun' }, { $ref: '#/components/parameters/idem' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [gtin, price]
+                    properties:
+                      gtin: { type: string }
+                      price: { type: number, example: 6.99 }
+                      promoPrice: { type: number, nullable: true }
+                      promoStart: { type: string, format: date, nullable: true }
+                      promoEnd: { type: string, format: date, nullable: true }
+      responses: { '200': { $ref: '#/components/responses/Batch' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /markets/{marketId}/stock:
+    post:
+      tags: [Enviar dados]
+      summary: Estoque em unidades de venda (escopo stock:write)
+      parameters: [ { $ref: '#/components/parameters/marketId' }, { $ref: '#/components/parameters/dryRun' }, { $ref: '#/components/parameters/idem' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [gtin, units]
+                    properties:
+                      gtin: { type: string }
+                      units: { type: number, example: 48 }
+                      at: { type: string, format: date-time, description: Momento da contagem (padrão agora) }
+      responses: { '200': { $ref: '#/components/responses/Batch' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /markets/{marketId}/receipts:
+    post:
+      tags: [Enviar dados]
+      summary: Notas de entrada lançadas no ERP (escopo receipts:write)
+      description: Cada nota vira entrada de estoque e custo. Repetir a mesma nota (CNPJ + número) é ignorado.
+      parameters: [ { $ref: '#/components/parameters/marketId' }, { $ref: '#/components/parameters/dryRun' }, { $ref: '#/components/parameters/idem' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [supplierCnpj, number, items]
+                    properties:
+                      supplierCnpj: { type: string }
+                      supplierName: { type: string }
+                      number: { type: string }
+                      receivedAt: { type: string, format: date-time }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required: [gtin, quantity, unitCost]
+                          properties:
+                            gtin: { type: string }
+                            quantity: { type: number, description: Em unidades de venda }
+                            unitCost: { type: number, description: Por unidade de venda }
+      responses: { '200': { $ref: '#/components/responses/Batch' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /markets/{marketId}/inbound-products:
+    get:
+      tags: [Entrada pronta]
+      summary: Cadastro pronto dos produtos que chegaram nas notas da loja (escopo inbound:read)
+      description: |
+        Um item por produto, o mais recente desde `since`. Traz GTIN da unidade e da caixa, fator de conversão,
+        código do fornecedor, NCM, marca, departamento e foto. Use `nextSince` da resposta na próxima chamada.
+      parameters:
+        - { $ref: '#/components/parameters/marketId' }
+        - { name: since, in: query, schema: { type: string, format: date-time }, description: Padrão 30 dias atrás }
+        - { name: limit, in: query, schema: { type: integer, default: 200, maximum: 500 } }
+      responses:
+        '200':
+          description: Página de produtos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nextSince: { type: string, format: date-time }
+                  hasMore: { type: boolean }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        gtin: { type: string }
+                        packGtin: { type: string, nullable: true }
+                        unitsPerPack: { type: number, example: 12 }
+                        supplierCnpj: { type: string }
+                        supplierCode: { type: string }
+                        description: { type: string }
+                        invoiceDescription: { type: string }
+                        brand: { type: string, nullable: true }
+                        department: { type: string, nullable: true }
+                        ncm: { type: string }
+                        purchaseUnit: { type: string, example: CX }
+                        saleUnit: { type: string, example: UN }
+                        imageUrl: { type: string, nullable: true }
+                        lastInvoiceAt: { type: string, format: date-time }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Reciprocity' }
+  /markets/{marketId}/inbound-receipts:
+    get:
+      tags: [Entrada pronta]
+      summary: Entradas prontas para gravar no ERP (escopo inbound:read)
+      description: |
+        Cada nota de entrada da loja com os itens já convertidos para unidade de venda, lote, validade e, quando
+        conferida no Confere, as unidades de fato recebidas e a divergência.
+      parameters:
+        - { $ref: '#/components/parameters/marketId' }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 100 } }
+      responses:
+        '200':
+          description: Página de notas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nextSince: { type: string, format: date-time }
+                  hasMore: { type: boolean }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        accessKey: { type: string }
+                        number: { type: string }
+                        series: { type: string }
+                        supplierCnpj: { type: string }
+                        supplierName: { type: string }
+                        issuedAt: { type: string, format: date-time }
+                        totalValue: { type: number }
+                        conferred: { type: boolean }
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              item: { type: integer }
+                              gtin: { type: string }
+                              packGtin: { type: string, nullable: true }
+                              supplierCode: { type: string }
+                              description: { type: string }
+                              invoiceQuantity: { type: number }
+                              invoiceUnit: { type: string }
+                              unitsPerPack: { type: number }
+                              invoiceUnits: { type: number }
+                              receivedUnits: { type: number, nullable: true }
+                              unitCost: { type: number }
+                              lot: { type: string, nullable: true }
+                              expiry: { type: string, format: date, nullable: true }
+                              divergence: { type: string, nullable: true }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Reciprocity' }
+  /webhook:
+    put:
+      tags: [Avisos]
+      summary: Endereço https para receber os avisos
+      description: |
+        Eventos: `order.sent` (pedido enviado ao fornecedor, escopo orders:read) e `price.approved` (preço aprovado
+        pelo lojista, escopo prices:read). O corpo é assinado: `X-MercadoFlow-Signature: sha256=<HMAC-SHA256 em hex>`
+        com o segredo devolvido aqui (só uma vez). Responda 2xx; senão tentamos de novo até 8 vezes, com espera
+        crescente. Envie `url: null` para desligar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string, nullable: true, example: https://erp.exemplo.com.br/mercadoflow }
+      responses:
+        '200':
+          description: Endereço salvo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+                  secret: { type: string }
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  parameters:
+    marketId:
+      name: marketId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    dryRun:
+      name: dryRun
+      in: query
+      schema: { type: boolean, default: false }
+      description: Valida e responde o que faria, sem gravar
+    idem:
+      name: Idempotency-Key
+      in: header
+      schema: { type: string, maxLength: 120 }
+  schemas:
+    TokenRequest:
+      type: object
+      required: [client_id, client_secret]
+      properties:
+        grant_type: { type: string, enum: [client_credentials] }
+        client_id: { type: string }
+        client_secret: { type: string }
+    Scope:
+      type: string
+      enum: [catalog:write, costs:write, prices:write, stock:write, receipts:write, inbound:read, orders:read, prices:read]
+    Batch:
+      type: object
+      properties:
+        received: { type: integer }
+        accepted: { type: integer }
+        rejected: { type: integer }
+        dryRun: { type: boolean }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              index: { type: integer }
+              ref: { type: string, description: GTIN, CNPJ ou número da nota do item }
+              status: { type: string, example: GRAVADO }
+              error: { type: string, nullable: true }
+    Error:
+      type: object
+      properties:
+        erro: { type: string }
+  responses:
+    Batch:
+      description: Resultado item a item (um item recusado não impede os outros)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Batch' }
+    Forbidden:
+      description: A loja não autorizou o seu ERP ou o escopo
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Reciprocity:
+      description: Troca em atraso — envie estoque e preços desta loja
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

@@ -14,6 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SupplierOrderService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerWebhookService partnerWebhooks;
+
+
     private final SupplierOrderRepository orderRepo;
     private final SupplierOrderItemRepository itemRepo;
     private final SupplierRepository supplierRepo;
@@ -168,7 +172,13 @@ public class SupplierOrderService {
 
         order.setStatus(SupplierOrder.Status.ENVIADO);
         order.setSentAt(LocalDateTime.now());
-        return SupplierOrderDTO.from(orderRepo.save(order), true);
+        SupplierOrderDTO sent = SupplierOrderDTO.from(orderRepo.save(order), true);
+        // Pedido decidido pelo dono vai ao ERP integrado (se a loja autorizou).
+        if (partnerWebhooks != null) {
+            orderRepo.flush();
+            partnerWebhooks.orderSent(marketId, orderId);
+        }
+        return sent;
     }
 
     // ── Receber pedido → gera PurchasePriceHistory ────────────────────────────

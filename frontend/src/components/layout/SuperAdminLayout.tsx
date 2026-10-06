@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Bot, Briefcase, ClipboardCheck, CreditCard, Database, Factory, Globe2, Home, LayoutGrid, LayoutTemplate, LogOut, Palette,
+  ArrowRight, Bot, Plug, Briefcase, ClipboardCheck, CreditCard, Database, Factory, Globe2, Home, LayoutGrid, LayoutTemplate, LogOut, Palette,
   Receipt, Search, ShieldCheck, Sparkles, UserSquare2, Users, X, type LucideIcon,
 } from 'lucide-react';
 import type { WorkspaceNavSection } from './WorkspaceSidebar';
@@ -16,6 +16,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/super-admin/precos-estaduais': { title: 'Preços estaduais', subtitle: 'Comparação dos preços praticados entre estados e fontes oficiais', section: 'Dados' },
   '/super-admin/crawler': { title: 'Crawler', subtitle: 'Coletas, reparos e atualização de dados dos supermercados', section: 'Dados' },
   '/super-admin/ofertas': { title: 'Templates de ofertas', subtitle: 'Base visual compartilhada para as contas da plataforma', section: 'Dados' },
+  '/super-admin/parceiros': { title: 'Parceiros ERP', subtitle: 'Cadastro, homologação e lista pública dos ERPs integrados', section: 'Dados' },
   '/super-admin/ia': { title: 'IA e APIs', subtitle: 'Chaves, roteamento, orçamento, piloto e console da IA da plataforma', section: 'Inteligência' },
   '/super-admin/confere': { title: 'Confere', subtitle: 'App grátis de conferência: leitura de notas, créditos e pagamentos', section: 'Conteúdo' },
   '/super-admin/industria': { title: 'Indústrias', subtitle: 'Empresas, carteira de produtos, contratos e prévia', section: 'Indústria' },
@@ -81,6 +82,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         { to: '/super-admin/precos-estaduais', label: 'Preços estaduais', hint: 'Comparação entre estados', icon: Globe2 },
         { to: '/ofertas?workspace=super-admin', label: 'Templates de ofertas', hint: 'Base visual por conta', icon: LayoutTemplate },
         { to: '/super-admin/crawler', label: 'Crawler', hint: 'Coleta e reparo de dados', icon: Bot },
+        { to: '/super-admin/parceiros', label: 'Parceiros ERP', hint: 'API de integração e homologação', icon: Plug },
       ],
     },
     {

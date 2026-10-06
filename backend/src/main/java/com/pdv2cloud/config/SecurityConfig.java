@@ -36,6 +36,9 @@ public class SecurityConfig {
     private JwtAuthenticationFilter jwtAuthFilter;
 
     @Autowired
+    private com.pdv2cloud.security.PartnerAuthenticationFilter partnerAuthFilter;
+
+    @Autowired
     private AgentApiKeyAuthenticationFilter apiKeyAuthFilter;
 
     @Autowired
@@ -89,6 +92,10 @@ public class SecurityConfig {
                 // Servidor MCP: o cliente e um agente externo sem JWT. A autenticacao
                 // e a chave MCP do mercado (McpController / McpKeyService), so leitura.
                 .requestMatchers("/api/v1/mcp").permitAll()
+                // API de integração para ERPs: token e contrato públicos; o resto exige o parceiro.
+                .requestMatchers("/api/v1/partner/oauth/token", "/api/v1/partner/openapi.yaml").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/public/partners").permitAll()
+                .requestMatchers("/api/v1/partner/**").hasRole("PARTNER")
                 // Pareamento do Agente Mercado Flow: o agente ainda nao tem credencial
                 // alguma nestes passos. Protegido por codigo efemero de alta entropia,
                 // segredo do agente e rate limit dedicado (RateLimitFilter).
@@ -109,6 +116,7 @@ public class SecurityConfig {
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(hmacSignatureFilter, AgentApiKeyAuthenticationFilter.class)
+            .addFilterBefore(partnerAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             // Roda apos todos os filtros de autenticacao: popula o TenantContext e
             // valida {marketId} da URL contra o tenant do principal (isolamento estrutural)

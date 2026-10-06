@@ -478,7 +478,7 @@ public class PromoIntelligenceService {
                 reason,
                 metric != null ? metric.unitPrice() : null,
                 suggestedDiscount(metric, "TRACAO"),
-                metric != null ? metric.grossMarginPercent() : null,
+                realMargin(metric),
                 metric != null ? metric.dailyVelocity() : null,
                 metric != null ? metric.coverageDays() : null,
                 metric != null ? metric.inventoryValue() : null,
@@ -518,7 +518,7 @@ public class PromoIntelligenceService {
                     BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP),
                     reason,
                     m.unitPrice(), suggestedDiscount(m, "LIQUIDACAO"),
-                    m.grossMarginPercent(), m.dailyVelocity(), m.coverageDays(),
+                    realMargin(m), m.dailyVelocity(), m.coverageDays(),
                     m.inventoryValue(), null, 0, List.of()
                 );
             })
@@ -543,14 +543,25 @@ public class PromoIntelligenceService {
             base += metric.stagnationRisk().doubleValue() * 15.0;
         }
 
-        if (metric != null && metric.grossMarginPercent() != null) {
-            double margin = metric.grossMarginPercent().doubleValue();
+        BigDecimal real = realMargin(metric);
+        if (real != null) {
+            double margin = real.doubleValue();
             // Teto: 70% da margem, para a venda seguir positiva.
             double ceiling = Math.max(5.0, margin * 0.7);
             base = Math.min(base, ceiling);
         }
 
         return BigDecimal.valueOf(base).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Margem só quando o custo é real. A margem de reserva (25% para todo produto
+     * sem custo) não pode virar "teto seguro" de desconto nem ir para a tela
+     * como se fosse do produto (docs/PROPOSTA-DECISOES-E-INTEGRACAO.md).
+     */
+    static BigDecimal realMargin(CapitalMetric metric) {
+        if (metric == null || metric.grossMarginPercent() == null) return null;
+        return "MARGIN_ESTIMATE".equals(metric.costSource()) ? null : metric.grossMarginPercent();
     }
 
     private static String money(BigDecimal value) {

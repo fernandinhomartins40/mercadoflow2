@@ -9,6 +9,7 @@ import ActivationChecklist from '../components/activation/ActivationChecklist';
 import CollectingBanner from '../components/activation/CollectingBanner';
 import { ActionHub, Card, Chip, Forest, PageHero, PanelTitle, PillTabs, Row, Thumb } from '../components/flow/Flow';
 import DailyBriefCard from '../components/intelligence/DailyBriefCard';
+import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { useActivation } from '../hooks/useActivation';
 import { useAuth } from '../context/AuthContext';
 import { operationService, type OperationMetric, type OperationPanel, type OperationPeriod, type OperationProduct } from '../services/operation.service';
@@ -367,6 +368,8 @@ const Dashboard: React.FC = () => {
       </div>
 
       <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
+
+      <CostCoverageCard marketId={marketId} />
 
       <h2 className="fx-section-title" style={{ margin: '8px 0 0' }}>Como a loja vendeu</h2>
       <PillTabs<OperationPeriod> label="Período" value={period} onChange={setPeriod} tabs={[

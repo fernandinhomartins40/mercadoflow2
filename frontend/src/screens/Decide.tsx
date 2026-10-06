@@ -4,6 +4,7 @@ import { CheckCircle2, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play
 import Layout from '../components/layout/Layout';
 import { ActionHub, Card, Chip, PageHero, PanelTitle, PillTabs, Thumb } from '../components/flow/Flow';
 import RecommendationDesk from '../components/intelligence/RecommendationDesk';
+import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
 import DecisionFeedback from '../components/intelligence/DecisionFeedback';
 import CapitalPlanTab from '../components/capital/CapitalPlanTab';
@@ -161,7 +162,7 @@ const Decide: React.FC = () => {
     if (!marketId) return null;
     if (it.key === 'lote:comprar') return <SuggestionsPanel key="lote" marketId={marketId} suggestions={buySugs} onChanged={reloadAll} />;
     if (it.decision) return <DecisionDesk key={it.key} marketId={marketId} decision={it.decision} onDecided={onTinoDecided} />;
-    if (it.rec) return <RecommendationDesk key={it.key} rec={it.rec} deciding={deciding === it.rec.id} onDecide={decide} />;
+    if (it.rec) return <RecommendationDesk key={it.key} rec={it.rec} marketId={marketId} deciding={deciding === it.rec.id} onDecide={decide} />;
     const opp = signals.find((o) => `sinal:${o.id}` === it.key);
     return opp ? <OpportunityPanel key={it.key} marketId={marketId} opp={opp} onDismiss={dismiss} /> : null;
   };
@@ -201,6 +202,8 @@ const Decide: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {(filter === 'tudo' || filter === 'promover' || filter === 'capital' || filter === 'comprar') && <CostCoverageCard marketId={marketId} compact />}
 
           {queue.loading ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : list.length === 0 ? (
             <Card style={{ textAlign: 'center', padding: 36 }}>

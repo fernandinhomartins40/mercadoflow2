@@ -26,7 +26,8 @@ public class DecisionItemsService {
 
     public record Item(String id, String action, String name, String image, String detail, BigDecimal qty, BigDecimal suggestedQty,
                        String unit, BigDecimal unitCost, BigDecimal value, BigDecimal price, BigDecimal suggestedPrice,
-                       BigDecimal discountPct, String supplier, String status, List<String> reasons) {}
+                       BigDecimal discountPct, String supplier, String status, List<String> reasons,
+                       String productId, String costSource) {}
 
     public record Items(String kind, String supplier, String reference, List<Item> items, String message) {}
 
@@ -83,6 +84,9 @@ public class DecisionItemsService {
         String image = r.get("image_url") == null ? null : String.valueOf(r.get("image_url"));
         UUID productId = (UUID) r.get("product_id");
         Map<String, Object> last = productId == null ? Map.of() : lastPurchase(marketId, productId);
+        Object[] known = productId == null ? null : knownCost(marketId, productId);
+        BigDecimal knownCost = known != null ? (BigDecimal) known[0] : (BigDecimal) last.get("cost");
+        String knownSource = known != null ? (String) known[1] : last.get("cost") != null ? "SUPPLIER_ORDER" : null;
         String supplier = (String) last.get("supplier");
         List<String> reasons = new ArrayList<>();
         BigDecimal giro = dec(ev, "giroDiario");
@@ -101,12 +105,12 @@ public class DecisionItemsService {
                         reasons.add("estoque para " + cover.setScale(0, RoundingMode.HALF_UP) + " dias");
                     }
                     return new Item(String.valueOf(r.get("id")), "REDUZIR", name, image, "Comprar menos na próxima", null, null, "un.",
-                        null, null, null, null, null, supplier, status, reasons);
+                        null, null, null, null, null, supplier, status, reasons, productId == null ? null : productId.toString(), knownSource);
                 }
                 BigDecimal qty = dec(params, "quantidade");
                 qty = qty == null ? null : qty.setScale(0, RoundingMode.HALF_UP).max(BigDecimal.ONE);
                 BigDecimal suggested = dec(params, "quantidadeSugerida") != null ? dec(params, "quantidadeSugerida") : qty;
-                BigDecimal cost = (BigDecimal) last.get("cost");
+                BigDecimal cost = knownCost;
                 BigDecimal estimated = dec(params, "valorEstimado");
                 if (cost == null && estimated != null && qty != null && qty.signum() > 0) {
                     BigDecimal base = dec(params, "quantidadeSugerida") != null ? dec(params, "quantidadeSugerida") : qty;
@@ -117,7 +121,7 @@ public class DecisionItemsService {
                 }
                 BigDecimal value = cost != null && qty != null ? cost.multiply(qty).setScale(2, RoundingMode.HALF_UP) : estimated;
                 return new Item(String.valueOf(r.get("id")), "COMPRAR", name, image, null, qty, suggested, "un.", cost, value, null, null,
-                    null, supplier, status, reasons);
+                    null, supplier, status, reasons, productId == null ? null : productId.toString(), knownSource);
             }
             case "LIQUIDAR" -> {
                 BigDecimal stockValue = dec(params, "valorEstoque");
@@ -129,8 +133,8 @@ public class DecisionItemsService {
                 }
                 BigDecimal price = dec(ev, "precoAtual");
                 BigDecimal suggestedPrice = dec(params, "precoLiquidacao");
-                return new Item(String.valueOf(r.get("id")), "LIQUIDAR", name, image, null, null, null, "un.", null, stockValue, price,
-                    suggestedPrice, null, supplier, status, reasons);
+                return new Item(String.valueOf(r.get("id")), "LIQUIDAR", name, image, null, null, null, "un.", knownCost, stockValue, price,
+                    suggestedPrice, null, supplier, status, reasons, productId == null ? null : productId.toString(), knownSource);
             }
             case "PROMOVER" -> {
                 BigDecimal price = dec(params, "precoAtual");
@@ -141,9 +145,13 @@ public class DecisionItemsService {
                 BigDecimal margin = dec(ev, "margemPercent");
                 if (margin != null) {
                     reasons.add("margem de " + margin.setScale(0, RoundingMode.HALF_UP) + "%");
+                } else {
+                    reasons.add("sem custo registrado");
                 }
-                return new Item(String.valueOf(r.get("id")), "PROMOVER", name, image, null, null, null, "un.", null, null, price, newPrice,
-                    disc, supplier, status, reasons);
+                BigDecimal informed = dec(params, "precoInformado");
+                if (informed != null) newPrice = informed;
+                return new Item(String.valueOf(r.get("id")), "PROMOVER", name, image, null, null, null, "un.", knownCost, null, price, newPrice,
+                    disc, supplier, status, reasons, productId == null ? null : productId.toString(), knownSource);
             }
             case "AJUSTAR_PRECO" -> {
                 BigDecimal price = dec(params, "precoAtual");
@@ -151,13 +159,21 @@ public class DecisionItemsService {
                 reasons.add("referência do mercado: R$ " + (dec(params, "precoReferencia") == null ? "—"
                     : dec(params, "precoReferencia").setScale(2, RoundingMode.HALF_UP).toPlainString().replace('.', ',')));
                 return new Item(String.valueOf(r.get("id")), "PRECO", name, image, null, null, null, "un.", null, null, price, ref, null,
-                    supplier, status, reasons);
+                    supplier, status, reasons, productId == null ? null : productId.toString(), knownSource);
             }
             default -> {
                 return new Item(String.valueOf(r.get("id")), type, name, image, String.valueOf(r.get("title")), null, null, null, null,
-                    null, null, null, null, supplier, status, reasons);
+                    null, null, null, null, supplier, status, reasons, productId == null ? null : productId.toString(), knownSource);
             }
         }
+    }
+
+    /** Último custo registrado (compra, NF-e, informado ou ERP) e a fonte. */
+    private Object[] knownCost(UUID marketId, UUID productId) {
+        List<Map<String, Object>> r = jdbc.queryForList("select unit_cost, source from purchase_price_history "
+            + "where market_id = :m and product_id = :p and unit_cost > 0 order by purchased_at desc limit 1",
+            Map.of("m", marketId, "p", productId));
+        return r.isEmpty() ? null : new Object[] { r.get(0).get("unit_cost"), r.get(0).get("source") };
     }
 
     private Map<String, Object> lastPurchase(UUID marketId, UUID productId) {
@@ -209,7 +225,7 @@ public class DecisionItemsService {
                     line == null || line.get("image_url") == null ? null : String.valueOf(line.get("image_url")), detail, qty, expected,
                     unit, unitPrice, value, null, null, null, null, null,
                     expected == null || qty == null ? List.of() : List.of("veio " + expected.subtract(qty).stripTrailingZeros().toPlainString()
-                        + " de " + expected.stripTrailingZeros().toPlainString() + " " + (unit == null ? "" : unit).toLowerCase())));
+                        + " de " + expected.stripTrailingZeros().toPlainString() + " " + (unit == null ? "" : unit).toLowerCase()), null, null));
             }
         }
         return new Items("ENTREGA", row.get("emitter_name") == null ? null : String.valueOf(row.get("emitter_name")),
@@ -256,6 +272,17 @@ public class DecisionItemsService {
         changed += setParam(marketId, ids, adj.get("descontos"), "descontoPercent", "descontoSugerido");
         changed += setParam(marketId, ids, adj.get("precos"), "precoNovo", null);
         changed += setParam(marketId, ids, adj.get("precosLiquidacao"), "precoLiquidacao", null);
+        changed += setParam(marketId, ids, adj.get("precosPromocao"), "precoInformado", null);
+        changed += saveCosts(marketId, ids, adj.get("custos"), actor);
+        // Preço da promoção informado em R$: o desconto passa a ser derivado dele.
+        if (adj.get("precosPromocao") instanceof Map<?, ?> pp && !pp.isEmpty()) {
+            jdbc.update("update recommendations set parameters = parameters || jsonb_build_object('descontoPercent', "
+                + "round((1 - cast(parameters->>'precoInformado' as numeric) / nullif(cast(parameters->>'precoAtual' as numeric), 0)) * 100, 1)) "
+                + "where market_id = :m and id = any(cast(:ids as uuid[])) and parameters ? 'precoInformado' and parameters ? 'precoAtual'",
+                new MapSqlParameterSource().addValue("m", marketId)
+                    .addValue("ids", pp.keySet().stream().map(String::valueOf).filter(ids::contains)
+                        .collect(java.util.stream.Collectors.joining(",", "{", "}"))));
+        }
         if (payload.containsKey("recommendationIds")) {
             out.put("recommendationIds", ids);
         }
@@ -266,6 +293,68 @@ public class DecisionItemsService {
         summary.put("itensTirados", removed);
         summary.put("itensAjustados", changed);
         return out;
+    }
+
+    /** Custo informado por item: fica na recomendação e no histórico (source MANUAL). */
+    private int saveCosts(UUID marketId, List<String> ids, Object values, String actor) {
+        if (!(values instanceof Map<?, ?> map)) return 0;
+        int n = 0;
+        for (Map.Entry<?, ?> e : map.entrySet()) {
+            String id = String.valueOf(e.getKey());
+            if (!ids.contains(id) || !(e.getValue() instanceof Number num) || num.doubleValue() <= 0) continue;
+            BigDecimal cost = new BigDecimal(num.toString());
+            MapSqlParameterSource p = new MapSqlParameterSource().addValue("m", marketId).addValue("id", id).addValue("c", cost)
+                .addValue("u", actor == null ? "lojista" : actor);
+            n += jdbc.update("update recommendations set parameters = coalesce(parameters, '{}'::jsonb) || jsonb_build_object('custoInformado', cast(:c as numeric)) "
+                + "where market_id = :m and id = cast(:id as uuid) and status = 'PROPOSTA'", p);
+            jdbc.update("insert into purchase_price_history (market_id, product_id, quantity_purchased, unit_cost, source, note, purchased_at) "
+                + "select r.market_id, coalesce(op.product_id, cast(r.parameters->>'produtoId' as uuid)), 0, :c, 'MANUAL', 'Informado no Copiloto por ' || :u, now() "
+                + "from recommendations r join opportunities op on op.id = r.opportunity_id "
+                + "where r.market_id = :m and r.id = cast(:id as uuid) and coalesce(op.product_id, cast(r.parameters->>'produtoId' as uuid)) is not null", p);
+        }
+        return n;
+    }
+
+    /**
+     * Promover, liquidar e comprar não são aprovados às cegas: cada item precisa
+     * de custo (registrado ou informado agora) e, para promover e liquidar, do
+     * preço que será praticado. Devolve os nomes que faltam; vazio = pode aprovar.
+     */
+    @SuppressWarnings("unchecked")
+    public List<String> missingInputs(UUID marketId, Map<String, Object> payload, Map<String, Object> adj) {
+        List<String> ids = new ArrayList<>((List<String>) payload.getOrDefault("recommendationIds", List.of()));
+        Map<String, Object> a = adj == null ? Map.of() : adj;
+        if (a.get("excluir") instanceof List<?> ex) ids.removeAll(ex.stream().map(String::valueOf).toList());
+        if (ids.isEmpty()) return List.of();
+        Map<?, ?> costs = a.get("custos") instanceof Map<?, ?> m ? m : Map.of();
+        Map<?, ?> promo = a.get("precosPromocao") instanceof Map<?, ?> m ? m : Map.of();
+        Map<?, ?> clear = a.get("precosLiquidacao") instanceof Map<?, ?> m ? m : Map.of();
+        List<Map<String, Object>> rows = jdbc.queryForList(
+            "select r.id::text as id, r.action_type, r.parameters->>'precoInformado' as preco_informado, "
+                + "r.parameters->>'precoLiquidacao' as preco_liquidacao, r.parameters->>'acao' as acao, coalesce(p.name, r.title) as name, "
+                + "(select h.unit_cost from purchase_price_history h where h.market_id = r.market_id and h.product_id = coalesce(op.product_id, cast(r.parameters->>'produtoId' as uuid)) "
+                + "   and h.unit_cost > 0 order by h.purchased_at desc limit 1) as known_cost, "
+                + "(select i.unit_cost from supplier_order_items i join supplier_orders so on so.id = i.supplier_order_id "
+                + "   where so.market_id = r.market_id and i.product_id = coalesce(op.product_id, cast(r.parameters->>'produtoId' as uuid)) "
+                + "   and i.unit_cost > 0 order by so.created_at desc limit 1) as order_cost "
+                + "from recommendations r join opportunities op on op.id = r.opportunity_id left join products p on p.id = op.product_id "
+                + "where r.market_id = :m and r.id = any(cast(:ids as uuid[]))",
+            new MapSqlParameterSource().addValue("m", marketId)
+                .addValue("ids", ids.stream().collect(java.util.stream.Collectors.joining(",", "{", "}"))));
+        List<String> missing = new ArrayList<>();
+        for (Map<String, Object> r : rows) {
+            String id = String.valueOf(r.get("id"));
+            String action = String.valueOf(r.get("action_type"));
+            if ("reduzir_proxima_compra".equals(r.get("acao")) || "AJUSTAR_PRECO".equals(action) || "INVESTIGAR".equals(action)) continue;
+            boolean hasCost = costs.containsKey(id) || r.get("known_cost") != null || r.get("order_cost") != null;
+            boolean hasPrice = switch (action) {
+                case "PROMOVER" -> promo.containsKey(id) || r.get("preco_informado") != null;
+                case "LIQUIDAR" -> clear.containsKey(id) || r.get("preco_liquidacao") != null;
+                default -> true;
+            };
+            if (!hasCost || !hasPrice) missing.add(String.valueOf(r.get("name")));
+        }
+        return missing;
     }
 
     private int setParam(UUID marketId, List<String> ids, Object values, String key, String keepOriginalAs) {

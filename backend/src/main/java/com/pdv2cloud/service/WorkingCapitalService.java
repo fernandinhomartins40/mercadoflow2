@@ -429,9 +429,21 @@ public class WorkingCapitalService {
             "                                    where i.market_id = :marketId and it.product_id = e.product_id) " +
             "), " +
             "purchase_rows as ( " +
-            "  select product_id, quantity_purchased as q, purchased_at as at from purchase_price_history where market_id = :marketId " +
+            // Custo informado sem compra (MANUAL/ERP com quantidade 0) não é entrada.
+            "  select product_id, quantity_purchased as q, purchased_at as at from purchase_price_history " +
+            "  where market_id = :marketId and quantity_purchased > 0 " +
             "  union all select product_id, received_units, received_at from confere_ok " +
             "), " +
+            // Contagem informada (lojista ou ERP): ponto de partida do estoque.
+            "last_count as ( " +
+            "  select distinct on (product_id) product_id, units, counted_at from stock_counts " +
+            "  where market_id = :marketId order by product_id, counted_at desc " +
+            "), " +
+            "count_in as ( select pr.product_id, sum(pr.q) as q from purchase_rows pr " +
+            "  join last_count lc on lc.product_id = pr.product_id and pr.at > lc.counted_at group by pr.product_id ), " +
+            "count_out as ( select it.product_id, sum(it.quantidade) as q from invoice_items it " +
+            "  join invoices i on i.id = it.invoice_id join last_count lc on lc.product_id = it.product_id " +
+            "  where i.market_id = :marketId and i.data_emissao > lc.counted_at group by it.product_id ), " +
             "purchases as ( " +
             "  select product_id, " +
             "         sum(q)   as purchased_units, " +
@@ -459,7 +471,8 @@ public class WorkingCapitalService {
             "  where i.market_id = :marketId and i.data_emissao >= pu.first_purchase_at " +
             "  group by it.product_id " +
             ") " +
-            "select coalesce(pu.product_id, sa.product_id) as product_id, " +
+            "select coalesce(pu.product_id, sa.product_id, lc.product_id) as product_id, " +
+            "       lc.units as count_units, coalesce(ci.q, 0) as count_in, coalesce(co.q, 0) as count_out, " +
             "       coalesce(pu.purchased_units, 0)        as purchased_units, " +
             "       coalesce(sa.sold_units, 0)             as sold_units, " +
             "       coalesce(saf.sold_after, 0)            as sold_after_first_purchase, " +
@@ -467,7 +480,10 @@ public class WorkingCapitalService {
             "       sa.last_sale_at " +
             "from purchases pu " +
             "full outer join sales sa on sa.product_id = pu.product_id " +
-            "left join sales_after_first_purchase saf on saf.product_id = pu.product_id";
+            "left join sales_after_first_purchase saf on saf.product_id = pu.product_id " +
+            "full outer join last_count lc on lc.product_id = coalesce(pu.product_id, sa.product_id) " +
+            "left join count_in ci on ci.product_id = lc.product_id " +
+            "left join count_out co on co.product_id = lc.product_id";
 
         Map<UUID, InventoryInfo> out = new HashMap<>();
         jdbcTemplate.query(sql, new MapSqlParameterSource("marketId", marketId), rs -> {
@@ -481,7 +497,14 @@ public class WorkingCapitalService {
             String reason;
             BigDecimal units;
 
-            if (purchased.signum() <= 0) {
+            BigDecimal counted = rs.getBigDecimal("count_units");
+            if (counted != null) {
+                // Contagem informada: contagem + entradas depois dela − vendas depois dela.
+                BigDecimal fromCount = counted.add(nonNull(rs.getBigDecimal("count_in"))).subtract(nonNull(rs.getBigDecimal("count_out")));
+                units = fromCount.signum() < 0 ? null : fromCount;
+                confidence = fromCount.signum() < 0 ? 0.15 : 0.9;
+                reason = fromCount.signum() < 0 ? "ENTRADA_NAO_REGISTRADA" : "CONTAGEM_INFORMADA";
+            } else if (purchased.signum() <= 0) {
                 // Desconhecido, não zero: tratar como zero fazia a cobertura dar
                 // 0 dia e o sistema sugerir compra de todo produto vendido
                 // (896 sugestões abertas na auditoria de 06/10/2026).

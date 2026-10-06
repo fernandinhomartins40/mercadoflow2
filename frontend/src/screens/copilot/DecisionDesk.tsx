@@ -6,6 +6,13 @@ import {
   copilotAgentsService, type CopilotDecision, type DecisionAdjustments, type DecisionItem, type DecisionItems,
 } from '../../services/aiPlatform.service';
 import { AGENT, REASONS, agentOf, apiError, certainty, when } from './shared';
+import CostPriceFields from '../../components/intelligence/CostPriceFields';
+import { moneyInput, parseMoney } from '../../services/decisionInputs.service';
+
+/** Itens que não se aprovam às cegas: custo sempre; preço praticado em promover e liquidar. */
+const NEEDS_COST = new Set(['COMPRAR', 'PROMOVER', 'LIQUIDAR']);
+const promoDefault = (i: DecisionItem) =>
+  i.suggestedPrice ?? (i.price != null ? Math.round(i.price * (1 - (i.discountPct ?? 0) / 100) * 100) / 100 : null);
 
 /**
  * A decisão aberta, como mesa de trabalho: etapas, itens editáveis (quantidade,
@@ -69,6 +76,8 @@ const DecisionDesk: React.FC<{
   const [qty, setQty] = useState<Record<string, number>>({});
   const [disc, setDisc] = useState<Record<string, number>>({});
   const [price, setPrice] = useState<Record<string, number>>({});
+  const [costs, setCosts] = useState<Record<string, string>>({});
+  const [actPrice, setActPrice] = useState<Record<string, string>>({});
   const [choice, setChoice] = useState<Record<string, Choice>>({});
   const [msg, setMsg] = useState('');
   const [msgEdited, setMsgEdited] = useState(false);
@@ -86,7 +95,7 @@ const DecisionDesk: React.FC<{
 
   useEffect(() => {
     let alive = true;
-    setData(null); setOff(new Set()); setQty({}); setDisc({}); setPrice({}); setChoice({}); setMsgEdited(false); setTouched(false);
+    setData(null); setOff(new Set()); setQty({}); setDisc({}); setPrice({}); setCosts({}); setActPrice({}); setChoice({}); setMsgEdited(false); setTouched(false);
     setWhy(d.explanation); setRefusing(false); setDone(null); setError(null);
     copilotAgentsService.items(marketId, d.id).then((r) => {
       if (!alive) return;
@@ -94,6 +103,15 @@ const DecisionDesk: React.FC<{
       const c: Record<string, Choice> = {};
       r.items.forEach((i) => { c[i.id] = defaultChoice(i); });
       setChoice(c);
+      const cs: Record<string, string> = {};
+      const ap: Record<string, string> = {};
+      r.items.forEach((i) => {
+        if (NEEDS_COST.has(i.action)) cs[i.id] = moneyInput(i.unitCost);
+        if (i.action === 'PROMOVER') ap[i.id] = moneyInput(promoDefault(i));
+        if (i.action === 'LIQUIDAR') ap[i.id] = moneyInput(i.suggestedPrice ?? i.price);
+      });
+      setCosts(cs);
+      setActPrice(ap);
       // Começa com a mensagem que o agente preparou; só é refeita quando o lojista muda uma escolha.
       setMsg(r.message || (r.kind === 'ENTREGA' ? buildMessage(r.supplier, r.reference, r.items, c) : ''));
     }).catch(() => { if (alive) setData({ kind: 'TEXTO', supplier: null, reference: null, items: [], message: null }); });
@@ -107,8 +125,8 @@ const DecisionDesk: React.FC<{
 
   const items = data?.items ?? [];
   const lineValue = (i: DecisionItem) => {
-    if (i.action === 'COMPRAR') return (qty[i.id] ?? i.qty ?? 0) * (i.unitCost ?? 0);
-    if (i.action === 'PROMOVER' && i.price != null) return i.price * (1 - (disc[i.id] ?? i.discountPct ?? 0) / 100);
+    if (i.action === 'COMPRAR') return (qty[i.id] ?? i.qty ?? 0) * (parseMoney(costs[i.id] ?? '') ?? i.unitCost ?? 0);
+    if (i.action === 'PROMOVER') return parseMoney(actPrice[i.id] ?? '') ?? 0;
     return i.value ?? 0;
   };
   const total = useMemo(() => {
@@ -122,7 +140,7 @@ const DecisionDesk: React.FC<{
     }
     return d.impact ?? null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, items, choice, off, qty, disc, d.impact]);
+  }, [data, items, choice, off, qty, disc, costs, actPrice, d.impact]);
 
   useEffect(() => { onValue?.(d.id, total == null ? null : Number(total)); }, [total, d.id, onValue]);
 
@@ -135,13 +153,28 @@ const DecisionDesk: React.FC<{
     if (off.size) adj.excluir = [...off];
     if (Object.keys(qty).length) adj.quantidades = qty;
     if (Object.keys(disc).length) adj.descontos = disc;
-    if (Object.keys(price).length) {
-      const liq: Record<string, number> = {};
-      const pr: Record<string, number> = {};
-      Object.entries(price).forEach(([k, v]) => { const it = items.find((i) => i.id === k); if (it?.action === 'LIQUIDAR') liq[k] = v; else pr[k] = v; });
-      if (Object.keys(liq).length) adj.precosLiquidacao = liq;
-      if (Object.keys(pr).length) adj.precos = pr;
+    if (Object.keys(price).length) adj.precos = price;
+    // Custo e preço praticado de cada item marcado: sem eles a decisão não sai.
+    const missing: string[] = [];
+    const custos: Record<string, number> = {};
+    const promo: Record<string, number> = {};
+    const liq: Record<string, number> = {};
+    items.filter((i) => !off.has(i.id) && NEEDS_COST.has(i.action)).forEach((i) => {
+      const c = parseMoney(costs[i.id] ?? '');
+      const p = i.action === 'COMPRAR' ? null : parseMoney(actPrice[i.id] ?? '');
+      if (c == null || c <= 0 || (i.action !== 'COMPRAR' && (p == null || p <= 0))) { missing.push(i.name); return; }
+      if (c !== i.unitCost) custos[i.id] = c;
+      if (i.action === 'PROMOVER') promo[i.id] = p!;
+      if (i.action === 'LIQUIDAR') liq[i.id] = p!;
+    });
+    if (missing.length) {
+      setBusy(null);
+      setError(`Informe custo e preço de: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ` e mais ${missing.length - 4}` : ''}.`);
+      return;
     }
+    if (Object.keys(custos).length) adj.custos = custos;
+    if (Object.keys(promo).length) adj.precosPromocao = promo;
+    if (Object.keys(liq).length) adj.precosLiquidacao = liq;
     if (data?.kind === 'ENTREGA' && msg.trim()) adj.mensagem = msg.trim();
     try {
       const r = await copilotAgentsService.approve(marketId, d.id, adj);
@@ -280,7 +313,7 @@ const DecisionDesk: React.FC<{
           )}
 
           {data.kind === 'RECOMENDACOES' && <RecommendationItems items={data.items} off={off} toggle={toggle} qty={qty} setQty={setQty}
-            disc={disc} setDisc={setDisc} price={price} setPrice={setPrice} lineValue={lineValue} />}
+            price={price} setPrice={setPrice} costs={costs} setCosts={setCosts} actPrice={actPrice} setActPrice={setActPrice} lineValue={lineValue} />}
 
           {data.kind === 'TEXTO' && (
             <div className="fx-white"><p style={{ margin: 0, whiteSpace: 'pre-line', lineHeight: 1.55 }}>{d.body}</p></div>
@@ -371,10 +404,11 @@ function impactText(agent: string) {
 const RecommendationItems: React.FC<{
   items: DecisionItem[]; off: Set<string>; toggle: (id: string) => void;
   qty: Record<string, number>; setQty: (q: Record<string, number>) => void;
-  disc: Record<string, number>; setDisc: (q: Record<string, number>) => void;
   price: Record<string, number>; setPrice: (q: Record<string, number>) => void;
+  costs: Record<string, string>; setCosts: (q: Record<string, string>) => void;
+  actPrice: Record<string, string>; setActPrice: (q: Record<string, string>) => void;
   lineValue: (i: DecisionItem) => number;
-}> = ({ items, off, toggle, qty, setQty, disc, setDisc, price, setPrice, lineValue }) => {
+}> = ({ items, off, toggle, qty, setQty, price, setPrice, costs, setCosts, actPrice, setActPrice, lineValue }) => {
   const buys = items.filter((i) => i.action === 'COMPRAR');
   const groups = new Map<string, DecisionItem[]>();
   buys.forEach((i) => { const k = i.supplier ?? 'Fornecedor a escolher'; groups.set(k, [...(groups.get(k) ?? []), i]); });
@@ -408,7 +442,13 @@ const RecommendationItems: React.FC<{
                     </span>
                     <span className="fx-hint">{i.suggestedQty != null && q !== Number(i.suggestedQty) ? `sugerido ${i.suggestedQty}` : 'sugerido'}</span>
                   </div>
-                  <div className="fx-item-val"><span>{i.unitCost != null ? `${brl(i.unitCost)}/${i.unit ?? 'un.'}` : 'custo a confirmar'}</span><b>{brl(lineValue(i))}</b></div>
+                  <div className="fx-item-val">
+                    {i.unitCost != null ? <span>{brl(i.unitCost)}/{i.unit ?? 'un.'}</span> : (
+                      <input className="fx-input fx-num" inputMode="decimal" value={costs[i.id] ?? ''} placeholder="custo/un." style={{ width: 96, textAlign: 'right', padding: '6px 8px' }}
+                        aria-label={`Custo de ${i.name}`} onChange={(e) => setCosts({ ...costs, [i.id]: e.target.value })} />
+                    )}
+                    <b>{brl(lineValue(i))}</b>
+                  </div>
                 </div>
               );
             })}
@@ -437,7 +477,7 @@ const RecommendationItems: React.FC<{
       {others.length > 0 && (
         <div className="fx-items">
           {others.map((i) => {
-            const d0 = disc[i.id] ?? i.discountPct ?? 0;
+            const act = i.action === 'PROMOVER' || i.action === 'LIQUIDAR';
             return (
               <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -447,18 +487,18 @@ const RecommendationItems: React.FC<{
                 <div style={{ minWidth: 0 }}>
                   <div className="fx-item-name">{i.name}</div>
                   {i.reasons.length > 0 && <div className="fx-reasons">{i.reasons.map((r) => <span key={r}>{r}</span>)}</div>}
-                  {i.action === 'PROMOVER' && i.price != null && (
-                    <label className="fx-field" style={{ marginTop: 8, maxWidth: 320 }}>
-                      Desconto: <b style={{ color: 'var(--fx-ink)' }}>{d0}%</b>
-                      <input type="range" min={0} max={40} value={d0} onChange={(e) => setDisc({ ...disc, [i.id]: Number(e.target.value) })}
-                        style={{ accentColor: 'var(--fx-green)' }} aria-label={`Desconto de ${i.name}`} />
-                    </label>
+                  {act && (
+                    <div style={{ marginTop: 10 }}>
+                      <CostPriceFields compact name={i.name} cost={costs[i.id] ?? ''} onCost={(v) => setCosts({ ...costs, [i.id]: v })}
+                        costSource={i.costSource} price={actPrice[i.id] ?? ''} onPrice={(v) => setActPrice({ ...actPrice, [i.id]: v })}
+                        priceLabel={i.action === 'LIQUIDAR' ? 'Preço de liquidação' : 'Preço da promoção'} currentPrice={i.price} />
+                    </div>
                   )}
                 </div>
                 <div className="ctl">
-                  {(i.action === 'LIQUIDAR' || i.action === 'PRECO') && i.price != null && (
+                  {i.action === 'PRECO' && i.price != null && (
                     <label className="fx-field" style={{ alignItems: 'flex-end' }}>
-                      {i.action === 'LIQUIDAR' ? 'Preço de liquidação' : 'Preço novo'}
+                      Preço novo
                       <input className="fx-input fx-num" style={{ width: 110, textAlign: 'right' }} inputMode="decimal" aria-label={`Preço de ${i.name}`}
                         defaultValue={(price[i.id] ?? i.suggestedPrice ?? i.price).toFixed(2).replace('.', ',')}
                         onBlur={(e) => { const v = parseFloat(e.target.value.replace(',', '.')); if (v > 0) setPrice({ ...price, [i.id]: v }); }} />

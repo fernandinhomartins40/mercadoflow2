@@ -285,6 +285,9 @@ export interface DecisionItem {
   supplier: string | null;
   status: string | null;
   reasons: string[];
+  productId?: string | null;
+  /** De onde veio o custo (nota, ERP, informado). */
+  costSource?: string | null;
 }
 
 export interface DecisionItems {
@@ -302,6 +305,10 @@ export interface DecisionAdjustments {
   descontos?: Record<string, number>;
   precos?: Record<string, number>;
   precosLiquidacao?: Record<string, number>;
+  /** Preço da promoção em R$ por item (substitui o desconto em %). */
+  precosPromocao?: Record<string, number>;
+  /** Custo por unidade informado na hora de decidir. */
+  custos?: Record<string, number>;
   mensagem?: string;
 }
 

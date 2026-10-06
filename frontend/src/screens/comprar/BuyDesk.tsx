@@ -9,6 +9,7 @@ import DecisionFeedback from '../../components/intelligence/DecisionFeedback';
 import { useRecommendationDecision } from '../../hooks/useRecommendationDecision';
 import { marketService } from '../../services/market.service';
 import { formatMoney } from '../../utils/formatters';
+import { COST_SOURCE_LABEL, decisionInputsService, moneyInput, parseMoney, type KnownInputs } from '../../services/decisionInputs.service';
 import type { RecommendationItem, ShoppingListItem, SupplierOrder } from '../../types/analytics.types';
 
 /**
@@ -154,10 +155,49 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
   const chosen = suggestions.filter((r) => !off.has(r.id));
   const total = chosen.reduce((a, r) => a + Number(r.expectedImpactValue || 0), 0);
   const toggle = (id: string) => setOff((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  // Custo por item: vem preenchido da nota, do ERP ou do que você já informou; sem ele a compra não entra.
+  const [known, setKnown] = useState<Record<string, KnownInputs>>({});
+  const [costs, setCosts] = useState<Record<string, string>>({});
+  const [missing, setMissing] = useState<string | null>(null);
+  const pid = (r: RecommendationItem) => r.productId || r.parameters?.produtoId || null;
+  const idsKey = suggestions.map((r) => pid(r)).filter(Boolean).join(',');
+  useEffect(() => {
+    const ids = idsKey ? idsKey.split(',') : [];
+    if (!ids.length) return;
+    let alive = true;
+    decisionInputsService.known(marketId, ids).then((list) => {
+      if (!alive) return;
+      const byId: Record<string, KnownInputs> = {};
+      list.forEach((k) => { byId[k.productId] = k; });
+      setKnown(byId);
+      setCosts((cur) => {
+        const next = { ...cur };
+        suggestions.forEach((r) => { const k = byId[pid(r) ?? '']; if (next[r.id] == null && k?.unitCost != null) next[r.id] = moneyInput(k.unitCost); });
+        return next;
+      });
+    }).catch(() => undefined);
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketId, idsKey]);
+
+  const accept = async (r: RecommendationItem) => {
+    const c = parseMoney(costs[r.id] ?? '');
+    const id = pid(r);
+    if (c == null || c <= 0) { setMissing(`Informe o custo de ${r.productName || r.title}.`); return false; }
+    setMissing(null);
+    if (id && c !== known[id]?.unitCost) await decisionInputsService.save(marketId, [{ productId: id, unitCost: c }], r.id).catch(() => undefined);
+    await decide(r.id, 'ACEITA');
+    return true;
+  };
 
   const putAll = async () => {
+    const without = chosen.filter((r) => { const c = parseMoney(costs[r.id] ?? ''); return c == null || c <= 0; });
+    if (without.length) {
+      setMissing(`Falta o custo de ${without.length === 1 ? (without[0].productName || without[0].title) : `${without.length} produtos`}. Digite o da última compra.`);
+      return;
+    }
     setBulk(true);
-    try { for (const r of chosen) await decide(r.id, 'ACEITA'); } finally { setBulk(false); }
+    try { for (const r of chosen) await accept(r); } finally { setBulk(false); }
   };
 
   return (
@@ -172,6 +212,7 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
       </div>
       {feedback && <div style={{ marginTop: 12 }}><DecisionFeedback feedback={feedback} marketId={marketId} onChange={setFeedback} onUndone={onChanged} /></div>}
       {error && <p role="alert" className="fx-chip red" style={{ whiteSpace: 'normal', marginTop: 12 }}>{error}</p>}
+      {missing && <p role="alert" className="fx-chip red" style={{ whiteSpace: 'normal', marginTop: 12 }}>{missing}</p>}
       <div className="fx-items" role="list" aria-label="Produtos sugeridos" style={{ marginTop: 14 }}>
         {suggestions.map((r) => {
           const on = !off.has(r.id);
@@ -182,13 +223,26 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
               <div style={{ minWidth: 0 }}>
                 <div className="fx-item-name">{r.productName || r.title}</div>
                 <div className="fx-item-detail">{r.rationale}</div>
+                <label className="fx-field" style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  Custo R$/un.
+                  <input className="fx-input fx-num" inputMode="decimal" value={costs[r.id] ?? ''} placeholder="0,00" style={{ width: 96, textAlign: 'right' }}
+                    aria-label={`Custo de ${r.productName || r.title}`} onChange={(e) => setCosts({ ...costs, [r.id]: e.target.value })} />
+                  <span className="fx-muted" style={{ fontSize: 12.5 }}>
+                    {(() => {
+                      const k = known[pid(r) ?? ''];
+                      if (k?.unitCost != null && parseMoney(costs[r.id] ?? '') === k.unitCost) return COST_SOURCE_LABEL[k.costSource ?? ''] ?? '';
+                      if (!costs[r.id] && k?.pendingNfe) return 'está na nota não conferida no Confere';
+                      return !costs[r.id] ? 'sem custo registrado' : '';
+                    })()}
+                  </span>
+                </label>
               </div>
               <div className="fx-item-val">
                 <span>{r.parameters?.quantidade ? `${r.parameters.quantidade} un.` : 'Impacto'}</span>
                 <b>{r.expectedImpactValue ? formatMoney(r.expectedImpactValue) : '—'}</b>
               </div>
               <div className="ctl" style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="fx-btn dark small" disabled={!!deciding || bulk} onClick={() => decide(r.id, 'ACEITA')}>
+                <button type="button" className="fx-btn dark small" disabled={!!deciding || bulk} onClick={() => { void accept(r); }}>
                   {deciding === r.id ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}Pôr no pedido
                 </button>
                 <button type="button" className="fx-btn ghost small" disabled={!!deciding || bulk} onClick={() => decide(r.id, 'REJEITADA')} aria-label={`Não comprar ${r.productName || r.title}`}>

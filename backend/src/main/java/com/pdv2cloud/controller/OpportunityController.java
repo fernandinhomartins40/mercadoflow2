@@ -56,6 +56,12 @@ public class OpportunityController {
     private final PlanService planService;
     private final RecommendationOrderService recommendationOrderService;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.decision.DecisionInputsService decisionInputsService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerWebhookService partnerWebhooks;
+
     public OpportunityController(
         OpportunityEngine opportunityEngine,
         RecommendationEngine recommendationEngine,
@@ -245,9 +251,18 @@ public class OpportunityController {
         }
 
         // Aceitar uma compra já coloca o produto no rascunho do fornecedor (D-011).
+        if (decision == com.pdv2cloud.model.entity.Recommendation.Status.ACEITA) {
+            String missing = decisionInputsService.missingForRecommendation(marketId, recommendationId);
+            if (missing != null) {
+                throw new IllegalArgumentException(missing);
+            }
+        }
         RecommendationOrderService.DecisionResult result = recommendationOrderService.decide(
             marketId, recommendationId, decision, authentication.getName(), body.get("note"),
             parseUuid(body.get("supplierId")));
+        if (decision == Recommendation.Status.ACEITA && partnerWebhooks != null) {
+            partnerWebhooks.priceApprovedFromRecommendation(marketId, recommendationId, authentication.getName());
+        }
         return ResponseEntity.ok(RecommendationDTO.from(result.recommendation(), result.orderLink()));
     }
 
