@@ -228,3 +228,29 @@ Proposta para decisão. **Nada disto foi implementado.**
 **Decisões que dependem de você:**
 - **Custo:** sem histórico de compra, aceita custo estimado, sempre marcado, até chegar o real pela NF-e de entrada? Ou prefere mostrar só giro e unidades até haver custo real?
 - **Envio do atraso:** espera o agente terminar (2 a 6 dias) antes de recalibrar tração e sazonalidade, ou corrige as fórmulas já, com a marcação de completude?
+
+---
+
+## 8. O que foi implementado (06/10/2026, commit b33666c)
+
+Decisões tomadas com as opções recomendadas: custo estimado sempre marcado, e as fórmulas corrigidas já, comparando só dias completos.
+
+| Item | Feito | Validado em produção (só leitura) antes de subir |
+|---|---|---|
+| Completude do histórico | `DataCompletenessService`: dia completo quando tem ≥ 25% do p75 do mesmo dia da semana. Endpoint `/analytics/data-completeness` e aviso em todas as telas. | Ago e set: 31/31 e 30/30 completos. Jan a mai: 0–1 por mês. |
+| Tendência | Receita por dia completo; sem base (< 50% de dias completos antes), fica nula. | Antes, +361% na loja inteira. |
+| Momento e venda por dia | Série do calendário só com dias completos (zero onde não vendeu). Com menos de 28 dias completos, o momento fica neutro. | — |
+| Sazonalidade | Média por dia completo do calendário; mês com menos de 10 dias completos não ganha índice. | — |
+| Tração (nova, V81) | Resto do cupom contra cupons do mesmo tamanho, com z-score e parceiros (lift ≥ 1,5, ≥ 5 cupons). | 395 produtos avaliados; efeito médio −R$ 0,59, ou seja, o controle funciona. **4 produtos com efeito firme** (aveia Nestlé +R$ 30,60/cupom, Raffaello +R$ 4,90, sabonete Palmolive +R$ 21,38, mamão formosa +R$ 13,63). 8.586 pares de parceiros. |
+| Halo de promoção | Venda por 100 cupons do dia, só dias completos. | O maior candidato (Hershey's) tem **0 dias de promoção em dias completos**. O −94,8% era artefato. Hoje não há promoção suficiente em dados completos para medir halo. |
+| Cesta gravada | Corte por lift ≥ 1,5 e ≥ 5 cupons. A cesta deixou de ser recalculada a cada nota. | 1.896 pares com lift ≥ 2. |
+| Estoque desconhecido | Nulo, e não zero (sem compra ou saldo negativo). Sem quantidade sugerida e sem "liquidar". V82 encerra o que nasceu do erro. | **870** compras abertas e **21** liquidações, todas com confiança de estoque 0. |
+| Custo | NF-e de entrada do Confere entra como custo e como entrada de estoque só quando custo/preço fica entre 0,30 e 1,05. A tela mostra a fonte, com "ESTIMADA" quando for o caso. | Coca 2L (0,82) aceita; "CC LT6" (lata contra pack) e caixas descartadas. |
+| Jobs | 3 linhas no agendador. Materialização em etapas, cada uma com transação e log próprios. O ciclo de 5 min refaz só o capital. Preço em lotes de 100 com cursor (V81). | — |
+| Telas | Início abre em "Quem puxa a venda", "Giro" e "Decida agora"; as vendas vêm depois, como contexto. Produtos abre em "Puxam venda". A ficha do produto tem a aba "Tração e giro". | — |
+
+**Continua dependendo de dados:**
+- o agente terminar de enviar as ~37 mil notas;
+- haver registro de compras (Confere ou pedidos) para o capital em reais e o estoque.
+
+Até lá, o giro aparece em unidades por dia, e o dinheiro parado não aparece.
