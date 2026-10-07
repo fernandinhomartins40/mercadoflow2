@@ -21,6 +21,7 @@ import { useCached } from '../hooks/useCached';
 import { tractionService, type ProductTraction } from '../services/traction.service';
 import workingCapitalService, { type CapitalScoreboard as ScoreData, type GiroSummary } from '../services/workingCapital.service';
 import CapitalScoreboard from '../components/capital/CapitalScoreboard';
+import { marketService, type OutcomesSummary } from '../services/market.service';
 import { paceLabel, rankLabel } from '../utils/plain';
 
 /**
@@ -280,6 +281,8 @@ const Dashboard: React.FC = () => {
   // Placar do capital (F2): o número principal do Início é o dinheiro da loja.
   const score = useCached<ScoreData>(marketId && ready ? `placar:${marketId}` : null,
     () => workingCapitalService.getScoreboard(marketId!), 10 * 60_000);
+  const results = useCached<OutcomesSummary>(marketId && ready ? `resultado30:${marketId}` : null,
+    () => marketService.getOutcomesSummary(marketId!, 30), 10 * 60_000);
   const portfolio = useCached<GiroSummary>(marketId && ready ? `giro2:${marketId}` : null,
     () => workingCapitalService.getGiro(marketId!), 10 * 60_000);
   const extras = useExtras(ready ? marketId ?? null : null);
@@ -373,7 +376,7 @@ const Dashboard: React.FC = () => {
         <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
       )}
 
-      <CapitalScoreboard score={sc} loading={score.loading} />
+      <CapitalScoreboard score={sc} loading={score.loading} results={results.data} />
 
       <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
 

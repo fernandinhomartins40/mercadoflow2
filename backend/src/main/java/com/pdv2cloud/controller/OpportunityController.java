@@ -345,6 +345,39 @@ public class OpportunityController {
      * É a tela que fecha o ciclo — sem ela, o usuário decide no escuro para
      * sempre e o sistema nunca ganha crédito pelos acertos.
      */
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate outcomeJdbc;
+
+    /**
+     * "No que deu" em reais (F4 do plano de experiência): o resultado somado das
+     * decisões medidas no período. Em todos os planos — é a prova de que o
+     * sistema ajuda. Venda antes e depois vêm das fotos congeladas na decisão.
+     */
+    @GetMapping("/outcomes/summary")
+    public Map<String, Object> outcomesSummary(@PathVariable("marketId") UUID marketId,
+                                               @RequestParam(value = "days", defaultValue = "30") int days,
+                                               Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        int window = Math.max(7, Math.min(days, 365));
+        org.springframework.jdbc.core.namedparam.MapSqlParameterSource p =
+            new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("m", marketId).addValue("d", window);
+        Map<String, Object> out = new LinkedHashMap<>(outcomeJdbc.queryForMap(
+            "select count(*) filter (where verdict in ('ACERTOU', 'PARCIAL', 'ERROU')) as \"medidas\", "
+                + "count(*) filter (where verdict = 'ACERTOU') as \"acertos\", "
+                + "count(*) filter (where verdict = 'PARCIAL') as \"parciais\", "
+                + "count(*) filter (where verdict = 'ERROU') as \"erros\", "
+                + "coalesce(sum(nullif(actual_snapshot ->> 'receita', '')::numeric) filter (where action_type = 'LIQUIDAR' and verdict in ('ACERTOU', 'PARCIAL')), 0) as \"dinheiroDeVolta\", "
+                + "coalesce(sum(greatest(0, nullif(actual_snapshot ->> 'receita', '')::numeric - coalesce(nullif(baseline_snapshot ->> 'receita', '')::numeric, 0))) "
+                + "  filter (where action_type in ('PROMOVER', 'AJUSTAR_PRECO') and verdict = 'ACERTOU'), 0) as \"vendaAMais\", "
+                + "coalesce(sum(nullif(actual_snapshot ->> 'receita', '')::numeric) filter (where action_type = 'COMPRAR' and verdict = 'ACERTOU'), 0) as \"vendaGarantida\" "
+                + "from recommendation_outcomes where market_id = :m and measured_at >= now() - make_interval(days => :d)", p));
+        out.putAll(outcomeJdbc.queryForMap(
+            "select count(*) as \"aguardando\", min(measure_after) as \"proximaMedicao\" "
+                + "from recommendation_outcomes where market_id = :m and measured_at is null", p));
+        out.put("dias", window);
+        return out;
+    }
+
     @GetMapping("/outcomes")
     public ResponseEntity<Map<String, Object>> outcomes(
         @PathVariable("marketId") UUID marketId,

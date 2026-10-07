@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, Eye, Loader2, X } from 'lucide-react';
 import { Card, Chip, Kpi, PanelTitle } from '../../components/flow/Flow';
 import { ACTION_LABEL } from '../../components/intelligence/RecommendationCard';
-import { marketService } from '../../services/market.service';
+import { marketService, type OutcomesSummary } from '../../services/market.service';
 import { copilotAgentsService, type CopilotDecision } from '../../services/aiPlatform.service';
 import { formatDecimal, formatMoney } from '../../utils/formatters';
 import HistoryView from '../copilot/HistoryView';
@@ -30,8 +30,10 @@ const Results: React.FC<{ marketId: string }> = ({ marketId }) => {
   const [tracking, setTracking] = useState<OpportunityItem[]>([]);
   const [tino, setTino] = useState<CopilotDecision[]>([]);
   const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<OutcomesSummary | null>(null);
 
   const load = useCallback(async () => {
+    marketService.getOutcomesSummary(marketId, 30).then(setSummary).catch(() => undefined);
     const [o, h, opp, dec, alone, mute] = await Promise.allSettled([
       marketService.getOutcomes(marketId),
       marketService.getDecisionHistory(marketId),
@@ -71,6 +73,19 @@ const Results: React.FC<{ marketId: string }> = ({ marketId }) => {
 
   return (
     <div className="fx-stack" style={{ gap: 18 }}>
+      {summary && (
+        <Card>
+          <PanelTitle title="Suas decisões nos últimos 30 dias" sub={summary.medidas > 0
+            ? `${summary.acertos} de ${summary.medidas} funcionaram${summary.parciais ? `, ${summary.parciais} em parte` : ''}`
+            : summary.aguardando > 0 ? `${summary.aguardando} ${summary.aguardando === 1 ? 'decisão aceita está' : 'decisões aceitas estão'} sendo acompanhadas${summary.proximaMedicao ? `; a primeira medição sai em ${date(summary.proximaMedicao)}` : ''}` : 'Aceite uma decisão em "Para decidir": 30 dias depois ela aparece aqui, em reais.'} />
+          <div className="fx-kpis" style={{ marginTop: 14 }}>
+            <Kpi label="Dinheiro de volta ao caixa" value={formatMoney(summary.dinheiroDeVolta)} hint="venda dos produtos que você liquidou" />
+            <Kpi label="Venda a mais" value={formatMoney(summary.vendaAMais)} hint="promoções e preços que funcionaram" />
+            <Kpi label="Venda garantida" value={formatMoney(summary.vendaGarantida)} hint="compras que escoaram sem sobrar" />
+          </div>
+        </Card>
+      )}
+
       <div className="fx-kpis">
         <Kpi label="Em acompanhamento" value={tracking.length} hint="decisões aceitas esperando o efeito" icon={Eye} />
         <Kpi label="Deu certo" value={score.measured > 0 ? `${score.worked} de ${score.measured}` : '—'} hint="medido 30 dias depois" />

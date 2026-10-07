@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowUpRight, ClipboardCheck, Plug, Wallet } from 'luci
 import { Card, Chip, PanelTitle } from '../flow/Flow';
 import { formatMoney } from '../../utils/formatters';
 import type { CapitalScoreboard as Score } from '../../services/workingCapital.service';
+import type { OutcomesSummary } from '../../services/market.service';
 
 /**
  * "Seu dinheiro na loja" (F2 do plano de experiência): o capital de giro em
@@ -38,7 +39,7 @@ const daysText = (v: number | null | undefined) => {
   return d < 1 ? 'menos de 1 dia' : `${d} ${d === 1 ? 'dia' : 'dias'}`;
 };
 
-const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean }> = ({ score: s, loading }) => {
+const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean; results?: OutcomesSummary }> = ({ score: s, loading, results }) => {
   if (!s) {
     return loading ? <div className="fx-kpis" aria-hidden="true">{[0, 1, 2, 3].map((i) => <div key={i} className="fx-kpi animate-pulse" style={{ height: 120 }} />)}</div> : null;
   }
@@ -74,6 +75,16 @@ const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean 
           <Delta now={s.idleValue} then={s.baseline?.idleValue} since={since} goodWhenDown unit="money" />
         </Link>
       </div>
+      {results && results.medidas > 0 && (
+        <Link to="/app/decidir?aba=resultado" className="fx-row" style={{ marginTop: 14, color: 'inherit', textDecoration: 'none' }}>
+          <span style={{ flex: 1, fontSize: 14.5 }}>
+            <b>Suas decisões em 30 dias:</b>{' '}
+            {[Number(results.dinheiroDeVolta) > 0 ? `${money0(results.dinheiroDeVolta)} voltaram ao caixa` : null,
+              Number(results.vendaAMais) > 0 ? `${money0(results.vendaAMais)} de venda a mais` : null,
+              `${results.acertos} de ${results.medidas} funcionaram`].filter(Boolean).join(' · ')}
+          </span>
+        </Link>
+      )}
       {needsMeasure && (
         <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="fx-muted" style={{ fontSize: 13.5 }}>

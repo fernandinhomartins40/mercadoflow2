@@ -1,4 +1,20 @@
 import api from './api';
+
+export interface OutcomesSummary {
+  medidas: number;
+  acertos: number;
+  parciais: number;
+  erros: number;
+  /** Venda dos produtos liquidados no período: o dinheiro que voltou ao caixa. */
+  dinheiroDeVolta: number;
+  /** Venda a mais das promoções e ajustes de preço que funcionaram. */
+  vendaAMais: number;
+  /** Venda dos produtos repostos que escoaram. */
+  vendaGarantida: number;
+  aguardando: number;
+  proximaMedicao: string | null;
+  dias: number;
+}
 import type { OpportunityFeed } from '../types/analytics.types';
 
 export const marketService = {
@@ -85,6 +101,12 @@ export const marketService = {
       `/v1/markets/${marketId}/opportunities/recommendations/${recommendationId}/undo`,
     );
     return response.data as { recommendation: unknown; orderKept: boolean };
+  },
+
+  /** "No que deu" em reais: o resultado somado das decisões medidas no período (F4). */
+  async getOutcomesSummary(marketId: string, days = 30): Promise<OutcomesSummary> {
+    const response = await api.get(`/v1/markets/${marketId}/opportunities/outcomes/summary`, { params: { days } });
+    return response.data;
   },
 
   async getOutcomes(marketId: string) {
