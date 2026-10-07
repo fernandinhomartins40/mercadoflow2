@@ -281,7 +281,11 @@ public class ProductIntelligenceMaterializer {
                     + "  priority_score = excluded.priority_score, "
                     + "  gross_margin_percent = excluded.gross_margin_percent, "
                     + "  unit_price = excluded.unit_price, "
-                    + "  inventory_value = excluded.inventory_value",
+                    + "  inventory_value = excluded.inventory_value "
+                    // Sem mudança, nada é regravado: cada rodada tocava as 6,5 mil linhas
+                    // do dia e a tabela inchava (97 mil UPDATEs em poucas horas).
+                    + "where (product_metric_history.revenue, product_metric_history.quantity_sold, product_metric_history.daily_velocity, product_metric_history.abc_class, product_metric_history.xyz_class, product_metric_history.capital_status, product_metric_history.gmroi, product_metric_history.coverage_days, product_metric_history.momentum_score, product_metric_history.stagnation_risk, product_metric_history.priority_score, product_metric_history.gross_margin_percent, product_metric_history.unit_price, product_metric_history.inventory_value) "
+                    + "is distinct from (excluded.revenue, excluded.quantity_sold, excluded.daily_velocity, excluded.abc_class, excluded.xyz_class, excluded.capital_status, excluded.gmroi, excluded.coverage_days, excluded.momentum_score, excluded.stagnation_risk, excluded.priority_score, excluded.gross_margin_percent, excluded.unit_price, excluded.inventory_value)",
             batch);
 
         return results.length;

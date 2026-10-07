@@ -180,6 +180,10 @@ services:
       # O container de jobs tambem precisa: e ele quem interpreta as
       # oportunidades no batch noturno, decifrando a chave de cada mercado.
       - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
+    # Arquivo morto: detalhe antigo que sai do banco vira .csv.gz aqui
+    # (retenção do preço estadual), recuperável a qualquer momento.
+    volumes:
+      - ./data/archive:/opt/pdv2cloud/archive
     mem_limit: 640m
     memswap_limit: 640m
     # Medido em 2026-09-25: o cron chegou a 195% de CPU numa VPS de 2 vCPU

@@ -8,6 +8,8 @@ import com.pdv2cloud.model.entity.Invoice;
 import com.pdv2cloud.model.entity.PriceEventDirection;
 import com.pdv2cloud.model.entity.PriceIntelligenceCheckpoint;
 import com.pdv2cloud.model.entity.ProductPriceDailyStat;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import com.pdv2cloud.model.entity.ProductPriceEvent;
 import com.pdv2cloud.model.entity.ProductPromotionWindow;
 import com.pdv2cloud.model.entity.PromotionWindowStatus;
@@ -51,6 +53,9 @@ public class PriceIntelligenceService {
 
     @Autowired
     private ProductPriceDailyStatRepository dailyStatRepository;
+
+    @Autowired
+    private NamedParameterJdbcTemplate namedJdbc;
 
     @Autowired
     private ProductPriceEventRepository eventRepository;
@@ -118,6 +123,44 @@ public class PriceIntelligenceService {
         log.info("Linha do tempo de preco do mercado {}: {} produto(s) refeito(s) ate {}", marketId, pending.size(), targetFinal);
     }
 
+    /**
+     * Grava só o dia novo ou o dia que mudou, e apaga só o dia que deixou de
+     * existir. Antes cada venda nova de um produto apagava e reinseria todo o
+     * histórico diário dele: 196 mil exclusões em poucas horas e 20 MB de dados
+     * ocupando 431 MB (06/10/2026).
+     */
+    private void upsertDailyStats(UUID marketId, UUID productId, List<ProductPriceDailyStat> stats) {
+        MapSqlParameterSource[] rows = stats.stream().map(st -> new MapSqlParameterSource()
+            .addValue("m", marketId).addValue("p", productId).addValue("d", st.getStatDate())
+            .addValue("w", st.getWeightedAvgPrice()).addValue("med", st.getMedianPrice())
+            .addValue("mn", st.getMinPrice()).addValue("mx", st.getMaxPrice())
+            .addValue("sd", st.getStdDevPrice()).addValue("mad", st.getMadPrice())
+            .addValue("q", st.getTotalQuantity()).addValue("r", st.getTotalRevenue())
+            .addValue("c", st.getTransactionCount())).toArray(MapSqlParameterSource[]::new);
+        if (rows.length > 0) {
+            namedJdbc.batchUpdate(
+                "insert into product_price_daily_stats (id, market_id, product_id, stat_date, weighted_avg_price, median_price, "
+                    + "min_price, max_price, std_dev_price, mad_price, total_quantity, total_revenue, transaction_count, created_at, updated_at) "
+                    + "values (gen_random_uuid(), :m, :p, :d, :w, :med, :mn, :mx, :sd, :mad, :q, :r, :c, now(), now()) "
+                    + "on conflict (market_id, product_id, stat_date) do update set "
+                    + "weighted_avg_price = excluded.weighted_avg_price, median_price = excluded.median_price, "
+                    + "min_price = excluded.min_price, max_price = excluded.max_price, std_dev_price = excluded.std_dev_price, "
+                    + "mad_price = excluded.mad_price, total_quantity = excluded.total_quantity, "
+                    + "total_revenue = excluded.total_revenue, transaction_count = excluded.transaction_count, updated_at = now() "
+                    + "where (product_price_daily_stats.weighted_avg_price, product_price_daily_stats.median_price, "
+                    + "product_price_daily_stats.min_price, product_price_daily_stats.max_price, product_price_daily_stats.std_dev_price, "
+                    + "product_price_daily_stats.mad_price, product_price_daily_stats.total_quantity, "
+                    + "product_price_daily_stats.total_revenue, product_price_daily_stats.transaction_count) "
+                    + "is distinct from (excluded.weighted_avg_price, excluded.median_price, excluded.min_price, excluded.max_price, "
+                    + "excluded.std_dev_price, excluded.mad_price, excluded.total_quantity, excluded.total_revenue, excluded.transaction_count)",
+                rows);
+        }
+        String days = stats.stream().map(st -> st.getStatDate().toString()).collect(java.util.stream.Collectors.joining(",", "{", "}"));
+        namedJdbc.update(
+            "delete from product_price_daily_stats where market_id = :m and product_id = :p and not (stat_date = any(cast(:days as date[])))",
+            new MapSqlParameterSource("m", marketId).addValue("p", productId).addValue("days", days));
+    }
+
     private void saveProgress(UUID marketId, LocalDateTime lastObservedAt, LocalDateTime target, UUID cursor) {
         PriceIntelligenceCheckpoint entity = checkpointRepository.findById(marketId).orElseGet(() -> {
             PriceIntelligenceCheckpoint created = new PriceIntelligenceCheckpoint();
@@ -165,11 +208,11 @@ public class PriceIntelligenceService {
         List<ProductObservationSnapshot> observations = productObservationRepository
             .findSnapshotsByMarketIdAndProductIdOrderByObservedAtAsc(marketId, productId);
 
-        dailyStatRepository.deleteByMarketIdAndProductId(marketId, productId);
         eventRepository.deleteByMarketIdAndProductId(marketId, productId);
         promotionWindowRepository.deleteByMarketIdAndProductId(marketId, productId);
 
         if (observations.isEmpty()) {
+            dailyStatRepository.deleteByMarketIdAndProductId(marketId, productId);
             return;
         }
 
@@ -246,7 +289,7 @@ public class PriceIntelligenceService {
             })
             .toList();
 
-        dailyStatRepository.saveAll(statEntities);
+        upsertDailyStats(marketId, productId, statEntities);
         eventRepository.saveAll(eventEntities);
         promotionWindowRepository.saveAll(windowEntities);
     }

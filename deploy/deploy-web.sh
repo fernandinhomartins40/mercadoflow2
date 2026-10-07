@@ -335,27 +335,42 @@ EOF
 }
 
 prune_backups() {
-  # Mantem UM backup por dia (o mais recente daquele dia) nos ultimos 7 dias.
+  # Rodizio: um backup por dia nos ultimos 7 dias distintos e, alem disso, um
+  # por semana (o mais recente de cada semana ISO) nas 4 semanas anteriores.
+  # Com dumps em zstd (menos da metade do gzip) os 11 cabem em menos espaco
+  # que os 7 de antes (06/10/2026).
   #
-  # A regra anterior ("os 3 mais recentes") guardava tres dumps de 338 MB do
-  # MESMO dia quando havia tres deploys, ou seja, 1 GB protegendo contra nada
-  # alem do ultimo deploy. Por dia, o mesmo espaco cobre uma semana.
-  local f dia
-  declare -A visto=()
+  # A regra anterior a 14/09 ("os 3 mais recentes") guardava tres dumps do
+  # MESMO dia quando havia tres deploys: 1 GB protegendo so o ultimo deploy.
+  local f dia semana
+  local diarios=0 semanais=0
+  declare -A dia_visto=() semana_vista=()
 
   while IFS= read -r f; do
     [[ -f "$f" ]] || continue
     dia="$(basename "$f" | sed -n 's/^backup_\([0-9]\{8\}\)_.*/\1/p')"
     [[ -n "$dia" ]] || continue
-    if [[ -n "${visto[$dia]:-}" ]]; then
+    if [[ -n "${dia_visto[$dia]:-}" ]]; then
       rm -f "$f"
-    else
-      visto[$dia]=1
+      continue
     fi
-  done < <(ls -t "${APP_DIR}"/backups/backup_*.dump 2>/dev/null)
-
-  # Alem de sete dias distintos, descarta os mais antigos.
-  ls -t "${APP_DIR}"/backups/backup_*.dump 2>/dev/null | tail -n +8 | xargs -r rm -f
+    dia_visto[$dia]=1
+    if (( diarios < 7 )); then
+      diarios=$((diarios + 1))
+      semana="$(date -d "$dia" +%G%V 2>/dev/null)"
+      [[ -n "$semana" ]] && semana_vista[$semana]=1
+      continue
+    fi
+    semana="$(date -d "$dia" +%G%V 2>/dev/null)"
+    if [[ -n "$semana" && -z "${semana_vista[$semana]:-}" ]] && (( semanais < 4 )); then
+      semana_vista[$semana]=1
+      semanais=$((semanais + 1))
+      continue
+    fi
+    rm -f "$f"
+  # Pelo carimbo do nome (backup_AAAAMMDD_HHMMSS), do mais novo ao mais antigo:
+  # a data de modificacao muda quando o arquivo e copiado.
+  done < <(ls -1 "${APP_DIR}"/backups/backup_*.dump 2>/dev/null | sort -r)
 }
 
 backup_database() {
@@ -383,8 +398,9 @@ backup_database() {
   local backup_file="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).dump"
   local container_dump="/tmp/pdv2cloud_backup.dump"
 
-  log "Gerando backup comprimido do PostgreSQL"
-  if docker exec "$container_name" sh -lc "pg_dump -Fc -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -f '${container_dump}'" \
+  # zstd: 59% menor que o gzip padrao do -Fc na maior tabela (medido em 06/10/2026).
+  log "Gerando backup comprimido (zstd) do PostgreSQL"
+  if docker exec "$container_name" sh -lc "pg_dump -Fc -Z zstd:6 -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -f '${container_dump}'" \
     && docker exec "$container_name" sh -lc "pg_restore -l '${container_dump}' >/dev/null"; then
     docker cp "${container_name}:${container_dump}" "$backup_file"
     docker exec "$container_name" rm -f "${container_dump}" >/dev/null 2>&1 || true
@@ -709,6 +725,7 @@ main() {
 
   mkdir -p data/catalog/images
   mkdir -p data/catalog/runs
+  mkdir -p data/archive
 
   ensure_secret_file ".jwt_secret" 64 "JWT secret"
   ensure_secret_file ".db_secret" 16 "senha do PostgreSQL"

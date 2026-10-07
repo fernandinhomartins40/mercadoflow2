@@ -58,9 +58,11 @@ public class OpportunityEngine {
      *
      * Antes cada rodada (a cada 5 minutos, pelo ciclo adaptativo) regravava
      * todas as oportunidades abertas: em produção eram 17 mil UPDATEs por linha
-     * e a tabela de 2 MB de dados ocupava 1,6 GB.
+     * e a tabela de 2 MB de dados ocupava 1,6 GB. Com 1 hora ainda eram 24
+     * regravações por linha ao dia (06/10/2026: 3,7 MB de dados em 1,9 GB);
+     * 12 horas mantém duas renovações antes do corte de 36 horas.
      */
-    private static final int HEARTBEAT_HOURS = 1;
+    private static final int HEARTBEAT_HOURS = 12;
 
     private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() { };

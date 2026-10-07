@@ -187,6 +187,9 @@ public class CatalogImageStorageService {
         if (imagePath == null || !Files.isRegularFile(imagePath)) {
             return MediaType.APPLICATION_OCTET_STREAM;
         }
+        if (imagePath.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".webp")) {
+            return MediaType.parseMediaType("image/webp");
+        }
         try {
             String detected = Files.probeContentType(imagePath);
             if (detected != null && !detected.isBlank()) {
@@ -295,7 +298,24 @@ public class CatalogImageStorageService {
             log.warn("Rejected catalog image path outside storage dir | key={}", normalizedStorageKey);
             return null;
         }
+        // Fotos convertidas para WebP (scripts/catalog/convert_images_webp.py) mantêm
+        // o endereço .jpg do cadastro: se o original não existe mais, vale o .webp.
+        if (!Files.exists(resolved)) {
+            Path webp = webpSibling(resolved);
+            if (webp != null && Files.isRegularFile(webp)) {
+                return webp;
+            }
+        }
         return resolved;
+    }
+
+    static Path webpSibling(Path path) {
+        String name = path.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0 || name.substring(dot).equalsIgnoreCase(".webp")) {
+            return null;
+        }
+        return path.resolveSibling(name.substring(0, dot) + ".webp");
     }
 
     private String resolveRecoverySourceUrl(String imageStorageKey, String imageUrl) {

@@ -13,6 +13,10 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 GTIN_RE = re.compile(r"^\d{8,14}$")
 
+# Foto de produto: 1000 px no lado maior cobre do card ao encarte impresso.
+MAX_SIDE = 1000
+WEBP_QUALITY = 80
+
 
 def norm_text(value: Any) -> str:
     if value is None:
@@ -64,10 +68,14 @@ class OptimizedImageStore:
         key = self._build_storage_key(identity)
         target = self.base_dir / key
         target.parent.mkdir(parents=True, exist_ok=True)
-        if target.exists() and target.is_file() and target.stat().st_size > 0:
-            normalized = key.replace("\\", "/")
-            self.cache[url] = normalized
-            return normalized
+        # Fotos convertidas para WebP mantêm a chave .jpg (o backend entrega o .webp):
+        # sem olhar o .webp, o coletor baixaria tudo de novo em JPG.
+        webp_target = target.with_suffix(".webp")
+        for existing in (target, webp_target):
+            if existing.exists() and existing.is_file() and existing.stat().st_size > 0:
+                normalized = key.replace("\\", "/")
+                self.cache[url] = normalized
+                return normalized
 
         response = self.session.get(url, stream=True, timeout=timeout_sec, allow_redirects=True)
         response.raise_for_status()
@@ -87,8 +95,9 @@ class OptimizedImageStore:
 
         payload.seek(0)
         normalized_image = self._normalize_image(payload)
-        with target.open("wb") as handle:
-            normalized_image.save(handle, format="JPEG", quality=82, optimize=True, progressive=True)
+        # WebP: 25-35% menor que o JPEG na mesma qualidade (ver convert_images_webp.py).
+        with webp_target.open("wb") as handle:
+            normalized_image.save(handle, format="WEBP", quality=WEBP_QUALITY, method=4)
 
         normalized = key.replace("\\", "/")
         self.cache[url] = normalized
@@ -108,6 +117,6 @@ class OptimizedImageStore:
                 image = image.convert("RGB")
 
             max_side = max(image.size)
-            if max_side > 1600:
-                image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            if max_side > MAX_SIDE:
+                image.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
             return image.copy()
