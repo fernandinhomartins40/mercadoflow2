@@ -77,6 +77,24 @@ public class WorkingCapitalService {
     /** Ciclo de compra alvo: quantos dias de venda cada pedido deve cobrir. */
     private static final int TARGET_COVERAGE_DAYS = 21;
 
+    private static final java.util.regex.Pattern PERISHABLE_SHORT = java.util.regex.Pattern.compile(
+        "HORTI|FRUTA|VERDURA|LEGUME|FLV|PADARIA|PAES|PAO |CONFEITARIA|ROTISSERIA");
+    private static final java.util.regex.Pattern PERISHABLE_MEDIUM = java.util.regex.Pattern.compile(
+        "ACOUGUE|CARNE|AVES|FRANGO|PEIXE|PESCADO|FRIOS|LATICINIO|IOGURTE|QUEIJO|RESFRIADO|EMBUTIDO");
+
+    /**
+     * Quantos dias de venda a compra deve cobrir. Perecível não pode ter três
+     * semanas de estoque: a auditoria de 07/10/2026 achou "comprar 1.812 kg de
+     * tomate" porque toda a loja usava 21 dias.
+     */
+    static int coverageDaysFor(String category, String name) {
+        String text = java.text.Normalizer.normalize((category == null ? "" : category) + " " + (name == null ? "" : name) + " ",
+            java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase(java.util.Locale.ROOT);
+        if (PERISHABLE_SHORT.matcher(text).find()) return 3;
+        if (PERISHABLE_MEDIUM.matcher(text).find()) return 7;
+        return TARGET_COVERAGE_DAYS;
+    }
+
     /** Acima disso o capital está exposto demais para o giro do produto. */
     private static final double EXCESS_COVERAGE_DAYS = 60;
 
@@ -727,14 +745,15 @@ public class WorkingCapitalService {
          * baixo, e comprar pela média empilha estoque justamente no item que
          * está morrendo.
          */
-        int horizon = TARGET_COVERAGE_DAYS + leadTimeDays;
+        int coverageTarget = coverageDaysFor(sale.category(), sale.name());
+        int horizon = coverageTarget + leadTimeDays;
         boolean usingForecast = forecast != null && forecast.covers(horizon);
         double expectedDailyDemand = usingForecast
             ? forecast.dailyAverage().doubleValue()
             : dailyVelocity;
 
         double reorderPoint = expectedDailyDemand * leadTimeDays + safetyStock;
-        double targetStock = expectedDailyDemand * TARGET_COVERAGE_DAYS + safetyStock;
+        double targetStock = expectedDailyDemand * coverageTarget + safetyStock;
 
         // Estoque em trânsito é estoque: pedido já enviado ao fornecedor não
         // precisa ser comprado de novo. Sem descontar, a sugestão manda comprar

@@ -18,6 +18,16 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
         + "order by r.expectedImpactValue desc nulls last, r.createdAt desc")
     List<Recommendation> findPendingByMarket(@Param("marketId") UUID marketId);
 
+    /** Recomendações sem decisão cuja situação já acabou: saem da fila. */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "update recommendations r set status = 'EXPIRADA' from opportunities o "
+        + "where o.id = r.opportunity_id and r.market_id = :marketId and r.status = 'PROPOSTA' "
+        + "and o.status not in ('NOVA', 'VISTA', 'EM_ACAO')", nativeQuery = true)
+    int expireOrphans(@Param("marketId") UUID marketId);
+
+    @Query("select r from Recommendation r where r.opportunity.id = :opportunityId and r.status = 'PROPOSTA'")
+    List<Recommendation> findProposedForOpportunity(@Param("opportunityId") UUID opportunityId);
+
     @Query("select r from Recommendation r "
         + "join fetch r.opportunity o left join fetch o.product "
         + "where r.market.id = :marketId and r.status in ('ACEITA', 'REJEITADA', 'EXECUTADA') "

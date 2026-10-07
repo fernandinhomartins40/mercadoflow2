@@ -265,9 +265,9 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
           </div>
         </div>
         <div className="fx-impact">
-          <h3><Sparkles size={18} aria-hidden="true" />Impacto da compra</h3>
+          <h3><Sparkles size={18} aria-hidden="true" />Margem que a compra traz</h3>
           <span className="fx-money fx-num">{formatMoney(total)}</span>
-          <p>Venda protegida dos produtos marcados nas próximas semanas.</p>
+          <p>Investimento: {formatMoney(chosen.reduce((a, r) => a + Number(r.parameters?.valorEstimado || 0), 0))} nos produtos marcados.</p>
         </div>
       </div>
     </Forest>

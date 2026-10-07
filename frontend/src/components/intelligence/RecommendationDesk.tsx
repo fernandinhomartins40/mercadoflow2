@@ -95,9 +95,15 @@ const RecommendationDesk: React.FC<{
       <div className="fx-white" style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>
-            <small>Impacto estimado</small>
+            <small>{rec.actionType === 'COMPRAR' && rec.parameters?.acao !== 'reduzir_proxima_compra' ? 'Margem que esta compra traz' : 'Ganho estimado'}</small>
             <span style={{ display: 'block', marginTop: 4 }}><span className="fx-money" style={{ fontSize: 26 }}>{formatMoney(rec.expectedImpactValue)}</span></span>
           </span>
+          {goesToOrder(rec) && rec.parameters?.valorEstimado != null && (
+            <span style={{ textAlign: 'right' }}>
+              <small>Investimento</small>
+              <b className="fx-num" style={{ display: 'block', fontSize: 18 }}>{formatMoney(Number(rec.parameters.valorEstimado))}</b>
+            </span>
+          )}
           {goesToOrder(rec) && <small style={{ maxWidth: 220 }}>Aceitar já coloca {Math.round(Number(rec.parameters?.quantidade)).toLocaleString('pt-BR')} un. no pedido do fornecedor.</small>}
         </div>
         {rec.calculationTrace && (

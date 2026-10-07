@@ -32,6 +32,8 @@ import type { OpportunityItem } from '../types/analytics.types';
  * Pedem atenção e Promoções/O que promover.
  */
 
+const ATTENTION_TYPES = new Set(['ANOMALIA_DE_VENDAS', 'VIZINHANCA_ABAIXO_DO_CUSTO', 'QUEDA_DE_VENDAS', 'RISCO_DE_RUPTURA']);
+
 type Tab = 'decidir' | 'resultado';
 type Filter = 'tudo' | QueueGroup;
 
@@ -82,8 +84,11 @@ const Decide: React.FC = () => {
 
   // Sinais sem ação pronta (venda subindo, anomalia): entram como "Atenção".
   const withRec = useMemo(() => new Set(queue.recs.map((r) => r.opportunityId)), [queue.recs]);
+  // Só alertas de verdade entram em "Atenção" (F0): queda de venda e vizinhança abaixo do custo.
+  // Oportunidade de capital sem recomendação é dado insuficiente, não alerta.
   const attention: QueueItem[] = useMemo(() => signals
-    .filter((o) => o.status !== 'EM_ACAO' && !withRec.has(o.id))
+    .filter((o) => o.status !== 'EM_ACAO' && !withRec.has(o.id) && ATTENTION_TYPES.has(o.type)
+      && !(o.type === 'ANOMALIA_DE_VENDAS' && Number(o.evidence?.desvioPercent ?? -1) > 0))
     .map((o) => ({
       key: `sinal:${o.id}`, source: 'rec' as const, group: 'outros' as const, action: SIGNAL_LABEL[o.type] ?? 'Atenção',
       title: o.title, value: o.expectedImpactValue ? Number(o.expectedImpactValue) : null, name: o.productName || o.title,

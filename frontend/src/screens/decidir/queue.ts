@@ -80,8 +80,14 @@ export const fromDecision = (d: CopilotDecision): QueueItem => ({
 });
 
 /** Urgente primeiro; depois o que vale mais; sem valor por último. */
+/**
+ * Ordem da fila: urgente primeiro, depois o ganho esperado pesado pela
+ * confiança (F0, 07/10/2026). Antes era só o valor, e o valor de uma compra
+ * era o tamanho do pedido: as maiores compras subiam como se fossem ganho.
+ */
+const weight = (i: QueueItem) => (i.value ?? 0) * (i.rec?.confidence != null ? Math.max(0.3, Number(i.rec.confidence)) : 0.6);
 export const sortQueue = (items: QueueItem[]) =>
-  [...items].sort((a, b) => Number(b.urgent) - Number(a.urgent) || (b.value ?? -1) - (a.value ?? -1));
+  [...items].sort((a, b) => Number(b.urgent) - Number(a.urgent) || weight(b) - weight(a));
 
 const isOpen = (d: CopilotDecision) => d.status === 'PENDENTE' || d.status === 'INFORMATIVA';
 

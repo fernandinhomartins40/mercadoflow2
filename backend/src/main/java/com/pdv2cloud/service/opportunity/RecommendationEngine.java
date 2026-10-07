@@ -54,20 +54,68 @@ public class RecommendationEngine {
      */
     @Transactional
     public int generateForMarket(UUID marketId) {
+        // Situação que acabou não pede mais decisão.
+        recommendationRepository.expireOrphans(marketId);
         List<Opportunity> open = opportunityRepository.findOpenByMarket(marketId);
         int created = 0;
 
         for (Opportunity o : open) {
+            List<Recommendation> proposed = recommendationRepository.findProposedForOpportunity(o.getId());
+            if (!proposed.isEmpty()) {
+                // Recalcula a que está esperando decisão: número velho não fica na tela.
+                Recommendation fresh = build(o);
+                for (Recommendation current : proposed) {
+                    if (fresh == null || !worthDeciding(fresh)) {
+                        current.setStatus(Recommendation.Status.EXPIRADA);
+                    } else {
+                        refresh(current, fresh);
+                    }
+                }
+                continue;
+            }
             if (recommendationRepository.hasActiveForOpportunity(o.getId())) {
                 continue;
             }
             Recommendation rec = build(o);
-            if (rec != null) {
+            if (rec != null && worthDeciding(rec)) {
                 recommendationRepository.save(rec);
                 created++;
             }
         }
         return created;
+    }
+
+    /** Abaixo disto o sistema não sabe o bastante para pedir uma decisão ao dono. */
+    static final double MIN_CONFIDENCE = 0.30;
+
+    /**
+     * Portão da fila (F0, 07/10/2026): sem ganho em reais ou com confiança
+     * baixa, não vira decisão. Em produção eram 4.520 sugestões de compra com
+     * certeza 0 e valor R$ 0 enterrando as que importavam.
+     */
+    static boolean worthDeciding(Recommendation r) {
+        boolean value = r.getExpectedImpactValue() != null && r.getExpectedImpactValue().signum() > 0;
+        boolean sure = r.getConfidence() == null || r.getConfidence().doubleValue() >= MIN_CONFIDENCE;
+        return value && sure;
+    }
+
+    /** Leva os números novos para a recomendação aberta, sem perder o que o dono já informou. */
+    private static void refresh(Recommendation current, Recommendation fresh) {
+        Map<String, Object> params = new LinkedHashMap<>(fresh.getParameters() == null ? Map.of() : fresh.getParameters());
+        if (current.getParameters() != null) {
+            for (String kept : List.of("precoInformado", "custoInformado", "margemInformada", "precoNovo", "precoLiquidacao", "quantidadeAjustada")) {
+                if (current.getParameters().get(kept) != null && !(kept.equals("precoNovo") && params.containsKey("precoNovo"))) {
+                    params.put(kept, current.getParameters().get(kept));
+                }
+            }
+        }
+        current.setTitle(fresh.getTitle());
+        current.setRationale(fresh.getRationale());
+        current.setParameters(params);
+        current.setEvidence(fresh.getEvidence());
+        current.setCalculationTrace(fresh.getCalculationTrace());
+        current.setConfidence(fresh.getConfidence());
+        current.setExpectedImpactValue(fresh.getExpectedImpactValue());
     }
 
     /**
@@ -83,9 +131,15 @@ public class RecommendationEngine {
             case "EXCESSO_DE_ESTOQUE" -> reduceRecommendation(o);
             case "PRODUTO_TRACIONADOR", "OPORTUNIDADE_DE_PROMOCAO" -> promoteRecommendation(o);
             case "PRECO_ACIMA_DO_MERCADO", "PRECO_ABAIXO_DA_VIZINHANCA" -> priceRecommendation(o);
-            case "ANOMALIA_DE_VENDAS" -> investigateRecommendation(o);
+            // Pico de venda é bom sinal, não decisão; só a queda pede investigação.
+            case "ANOMALIA_DE_VENDAS" -> isDrop(o) ? investigateRecommendation(o) : null;
             default -> null;
         };
+    }
+
+    private boolean isDrop(Opportunity o) {
+        Object d = evidence(o).get("desvioPercent");
+        return d instanceof Number n && n.doubleValue() < 0;
     }
 
     private Recommendation buyRecommendation(Opportunity o) {
@@ -98,6 +152,8 @@ public class RecommendationEngine {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("quantidade", qty);
         params.put("valorEstimado", value);
+        params.put("margemEsperada", ev.get("margemEsperada"));
+        params.put("limitadaPeloBomSenso", ev.get("limitadaPeloBomSenso"));
         params.put("produtoId", o.getProduct() != null ? o.getProduct().getId().toString() : null);
 
         String trace = String.format(

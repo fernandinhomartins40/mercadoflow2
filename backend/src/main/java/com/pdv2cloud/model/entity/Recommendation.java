@@ -63,7 +63,12 @@ public class Recommendation {
         /** O usuário discordou. */
         REJEITADA,
         /** A ação foi de fato executada no produto. */
-        EXECUTADA
+        EXECUTADA,
+        /**
+         * Saiu da fila sem decisão: a situação acabou, ou o sistema não tem
+         * confiança nem valor para pedir a decisão ao dono (F0, 07/10/2026).
+         */
+        EXPIRADA
     }
 
     @Id

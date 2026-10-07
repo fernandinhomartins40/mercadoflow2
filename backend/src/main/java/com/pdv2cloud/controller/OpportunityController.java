@@ -245,8 +245,8 @@ public class OpportunityController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        if (decision == Recommendation.Status.PROPOSTA) {
-            // PROPOSTA é o estado inicial, não uma decisão que se possa tomar.
+        if (decision == Recommendation.Status.PROPOSTA || decision == Recommendation.Status.EXPIRADA) {
+            // PROPOSTA é o estado inicial e EXPIRADA é do sistema: não são decisões que se possa tomar.
             return ResponseEntity.badRequest().build();
         }
 
