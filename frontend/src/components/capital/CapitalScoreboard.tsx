@@ -90,6 +90,7 @@ const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean;
           <span className="fx-muted" style={{ fontSize: 13.5 }}>
             Números estimados ficam exatos quando o custo e a entrada de mercadoria chegam ao sistema:
           </span>
+          {!s.stockMeasured && <Link to="/app/contar" className="fx-btn dark small"><ClipboardCheck aria-hidden="true" />Contar os 20 que mais vendem (5 min)</Link>}
           <a href="/confere" className="fx-btn ghost small"><ClipboardCheck aria-hidden="true" />Conferir notas no Confere</a>
           <Link to="/app/integracoes" className="fx-btn ghost small"><Plug aria-hidden="true" />Ligar o ERP</Link>
         </div>

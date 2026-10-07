@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   CreditCard,
   Database,
   Globe2,
@@ -89,6 +90,7 @@ export const DESTINATIONS: Destination[] = [
     inDock: true,
     pages: [
       { to: '/app/produtos', label: 'Produtos', icon: PackageSearch, alsoMatches: ['/app/produtos/'] },
+      { to: '/app/contar', label: 'Contar estoque', icon: ClipboardList },
     ],
   },
   {

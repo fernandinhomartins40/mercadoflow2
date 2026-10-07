@@ -271,7 +271,7 @@ const Decide: React.FC = () => {
                 {filter === 'capital' ? 'Nenhum produto encalhando entre os que têm estoque medido'
                   : `Nada para decidir ${filter === 'tudo' ? 'agora' : `em ${GROUP_LABEL[filter as QueueGroup].toLowerCase()}`}`}
               </h2>
-              {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: conte o estoque ou confira as notas no Confere.</p>}
+              {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: <Link to="/app/contar">conte o estoque</Link> ou confira as notas no Confere.</p>}
             </Card>
           ) : (
             <div className="fx-split">

@@ -49,6 +49,7 @@ const Plans = lazy(() => import('./screens/Plans'));
 const MySubscription = lazy(() => import('./screens/MySubscription'));
 const Team = lazy(() => import('./screens/Team'));
 const Integrations = lazy(() => import('./screens/Integrations'));
+const StockCount = lazy(() => import('./screens/StockCount'));
 const Developers = lazy(() => import('./screens/Developers'));
 const SuperAdminPartners = lazy(() => import('./screens/SuperAdminPartners'));
 const AcceptInvite = lazy(() => import('./screens/AcceptInvite'));
@@ -204,6 +205,7 @@ const App: React.FC = () => {
         <Route path="/app/assinatura" element={secure(<MySubscription />)} />
         <Route path="/app/equipe" element={secure(<Team />)} />
         <Route path="/app/integracoes" element={secure(<Integrations />)} />
+        <Route path="/app/contar" element={secure(<StockCount />)} />
         <Route path="/app/download-agente" element={secure(<AgentDownload />)} />
         <Route path="/app/admin/catalogo" element={secure(<AdminCatalog />)} />
         <Route path="/app/precos-estaduais" element={FEATURE_STATE_PRICES_ENABLED ? <Navigate to="/app/admin/precos-estaduais" replace /> : disabledModuleRedirect} />

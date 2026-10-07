@@ -121,7 +121,7 @@ const PurchaseSignalBanner: React.FC<{ signal: ProductPurchaseSignal }> = ({ sig
           <p className="text-lg font-bold" style={{ color: cfg.text }}>
             {signal.suggestedQuantity != null
               ? <>{fmt.qty(signal.suggestedQuantity)}<span className="text-sm font-normal"> un.</span></>
-              : <span className="text-sm font-semibold">conte o estoque</span>}
+              : <a href="/app/contar" className="text-sm font-semibold" style={{ color: 'inherit', textDecoration: 'underline' }}>conte o estoque</a>}
           </p>
         </div>
         <div>
