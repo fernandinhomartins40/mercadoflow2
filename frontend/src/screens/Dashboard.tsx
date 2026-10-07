@@ -366,6 +366,7 @@ const Dashboard: React.FC = () => {
   }
 
   const margin = panel?.margin?.percent;
+  const stockMeasured = !!sc?.stockMeasured;
 
   return (
     <Layout>
@@ -376,18 +377,13 @@ const Dashboard: React.FC = () => {
         <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
       )}
 
-      <CapitalScoreboard score={sc} loading={score.loading} results={results.data} />
+      {/* Com estoque medido, o dinheiro abre a tela; estimado, vai para o fim junto do que falta medir. */}
+      {stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} />}
 
-      <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
-
-      <div className="fx-split">
-        <TractionCard items={traction.data} />
-        <GiroCard portfolio={portfolio.data} />
-      </div>
-
+      {/* O Tino traz o aviso de dados que explica os números de baixo; o "Aprovar" dele fica colado à fila. */}
       <DailyBriefCard marketId={marketId} />
 
-      <CostCoverageCard marketId={marketId} />
+      <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
 
       <h2 className="fx-section-title" style={{ margin: '8px 0 0' }}>Como a loja vendeu</h2>
       <PillTabs<OperationPeriod> label="Período" value={period} onChange={setPeriod} tabs={[
@@ -439,6 +435,15 @@ const Dashboard: React.FC = () => {
 
       <DepartmentsCard panel={panel} />
 
+      <div className="fx-split">
+        <TractionCard items={traction.data} />
+        <GiroCard portfolio={portfolio.data} />
+      </div>
+
+      {!stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} hideActions />}
+
+      <CostCoverageCard marketId={marketId} withCount={!stockMeasured} />
+
       {/* Uma linha para cada coisa que antes era uma página inteira. */}
       <div className="fx-stack" style={{ gap: 10 }}>
         {period !== 'dia' && extras.digest && (
@@ -479,6 +484,14 @@ const Dashboard: React.FC = () => {
   );
 };
 
+const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+/** "em 2026-10-02" vira "na sexta, 02/10": data ISO não aparece para o dono. */
+const plainDates = (text: string) => text.replace(/(?:\bem )?(\d{4})-(\d{2})-(\d{2})/g, (m, y, mo, d) => {
+  const wd = new Date(Number(y), Number(mo) - 1, Number(d)).getDay();
+  const prep = m.startsWith('em ') ? (wd === 0 || wd === 6 ? 'no ' : 'na ') : '';
+  return `${prep}${WEEKDAY[wd]}, ${d}/${mo}`;
+});
+
 /** As decisões que mais valem, do maior impacto para o menor. */
 const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: ReturnType<typeof useDecisionQueue>['items'] }> = ({ n, total, loading, top }) => (
   <Forest as="section" aria-label="Decida agora">
@@ -492,7 +505,7 @@ const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: Ret
             <Link to={`/app/decidir?item=${encodeURIComponent(it.key)}`} className="fx-row" style={{ color: 'var(--fx-ink)' }}>
               <span aria-hidden="true" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, display: 'grid', placeItems: 'center', fontWeight: 800, background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}>{i + 1}</span>
               <span style={{ minWidth: 0, flex: 1 }}>
-                <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{it.title}</b>
+                <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{plainDates(it.title)}</b>
                 <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.source === 'tino' ? 'Tino preparou' : ''].filter(Boolean).join(' · ')}</span>
               </span>
               {it.value != null && <b className="fx-num" style={{ whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}

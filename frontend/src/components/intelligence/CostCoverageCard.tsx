@@ -26,7 +26,8 @@ const Meter: React.FC<{ label: string; share: number }> = ({ label, share }) => 
   );
 };
 
-const CostCoverageCard: React.FC<{ marketId: string | null | undefined; compact?: boolean }> = ({ marketId, compact }) => {
+/** withCount: mostra também a contagem rápida (o Início junta aqui os caminhos para medir). */
+const CostCoverageCard: React.FC<{ marketId: string | null | undefined; compact?: boolean; withCount?: boolean }> = ({ marketId, compact, withCount }) => {
   const { data } = useCached(marketId ? `${marketId}:cost-coverage` : null, () => decisionInputsService.coverage(marketId!), 5 * 60_000);
   if (!data || Number(data.revenue) <= 0) return null;
   const good = data.costShare >= 0.9 && data.stockShare >= 0.9 && data.pendingNfe === 0;
@@ -55,6 +56,7 @@ const CostCoverageCard: React.FC<{ marketId: string | null | undefined; compact?
             <ClipboardCheck aria-hidden="true" />Conferir {pending === 1 ? 'a nota que chegou' : `as ${pending} notas que chegaram`}
           </a>
         )}
+        {withCount && <Link to="/app/contar" className={`fx-btn ${pending > 0 ? 'ghost' : 'dark'} small`}><ClipboardCheck aria-hidden="true" />Contar os 20 que mais vendem (5 min)</Link>}
         <Link to="/app/integracoes" className="fx-btn ghost small"><Plug aria-hidden="true" />Ligar o seu ERP</Link>
       </div>
       {pending > 0 && !compact && (

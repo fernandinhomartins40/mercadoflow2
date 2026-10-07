@@ -39,7 +39,8 @@ const daysText = (v: number | null | undefined) => {
   return d < 1 ? 'menos de 1 dia' : `${d} ${d === 1 ? 'dia' : 'dias'}`;
 };
 
-const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean; results?: OutcomesSummary }> = ({ score: s, loading, results }) => {
+/** hideActions: no Início, os caminhos para medir ficam só no card de custo e estoque, logo abaixo. */
+const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean; results?: OutcomesSummary; hideActions?: boolean }> = ({ score: s, loading, results, hideActions }) => {
   if (!s) {
     return loading ? <div className="fx-kpis" aria-hidden="true">{[0, 1, 2, 3].map((i) => <div key={i} className="fx-kpi animate-pulse" style={{ height: 120 }} />)}</div> : null;
   }
@@ -85,7 +86,7 @@ const CapitalScoreboard: React.FC<{ score: Score | undefined; loading?: boolean;
           </span>
         </Link>
       )}
-      {needsMeasure && (
+      {needsMeasure && !hideActions && (
         <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="fx-muted" style={{ fontSize: 13.5 }}>
             Números estimados ficam exatos quando o custo e a entrada de mercadoria chegam ao sistema:
