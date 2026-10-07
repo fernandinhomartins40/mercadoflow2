@@ -93,7 +93,7 @@ const RecommendationDesk: React.FC<{
             <small>Impacto estimado</small>
             <span style={{ display: 'block', marginTop: 4 }}><span className="fx-money" style={{ fontSize: 26 }}>{formatMoney(rec.expectedImpactValue)}</span></span>
           </span>
-          {goesToOrder(rec) && <small style={{ maxWidth: 220 }}>Aceitar já coloca {rec.parameters?.quantidade} un. no pedido do fornecedor.</small>}
+          {goesToOrder(rec) && <small style={{ maxWidth: 220 }}>Aceitar já coloca {Math.round(Number(rec.parameters?.quantidade)).toLocaleString('pt-BR')} un. no pedido do fornecedor.</small>}
         </div>
         {rec.calculationTrace && (
           <>

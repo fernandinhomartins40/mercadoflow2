@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import { ActionHub, Card, Chip, PageHero, PanelTitle, PillTabs, Thumb } from '../components/flow/Flow';
+import { ActionHub, Card, Chip, PageHero, PanelTitle, Pager, PillTabs, Thumb, usePaged } from '../components/flow/Flow';
 import RecommendationDesk from '../components/intelligence/RecommendationDesk';
 import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
@@ -105,6 +105,17 @@ const Decide: React.FC = () => {
   } : null;
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
+  // Fila longa em páginas: a lista não empurra o painel ao lado para fora da tela.
+  const paged = usePaged(list, 12, filter);
+  useEffect(() => {
+    const idx = selected ? list.findIndex((i) => i.key === selected) : -1;
+    if (idx >= 0 && Math.floor(idx / paged.size) !== paged.page) paged.setPage(Math.floor(idx / paged.size));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, list.length]);
+  const goPage = (n: number) => {
+    paged.setPage(n);
+    document.getElementById('decidir-lista')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const decisions = queue.items.length;
 
   // Quem chega do Início com ?item= abre direto naquele item, e a lista rola até ele no celular.
@@ -212,9 +223,9 @@ const Decide: React.FC = () => {
             </Card>
           ) : (
             <div className="fx-split">
-              <Card as="section" aria-label="Decisões">
+              <Card as="section" aria-label="Decisões" id="decidir-lista" style={{ scrollMarginTop: 80 }}>
                 <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
-                  {list.map((it) => {
+                  {paged.slice.map((it) => {
                     const on = current?.key === it.key;
                     const Icon = it.decision ? agentOf(it.decision).icon : null;
                     return (
@@ -237,6 +248,7 @@ const Decide: React.FC = () => {
                     );
                   })}
                 </ul>
+                <Pager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={goPage} label="decisões" />
                 {filter === 'tudo' && locked.total > 0 && (
                   <Link to="/app/assinatura" className="fx-row" style={{ marginTop: 10, color: 'var(--fx-ink)', borderStyle: 'dashed' }}>
                     <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><Lock aria-hidden="true" /></span>
@@ -247,7 +259,7 @@ const Decide: React.FC = () => {
                   </Link>
                 )}
               </Card>
-              <div id="decidir-painel" className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>{current && detail(current)}</div>
+              <div id="decidir-painel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>{current && detail(current)}</div>
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { activationService } from '../services/activation.service';
 import { useAuth } from '../context/AuthContext';
+import { fetchCached } from './useCached';
 import { FEATURE_ACTIVATION_CHECKLIST_ENABLED } from '../config/features';
 import type { ActivationStatus } from '../types/activation.types';
 
@@ -23,7 +24,8 @@ export const useActivation = () => {
 
     const load = async () => {
       try {
-        const data = await activationService.getStatus(marketId);
+        // Mesma chave do selo do topo: as duas leituras ao abrir a tela viram uma só.
+        const data = await fetchCached(`ativacao:${marketId}`, () => activationService.getStatus(marketId));
         if (cancelled) return;
         setStatus(data);
         setError(false);

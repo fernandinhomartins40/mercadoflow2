@@ -116,6 +116,62 @@ public class WorkingCapitalController {
      * a ser a JANELA de análise, que deixa a ferramenta funcionar e ainda dá
      * motivo concreto de upgrade a quem precisa comparar com o ano passado.
      */
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc;
+
+    /** Só para mercado sem métricas materializadas (o cálculo on-line custa segundos). */
+    private final com.pdv2cloud.util.StaleWhileRevalidateCache<Map<String, Object>> giroFallback =
+        new com.pdv2cloud.util.StaleWhileRevalidateCache<>(java.time.Duration.ofMinutes(15));
+
+    private static final String GIRO_SELECT =
+        "select m.product_id as \"productId\", p.name, p.image_url as \"imageUrl\", m.abc_class as \"abcClass\", " +
+        "m.momentum_score as \"momentumScore\", m.daily_velocity as \"dailyVelocity\", m.capital_status as \"capitalStatus\", " +
+        "m.inventory_units as \"inventoryUnits\" from product_capital_metrics m join products p on p.id = m.product_id where m.market_id = :m ";
+
+    /**
+     * O cartão Giro do Início: os 5 que vale reforçar e os 5 perdendo ritmo.
+     * Antes o Início baixava o portfólio inteiro (6,5 mil produtos) para isso.
+     */
+    @GetMapping("/capital/giro")
+    public Map<String, Object> giro(@PathVariable("marketId") UUID marketId, Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        org.springframework.jdbc.core.namedparam.MapSqlParameterSource p =
+            new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("m", marketId);
+        Boolean materialized = jdbc.queryForObject("select exists(select 1 from product_capital_metrics where market_id = :m)", p, Boolean.class);
+        if (Boolean.TRUE.equals(materialized)) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("rapido", jdbc.queryForList(GIRO_SELECT + "and m.capital_status = 'INVEST' order by m.daily_velocity desc nulls last limit 5", p));
+            out.put("perdendo", jdbc.queryForList(GIRO_SELECT + "and m.capital_status in ('REDUZIR', 'LIQUIDAR') order by coalesce(m.momentum_score, 1) asc limit 5", p));
+            out.put("noStock", !Boolean.TRUE.equals(jdbc.queryForObject(
+                "select exists(select 1 from product_capital_metrics where market_id = :m and inventory_units is not null)", p, Boolean.class)));
+            return out;
+        }
+        return giroFallback.get(marketId, () -> {
+            List<WorkingCapitalService.CapitalMetric> all = capitalMetricsReader.portfolio(marketId, 90);
+            java.util.function.Function<WorkingCapitalService.CapitalMetric, Map<String, Object>> row = m -> {
+                Map<String, Object> r = new LinkedHashMap<>();
+                r.put("productId", m.productId());
+                r.put("name", m.name());
+                r.put("imageUrl", m.imageUrl());
+                r.put("abcClass", m.abcClass());
+                r.put("momentumScore", m.momentumScore());
+                r.put("dailyVelocity", m.dailyVelocity());
+                r.put("capitalStatus", m.capitalStatus());
+                r.put("inventoryUnits", m.inventoryUnits());
+                return r;
+            };
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("rapido", all.stream().filter(m -> "INVEST".equals(String.valueOf(m.capitalStatus())))
+                .sorted(java.util.Comparator.comparing((WorkingCapitalService.CapitalMetric m) -> m.dailyVelocity() == null ? BigDecimal.ZERO : m.dailyVelocity()).reversed())
+                .limit(5).map(row).toList());
+            out.put("perdendo", all.stream().filter(m -> "REDUZIR".equals(String.valueOf(m.capitalStatus())) || "LIQUIDAR".equals(String.valueOf(m.capitalStatus())))
+                .sorted(java.util.Comparator.comparing((WorkingCapitalService.CapitalMetric m) -> m.momentumScore() == null ? BigDecimal.ONE : m.momentumScore()))
+                .limit(5).map(row).toList());
+            out.put("noStock", all.stream().allMatch(m -> m.inventoryUnits() == null));
+            return out;
+        });
+    }
+
     @GetMapping("/capital/portfolio")
     public ResponseEntity<GatedListDTO<WorkingCapitalService.CapitalMetric>> portfolio(
         @PathVariable("marketId") UUID marketId,

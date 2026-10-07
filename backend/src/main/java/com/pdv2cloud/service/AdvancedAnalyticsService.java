@@ -142,7 +142,19 @@ public class AdvancedAnalyticsService {
      * alta, parados). O cockpit inteiro faz de 15 a 20 varreduras das notas;
      * isto faz a leitura de desempenho uma vez.
      */
+    /**
+     * Agrega 90 dias de cupons de todos os produtos para devolver ~24: guardado
+     * por 15 minutos e recalculado em segundo plano (Comprar e Produtos abriam
+     * em 4+ s a cada visita).
+     */
+    private final com.pdv2cloud.util.StaleWhileRevalidateCache<java.util.Map<String, List<ProductPerformanceDTO>>> signalsCache =
+        new com.pdv2cloud.util.StaleWhileRevalidateCache<>(java.time.Duration.ofMinutes(15));
+
     public java.util.Map<String, List<ProductPerformanceDTO>> getProductSignals(UUID marketId) {
+        return signalsCache.get(marketId, () -> computeProductSignals(marketId));
+    }
+
+    private java.util.Map<String, List<ProductPerformanceDTO>> computeProductSignals(UUID marketId) {
         Window window = resolveWindow(null, null, 90);
         List<ProductPerformanceDTO> performance = loadProductPerformanceRows(marketId, window, null, null, null);
         java.util.Map<String, List<ProductPerformanceDTO>> out = new java.util.LinkedHashMap<>();

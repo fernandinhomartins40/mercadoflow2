@@ -177,7 +177,7 @@ const DesempenhoTab: React.FC = () => {
             })}
           </ul>
           {current && (
-            <Forest as="aside" aria-label="Produto selecionado" style={{ position: 'sticky', top: 84 }}>
+            <Forest as="aside" aria-label="Produto selecionado" className="fx-sticky" key={current.productId}>
               <PanelTitle icon={Package} title="Detalhe do produto" sub="O que as vendas dizem sobre ele" />
               <div className="flex items-center gap-4" style={{ marginTop: 20 }}>
                 <Thumb name={current.name || ''} src={current.imageUrl} size={84} />

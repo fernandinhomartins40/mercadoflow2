@@ -137,7 +137,7 @@ const BuyDesk: React.FC<{
         </ul>
       </Card>
 
-      <div id="buy-panel" style={{ minWidth: 0, scrollMarginTop: 80 }}>
+      <div id="buy-panel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>
       {(current?.kind === 'rascunho' || current?.kind === 'enviado') && (
         <OrderPanel key={current.order.id} marketId={marketId} order={current.order} onChanged={onOrdersChanged} onOpen={onOpenOrder} onReceive={onReceive} />
       )}
@@ -238,7 +238,7 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
                 </label>
               </div>
               <div className="fx-item-val">
-                <span>{r.parameters?.quantidade ? `${r.parameters.quantidade} un.` : 'Impacto'}</span>
+                <span>{r.parameters?.quantidade ? `${Math.round(Number(r.parameters.quantidade)).toLocaleString('pt-BR')} un.` : 'Impacto'}</span>
                 <b>{r.expectedImpactValue ? formatMoney(r.expectedImpactValue) : '—'}</b>
               </div>
               <div className="ctl" style={{ display: 'flex', gap: 6 }}>

@@ -95,6 +95,37 @@ export function PillTabs<T extends string>({ tabs, value, onChange, label }: { t
   );
 }
 
+/** Página atual de uma lista longa; volta à 1 quando a lista muda de tamanho. */
+export function usePaged<T>(items: T[], size = 12, resetKey?: unknown) {
+  const [page, setPage] = React.useState(0);
+  const pages = Math.max(1, Math.ceil(items.length / size));
+  React.useEffect(() => { setPage(0); }, [resetKey, pages]);
+  const safe = Math.min(page, pages - 1);
+  return { page: safe, pages, setPage, slice: items.slice(safe * size, safe * size + size), size, total: items.length };
+}
+
+/** Controles de página: anterior, números (com reticências) e próxima. */
+export const Pager: React.FC<{ page: number; pages: number; total: number; size: number; onPage: (p: number) => void; label?: string }> = ({ page, pages, total, size, onPage, label = 'itens' }) => {
+  if (pages <= 1) return null;
+  const nums: (number | '…')[] = [];
+  for (let i = 0; i < pages; i++) {
+    if (i === 0 || i === pages - 1 || Math.abs(i - page) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+  return (
+    <nav className="fx-pager" aria-label="Páginas">
+      <span>{page * size + 1}–{Math.min(total, (page + 1) * size)} de {total} {label}</span>
+      <span className="pages">
+        <button type="button" onClick={() => onPage(page - 1)} disabled={page === 0} aria-label="Página anterior">‹</button>
+        {nums.map((n, i) => n === '…' ? <span key={`e${i}`} style={{ alignSelf: 'center', padding: '0 2px' }}>…</span> : (
+          <button key={n} type="button" onClick={() => onPage(n)} aria-current={n === page ? 'page' : undefined}>{n + 1}</button>
+        ))}
+        <button type="button" onClick={() => onPage(page + 1)} disabled={page >= pages - 1} aria-label="Próxima página">›</button>
+      </span>
+    </nav>
+  );
+};
+
 export const Chip: React.FC<{ tone?: 'red' | 'green' | 'lime' | 'amber' | 'ghost' | 'gray'; children: React.ReactNode; icon?: LucideIcon }> = ({ tone = 'gray', children, icon: I }) => (
   <span className={`fx-chip ${tone}`}>{I && <I size={14} aria-hidden="true" />}{children}</span>
 );

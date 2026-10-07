@@ -180,6 +180,13 @@ const getPortfolio = async (
   return data;
 };
 
+/** O cartão Giro do Início: 5 que vale reforçar e 5 perdendo ritmo (não o portfólio inteiro). */
+export type GiroItem = Pick<CapitalMetric, 'productId' | 'name' | 'imageUrl' | 'abcClass' | 'momentumScore' | 'dailyVelocity' | 'capitalStatus' | 'inventoryUnits'>;
+export interface GiroSummary { rapido: GiroItem[]; perdendo: GiroItem[]; noStock: boolean }
+
+const getGiro = async (marketId: string): Promise<GiroSummary> =>
+  (await api.get<GiroSummary>(`${base(marketId)}/capital/giro`)).data;
+
 /**
  * Plano de compra para o orçamento informado.
  *
@@ -256,6 +263,7 @@ const getPromoRecommendations = async (
 };
 
 export default {
+  getGiro,
   getPortfolio,
   getPurchasePlan,
   getTrafficDrivers,

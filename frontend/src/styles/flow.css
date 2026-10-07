@@ -624,5 +624,19 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 @media (prefers-reduced-motion: reduce) { .fx-dialog-shade, .fx-dialog { animation: none; } }
 
 /* Painel de detalhe que acompanha a rolagem de uma lista longa (só lado a lado). */
-.fx-sticky { position: sticky; top: 76px; align-self: start; }
-@media (max-width: 1099px) { .fx-sticky { position: static; } }
+/* Painel ao lado de uma lista: gruda no topo, mas nunca passa da altura da tela
+   (descontada a doca). Painel longo rola por dentro, e a lista continua livre. */
+.fx-sticky {
+  position: sticky; top: 76px; align-self: start;
+  max-height: calc(100vh - 76px - 112px - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto; overscroll-behavior: contain; border-radius: 30px;
+  scrollbar-width: thin; scrollbar-color: var(--fx-forest-line, rgba(0,0,0,.2)) transparent;
+}
+@media (max-width: 1099px) { .fx-sticky { position: static; max-height: none; overflow: visible; } }
+
+/* Paginação de listas longas */
+.fx-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; flex-wrap: wrap; font-size: 13.5px; color: var(--fx-muted); }
+.fx-pager .pages { display: flex; gap: 4px; flex-wrap: wrap; }
+.fx-pager button { min-width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--fx-line); background: var(--fx-card); color: var(--fx-ink); font: inherit; font-weight: 700; cursor: pointer; padding: 0 10px; }
+.fx-pager button[aria-current="page"] { background: var(--fx-ink); color: #fff; border-color: var(--fx-ink); }
+.fx-pager button:disabled { opacity: .4; cursor: default; }

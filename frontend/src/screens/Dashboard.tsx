@@ -19,7 +19,7 @@ import { formatDecimal, formatMoney } from '../utils/formatters';
 import { GROUP_LABEL, useDecisionQueue } from './decidir/queue';
 import { useCached } from '../hooks/useCached';
 import { tractionService, type ProductTraction } from '../services/traction.service';
-import workingCapitalService, { type CapitalMetric } from '../services/workingCapital.service';
+import workingCapitalService, { type GiroSummary } from '../services/workingCapital.service';
 
 /**
  * Início: onde o capital rende. Abre com quem PUXA a venda (tração medida no
@@ -208,12 +208,10 @@ const TractionCard: React.FC<{ items: ProductTraction[] | undefined }> = ({ item
   </Card>
 );
 
-const GiroCard: React.FC<{ portfolio: CapitalMetric[] | undefined }> = ({ portfolio }) => {
+const GiroCard: React.FC<{ portfolio: GiroSummary | undefined }> = ({ portfolio }) => {
   const [view, setView] = useState<'rapido' | 'perdendo'>('rapido');
-  const list = (portfolio ?? []).filter((m) => (view === 'rapido' ? m.capitalStatus === 'INVEST' : m.capitalStatus === 'REDUZIR' || m.capitalStatus === 'LIQUIDAR'))
-    .sort((a, b) => (view === 'rapido' ? Number(b.dailyVelocity) - Number(a.dailyVelocity) : Number(a.momentumScore ?? 1) - Number(b.momentumScore ?? 1)))
-    .slice(0, 5);
-  const noStock = (portfolio ?? []).every((m) => m.inventoryUnits == null);
+  const list = portfolio ? portfolio[view] : [];
+  const noStock = portfolio?.noStock ?? true;
   return (
     <Forest as="aside" aria-label="Giro">
       <PanelTitle title="Giro" sub={noStock ? 'Pela venda por dia. Sem compras registradas, o estoque e o dinheiro parado ainda não aparecem.' : 'Pela venda por dia e pelo estoque registrado'}
@@ -277,8 +275,8 @@ const Dashboard: React.FC = () => {
   const queue = useDecisionQueue(marketId, ready);
   const traction = useCached<ProductTraction[]>(marketId && ready ? `tracao:${marketId}` : null,
     () => tractionService.list(marketId!, true, 50), 10 * 60_000);
-  const portfolio = useCached<CapitalMetric[]>(marketId && ready ? `giro:${marketId}` : null,
-    () => workingCapitalService.getPortfolio(marketId!, 90).then((r) => r.items), 10 * 60_000);
+  const portfolio = useCached<GiroSummary>(marketId && ready ? `giro2:${marketId}` : null,
+    () => workingCapitalService.getGiro(marketId!), 10 * 60_000);
   const extras = useExtras(ready ? marketId ?? null : null);
 
   // O número do dia muda a cada nota: fresco por 1 minuto, depois atualiza em segundo plano.
