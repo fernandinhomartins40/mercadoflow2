@@ -140,3 +140,24 @@ Ordem pensada para que cada fase já melhore a vida do dono sozinha. Esforço em
 | Resultado das decisões em reais | não existe | placar mensal |
 | % do vendido com custo e estoque medidos | baixo (teste) | > 80% por loja ativa |
 | Decisões aceitas por semana (adoção) | — | medir a partir de F3 |
+
+## 7. O que foi entregue (07/10/2026)
+
+| Fase | Commit | O que mudou |
+|---|---|---|
+| F0 Limpar a fila | 5de7fe8 | Portão (ganho e confiança ≥ 30%), recálculo das abertas, órfãs expiradas (V88), estoque conhecido para excesso/parado/compra, teto de bom senso, ganho separado do gasto, cobertura por tipo (3/7/21 dias). Super Novo: ~350 → 17 decisões; 4.577 recomendações expiradas |
+| F1 Linguagem | c7df3e3 | `util/Br` (pt-BR), textos das decisões em reais/dias/unidades, termos de tela em palavras (`utils/plain.ts`), aviso de histórico só no Início e Configurações |
+| F2 Placar do capital | 43b5ba4 | "Seu dinheiro na loja" no Início (V89 `store_capital_daily`), medido × estimado, manchete de capital só com estoque medido |
+| F3 Decidir enxuto | 8513f7c | "Hoje" com 7 e "Depois" recolhido, folha no celular, cabeçalho compacto no celular |
+| F4 No que deu em reais | 2cfc942 | `/outcomes/summary`: dinheiro de volta, venda a mais, venda garantida; linha no placar do Início |
+| F5 Uma verdade só | 7596980 | Produto usa a mesma venda por dia e a mesma compra do Decidir; sem estoque, pede contagem |
+| F6 Menos peso | 4bb912c | Produtos como consulta, Decidir sem duplicação, Dinheiro parado sem contradição, resumo repetido fora |
+| F7 Contagem rápida | 7eaf085 | `/app/contar`: 20 que mais vendem sem estoque medido, recálculo em segundo plano (teste: 6% → 88% medido) |
+
+**Medição depois (mesmo ambiente local):** fila de compra no celular 13.106 px → 844 px e 1.454 → 56
+palavras; Decidir no celular 3.502 px → 1.519 px; nenhum termo técnico nem decimal com ponto nas
+telas de decisão (o "lift" restante é texto de oportunidade antiga, refeito no job noturno).
+
+**Fica para depois:** Clientes e Rede ainda mostram só o convite ao plano; o Perguntar usa as mesmas
+ferramentas mas não foi auditado resposta a resposta; a página pública (Landing) segue com termos
+técnicos de marketing.
