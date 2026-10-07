@@ -51,8 +51,9 @@ public class SalesSignalOpportunityDetector implements OpportunityDetector {
         for (SalesAnomalyDetector.SalesAnomaly a : salesAnomalyDetector.detect(marketId)) {
             out.add(fromAnomaly(a));
         }
+        // Preço da vizinhança (só Paraná): acima da faixa, abaixo da faixa e abaixo do custo.
         for (MarketPriceComparisonDetector.PriceComparison p
-                : priceComparisonDetector.detectAboveMarket(marketId, PRICE_LIMIT)) {
+                : priceComparisonDetector.detect(marketId, PRICE_LIMIT)) {
             out.add(fromPrice(p));
         }
         return out;
@@ -92,24 +93,51 @@ public class SalesSignalOpportunityDetector implements OpportunityDetector {
 
     private DetectedOpportunity fromPrice(MarketPriceComparisonDetector.PriceComparison c) {
         Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("fonte", "Menor Preço, do Nota Paraná (lojas a até 10 km)");
         evidence.put("precoPraticado", c.ownPrice());
         evidence.put("medianaMercado", c.marketMedianPrice());
+        evidence.put("faixaDe", c.p25Price());
+        evidence.put("faixaAte", c.p75Price());
         evidence.put("menorPrecoObservado", c.marketMinPrice());
+        evidence.put("lojaMaisBarata", c.cheapestStore());
+        evidence.put("distanciaKm", c.cheapestDistanceKm());
         evidence.put("acimaPercent", c.abovePercent());
         evidence.put("observacoes", c.observations());
-        evidence.put("receitaEmRisco", c.revenueAtRisk());
+        evidence.put("precoSugerido", c.suggestedPrice());
+        evidence.put("custo", c.unitCost());
+        evidence.put("quantidade30d", c.quantitySold());
+        evidence.put("impacto", c.revenueAtRisk());
         if (c.lastObservedAt() != null) {
             evidence.put("ultimaObservacao", c.lastObservedAt().toString());
         }
 
-        double priority = Math.min(85.0, 45.0 + c.abovePercent().doubleValue());
+        String type;
+        String title;
+        double priority;
+        switch (c.direction()) {
+            case ABAIXO -> {
+                type = "PRECO_ABAIXO_DA_VIZINHANCA";
+                title = String.format("Margem na mesa: %s está abaixo da vizinhança", c.name());
+                priority = Math.min(85.0, 50.0 + Math.abs(c.abovePercent().doubleValue()));
+            }
+            case ABAIXO_DO_CUSTO -> {
+                type = "VIZINHANCA_ABAIXO_DO_CUSTO";
+                title = String.format("A vizinhança vende %s abaixo do seu custo", c.name());
+                priority = 70.0;
+            }
+            default -> {
+                type = "PRECO_ACIMA_DO_MERCADO";
+                title = String.format("Preço %.0f%% acima da vizinhança: %s", c.abovePercent(), c.name());
+                priority = Math.min(85.0, 45.0 + c.abovePercent().doubleValue());
+            }
+        }
 
         return new DetectedOpportunity(
             "PRECO:" + c.productId(),
-            "PRECO_ACIMA_DO_MERCADO",
+            type,
             "PRECO",
             c.productId(),
-            String.format("Preço %.0f%% acima do mercado: %s", c.abovePercent(), c.name()),
+            title,
             c.description(),
             evidence,
             c.revenueAtRisk(),

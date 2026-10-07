@@ -82,7 +82,7 @@ public class RecommendationEngine {
             case "CAPITAL_PARADO" -> liquidateRecommendation(o);
             case "EXCESSO_DE_ESTOQUE" -> reduceRecommendation(o);
             case "PRODUTO_TRACIONADOR", "OPORTUNIDADE_DE_PROMOCAO" -> promoteRecommendation(o);
-            case "PRECO_ACIMA_DO_MERCADO" -> priceRecommendation(o);
+            case "PRECO_ACIMA_DO_MERCADO", "PRECO_ABAIXO_DA_VIZINHANCA" -> priceRecommendation(o);
             case "ANOMALIA_DE_VENDAS" -> investigateRecommendation(o);
             default -> null;
         };
@@ -193,24 +193,35 @@ public class RecommendationEngine {
 
     private Recommendation priceRecommendation(Opportunity o) {
         Map<String, Object> ev = evidence(o);
+        boolean below = "PRECO_ABAIXO_DA_VIZINHANCA".equals(o.getType());
 
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("produtoId", o.getProduct() != null ? o.getProduct().getId().toString() : null);
         params.put("precoAtual", ev.get("precoPraticado"));
         params.put("precoReferencia", ev.get("medianaMercado"));
+        if (ev.get("precoSugerido") != null) {
+            params.put("precoNovo", ev.get("precoSugerido"));
+        }
+        params.put("direcao", below ? "SUBIR" : "BAIXAR");
 
         String trace = String.format(
-            "Preço praticado: %s. Mediana observada no estado: %s (em %s ponto(s) de venda).%n"
-                + "Diferença: %s%% acima.%n"
-                + "Usa mediana e não média para que uma única loja em promoção agressiva não "
-                + "distorça a referência.%n"
-                + "ATENÇÃO: as observações podem ser de outra região e não consideram o "
-                + "posicionamento da sua loja. Trate como sinal para conferir, não como veredito.",
-            money(ev.get("precoPraticado")), money(ev.get("medianaMercado")),
-            num(ev.get("observacoes")), num(ev.get("acimaPercent")));
+            "Seu preço (média dos últimos 30 dias): %s.%n"
+                + "Vizinhança (Menor Preço, do Nota Paraná, lojas a até 10 km): faixa típica de %s a %s, mediana %s, em %s lojas.%n"
+                + "Mais barato: %s por %s, a %s km.%n"
+                + "%s%n"
+                + "A faixa vai de 25%% a 75%% dos preços, depois de descartar outro produto com o mesmo código, fardos, "
+                + "bares e postos e preços absurdos.%n"
+                + "ATENÇÃO: a comparação não conhece o posicionamento da sua loja (atendimento, sortimento, conveniência) "
+                + "e o efeito em reais supõe o mesmo volume de venda. Trate como sinal para conferir, não como veredito.",
+            money(ev.get("precoPraticado")), money(ev.get("faixaDe")), money(ev.get("faixaAte")), money(ev.get("medianaMercado")),
+            num(ev.get("observacoes")), ev.get("lojaMaisBarata") == null ? "—" : ev.get("lojaMaisBarata"),
+            money(ev.get("menorPrecoObservado")), num(ev.get("distanciaKm")),
+            below
+                ? "Subir até " + money(ev.get("precoSugerido")) + " mantém a loja entre as mais baratas e soma " + money(ev.get("impacto")) + " de margem por mês."
+                : "Voltar a " + money(ev.get("precoSugerido")) + " coloca a loja no topo da faixa da região.");
 
         return newRecommendation(o, Recommendation.ActionType.AJUSTAR_PRECO,
-            "Revisar preço de " + productName(o),
+            (below ? "Subir o preço de " : "Revisar preço de ") + productName(o),
             o.getDescription(), params, trace, o.getExpectedImpactValue());
     }
 

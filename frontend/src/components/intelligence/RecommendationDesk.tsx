@@ -5,6 +5,8 @@ import { ACTION_LABEL, goesToOrder } from './RecommendationCard';
 import { formatMoney } from '../../utils/formatters';
 import type { RecommendationItem } from '../../types/analytics.types';
 import CostPriceFields from './CostPriceFields';
+import { NeighborhoodLine } from '../product/NeighborhoodPrice';
+import { localPriceService, type LocalPriceSnapshot } from '../../services/localPrice.service';
 import { decisionInputsService, moneyInput, parseMoney, type KnownInputs } from '../../services/decisionInputs.service';
 
 /** Promover, liquidar e comprar não se aceitam às cegas: custo e preço por item. */
@@ -37,14 +39,17 @@ const RecommendationDesk: React.FC<{
   const [stock, setStock] = useState('');
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [nearby, setNearby] = useState<LocalPriceSnapshot | null>(null);
 
   useEffect(() => {
-    setKnown(null); setProblem(null); setStock('');
+    setKnown(null); setProblem(null); setStock(''); setNearby(null);
     const p0 = rec.parameters ?? {};
     setCost(moneyInput(p0.custoInformado != null ? Number(p0.custoInformado) : null));
     setPrice(moneyInput(suggestedPrice(rec)));
     if (!inputs || !productId || !marketId) return;
     let alive = true;
+    // Preço na vizinhança (só PR): ajuda a decidir o preço da ação. Sem dado, não aparece.
+    localPriceService.products(marketId, [productId]).then(([n]) => { if (alive) setNearby(n ?? null); }).catch(() => undefined);
     decisionInputsService.known(marketId, [productId]).then(([k]) => {
       if (!alive || !k) return;
       setKnown(k);
@@ -113,6 +118,7 @@ const RecommendationDesk: React.FC<{
               priceLabel={rec.actionType === 'LIQUIDAR' ? 'Preço de liquidação' : 'Preço da promoção'}
               currentPrice={rec.parameters?.precoAtual != null ? Number(rec.parameters.precoAtual) : known?.averageSalePrice}
               stock={stock} onStock={rec.actionType === 'COMPRAR' ? undefined : setStock} pendingNfe={known?.pendingNfe} />
+            <NeighborhoodLine snapshot={nearby} />
             {problem && <p role="alert" style={{ color: 'var(--fx-red)', margin: '8px 0 0', fontSize: 14 }}>{problem}</p>}
           </div>
         )}

@@ -18,7 +18,9 @@ export const SIGNAL_LABEL: Record<string, string> = {
   PRODUTO_TRACIONADOR: 'Puxa a venda',
   OPORTUNIDADE_DE_PROMOCAO: 'Promoção',
   OPORTUNIDADE_DE_COMBO: 'Combo',
-  PRECO_ACIMA_DO_MERCADO: 'Preço alto',
+  PRECO_ACIMA_DO_MERCADO: 'Preço acima da vizinhança',
+  PRECO_ABAIXO_DA_VIZINHANCA: 'Margem na mesa',
+  VIZINHANCA_ABAIXO_DO_CUSTO: 'Vizinhança abaixo do custo',
   ANOMALIA_DE_VENDAS: 'Venda fora do normal',
   ATENCAO: 'Atenção',
 };

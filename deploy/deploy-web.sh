@@ -53,9 +53,6 @@ SUPER_ADMIN_PASSWORD="${SUPER_ADMIN_PASSWORD:-}"
 SUPER_ADMIN_NAME="${SUPER_ADMIN_NAME:-Super Administrador}"
 CATALOG_HARVESTER_INTERVAL_MINUTES="${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}"
 BARCODE_ENRICH_INTERVAL_MINUTES="${BARCODE_ENRICH_INTERVAL_MINUTES:-720}"
-STATE_PRICE_SYNC_INTERVAL_MINUTES="${STATE_PRICE_SYNC_INTERVAL_MINUTES:-360}"
-STATE_PRICE_SYNC_MAX_PAGES="${STATE_PRICE_SYNC_MAX_PAGES:-4}"
-STATE_PRICE_SYNC_PAUSE_SECONDS="${STATE_PRICE_SYNC_PAUSE_SECONDS:-0.5}"
 CATALOG_IMAGE_REPAIR_ENABLED="${CATALOG_IMAGE_REPAIR_ENABLED:-true}"
 CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS="${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS:-60000}"
 CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS="${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-21600000}"
@@ -308,9 +305,6 @@ SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
 SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
 CATALOG_HARVESTER_INTERVAL_MINUTES=${CATALOG_HARVESTER_INTERVAL_MINUTES}
 BARCODE_ENRICH_INTERVAL_MINUTES=${BARCODE_ENRICH_INTERVAL_MINUTES}
-STATE_PRICE_SYNC_INTERVAL_MINUTES=${STATE_PRICE_SYNC_INTERVAL_MINUTES}
-STATE_PRICE_SYNC_MAX_PAGES=${STATE_PRICE_SYNC_MAX_PAGES}
-STATE_PRICE_SYNC_PAUSE_SECONDS=${STATE_PRICE_SYNC_PAUSE_SECONDS}
 CATALOG_IMAGE_REPAIR_ENABLED=${CATALOG_IMAGE_REPAIR_ENABLED}
 CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS=${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS}
 CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS=${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS}
@@ -332,6 +326,20 @@ EOF
   [[ ! -f .env ]] || cp -p .env .env.previous
   mv .env.tmp .env
   chmod 600 .env
+}
+
+resume_webp_conversion() {
+  # O deploy recria o coletor e mata a conversao das fotos para WebP (iniciada
+  # em 07/10/2026, ~3 dias). Enquanto restar JPG, retoma de onde parou: o
+  # script pula o que ja virou WebP e apaga o original so depois de conferir.
+  local restantes
+  restantes="$(find "${APP_DIR}/data/catalog/images/products" -maxdepth 1 -name '*.jpg' 2>/dev/null | head -n 1 | wc -l)"
+  if [[ "$restantes" -gt 0 ]]; then
+    docker exec -d mercadoflow-catalog-harvester sh -c \
+      "nice -n 15 python /workspace/scripts/catalog/convert_images_webp.py --delete-originals >> /workspace/data/catalog/runs/webp-convert.log 2>&1" \
+      && log "Conversao das fotos para WebP retomada" \
+      || log "WARN: nao foi possivel retomar a conversao das fotos"
+  fi
 }
 
 prune_backups() {
@@ -786,11 +794,12 @@ main() {
     mercadoflow-cron \
     mercadoflow-nginx \
     mercadoflow-catalog-harvester \
-    mercadoflow-barcode-enricher \
-    mercadoflow-state-price-sync
+    mercadoflow-barcode-enricher
 
   log "Status dos containers apÃ³s atualizaÃ§Ã£o"
   compose ps
+
+  resume_webp_conversion
 
   # ANTES do wait_for_health, nao depois. Quem publica a porta 3300 e o
   # container mercadoflow-nginx, e ele depende de "backend: service_healthy" +

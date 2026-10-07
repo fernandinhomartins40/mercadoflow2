@@ -1,23 +1,15 @@
 package com.pdv2cloud.service;
 
 import com.pdv2cloud.tenancy.TenantContext;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.zip.GZIPOutputStream;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
-import org.postgresql.PGConnection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -114,30 +106,8 @@ public class StatePriceRetentionService {
 
     /** COPY das linhas que vão sair para state_price_observations_AAAA-MM.csv.gz (acrescenta). */
     private long archive(YearMonth month) {
-        Path file = archiveDir.resolve("state_price_observations_" + month + ".csv.gz");
-        Connection con = DataSourceUtils.getConnection(dataSource);
-        try {
-            Files.createDirectories(archiveDir);
-            boolean fresh = !Files.exists(file) || Files.size(file) == 0;
-            PGConnection pg = con.unwrap(PGConnection.class);
-            long copied;
-            try (OutputStream raw = Files.newOutputStream(file, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                 GZIPOutputStream gz = new GZIPOutputStream(raw)) {
-                copied = pg.getCopyAPI().copyOut(
-                    "copy (select o.* from state_price_observations o join retention_out r on r.id = o.id order by o.observed_at) "
-                        + "to stdout with (format csv" + (fresh ? ", header true" : "") + ")", gz);
-                gz.finish();
-                raw.flush();
-            }
-            // Garante o arquivo em disco antes de o banco apagar as linhas.
-            try (var ch = java.nio.channels.FileChannel.open(file, StandardOpenOption.WRITE)) {
-                ch.force(true);
-            }
-            return copied;
-        } catch (IOException | java.sql.SQLException e) {
-            throw new IllegalStateException("Não foi possível arquivar " + file + ": " + e.getMessage(), e);
-        } finally {
-            DataSourceUtils.releaseConnection(con, dataSource);
-        }
+        return com.pdv2cloud.util.PgArchive.copyToGzip(dataSource,
+            "select o.* from state_price_observations o join retention_out r on r.id = o.id order by o.observed_at",
+            archiveDir.resolve("state_price_observations_" + month + ".csv.gz"));
     }
 }

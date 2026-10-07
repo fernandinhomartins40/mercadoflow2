@@ -7,6 +7,8 @@ import {
 } from '../../services/aiPlatform.service';
 import { AGENT, REASONS, agentOf, apiError, certainty, when } from './shared';
 import CostPriceFields from '../../components/intelligence/CostPriceFields';
+import { NeighborhoodLine } from '../../components/product/NeighborhoodPrice';
+import { localPriceService, type LocalPriceSnapshot } from '../../services/localPrice.service';
 import { moneyInput, parseMoney } from '../../services/decisionInputs.service';
 
 /** Itens que não se aprovam às cegas: custo sempre; preço praticado em promover e liquidar. */
@@ -78,6 +80,7 @@ const DecisionDesk: React.FC<{
   const [price, setPrice] = useState<Record<string, number>>({});
   const [costs, setCosts] = useState<Record<string, string>>({});
   const [actPrice, setActPrice] = useState<Record<string, string>>({});
+  const [nearby, setNearby] = useState<Record<string, LocalPriceSnapshot>>({});
   const [choice, setChoice] = useState<Record<string, Choice>>({});
   const [msg, setMsg] = useState('');
   const [msgEdited, setMsgEdited] = useState(false);
@@ -95,7 +98,7 @@ const DecisionDesk: React.FC<{
 
   useEffect(() => {
     let alive = true;
-    setData(null); setOff(new Set()); setQty({}); setDisc({}); setPrice({}); setCosts({}); setActPrice({}); setChoice({}); setMsgEdited(false); setTouched(false);
+    setData(null); setOff(new Set()); setQty({}); setDisc({}); setPrice({}); setCosts({}); setActPrice({}); setNearby({}); setChoice({}); setMsgEdited(false); setTouched(false);
     setWhy(d.explanation); setRefusing(false); setDone(null); setError(null);
     copilotAgentsService.items(marketId, d.id).then((r) => {
       if (!alive) return;
@@ -112,6 +115,16 @@ const DecisionDesk: React.FC<{
       });
       setCosts(cs);
       setActPrice(ap);
+      // Preço na vizinhança (só PR) dos itens de promoção e liquidação.
+      const ids = r.items.filter((i) => (i.action === 'PROMOVER' || i.action === 'LIQUIDAR') && i.productId).map((i) => i.productId as string);
+      if (ids.length) {
+        localPriceService.products(marketId, ids).then((list) => {
+          if (!alive) return;
+          const byProduct: Record<string, LocalPriceSnapshot> = {};
+          list.forEach((n) => { byProduct[n.product_id] = n; });
+          setNearby(byProduct);
+        }).catch(() => undefined);
+      }
       // Começa com a mensagem que o agente preparou; só é refeita quando o lojista muda uma escolha.
       setMsg(r.message || (r.kind === 'ENTREGA' ? buildMessage(r.supplier, r.reference, r.items, c) : ''));
     }).catch(() => { if (alive) setData({ kind: 'TEXTO', supplier: null, reference: null, items: [], message: null }); });
@@ -313,7 +326,8 @@ const DecisionDesk: React.FC<{
           )}
 
           {data.kind === 'RECOMENDACOES' && <RecommendationItems items={data.items} off={off} toggle={toggle} qty={qty} setQty={setQty}
-            price={price} setPrice={setPrice} costs={costs} setCosts={setCosts} actPrice={actPrice} setActPrice={setActPrice} lineValue={lineValue} />}
+            price={price} setPrice={setPrice} costs={costs} setCosts={setCosts} actPrice={actPrice} setActPrice={setActPrice} lineValue={lineValue}
+            nearby={nearby} />}
 
           {data.kind === 'TEXTO' && (
             <div className="fx-white"><p style={{ margin: 0, whiteSpace: 'pre-line', lineHeight: 1.55 }}>{d.body}</p></div>
@@ -408,7 +422,8 @@ const RecommendationItems: React.FC<{
   costs: Record<string, string>; setCosts: (q: Record<string, string>) => void;
   actPrice: Record<string, string>; setActPrice: (q: Record<string, string>) => void;
   lineValue: (i: DecisionItem) => number;
-}> = ({ items, off, toggle, qty, setQty, price, setPrice, costs, setCosts, actPrice, setActPrice, lineValue }) => {
+  nearby: Record<string, LocalPriceSnapshot>;
+}> = ({ items, off, toggle, qty, setQty, price, setPrice, costs, setCosts, actPrice, setActPrice, lineValue, nearby }) => {
   const buys = items.filter((i) => i.action === 'COMPRAR');
   const groups = new Map<string, DecisionItem[]>();
   buys.forEach((i) => { const k = i.supplier ?? 'Fornecedor a escolher'; groups.set(k, [...(groups.get(k) ?? []), i]); });
@@ -492,6 +507,7 @@ const RecommendationItems: React.FC<{
                       <CostPriceFields compact name={i.name} cost={costs[i.id] ?? ''} onCost={(v) => setCosts({ ...costs, [i.id]: v })}
                         costSource={i.costSource} price={actPrice[i.id] ?? ''} onPrice={(v) => setActPrice({ ...actPrice, [i.id]: v })}
                         priceLabel={i.action === 'LIQUIDAR' ? 'Preço de liquidação' : 'Preço da promoção'} currentPrice={i.price} />
+                      <NeighborhoodLine snapshot={i.productId ? nearby[i.productId] : null} />
                     </div>
                   )}
                 </div>

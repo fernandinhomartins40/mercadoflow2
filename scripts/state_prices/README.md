@@ -1,3 +1,8 @@
+> **Desativado em 07/10/2026.** Este coletor buscava por palavra-chave e só funcionou no Amazonas, sem código de barras.
+> Foi substituído pelo **Preço da vizinhança** (`backend/.../service/localprice/LocalPriceService.java`), que consulta o
+> Menor Preço do Nota Paraná pelo GTIN dos produtos que a loja vende, a até 10 km dela. Só o Paraná oferece portal aberto
+> com busca por código de barras e localização; os dados antigos foram arquivados em `data/archive/` e removidos do banco.
+
 # State Price Scripts
 
 Utilities to normalize and import state price observations into MercadoFlow.

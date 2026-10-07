@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import AiCreditsCard from '../components/settings/AiCreditsCard';
 import SecurityCard from '../components/settings/SecurityCard';
+import NeighborhoodPrice from '../components/product/NeighborhoodPrice';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
@@ -118,6 +119,7 @@ const Settings: React.FC = () => {
         {showAi ? (
           <div className="min-w-0">
             {marketId ? <AiCreditsCard marketId={marketId} /> : null}
+            {marketId ? <NeighborhoodPrice marketId={marketId} /> : null}
           </div>
         ) : null}
         </div>

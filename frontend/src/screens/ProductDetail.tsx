@@ -8,6 +8,7 @@ import MetricsCard from '../components/dashboard/MetricsCard';
 import SalesChart from '../components/dashboard/SalesChart';
 import ProductImage from '../components/product/ProductImage';
 import PriceSimulator from '../components/product/PriceSimulator';
+import NeighborhoodPrice from '../components/product/NeighborhoodPrice';
 import ProductSpecSheet from '../components/product/ProductSpecSheet';
 import { ActionHub, PageHero, PillTabs } from '../components/flow/Flow';
 import ProductTractionPanel from './produtos/ProductTractionPanel';
@@ -565,6 +566,7 @@ const ProductDetail: React.FC = () => {
 
         {view === 'preco' && (
           <>
+            {marketId && productId && <NeighborhoodPrice marketId={marketId} productId={productId} />}
             {marketId && productId && (
               <Section kicker="E se eu baixar o preço?" title="Simulação de desconto" subtitle="Pelo histórico deste produto na sua loja.">
                 <PriceSimulator marketId={marketId} productId={productId} />

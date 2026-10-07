@@ -276,38 +276,6 @@ services:
       mercadoflow-backend:
         condition: service_healthy
 
-  mercadoflow-state-price-sync:
-    profiles:
-      - state-price-sync
-    container_name: mercadoflow-state-price-sync
-    image: ${MERCADOFLOW_COLLECTORS_IMAGE:?MERCADOFLOW_COLLECTORS_IMAGE is required}
-    restart: unless-stopped
-    logging: *mercadoflow_logging
-    working_dir: /workspace
-    command: >
-      python /workspace/scripts/state_prices/sync_state_price_portals.py
-      --watch
-      --import
-      --interval-minutes ${STATE_PRICE_SYNC_INTERVAL_MINUTES:-360}
-      --max-pages ${STATE_PRICE_SYNC_MAX_PAGES:-4}
-      --pause-seconds ${STATE_PRICE_SYNC_PAUSE_SECONDS:-0.5}
-      --api-base http://mercadoflow-backend:8080/api
-      --login-endpoint /v1/super-admin/auth/login
-      --import-endpoint /v1/state-prices/import
-      --email ${SUPER_ADMIN_EMAIL}
-      --password ${SUPER_ADMIN_PASSWORD}
-    volumes:
-      - ./scripts/state_prices:/workspace/scripts/state_prices:ro
-    # Medido em 121 MB apos 4 semanas no ar -- 4x os outros dois coletores, que
-    # rodam o mesmo tipo de loop. O teto evita que o crescimento continue as
-    # custas das outras aplicacoes da VPS.
-    mem_limit: 320m
-    memswap_limit: 320m
-    cpus: 0.5
-    cpu_shares: 256
-    depends_on:
-      mercadoflow-backend:
-        condition: service_healthy
 
 volumes:
   mercadoflow_postgres_data:

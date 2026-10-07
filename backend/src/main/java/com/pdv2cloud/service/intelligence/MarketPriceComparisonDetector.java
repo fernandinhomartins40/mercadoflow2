@@ -12,36 +12,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Compara o preço praticado na loja com as observações de preço do estado.
+ * Compara o preço da loja com o das lojas próximas (Preço da vizinhança, só
+ * Paraná — LocalPriceService), pelo resumo mais recente de cada produto.
  *
- * PROBLEMA QUE RESOLVE (auditoria §16 e §20): `AlertType.PRICE_ABOVE_MARKET`
- * existe no enum desde sempre e **nunca foi gerado por nenhum detector**, embora
- * a V21 já colete observações de preço estaduais. O dado estava sendo coletado e
- * jogado fora.
+ * Antes (até 07/10/2026) comparava com a mediana de observações estaduais que,
+ * na prática, eram só de Manaus e sem código de barras: nunca gerou um sinal.
  *
- * A comparação usa a MEDIANA das observações, não a média: uma única loja com
- * preço promocional agressivo distorce a média e faria o sistema acusar preço
- * alto onde ele está normal.
- *
- * Limitações assumidas e sinalizadas ao usuário: as observações têm origem e
- * data próprias, podem ser de outra região do estado e não consideram o
- * posicionamento da loja (um mercado de bairro com atendimento não precisa
- * bater o preço do atacado). Por isso o resultado é apresentado como sinal para
- * conferência, nunca como veredito de que o preço está errado.
+ * A régua é a faixa típica da vizinhança (25% a 75% dos preços), não a média:
+ *  - ACIMA: o preço da loja passa 10% do topo da faixa; sugere voltar ao topo;
+ *  - ABAIXO: está 8% abaixo do piso da faixa; é margem deixada na mesa e a
+ *    sugestão é subir até o piso (continua entre os mais baratos da região);
+ *  - ABAIXO_DO_CUSTO: a vizinhança vende abaixo do custo de compra da loja —
+ *    negociar com o fornecedor antes de comprar de novo.
+ * Sugerir preço exige 5 lojas ou mais (o alerta de custo, 3), e o resultado é sinal para conferir, nunca
+ * veredito: a loja pode ter outro posicionamento.
  */
 @Service
 public class MarketPriceComparisonDetector {
 
-    /** Acima deste desvio sobre a mediana, o preço vira sinal. */
-    private static final double ABOVE_MARKET_THRESHOLD_PERCENT = 12.0;
-
-    /** Mínimo de observações para a mediana representar o mercado. */
-    private static final int MIN_OBSERVATIONS = 3;
-
-    /** Observações mais antigas que isto não valem como referência de preço. */
-    private static final int MAX_OBSERVATION_AGE_DAYS = 45;
-
-    /** Janela de vendas usada para apurar o preço praticado. */
+    static final double ABOVE_PERCENT = 10.0;
+    static final double BELOW_PERCENT = 8.0;
+    static final int MIN_STORES_TO_SUGGEST = 5;
     private static final int SALES_WINDOW_DAYS = 30;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
@@ -50,106 +41,7 @@ public class MarketPriceComparisonDetector {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * Produtos cujo preço praticado está acima da mediana observada no estado.
-     *
-     * @param limit teto de resultados, ordenados pelo maior desvio
-     */
-    @Transactional(readOnly = true)
-    public List<PriceComparison> detectAboveMarket(UUID marketId, int limit) {
-        MapSqlParameterSource params = new MapSqlParameterSource("marketId", marketId)
-            .addValue("salesSince", LocalDate.now().minusDays(SALES_WINDOW_DAYS).atStartOfDay())
-            .addValue("observationsSince", LocalDate.now().minusDays(MAX_OBSERVATION_AGE_DAYS).atStartOfDay())
-            .addValue("minObservations", MIN_OBSERVATIONS)
-            .addValue("threshold", ABOVE_MARKET_THRESHOLD_PERCENT)
-            .addValue("limit", limit > 0 ? limit : 20);
-
-        /*
-         * own_price: preço médio efetivamente praticado (ponderado pela venda,
-         * não simples, para que o preço do dia de maior volume pese mais).
-         * market_price: mediana das observações recentes do estado.
-         */
-        String sql =
-            "with own_price as ( " +
-            "  select it.product_id, " +
-            "         sum(it.valor_total) / nullif(sum(it.quantidade), 0) as avg_price, " +
-            "         sum(it.quantidade) as quantity_sold, " +
-            "         sum(it.valor_total) as revenue " +
-            "  from invoice_items it " +
-            "  join invoices i on i.id = it.invoice_id " +
-            "  where i.market_id = :marketId " +
-            "    and i.data_emissao >= :salesSince " +
-            "    and it.product_id is not null " +
-            "  group by it.product_id " +
-            "  having sum(it.quantidade) > 0 " +
-            "), " +
-            "market_price as ( " +
-            "  select o.product_id, " +
-            "         percentile_cont(0.5) within group (order by o.price) as median_price, " +
-            "         min(o.price) as min_price, " +
-            "         count(*) as observations, " +
-            "         max(o.observed_at) as last_observed_at " +
-            "  from state_price_observations o " +
-            "  where o.observed_at >= :observationsSince " +
-            "  group by o.product_id " +
-            "  having count(*) >= :minObservations " +
-            ") " +
-            "select p.id as product_id, p.name, p.image_url, " +
-            "       op.avg_price, op.quantity_sold, op.revenue, " +
-            "       mp.median_price, mp.min_price, mp.observations, mp.last_observed_at, " +
-            "       ((op.avg_price - mp.median_price) / mp.median_price * 100) as above_percent " +
-            "from own_price op " +
-            "join market_price mp on mp.product_id = op.product_id " +
-            "join products p on p.id = op.product_id " +
-            "where mp.median_price > 0 " +
-            "  and ((op.avg_price - mp.median_price) / mp.median_price * 100) >= :threshold " +
-            "order by above_percent desc " +
-            "limit :limit";
-
-        List<PriceComparison> out = new ArrayList<>();
-        jdbcTemplate.query(sql, params, rs -> {
-            BigDecimal ownPrice = rs.getBigDecimal("avg_price");
-            BigDecimal medianPrice = rs.getBigDecimal("median_price");
-            BigDecimal abovePercent = rs.getBigDecimal("above_percent");
-            BigDecimal quantitySold = rs.getBigDecimal("quantity_sold");
-
-            // Receita que se deixaria de faturar ao igualar a mediana — o
-            // "custo" de alinhar o preço, que o lojista precisa pesar contra o
-            // risco de perder a venda para o concorrente.
-            BigDecimal revenueAtRisk = ownPrice.subtract(medianPrice)
-                .multiply(quantitySold)
-                .setScale(2, RoundingMode.HALF_UP);
-
-            out.add(new PriceComparison(
-                UUID.fromString(rs.getString("product_id")),
-                rs.getString("name"),
-                rs.getString("image_url"),
-                ownPrice.setScale(2, RoundingMode.HALF_UP),
-                medianPrice.setScale(2, RoundingMode.HALF_UP),
-                rs.getBigDecimal("min_price").setScale(2, RoundingMode.HALF_UP),
-                abovePercent.setScale(2, RoundingMode.HALF_UP),
-                rs.getInt("observations"),
-                rs.getTimestamp("last_observed_at") != null
-                    ? rs.getTimestamp("last_observed_at").toLocalDateTime().toLocalDate()
-                    : null,
-                quantitySold.setScale(3, RoundingMode.HALF_UP),
-                revenueAtRisk,
-                buildDescription(rs.getString("name"), ownPrice, medianPrice, abovePercent,
-                    rs.getInt("observations"))
-            ));
-        });
-        return out;
-    }
-
-    private String buildDescription(String productName, BigDecimal ownPrice,
-                                    BigDecimal medianPrice, BigDecimal abovePercent,
-                                    int observations) {
-        return String.format(
-            "%s está sendo vendido a R$ %.2f, %.0f%% acima da mediana de R$ %.2f observada em %d "
-                + "ponto(s) de venda do estado. Confira se o posicionamento é intencional — "
-                + "as observações podem ser de outra região e não consideram o perfil da sua loja.",
-            productName, ownPrice, abovePercent, medianPrice, observations);
-    }
+    public enum Direction { ACIMA, ABAIXO, ABAIXO_DO_CUSTO }
 
     public record PriceComparison(
         UUID productId,
@@ -163,6 +55,115 @@ public class MarketPriceComparisonDetector {
         LocalDate lastObservedAt,
         BigDecimal quantitySold,
         BigDecimal revenueAtRisk,
-        String description
+        String description,
+        Direction direction,
+        BigDecimal p25Price,
+        BigDecimal p75Price,
+        BigDecimal suggestedPrice,
+        String cheapestStore,
+        BigDecimal cheapestDistanceKm,
+        BigDecimal unitCost
     ) {}
+
+    /** Mantido para o Centro de Inteligência: só os acima da faixa. */
+    @Transactional(readOnly = true)
+    public List<PriceComparison> detectAboveMarket(UUID marketId, int limit) {
+        return detect(marketId, limit).stream().filter(c -> c.direction() == Direction.ACIMA).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PriceComparison> detect(UUID marketId, int limit) {
+        int max = limit > 0 ? limit : 30;
+        MapSqlParameterSource params = new MapSqlParameterSource("m", marketId)
+            .addValue("since", LocalDate.now().minusDays(SALES_WINDOW_DAYS).atStartOfDay());
+        String sql =
+            "with snap as ( " +
+            "  select distinct on (s.product_id) s.* from local_price_snapshots s " +
+            "  where s.market_id = :m and s.status = 'OK' and s.collected_on > current_date - 15 " +
+            "  order by s.product_id, s.collected_on desc " +
+            "), sold as ( " +
+            "  select it.product_id, sum(it.valor_total) / nullif(sum(it.quantidade), 0) as own_price, sum(it.quantidade) as qty " +
+            "  from invoice_items it join invoices i on i.id = it.invoice_id " +
+            "  where i.market_id = :m and i.data_emissao >= :since and it.product_id is not null " +
+            "  group by it.product_id having sum(it.quantidade) > 0 " +
+            "), cost as ( " +
+            "  select distinct on (h.product_id) h.product_id, h.unit_cost from purchase_price_history h " +
+            "  where h.market_id = :m and h.unit_cost > 0 order by h.product_id, h.purchased_at desc " +
+            ") " +
+            "select s.product_id, p.name, p.image_url, so.own_price, so.qty, s.median_price, s.p25_price, s.p75_price, " +
+            "  s.min_price, s.min_store, s.min_distance_km, s.stores, s.newest_seen, c.unit_cost " +
+            "from snap s join sold so on so.product_id = s.product_id join products p on p.id = s.product_id " +
+            "left join cost c on c.product_id = s.product_id";
+
+        List<PriceComparison> out = new ArrayList<>();
+        jdbcTemplate.query(sql, params, rs -> {
+            BigDecimal own = rs.getBigDecimal("own_price");
+            BigDecimal median = rs.getBigDecimal("median_price");
+            BigDecimal p25 = rs.getBigDecimal("p25_price");
+            BigDecimal p75 = rs.getBigDecimal("p75_price");
+            BigDecimal qty = rs.getBigDecimal("qty");
+            BigDecimal cost = rs.getBigDecimal("unit_cost");
+            if (own == null || median == null || p25 == null || p75 == null || median.signum() <= 0) return;
+            String name = rs.getString("name");
+            int stores = rs.getInt("stores");
+
+            Direction dir = null;
+            BigDecimal suggested = null;
+            BigDecimal impact = BigDecimal.ZERO;
+            if (cost != null && median.compareTo(cost) < 0) {
+                dir = Direction.ABAIXO_DO_CUSTO;
+                impact = cost.subtract(median).multiply(qty);
+            } else if (pct(own, p75) >= ABOVE_PERCENT) {
+                dir = Direction.ACIMA;
+                suggested = p75;
+                // receita que deixaria de entrar ao voltar ao topo da faixa, mantido o volume
+                impact = own.subtract(p75).multiply(qty);
+            } else if (pct(p25, own) >= BELOW_PERCENT) {
+                dir = Direction.ABAIXO;
+                suggested = p25;
+                // margem a mais por mês subindo ao piso da faixa, mantido o volume (hipótese a conferir)
+                impact = p25.subtract(own).multiply(qty);
+            }
+            if (dir == null) return;
+            // Sugerir preço pede base mais larga que o alerta de custo.
+            if (dir != Direction.ABAIXO_DO_CUSTO && stores < MIN_STORES_TO_SUGGEST) return;
+            BigDecimal diff = own.subtract(median).divide(median, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+            out.add(new PriceComparison(
+                UUID.fromString(rs.getString("product_id")), name, rs.getString("image_url"),
+                own.setScale(2, RoundingMode.HALF_UP), median, rs.getBigDecimal("min_price"),
+                diff.setScale(2, RoundingMode.HALF_UP), stores,
+                rs.getDate("newest_seen") == null ? null : rs.getDate("newest_seen").toLocalDate(),
+                qty.setScale(3, RoundingMode.HALF_UP), impact.setScale(2, RoundingMode.HALF_UP),
+                describe(dir, name, own, median, p25, p75, stores, cost, rs.getString("min_store"), rs.getBigDecimal("min_price")),
+                dir, p25, p75, suggested, rs.getString("min_store"), rs.getBigDecimal("min_distance_km"), cost));
+        });
+        out.sort((a, b) -> b.revenueAtRisk().compareTo(a.revenueAtRisk()));
+        return out.size() > max ? out.subList(0, max) : out;
+    }
+
+    /** Quanto {@code a} passa de {@code b}, em %. */
+    static double pct(BigDecimal a, BigDecimal b) {
+        if (b == null || b.signum() <= 0) return 0;
+        return a.subtract(b).divide(b, 6, RoundingMode.HALF_UP).doubleValue() * 100;
+    }
+
+    private static String money(BigDecimal v) {
+        return v == null ? "—" : "R$ " + v.setScale(2, RoundingMode.HALF_UP).toPlainString().replace('.', ',');
+    }
+
+    static String describe(Direction dir, String name, BigDecimal own, BigDecimal median, BigDecimal p25, BigDecimal p75,
+                           int stores, BigDecimal cost, String cheapestStore, BigDecimal cheapest) {
+        String range = String.format("Em %d lojas a até 10 km, o preço típico vai de %s a %s (mediana %s).",
+            stores, money(p25), money(p75), money(median));
+        String source = " Fonte: Menor Preço, do Nota Paraná.";
+        return switch (dir) {
+            case ACIMA -> String.format("Você vende %s a %s. %s Seu preço está acima da faixa: confira se é posicionamento.%s",
+                name, money(own), range, source);
+            case ABAIXO -> String.format("Você vende %s a %s. %s Seu preço está abaixo da faixa: dá para subir até %s e "
+                + "continuar entre os mais baratos da região.%s", name, money(own), range, money(p25), source);
+            case ABAIXO_DO_CUSTO -> String.format("A vizinhança vende %s por %s (mediana), abaixo do seu custo de compra de %s. "
+                + "O mais barato é %s, a %s. Negocie com o fornecedor antes de comprar de novo.%s",
+                name, money(median), money(cost), cheapestStore == null ? "—" : cheapestStore, money(cheapest), source);
+        };
+    }
 }
