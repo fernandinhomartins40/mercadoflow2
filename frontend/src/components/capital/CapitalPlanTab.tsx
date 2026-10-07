@@ -293,35 +293,11 @@ const CapitalPlanTab: React.FC<CapitalPlanTabProps> = ({ marketId, onAddToList }
     <div className="flex flex-col gap-5">
       <UsageBanner />
 
-      {/* Resumo do portfólio */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile
-          icon={<Package size={13} />}
-          label="Dinheiro em estoque"
-          value={fmtMoney(summary?.totalInventoryValue)}
-          hint={`${summary?.productCount ?? 0} produtos analisados`}
-        />
-        <StatTile
-          icon={<Snowflake size={13} />}
-          label="Parado na prateleira"
-          value={fmtMoney(summary?.frozenCapital)}
-          hint={`${fmtNumber(summary?.frozenCapitalPercent, 1)}% do estoque`}
-          tone={Number(summary?.frozenCapitalPercent || 0) > 25 ? 'warn' : 'neutral'}
-        />
-        <StatTile
-          icon={<Coins size={13} />}
-          label="Retorno do estoque"
-          value={summary?.portfolioGmroi != null ? `R$ ${fmtNumber(summary.portfolioGmroi, 2)}` : '—'}
-          hint="de margem por R$ 1 investido"
-          tone={Number(summary?.portfolioGmroi || 0) >= 2 ? 'good' : 'neutral'}
-        />
-        <StatTile
-          icon={<TrendingUp size={13} />}
-          label="Para repor tudo"
-          value={fmtMoney(plan.totalNeededValue)}
-          hint={`${plan.selected.length} itens sugeridos`}
-        />
-      </div>
+      {/* O resumo (estoque, parado, retorno) mora no placar do Início (F2/F6): aqui
+          repetia os mesmos números com outros nomes. */}
+      <p className="fx-muted" style={{ margin: 0, fontSize: 13.5 }}>
+        Quanto há na prateleira e quanto está parado: veja em <a href="/app">Seu dinheiro na loja</a>, no Início.
+      </p>
 
       {/* Simulador de orçamento */}
       <div

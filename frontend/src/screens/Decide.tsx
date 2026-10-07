@@ -213,7 +213,6 @@ const Decide: React.FC = () => {
   const hub = (
     <ActionHub icon={Sparkles} label="Ações do Decidir" actions={[
       { label: checking ? 'Verificando…' : 'Verificar agora', icon: RefreshCw, onClick: check },
-      { label: tab === 'resultado' ? 'Para decidir' : 'No que deu', icon: tab === 'resultado' ? Inbox : History, onClick: () => setParam('aba', tab === 'resultado' ? null : 'resultado') },
       { label: 'Como o Tino trabalha', icon: Settings2, onClick: () => setConfig(true) },
     ]} />
   );
@@ -268,7 +267,11 @@ const Decide: React.FC = () => {
           {queue.loading ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : list.length === 0 ? (
             <Card style={{ textAlign: 'center', padding: 36 }}>
               <CheckCircle2 size={36} style={{ color: 'var(--fx-green)' }} aria-hidden="true" />
-              <h2 className="fx-section-title" style={{ marginTop: 10 }}>Nada para decidir {filter === 'tudo' ? 'agora' : `em ${GROUP_LABEL[filter as QueueGroup].toLowerCase()}`}</h2>
+              <h2 className="fx-section-title" style={{ marginTop: 10 }}>
+                {filter === 'capital' ? 'Nenhum produto encalhando entre os que têm estoque medido'
+                  : `Nada para decidir ${filter === 'tudo' ? 'agora' : `em ${GROUP_LABEL[filter as QueueGroup].toLowerCase()}`}`}
+              </h2>
+              {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: conte o estoque ou confira as notas no Confere.</p>}
             </Card>
           ) : (
             <div className="fx-split">

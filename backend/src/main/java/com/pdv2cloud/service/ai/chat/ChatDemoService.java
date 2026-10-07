@@ -218,8 +218,9 @@ public class ChatDemoService {
     }
 
     private static String fmt(Object value) {
-        if (value instanceof BigDecimal bd) {
-            return bd.stripTrailingZeros().toPlainString();
+        // Número como o dono lê (vírgula decimal, milhar com ponto): "0,2", "1.812".
+        if (value instanceof Number n) {
+            return com.pdv2cloud.util.Br.num(n, 1);
         }
         return String.valueOf(value);
     }

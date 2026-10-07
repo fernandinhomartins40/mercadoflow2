@@ -78,11 +78,11 @@ const Results: React.FC<{ marketId: string }> = ({ marketId }) => {
           <PanelTitle title="Suas decisões nos últimos 30 dias" sub={summary.medidas > 0
             ? `${summary.acertos} de ${summary.medidas} funcionaram${summary.parciais ? `, ${summary.parciais} em parte` : ''}`
             : summary.aguardando > 0 ? `${summary.aguardando} ${summary.aguardando === 1 ? 'decisão aceita está' : 'decisões aceitas estão'} sendo acompanhadas${summary.proximaMedicao ? `; a primeira medição sai em ${date(summary.proximaMedicao)}` : ''}` : 'Aceite uma decisão em "Para decidir": 30 dias depois ela aparece aqui, em reais.'} />
-          <div className="fx-kpis" style={{ marginTop: 14 }}>
+          {summary.medidas > 0 && <div className="fx-kpis" style={{ marginTop: 14 }}>
             <Kpi label="Dinheiro de volta ao caixa" value={formatMoney(summary.dinheiroDeVolta)} hint="venda dos produtos que você liquidou" />
             <Kpi label="Venda a mais" value={formatMoney(summary.vendaAMais)} hint="promoções e preços que funcionaram" />
             <Kpi label="Venda garantida" value={formatMoney(summary.vendaGarantida)} hint="compras que escoaram sem sobrar" />
-          </div>
+          </div>}
         </Card>
       )}
 

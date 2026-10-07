@@ -251,10 +251,10 @@ const Products: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero
-          title={attention.length > 0
-            ? <>{attention.length} {attention.length === 1 ? 'produto pede' : 'produtos pedem'} <mark>sua atenção.</mark></>
-            : <>Seus produtos estão <mark>em dia.</mark></>}
-          subtitle={[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ') || undefined}
+          title={<>Como vai <mark>cada produto.</mark></>}
+          subtitle={[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ')
+            ? <>{[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ')}. O que fazer com eles está em <a href="/app/decidir">Decidir</a>.</>
+            : 'Busque um produto para ver venda, preço, tração e estoque.'}
           side={<ActionHub icon={HxPackage} actions={[
             { label: `Acabando${low ? ` (${low})` : ''}`, icon: HxZap, onClick: () => setFilter('acabando') },
             { label: `Vendendo menos${down ? ` (${down})` : ''}`, icon: HxTrendingUp, onClick: () => setFilter('caindo') },
