@@ -128,6 +128,16 @@ public class WorkingCapitalController {
         "m.momentum_score as \"momentumScore\", m.daily_velocity as \"dailyVelocity\", m.capital_status as \"capitalStatus\", " +
         "m.inventory_units as \"inventoryUnits\" from product_capital_metrics m join products p on p.id = m.product_id where m.market_id = :m ";
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.intelligence.CapitalScoreboardService scoreboard;
+
+    /** "Seu dinheiro na loja": estoque em R$, dias de estoque, margem e dinheiro parado, medido ou estimado. */
+    @GetMapping("/capital/scoreboard")
+    public Map<String, Object> scoreboard(@PathVariable("marketId") UUID marketId, Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        return scoreboard.scoreboard(marketId);
+    }
+
     /**
      * O cartão Giro do Início: os 5 que vale reforçar e os 5 perdendo ritmo.
      * Antes o Início baixava o portfólio inteiro (6,5 mil produtos) para isso.

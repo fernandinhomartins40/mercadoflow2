@@ -180,6 +180,27 @@ const getPortfolio = async (
   return data;
 };
 
+/** "Seu dinheiro na loja": o placar do capital (F2). Cada número diz se é medido ou estimado. */
+export interface CapitalScoreboard {
+  stockValue: number | null;
+  stockMeasured: boolean;
+  stockMeasuredShare: number;
+  daysOfStock: number | null;
+  revenue30: number | null;
+  margin30: number | null;
+  marginPercent: number | null;
+  marginMeasured: boolean;
+  marginMeasuredShare: number;
+  idleValue: number | null;
+  idleProducts: number;
+  since: string | null;
+  baseline: { day: string; stockValue: number | null; daysOfStock: number | null; idleValue: number | null; marginPercent: number | null } | null;
+  history: { day: string; stockValue: number | null; daysOfStock: number | null; idleValue: number | null; marginPercent: number | null; margin30: number | null }[];
+}
+
+const getScoreboard = async (marketId: string): Promise<CapitalScoreboard> =>
+  (await api.get<CapitalScoreboard>(`${base(marketId)}/capital/scoreboard`)).data;
+
 /** O cartão Giro do Início: 5 que vale reforçar e 5 perdendo ritmo (não o portfólio inteiro). */
 export type GiroItem = Pick<CapitalMetric, 'productId' | 'name' | 'imageUrl' | 'abcClass' | 'momentumScore' | 'dailyVelocity' | 'capitalStatus' | 'inventoryUnits'>;
 export interface GiroSummary { rapido: GiroItem[]; perdendo: GiroItem[]; noStock: boolean }
@@ -264,6 +285,7 @@ const getPromoRecommendations = async (
 
 export default {
   getGiro,
+  getScoreboard,
   getPortfolio,
   getPurchasePlan,
   getTrafficDrivers,

@@ -25,6 +25,9 @@ public class ProductIntelligenceJob {
 
     private final ProductIntelligenceMaterializer materializer;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.intelligence.CapitalScoreboardService scoreboard;
+
     public ProductIntelligenceJob(ProductIntelligenceMaterializer materializer) {
         this.materializer = materializer;
     }
@@ -58,6 +61,14 @@ public class ProductIntelligenceJob {
                     + result.seasonalityRows() + result.haloEffects()
                     + result.customerProfiles() + result.repurchaseRows();
                 ok++;
+                // Foto diária do placar do capital (Início), com o capital recém-calculado.
+                if (scoreboard != null) {
+                    try {
+                        TenantContext.runAsSystem(() -> scoreboard.snapshot(market.getId()));
+                    } catch (Exception e) {
+                        log.warn("Placar do capital falhou (mercado {}): {}", market.getId(), e.getMessage());
+                    }
+                }
                 log.debug(
                     "Mercado {}: {} metricas de capital, {} estimativas de estoque, "
                         + "{} linhas de sazonalidade, {} efeitos halo, {} perfis de cliente, "

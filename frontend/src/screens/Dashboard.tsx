@@ -19,7 +19,8 @@ import { formatDecimal, formatMoney } from '../utils/formatters';
 import { GROUP_LABEL, useDecisionQueue } from './decidir/queue';
 import { useCached } from '../hooks/useCached';
 import { tractionService, type ProductTraction } from '../services/traction.service';
-import workingCapitalService, { type GiroSummary } from '../services/workingCapital.service';
+import workingCapitalService, { type CapitalScoreboard as ScoreData, type GiroSummary } from '../services/workingCapital.service';
+import CapitalScoreboard from '../components/capital/CapitalScoreboard';
 import { paceLabel, rankLabel } from '../utils/plain';
 
 /**
@@ -276,6 +277,9 @@ const Dashboard: React.FC = () => {
   const queue = useDecisionQueue(marketId, ready);
   const traction = useCached<ProductTraction[]>(marketId && ready ? `tracao:${marketId}` : null,
     () => tractionService.list(marketId!, true, 50), 10 * 60_000);
+  // Placar do capital (F2): o número principal do Início é o dinheiro da loja.
+  const score = useCached<ScoreData>(marketId && ready ? `placar:${marketId}` : null,
+    () => workingCapitalService.getScoreboard(marketId!), 10 * 60_000);
   const portfolio = useCached<GiroSummary>(marketId && ready ? `giro2:${marketId}` : null,
     () => workingCapitalService.getGiro(marketId!), 10 * 60_000);
   const extras = useExtras(ready ? marketId ?? null : null);
@@ -300,7 +304,13 @@ const Dashboard: React.FC = () => {
   );
 
   const pulling = traction.data ?? [];
+  const sc = score.data;
   const title = useMemo(() => {
+    // Manchete de capital só com estoque medido: número estimado não vira manchete.
+    if (sc?.stockMeasured && sc.stockValue != null && sc.daysOfStock != null) {
+      const d = Math.round(Number(sc.daysOfStock));
+      return <><mark>{formatMoney(Math.round(Number(sc.stockValue))).replace(/,00$/, '')}</mark> na prateleira, para {d} {d === 1 ? 'dia' : 'dias'} de venda.</>;
+    }
     if (pulling.length > 0) {
       return <><mark>{pulling.length} {pulling.length === 1 ? 'produto puxa' : 'produtos puxam'}</mark> a venda da sua loja.</>;
     }
@@ -310,9 +320,13 @@ const Dashboard: React.FC = () => {
         : <>{greeting()}, {first}. <mark>Sem vendas ainda.</mark></>;
     }
     return <>{PERIOD_TITLE[period]} a loja vendeu <mark>{formatMoney(sales.value)}.</mark></>;
-  }, [panel, sales, period, first, pulling.length]);
+  }, [panel, sales, period, first, pulling.length, sc]);
 
-  const subtitle = pulling.length > 0
+  const subtitle = sc?.stockMeasured && sc.stockValue != null && sc.daysOfStock != null
+    ? (Number(sc.idleValue) > 0
+      ? `${formatMoney(Math.round(Number(sc.idleValue))).replace(/,00$/, '')} estão parados em ${sc.idleProducts} ${sc.idleProducts === 1 ? 'produto' : 'produtos'}. Libere esse dinheiro em Decidir.`
+      : 'Nenhum produto encalhando entre os que têm estoque medido.')
+    : pulling.length > 0
     ? `Quando entram no cupom, o cliente leva até ${money2(Math.max(...pulling.map((t) => t.liftPerBasket)))} a mais em outros produtos. Não deixe faltar.`
     : !panel || !sales ? undefined
     : period === 'dia' && !panel.today
@@ -359,14 +373,16 @@ const Dashboard: React.FC = () => {
         <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
       )}
 
-      <DailyBriefCard marketId={marketId} />
+      <CapitalScoreboard score={sc} loading={score.loading} />
+
+      <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
 
       <div className="fx-split">
         <TractionCard items={traction.data} />
         <GiroCard portfolio={portfolio.data} />
       </div>
 
-      <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
+      <DailyBriefCard marketId={marketId} />
 
       <CostCoverageCard marketId={marketId} />
 
