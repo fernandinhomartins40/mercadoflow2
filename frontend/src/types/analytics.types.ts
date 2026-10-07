@@ -189,7 +189,7 @@ export interface ProductPurchaseSignal {
   decisionReason: string;
   salesVelocity: number;
   suggestedOrderDays: number;
-  suggestedQuantity: number;
+  suggestedQuantity: number | null;
   daysWithoutSale: number;
   projections: StockProjectionPeriod[];
 }

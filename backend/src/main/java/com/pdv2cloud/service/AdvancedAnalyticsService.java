@@ -1575,6 +1575,12 @@ public class AdvancedAnalyticsService {
 
         WorkingCapitalService.CapitalMetric capital = capitalMetricsReader.forProduct(
             marketId, overview.getProductId(), (int) window.lengthDays());
+        // Uma verdade só (F5): a venda por dia é a do cálculo de capital (dias
+        // completos), a mesma do Decidir; o cabeçalho do produto também a usa.
+        if (capital != null && capital.dailyVelocity() != null) {
+            velocity = capital.dailyVelocity().doubleValue();
+            overview.setSalesVelocity(capital.dailyVelocity());
+        }
 
         // Dormancy: days since last sale
         long daysWithoutSale = 0;
@@ -1650,16 +1656,21 @@ public class AdvancedAnalyticsService {
             coverDays = SEASONAL_COVERAGE_DAYS;
         }
 
-        double baseQty;
-        if (capital != null && capital.suggestedOrderUnits() != null) {
-            baseQty = capital.suggestedOrderUnits().doubleValue();
-            if (capital.coverageDays() != null && capital.coverageDays().signum() > 0) {
-                coverDays = capital.coverageDays().doubleValue();
+        // Uma verdade só (F5): a quantidade é a mesma do Decidir (cobertura alvo
+        // por tipo de produto). Sem estoque conhecido, não há quantidade a sugerir:
+        // antes esta tela inventava venda x 14 dias enquanto o Decidir se calava.
+        Double suggestedQty = null;
+        if (capital != null) {
+            coverDays = highSeasonUpcoming.isEmpty()
+                ? WorkingCapitalService.coverageDaysFor(capital.category(), capital.name()) : coverDays;
+            if (capital.suggestedOrderUnits() != null) {
+                suggestedQty = Math.ceil(Math.max(0, capital.suggestedOrderUnits().doubleValue() * upliftMultiplier));
+            } else if ("BUY".equals(decision)) {
+                decisionReason = decisionReason + " O estoque deste produto não é conhecido: conte-o para saber quanto pedir.";
             }
         } else {
-            baseQty = velocity * coverDays;
+            suggestedQty = Math.ceil(Math.max(0, velocity * coverDays * upliftMultiplier));
         }
-        double suggestedQty = Math.max(0, baseQty * upliftMultiplier);
 
         // Stock projection periods (upcoming high-season windows only)
         List<ProductPurchaseSignalDTO.StockProjectionPeriod> projections = new ArrayList<>();
@@ -1682,7 +1693,7 @@ public class AdvancedAnalyticsService {
             decisionReason,
             BigDecimal.valueOf(velocity).setScale(2, RoundingMode.HALF_UP),
             BigDecimal.valueOf(coverDays).setScale(0, RoundingMode.HALF_UP),
-            BigDecimal.valueOf(suggestedQty).setScale(0, RoundingMode.HALF_UP),
+            suggestedQty == null ? null : BigDecimal.valueOf(suggestedQty).setScale(0, RoundingMode.HALF_UP),
             BigDecimal.valueOf(daysWithoutSale),
             projections
         );

@@ -111,19 +111,21 @@ const PurchaseSignalBanner: React.FC<{ signal: ProductPurchaseSignal }> = ({ sig
 
       <div className="grid gap-3 sm:grid-cols-3 border-t pt-3" style={{ borderColor: cfg.border }}>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vendas atuais</p>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Vende por dia</p>
           <p className="text-lg font-bold" style={{ color: cfg.text }}>
-            {formatDecimal(Number(signal.salesVelocity || 0), 1)}<span className="text-sm font-normal"> un/dia</span>
+            {formatDecimal(Number(signal.salesVelocity || 0), 1)}<span className="text-sm font-normal"> un.</span>
           </p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Qtd. sugerida</p>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Pedir</p>
           <p className="text-lg font-bold" style={{ color: cfg.text }}>
-            {fmt.qty(signal.suggestedQuantity)}<span className="text-sm font-normal"> un</span>
+            {signal.suggestedQuantity != null
+              ? <>{fmt.qty(signal.suggestedQuantity)}<span className="text-sm font-normal"> un.</span></>
+              : <span className="text-sm font-semibold">conte o estoque</span>}
           </p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Cobrir</p>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: cfg.text, opacity: 0.7 }}>Para cobrir</p>
           <p className="text-lg font-bold" style={{ color: cfg.text }}>
             {fmt.qty(signal.suggestedOrderDays)}<span className="text-sm font-normal"> dias</span>
           </p>
