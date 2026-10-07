@@ -8,8 +8,9 @@ quando X.jpg não existe mais (CatalogImageStorageService.resolveStoragePath).
 Segurança (06/10/2026):
   - o WebP é aberto de novo e conferido antes de qualquer coisa;
   - se não ficar ao menos 10% menor, o original fica e o WebP é descartado;
-  - o original NÃO é apagado: vai para data/catalog/originals/ (mesmo disco,
-    movimento instantâneo). Só se apaga essa pasta depois de conferir as fotos.
+  - por padrão o original vai para data/catalog/originals/ (mesmo disco,
+    movimento instantâneo); com --delete-originals é apagado logo após o
+    WebP ser gravado e conferido (o dono aprovou em 07/10/2026).
 
 Uso (dentro do contêiner de coletores):
   python /workspace/scripts/catalog/convert_images_webp.py --dry-run --limit 200
@@ -33,13 +34,21 @@ SOURCE_EXT = {".jpg", ".jpeg", ".png"}
 MIN_GAIN = 0.10
 
 
-def convert(src: Path, originals: Path, dry_run: bool) -> tuple[str, int, int]:
+def retire(src: Path, originals: Path, delete: bool) -> None:
+    """Tira o original do caminho: apaga (o WebP já foi conferido) ou guarda à parte."""
+    if delete:
+        src.unlink()
+        return
+    originals.mkdir(parents=True, exist_ok=True)
+    os.replace(src, originals / src.name)
+
+
+def convert(src: Path, originals: Path, dry_run: bool, delete: bool = False) -> tuple[str, int, int]:
     webp = src.with_suffix(".webp")
     before = src.stat().st_size
     if webp.exists() and webp.stat().st_size > 0:
         if not dry_run:
-            originals.mkdir(parents=True, exist_ok=True)
-            os.replace(src, originals / src.name)
+            retire(src, originals, delete)
         return "ja_tinha_webp", before, webp.stat().st_size
 
     with Image.open(src) as opened:
@@ -63,8 +72,7 @@ def convert(src: Path, originals: Path, dry_run: bool) -> tuple[str, int, int]:
         tmp.unlink()
         return "converteria", before, after
     os.replace(tmp, webp)
-    originals.mkdir(parents=True, exist_ok=True)
-    os.replace(src, originals / src.name)
+    retire(src, originals, delete)
     return "convertido", before, after
 
 
@@ -74,6 +82,8 @@ def main() -> int:
     parser.add_argument("--originals-dir", default="/workspace/data/catalog/originals/products")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--delete-originals", action="store_true",
+                        help="apaga o original depois de gravar e conferir o WebP (autorizado em 07/10/2026)")
     args = parser.parse_args()
 
     images = Path(args.images_dir)
@@ -87,7 +97,7 @@ def main() -> int:
     started = time.time()
     for i, src in enumerate(files, 1):
         try:
-            status, before, after = convert(src, originals, args.dry_run)
+            status, before, after = convert(src, originals, args.dry_run, args.delete_originals)
         except Exception as exc:  # foto corrompida: fica como está
             status, before, after = "erro", 0, 0
             print(f"erro {src.name}: {exc}", flush=True)
