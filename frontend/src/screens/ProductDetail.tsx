@@ -27,6 +27,7 @@ import {
   SeasonalityPoint,
 } from '../types/analytics.types';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus, ShoppingCart, Calendar, Zap, Clock, ArrowLeft, ListChecks, Package, Tag } from 'lucide-react';
+import { affinityLabel } from '../utils/plain';
 
 /* ─── Formatadores ─── */
 const fmt = {
@@ -230,7 +231,7 @@ const StockProjectionSection: React.FC<{ signal: ProductPurchaseSignal }> = ({ s
             </div>
             <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-soft)' }}>
               <Zap className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--brand-500)' }} />
-              <span>Uplift esperado: <strong style={{ color: 'var(--brand-700)' }}>{formatDecimal(proj.upliftFactor, 1)}×</strong></span>
+              <span>Venda esperada: <strong style={{ color: 'var(--brand-700)' }}>{Number(proj.upliftFactor) >= 1 ? `${Math.round((Number(proj.upliftFactor) - 1) * 100)}% acima do normal` : `${Math.round((1 - Number(proj.upliftFactor)) * 100)}% abaixo do normal`}</strong></span>
             </div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{proj.action}</p>
             <p className="text-xs italic font-medium" style={{ color: 'var(--brand-600)' }}>{proj.daysUntil}</p>
@@ -302,7 +303,7 @@ const PairCard: React.FC<{ pair: ProductPairInsight }> = ({ pair }) => (
     </div>
     <div className="flex flex-col gap-2.5 p-3">
       <div className="flex flex-wrap gap-1.5">
-        <Chip variant="success">Afinidade {formatDecimal(Number(pair.lift || 0), 2)}</Chip>
+        <Chip variant="success">{affinityLabel(Number(pair.lift || 0))}</Chip>
         <Chip>{pair.pairCount || 0} cestas</Chip>
       </div>
       <div>

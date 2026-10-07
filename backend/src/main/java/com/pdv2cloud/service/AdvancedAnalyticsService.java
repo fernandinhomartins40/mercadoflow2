@@ -1607,7 +1607,7 @@ public class AdvancedAnalyticsService {
         } else if (velocity <= 0.05 && trendPct < -20) {
             decision = "REDUCE";
             decisionLabel = "Reduzir pedido";
-            decisionReason = "Velocidade de venda muito baixa e tendência de queda. Reduza o pedido até o produto ganhar tração novamente.";
+            decisionReason = "Vende muito pouco e está caindo. Peça menos até a venda voltar.";
         } else if (capital != null
                    && (capital.capitalStatus() == ProductCapitalMetric.CapitalStatus.REDUZIR
                        || capital.capitalStatus() == ProductCapitalMetric.CapitalStatus.LIQUIDAR)) {
@@ -1623,17 +1623,13 @@ public class AdvancedAnalyticsService {
             decisionLabel = "Comprar agora";
             String seasonHint = highSeasonUpcoming.isEmpty() ? "" :
                 " " + highSeasonUpcoming.get(0).getTitle() + " se aproxima — reforce o estoque.";
-            decisionReason = String.format(
-                "Velocidade atual de %.1f un/dia com tendência de %+.0f%%.%s",
-                velocity, trendPct, seasonHint
-            );
+            decisionReason = "Vende " + com.pdv2cloud.util.Br.perDay(velocity) + " por dia"
+                + (Math.abs(trendPct) >= 5 ? ", " + com.pdv2cloud.util.Br.pct(Math.abs(trendPct)) + (trendPct > 0 ? " a mais" : " a menos") + " que antes" : ", estável")
+                + "." + seasonHint;
         } else {
             decision = "HOLD";
             decisionLabel = "Manter reposição normal";
-            decisionReason = String.format(
-                "Giro de %.1f un/dia dentro do esperado. Mantenha o ciclo de reposição habitual.",
-                velocity
-            );
+            decisionReason = "Vende " + com.pdv2cloud.util.Br.perDay(velocity) + " por dia, dentro do normal. Siga o ritmo de compra de sempre.";
         }
 
         /*

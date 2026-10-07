@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.intelligence;
 
+import com.pdv2cloud.util.Br;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -110,14 +112,10 @@ public class SalesAnomalyDetector {
             : 0.0;
 
         String description = above
-            ? String.format(
-                "Venda de %s ficou %.0f%% acima do esperado (R$ %.2f contra R$ %.2f previstos). "
-                    + "Vale entender o que puxou o movimento para repetir.",
-                day.date(), Math.abs(deviationPercent), day.revenue(), expected)
-            : String.format(
-                "Venda de %s ficou %.0f%% abaixo do esperado (R$ %.2f contra R$ %.2f previstos). "
-                    + "Verifique se houve problema de operação, ruptura ou fechamento.",
-                day.date(), Math.abs(deviationPercent), day.revenue(), expected);
+            ? "A venda de " + Br.date(day.date()) + " ficou " + Br.pct(Math.abs(deviationPercent)) + " acima do normal ("
+                + Br.money(day.revenue()) + " contra " + Br.money(expected) + "). Vale entender o que puxou o movimento para repetir."
+            : "A venda de " + Br.date(day.date()) + " ficou " + Br.pct(Math.abs(deviationPercent)) + " abaixo do normal ("
+                + Br.money(day.revenue()) + " contra " + Br.money(expected) + "). Veja se faltou produto, se houve problema no caixa ou se a loja fechou mais cedo.";
 
         return new SalesAnomaly(
             day.date(),

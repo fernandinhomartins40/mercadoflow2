@@ -19,6 +19,7 @@ import workingCapitalService, {
 } from '../../services/workingCapital.service';
 import subscriptionService, { MarketUsage } from '../../services/subscription.service';
 import UsageBanner from '../billing/UsageBanner';
+import { rankLabel, regularityLabel } from '../../utils/plain';
 
 /**
  * Plano de capital de giro.
@@ -136,10 +137,9 @@ const LineRow: React.FC<{ line: PurchaseLine; showUnits?: boolean }> = ({ line, 
         <span
           className="rounded px-1.5 py-0.5 text-[10px] font-bold"
           style={{ background: 'var(--surface-soft)', color: 'var(--text-muted)' }}
-          title="Curva ABC (peso na receita) e XYZ (previsibilidade da demanda)"
+          title={[rankLabel(line.abcClass), regularityLabel(line.xyzClass)].filter(Boolean).join(', ')}
         >
-          {line.abcClass}
-          {line.xyzClass}
+          {rankLabel(line.abcClass)}
         </span>
         <ConfidenceMark confidence={line.inventoryConfidence} />
       </div>

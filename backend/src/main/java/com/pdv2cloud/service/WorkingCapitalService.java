@@ -1,5 +1,7 @@
 package com.pdv2cloud.service;
 
+import com.pdv2cloud.util.Br;
+
 import com.pdv2cloud.model.entity.ProductCapitalMetric;
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.intelligence.ExpectedDemandService;
@@ -87,7 +89,7 @@ public class WorkingCapitalService {
      * semanas de estoque: a auditoria de 07/10/2026 achou "comprar 1.812 kg de
      * tomate" porque toda a loja usava 21 dias.
      */
-    static int coverageDaysFor(String category, String name) {
+    public static int coverageDaysFor(String category, String name) {
         String text = java.text.Normalizer.normalize((category == null ? "" : category) + " " + (name == null ? "" : name) + " ",
             java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase(java.util.Locale.ROOT);
         if (PERISHABLE_SHORT.matcher(text).find()) return 3;
@@ -789,14 +791,13 @@ public class WorkingCapitalService {
          */
         if (usingForecast) {
             reason += String.format(
-                " Demanda projetada em %.1f un./dia pela previsão (e não pela média histórica).",
-                expectedDailyDemand);
+                " A previsão indica %s por dia nas próximas semanas.", Br.perDay(expectedDailyDemand));
         }
         if (leadTimeDays != DEFAULT_LEAD_TIME_DAYS) {
-            reason += String.format(" Prazo de entrega medido: %d dias.", leadTimeDays);
+            reason += " O fornecedor costuma entregar em " + Br.days(leadTimeDays) + ".";
         }
         if (transit > 0) {
-            reason += String.format(" Já há %.0f un. em pedido aberto, descontadas da sugestão.", transit);
+            reason += " Já há " + Br.units(transit) + " un. em pedido aberto, descontadas da sugestão.";
         }
 
         return new CapitalMetric(
@@ -918,47 +919,39 @@ public class WorkingCapitalService {
     }
 
     /** Explicação em português, com os números que sustentam o veredito. */
+    private static String capitalize(String s) {
+        return s == null || s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
     private String buildReason(
         CapitalStatus status, String abcClass, String xyzClass,
         BigDecimal gmroi, BigDecimal coverageDays, double momentum,
         double dailyVelocity, BigDecimal marginPercent, String costSource,
         BigDecimal inventoryConfidence
     ) {
+        // Uma frase em reais, dias e unidades (F1, 07/10/2026). O cálculo técnico
+        // (curva, GMROI, ritmo) fica em "Como chegamos nesse número".
         StringBuilder sb = new StringBuilder();
-
-        String gmroiText = gmroi != null
-            ? String.format("GMROI %.2f (cada R$ 1 investido devolve R$ %.2f de margem)", gmroi, gmroi)
-            : "GMROI indisponível (sem estoque estimado confiável)";
-        String coverageText = coverageDays != null
-            ? String.format("%.0f dias de cobertura", coverageDays)
-            : "cobertura desconhecida";
+        String lasts = coverageDays != null ? "o estoque dura " + Br.days(coverageDays) : "o estoque não é conhecido";
+        String sells = "vende " + Br.perDay(dailyVelocity) + " por dia";
 
         switch (status) {
-            case INVEST -> sb.append(String.format(
-                "Classe %s%s girando %.2f un./dia com %s. %s — vale reforçar a compra.",
-                abcClass, xyzClass, dailyVelocity, coverageText, gmroiText));
-            case MANTER -> sb.append(String.format(
-                "Classe %s%s com giro de %.2f un./dia dentro do esperado e %s. "
-                    + "Mantenha o ciclo de reposição atual.",
-                abcClass, xyzClass, dailyVelocity, coverageText));
-            case REDUZIR -> sb.append(String.format(
-                "Capital exposto além do giro: %s para uma venda de %.2f un./dia, "
-                    + "com demanda %s (momentum %.2f). Compre menos no próximo ciclo.",
-                coverageText, dailyVelocity,
-                momentum < 1 ? "desacelerando" : "estável", momentum));
-            case LIQUIDAR -> sb.append(String.format(
-                "Sinais de estagnação: %s, giro de %.2f un./dia e momentum %.2f. "
-                    + "Considere promoção para liberar o capital parado.",
-                coverageText, dailyVelocity, momentum));
+            case INVEST -> sb.append(String.format("Está %s (%s), %s", Br.rank(abcClass), sells, lasts))
+                .append(gmroi != null ? " e cada R$ 1 parado nele volta " + Br.money(gmroi) + " de margem" : "")
+                .append(". Vale reforçar a compra.");
+            case MANTER -> sb.append(String.format("%s e %s. Siga o ritmo de compra atual.",
+                capitalize(sells), lasts));
+            case REDUZIR -> sb.append(String.format("%s e está %s. Compre menos no próximo pedido.",
+                capitalize(lasts), Br.pace(momentum)));
+            case LIQUIDAR -> sb.append(String.format("Está parado: %s e está %s. Uma promoção devolve o dinheiro ao caixa.",
+                lasts, Br.pace(momentum)));
         }
 
         if ("MARGIN_ESTIMATE".equals(costSource)) {
-            sb.append(String.format(
-                " Margem estimada em %.0f%% — registre o custo de compra para um cálculo exato.",
-                marginPercent));
+            sb.append(" Margem estimada em ").append(Br.pct(marginPercent)).append(": informe o custo para ter o número certo.");
         }
         if (inventoryConfidence != null && inventoryConfidence.doubleValue() < 0.4) {
-            sb.append(" Estoque estimado com baixa confiança: registre as compras para melhorar a precisão.");
+            sb.append(" Estoque estimado: conte o produto para confirmar.");
         }
 
         return sb.toString();

@@ -60,8 +60,9 @@ class RecommendationTextFormatTest {
         Mockito.verify(recommendations).save(saved.capture());
         String trace = saved.getValue().getCalculationTrace();
         assertTrue(trace.contains("R$ 5.893,50"), trace);
-        assertTrue(trace.contains("41,33 dia(s)"), trace);
-        assertTrue(trace.contains("0,42 un./dia"), trace);
+        assertTrue(trace.contains("41 dias"), trace);
+        assertTrue(trace.contains("0,4 por dia"), trace);
+        assertFalse(trace.matches("(?s).*\\d\\.\\d{1,2}(?!\\d).*"), "nenhum decimal com ponto: " + trace);
         assertFalse(trace.contains("0.4166"), trace);
         assertTrue(saved.getValue().getTitle().endsWith("com 12,5% de desconto"), saved.getValue().getTitle());
     }

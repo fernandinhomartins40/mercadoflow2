@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.intelligence;
 
+import com.pdv2cloud.util.Br;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -109,19 +111,25 @@ public class ProductHistoryService {
 
         double change = (secondHalf - firstHalf) / firstHalf * 100.0;
         if (change >= 15) {
-            return String.format(
-                "O giro está acelerando: subiu %.0f%% entre a primeira e a segunda metade do "
-                    + "período (%.2f para %.2f un./dia).", change, firstHalf, secondHalf);
+            return "Está vendendo mais: passou de " + Br.perDay(firstHalf) + " para " + Br.perDay(secondHalf)
+                + " por dia (" + Br.pct(change) + " a mais) no período.";
         }
         if (change <= -15) {
-            return String.format(
-                "O giro está desacelerando: caiu %.0f%% entre a primeira e a segunda metade do "
-                    + "período (%.2f para %.2f un./dia). Vale entender o motivo antes de repor.",
-                Math.abs(change), firstHalf, secondHalf);
+            return "Está vendendo menos: passou de " + Br.perDay(firstHalf) + " para " + Br.perDay(secondHalf)
+                + " por dia (" + Br.pct(Math.abs(change)) + " a menos). Vale entender o motivo antes de repor.";
         }
-        return String.format(
-            "O giro está estável em torno de %.2f un./dia, sem variação relevante no período.",
-            secondHalf);
+        return "Venda estável, em torno de " + Br.perDay(secondHalf) + " por dia no período.";
+    }
+
+    private static String verdict(String status) {
+        if (status == null) return "—";
+        return switch (status) {
+            case "INVEST" -> "reforçar a compra";
+            case "MANTER" -> "manter";
+            case "REDUZIR" -> "comprar menos";
+            case "LIQUIDAR" -> "liquidar";
+            default -> status;
+        };
     }
 
     private double averageVelocity(List<MetricPoint> slice) {
@@ -147,15 +155,14 @@ public class ProductHistoryService {
             MetricPoint cur = points.get(i);
 
             if (differs(prev.abcClass(), cur.abcClass())) {
-                changes.add(new ClassChange(cur.date(), "Classe ABC",
+                changes.add(new ClassChange(cur.date(), "Posição nas vendas",
                     prev.abcClass(), cur.abcClass(),
-                    String.format("Passou de classe %s para %s.", prev.abcClass(), cur.abcClass())));
+                    "Passou de \"" + Br.rank(prev.abcClass()) + "\" para \"" + Br.rank(cur.abcClass()) + "\"."));
             }
             if (differs(prev.capitalStatus(), cur.capitalStatus())) {
-                changes.add(new ClassChange(cur.date(), "Veredito de capital",
+                changes.add(new ClassChange(cur.date(), "O que fazer com o estoque",
                     prev.capitalStatus(), cur.capitalStatus(),
-                    String.format("O veredito mudou de %s para %s.",
-                        prev.capitalStatus(), cur.capitalStatus())));
+                    "Mudou de \"" + verdict(prev.capitalStatus()) + "\" para \"" + verdict(cur.capitalStatus()) + "\"."));
             }
         }
         return changes;

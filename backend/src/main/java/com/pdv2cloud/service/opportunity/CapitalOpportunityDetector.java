@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.opportunity;
 
+import com.pdv2cloud.util.Br;
+
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.WorkingCapitalService.CapitalMetric;
 import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
@@ -182,9 +184,11 @@ public class CapitalOpportunityDetector implements OpportunityDetector {
         evidence.put("classeAbc", m.abcClass());
         evidence.put("confiancaEstoque", m.inventoryConfidence());
 
-        String descricao = String.format(java.util.Locale.forLanguageTag("pt-BR"),
-            "Estoque para %.0f dia(s) com venda de %.1f un. por dia.",
-            m.coverageDays().doubleValue(), m.dailyVelocity().doubleValue());
+        int target = com.pdv2cloud.service.WorkingCapitalService.coverageDaysFor(m.category(), m.name());
+        evidence.put("coberturaAlvo", target);
+        String descricao = "O estoque acaba em " + Br.days(m.coverageDays()) + " (vende " + Br.perDay(m.dailyVelocity())
+            + " por dia). Peça " + Br.units(qty) + " un." + (spend != null ? " (" + Br.money(spend) + ")" : "")
+            + " para cobrir " + Br.days(target) + "." + (capped ? " Limitado ao tamanho das suas últimas compras: confira o estoque." : "");
 
         // Produto de classe A com pouca cobertura é o que dói mais deixar
         // faltar: concentra receita e a ruptura aparece no caixa no mesmo dia.

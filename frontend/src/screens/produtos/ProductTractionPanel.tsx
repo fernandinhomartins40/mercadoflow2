@@ -6,6 +6,7 @@ import { useCached } from '../../hooks/useCached';
 import { tractionService, type ProductTraction } from '../../services/traction.service';
 import workingCapitalService, { type CapitalMetric } from '../../services/workingCapital.service';
 import { formatDecimal, formatMoney } from '../../utils/formatters';
+import { affinityLabel, paceLabel, rankLabel, regularityLabel } from '../../utils/plain';
 
 const money2 = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -56,7 +57,7 @@ const ProductTractionPanel: React.FC<{ productId: string }> = ({ productId }) =>
                   {t.partners.map((p) => (
                     <li key={p.productId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                       <Link to={`/app/produtos/${p.productId}`}>{p.name}</Link>
-                      <span className="fx-muted" style={{ whiteSpace: 'nowrap', fontSize: 13 }}>{p.baskets} cupons · {formatDecimal(p.lift, 1)}x o acaso</span>
+                      <span className="fx-muted" style={{ whiteSpace: 'nowrap', fontSize: 13 }}>{p.baskets} cupons · {affinityLabel(p.lift)}</span>
                     </li>
                   ))}
                 </ul>
@@ -73,8 +74,8 @@ const ProductTractionPanel: React.FC<{ productId: string }> = ({ productId }) =>
           <>
             <div className="fx-kpis" style={{ marginTop: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
               <div className="fx-kpi"><span>Vende por dia</span><b>{formatDecimal(Number(m.dailyVelocity), 1)}</b></div>
-              <div className="fx-kpi"><span>Curva</span><b>{m.abcClass}{m.xyzClass ?? ''}</b></div>
-              <div className="fx-kpi"><span>Ritmo</span><b>{m.momentumScore != null ? `${formatDecimal(Number(m.momentumScore), 2)}x` : '—'}</b><small>últimos 7 dias contra 28</small></div>
+              <div className="fx-kpi"><span>Posição nas vendas</span><b style={{ fontSize: 17 }}>{rankLabel(m.abcClass)}</b><small>{regularityLabel(m.xyzClass)}</small></div>
+              <div className="fx-kpi"><span>Ritmo</span><b style={{ fontSize: 17 }}>{paceLabel(m.momentumScore != null ? Number(m.momentumScore) : null)}</b><small>últimos 7 dias contra os 28 anteriores</small></div>
               <div className="fx-kpi"><span>Estoque</span><b>{m.inventoryUnits != null ? formatDecimal(Number(m.inventoryUnits), 0) : '—'}</b><small>{m.inventoryUnits != null ? `${m.coverageDays != null ? `${formatDecimal(Number(m.coverageDays), 0)} dias de venda` : ''}` : 'sem compra registrada'}</small></div>
             </div>
             {m.capitalReason && <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>{m.capitalReason}</p>}

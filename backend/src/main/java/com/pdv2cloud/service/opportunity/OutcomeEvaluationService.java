@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.opportunity;
 
+import com.pdv2cloud.util.Br;
+
 import com.pdv2cloud.model.entity.Recommendation;
 import com.pdv2cloud.model.entity.RecommendationOutcome;
 import com.pdv2cloud.model.entity.RecommendationOutcome.Verdict;
@@ -340,6 +342,6 @@ public class OutcomeEvaluationService {
     }
 
     private String money(double value) {
-        return String.format("R$ %.2f", value);
+        return Br.money(value);
     }
 }

@@ -1,5 +1,7 @@
 package com.pdv2cloud.service;
 
+import com.pdv2cloud.util.Br;
+
 import com.pdv2cloud.model.entity.ProductCapitalMetric.CapitalStatus;
 import com.pdv2cloud.service.WorkingCapitalService.CapitalMetric;
 import com.pdv2cloud.service.intelligence.CapitalMetricsReader;
@@ -461,13 +463,10 @@ public class PromoIntelligenceService {
                 40 + Math.min(35, driver.totalIncrementalRevenue().doubleValue() / 100.0)
                    + Math.min(25, driver.affectedProducts() * 2.5));
 
-            String reason = String.format(
-                "Quando entra em promoção, puxa a venda de %d produto(s) e gera %s de receita adicional "
-                    + "na cesta (lift médio de %.0f%% nos itens acompanhados). "
-                    + "Descontar aqui compra tráfego para a loja inteira.",
-                driver.affectedProducts(),
-                money(driver.totalIncrementalRevenue()),
-                driver.averageLiftPercent().doubleValue());
+            String reason = "Quando entra em promoção, outros " + driver.affectedProducts()
+                + (driver.affectedProducts() == 1 ? " produto vende" : " produtos vendem")
+                + " mais junto: são " + Br.money(driver.totalIncrementalRevenue()) + " a mais na cesta. "
+                + "O desconto aqui traz cliente para a loja inteira.";
 
             traction.add(new PromoCandidate(
                 driver.productId(), driver.driverName(),
@@ -501,16 +500,10 @@ public class PromoIntelligenceService {
                 double score = Math.min(100, 40 + risk * 40
                     + Math.min(20, m.inventoryValue().doubleValue() / 500.0));
 
-                String coverageText = m.coverageDays() != null
-                    ? String.format("%.0f dias de estoque", m.coverageDays().doubleValue())
-                    : "estoque acima do giro";
-
-                String reason = String.format(
-                    "%s em %s parado, com giro de %.2f un./dia e demanda %s. "
-                        + "Uma promoção agora devolve esse capital ao caixa antes que o produto trave na prateleira.",
-                    money(m.inventoryValue()), coverageText, m.dailyVelocity().doubleValue(),
-                    m.momentumScore() != null && m.momentumScore().doubleValue() < 1
-                        ? "em queda" : "estável");
+                String reason = Br.money(m.inventoryValue()) + " parados na prateleira"
+                    + (m.coverageDays() != null ? ": o estoque dura " + Br.days(m.coverageDays()) : "")
+                    + (m.momentumScore() != null ? " e o produto está " + Br.pace(m.momentumScore().doubleValue()) : "")
+                    + ". Uma promoção agora devolve esse dinheiro ao caixa antes que ele trave.";
 
                 return new PromoCandidate(
                     m.productId(), m.name(), m.category(), m.imageUrl(),

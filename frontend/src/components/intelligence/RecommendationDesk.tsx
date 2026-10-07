@@ -8,6 +8,7 @@ import CostPriceFields from './CostPriceFields';
 import { NeighborhoodLine } from '../product/NeighborhoodPrice';
 import { localPriceService, type LocalPriceSnapshot } from '../../services/localPrice.service';
 import { decisionInputsService, moneyInput, parseMoney, type KnownInputs } from '../../services/decisionInputs.service';
+import { confidenceLabel } from '../../utils/plain';
 
 /** Promover, liquidar e comprar não se aceitam às cegas: custo e preço por item. */
 export const needsInputs = (rec: RecommendationItem) =>
@@ -86,7 +87,7 @@ const RecommendationDesk: React.FC<{
         <div style={{ minWidth: 0 }}>
           <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             <Chip tone="lime">{ACTION_LABEL[rec.actionType] || rec.actionType}</Chip>
-            {rec.confidence != null && <Chip tone="ghost">Certeza {Math.round(Number(rec.confidence) * 100)}%</Chip>}
+            {(() => { const c = confidenceLabel(rec.confidence); return c ? <Chip tone={c.tone}>{c.text}</Chip> : null; })()}
           </span>
           <h3 style={{ margin: 0, fontSize: 'clamp(20px, 2vw, 26px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15 }}>{rec.title}</h3>
         </div>

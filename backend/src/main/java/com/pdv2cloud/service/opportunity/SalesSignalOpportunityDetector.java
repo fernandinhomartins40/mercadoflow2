@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.opportunity;
 
+import com.pdv2cloud.util.Br;
+
 import com.pdv2cloud.service.intelligence.MarketPriceComparisonDetector;
 import com.pdv2cloud.service.intelligence.SalesAnomalyDetector;
 import java.math.BigDecimal;
@@ -80,8 +82,8 @@ public class SalesSignalOpportunityDetector implements OpportunityDetector {
             "ANOMALIA",
             null,
             null,
-            below ? "Queda atípica de vendas em " + anomaly.date()
-                  : "Pico de vendas em " + anomaly.date(),
+            below ? "A venda caiu em " + Br.date(anomaly.date())
+                  : "A venda subiu em " + Br.date(anomaly.date()),
             anomaly.description(),
             evidence,
             anomaly.actualRevenue().subtract(anomaly.expectedRevenue()).abs(),

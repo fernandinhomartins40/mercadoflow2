@@ -142,7 +142,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(14px, 1.6vw, 22px)' }}>
           <SubscriptionBanner />
-          <HistoryNotice />
+          {/* Aviso de histórico só onde se lê o todo: no resto, era ruído em toda página (F1). */}
+          {(pathname === '/app' || pathname === '/app/configuracoes') && <HistoryNotice detailed={pathname === '/app/configuracoes'} />}
           {children}
         </div>
       </main>

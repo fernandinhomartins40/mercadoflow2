@@ -190,7 +190,7 @@ const Decide: React.FC = () => {
           : queue.loading ? <>Decidir.</>
             : decisions === 0 ? <>Nada esperando <mark>você.</mark></>
               : <>A loja pede <mark>{decisions} {decisions === 1 ? 'decisão.' : 'decisões.'}</mark></>}
-        subtitle={tab === 'decidir' && queue.total > 0 ? `${formatMoney(queue.total)} em jogo. Nada acontece sem o seu sim.` : undefined}
+        subtitle={tab === 'decidir' && queue.total > 0 ? `${formatMoney(queue.total)} de ganho possível. Nada acontece sem o seu sim.` : undefined}
         side={hub}
       />
 
@@ -259,7 +259,7 @@ const Decide: React.FC = () => {
                     <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><Lock aria-hidden="true" /></span>
                     <span style={{ flex: 1 }}>
                       <b style={{ display: 'block', fontSize: 14.5 }}>Mais {locked.total} {locked.total === 1 ? 'oportunidade' : 'oportunidades'} nos planos pagos</b>
-                      <span className="fx-muted" style={{ fontSize: 13 }}>{locked.impacto ? `${formatMoney(locked.impacto)} em jogo · ` : ''}risco de faltar e previsão de compra</span>
+                      <span className="fx-muted" style={{ fontSize: 13 }}>{locked.impacto ? `${formatMoney(locked.impacto)} de ganho possível · ` : ''}risco de faltar e previsão de compra</span>
                     </span>
                   </Link>
                 )}

@@ -20,6 +20,7 @@ import { GROUP_LABEL, useDecisionQueue } from './decidir/queue';
 import { useCached } from '../hooks/useCached';
 import { tractionService, type ProductTraction } from '../services/traction.service';
 import workingCapitalService, { type GiroSummary } from '../services/workingCapital.service';
+import { paceLabel, rankLabel } from '../utils/plain';
 
 /**
  * Início: onde o capital rende. Abre com quem PUXA a venda (tração medida no
@@ -226,7 +227,7 @@ const GiroCard: React.FC<{ portfolio: GiroSummary | undefined }> = ({ portfolio 
                 <Thumb name={m.name} src={m.imageUrl} size={40} />
                 <span style={{ minWidth: 0, flex: 1 }}>
                   <b style={{ display: 'block', fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</b>
-                  <span className="fx-muted" style={{ fontSize: 12.5 }}>Curva {m.abcClass}{m.momentumScore != null ? ` · ritmo ${formatDecimal(Number(m.momentumScore), 2)}x` : ''}</span>
+                  <span className="fx-muted" style={{ fontSize: 12.5 }}>{rankLabel(m.abcClass)} · {paceLabel(m.momentumScore != null ? Number(m.momentumScore) : null)}</span>
                 </span>
                 <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <b className="fx-num" style={{ display: 'block' }}>{formatDecimal(Number(m.dailyVelocity), 1)}</b>
@@ -462,7 +463,7 @@ const Dashboard: React.FC = () => {
 /** As decisões que mais valem, do maior impacto para o menor. */
 const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: ReturnType<typeof useDecisionQueue>['items'] }> = ({ n, total, loading, top }) => (
   <Forest as="section" aria-label="Decida agora">
-    <PanelTitle icon={Sparkles} title="Decida agora" sub={n > 0 ? `${n} ${n === 1 ? 'decisão espera' : 'decisões esperam'} você${total > 0 ? ` · ${formatMoney(total)} em jogo` : ''}` : 'Nada esperando você'} />
+    <PanelTitle icon={Sparkles} title="Decida agora" sub={n > 0 ? `${n} ${n === 1 ? 'decisão espera' : 'decisões esperam'} você${total > 0 ? ` · ${formatMoney(total)} de ganho possível` : ''}` : 'Nada esperando você'} />
     {loading ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : top.length === 0 ? (
       <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>A análise roda de madrugada e a cada lote de notas. Quando algo pedir sua decisão, aparece aqui.</p>
     ) : (

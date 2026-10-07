@@ -1,5 +1,7 @@
 package com.pdv2cloud.service.opportunity;
 
+import com.pdv2cloud.util.Br;
+
 import com.pdv2cloud.model.entity.Opportunity;
 import com.pdv2cloud.model.entity.Recommendation;
 import com.pdv2cloud.repository.OpportunityRepository;
@@ -156,17 +158,18 @@ public class RecommendationEngine {
         params.put("limitadaPeloBomSenso", ev.get("limitadaPeloBomSenso"));
         params.put("produtoId", o.getProduct() != null ? o.getProduct().getId().toString() : null);
 
-        String trace = String.format(
-            "Giro medido: %s un./dia sobre a janela de 90 dias.%n"
-                + "Cobertura atual do estoque estimado: %s dia(s).%n"
-                + "Quantidade sugerida = alvo de cobertura + estoque de segurança − estoque atual "
-                + "− pedidos já em trânsito.%n"
-                + "Confiança do estoque estimado: %s (0 a 1). Quanto menor, mais o número depende "
-                + "de compras que não foram registradas no sistema.",
-            num(velocity), num(coverage), num(o.getConfidence()));
+        String trace = "Vende " + Br.perDay(velocity) + " por dia (média dos dias completos dos últimos 90).\n"
+            + "O estoque de hoje dura " + Br.days(coverage) + ".\n"
+            + "O pedido cobre " + Br.days(ev.get("coberturaAlvo")) + " de venda, mais uma reserva para os dias de venda forte, "
+            + "menos o que já está na prateleira e o que já foi pedido.\n"
+            + (Boolean.TRUE.equals(ev.get("limitadaPeloBomSenso"))
+                ? "A conta pedia " + Br.units(ev.get("quantidadeCalculada")) + " un.; limitamos ao tamanho das suas últimas compras.\n" : "")
+            + "Margem que a compra traz ao vender: " + Br.money(ev.get("margemEsperada"))
+            + (Boolean.TRUE.equals(ev.get("custoEstimado")) ? " (custo estimado: informe o custo para ter o número certo)" : "") + ".\n"
+            + "Confiança no estoque: " + confidenceWord(o.getConfidence()) + ".";
 
         return newRecommendation(o, Recommendation.ActionType.COMPRAR,
-            "Comprar " + fmtQty(qty) + " un. de " + productName(o),
+            "Comprar " + Br.units(qty) + " un. de " + productName(o),
             o.getDescription(), params, trace, o.getExpectedImpactValue());
     }
 
@@ -178,14 +181,11 @@ public class RecommendationEngine {
         params.put("valorEstoque", ev.get("valorEstoque"));
         params.put("coberturaDias", ev.get("coberturaDias"));
 
-        String trace = String.format(
-            "Classe ABC %s / XYZ %s.%n"
-                + "Cobertura de %s dia(s) com giro de %s un./dia — o estoque atual leva muito tempo "
-                + "para escoar no ritmo de venda observado.%n"
-                + "Risco de estagnação: %s (0 a 1).%n"
-                + "GMROI: %s. Capital parado aqui é capital que não está girando em outro item.",
-            ev.get("classeAbc"), ev.get("classeXyz"), num(ev.get("coberturaDias")),
-            num(ev.get("giroDiario")), num(ev.get("riscoEstagnacao")), num(ev.get("gmroi")));
+        String trace = "Estoque parado: " + Br.money(ev.get("valorEstoque")) + ".\n"
+            + "No ritmo de hoje (" + Br.perDay(ev.get("giroDiario")) + " por dia), ele dura " + Br.days(ev.get("coberturaDias")) + ".\n"
+            + (ev.get("gmroi") != null ? "Cada R$ 1 parado nele volta " + Br.money(ev.get("gmroi")) + " de margem; em produtos que giram, volta mais.\n" : "")
+            + "Risco de encalhar: " + riskWord(ev.get("riscoEstagnacao")) + ".\n"
+            + "Dinheiro parado aqui é dinheiro que não está comprando o que vende.";
 
         return newRecommendation(o, Recommendation.ActionType.LIQUIDAR,
             "Liquidar estoque de " + productName(o),
@@ -199,11 +199,10 @@ public class RecommendationEngine {
         params.put("produtoId", o.getProduct() != null ? o.getProduct().getId().toString() : null);
         params.put("acao", "reduzir_proxima_compra");
 
-        String trace = String.format(
-            "Cobertura de %s dia(s) acima do necessário para o giro de %s un./dia.%n"
-                + "Não é caso de liquidação: o produto vende, mas o volume comprado está à frente "
-                + "da demanda. Reduzir o próximo pedido corrige sem sacrificar margem.",
-            num(ev.get("coberturaDias")), num(ev.get("giroDiario")));
+        String trace = "O estoque dura " + Br.days(ev.get("coberturaDias")) + " para uma venda de "
+            + Br.perDay(ev.get("giroDiario")) + " por dia: mais do que o necessário.\n"
+            + "Não é caso de liquidar: o produto vende, mas a compra está à frente da venda. "
+            + "Pedir menos da próxima vez corrige sem perder margem.";
 
         return newRecommendation(o, Recommendation.ActionType.COMPRAR,
             "Reduzir próxima compra de " + productName(o),
@@ -226,24 +225,20 @@ public class RecommendationEngine {
         boolean costKnown = ev.get("margemPercent") != null;
         params.put("custoConhecido", costKnown);
         String marginLine = costKnown
-            ? String.format("Desconto sugerido de %s%% respeita o teto de 70%% da margem atual (%s%%).", num(desconto), num(ev.get("margemPercent")))
-            : String.format("Desconto de referência: %s%%. Sem custo registrado não há margem: informe o custo e o preço da ação para ver se compensa.", num(desconto));
+            ? "Desconto de " + Br.pct(desconto) + ": cabe na margem de hoje (" + Br.pct(ev.get("margemPercent")) + ") com folga."
+            : "Desconto de referência: " + Br.pct(desconto) + ". Sem o custo não dá para saber se compensa: informe o custo e o preço da promoção.";
         String trace = tracionador
-            ? String.format(
-                "Este produto puxa a venda de %s outro(s) item(ns) quando entra em promoção.%n"
-                    + "Receita incremental estimada na cesta: %s.%n"
-                    + "%s%n"
-                    + "O ganho não está neste item — está na cesta que ele arrasta.",
-                num(ev.get("produtosAfetados")), money(o.getExpectedImpactValue()), marginLine)
-            : String.format(
-                "Capital exposto: %s, com cobertura de %s dia(s) e giro de %s un./dia.%n"
-                    + "Preço atual: %s. %s%n"
-                    + "Aqui o desconto é o custo de recuperar dinheiro parado, não de ganhar cesta.",
-                money(ev.get("capitalEmRisco")), num(ev.get("coberturaDias")), num(ev.get("giroDiario")),
-                money(ev.get("precoAtual")), marginLine);
+            ? "Quando este produto entra em promoção, outros " + Br.units(ev.get("produtosAfetados")) + " produtos vendem mais junto.\n"
+                + "Venda a mais na cesta, estimada: " + money(o.getExpectedImpactValue()) + ".\n"
+                + marginLine + "\n"
+                + "O ganho não está neste produto: está na cesta que ele puxa."
+            : "Dinheiro parado: " + money(ev.get("capitalEmRisco")) + "; o estoque dura " + Br.days(ev.get("coberturaDias"))
+                + " vendendo " + Br.perDay(ev.get("giroDiario")) + " por dia.\n"
+                + "Preço de hoje: " + money(ev.get("precoAtual")) + ". " + marginLine + "\n"
+                + "Aqui o desconto é o preço de trazer o dinheiro de volta, não de ganhar cesta.";
 
         return newRecommendation(o, Recommendation.ActionType.PROMOVER,
-            "Promover " + productName(o) + (desconto != null ? " com " + num(desconto) + "% de desconto" : ""),
+            "Promover " + productName(o) + (desconto != null ? " com " + Br.pct(desconto) + " de desconto" : ""),
             o.getDescription(), params, trace, o.getExpectedImpactValue());
     }
 
@@ -368,6 +363,18 @@ public class RecommendationEngine {
     @SuppressWarnings("unchecked")
     private Map<String, Object> evidence(Opportunity o) {
         return o.getEvidence() != null ? o.getEvidence() : Map.of();
+    }
+
+    static String confidenceWord(Object c) {
+        if (!(c instanceof Number n)) return "não medida";
+        double v = n.doubleValue();
+        return v >= 0.7 ? "alta" : v >= 0.4 ? "média" : "baixa";
+    }
+
+    static String riskWord(Object r) {
+        if (!(r instanceof Number n)) return "não medido";
+        double v = n.doubleValue();
+        return v >= 0.6 ? "alto" : v >= 0.35 ? "médio" : "baixo";
     }
 
     private String productName(Opportunity o) {
