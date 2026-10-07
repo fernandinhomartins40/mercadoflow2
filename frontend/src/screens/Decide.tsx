@@ -111,10 +111,27 @@ const Decide: React.FC = () => {
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
   // Fila longa em páginas: a lista não empurra o painel ao lado para fora da tela.
-  const paged = usePaged(list, 12, filter);
+  // "Hoje": as 7 que mais valem; o resto fica em "Depois", recolhido (F3).
+  const [showLater, setShowLater] = useState(false);
+  useEffect(() => { setShowLater(false); }, [filter]);
+  const TODAY = 7;
+  const later = list.slice(TODAY);
+  const paged = usePaged(later, 12, filter);
+  // Celular: o detalhe abre numa folha por cima da lista.
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
+  useEffect(() => {
+    const on = () => setNarrow(window.innerWidth < 1100);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  const [sheet, setSheet] = useState(false);
   useEffect(() => {
     const idx = selected ? list.findIndex((i) => i.key === selected) : -1;
-    if (idx >= 0 && Math.floor(idx / paged.size) !== paged.page) paged.setPage(Math.floor(idx / paged.size));
+    if (idx >= TODAY) {
+      setShowLater(true);
+      const i = idx - TODAY;
+      if (Math.floor(i / paged.size) !== paged.page) paged.setPage(Math.floor(i / paged.size));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, list.length]);
   const goPage = (n: number) => {
@@ -163,8 +180,35 @@ const Decide: React.FC = () => {
 
   const pick = (key: string) => {
     setSelected(key);
-    if (window.innerWidth < 1100) requestAnimationFrame(() => document.getElementById('decidir-painel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    if (window.innerWidth < 1100) setSheet(true);
   };
+
+  const renderRows = (items: QueueItem[]) => (
+    <>
+      {items.map((it) => {
+                    const on = current?.key === it.key;
+                    const Icon = it.decision ? agentOf(it.decision).icon : null;
+                    return (
+                      <li key={it.key}>
+                        <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => pick(it.key)}>
+                          {it.key === 'lote:comprar' ? <span className="fx-icon-tile" style={{ width: 46, height: 46 }}><ClipboardList aria-hidden="true" /></span>
+                            : Icon ? <span className="fx-icon-tile" style={{ width: 46, height: 46, ...(it.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : {}) }}><Icon aria-hidden="true" /></span>
+                            : <Thumb name={it.name} src={it.image} size={46} />}
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{it.title}</b>
+                            <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 3 }}>
+                              <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.rec && goesToOrder(it.rec) ? 'vai ao pedido' : ''].filter(Boolean).join(' · ')}</span>
+                              {it.urgent && <Chip tone="red">Urgente</Chip>}
+                              {it.source === 'tino' && <Chip tone="lime">Tino preparou</Chip>}
+                            </span>
+                          </span>
+                          {it.value != null && <b className="fx-num" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
+                        </button>
+                      </li>
+                    );
+                  })}
+    </>
+  );
 
   const hub = (
     <ActionHub icon={Sparkles} label="Ações do Decidir" actions={[
@@ -230,30 +274,22 @@ const Decide: React.FC = () => {
             <div className="fx-split">
               <Card as="section" aria-label="Decisões" id="decidir-lista" style={{ scrollMarginTop: 80 }}>
                 <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
-                  {paged.slice.map((it) => {
-                    const on = current?.key === it.key;
-                    const Icon = it.decision ? agentOf(it.decision).icon : null;
-                    return (
-                      <li key={it.key}>
-                        <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => pick(it.key)}>
-                          {it.key === 'lote:comprar' ? <span className="fx-icon-tile" style={{ width: 46, height: 46 }}><ClipboardList aria-hidden="true" /></span>
-                            : Icon ? <span className="fx-icon-tile" style={{ width: 46, height: 46, ...(it.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : {}) }}><Icon aria-hidden="true" /></span>
-                            : <Thumb name={it.name} src={it.image} size={46} />}
-                          <span style={{ minWidth: 0, flex: 1 }}>
-                            <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{it.title}</b>
-                            <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 3 }}>
-                              <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.rec && goesToOrder(it.rec) ? 'vai ao pedido' : ''].filter(Boolean).join(' · ')}</span>
-                              {it.urgent && <Chip tone="red">Urgente</Chip>}
-                              {it.source === 'tino' && <Chip tone="lime">Tino preparou</Chip>}
-                            </span>
-                          </span>
-                          {it.value != null && <b className="fx-num" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {renderRows(list.slice(0, TODAY))}
                 </ul>
-                <Pager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={goPage} label="decisões" />
+                {later.length > 0 && !showLater && (
+                  <button type="button" className="fx-btn ghost small" style={{ marginTop: 12, width: '100%', justifyContent: 'center' }} onClick={() => setShowLater(true)}>
+                    Ver as outras {later.length} {later.length === 1 ? 'decisão' : 'decisões'} (valem menos)
+                  </button>
+                )}
+                {later.length > 0 && showLater && (
+                  <>
+                    <p className="fx-muted" style={{ margin: '16px 0 8px', fontSize: 13, fontWeight: 700 }}>Depois</p>
+                    <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
+                      {renderRows(paged.slice)}
+                    </ul>
+                    <Pager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={goPage} label="decisões" />
+                  </>
+                )}
                 {filter === 'tudo' && locked.total > 0 && (
                   <Link to="/app/assinatura" className="fx-row" style={{ marginTop: 10, color: 'var(--fx-ink)', borderStyle: 'dashed' }}>
                     <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><Lock aria-hidden="true" /></span>
@@ -264,7 +300,7 @@ const Decide: React.FC = () => {
                   </Link>
                 )}
               </Card>
-              <div id="decidir-painel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>{current && detail(current)}</div>
+              {!narrow && <div id="decidir-painel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>{current && detail(current)}</div>}
             </div>
           )}
 
@@ -289,6 +325,18 @@ const Decide: React.FC = () => {
             </Card>
           )}
         </>
+      )}
+
+      {narrow && sheet && current && (
+        <div className="fx-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Decisão" onClick={() => setSheet(false)}>
+          <div className="fx-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="fx-sheet-bar">
+              <b style={{ fontSize: 15 }}>Decisão</b>
+              <button type="button" className="fx-btn ghost small" onClick={() => setSheet(false)}>Fechar</button>
+            </div>
+            {detail(current)}
+          </div>
+        </div>
       )}
 
       {config && marketId && <HowItWorks marketId={marketId} onClose={() => { setConfig(false); setParam('config', null); }} onAloneChange={setAnyAlone} />}

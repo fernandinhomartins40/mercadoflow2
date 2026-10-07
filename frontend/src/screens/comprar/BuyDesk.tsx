@@ -222,7 +222,7 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
               <Thumb name={r.productName || r.title} src={r.productImage} size={46} />
               <div style={{ minWidth: 0 }}>
                 <div className="fx-item-name">{r.productName || r.title}</div>
-                <div className="fx-item-detail">{r.rationale}</div>
+                <div className="fx-item-detail">{(r.rationale || '').split(/(?<=\.)\s/)[0]}</div>
                 <label className="fx-field" style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   Custo R$/un.
                   <input className="fx-input fx-num" inputMode="decimal" value={costs[r.id] ?? ''} placeholder="0,00" style={{ width: 96, textAlign: 'right' }}
