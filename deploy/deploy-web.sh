@@ -332,14 +332,23 @@ resume_webp_conversion() {
   # O deploy recria o coletor e mata a conversao das fotos para WebP (iniciada
   # em 07/10/2026, ~3 dias). Enquanto restar JPG, retoma de onde parou: o
   # script pula o que ja virou WebP e apaga o original so depois de conferir.
-  local restantes
-  restantes="$(find "${APP_DIR}/data/catalog/images/products" -maxdepth 1 -name '*.jpg' 2>/dev/null | head -n 1 | wc -l)"
-  if [[ "$restantes" -gt 0 ]]; then
-    docker exec -d mercadoflow-catalog-harvester sh -c \
-      "nice -n 15 python /workspace/scripts/catalog/convert_images_webp.py --delete-originals >> /workspace/data/catalog/runs/webp-convert.log 2>&1" \
-      && log "Conversao das fotos para WebP retomada" \
-      || log "WARN: nao foi possivel retomar a conversao das fotos"
+  # Chamada no fim do deploy: o coletor so sobe depois do backend saudavel.
+  if [[ -z "$(find "${APP_DIR}/data/catalog/images/products" -maxdepth 1 -name '*.jpg' -print -quit 2>/dev/null)" ]]; then
+    return 0
   fi
+  local tentativa
+  for tentativa in $(seq 1 24); do
+    if [[ "$(docker inspect -f '{{.State.Running}}' mercadoflow-catalog-harvester 2>/dev/null || true)" == "true" ]]; then
+      if docker exec -d mercadoflow-catalog-harvester sh -c \
+        "nice -n 15 python /workspace/scripts/catalog/convert_images_webp.py --delete-originals >> /workspace/data/catalog/runs/webp-convert.log 2>&1"; then
+        log "Conversao das fotos para WebP retomada"
+        return 0
+      fi
+    fi
+    sleep 5
+  done
+  log "WARN: nao foi possivel retomar a conversao das fotos (coletor nao subiu em 2 min)"
+  return 0
 }
 
 prune_backups() {
@@ -799,8 +808,6 @@ main() {
   log "Status dos containers apÃ³s atualizaÃ§Ã£o"
   compose ps
 
-  resume_webp_conversion
-
   # ANTES do wait_for_health, nao depois. Quem publica a porta 3300 e o
   # container mercadoflow-nginx, e ele depende de "backend: service_healthy" +
   # "frontend: service_started". Se o compose desistir e deixa-lo em "Created",
@@ -825,6 +832,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${APP_DB_ROLE};
 REVOKE ALL ON TABLE flyway_schema_history FROM ${APP_DB_ROLE};
 SQL
 
+  resume_webp_conversion
   cleanup_docker_artifacts
   report_disk_usage
 
