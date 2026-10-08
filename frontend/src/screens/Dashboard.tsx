@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { ChartSkeleton } from '../components/charts/chartKit';
+
+// Recharts só carrega quando o gráfico aparece.
+const BarsChart = lazy(() => import('../components/charts/BarsChart'));
 import { Link } from 'react-router-dom';
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Download, Loader2, PackageSearch, ShoppingCart, Sparkles, Store, Users, X,
@@ -72,35 +76,15 @@ const Delta: React.FC<{ change: number | null }> = ({ change }) => {
 const SalesChart: React.FC<{ panel: OperationPanel }> = ({ panel }) => {
   const points = panel.series;
   if (points.length === 0) return <p className="fx-muted" style={{ margin: '14px 0 0' }}>Ainda sem vendas neste período.</p>;
-  const max = Math.max(...points.map((p) => Math.max(Number(p.current), Number(p.reference))), 1);
-  const best = points.reduce((a, b) => (Number(b.current) > Number(a.current) ? b : a), points[0]);
-  const thin = points.length > 16;
   return (
-    <div style={{ marginTop: 16 }}>
-      <div role="img" aria-label={`Vendas ${panel.period === 'dia' ? 'por hora' : 'por dia'}; a marca clara é a ${panel.seriesReferenceLabel}`}
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))`, alignItems: 'end', gap: thin ? 3 : 6, height: 170 }}>
-        {points.map((p) => {
-          const cur = (Number(p.current) / max) * 100;
-          const ref = (Number(p.reference) / max) * 100;
-          const isBest = p === best && Number(p.current) > 0;
-          return (
-            <div key={p.label} style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
-              title={`${p.label}: ${formatMoney(p.current)} (referência ${formatMoney(p.reference)})`}>
-              <div aria-hidden="true" style={{ position: 'absolute', bottom: 0, width: '100%', maxWidth: 40, height: `${Math.max(ref, 0)}%`, borderRadius: 10, border: '1.5px dashed #b9c7bd', boxSizing: 'border-box' }} />
-              <div aria-hidden="true" style={{ position: 'relative', width: '70%', maxWidth: 30, height: `${Math.max(cur, Number(p.current) > 0 ? 3 : 0)}%`, borderRadius: 8, background: isBest ? 'var(--fx-lime)' : 'var(--fx-ink)', opacity: isBest ? 1 : .82 }} />
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))`, gap: thin ? 3 : 6, marginTop: 6 }} aria-hidden="true">
-        {points.map((p, i) => (
-          <span key={p.label} className="fx-muted" style={{ fontSize: 11.5, textAlign: 'center', visibility: !thin || i % 3 === 0 ? 'visible' : 'hidden' }}>{p.label}</span>
-        ))}
-      </div>
-      <p className="fx-muted" style={{ margin: '10px 0 0', fontSize: 13.5, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <span><b style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: 'var(--fx-ink)', marginRight: 6 }} />{panel.today && panel.period === 'dia' ? 'hoje' : 'período'}</span>
-        <span><b style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, border: '1.5px dashed #9fb0a4', marginRight: 6 }} />{panel.seriesReferenceLabel}</span>
-      </p>
+    <div style={{ marginTop: 12 }}>
+      <Suspense fallback={<ChartSkeleton height={220} />}>
+        <BarsChart
+          data={points.map((p) => ({ label: p.label, value: Number(p.current), reference: Number(p.reference) }))}
+          name={panel.today && panel.period === 'dia' ? 'Hoje' : 'Período'}
+          referenceName={panel.seriesReferenceLabel}
+        />
+      </Suspense>
     </div>
   );
 };

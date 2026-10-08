@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { Suspense, createContext, lazy, useContext, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BarChart3, Building2, Loader2, LogOut, Map as MapIcon, Package, PieChart, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { industryService, type IndustryMe } from '../../services/industry.service';
 import '../../styles/flow.css';
+import { ChartSkeleton } from '../../components/charts/chartKit';
+
+const BarsChart = lazy(() => import('../../components/charts/BarsChart'));
 
 /**
  * Casca do portal da indústria: o mesmo visual Flow dos painéis, com outra
@@ -100,27 +103,13 @@ const NoAccess: React.FC<{ me: IndustryMe }> = ({ me }) => (
   </section>
 );
 
-/** Barras simples em SVG (sem biblioteca): uma série, rótulo do primeiro e do último ponto. */
-export const Bars: React.FC<{ points: { label: string; value: number }[]; height?: number; unit?: string; label: string }> = ({ points, height = 150, unit = '', label }) => {
+/** Barras de uma série (Recharts, carregado só quando aparece), com tooltip e tabela. */
+export const Bars: React.FC<{ points: { label: string; value: number }[]; height?: number; unit?: string; label: string }> = ({ points, height = 170, unit = '', label }) => {
   if (points.length === 0) return <p className="fx-muted">Sem dados publicados neste recorte.</p>;
-  const max = Math.max(...points.map((p) => p.value), 1);
-  const w = 100 / points.length;
   return (
-    <figure style={{ margin: 0 }}>
-      <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ width: '100%', height }} role="img" aria-label={label}>
-        {points.map((p, i) => {
-          const h = Math.max(1, (p.value / max) * (height - 4));
-          return (
-            <rect key={p.label} x={i * w + w * 0.12} width={w * 0.76} y={height - h} height={h} rx={0.6} fill="currentColor" opacity={i === points.length - 1 ? 1 : 0.55}>
-              <title>{`${p.label}: ${p.value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}${unit}`}</title>
-            </rect>
-          );
-        })}
-      </svg>
-      <figcaption style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-        <span>{points[0].label}</span><span>{points[points.length - 1].label}</span>
-      </figcaption>
-    </figure>
+    <Suspense fallback={<ChartSkeleton height={height} />}>
+      <BarsChart data={points} name={label} kind="number" unit={unit} height={height} />
+    </Suspense>
   );
 };
 

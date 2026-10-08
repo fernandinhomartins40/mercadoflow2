@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { formatDecimal } from '../../utils/formatters';
 import Card from '../common/Card';
-import Chart from '../common/Chart';
+import { ChartSkeleton } from '../charts/chartKit';
+
+// Recharts só carrega quando o gráfico aparece.
+const TimeSeriesChart = lazy(() => import('../charts/TimeSeriesChart'));
 
 const formatMoney = (value?: number | null) => `R$ ${formatDecimal(Number(value || 0), 2)}`;
 
@@ -13,6 +16,8 @@ interface SalesChartProps {
   calloutLabel?: string;
   formatter?: (value?: number | null) => string;
   className?: string;
+  /** Venda (de zero, média de 7 dias, dia sem venda = 0) ou preço (faixa dos dados, "preço estável"). */
+  variant?: 'revenue' | 'price';
 }
 
 const SalesChart: React.FC<SalesChartProps> = ({
@@ -23,6 +28,7 @@ const SalesChart: React.FC<SalesChartProps> = ({
   calloutLabel = 'Último ponto',
   formatter = formatMoney,
   className = '',
+  variant = 'revenue',
 }) => {
   const lastPoint = data[data.length - 1];
   const mergedClassName = ['reveal', 'stagger-1', className].filter(Boolean).join(' ');
@@ -40,7 +46,13 @@ const SalesChart: React.FC<SalesChartProps> = ({
         </div>
       </div>
       <p className="px-5 pt-2 text-sm leading-relaxed text-slate-500">{panelCopy}</p>
-      <Chart data={data} />
+      <div className="px-5 pb-5 pt-3">
+        <Suspense fallback={<ChartSkeleton height={240} />}>
+          {variant === 'price'
+            ? <TimeSeriesChart data={data.map((d) => ({ date: d.date, value: d.revenue > 0 ? d.revenue : null }))} name="Preço médio" missing="gap" zeroBased={false} flatLabel="O preço não mudou no período" />
+            : <TimeSeriesChart data={data.map((d) => ({ date: d.date, value: d.revenue }))} name="Faturamento" average />}
+        </Suspense>
+      </div>
     </Card>
   );
 };

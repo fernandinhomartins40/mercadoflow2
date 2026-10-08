@@ -583,6 +583,7 @@ const ProductDetail: React.FC = () => {
                 panelCopy="Preço médio pago pelo cliente em cada dia."
                 calloutLabel="Último preço"
                 formatter={fmt.money}
+                variant="price"
               />
               <Section kicker="Resumo" title="Como está o preço">
                 <div className="grid gap-3 sm:grid-cols-2">
