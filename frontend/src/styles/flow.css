@@ -652,7 +652,7 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 /* Lista + painel no computador: os dois na altura da tela (menos cabeçalho e doca).
    A lista troca de página no lugar; o painel rola por dentro e, no fim, a página segue rolando. */
 @media (min-width: 1100px) {
-  .fx-split.panes { height: max(420px, calc(100vh - 188px - env(safe-area-inset-bottom, 0px))); align-items: stretch; }
+  .fx-split.panes { height: var(--pane-h, max(360px, calc(100vh - 188px - env(safe-area-inset-bottom, 0px)))); align-items: stretch; scroll-margin-top: 84px; }
   .fx-split.panes > * { min-height: 0; }
   .fx-split.panes > .fx-card, .fx-split.panes > .fx-forest:not(.fx-sticky) { display: flex; flex-direction: column; overflow: hidden; }
   .fx-split.panes .fx-paged-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
@@ -660,6 +660,65 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 }
 /* Linha compacta: título em até 2 linhas, selos ao lado do tipo, tudo numa altura previsível. */
 .fx-row.compact { padding: 10px 12px; gap: 12px; }
+/* Painel de decisão do Tino: cards de produto compactos. */
+.fx-desk .fx-desk-head h2 { font-size: clamp(22px, 2vw, 28px); }
+.fx-desk .fx-desk-meta { font-size: 13.5px; margin-top: 4px; }
+.fx-desk .fx-stat b { font-size: 24px; }
+.fx-desk .fx-desk-lead { font-size: 14.5px; line-height: 1.5; margin-top: 10px; }
+.fx-desk .fx-desk-steps { margin: 14px 0 12px; }
+.fx-desk .fx-items { gap: 8px; }
+.fx-desk .fx-item { gap: 10px 12px; padding: 10px 12px; border-radius: 14px; }
+.fx-desk .fx-item-name { font-size: 14px; }
+.fx-desk .fx-reasons { margin-top: 4px; gap: 4px; }
+.fx-desk .fx-reasons span { font-size: 11.5px; }
+.fx-desk .fx-item-val { padding-left: 12px; }
+.fx-desk .fx-item-val b { font-size: 15px; }
+.fx-desk .fx-item-val span { font-size: 11.5px; }
+.fx-desk .fx-check { width: 18px; height: 18px; }
+.fx-desk .fx-field { font-size: 12px; gap: 3px; }
+.fx-desk .fx-item .fx-input, .fx-desk .fx-item .fx-field input { padding: 5px 8px; font-size: 14px; border-radius: 9px; }
+.fx-desk .fx-item .fx-stack { gap: 4px !important; }
+.fx-desk .fx-item .fx-stack > div:last-child { font-size: 12px !important; }
+.fx-desk .fx-stepper button { width: 28px; height: 32px; }
+/* Campos de custo e preço numa linha só, com o rótulo ao lado. */
+.fx-desk .fx-item-fields { margin-top: 6px !important; }
+.fx-desk .fx-item .fx-field { flex-direction: row; align-items: center; gap: 6px; }
+.fx-desk .fx-item .fx-item-fields .fx-input { width: 84px !important; padding: 4px 8px; }
+.fx-desk .fx-item .fx-item-fields .fx-stack > div:first-child { gap: 6px 14px !important; }
+.fx-desk .fx-stepper input { width: 46px; height: 32px; font-size: 14px; }
+.fx-desk .fx-white { padding: 14px; border-radius: 14px; }
+.fx-desk .fx-impact { padding: 14px; border-radius: 14px; gap: 6px; }
+.fx-desk .fx-impact .fx-money { font-size: 24px; }
+.fx-desk .fx-impact p { font-size: 12.5px; }
+.fx-desk .fx-desk-bottom .fx-btn { min-height: 42px; padding: 0 16px; font-size: 14.5px; }
+/* Com lista e painel na altura da tela: topo e rodapé fixos, só os produtos rolam,
+   o paginador fica no pé da área dos produtos. */
+@media (min-width: 1100px) {
+  .fx-split.panes > .fx-sticky:has(> .fx-desk) { overflow: hidden; display: flex; flex-direction: column; }
+  .fx-split.panes > .fx-sticky > .fx-desk { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 16px 18px; }
+  /* Topo do painel curto: resumo em até 2 linhas; rodapé numa faixa só. */
+  .fx-split.panes .fx-desk .fx-desk-lead { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; margin-top: 8px; }
+  .fx-split.panes .fx-desk .fx-desk-steps { margin: 10px 0 8px; }
+  .fx-split.panes .fx-desk .fx-desk-scroll { margin-top: 8px; }
+  .fx-split.panes .fx-desk .fx-desk-bottom { margin-top: 10px; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; }
+  .fx-split.panes .fx-desk .fx-desk-bottom .fx-white { padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; }
+  .fx-split.panes .fx-desk .fx-impact { padding: 10px 14px; gap: 2px; justify-content: center; }
+  .fx-split.panes .fx-desk .fx-impact h3 { font-size: 12.5px; }
+  .fx-split.panes .fx-desk .fx-impact .fx-money { font-size: 20px; }
+  .fx-split.panes .fx-desk .fx-impact p, .fx-split.panes .fx-desk .fx-impact hr { display: none; }
+  .fx-split.panes .fx-desk .fx-impact button { font-size: 12.5px !important; }
+  .fx-split.panes .fx-desk > .fx-desk-top, .fx-split.panes .fx-desk > .fx-desk-bottom { flex: 0 0 auto; }
+  .fx-split.panes .fx-desk > .fx-desk-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; scrollbar-width: thin; }
+  .fx-split.panes .fx-desk-scroll > .fx-stack:last-child { flex: 1 1 auto; min-height: 0; }
+  .fx-split.panes .fx-desk-scroll > .fx-stack:last-child > .fx-paged:only-child { flex: 1 1 auto; min-height: 0; }
+  .fx-split.panes .fx-desk-scroll > .fx-stack:last-child > .fx-paged:only-child > .fx-paged-body { flex: 1 1 auto; min-height: 0 !important; overflow-y: auto; scrollbar-width: thin; }
+}
+/* Tela baixa: os passos repetem o resumo; saem para os produtos terem espaço. */
+@media (min-width: 1100px) and (max-height: 780px) {
+  .fx-split.panes .fx-desk .fx-desk-steps { display: none; }
+  .fx-split.panes .fx-desk .fx-desk-head h2 { font-size: 22px; }
+  .fx-split.panes .fx-desk .fx-stat b { font-size: 20px; }
+}
 .fx-row.compact .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14.5px; line-height: 1.3; }
 .fx-row.compact .s { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; overflow: hidden; margin-top: 3px; white-space: nowrap; }
 .fx-row.compact .s .fx-chip { font-size: 11.5px; padding: 1px 8px; }

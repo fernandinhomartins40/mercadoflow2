@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Check, ClipboardList, ExternalLink, ListChecks, Loader2, Minus, PackageCheck, Plus, Send, Sparkles, Trash2, Truck, X,
 } from 'lucide-react';
-import { Card, Chip, Forest, PagedList, PanelTitle, StepTrack, Thumb, usePaneRows } from '../../components/flow/Flow';
+import { Card, Chip, Forest, PagedList, PanelTitle, StepTrack, Thumb, usePaneFit, usePaneRows } from '../../components/flow/Flow';
 import OrderSendOptions from '../../components/orders/OrderSendOptions';
 import DecisionFeedback from '../../components/intelligence/DecisionFeedback';
 import { useRecommendationDecision } from '../../hooks/useRecommendationDecision';
@@ -68,6 +68,7 @@ const BuyDesk: React.FC<{
   const sugImpact = suggestions.reduce((a, r) => a + Number(r.expectedImpactValue || 0), 0);
   // Lista e painel na altura da tela: as linhas por página saem da altura.
   const { rows, shrink } = usePaneRows(88, 160, 7);
+  const pane = usePaneFit();
 
   if (loading && entries.length === 0) {
     return <div className="fx-split"><Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card></div>;
@@ -83,7 +84,7 @@ const BuyDesk: React.FC<{
   }
 
   return (
-    <div className="fx-split even panes">
+    <div className="fx-split even panes" ref={pane.ref}>
       <Card as="section" aria-label="Agora importa" className="fx-col">
         <PanelTitle title="Para enviar e receber" />
         <PagedList items={entries} size={rows} onOverflow={typeof window !== 'undefined' && window.innerWidth >= 1100 ? shrink : undefined} label="itens" style={{ marginTop: 16, gap: 8 }} render={(e) => {

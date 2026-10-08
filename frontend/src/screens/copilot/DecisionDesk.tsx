@@ -242,7 +242,7 @@ const DecisionDesk: React.FC<{
   // Sem os tópicos "• Promover X…": a lista logo abaixo já mostra cada item, com preço e ação.
   const lead = data && data.kind !== 'ENTREGA' && data.kind !== 'TEXTO'
     ? d.body.split('\n\n')[0].split('\n').filter((l) => !/^\s*[•*-]\s/.test(l)).join(' ')
-      .replace(/(com (\d+(?:,\d+)?)% de desconto): \2% de desconto/g, '$1').trim() || null
+      .replace(/(com (\d+(?:,\d+)?)% de desconto): \2% de desconto/g, '$1').replace(/\bCopiloto\b/g, 'Tino').trim() || null
     : null;
   // O que a memória da loja sabe deste fornecedor (linha do corpo, antes da mensagem pronta).
   const memory = d.body.split('\n').slice(1).find((l) => /das últimas \d+/.test(l)) ?? null;
@@ -251,7 +251,9 @@ const DecisionDesk: React.FC<{
     : `${d.title} · ${when(d.createdAt)}`;
 
   return (
-    <div className="fx-forest" aria-live="polite" data-testid="decision-desk">
+    <div className="fx-forest fx-desk" aria-live="polite" data-testid="decision-desk">
+      {/* Topo fixo: o que é, o resumo e os passos. */}
+      <div className="fx-desk-top">
       <div className="fx-desk-head">
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minWidth: 0 }}>
           <span className="fx-icon-tile"><Icon aria-hidden="true" /></span>
@@ -275,9 +277,10 @@ const DecisionDesk: React.FC<{
       {lead && <p className="fx-desk-lead">{lead}</p>}
 
       {steps && <div className="fx-desk-steps"><StepTrack steps={steps} /></div>}
+      </div>
 
-      {!data ? <Loader2 className="animate-spin" style={{ margin: '24px auto', display: 'block' }} aria-label="Carregando" /> : view.status !== 'PENDENTE' && view.status !== 'INFORMATIVA' ? (
-        <div className="fx-done">
+      {!data ? <div className="fx-desk-scroll"><Loader2 className="animate-spin" style={{ margin: '24px auto', display: 'block' }} aria-label="Carregando" /></div> : view.status !== 'PENDENTE' && view.status !== 'INFORMATIVA' ? (
+        <div className="fx-desk-scroll"><div className="fx-done">
           <span className="ok">{view.status === 'RECUSADA' ? <X size={30} /> : view.status === 'DESFEITA' ? <Undo2 size={28} /> : <Check size={30} />}</span>
           <h3>{view.status === 'RECUSADA' ? 'Recusada' : view.status === 'DESFEITA' ? 'Desfeita' : view.autoExecuted ? 'Feito pelo Tino' : 'Aprovada'}</h3>
           <p>
@@ -301,16 +304,19 @@ const DecisionDesk: React.FC<{
               <Undo2 aria-hidden="true" />Desfazer
             </button>
           )}
-        </div>
+        </div></div>
       ) : (
         <>
+          {/* Meio: só os produtos rolam; o paginador fica no pé desta área. */}
+          <div className="fx-desk-scroll">
+          {why && <div className="fx-white" style={{ marginBottom: 10, lineHeight: 1.5 }}><b style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Sparkles size={16} />Por que o Tino sugeriu isso</b><p style={{ margin: '6px 0 0' }}>{why}</p></div>}
           {data.kind === 'ENTREGA' && memory && (
             <p className="fx-chip amber" style={{ whiteSpace: 'normal', margin: '0 0 12px', padding: '8px 14px' }}><History size={15} aria-hidden="true" />{memory}</p>
           )}
           {data.kind === 'ENTREGA' && (
             <PagedList as="div" className="fx-items" role="list" ariaLabel="Itens com diferença" size={6} label="itens" items={data.items} render={(i) => (
                 <div key={i.id} role="listitem" className={`fx-item ${(choice[i.id] ?? defaultChoice(i)) === 'ignorar' ? 'off' : ''}`}>
-                  <Thumb name={i.name} src={i.image} />
+                  <Thumb name={i.name} src={i.image} size={40} />
                   <div style={{ minWidth: 0 }}>
                     <div className="fx-item-name">{i.name}</div>
                     <div className="fx-item-detail">{i.reasons[0] ? `${i.reasons[0].replace(/^veio/, 'Veio')}; ` : ''}<span className="bad">{(i.detail ?? '').toLowerCase()}</span></div>
@@ -334,7 +340,9 @@ const DecisionDesk: React.FC<{
           {data.kind === 'TEXTO' && (
             <div className="fx-white"><p style={{ margin: 0, whiteSpace: 'pre-line', lineHeight: 1.55 }}>{d.body}</p></div>
           )}
+          </div>
 
+          {/* Rodapé fixo: decidir e o impacto. */}
           <div className="fx-desk-bottom">
             <div className="fx-white">
               {data.kind === 'ENTREGA' ? (
@@ -349,8 +357,8 @@ const DecisionDesk: React.FC<{
                   <textarea className="fx-msg" value={msg} aria-label="Mensagem para o fornecedor"
                     onChange={(e) => { setMsg(e.target.value); setMsgEdited(true); }} />
                 </>
-              ) : data.kind === 'RECOMENDACOES' ? (
-                <p style={{ margin: '0 0 14px', color: 'var(--fx-ink-2)' }}>{closing(d.agent)}</p>
+              ) : data.kind === 'RECOMENDACOES' && !lead ? (
+                <p style={{ margin: '0 0 12px', color: 'var(--fx-ink-2)', fontSize: 14 }}>{closing(d.agent)}</p>
               ) : null}
               {refusing ? (
                 <div className="fx-stack" style={{ gap: 10 }}>
@@ -395,7 +403,6 @@ const DecisionDesk: React.FC<{
               </button>
             </div>
           </div>
-          {why && <div className="fx-white" style={{ marginTop: 12, lineHeight: 1.55 }}><b style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Sparkles size={16} />Por que o Tino sugeriu isso</b><p style={{ margin: '6px 0 0' }}>{why}</p></div>}
         </>
       )}
     </div>
@@ -443,7 +450,7 @@ const RecommendationItems: React.FC<{
                 <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <input type="checkbox" className="fx-check" checked={!off.has(i.id)} onChange={() => toggle(i.id)} aria-label={`Incluir ${i.name}`} />
-                    <Thumb name={i.name} src={i.image} />
+                    <Thumb name={i.name} src={i.image} size={40} />
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <div className="fx-item-name">{i.name}</div>
@@ -476,7 +483,7 @@ const RecommendationItems: React.FC<{
           <div className="fx-group-head"><b>Comprar menos na próxima</b><span>o Tino viu sobra</span></div>
           <PagedList as="div" className="fx-items" size={6} label="itens" items={reduce} render={(i) => (
               <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`} style={{ gridTemplateColumns: 'auto minmax(0,1fr) auto' }}>
-                <Thumb name={i.name} src={i.image} />
+                <Thumb name={i.name} src={i.image} size={40} />
                 <div style={{ minWidth: 0 }}>
                   <div className="fx-item-name">{i.name}</div>
                   {i.reasons.length > 0 && <div className="fx-reasons">{i.reasons.map((r) => <span key={r}>{r}</span>)}</div>}
@@ -494,13 +501,13 @@ const RecommendationItems: React.FC<{
               <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <input type="checkbox" className="fx-check" checked={!off.has(i.id)} onChange={() => toggle(i.id)} aria-label={`Incluir ${i.name}`} />
-                  <Thumb name={i.name} src={i.image} />
+                  <Thumb name={i.name} src={i.image} size={40} />
                 </span>
                 <div style={{ minWidth: 0 }}>
                   <div className="fx-item-name">{i.name}</div>
                   {i.reasons.length > 0 && <div className="fx-reasons">{i.reasons.map((r) => <span key={r}>{r}</span>)}</div>}
                   {act && (
-                    <div style={{ marginTop: 10 }}>
+                    <div className="fx-item-fields" style={{ marginTop: 10 }}>
                       <CostPriceFields compact name={i.name} cost={costs[i.id] ?? ''} onCost={(v) => setCosts({ ...costs, [i.id]: v })}
                         costSource={i.costSource} price={actPrice[i.id] ?? ''} onPrice={(v) => setActPrice({ ...actPrice, [i.id]: v })}
                         priceLabel={i.action === 'LIQUIDAR' ? 'Preço de liquidação' : 'Preço da promoção'} currentPrice={i.price} />

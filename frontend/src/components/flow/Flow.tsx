@@ -131,7 +131,7 @@ export const Pager: React.FC<{ page: number; pages: number; total: number; size:
  * vista, então a última (mais curta) não encolhe o card e o paginador fica
  * sempre no rodapé, no mesmo lugar, para ir passando sem caçar o botão.
  */
-export const PagedBox: React.FC<{ page: number; pages: number; total: number; size: number; onPage: (p: number) => void; label?: string; resetKey?: unknown; onOverflow?: () => void; children: React.ReactNode }> = ({ page, pages, total, size, onPage, label, resetKey, onOverflow, children }) => {
+export const PagedBox: React.FC<{ page: number; pages: number; total: number; size: number; onPage: (p: number) => void; label?: string; resetKey?: unknown; onOverflow?: () => void; onPageChange?: () => void; children: React.ReactNode }> = ({ page, pages, total, size, onPage, label, resetKey, onOverflow, onPageChange, children }) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [minH, setMinH] = React.useState(0);
   React.useEffect(() => { setMinH(0); }, [resetKey, size, total]);
@@ -150,8 +150,10 @@ export const PagedBox: React.FC<{ page: number; pages: number; total: number; si
   });
   const go = (p: number) => {
     onPage(p);
-    // Se o começo da lista saiu da tela, volta até ele; senão a página troca no lugar.
     const el = ref.current;
+    if (el) el.scrollTop = 0;
+    if (onPageChange) { onPageChange(); return; }
+    // Se o começo da lista saiu da tela, volta até ele; senão a página troca no lugar.
     if (el && el.getBoundingClientRect().top < 72) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   return (
@@ -162,8 +164,45 @@ export const PagedBox: React.FC<{ page: number; pages: number; total: number; si
   );
 };
 
-/** Altura tirada da tela pelo cabeçalho (76) e pela doca (112); igual ao .fx-split.panes. */
+/** Altura tirada da tela pelo cabeçalho e pela doca, quando não dá para medir. */
 const PANE_OFFSET = 188;
+
+/** A faixa visível entre o cabeçalho fixo e a doca, medida na tela. */
+function paneBand() {
+  const top = document.querySelector('.fx-top')?.getBoundingClientRect().bottom ?? 76;
+  const dock = document.querySelector('.fx-dock')?.getBoundingClientRect().top ?? window.innerHeight - 112;
+  return { top: Math.max(0, top) + 8, bottom: dock - 10 };
+}
+
+/**
+ * Lista + painel lado a lado: a altura é a faixa entre o cabeçalho e a doca
+ * (medida, não chutada), para os dois caberem inteiros na tela com o
+ * paginador visível. Devolve a ref do .fx-split e um "alinhar" que rola a
+ * página até os dois ficarem inteiros à vista.
+ */
+export function usePaneFit<T extends HTMLElement = HTMLDivElement>() {
+  const ref = React.useRef<T>(null);
+  React.useLayoutEffect(() => {
+    const fit = () => {
+      const el = ref.current;
+      if (!el) return;
+      if (window.innerWidth < 1100) { el.style.removeProperty('--pane-h'); return; }
+      const band = paneBand();
+      el.style.setProperty('--pane-h', `${Math.max(360, Math.round(band.bottom - band.top))}px`);
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  });
+  const align = React.useCallback(() => {
+    const el = ref.current;
+    if (!el || window.innerWidth < 1100) return;
+    const band = paneBand();
+    const r = el.getBoundingClientRect();
+    if (r.top < band.top - 2 || r.bottom > band.bottom + 2) window.scrollBy({ top: r.top - band.top, behavior: 'smooth' });
+  }, []);
+  return { ref, align };
+}
 /**
  * Quantas linhas cabem numa página de lista que divide a tela com um painel.
  * No computador, a lista e o painel têm a altura da tela, então o número de
@@ -171,7 +210,7 @@ const PANE_OFFSET = 188;
  */
 export function usePaneRows(rowPx: number, chromePx: number, fallback: number) {
   const calc = React.useCallback(() => (typeof window === 'undefined' || window.innerWidth < 1100 ? fallback
-    : Math.max(3, Math.floor((Math.max(420, window.innerHeight - PANE_OFFSET) - chromePx) / rowPx))), [rowPx, chromePx, fallback]);
+    : Math.max(3, Math.floor((Math.max(360, (() => { const b = paneBand(); return b.bottom - b.top; })() || window.innerHeight - PANE_OFFSET) - chromePx) / rowPx))), [rowPx, chromePx, fallback]);
   const [n, setN] = React.useState(calc);
   // Linhas tiradas porque a página medida não coube (a estimativa errou para cima).
   const [cut, setCut] = React.useState(0);
