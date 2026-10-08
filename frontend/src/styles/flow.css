@@ -652,11 +652,14 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 /* Lista + painel no computador: os dois na altura da tela (menos cabeçalho e doca).
    A lista troca de página no lugar; o painel rola por dentro e, no fim, a página segue rolando. */
 @media (min-width: 1100px) {
-  .fx-split.panes { height: var(--pane-h, max(360px, calc(100vh - 188px - env(safe-area-inset-bottom, 0px)))); align-items: stretch; scroll-margin-top: 84px; }
+  /* Altura fixa por tela (Decidir: o painel mostra 4 produtos); a lista estica junto e mede quantas linhas cabem. */
+  .fx-split.panes { height: var(--pane-h, 840px); align-items: stretch; }
   .fx-split.panes > * { min-height: 0; }
   .fx-split.panes > .fx-card, .fx-split.panes > .fx-forest:not(.fx-sticky) { display: flex; flex-direction: column; overflow: hidden; }
   .fx-split.panes .fx-paged-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
   .fx-split.panes > .fx-sticky { position: relative; top: auto; max-height: none; height: 100%; overflow-y: auto; overscroll-behavior: auto; }
+  /* Painel mais curto que a altura também vai até o fim: os dois terminam na mesma linha. */
+  .fx-split.panes > .fx-sticky > .fx-forest { min-height: 100%; }
 }
 /* Linha compacta: título em até 2 linhas, selos ao lado do tipo, tudo numa altura previsível. */
 .fx-row.compact { padding: 10px 12px; gap: 12px; }
@@ -713,8 +716,8 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
   .fx-split.panes .fx-desk-scroll > .fx-stack:last-child > .fx-paged:only-child { flex: 1 1 auto; min-height: 0; }
   .fx-split.panes .fx-desk-scroll > .fx-stack:last-child > .fx-paged:only-child > .fx-paged-body { flex: 1 1 auto; min-height: 0 !important; overflow-y: auto; scrollbar-width: thin; }
 }
-/* Tela baixa: os passos repetem o resumo; saem para os produtos terem espaço. */
-@media (min-width: 1100px) and (max-height: 780px) {
+/* No painel ao lado da lista, os passos repetem o resumo: saem para caberem 4 produtos. */
+@media (min-width: 1100px) {
   .fx-split.panes .fx-desk .fx-desk-steps { display: none; }
   .fx-split.panes .fx-desk .fx-desk-head h2 { font-size: 22px; }
   .fx-split.panes .fx-desk .fx-stat b { font-size: 20px; }

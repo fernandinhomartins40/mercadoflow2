@@ -15,7 +15,7 @@ import {
   AlertTriangle, Search, TrendingUp, TrendingDown, Minus,
   ShoppingCart, Zap, Map, ArrowRight, RefreshCw, Plus,
 } from 'lucide-react';
-import { ActionHub, Forest, PagedBox, PageHero, PanelTitle, Thumb, usePaneFit, usePaneRows } from '../components/flow/Flow';
+import { ActionHub, Forest, PagedBox, PageHero, PanelTitle, Thumb, usePaneFill } from '../components/flow/Flow';
 import ProductAttention, { attentionList, type Why } from './produtos/ProductAttention';
 import TractionList from './produtos/TractionList';
 import { useMarketData } from '../hooks/useMarketData';
@@ -41,9 +41,8 @@ const DesempenhoTab: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
-  // Lista e detalhe na altura da tela: quantos produtos por página sai da altura.
-  const { rows: size, shrink } = usePaneRows(88, 120, 20);
-  const pane = usePaneFit();
+  // Lista com a altura do detalhe: quantos produtos por página sai dessa altura.
+  const { rows: size, fill } = usePaneFill(88, 20);
   useEffect(() => { setPage(0); }, [size]);
   const [category, setCategory] = useState('');
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
@@ -148,9 +147,9 @@ const DesempenhoTab: React.FC = () => {
       ) : products.length === 0 ? (
         <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}><p style={{ color: 'var(--text-muted)' }}>Nenhum produto encontrado.</p></div>
       ) : (
-        <div className="fx-split wide-left even panes" ref={pane.ref}>
+        <div className="fx-split wide-left even panes" style={{ '--pane-h': '680px' } as React.CSSProperties}>
           <div className="fx-card fx-card-pad fx-col">
-          <PagedBox page={page} pages={Math.max(1, totalPages)} total={totalElements} size={size} onPage={setPage} label="produtos" resetKey={`${category}:${querySearch}:${sortBy}`} onOverflow={typeof window !== 'undefined' && window.innerWidth >= 1100 ? shrink : undefined}>
+          <PagedBox page={page} pages={Math.max(1, totalPages)} total={totalElements} size={size} onPage={setPage} label="produtos" resetKey={`${category}:${querySearch}:${sortBy}`} fill={fill}>
           <ul className="flex flex-col gap-2" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {/* Lista, não grade de cartões: comparar dezenas de produtos exige
                 ler as mesmas colunas de relance, não rolar fotos. */}

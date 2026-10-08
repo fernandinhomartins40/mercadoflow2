@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Check, ClipboardList, ExternalLink, ListChecks, Loader2, Minus, PackageCheck, Plus, Send, Sparkles, Trash2, Truck, X,
 } from 'lucide-react';
-import { Card, Chip, Forest, PagedList, PanelTitle, StepTrack, Thumb, usePaneFit, usePaneRows } from '../../components/flow/Flow';
+import { Card, Chip, Forest, PagedList, PanelTitle, StepTrack, Thumb, usePaneFill } from '../../components/flow/Flow';
 import OrderSendOptions from '../../components/orders/OrderSendOptions';
 import DecisionFeedback from '../../components/intelligence/DecisionFeedback';
 import { useRecommendationDecision } from '../../hooks/useRecommendationDecision';
@@ -66,9 +66,8 @@ const BuyDesk: React.FC<{
   // As sugestões de compra são decididas no Decidir; aqui a linha só leva até lá.
   const current = entries.find((e) => e.key === selected) ?? entries.find((e) => e.kind !== 'sugestoes') ?? null;
   const sugImpact = suggestions.reduce((a, r) => a + Number(r.expectedImpactValue || 0), 0);
-  // Lista e painel na altura da tela: as linhas por página saem da altura.
-  const { rows, shrink } = usePaneRows(88, 160, 7);
-  const pane = usePaneFit();
+  // Lista com a altura do painel: as linhas por página saem dessa altura.
+  const { rows, fill } = usePaneFill(88, 7);
 
   if (loading && entries.length === 0) {
     return <div className="fx-split"><Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card></div>;
@@ -84,10 +83,10 @@ const BuyDesk: React.FC<{
   }
 
   return (
-    <div className="fx-split even panes" ref={pane.ref}>
+    <div className="fx-split even panes" style={{ '--pane-h': '720px' } as React.CSSProperties}>
       <Card as="section" aria-label="Agora importa" className="fx-col">
         <PanelTitle title="Para enviar e receber" />
-        <PagedList items={entries} size={rows} onOverflow={typeof window !== 'undefined' && window.innerWidth >= 1100 ? shrink : undefined} label="itens" style={{ marginTop: 16, gap: 8 }} render={(e) => {
+        <PagedList items={entries} size={rows} fill={fill} label="itens" style={{ marginTop: 16, gap: 8 }} render={(e) => {
             const on = current?.key === e.key;
             let icon = <Sparkles aria-hidden="true" />;
             let title = '';

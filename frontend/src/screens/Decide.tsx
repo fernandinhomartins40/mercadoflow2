@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import { ActionHub, Card, Chip, PageHero, PagedBox, PanelTitle, PillTabs, Thumb, usePaged, usePaneFit, usePaneRows } from '../components/flow/Flow';
+import { ActionHub, Card, Chip, PageHero, PagedBox, PanelTitle, PillTabs, Thumb, usePaged, usePaneFill } from '../components/flow/Flow';
 import RecommendationDesk from '../components/intelligence/RecommendationDesk';
 import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
@@ -115,12 +115,11 @@ const Decide: React.FC = () => {
   } : null;
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
-  // Fila em páginas com o paginador fixo no rodapé. No computador, lista e painel
-  // têm a altura da tela e o tamanho da página sai da altura (nunca empurra o
-  // paginador para fora); no celular, 7 por página (F3: "Hoje" são as 7 que mais valem).
-  const { rows: TODAY, shrink } = usePaneRows(92, 150 + (filter === 'tudo' && locked.total > 0 ? 80 : 0), 7);
+  // Fila em páginas com o paginador fixo no rodapé. No computador, a lista tem a
+  // altura do painel (que mostra 4 produtos) e põe quantas linhas couberem; no
+  // celular, 7 por página (F3: "Hoje" são as 7 que mais valem).
+  const { rows: TODAY, fill } = usePaneFill(92, 7);
   const paged = usePaged(list, TODAY, filter);
-  const pane = usePaneFit();
   // Celular: o detalhe abre numa folha por cima da lista.
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
   useEffect(() => {
@@ -177,7 +176,6 @@ const Decide: React.FC = () => {
   const pick = (key: string) => {
     setSelected(key);
     if (window.innerWidth < 1100) setSheet(true);
-    else pane.align();
   };
 
   const renderRows = (items: QueueItem[]) => (
@@ -269,14 +267,14 @@ const Decide: React.FC = () => {
               {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: <Link to="/app/contar">conte o estoque</Link> ou confira as notas no Confere.</p>}
             </Card>
           ) : (
-            <div className="fx-split even panes" ref={pane.ref}>
+            <div className="fx-split even panes">
               <Card as="section" aria-label="Decisões" id="decidir-lista" className="fx-col" style={{ scrollMarginTop: 80 }}>
                 {paged.pages > 1 && (
                   <p className="fx-muted" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>
                     {paged.page === 0 ? 'Hoje · as que mais valem' : 'Depois · valem menos'}
                   </p>
                 )}
-                <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="decisões" resetKey={filter} onOverflow={narrow ? undefined : shrink} onPageChange={pane.align}>
+                <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="decisões" resetKey={filter} fill={fill}>
                   <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
                     {renderRows(paged.slice)}
                   </ul>
