@@ -350,6 +350,9 @@ export interface ShoppingListItem {
   brand?: string | null;
   imageUrl?: string | null;
   quantityTarget: number;
+  /** Embalagem da compra: UN, CX, FD, DZ, PC ou KG. */
+  unitType?: string | null;
+  unitsPerPack?: number | null;
   note?: string | null;
   sourceTag: string;
   reasonSummary?: string | null;
@@ -404,8 +407,9 @@ export interface SupplierOrderItem {
 
 export interface SupplierOrder {
   id: string;
-  supplierId: string;
-  supplierName: string;
+  /** Vazio em rascunho montado antes de escolher o fornecedor. */
+  supplierId: string | null;
+  supplierName: string | null;
   supplierFantasia?: string | null;
   supplierCnpj?: string | null;
   status: 'RASCUNHO' | 'ENVIADO' | 'ENTREGUE' | 'CANCELADO';

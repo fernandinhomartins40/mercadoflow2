@@ -44,12 +44,14 @@ public record SupplierOrderDTO(
             : List.of();
 
         String statusStr = o.getStatus().name();
+        // Rascunho sem fornecedor ainda: os campos do fornecedor vão vazios.
+        var s = o.getSupplier();
         return new SupplierOrderDTO(
             o.getId(),
-            o.getSupplier().getId(),
-            o.getSupplier().getRazaoSocial(),
-            o.getSupplier().getNomeFantasia(),
-            o.getSupplier().getCnpj(),
+            s != null ? s.getId() : null,
+            s != null ? s.getRazaoSocial() : null,
+            s != null ? s.getNomeFantasia() : null,
+            s != null ? s.getCnpj() : null,
             statusStr,
             LABELS.getOrDefault(statusStr, statusStr),
             o.getOrderNumber(),

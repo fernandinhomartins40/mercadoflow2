@@ -46,7 +46,8 @@ public class SupplierOrder {
     private Market market;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supplier_id", nullable = false)
+    /** Pode ficar vazio no rascunho: o fornecedor só é exigido para enviar. */
+    @JoinColumn(name = "supplier_id")
     private Supplier supplier;
 
     @Enumerated(EnumType.STRING)

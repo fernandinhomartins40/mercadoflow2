@@ -8,6 +8,8 @@ import lombok.Data;
 public class ShoppingListItemUpsertRequest {
     private UUID productId;
     private BigDecimal quantityTarget;
+    private String unitType;
+    private BigDecimal unitsPerPack;
     private String note;
     private String sourceTag;
     private String reasonSummary;

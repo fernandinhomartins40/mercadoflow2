@@ -235,7 +235,7 @@ public class RecommendationOrderService {
         String orderNumber;
         Optional<SupplierOrder> draft = orderRepository
             .findByMarketIdAndStatus(marketId, SupplierOrder.Status.RASCUNHO).stream()
-            .filter(o -> o.getSupplier().getId().equals(supplier.getId()))
+            .filter(o -> o.getSupplier() != null && o.getSupplier().getId().equals(supplier.getId()))
             .findFirst();
         if (draft.isPresent()) {
             orderId = draft.get().getId();
@@ -293,7 +293,7 @@ public class RecommendationOrderService {
         }
         if (lastItem == null) return null;
         Supplier last = lastItem.getSupplierOrder().getSupplier();
-        return Boolean.FALSE.equals(last.getIsActive()) ? null : last;
+        return last == null || Boolean.FALSE.equals(last.getIsActive()) ? null : last;
     }
 
     /** @return {@code true} se o pedido foi revertido; {@code false} se ele já saiu do rascunho. */

@@ -19,7 +19,7 @@ const fmtDate = (iso?: string | null) =>
   iso ? new Intl.DateTimeFormat('pt-BR').format(new Date(iso)) : '';
 
 export const supplierDisplayName = (order: Pick<SupplierOrder, 'supplierFantasia' | 'supplierName'>) =>
-  order.supplierFantasia?.trim() || order.supplierName;
+  order.supplierFantasia?.trim() || order.supplierName || 'Fornecedor a definir';
 
 export const itemLine = (item: SupplierOrder['items'][number]) => {
   const unit = UNIT_TEXT[item.unitType] || item.unitType.toLowerCase();

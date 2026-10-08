@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Card, Chip, Forest, PagedList, PanelTitle, StepTrack, Thumb, usePaneFill } from '../../components/flow/Flow';
 import OrderSendOptions from '../../components/orders/OrderSendOptions';
+import SupplierPicker, { orderSupplierName } from '../../components/suppliers/SupplierPicker';
 import DecisionFeedback from '../../components/intelligence/DecisionFeedback';
 import { useRecommendationDecision } from '../../hooks/useRecommendationDecision';
 import { marketService } from '../../services/market.service';
@@ -29,7 +30,7 @@ const sinceLabel = (iso?: string | null) => {
   return days <= 0 ? 'hoje' : days === 1 ? 'ontem' : `há ${days} dias`;
 };
 
-const supplierName = (o: SupplierOrder) => o.supplierFantasia || o.supplierName;
+const supplierName = orderSupplierName;
 
 export const buyHeadline = (drafts: SupplierOrder[], _suggestions: RecommendationItem[], sent: SupplierOrder[]) => {
   if (drafts.length) {
@@ -52,7 +53,8 @@ const BuyDesk: React.FC<{
   onReceive: (o: SupplierOrder) => void;
   onOrderFromList: (productIds: string[]) => void;
   onGoList: () => void;
-}> = ({ marketId, orders, suggestions, listPending, loading, onOrdersChanged, onSuggestionsChanged, onOpenOrder, onReceive, onOrderFromList, onGoList }) => {
+  onUpdateListItem: (id: string, patch: ListPatch) => Promise<unknown>;
+}> = ({ marketId, orders, suggestions, listPending, loading, onOrdersChanged, onSuggestionsChanged, onOpenOrder, onReceive, onOrderFromList, onGoList, onUpdateListItem }) => {
   const drafts = useMemo(() => orders.filter((o) => o.status === 'RASCUNHO'), [orders]);
   const sent = useMemo(() => orders.filter((o) => o.status === 'ENVIADO'), [orders]);
   const entries: Entry[] = useMemo(() => [
@@ -103,7 +105,7 @@ const BuyDesk: React.FC<{
               title = supplierName(e.order);
               sub = `${e.order.itemCount} ${e.order.itemCount === 1 ? 'item' : 'itens'} · montado ${sinceLabel(e.order.createdAt)}`;
               value = Number(e.order.totalValue || 0);
-              chip = <Chip tone="green">Para enviar</Chip>;
+              chip = e.order.supplierId ? <Chip tone="green">Para enviar</Chip> : <Chip tone="amber">Falta o fornecedor</Chip>;
             } else if (e.kind === 'enviado') {
               icon = <Truck aria-hidden="true" />;
               title = supplierName(e.order);
@@ -141,7 +143,7 @@ const BuyDesk: React.FC<{
       {(current?.kind === 'rascunho' || current?.kind === 'enviado') && (
         <OrderPanel key={current.order.id} marketId={marketId} order={current.order} onChanged={onOrdersChanged} onOpen={onOpenOrder} onReceive={onReceive} />
       )}
-      {current?.kind === 'lista' && <ListPanel items={listPending} onOrder={onOrderFromList} onGoList={onGoList} />}
+      {current?.kind === 'lista' && <ListPanel items={listPending} onOrder={onOrderFromList} onGoList={onGoList} onUpdate={onUpdateListItem} />}
       </div>
     </div>
   );
@@ -316,7 +318,7 @@ const OrderPanel: React.FC<{
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
               <h2>{supplierName(order)}</h2>
-              <Chip tone={draft ? 'lime' : 'ghost'}>{draft ? 'Pronto para enviar' : 'A caminho'}</Chip>
+              <Chip tone={draft ? (order.supplierId ? 'lime' : 'amber') : 'ghost'}>{draft ? (order.supplierId ? 'Pronto para enviar' : 'Falta o fornecedor') : 'A caminho'}</Chip>
             </div>
             <p className="fx-desk-meta">Pedido {order.orderNumber} · {order.itemCount} {order.itemCount === 1 ? 'item' : 'itens'}</p>
           </div>
@@ -367,9 +369,12 @@ const OrderPanel: React.FC<{
             ) : (
               <>
                 <h3>Tudo certo com o pedido?</h3>
-                <small>Escolher o canal já envia e marca o pedido como enviado.</small>
+                <small>{order.supplierId ? 'Escolher o canal já envia e marca o pedido como enviado.' : 'Escolha o fornecedor para poder enviar.'}</small>
+                <div style={{ marginTop: 10 }}>
+                  <SupplierPicker marketId={marketId} order={order} compact onChanged={(o) => { setOrder(o); onChanged(); }} />
+                </div>
                 <div className="fx-actions" style={{ marginTop: 14 }}>
-                  <button type="button" className="fx-btn dark" disabled={items.length === 0} onClick={() => setSending(true)}><Send aria-hidden="true" />Enviar ao fornecedor</button>
+                  <button type="button" className="fx-btn dark" disabled={items.length === 0 || !order.supplierId} onClick={() => setSending(true)}><Send aria-hidden="true" />Enviar ao fornecedor</button>
                   <button type="button" className="fx-btn ghost" onClick={() => onOpen(order)}><ExternalLink aria-hidden="true" />Pedido completo</button>
                 </div>
               </>
@@ -396,22 +401,61 @@ const OrderPanel: React.FC<{
 };
 
 /* ── Lista de compras sem pedido ── */
-const ListPanel: React.FC<{ items: ShoppingListItem[]; onOrder: (ids: string[]) => void; onGoList: () => void }> = ({ items, onOrder, onGoList }) => {
+type ListPatch = { quantityTarget?: number; unitType?: string; unitsPerPack?: number };
+const LIST_UNITS: Array<[string, string]> = [['UN', 'Unidade'], ['CX', 'Caixa'], ['FD', 'Fardo'], ['DZ', 'Dúzia'], ['PC', 'Pacote'], ['KG', 'Kg']];
+const PACK_UNITS = new Set(['CX', 'FD', 'DZ', 'PC']);
+
+/** Quantidade e embalagem de um item da lista, gravadas na hora. */
+const ListQty: React.FC<{ item: ShoppingListItem; onUpdate: (id: string, patch: ListPatch) => Promise<unknown> }> = ({ item, onUpdate }) => {
+  const unit = item.unitType || 'UN';
+  const [qty, setQty] = useState(String(Number(item.quantityTarget || 1)).replace('.', ','));
+  const [pack, setPack] = useState(item.unitsPerPack ? String(Number(item.unitsPerPack)) : '');
+  useEffect(() => { setQty(String(Number(item.quantityTarget || 1)).replace('.', ',')); }, [item.quantityTarget]);
+  useEffect(() => { setPack(item.unitsPerPack ? String(Number(item.unitsPerPack)) : ''); }, [item.unitsPerPack]);
+  const q = Number(qty.replace(',', '.')) || 0;
+  const save = (patch: ListPatch) => { void onUpdate(item.id, patch); };
+  const step = (d: number) => { const n = Math.max(1, Math.round(q) + d); setQty(String(n)); save({ quantityTarget: n }); };
+  return (
+    <div className="ctl" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <span className="fx-stepper">
+        <button type="button" aria-label={`Menos ${item.name}`} onClick={() => step(-1)}>−</button>
+        <input inputMode="decimal" value={qty} aria-label={`Quantidade de ${item.name}`} onChange={(e) => setQty(e.target.value)}
+          onBlur={() => { if (q > 0 && q !== Number(item.quantityTarget)) save({ quantityTarget: q }); else if (q <= 0) setQty(String(Number(item.quantityTarget || 1))); }} />
+        <button type="button" aria-label={`Mais ${item.name}`} onClick={() => step(1)}>+</button>
+      </span>
+      <select className="fx-input" value={unit} aria-label={`Embalagem de ${item.name}`} style={{ padding: '6px 8px', fontSize: 13.5 }}
+        onChange={(e) => save({ unitType: e.target.value })}>
+        {LIST_UNITS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+      </select>
+      {PACK_UNITS.has(unit) && (
+        <label className="fx-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 4, fontSize: 12 }}>
+          <input className="fx-input fx-num" inputMode="numeric" value={pack} placeholder="un." style={{ width: 56, padding: '6px 6px', textAlign: 'right' }}
+            aria-label={`Unidades por embalagem de ${item.name}`} onChange={(e) => setPack(e.target.value)}
+            onBlur={() => { const n = Number(pack.replace(',', '.')); if (n > 0 && n !== Number(item.unitsPerPack)) save({ unitsPerPack: n }); }} />
+          un./emb.
+        </label>
+      )}
+    </div>
+  );
+};
+
+const ListPanel: React.FC<{ items: ShoppingListItem[]; onOrder: (ids: string[]) => void; onGoList: () => void; onUpdate: (id: string, patch: ListPatch) => Promise<unknown> }> = ({ items, onOrder, onGoList, onUpdate }) => {
   const [off, setOff] = useState<Set<string>>(new Set());
   const chosen = items.filter((i) => !off.has(i.id));
   return (
     <Forest as="aside" aria-label="Lista de compras">
-      <PanelTitle icon={ListChecks} title="Na lista, sem pedido" sub="Produtos que você ou o Tino anotaram para comprar" />
+      <PanelTitle icon={ListChecks} title="Na lista, sem pedido" sub="Quantidade e embalagem (unidade, caixa, fardo) de cada produto. O fornecedor pode ficar para depois." />
       <PagedList items={items} size={8} label="produtos" as="div" className="fx-items" role="list" ariaLabel="Produtos da lista" style={{ marginTop: 18 }} render={(i) => (
           <div key={i.id} role="listitem" className={`fx-item with-check ${off.has(i.id) ? 'off' : ''}`}>
             <input type="checkbox" className="fx-check" checked={!off.has(i.id)} aria-label={`Incluir ${i.name}`}
               onChange={() => setOff((s) => { const n = new Set(s); if (n.has(i.id)) n.delete(i.id); else n.add(i.id); return n; })} />
-            <Thumb name={i.name || ''} src={i.imageUrl} size={46} />
+            <Thumb name={i.name || ''} src={i.imageUrl} size={40} />
             <div style={{ minWidth: 0 }}>
               <div className="fx-item-name">{i.name}</div>
-              <div className="fx-item-detail">{i.reasonSummary || 'Anotado na lista'}</div>
+              {/* "Adicionar X à lista." só repete o nome: fica de fora. */}
+              {i.reasonSummary && !/^Adicionar .+ à lista\.?$/.test(i.reasonSummary) && <div className="fx-item-detail">{i.reasonSummary}</div>}
             </div>
-            <div className="fx-item-val"><span>Comprar</span><b>{Number(i.quantityTarget || 1)} un.</b></div>
+            <ListQty item={i} onUpdate={onUpdate} />
           </div>
         )} />
       <div className="fx-white" style={{ marginTop: 14 }}>

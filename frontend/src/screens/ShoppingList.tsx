@@ -20,6 +20,7 @@ import {
   RecommendationItem,
 } from '../types/analytics.types';
 import SupplierModal from '../components/suppliers/SupplierModal';
+import SupplierPicker, { orderSupplierName } from '../components/suppliers/SupplierPicker';
 import {
   AlertTriangle,
   Ban,
@@ -506,10 +507,13 @@ const AddItemForm: React.FC<{
   marketId: string; orderId: string; product: ProductPerformance;
   onSaved: (i: SupplierOrderItem) => void; onCancel: () => void;
   initialQty?: string;
-}> = ({ marketId, orderId, product, onSaved, onCancel, initialQty = '1' }) => {
+  /** Embalagem anotada na lista de compras. */
+  initialUnit?: string;
+  initialPack?: number | null;
+}> = ({ marketId, orderId, product, onSaved, onCancel, initialQty = '1', initialUnit, initialPack }) => {
   const [qty, setQty] = useState(initialQty);
-  const [unitType, setUnitType] = useState('UN');
-  const [unitsPerPack, setUnitsPerPack] = useState('');
+  const [unitType, setUnitType] = useState(initialUnit && UNIT_TYPES.includes(initialUnit) ? initialUnit : 'UN');
+  const [unitsPerPack, setUnitsPerPack] = useState(initialPack ? String(Number(initialPack)) : '');
   const [unitCost, setUnitCost] = useState('');
   const [unitSalePrice, setUnitSalePrice] = useState('');
   const [note, setNote] = useState('');
@@ -655,12 +659,17 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
               <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{order.orderNumber}</span>
               <StatusBadge status={order.status} />
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-soft)' }}><Building2 className="inline h-3 w-3 mr-1" />{order.supplierFantasia || order.supplierName} · {fmtDate(order.orderDate)}</p>
+            <p className="text-xs" style={{ color: 'var(--text-soft)' }}><Building2 className="inline h-3 w-3 mr-1" />{orderSupplierName(order)} · {fmtDate(order.orderDate)}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 transition hover:opacity-70" style={{ color: 'var(--text-muted)' }}><X className="h-4 w-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
+          {order.canEdit && (
+            <div className="px-5 pt-4">
+              <SupplierPicker marketId={marketId} order={order} onChanged={(o) => { setOrder(o); onUpdated(o); }} />
+            </div>
+          )}
           {order.canEdit && (
             <div className="p-5 pb-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Adicionar produto</p>
@@ -744,7 +753,7 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
           <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>Fechar</button>
           <div className="flex gap-2">
             {order.canCancel && !confirm && <button type="button" onClick={() => setConfirm('cancel')} className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition hover:opacity-80" style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626' }}><Ban className="h-3.5 w-3.5" /> Cancelar</button>}
-            {order.canSend && !confirm && order.items.length > 0 && <button type="button" onClick={() => setConfirm('send')} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: '#2563eb', color: '#fff' }}><Send className="h-3.5 w-3.5" /> Enviar pedido</button>}
+            {order.canSend && !confirm && order.items.length > 0 && !!order.supplierId && <button type="button" onClick={() => setConfirm('send')} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: '#2563eb', color: '#fff' }}><Send className="h-3.5 w-3.5" /> Enviar pedido</button>}
           </div>
         </div>
       </div>
@@ -872,11 +881,11 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
     catch { setSearchResults([]); } finally { setSearching(false); }
   }, [marketId]);
 
+  // Sem fornecedor escolhido, o rascunho nasce sem ele: dá para montar e escolher antes de enviar.
   const handleCreateOrder = async () => {
-    if (!selected) return;
     setCreating(true); setErr(null);
     try {
-      const o = await marketService.createSupplierOrder(marketId, { supplierId: selected.id, notes: notes.trim() || undefined });
+      const o = await marketService.createSupplierOrder(marketId, { supplierId: selected?.id ?? null, notes: notes.trim() || undefined });
       setOrder(o);
       setStep('items');
     } catch (e: any) { setErr(e?.message || 'Erro ao criar pedido'); }
@@ -977,7 +986,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                   <div className="rounded-xl py-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                     <Building2 className="mx-auto mb-2 h-8 w-8 opacity-20" style={{ color: 'var(--text-muted)' }} />
                     <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Nenhum fornecedor cadastrado</p>
-                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Cadastre um fornecedor para criar pedidos.</p>
+                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Monte o pedido sem fornecedor e escolha depois, ou cadastre um agora.</p>
                   </div>
                 )}
                 <button type="button" onClick={() => setShowSupModal(true)} className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition hover:opacity-80" style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-primary)', background: 'var(--surface-soft)' }}>
@@ -995,7 +1004,14 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
 
           {err && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{err}</p>}
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {!selected && (
+              <button type="button" onClick={handleCreateOrder} disabled={creating}
+                className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
+                {creating ? 'Criando...' : <><ArrowRight className="h-4 w-4" /> Continuar sem fornecedor</>}
+              </button>
+            )}
             <button type="button" onClick={handleCreateOrder} disabled={creating || !selected}
               className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
               style={{ background: 'var(--brand-500)', color: '#fff' }}>
@@ -1011,7 +1027,6 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
   }
 
   /* ─── Passo 2: adicionar produtos ─── */
-  const supplier = selected!;
   const orderItems = order?.items ?? [];
   const total = order?.totalValue ?? 0;
 
@@ -1028,10 +1043,11 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
             </button>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Pedido para {supplier.nomeFantasia || supplier.razaoSocial}</h2>
+                <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{order ? (order.supplierId ? `Pedido para ${orderSupplierName(order)}` : 'Pedido sem fornecedor') : selected ? `Pedido para ${selected.nomeFantasia || selected.razaoSocial}` : 'Novo pedido'}</h2>
                 {order && <StatusBadge status={order.status} />}
               </div>
               {order && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{order.orderNumber} · {orderItems.length} {orderItems.length === 1 ? 'produto' : 'produtos'}</p>}
+              {order && <div className="mt-2"><SupplierPicker marketId={marketId} order={order} compact onChanged={(o) => setOrder(o)} /></div>}
             </div>
           </div>
           {order && orderItems.length > 0 && (
@@ -1177,7 +1193,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                 {order ? 'Salvar rascunho e fechar' : 'Concluir'}
               </button>
               {order && orderItems.length > 0 && (
-                <button type="button" onClick={async () => {
+                <button type="button" disabled={!order.supplierId} title={order.supplierId ? undefined : 'Escolha o fornecedor para enviar'} onClick={async () => {
                   if (!(await confirmDialog('Enviar o pedido? Ele não poderá mais ser editado.'))) return;
                   try { const u = await marketService.sendSupplierOrder(marketId, order.id); onCreated(u); }
                   catch (e: any) { setErr(e?.message || 'Erro ao enviar'); }
@@ -1198,6 +1214,8 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
             <p className="mb-3 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Configurar item</p>
             <AddItemForm marketId={marketId} orderId={order.id} product={addProd}
               initialQty={String(suggestedQtyFromList(shoppingListItems, addProd.productId))}
+              initialUnit={shoppingListItems.find(i => i.productId === addProd.productId)?.unitType || undefined}
+              initialPack={shoppingListItems.find(i => i.productId === addProd.productId)?.unitsPerPack ?? undefined}
               onSaved={() => { setAddProd(null); refreshOrder(); }}
               onCancel={() => setAddProd(null)} />
           </div>
@@ -1612,6 +1630,7 @@ const ShoppingListPage: React.FC = () => {
                 onReceive={setReceiveOrder}
                 onOrderFromList={(ids) => { setNewOrder({ selectedProductIds: ids }); }}
                 onGoList={() => setTab('lista')}
+                onUpdateListItem={(id, patch) => updateItem(id, patch)}
               />
             )}
 
@@ -1633,7 +1652,7 @@ const ShoppingListPage: React.FC = () => {
                           <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>{group.hint}</span>
                         </div>
                         <PagedList as="div" className="flex flex-col gap-3" size={5} label="pedidos" items={groupOrders} render={order => {
-                            const sup = order.supplierFantasia || order.supplierName;
+                            const sup = orderSupplierName(order);
                             return (
                               <div key={order.id} className="flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
                                 <div className="flex min-w-0 flex-1 items-start gap-3">

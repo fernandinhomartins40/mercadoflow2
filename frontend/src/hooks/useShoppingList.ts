@@ -70,7 +70,7 @@ export const useShoppingList = () => {
 
   const updateItem = useCallback(async (
     itemId: string,
-    payload: { quantityTarget?: number; note?: string; sourceTag?: string; reasonSummary?: string; checked?: boolean }
+    payload: { quantityTarget?: number; unitType?: string; unitsPerPack?: number; note?: string; sourceTag?: string; reasonSummary?: string; checked?: boolean }
   ) => {
     if (!marketId) {
       throw new Error('Mercado não encontrado');

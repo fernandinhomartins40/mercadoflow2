@@ -27,7 +27,7 @@ public interface SupplierOrderItemRepository extends JpaRepository<SupplierOrder
     @Query("""
         select i from SupplierOrderItem i
         join fetch i.supplierOrder o
-        join fetch o.supplier s
+        left join fetch o.supplier s
         where o.market.id = :marketId and i.product.id = :productId
           and o.status <> com.pdv2cloud.model.entity.SupplierOrder.Status.CANCELADO
         order by o.orderDate desc

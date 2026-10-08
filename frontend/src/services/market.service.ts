@@ -312,7 +312,7 @@ export const marketService = {
   async updateShoppingListItem(
     marketId: string,
     itemId: string,
-    payload: { quantityTarget?: number; note?: string; sourceTag?: string; reasonSummary?: string; checked?: boolean }
+    payload: { quantityTarget?: number; unitType?: string; unitsPerPack?: number; note?: string; sourceTag?: string; reasonSummary?: string; checked?: boolean }
   ) {
     const response = await api.patch(`/v1/markets/${marketId}/shopping-list/items/${itemId}`, payload);
     return response.data;
@@ -403,8 +403,14 @@ export const marketService = {
     return response.data;
   },
 
-  async createSupplierOrder(marketId: string, payload: { supplierId: string; notes?: string }) {
+  /** Sem supplierId, o rascunho nasce sem fornecedor; ele é exigido só para enviar. */
+  async createSupplierOrder(marketId: string, payload: { supplierId?: string | null; notes?: string }) {
     const response = await api.post(`/v1/markets/${marketId}/supplier-orders`, payload);
+    return response.data;
+  },
+
+  async updateSupplierOrderSupplier(marketId: string, orderId: string, supplierId: string | null) {
+    const response = await api.patch(`/v1/markets/${marketId}/supplier-orders/${orderId}/supplier`, { supplierId });
     return response.data;
   },
 

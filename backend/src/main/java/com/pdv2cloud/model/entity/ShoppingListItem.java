@@ -56,6 +56,14 @@ public class ShoppingListItem {
     @Column(name = "quantity_target", precision = 14, scale = 3, nullable = false)
     private BigDecimal quantityTarget = BigDecimal.ONE;
 
+    /** Embalagem da compra: UN, CX, FD, DZ, PC ou KG. */
+    @Column(name = "unit_type", nullable = false, length = 10)
+    private String unitType = "UN";
+
+    /** Unidades por embalagem (caixa, fardo, pacote); vazio em UN e KG. */
+    @Column(name = "units_per_pack", precision = 10, scale = 3)
+    private BigDecimal unitsPerPack;
+
     @Column(length = 1000)
     private String note;
 

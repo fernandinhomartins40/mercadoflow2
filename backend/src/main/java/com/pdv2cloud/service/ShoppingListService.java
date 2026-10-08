@@ -70,6 +70,7 @@ public class ShoppingListService {
 
         item.setProduct(product);
         item.setQuantityTarget(normalizeQuantity(request.getQuantityTarget(), item.getQuantityTarget()));
+        applyPackaging(item, request);
         item.setNote(normalizeText(request.getNote()));
         item.setSourceTag(normalizeTag(request.getSourceTag(), item.getSourceTag()));
         item.setReasonSummary(normalizeText(request.getReasonSummary()));
@@ -88,6 +89,7 @@ public class ShoppingListService {
         if (request.getQuantityTarget() != null) {
             item.setQuantityTarget(normalizeQuantity(request.getQuantityTarget(), item.getQuantityTarget()));
         }
+        applyPackaging(item, request);
         if (request.getNote() != null) {
             item.setNote(normalizeText(request.getNote()));
         }
@@ -111,6 +113,22 @@ public class ShoppingListService {
         shoppingListItemRepository.delete(item);
     }
 
+    private static final java.util.Set<String> UNIT_TYPES = java.util.Set.of("UN", "CX", "FD", "DZ", "PC", "KG");
+    private static final java.util.Set<String> PACKS = java.util.Set.of("CX", "FD", "DZ", "PC");
+
+    /** Embalagem só muda quando vem no pedido; UN e KG não guardam unidades por embalagem. */
+    private void applyPackaging(ShoppingListItem item, ShoppingListItemUpsertRequest request) {
+        if (request.getUnitType() != null) {
+            String unit = request.getUnitType().trim().toUpperCase();
+            if (!UNIT_TYPES.contains(unit)) throw new IllegalArgumentException("Embalagem inválida: " + request.getUnitType());
+            item.setUnitType(unit);
+            if (!PACKS.contains(unit)) item.setUnitsPerPack(null);
+        }
+        if (request.getUnitsPerPack() != null && PACKS.contains(item.getUnitType())) {
+            item.setUnitsPerPack(request.getUnitsPerPack().signum() > 0 ? request.getUnitsPerPack() : null);
+        }
+    }
+
     private ShoppingListItemDTO toDto(ShoppingListItem item) {
         Product product = item.getProduct();
         return new ShoppingListItemDTO(
@@ -122,6 +140,8 @@ public class ShoppingListService {
             product.getBrand(),
             product.getImageUrl(),
             item.getQuantityTarget(),
+            item.getUnitType(),
+            item.getUnitsPerPack(),
             item.getNote(),
             item.getSourceTag(),
             item.getReasonSummary(),

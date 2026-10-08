@@ -64,10 +64,8 @@ public class SupplierOrderService {
     public SupplierOrderDTO createOrder(UUID marketId, UUID supplierId, String notes) {
         Market market = marketRepo.findById(marketId)
             .orElseThrow(() -> new IllegalArgumentException("Mercado não encontrado"));
-        Supplier supplier = supplierRepo.findById(supplierId)
-            .orElseThrow(() -> new IllegalArgumentException("Fornecedor não encontrado"));
-        if (!supplier.getMarket().getId().equals(marketId))
-            throw new IllegalArgumentException("Fornecedor não pertence a este mercado");
+        // Sem fornecedor, o pedido nasce como rascunho e o fornecedor é escolhido antes de enviar.
+        Supplier supplier = supplierId == null ? null : supplierOfMarket(marketId, supplierId);
 
         int seq = orderRepo.findMaxOrderSequence(marketId) + 1;
         String orderNumber = String.format("PED%05d", seq);
@@ -82,6 +80,23 @@ public class SupplierOrderService {
         order.setTotalValue(BigDecimal.ZERO);
 
         return SupplierOrderDTO.from(orderRepo.save(order), true);
+    }
+
+    private Supplier supplierOfMarket(UUID marketId, UUID supplierId) {
+        Supplier supplier = supplierRepo.findById(supplierId)
+            .orElseThrow(() -> new IllegalArgumentException("Fornecedor não encontrado"));
+        if (!supplier.getMarket().getId().equals(marketId))
+            throw new IllegalArgumentException("Fornecedor não pertence a este mercado");
+        return supplier;
+    }
+
+    // ── Escolher ou trocar o fornecedor do rascunho ───────────────────────────
+
+    @Transactional
+    public SupplierOrderDTO updateSupplier(UUID marketId, UUID orderId, UUID supplierId) {
+        SupplierOrder o = findEditable(marketId, orderId);
+        o.setSupplier(supplierId == null ? null : supplierOfMarket(marketId, supplierId));
+        return SupplierOrderDTO.from(orderRepo.save(o), true);
     }
 
     // ── Atualizar notas do pedido ─────────────────────────────────────────────
@@ -169,6 +184,8 @@ public class SupplierOrderService {
             throw new IllegalStateException("Pedido não pode ser enviado no status " + order.getStatus());
         if (order.getItems().isEmpty())
             throw new IllegalStateException("Pedido não tem itens");
+        if (order.getSupplier() == null)
+            throw new IllegalStateException("Escolha o fornecedor antes de enviar o pedido");
 
         order.setStatus(SupplierOrder.Status.ENVIADO);
         order.setSentAt(LocalDateTime.now());
@@ -203,7 +220,8 @@ public class SupplierOrderService {
             }
         }
 
-        String supplierName = order.getSupplier().getNomeFantasia() != null
+        String supplierName = order.getSupplier() == null ? null
+            : order.getSupplier().getNomeFantasia() != null
             ? order.getSupplier().getNomeFantasia()
             : order.getSupplier().getRazaoSocial();
 

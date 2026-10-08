@@ -12,7 +12,7 @@ public interface SupplierOrderRepository extends JpaRepository<SupplierOrder, UU
 
     @Query("""
         select o from SupplierOrder o
-        join fetch o.supplier s
+        left join fetch o.supplier s
         where o.market.id = :marketId
         order by o.orderDate desc
         """)
@@ -20,7 +20,7 @@ public interface SupplierOrderRepository extends JpaRepository<SupplierOrder, UU
 
     @Query("""
         select o from SupplierOrder o
-        join fetch o.supplier s
+        left join fetch o.supplier s
         where o.market.id = :marketId and o.status = :status
         order by o.orderDate desc
         """)
@@ -31,7 +31,7 @@ public interface SupplierOrderRepository extends JpaRepository<SupplierOrder, UU
 
     @Query("""
         select o from SupplierOrder o
-        join fetch o.supplier s
+        left join fetch o.supplier s
         left join fetch o.items i
         left join fetch i.product p
         where o.id = :id and o.market.id = :marketId

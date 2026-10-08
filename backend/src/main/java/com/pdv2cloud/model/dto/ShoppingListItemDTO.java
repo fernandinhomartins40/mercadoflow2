@@ -19,6 +19,8 @@ public class ShoppingListItemDTO {
     private String brand;
     private String imageUrl;
     private BigDecimal quantityTarget;
+    private String unitType;
+    private BigDecimal unitsPerPack;
     private String note;
     private String sourceTag;
     private String reasonSummary;

@@ -52,10 +52,24 @@ public class SupplierOrderController {
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        UUID supplierId = UUID.fromString(body.get("supplierId").toString());
+        // Fornecedor opcional: sem ele, o rascunho é montado e o fornecedor vem antes de enviar.
+        UUID supplierId = body.get("supplierId") != null && !body.get("supplierId").toString().isBlank()
+            ? UUID.fromString(body.get("supplierId").toString()) : null;
         String notes = body.containsKey("notes") ? (String) body.get("notes") : null;
         SupplierOrderDTO dto = service.createOrder(marketId, supplierId, notes);
         return ResponseEntity.status(201).body(dto);
+    }
+
+    @PatchMapping("/{orderId}/supplier")
+    public SupplierOrderDTO updateSupplier(
+            @PathVariable UUID marketId,
+            @PathVariable UUID orderId,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        marketAccessService.assertCanAccessMarket(marketId, authentication);
+        UUID supplierId = body.get("supplierId") != null && !body.get("supplierId").toString().isBlank()
+            ? UUID.fromString(body.get("supplierId").toString()) : null;
+        return service.updateSupplier(marketId, orderId, supplierId);
     }
 
     @PatchMapping("/{orderId}/notes")
