@@ -22,7 +22,7 @@ import { tractionService, type ProductTraction } from '../services/traction.serv
 import workingCapitalService, { type CapitalScoreboard as ScoreData, type GiroSummary } from '../services/workingCapital.service';
 import CapitalScoreboard from '../components/capital/CapitalScoreboard';
 import { marketService, type OutcomesSummary } from '../services/market.service';
-import { paceLabel, rankLabel } from '../utils/plain';
+import { paceLabel, plainDates, rankLabel } from '../utils/plain';
 
 /**
  * Início: onde o capital rende. Abre com quem PUXA a venda (tração medida no
@@ -483,14 +483,6 @@ const Dashboard: React.FC = () => {
     </Layout>
   );
 };
-
-const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-/** "em 2026-10-02" vira "na sexta, 02/10": data ISO não aparece para o dono. */
-const plainDates = (text: string) => text.replace(/(?:\bem )?(\d{4})-(\d{2})-(\d{2})/g, (m, y, mo, d) => {
-  const wd = new Date(Number(y), Number(mo) - 1, Number(d)).getDay();
-  const prep = m.startsWith('em ') ? (wd === 0 || wd === 6 ? 'no ' : 'na ') : '';
-  return `${prep}${WEEKDAY[wd]}, ${d}/${mo}`;
-});
 
 /** As decisões que mais valem, do maior impacto para o menor. */
 const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: ReturnType<typeof useDecisionQueue>['items'] }> = ({ n, total, loading, top }) => (

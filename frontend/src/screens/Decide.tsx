@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import { ActionHub, Card, Chip, PageHero, PagedBox, PanelTitle, PillTabs, Thumb, usePaged } from '../components/flow/Flow';
+import { ActionHub, Card, Chip, PageHero, PagedBox, PanelTitle, PillTabs, Thumb, usePaged, usePaneRows } from '../components/flow/Flow';
 import RecommendationDesk from '../components/intelligence/RecommendationDesk';
 import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
@@ -15,6 +15,7 @@ import { useShoppingList } from '../hooks/useShoppingList';
 import { marketService } from '../services/market.service';
 import { copilotAgentsService, type CopilotDecision } from '../services/aiPlatform.service';
 import { formatMoney } from '../utils/formatters';
+import { plainDates } from '../utils/plain';
 import DecisionDesk from './copilot/DecisionDesk';
 import { SuggestionsPanel } from './comprar/BuyDesk';
 import HowItWorks from './copilot/HowItWorks';
@@ -95,7 +96,11 @@ const Decide: React.FC = () => {
       image: o.productImage, urgent: false,
     })), [signals, withRec]);
 
-  const all = useMemo(() => [...queue.items, ...attention], [queue.items, attention]);
+  // O mesmo aviso pode vir do Tino e do sinal: fica uma linha só.
+  const all = useMemo(() => {
+    const seen = new Set(queue.items.map((i) => i.title.trim().toLowerCase()));
+    return [...queue.items, ...attention.filter((a) => !seen.has(a.title.trim().toLowerCase()))];
+  }, [queue.items, attention]);
   const counts = useMemo(() => {
     const c: Record<string, number> = { tudo: all.length };
     all.forEach((i) => { c[i.group] = (c[i.group] ?? 0) + 1; });
@@ -110,9 +115,10 @@ const Decide: React.FC = () => {
   } : null;
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
-  // Fila em páginas de 7, com o paginador fixo no rodapé: a página 1 é "Hoje"
-  // (as 7 que mais valem, F3) e as seguintes são "Depois".
-  const TODAY = 7;
+  // Fila em páginas com o paginador fixo no rodapé. No computador, lista e painel
+  // têm a altura da tela e o tamanho da página sai da altura (nunca empurra o
+  // paginador para fora); no celular, 7 por página (F3: "Hoje" são as 7 que mais valem).
+  const { rows: TODAY, shrink } = usePaneRows(92, 150 + (filter === 'tudo' && locked.total > 0 ? 80 : 0), 7);
   const paged = usePaged(list, TODAY, filter);
   // Celular: o detalhe abre numa folha por cima da lista.
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
@@ -179,19 +185,19 @@ const Decide: React.FC = () => {
                     const Icon = it.decision ? agentOf(it.decision).icon : null;
                     return (
                       <li key={it.key}>
-                        <button type="button" className={`fx-row ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => pick(it.key)}>
-                          {it.key === 'lote:comprar' ? <span className="fx-icon-tile" style={{ width: 46, height: 46 }}><ClipboardList aria-hidden="true" /></span>
-                            : Icon ? <span className="fx-icon-tile" style={{ width: 46, height: 46, ...(it.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : {}) }}><Icon aria-hidden="true" /></span>
-                            : <Thumb name={it.name} src={it.image} size={46} />}
+                        <button type="button" className={`fx-row compact ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => pick(it.key)} title={plainDates(it.title)}>
+                          {it.key === 'lote:comprar' ? <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><ClipboardList aria-hidden="true" /></span>
+                            : Icon ? <span className="fx-icon-tile" style={{ width: 40, height: 40, ...(it.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : {}) }}><Icon aria-hidden="true" /></span>
+                            : <Thumb name={it.name} src={it.image} size={40} />}
                           <span style={{ minWidth: 0, flex: 1 }}>
-                            <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{it.title}</b>
-                            <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 3 }}>
-                              <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.rec && goesToOrder(it.rec) ? 'vai ao pedido' : ''].filter(Boolean).join(' · ')}</span>
+                            <b className="t">{plainDates(it.title)}</b>
+                            <span className="s">
+                              <span className="fx-muted" style={{ fontSize: 12.5 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.rec && goesToOrder(it.rec) ? 'vai ao pedido' : ''].filter(Boolean).join(' · ')}</span>
                               {it.urgent && <Chip tone="red">Urgente</Chip>}
                               {it.source === 'tino' && <Chip tone="lime">Tino preparou</Chip>}
                             </span>
                           </span>
-                          {it.value != null && <b className="fx-num" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
+                          {it.value != null && <b className="fx-num" style={{ fontSize: 14.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
                         </button>
                       </li>
                     );
@@ -261,14 +267,14 @@ const Decide: React.FC = () => {
               {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: <Link to="/app/contar">conte o estoque</Link> ou confira as notas no Confere.</p>}
             </Card>
           ) : (
-            <div className="fx-split even">
+            <div className="fx-split even panes">
               <Card as="section" aria-label="Decisões" id="decidir-lista" className="fx-col" style={{ scrollMarginTop: 80 }}>
                 {paged.pages > 1 && (
                   <p className="fx-muted" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>
                     {paged.page === 0 ? 'Hoje · as que mais valem' : 'Depois · valem menos'}
                   </p>
                 )}
-                <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="decisões" resetKey={filter}>
+                <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="decisões" resetKey={filter} onOverflow={narrow ? undefined : shrink}>
                   <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
                     {renderRows(paged.slice)}
                   </ul>

@@ -34,3 +34,11 @@ export const affinityLabel = (lift?: number | null) => {
   if (v < 1.05) return 'vão juntos por acaso';
   return `vão juntos ${v >= 2 ? `${Math.round(v)}x` : `${Math.round((v - 1) * 100)}%`} mais que o normal`;
 };
+
+const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+/** "em 2026-10-02" vira "na sexta, 02/10": data ISO não aparece para o dono. */
+export const plainDates = (text: string) => text.replace(/(?:\bem )?(\d{4})-(\d{2})-(\d{2})/g, (m, y, mo, d) => {
+  const wd = new Date(Number(y), Number(mo) - 1, Number(d)).getDay();
+  const prep = m.startsWith('em ') ? (wd === 0 || wd === 6 ? 'no ' : 'na ') : '';
+  return `${prep}${WEEKDAY[wd]}, ${d}/${mo}`;
+});

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart3, Check, Clock, History, Info, Loader2, MessageSquare, Pencil, Send, Sparkles, Undo2, X } from 'lucide-react';
-import { Chip, StepTrack, Thumb, brl, type Step } from '../../components/flow/Flow';
+import { Chip, PagedList, StepTrack, Thumb, brl, type Step } from '../../components/flow/Flow';
 import {
   copilotAgentsService, type CopilotDecision, type DecisionAdjustments, type DecisionItem, type DecisionItems,
 } from '../../services/aiPlatform.service';
@@ -239,7 +239,11 @@ const DecisionDesk: React.FC<{
     .filter(([k, v]) => STAT_LABEL[k] && Number(v) > 0).slice(0, 2);
   const cert = certainty(d);
   // O resumo do agente (primeiro parágrafo do texto) abre a mesa; na entrega, a mensagem já diz tudo.
-  const lead = data && data.kind !== 'ENTREGA' && data.kind !== 'TEXTO' ? d.body.split('\n\n')[0].trim() : null;
+  // Sem os tópicos "• Promover X…": a lista logo abaixo já mostra cada item, com preço e ação.
+  const lead = data && data.kind !== 'ENTREGA' && data.kind !== 'TEXTO'
+    ? d.body.split('\n\n')[0].split('\n').filter((l) => !/^\s*[•*-]\s/.test(l)).join(' ')
+      .replace(/(com (\d+(?:,\d+)?)% de desconto): \2% de desconto/g, '$1').trim() || null
+    : null;
   // O que a memória da loja sabe deste fornecedor (linha do corpo, antes da mensagem pronta).
   const memory = d.body.split('\n').slice(1).find((l) => /das últimas \d+/.test(l)) ?? null;
   const meta = data?.kind === 'ENTREGA'
@@ -304,8 +308,7 @@ const DecisionDesk: React.FC<{
             <p className="fx-chip amber" style={{ whiteSpace: 'normal', margin: '0 0 12px', padding: '8px 14px' }}><History size={15} aria-hidden="true" />{memory}</p>
           )}
           {data.kind === 'ENTREGA' && (
-            <div className="fx-items" role="list" aria-label="Itens com diferença">
-              {data.items.map((i) => (
+            <PagedList as="div" className="fx-items" role="list" ariaLabel="Itens com diferença" size={6} label="itens" items={data.items} render={(i) => (
                 <div key={i.id} role="listitem" className={`fx-item ${(choice[i.id] ?? defaultChoice(i)) === 'ignorar' ? 'off' : ''}`}>
                   <Thumb name={i.name} src={i.image} />
                   <div style={{ minWidth: 0 }}>
@@ -321,8 +324,7 @@ const DecisionDesk: React.FC<{
                     ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              )} />
           )}
 
           {data.kind === 'RECOMENDACOES' && <RecommendationItems items={data.items} off={off} toggle={toggle} qty={qty} setQty={setQty}
@@ -435,8 +437,7 @@ const RecommendationItems: React.FC<{
       {[...groups.entries()].map(([sup, list]) => (
         <div key={sup} className="fx-stack" style={{ gap: 8 }}>
           <div className="fx-group-head"><b>{sup}</b><span className="fx-num">{list.filter((i) => !off.has(i.id)).length} itens · {brl(list.filter((i) => !off.has(i.id)).reduce((a, i) => a + lineValue(i), 0))}</span></div>
-          <div className="fx-items">
-            {list.map((i) => {
+          <PagedList as="div" className="fx-items" size={6} label="itens" items={list} render={(i) => {
               const q = qty[i.id] ?? i.qty ?? 0;
               return (
                 <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`}>
@@ -466,16 +467,14 @@ const RecommendationItems: React.FC<{
                   </div>
                 </div>
               );
-            })}
-          </div>
+            }} />
         </div>
       ))}
 
       {reduce.length > 0 && (
         <div className="fx-stack" style={{ gap: 8 }}>
           <div className="fx-group-head"><b>Comprar menos na próxima</b><span>o Tino viu sobra</span></div>
-          <div className="fx-items">
-            {reduce.map((i) => (
+          <PagedList as="div" className="fx-items" size={6} label="itens" items={reduce} render={(i) => (
               <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`} style={{ gridTemplateColumns: 'auto minmax(0,1fr) auto' }}>
                 <Thumb name={i.name} src={i.image} />
                 <div style={{ minWidth: 0 }}>
@@ -484,14 +483,12 @@ const RecommendationItems: React.FC<{
                 </div>
                 <button type="button" role="switch" className="fx-switch" aria-checked={!off.has(i.id)} onClick={() => toggle(i.id)} aria-label={`Aceitar reduzir ${i.name}`} />
               </div>
-            ))}
-          </div>
+            )} />
         </div>
       )}
 
       {others.length > 0 && (
-        <div className="fx-items">
-          {others.map((i) => {
+        <PagedList as="div" className="fx-items" size={4} label="produtos" items={others} render={(i) => {
             const act = i.action === 'PROMOVER' || i.action === 'LIQUIDAR';
             return (
               <div key={i.id} className={`fx-item ${off.has(i.id) ? 'off' : ''}`}>
@@ -527,8 +524,7 @@ const RecommendationItems: React.FC<{
                 </div>
               </div>
             );
-          })}
-        </div>
+          }} />
       )}
     </div>
   );

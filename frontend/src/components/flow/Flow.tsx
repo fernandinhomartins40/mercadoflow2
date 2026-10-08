@@ -131,7 +131,7 @@ export const Pager: React.FC<{ page: number; pages: number; total: number; size:
  * vista, então a última (mais curta) não encolhe o card e o paginador fica
  * sempre no rodapé, no mesmo lugar, para ir passando sem caçar o botão.
  */
-export const PagedBox: React.FC<{ page: number; pages: number; total: number; size: number; onPage: (p: number) => void; label?: string; resetKey?: unknown; children: React.ReactNode }> = ({ page, pages, total, size, onPage, label, resetKey, children }) => {
+export const PagedBox: React.FC<{ page: number; pages: number; total: number; size: number; onPage: (p: number) => void; label?: string; resetKey?: unknown; onOverflow?: () => void; children: React.ReactNode }> = ({ page, pages, total, size, onPage, label, resetKey, onOverflow, children }) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [minH, setMinH] = React.useState(0);
   React.useEffect(() => { setMinH(0); }, [resetKey, size, total]);
@@ -141,7 +141,11 @@ export const PagedBox: React.FC<{ page: number; pages: number; total: number; si
     return () => window.removeEventListener('resize', reset);
   }, []);
   React.useLayoutEffect(() => {
-    const h = ref.current?.offsetHeight ?? 0;
+    const el = ref.current;
+    if (!el) return;
+    // Na altura fixa (lista ao lado do painel), página que não cabe perde uma linha.
+    if (onOverflow && el.scrollHeight > el.clientHeight + 2) { onOverflow(); return; }
+    const h = el.offsetHeight;
     if (pages > 1 && h > minH) setMinH(h);
   });
   const go = (p: number) => {
@@ -158,15 +162,39 @@ export const PagedBox: React.FC<{ page: number; pages: number; total: number; si
   );
 };
 
+/** Altura tirada da tela pelo cabeçalho (76) e pela doca (112); igual ao .fx-split.panes. */
+const PANE_OFFSET = 188;
+/**
+ * Quantas linhas cabem numa página de lista que divide a tela com um painel.
+ * No computador, a lista e o painel têm a altura da tela, então o número de
+ * linhas sai da altura: o paginador nunca cai para fora. No celular, fallback.
+ */
+export function usePaneRows(rowPx: number, chromePx: number, fallback: number) {
+  const calc = React.useCallback(() => (typeof window === 'undefined' || window.innerWidth < 1100 ? fallback
+    : Math.max(3, Math.floor((Math.max(420, window.innerHeight - PANE_OFFSET) - chromePx) / rowPx))), [rowPx, chromePx, fallback]);
+  const [n, setN] = React.useState(calc);
+  // Linhas tiradas porque a página medida não coube (a estimativa errou para cima).
+  const [cut, setCut] = React.useState(0);
+  React.useEffect(() => {
+    setN(calc()); setCut(0);
+    const on = () => { setN(calc()); setCut(0); };
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, [calc]);
+  const rows = Math.max(3, n - cut);
+  const shrink = React.useCallback(() => setCut((c) => (n - c > 3 ? c + 1 : c)), [n]);
+  return { rows, shrink };
+}
+
 /** Atalho do PagedBox para uma lista simples: recebe tudo e mostra uma página por vez. */
-export function PagedList<T>({ items, size, label, resetKey, render, as: Tag = 'ul', className = 'fx-stack', style, role, ariaLabel }: {
+export function PagedList<T>({ items, size, label, resetKey, render, as: Tag = 'ul', className = 'fx-stack', style, role, ariaLabel, onOverflow }: {
   items: T[]; size: number; label?: string; resetKey?: unknown; render: (item: T, index: number) => React.ReactNode;
-  as?: 'ul' | 'div'; className?: string; style?: React.CSSProperties; role?: string; ariaLabel?: string;
+  as?: 'ul' | 'div'; className?: string; style?: React.CSSProperties; role?: string; ariaLabel?: string; onOverflow?: () => void;
 }) {
   const paged = usePaged(items, size, resetKey);
   const listStyle: React.CSSProperties = Tag === 'ul' ? { listStyle: 'none', margin: 0, padding: 0, ...style } : { ...style };
   return (
-    <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label={label} resetKey={resetKey}>
+    <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label={label} resetKey={resetKey} onOverflow={onOverflow}>
       <Tag className={className} style={listStyle} role={role} aria-label={ariaLabel}>{paged.slice.map((it, i) => render(it, paged.page * paged.size + i))}</Tag>
     </PagedBox>
   );
