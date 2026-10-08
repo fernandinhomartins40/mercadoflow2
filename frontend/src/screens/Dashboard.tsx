@@ -435,7 +435,8 @@ const Dashboard: React.FC = () => {
 
       <DepartmentsCard panel={panel} />
 
-      <div className="fx-split">
+      {/* Lado a lado com a mesma altura. */}
+      <div className="fx-split even">
         <TractionCard items={traction.data} />
         <GiroCard portfolio={portfolio.data} />
       </div>

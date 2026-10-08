@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, History, ListChecks, MessageCircleQuestion, Package, Plus, Tag, TrendingDown, TrendingUp } from 'lucide-react';
-import { ActionHub, Card, Chip, Forest, PanelTitle, Thumb, type HubAction } from '../../components/flow/Flow';
+import { ActionHub, Card, Chip, Forest, PanelTitle, Thumb, type HubAction, PagedBox, usePaged, usePaneFill } from '../../components/flow/Flow';
 import { useShoppingList } from '../../hooks/useShoppingList';
 import { formatDecimal, formatMoney } from '../../utils/formatters';
 import type { ProductPerformance } from '../../types/analytics.types';
@@ -53,6 +53,9 @@ const ProductAttention: React.FC<{ items: AttentionItem[] }> = ({ items }) => {
   const [selected, setSelected] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const current = useMemo(() => items.find((i) => i.p.productId === selected) ?? items[0] ?? null, [items, selected]);
+  // Lista com a altura do painel ao lado: quantas linhas couberem, paginador no rodapé.
+  const { rows, fill } = usePaneFill(80, 6);
+  const paged = usePaged(items, rows, items.length);
 
   if (items.length === 0) {
     return (
@@ -84,11 +87,12 @@ const ProductAttention: React.FC<{ items: AttentionItem[] }> = ({ items }) => {
   };
 
   return (
-    <div className="fx-split">
-      <Card as="section" aria-label="Pedem atenção">
+    <div className="fx-split even panes" style={{ '--pane-h': '640px' } as React.CSSProperties}>
+      <Card as="section" aria-label="Pedem atenção" className="fx-col">
         <PanelTitle title="Pedem atenção" sub="Acabando, vendendo menos ou em alta" />
+        <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="produtos" fill={fill}>
         <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
-          {items.map((it) => {
+          {paged.slice.map((it) => {
             const on = current?.p.productId === it.p.productId;
             const w = WHY[it.why];
             const t = trendOf(it.p);
@@ -115,10 +119,11 @@ const ProductAttention: React.FC<{ items: AttentionItem[] }> = ({ items }) => {
             );
           })}
         </ul>
+        </PagedBox>
       </Card>
 
       {current && (
-        <div id="product-panel" style={{ minWidth: 0, scrollMarginTop: 80 }}>
+        <div id="product-panel" className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>
           <Forest as="aside" aria-label={`Produto ${current.p.name}`}>
             <PanelTitle icon={WHY[current.why].icon} title="Por que ele está aqui" sub="O que as vendas dizem sobre o produto" />
             <div className="flex items-center gap-4" style={{ marginTop: 20 }}>
