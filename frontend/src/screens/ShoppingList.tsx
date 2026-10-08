@@ -10,15 +10,7 @@ import { useMarketData } from '../hooks/useMarketData';
 import { useShoppingList } from '../hooks/useShoppingList';
 import { useAuth } from '../context/AuthContext';
 import { marketService } from '../services/market.service';
-import {
-  PurchasePriceHistory,
-  ProductPerformance,
-  ShoppingListItem,
-  Supplier,
-  SupplierOrder,
-  SupplierOrderItem,
-  RecommendationItem,
-} from '../types/analytics.types';
+import { PurchasePriceHistory, ProductPerformance, ShoppingListItem, Supplier, SupplierOrder, SupplierOrderItem, RecommendationItem, SupplierProductLink } from '../types/analytics.types';
 import SupplierModal from '../components/suppliers/SupplierModal';
 import SupplierPicker, { orderSupplierName } from '../components/suppliers/SupplierPicker';
 import {
@@ -501,7 +493,45 @@ const ProductSearchDropdown: React.FC<{ marketId: string; existingIds: Set<strin
   );
 };
 
+/** O que o fornecedor vende, pelas notas lidas no Confere: código, embalagem e último custo. */
+const SupplierProducts: React.FC<{ marketId: string; supplierId: string }> = ({ marketId, supplierId }) => {
+  const [rows, setRows] = useState<SupplierProductLink[] | null>(null);
+  useEffect(() => {
+    marketService.getSupplierProducts(marketId, supplierId).then((d) => setRows(d || [])).catch(() => setRows([]));
+  }, [marketId, supplierId]);
+  if (rows == null) return <div className="flex justify-center py-3"><div className="h-4 w-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>;
+  if (rows.length === 0) return <p className="py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum produto ligado ainda. Quando uma nota dele for lida no Confere, os produtos aparecem aqui.</p>;
+  return (
+    <PagedList as="div" className="flex flex-col gap-1.5" size={8} label="produtos" items={rows} render={(r) => (
+      <div key={r.productId} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: 'var(--surface-soft)' }}>
+        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md" style={{ background: 'var(--surface-base)' }}><ProductImage src={r.imageUrl} alt={r.productName} className="h-full w-full object-contain" /></div>
+        <div className="min-w-0 flex-1">
+          <Link to={`/app/produtos/${r.productId}`} className="block truncate text-sm font-medium no-underline hover:underline" style={{ color: 'var(--text-primary)' }}>{r.productName}</Link>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            {[r.supplierCode ? `código ${r.supplierCode}` : null,
+              r.purchaseUnit ? `compra em ${r.purchaseUnit}${r.unitsPerPack ? ` com ${Number(r.unitsPerPack)}` : ''}` : null,
+              `${r.purchases} ${r.purchases === 1 ? 'nota' : 'notas'}`,
+              r.lastPurchaseAt ? `última ${fmtDate(r.lastPurchaseAt)}` : null].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        {r.lastUnitCost != null && <span className="shrink-0 text-right text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(r.lastUnitCost)}<span className="block text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>por unidade</span></span>}
+      </div>
+    )} />
+  );
+};
+
 const UNIT_NEEDS_PACK = new Set(['CX', 'FD', 'DZ', 'PC']);
+
+/** Unidade comercial da nota (CX, CAIXA, FD, FARDO, PCT, DZ, KG...) para a embalagem do pedido. */
+const packUnitOf = (u?: string | null): string => {
+  const v = (u || '').toUpperCase();
+  if (v.startsWith('CX') || v.startsWith('CAI')) return 'CX';
+  if (v.startsWith('FD') || v.startsWith('FAR')) return 'FD';
+  if (v.startsWith('PC') || v.startsWith('PCT') || v.startsWith('PAC')) return 'PC';
+  if (v.startsWith('DZ') || v.startsWith('DUZ')) return 'DZ';
+  if (v.startsWith('KG') || v.startsWith('QUI')) return 'KG';
+  return 'UN';
+};
 
 const AddItemForm: React.FC<{
   marketId: string; orderId: string; product: ProductPerformance;
@@ -510,15 +540,38 @@ const AddItemForm: React.FC<{
   /** Embalagem anotada na lista de compras. */
   initialUnit?: string;
   initialPack?: number | null;
-}> = ({ marketId, orderId, product, onSaved, onCancel, initialQty = '1', initialUnit, initialPack }) => {
+  /** Fornecedor do pedido: traz o último custo e a embalagem dele para este produto. */
+  supplierId?: string | null;
+}> = ({ marketId, orderId, product, onSaved, onCancel, initialQty = '1', initialUnit, initialPack, supplierId }) => {
   const [qty, setQty] = useState(initialQty);
   const [unitType, setUnitType] = useState(initialUnit && UNIT_TYPES.includes(initialUnit) ? initialUnit : 'UN');
   const [unitsPerPack, setUnitsPerPack] = useState(initialPack ? String(Number(initialPack)) : '');
+  const [lastBuy, setLastBuy] = useState<SupplierProductLink | null>(null);
   const [unitCost, setUnitCost] = useState('');
   const [unitSalePrice, setUnitSalePrice] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Da última nota deste fornecedor (Confere): embalagem e custo já preenchidos.
+  useEffect(() => {
+    if (!supplierId) { setLastBuy(null); return; }
+    let alive = true;
+    marketService.getSuppliersByProducts(marketId, [product.productId]).then((links: SupplierProductLink[]) => {
+      if (!alive) return;
+      const l = (links || []).find((x) => x.supplierId === supplierId) ?? null;
+      setLastBuy(l);
+      if (!l) return;
+      const nfeUnit = packUnitOf(l.purchaseUnit);
+      const unit = initialUnit && initialUnit !== 'UN' ? initialUnit : nfeUnit;
+      const pack = unit !== 'UN' && unit !== 'KG' ? Number(initialPack || l.unitsPerPack || 0) : 0;
+      if (unit !== unitType) setUnitType(unit);
+      if (pack > 0) setUnitsPerPack(String(pack));
+      if (l.lastUnitCost) setUnitCost((Number(l.lastUnitCost) * (pack > 0 ? pack : 1)).toFixed(2).replace('.', ','));
+    }).catch(() => undefined);
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketId, supplierId, product.productId]);
 
   const cost = parseFloat(unitCost.replace(',', '.')) || 0;
   const sale = parseFloat(unitSalePrice.replace(',', '.')) || 0;
@@ -554,6 +607,13 @@ const AddItemForm: React.FC<{
         </div>
         <button type="button" onClick={onCancel} className="rounded-lg p-1 transition hover:opacity-70" style={{ color: 'var(--text-muted)' }}><X className="h-4 w-4" /></button>
       </div>
+      {lastBuy && (
+        <p className="text-xs" style={{ color: 'var(--brand-700)' }}>
+          Da última nota deste fornecedor{lastBuy.lastPurchaseAt ? ` (${fmtDate(lastBuy.lastPurchaseAt)})` : ''}: {fmtMoney(lastBuy.lastUnitCost)} por unidade
+          {lastBuy.purchaseUnit ? ` · comprado em ${lastBuy.purchaseUnit}${lastBuy.unitsPerPack ? ` com ${Number(lastBuy.unitsPerPack)}` : ''}` : ''}
+          {lastBuy.supplierCode ? ` · código ${lastBuy.supplierCode}` : ''}. Confira antes de salvar.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
           <label htmlFor="f-shoppinglist-5" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Quantidade *</label>
@@ -678,7 +738,7 @@ const OrderDetailModal: React.FC<{ order: SupplierOrder; marketId: string; onClo
           )}
           {addProd && order.canEdit && (
             <div className="px-5 pb-3">
-              <AddItemForm marketId={marketId} orderId={order.id} product={addProd} onSaved={() => { setAddProd(null); refresh(); }} onCancel={() => setAddProd(null)} />
+              <AddItemForm marketId={marketId} orderId={order.id} product={addProd} supplierId={order.supplierId} onSaved={() => { setAddProd(null); refresh(); }} onCancel={() => setAddProd(null)} />
             </div>
           )}
 
@@ -874,6 +934,20 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
 
   useEffect(() => { loadSuppliers(); }, [loadSuppliers]);
 
+  // Quantos dos produtos escolhidos cada fornecedor já vendeu (notas do Confere).
+  const [covers, setCovers] = useState<Record<string, number>>({});
+  const wanted = [...new Set([...(selectedProductIds ?? []), ...(highlightProductId ? [highlightProductId] : [])])];
+  const wantedKey = wanted.sort().join(',');
+  useEffect(() => {
+    if (!wantedKey) { setCovers({}); return; }
+    marketService.getSuppliersByProducts(marketId, wantedKey.split(',')).then((links: SupplierProductLink[]) => {
+      const c: Record<string, number> = {};
+      (links || []).forEach((l) => { c[l.supplierId] = (c[l.supplierId] ?? 0) + 1; });
+      setCovers(c);
+    }).catch(() => setCovers({}));
+  }, [marketId, wantedKey]);
+  const sortedSuppliers = [...suppliers].sort((a, b) => (covers[b.id] ?? 0) - (covers[a.id] ?? 0));
+
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) { setSearchResults([]); return; }
     setSearching(true);
@@ -962,7 +1036,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
               <div className="flex flex-col gap-2">
                 {suppliers.length > 0 && (
                   <div className="flex flex-col rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
-                    {suppliers.map(s => (
+                    {sortedSuppliers.map(s => (
                       <button key={s.id} type="button" onClick={() => setSelected(s)}
                         className="flex items-center gap-3 px-4 py-3.5 text-left transition hover:bg-[var(--surface-soft)]"
                         style={{ borderBottom: '1px solid var(--border-soft)', background: selected?.id === s.id ? 'var(--surface-success)' : 'var(--surface-base)' }}>
@@ -975,6 +1049,8 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                           <div className="flex flex-wrap gap-x-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                             {s.municipio && s.uf && <span>{s.municipio}/{s.uf}</span>}
                             {s.telefone && <span>{s.telefone}</span>}
+                            {covers[s.id] ? <span style={{ color: 'var(--brand-700)', fontWeight: 600 }}>vende {covers[s.id]} de {wanted.length} escolhidos</span>
+                              : s.productCount ? <span>{s.productCount} produtos nas notas</span> : null}
                           </div>
                         </div>
                         {selected?.id === s.id && <CheckCircle2 className="h-5 w-5 shrink-0 ml-auto" style={{ color: 'var(--brand-700)' }} />}
@@ -1047,7 +1123,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                 {order && <StatusBadge status={order.status} />}
               </div>
               {order && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{order.orderNumber} · {orderItems.length} {orderItems.length === 1 ? 'produto' : 'produtos'}</p>}
-              {order && <div className="mt-2"><SupplierPicker marketId={marketId} order={order} compact onChanged={(o) => setOrder(o)} /></div>}
+              {order && <div className="mt-2"><SupplierPicker marketId={marketId} order={order} compact productIds={[...orderItems.map(i => i.productId), ...(selectedProductIds ?? [])]} onChanged={(o) => setOrder(o)} /></div>}
             </div>
           </div>
           {order && orderItems.length > 0 && (
@@ -1216,6 +1292,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
               initialQty={String(suggestedQtyFromList(shoppingListItems, addProd.productId))}
               initialUnit={shoppingListItems.find(i => i.productId === addProd.productId)?.unitType || undefined}
               initialPack={shoppingListItems.find(i => i.productId === addProd.productId)?.unitsPerPack ?? undefined}
+              supplierId={order.supplierId}
               onSaved={() => { setAddProd(null); refreshOrder(); }}
               onCancel={() => setAddProd(null)} />
           </div>
@@ -1357,6 +1434,7 @@ const ShoppingListPage: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [suppliersLoaded, setSuppliersLoaded] = useState(false);
+  const [openSupplier, setOpenSupplier] = useState<string | null>(null);
   const [showSupModal, setShowSupModal] = useState(false);
 
   const fetchOrders = useCallback(async () => {
@@ -1728,7 +1806,7 @@ const ShoppingListPage: React.FC = () => {
         {tab === 'fornecedores' && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Fornecedores cadastrados com dados da Receita Federal via CNPJ.</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Cada nota lida no Confere cadastra o fornecedor e liga os produtos a ele. Um produto pode ter vários fornecedores.</p>
               <button type="button" onClick={() => setShowSupModal(true)} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}>
                 <Plus className="h-4 w-4" /> Cadastrar fornecedor
               </button>
@@ -1744,7 +1822,8 @@ const ShoppingListPage: React.FC = () => {
                     <button type="button" onClick={() => setShowSupModal(true)} className="inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}><Plus className="h-4 w-4" /> Cadastrar fornecedor</button>
                   </div>
                 : <PagedList as="div" className="flex flex-col gap-2" size={10} label="fornecedores" items={suppliers} render={s => (
-                      <div key={s.id} className="flex items-center gap-4 rounded-xl px-4 py-4" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
+                      <div key={s.id} className="rounded-xl px-4 py-4" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
+                      <div className="flex items-center gap-4">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--surface-soft)' }}>
                           <Building2 className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
                         </div>
@@ -1756,8 +1835,17 @@ const ShoppingListPage: React.FC = () => {
                             {s.municipio && s.uf && <span>· {s.municipio}/{s.uf}</span>}
                             {s.telefone && <span>· {s.telefone}</span>}
                           </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {s.source === 'CONFERE' && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Cadastrado pela nota no Confere</span>}
+                            <span>{s.productCount ? `${s.productCount} ${s.productCount === 1 ? 'produto' : 'produtos'}` : 'Sem produtos ligados'}{s.lastPurchaseAt ? ` · última nota ${fmtDate(s.lastPurchaseAt)}` : ''}</span>
+                          </div>
                         </div>
                         <div className="flex shrink-0 gap-2">
+                          <button type="button" onClick={() => setOpenSupplier(openSupplier === s.id ? null : s.id)} aria-expanded={openSupplier === s.id}
+                            className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition hover:opacity-80"
+                            style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-primary)' }}>
+                            <Package className="h-3 w-3" /> {openSupplier === s.id ? 'Fechar' : 'Ver produtos'}
+                          </button>
                           <button type="button" onClick={() => { setTab('pedidos'); setNewOrder({ supplier: s }); }}
                             className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition hover:opacity-80"
                             style={{ background: 'var(--surface-success)', color: 'var(--brand-700)', border: '1px solid var(--border-success)' }}>
@@ -1771,6 +1859,8 @@ const ShoppingListPage: React.FC = () => {
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
+                      </div>
+                      {openSupplier === s.id && marketId && <div className="mt-3"><SupplierProducts marketId={marketId} supplierId={s.id} /></div>}
                       </div>
                     )} />}
           </div>

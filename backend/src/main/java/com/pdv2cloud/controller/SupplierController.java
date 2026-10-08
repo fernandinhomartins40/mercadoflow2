@@ -9,6 +9,7 @@ import com.pdv2cloud.model.entity.Supplier;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.SupplierRepository;
 import com.pdv2cloud.service.MarketAccessService;
+import com.pdv2cloud.service.SupplierProductService;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -32,6 +33,7 @@ public class SupplierController {
     @Autowired private SupplierRepository supplierRepo;
     @Autowired private MarketRepository marketRepo;
     @Autowired private MarketAccessService accessService;
+    @Autowired private SupplierProductService supplierProducts;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
@@ -47,10 +49,38 @@ public class SupplierController {
 
         accessService.assertCanAccessMarket(marketId, auth);
 
+        Map<UUID, SupplierProductService.SupplierStats> stats = supplierProducts.stats(marketId);
         return ResponseEntity.ok(
             supplierRepo.findByMarketIdAndIsActiveTrueOrderByRazaoSocialAsc(marketId)
-                .stream().map(SupplierDTO::from).toList()
+                .stream().map(s -> {
+                    SupplierProductService.SupplierStats st = stats.get(s.getId());
+                    return SupplierDTO.from(s, st == null ? 0 : st.productCount(), st == null ? null : st.lastPurchaseAt());
+                }).toList()
         );
+    }
+
+    // ── Produto × fornecedor (das notas do Confere) ─────────────────────────
+
+    /** O que este fornecedor vende, com código, embalagem e último custo. */
+    @GetMapping("/{id}/products")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<SupplierProductService.Link>> products(
+            @PathVariable UUID marketId,
+            @PathVariable UUID id,
+            Authentication auth) {
+        accessService.assertCanAccessMarket(marketId, auth);
+        return ResponseEntity.ok(supplierProducts.productsOf(marketId, id));
+    }
+
+    /** Quem vende cada um destes produtos (um produto pode ter vários fornecedores). */
+    @GetMapping("/by-products")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<SupplierProductService.Link>> byProducts(
+            @PathVariable UUID marketId,
+            @RequestParam(name = "productIds") List<UUID> productIds,
+            Authentication auth) {
+        accessService.assertCanAccessMarket(marketId, auth);
+        return ResponseEntity.ok(supplierProducts.suppliersOf(marketId, productIds.stream().limit(300).toList()));
     }
 
     // ── Criar / atualizar fornecedor ────────────────────────────────────────

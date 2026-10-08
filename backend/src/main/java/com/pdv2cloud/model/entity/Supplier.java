@@ -83,6 +83,10 @@ public class Supplier {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    /** MANUAL (digitado ou por CNPJ) ou CONFERE (cadastrado pela nota de entrada). */
+    @Column(nullable = false, length = 12)
+    private String source = "MANUAL";
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

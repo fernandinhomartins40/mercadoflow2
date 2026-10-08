@@ -38,7 +38,7 @@ public final class NfeXml {
     /** Endereço de emitente ou destinatário (enderEmit / enderDest). */
     public record Address(
         String street, String number, String neighborhood, String cityCode, String city,
-        String uf, String postalCode) {}
+        String uf, String postalCode, String phone) {}
 
     public record Data(
         String accessKey, boolean full,
@@ -182,8 +182,9 @@ public final class NfeXml {
             return null;
         }
         String cep = text(e, "CEP");
+        String fone = text(e, "fone");
         return new Address(text(e, "xLgr"), text(e, "nro"), text(e, "xBairro"), text(e, "cMun"), text(e, "xMun"),
-            text(e, "UF"), cep == null ? null : cep.replaceAll("\\D", ""));
+            text(e, "UF"), cep == null ? null : cep.replaceAll("\\D", ""), fone == null ? null : fone.replaceAll("\\D", ""));
     }
 
     // ── Apoio ─────────────────────────────────────────────────────────────

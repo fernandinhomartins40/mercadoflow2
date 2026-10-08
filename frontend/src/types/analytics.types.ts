@@ -384,6 +384,29 @@ export interface Supplier {
   descricaoCnae?: string | null;
   porte?: string | null;
   isActive?: boolean | null;
+  /** MANUAL ou CONFERE (cadastrado pela nota de entrada). */
+  source?: string | null;
+  /** Quantos produtos ele vende, pelas notas do Confere. */
+  productCount?: number | null;
+  lastPurchaseAt?: string | null;
+}
+
+/** Produto × fornecedor, das notas lidas no Confere. Um produto pode ter vários fornecedores. */
+export interface SupplierProductLink {
+  supplierId: string;
+  supplierName: string;
+  productId: string;
+  productName: string;
+  ean?: string | null;
+  imageUrl?: string | null;
+  supplierCode?: string | null;
+  /** Unidade comercial da nota (CX, FD, UN...). */
+  purchaseUnit?: string | null;
+  unitsPerPack?: number | null;
+  /** Custo de uma unidade de venda na última nota. */
+  lastUnitCost?: number | null;
+  lastPurchaseAt?: string | null;
+  purchases: number;
 }
 
 export interface SupplierOrderItem {

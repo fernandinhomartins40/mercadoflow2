@@ -370,6 +370,19 @@ export const marketService = {
     return response.data;
   },
 
+  /** O que o fornecedor vende (pelas notas do Confere), com embalagem e último custo. */
+  async getSupplierProducts(marketId: string, supplierId: string) {
+    const response = await api.get(`/v1/markets/${marketId}/suppliers/${supplierId}/products`);
+    return response.data;
+  },
+
+  /** Quem vende cada produto; um produto pode ter vários fornecedores. */
+  async getSuppliersByProducts(marketId: string, productIds: string[]) {
+    if (productIds.length === 0) return [];
+    const response = await api.get(`/v1/markets/${marketId}/suppliers/by-products`, { params: { productIds: productIds.slice(0, 300).join(',') } });
+    return response.data;
+  },
+
   async saveSupplier(marketId: string, payload: {
     cnpj: string; razaoSocial: string; nomeFantasia?: string | null;
     email?: string | null; telefone?: string | null; logradouro?: string | null;

@@ -38,6 +38,7 @@ public class NfeItemStore {
         }
         saveSupplier(d);
         saveMarketLocation(marketId, d);
+        UUID supplierId = upsertMarketSupplier(marketId, d);
 
         Map<String, UUID> products = productIds(d.items());
         jdbc.update("delete from nfe_document_items where document_id = :d and market_id = :m",
@@ -68,6 +69,9 @@ public class NfeItemStore {
                 ":cfop, :unit, :q, :up, :tot, :disc, :tu, :tq, :uc, :lot, :exp)",
                 rows.toArray(new MapSqlParameterSource[0]));
         }
+        if (supplierId != null) {
+            linkSupplierProducts(marketId, supplierId, documentId, d.emitterCnpj());
+        }
         jdbc.update(
             "update nfe_documents set items_extracted = true, supplier_uf = :uf, supplier_city = :city where id = :d and market_id = :m",
             new MapSqlParameterSource().addValue("d", documentId).addValue("m", marketId)
@@ -90,6 +94,67 @@ public class NfeItemStore {
             return it.unitPrice();
         }
         return value.divide(q, 6, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * O emitente da nota entra no cadastro de fornecedores do mercado. Se já
+     * existe, só preenche o que estiver vazio (não troca o que o dono digitou);
+     * removido pelo dono continua removido. Nota emitida pelo próprio mercado
+     * (transferência entre filiais) não vira fornecedor.
+     */
+    UUID upsertMarketSupplier(UUID marketId, NfeXml.Data d) {
+        String cnpj = d.emitterCnpj();
+        if (cnpj == null || cnpj.length() != 14) {
+            return null;
+        }
+        List<String> own = jdbc.queryForList("select cnpj from markets where id = :id", Map.of("id", marketId), String.class);
+        if (!own.isEmpty() && own.get(0) != null && cnpj.equals(own.get(0).replaceAll("\\D", ""))) {
+            return null;
+        }
+        NfeXml.Address a = d.emitterAddress();
+        String street = a == null ? null : cut(a.street() == null ? null : (a.number() == null ? a.street() : a.street() + ", " + a.number()), 255);
+        List<UUID> id = jdbc.queryForList(
+            "insert into suppliers (market_id, cnpj, razao_social, nome_fantasia, telefone, logradouro, municipio, uf, cep, source) " +
+            "values (:m, :c, :rs, :nf, :tel, :lg, :mun, :uf, :cep, 'CONFERE') " +
+            "on conflict (market_id, cnpj) do update set " +
+            "nome_fantasia = coalesce(nullif(suppliers.nome_fantasia, ''), excluded.nome_fantasia), " +
+            "telefone = coalesce(nullif(suppliers.telefone, ''), excluded.telefone), " +
+            "logradouro = coalesce(nullif(suppliers.logradouro, ''), excluded.logradouro), " +
+            "municipio = coalesce(nullif(suppliers.municipio, ''), excluded.municipio), " +
+            "uf = coalesce(nullif(suppliers.uf, ''), excluded.uf), cep = coalesce(nullif(suppliers.cep, ''), excluded.cep), " +
+            "updated_at = now() returning id",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("c", cnpj)
+                .addValue("rs", cut(d.emitterName() == null || d.emitterName().isBlank() ? cnpj : d.emitterName(), 255))
+                .addValue("nf", cut(d.emitterTradeName(), 255)).addValue("tel", a == null ? null : cut(a.phone(), 30))
+                .addValue("lg", street).addValue("mun", a == null ? null : cut(a.city(), 100))
+                .addValue("uf", a == null ? null : cut(a.uf(), 2)).addValue("cep", a == null ? null : cut(a.postalCode(), 10)),
+            UUID.class);
+        return id.isEmpty() ? null : id.get(0);
+    }
+
+    /**
+     * Cada produto da nota fica ligado ao fornecedor (um produto pode ter vários).
+     * O "último" (custo, embalagem, código) só muda com nota igual ou mais nova;
+     * o número de compras é recontado das notas, então reprocessar não duplica.
+     */
+    private void linkSupplierProducts(UUID marketId, UUID supplierId, UUID documentId, String cnpj) {
+        jdbc.update(
+            "insert into supplier_products (market_id, supplier_id, product_id, supplier_code, purchase_unit, units_per_pack, " +
+            "last_unit_cost, last_purchase_at, purchases, last_document_id) " +
+            "select :m, :s, i.product_id, max(i.supplier_code), max(i.unit), " +
+            "max(case when i.quantity > 0 and i.tax_quantity > i.quantity then round(i.tax_quantity / i.quantity, 3) end), " +
+            "max(i.unit_cost), max(i.issued_at), " +
+            "(select count(distinct x.document_id) from nfe_document_items x where x.market_id = :m and x.supplier_cnpj = :c and x.product_id = i.product_id), " +
+            ":d from nfe_document_items i where i.document_id = :d and i.market_id = :m and i.product_id is not null group by i.product_id " +
+            "on conflict (supplier_id, product_id) do update set " +
+            "purchases = excluded.purchases, updated_at = now(), " +
+            "supplier_code = case when excluded.last_purchase_at >= coalesce(supplier_products.last_purchase_at, '-infinity') then coalesce(excluded.supplier_code, supplier_products.supplier_code) else supplier_products.supplier_code end, " +
+            "purchase_unit = case when excluded.last_purchase_at >= coalesce(supplier_products.last_purchase_at, '-infinity') then coalesce(excluded.purchase_unit, supplier_products.purchase_unit) else supplier_products.purchase_unit end, " +
+            "units_per_pack = case when excluded.last_purchase_at >= coalesce(supplier_products.last_purchase_at, '-infinity') then excluded.units_per_pack else supplier_products.units_per_pack end, " +
+            "last_unit_cost = case when excluded.last_purchase_at >= coalesce(supplier_products.last_purchase_at, '-infinity') then coalesce(excluded.last_unit_cost, supplier_products.last_unit_cost) else supplier_products.last_unit_cost end, " +
+            "last_document_id = case when excluded.last_purchase_at >= coalesce(supplier_products.last_purchase_at, '-infinity') then excluded.last_document_id else supplier_products.last_document_id end, " +
+            "last_purchase_at = greatest(excluded.last_purchase_at, supplier_products.last_purchase_at)",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("s", supplierId).addValue("d", documentId).addValue("c", cnpj));
     }
 
     /** Fornecedor é empresa (CNPJ): dado público, fora da regra de mercado. */

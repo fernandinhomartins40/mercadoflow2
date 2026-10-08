@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Building2, Plus } from 'lucide-react';
 import SupplierModal from './SupplierModal';
 import { marketService } from '../../services/market.service';
-import type { Supplier, SupplierOrder } from '../../types/analytics.types';
+import type { Supplier, SupplierOrder, SupplierProductLink } from '../../types/analytics.types';
 
 /** Nome do fornecedor de um pedido; rascunho sem fornecedor diz que falta escolher. */
 export const orderSupplierName = (o: Pick<SupplierOrder, 'supplierFantasia' | 'supplierName'>) =>
@@ -12,8 +12,22 @@ export const orderSupplierName = (o: Pick<SupplierOrder, 'supplierFantasia' | 's
  * Escolher (ou trocar) o fornecedor de um rascunho. O pedido pode ser montado
  * sem fornecedor; ele só é exigido para enviar.
  */
-const SupplierPicker: React.FC<{ marketId: string; order: SupplierOrder; onChanged: (o: SupplierOrder) => void; compact?: boolean }> = ({ marketId, order, onChanged, compact }) => {
+const SupplierPicker: React.FC<{ marketId: string; order: SupplierOrder; onChanged: (o: SupplierOrder) => void; compact?: boolean; productIds?: string[] }> = ({ marketId, order, onChanged, compact, productIds }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // Quantos produtos do pedido cada fornecedor já vendeu (pelas notas do Confere).
+  const [covers, setCovers] = useState<Record<string, number>>({});
+  const ids = (productIds ?? (order.items ?? []).map((i) => i.productId)).filter(Boolean);
+  const idsKey = [...new Set(ids)].sort().join(',');
+  useEffect(() => {
+    if (!idsKey) { setCovers({}); return; }
+    marketService.getSuppliersByProducts(marketId, idsKey.split(',')).then((links: SupplierProductLink[]) => {
+      const c: Record<string, number> = {};
+      (links || []).forEach((l) => { c[l.supplierId] = (c[l.supplierId] ?? 0) + 1; });
+      setCovers(c);
+    }).catch(() => setCovers({}));
+  }, [marketId, idsKey]);
+  const total = idsKey ? idsKey.split(',').length : 0;
+  const sorted = [...suppliers].sort((a, b) => (covers[b.id] ?? 0) - (covers[a.id] ?? 0));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
@@ -37,7 +51,11 @@ const SupplierPicker: React.FC<{ marketId: string; order: SupplierOrder; onChang
         <select className="fx-input" value={order.supplierId ?? ''} disabled={busy} aria-label="Fornecedor do pedido"
           onChange={(e) => { void choose(e.target.value); }} style={{ minWidth: compact ? 180 : 240, flex: '1 1 200px', padding: '8px 10px' }}>
           <option value="">Fornecedor a definir</option>
-          {suppliers.map((s) => <option key={s.id} value={s.id}>{s.nomeFantasia || s.razaoSocial}</option>)}
+          {sorted.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.nomeFantasia || s.razaoSocial}{covers[s.id] ? ` · vende ${covers[s.id]} de ${total}` : ''}
+            </option>
+          ))}
         </select>
         <button type="button" className="fx-btn ghost small" onClick={() => setModal(true)}><Plus aria-hidden="true" />Cadastrar</button>
       </div>

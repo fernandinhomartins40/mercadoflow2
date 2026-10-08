@@ -371,7 +371,7 @@ const OrderPanel: React.FC<{
                 <h3>Tudo certo com o pedido?</h3>
                 <small>{order.supplierId ? 'Escolher o canal já envia e marca o pedido como enviado.' : 'Escolha o fornecedor para poder enviar.'}</small>
                 <div style={{ marginTop: 10 }}>
-                  <SupplierPicker marketId={marketId} order={order} compact onChanged={(o) => { setOrder(o); onChanged(); }} />
+                  <SupplierPicker marketId={marketId} order={order} compact productIds={items.map((i) => i.productId)} onChanged={(o) => { setOrder(o); onChanged(); }} />
                 </div>
                 <div className="fx-actions" style={{ marginTop: 14 }}>
                   <button type="button" className="fx-btn dark" disabled={items.length === 0 || !order.supplierId} onClick={() => setSending(true)}><Send aria-hidden="true" />Enviar ao fornecedor</button>
