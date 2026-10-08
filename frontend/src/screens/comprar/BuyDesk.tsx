@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Check, ClipboardList, ExternalLink, ListChecks, Loader2, Minus, PackageCheck, Plus, Send, Sparkles, Trash2, Truck, X,
 } from 'lucide-react';
-import { Card, Chip, Forest, PanelTitle, StepTrack, Thumb } from '../../components/flow/Flow';
+import { Card, Chip, Forest, PagedList, PanelTitle, StepTrack, Thumb } from '../../components/flow/Flow';
 import OrderSendOptions from '../../components/orders/OrderSendOptions';
 import DecisionFeedback from '../../components/intelligence/DecisionFeedback';
 import { useRecommendationDecision } from '../../hooks/useRecommendationDecision';
@@ -81,11 +81,10 @@ const BuyDesk: React.FC<{
   }
 
   return (
-    <div className="fx-split">
-      <Card as="section" aria-label="Agora importa">
+    <div className="fx-split even">
+      <Card as="section" aria-label="Agora importa" className="fx-col">
         <PanelTitle title="Para enviar e receber" />
-        <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
-          {entries.map((e) => {
+        <PagedList items={entries} size={7} label="itens" style={{ marginTop: 16, gap: 8 }} render={(e) => {
             const on = current?.key === e.key;
             let icon = <Sparkles aria-hidden="true" />;
             let title = '';
@@ -133,8 +132,7 @@ const BuyDesk: React.FC<{
                 </button>
               </li>
             );
-          })}
-        </ul>
+          }} />
       </Card>
 
       <div id="buy-panel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>
@@ -213,8 +211,7 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
       {feedback && <div style={{ marginTop: 12 }}><DecisionFeedback feedback={feedback} marketId={marketId} onChange={setFeedback} onUndone={onChanged} /></div>}
       {error && <p role="alert" className="fx-chip red" style={{ whiteSpace: 'normal', marginTop: 12 }}>{error}</p>}
       {missing && <p role="alert" className="fx-chip red" style={{ whiteSpace: 'normal', marginTop: 12 }}>{missing}</p>}
-      <div className="fx-items" role="list" aria-label="Produtos sugeridos" style={{ marginTop: 14 }}>
-        {suggestions.map((r) => {
+      <PagedList items={suggestions} size={6} label="sugestões" as="div" className="fx-items" role="list" ariaLabel="Produtos sugeridos" style={{ marginTop: 14 }} render={(r) => {
           const on = !off.has(r.id);
           return (
             <div key={r.id} role="listitem" className={`fx-item with-check ${on ? '' : 'off'}`}>
@@ -251,8 +248,7 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
               </div>
             </div>
           );
-        })}
-      </div>
+        }} />
       <div className="fx-desk-bottom">
         <div className="fx-white">
           <h3>Pôr tudo de uma vez</h3>
@@ -404,8 +400,7 @@ const ListPanel: React.FC<{ items: ShoppingListItem[]; onOrder: (ids: string[]) 
   return (
     <Forest as="aside" aria-label="Lista de compras">
       <PanelTitle icon={ListChecks} title="Na lista, sem pedido" sub="Produtos que você ou o Tino anotaram para comprar" />
-      <div className="fx-items" role="list" aria-label="Produtos da lista" style={{ marginTop: 18 }}>
-        {items.slice(0, 12).map((i) => (
+      <PagedList items={items} size={8} label="produtos" as="div" className="fx-items" role="list" ariaLabel="Produtos da lista" style={{ marginTop: 18 }} render={(i) => (
           <div key={i.id} role="listitem" className={`fx-item with-check ${off.has(i.id) ? 'off' : ''}`}>
             <input type="checkbox" className="fx-check" checked={!off.has(i.id)} aria-label={`Incluir ${i.name}`}
               onChange={() => setOff((s) => { const n = new Set(s); if (n.has(i.id)) n.delete(i.id); else n.add(i.id); return n; })} />
@@ -416,8 +411,7 @@ const ListPanel: React.FC<{ items: ShoppingListItem[]; onOrder: (ids: string[]) 
             </div>
             <div className="fx-item-val"><span>Comprar</span><b>{Number(i.quantityTarget || 1)} un.</b></div>
           </div>
-        ))}
-      </div>
+        )} />
       <div className="fx-white" style={{ marginTop: 14 }}>
         <div className="fx-actions">
           <button type="button" className="fx-btn dark" disabled={chosen.length === 0} onClick={() => onOrder(chosen.map((i) => i.productId))}>

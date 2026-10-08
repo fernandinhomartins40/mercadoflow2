@@ -12,10 +12,10 @@ import ShoppingListButton from '../components/common/ShoppingListButton';
 import ProductImage from '../components/product/ProductImage';
 import { ProductPerformance } from '../types/analytics.types';
 import {
-  AlertTriangle, Search, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight,
+  AlertTriangle, Search, TrendingUp, TrendingDown, Minus,
   ShoppingCart, Zap, Map, ArrowRight, RefreshCw, Plus,
 } from 'lucide-react';
-import { ActionHub, Forest, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
+import { ActionHub, Forest, PagedBox, PageHero, PanelTitle, Thumb } from '../components/flow/Flow';
 import ProductAttention, { attentionList, type Why } from './produtos/ProductAttention';
 import TractionList from './produtos/TractionList';
 import { useMarketData } from '../hooks/useMarketData';
@@ -145,8 +145,10 @@ const DesempenhoTab: React.FC = () => {
       ) : products.length === 0 ? (
         <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}><p style={{ color: 'var(--text-muted)' }}>Nenhum produto encontrado.</p></div>
       ) : (
-        <div className="fx-split wide-left">
-          <ul className="fx-card fx-card-pad flex flex-col gap-2" style={{ listStyle: 'none', margin: 0 }}>
+        <div className="fx-split wide-left even">
+          <div className="fx-card fx-card-pad fx-col">
+          <PagedBox page={page} pages={Math.max(1, totalPages)} total={totalElements} size={size} onPage={setPage} label="produtos" resetKey={`${category}:${querySearch}:${sortBy}`}>
+          <ul className="flex flex-col gap-2" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {/* Lista, não grade de cartões: comparar dezenas de produtos exige
                 ler as mesmas colunas de relance, não rolar fotos. */}
             {products.map((product) => {
@@ -176,6 +178,8 @@ const DesempenhoTab: React.FC = () => {
               );
             })}
           </ul>
+          </PagedBox>
+          </div>
           {current && (
             <Forest as="aside" aria-label="Produto selecionado" className="fx-sticky" key={current.productId}>
               <PanelTitle icon={Package} title="Detalhe do produto" sub="O que as vendas dizem sobre ele" />
@@ -206,13 +210,6 @@ const DesempenhoTab: React.FC = () => {
         </div>
       )}
 
-      {!loading && pageData && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3">
-          <button type="button" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition disabled:opacity-40" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}><ChevronLeft className="h-4 w-4" /></button>
-          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Página <strong>{pageData.number + 1}</strong> de <strong>{totalPages}</strong></span>
-          <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition disabled:opacity-40" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)', color: 'var(--text-muted)' }}><ChevronRight className="h-4 w-4" /></button>
-        </div>
-      )}
     </div>
   );
 };

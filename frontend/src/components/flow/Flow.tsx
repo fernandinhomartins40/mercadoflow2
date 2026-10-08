@@ -126,6 +126,52 @@ export const Pager: React.FC<{ page: number; pages: number; total: number; size:
   );
 };
 
+/**
+ * Lista longa em páginas de tamanho fixo. A altura trava na maior página já
+ * vista, então a última (mais curta) não encolhe o card e o paginador fica
+ * sempre no rodapé, no mesmo lugar, para ir passando sem caçar o botão.
+ */
+export const PagedBox: React.FC<{ page: number; pages: number; total: number; size: number; onPage: (p: number) => void; label?: string; resetKey?: unknown; children: React.ReactNode }> = ({ page, pages, total, size, onPage, label, resetKey, children }) => {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [minH, setMinH] = React.useState(0);
+  React.useEffect(() => { setMinH(0); }, [resetKey, size, total]);
+  React.useEffect(() => {
+    const reset = () => setMinH(0);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
+  React.useLayoutEffect(() => {
+    const h = ref.current?.offsetHeight ?? 0;
+    if (pages > 1 && h > minH) setMinH(h);
+  });
+  const go = (p: number) => {
+    onPage(p);
+    // Se o começo da lista saiu da tela, volta até ele; senão a página troca no lugar.
+    const el = ref.current;
+    if (el && el.getBoundingClientRect().top < 72) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  return (
+    <div className="fx-paged">
+      <div ref={ref} className="fx-paged-body" style={minH && pages > 1 ? { minHeight: minH } : undefined}>{children}</div>
+      <Pager page={page} pages={pages} total={total} size={size} onPage={go} label={label} />
+    </div>
+  );
+};
+
+/** Atalho do PagedBox para uma lista simples: recebe tudo e mostra uma página por vez. */
+export function PagedList<T>({ items, size, label, resetKey, render, as: Tag = 'ul', className = 'fx-stack', style, role, ariaLabel }: {
+  items: T[]; size: number; label?: string; resetKey?: unknown; render: (item: T, index: number) => React.ReactNode;
+  as?: 'ul' | 'div'; className?: string; style?: React.CSSProperties; role?: string; ariaLabel?: string;
+}) {
+  const paged = usePaged(items, size, resetKey);
+  const listStyle: React.CSSProperties = Tag === 'ul' ? { listStyle: 'none', margin: 0, padding: 0, ...style } : { ...style };
+  return (
+    <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label={label} resetKey={resetKey}>
+      <Tag className={className} style={listStyle} role={role} aria-label={ariaLabel}>{paged.slice.map((it, i) => render(it, paged.page * paged.size + i))}</Tag>
+    </PagedBox>
+  );
+}
+
 export const Chip: React.FC<{ tone?: 'red' | 'green' | 'lime' | 'amber' | 'ghost' | 'gray'; children: React.ReactNode; icon?: LucideIcon }> = ({ tone = 'gray', children, icon: I }) => (
   <span className={`fx-chip ${tone}`}>{I && <I size={14} aria-hidden="true" />}{children}</span>
 );

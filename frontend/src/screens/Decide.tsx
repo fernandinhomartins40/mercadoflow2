@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import { ActionHub, Card, Chip, PageHero, PanelTitle, Pager, PillTabs, Thumb, usePaged } from '../components/flow/Flow';
+import { ActionHub, Card, Chip, PageHero, PagedBox, PanelTitle, PillTabs, Thumb, usePaged } from '../components/flow/Flow';
 import RecommendationDesk from '../components/intelligence/RecommendationDesk';
 import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
@@ -110,13 +110,10 @@ const Decide: React.FC = () => {
   } : null;
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
-  // Fila longa em páginas: a lista não empurra o painel ao lado para fora da tela.
-  // "Hoje": as 7 que mais valem; o resto fica em "Depois", recolhido (F3).
-  const [showLater, setShowLater] = useState(false);
-  useEffect(() => { setShowLater(false); }, [filter]);
+  // Fila em páginas de 7, com o paginador fixo no rodapé: a página 1 é "Hoje"
+  // (as 7 que mais valem, F3) e as seguintes são "Depois".
   const TODAY = 7;
-  const later = list.slice(TODAY);
-  const paged = usePaged(later, 12, filter);
+  const paged = usePaged(list, TODAY, filter);
   // Celular: o detalhe abre numa folha por cima da lista.
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
   useEffect(() => {
@@ -127,17 +124,9 @@ const Decide: React.FC = () => {
   const [sheet, setSheet] = useState(false);
   useEffect(() => {
     const idx = selected ? list.findIndex((i) => i.key === selected) : -1;
-    if (idx >= TODAY) {
-      setShowLater(true);
-      const i = idx - TODAY;
-      if (Math.floor(i / paged.size) !== paged.page) paged.setPage(Math.floor(i / paged.size));
-    }
+    if (idx >= 0 && Math.floor(idx / TODAY) !== paged.page) paged.setPage(Math.floor(idx / TODAY));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, list.length]);
-  const goPage = (n: number) => {
-    paged.setPage(n);
-    document.getElementById('decidir-lista')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
   const decisions = queue.items.length;
 
   // Quem chega do Início com ?item= abre direto naquele item, e a lista rola até ele no celular.
@@ -262,8 +251,6 @@ const Decide: React.FC = () => {
             ))}
           </div>
 
-          {(filter === 'tudo' || filter === 'promover' || filter === 'capital' || filter === 'comprar') && <CostCoverageCard marketId={marketId} compact />}
-
           {queue.loading ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : list.length === 0 ? (
             <Card style={{ textAlign: 'center', padding: 36 }}>
               <CheckCircle2 size={36} style={{ color: 'var(--fx-green)' }} aria-hidden="true" />
@@ -274,25 +261,18 @@ const Decide: React.FC = () => {
               {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: <Link to="/app/contar">conte o estoque</Link> ou confira as notas no Confere.</p>}
             </Card>
           ) : (
-            <div className="fx-split">
-              <Card as="section" aria-label="Decisões" id="decidir-lista" style={{ scrollMarginTop: 80 }}>
-                <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
-                  {renderRows(list.slice(0, TODAY))}
-                </ul>
-                {later.length > 0 && !showLater && (
-                  <button type="button" className="fx-btn ghost small" style={{ marginTop: 12, width: '100%', justifyContent: 'center' }} onClick={() => setShowLater(true)}>
-                    Ver as outras {later.length} {later.length === 1 ? 'decisão' : 'decisões'} (valem menos)
-                  </button>
+            <div className="fx-split even">
+              <Card as="section" aria-label="Decisões" id="decidir-lista" className="fx-col" style={{ scrollMarginTop: 80 }}>
+                {paged.pages > 1 && (
+                  <p className="fx-muted" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>
+                    {paged.page === 0 ? 'Hoje · as que mais valem' : 'Depois · valem menos'}
+                  </p>
                 )}
-                {later.length > 0 && showLater && (
-                  <>
-                    <p className="fx-muted" style={{ margin: '16px 0 8px', fontSize: 13, fontWeight: 700 }}>Depois</p>
-                    <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
-                      {renderRows(paged.slice)}
-                    </ul>
-                    <Pager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={goPage} label="decisões" />
-                  </>
-                )}
+                <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="decisões" resetKey={filter}>
+                  <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
+                    {renderRows(paged.slice)}
+                  </ul>
+                </PagedBox>
                 {filter === 'tudo' && locked.total > 0 && (
                   <Link to="/app/assinatura" className="fx-row" style={{ marginTop: 10, color: 'var(--fx-ink)', borderStyle: 'dashed' }}>
                     <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><Lock aria-hidden="true" /></span>
@@ -306,6 +286,9 @@ const Decide: React.FC = () => {
               {!narrow && <div id="decidir-painel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>{current && detail(current)}</div>}
             </div>
           )}
+
+          {/* O que falta medir vem depois da fila: a decisão é o assunto da tela. */}
+          {(filter === 'tudo' || filter === 'promover' || filter === 'capital' || filter === 'comprar') && <CostCoverageCard marketId={marketId} compact />}
 
           {/* Ferramentas que respondem ao mesmo filtro: onde pôr o dinheiro e o que promover. */}
           {marketId && filter === 'capital' && (

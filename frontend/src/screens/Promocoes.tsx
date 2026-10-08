@@ -12,7 +12,7 @@ import {
   Plus, Calendar, TrendingUp, TrendingDown, Minus, Zap, AlertTriangle,
   ChevronDown, ChevronUp, ArrowRight, RefreshCw, BarChart2, Tag,
 } from 'lucide-react';
-import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ActionHub, PagedList, PageHero } from '../components/flow/Flow';
 import { CalendarPlus as HxCalendarPlus, Newspaper as HxNewspaper, Sparkles as HxSparkles, Tag as HxTag } from 'lucide-react';
 
 /* ─── Formatadores ─── */
@@ -156,8 +156,7 @@ const CampanhasTab: React.FC<{ marketId: string; startOpen?: boolean }> = ({ mar
           <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Nova campanha</Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {items.map((campaign) => {
+        <PagedList as="div" className="flex flex-col gap-4" size={6} label="campanhas" items={items} render={(campaign) => {
             const impact = impacts.find((i) => i.campaignId === campaign.id);
             const lift = Number(impact?.revenueLiftPercent || 0);
             return (
@@ -197,8 +196,7 @@ const CampanhasTab: React.FC<{ marketId: string; startOpen?: boolean }> = ({ mar
                 )}
               </article>
             );
-          })}
-        </div>
+          }} />
       )}
     </div>
   );
@@ -412,6 +410,18 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
         </button>
       </div>
 
+      {/* A resposta primeiro, os números depois. */}
+      {!loading && withPromo.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl p-4" style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}>
+          <BarChart2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--brand-600)' }} />
+          <p className="text-sm" style={{ color: 'var(--brand-700)' }}>
+            {boosters.length > 0
+              ? `${boosters.length} produto${boosters.length > 1 ? 's' : ''} confirmados como promotores de volume${losses.length > 0 ? ` · ${losses.length} com desconto excessivo` : ''}${backfires.length > 0 ? ` · ${backfires.length} promoção${backfires.length > 1 ? 'ões' : ''} ineficaz${backfires.length > 1 ? 'es' : ''}` : ''}.`
+              : `Nenhuma promoção com efeito positivo nos últimos ${days} dias.`}
+          </p>
+        </div>
+      )}
+
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -427,17 +437,6 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
           </div>
         ))}
       </div>
-
-      {!loading && withPromo.length > 0 && (
-        <div className="flex items-start gap-3 rounded-xl p-4" style={{ border: '1px solid var(--border-success)', background: 'var(--surface-success)' }}>
-          <BarChart2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--brand-600)' }} />
-          <p className="text-sm" style={{ color: 'var(--brand-700)' }}>
-            {boosters.length > 0
-              ? `${boosters.length} produto${boosters.length > 1 ? 's' : ''} confirmados como promotores de volume${losses.length > 0 ? ` · ${losses.length} com desconto excessivo` : ''}${backfires.length > 0 ? ` · ${backfires.length} promoção${backfires.length > 1 ? 'ões' : ''} ineficaz${backfires.length > 1 ? 'es' : ''}` : ''}.`
-              : `Nenhuma promoção com efeito positivo nos últimos ${days} dias.`}
-          </p>
-        </div>
-      )}
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3">
@@ -475,9 +474,8 @@ const EfetividadeTab: React.FC<{ marketId: string }> = ({ marketId }) => {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {filtered.map((item) => <ProductCard key={item.productId} item={item} maxQtyLift={maxQtyLift} maxRevLift={maxRevLift} />)}
-        </div>
+        <PagedList as="div" className="flex flex-col gap-4" size={8} label="produtos" items={filtered} resetKey={`${filter}:${search}:${days}`}
+          render={(item) => <ProductCard key={item.productId} item={item} maxQtyLift={maxQtyLift} maxRevLift={maxRevLift} />} />
       )}
     </div>
   );

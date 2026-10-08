@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { Card, Chip, PanelTitle, Thumb } from '../../components/flow/Flow';
+import { Card, Chip, PagedList, PanelTitle, Thumb } from '../../components/flow/Flow';
 import { useAuth } from '../../context/AuthContext';
 import { useCached } from '../../hooks/useCached';
 import { tractionService, type ProductTraction } from '../../services/traction.service';
@@ -29,11 +29,10 @@ const TractionList: React.FC = () => {
   }
   const first = data[0];
   return (
-    <Card>
+    <Card className="fx-col">
       <PanelTitle title={`${data.length} produtos puxam a venda`}
         sub={`Cupons com eles levam mais em outros itens que cupons do mesmo tamanho sem eles · ${first.completeDays} dias completos · ${first.totalBaskets.toLocaleString('pt-BR')} cupons`} />
-      <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
-        {data.map((t) => (
+      <PagedList items={data} size={10} label="produtos" style={{ marginTop: 16, gap: 8 }} render={(t) => (
           <li key={t.productId}>
             <Link to={`/app/produtos/${t.productId}`} className="fx-row" style={{ color: 'var(--fx-ink)', alignItems: 'flex-start' }}>
               <Thumb name={t.name} src={t.imageUrl} size={44} />
@@ -54,8 +53,7 @@ const TractionList: React.FC = () => {
               </span>
             </Link>
           </li>
-        ))}
-      </ul>
+      )} />
     </Card>
   );
 };

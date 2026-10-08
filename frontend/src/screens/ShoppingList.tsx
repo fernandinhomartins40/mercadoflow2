@@ -47,7 +47,7 @@ import {
   ArrowRight,
   Zap,
 } from 'lucide-react';
-import { ActionHub, PageHero } from '../components/flow/Flow';
+import { ActionHub, PagedList, PageHero } from '../components/flow/Flow';
 import BuyDesk, { buyHeadline } from './comprar/BuyDesk';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
 import { ListChecks as HxListChecks, Plus as HxPlus, ShoppingCart as HxShoppingCart } from 'lucide-react';
@@ -891,6 +891,8 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
 
   const existingIds = useMemo(() => new Set(order?.items.map(i => i.productId) ?? []), [order?.items]);
 
+  const isHighlighted = (productId: string) => productId === highlightProductId || (selectedProductIds?.includes(productId) ?? false);
+
   // Sugestões: produtos da lista de compras + replenishment candidates, dedupados, sem os já adicionados
   const suggestions = useMemo(() => {
     const listMap = new Map(shoppingListItems.map(i => [i.productId, i]));
@@ -1106,17 +1108,20 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                           </p>
                         </div>
                       )}
-                      {suggestions.map(({ perf, fromList, listItem }) => (
+                      {/* Destacados primeiro, para não ficarem numa página escondida. */}
+                      <PagedList as="div" className="flex flex-col gap-2" size={8} label="sugestões"
+                        items={[...suggestions].sort((a, b) => Number(isHighlighted(b.perf.productId)) - Number(isHighlighted(a.perf.productId)))}
+                        render={({ perf, fromList, listItem }) => (
                         <SuggestionRow key={perf.productId} perf={perf} fromList={fromList} listItem={listItem}
                           added={existingIds.has(perf.productId)}
                           isAvoid={isAvoidAlert(perf)}
-                          highlighted={perf.productId === highlightProductId || (selectedProductIds?.includes(perf.productId) ?? false)}
+                          highlighted={isHighlighted(perf.productId)}
                           orderId={order?.id}
                           marketId={marketId}
                           onNeedOrder={handleCreateOrder}
                           onSelect={() => { if (!order) return; setAddProd(perf); }}
                           onAdded={refreshOrder} />
-                      ))}
+                      )} />
                     </div>
                   )}
               </>
@@ -1135,7 +1140,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                 </div>
               : (
                 <div className="flex flex-col gap-2">
-                  {orderItems.map(item => (
+                  <PagedList as="div" className="flex flex-col gap-2" size={10} label="itens" items={orderItems} render={item => (
                     <div key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
                       <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--surface-soft)' }}><ProductImage src={item.imageUrl} alt={item.productName} className="h-full w-full object-contain" /></div>
                       <div className="min-w-0 flex-1">
@@ -1155,7 +1160,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
                           className="mt-0.5 transition hover:opacity-70" style={{ color: '#ef4444' }}><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
-                  ))}
+                  )} />
                   <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'var(--surface-success)', border: '1px solid var(--border-success)' }}>
                     <span className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>Total</span>
                     <span className="text-xl font-bold" style={{ color: 'var(--brand-700)' }}>{fmtMoney(total)}</span>
@@ -1326,7 +1331,6 @@ const ShoppingListPage: React.FC = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [statusFilter] = useState('');
-  const [showAllDone, setShowAllDone] = useState(false);
   const [newOrder, setNewOrder] = useState<NewOrderState | null>(null); // null = fechado
   const [detailOrder, setDetailOrder] = useState<SupplierOrder | null>(null);
   const [receiveOrder, setReceiveOrder] = useState<SupplierOrder | null>(null);
@@ -1437,15 +1441,13 @@ const ShoppingListPage: React.FC = () => {
             {allSelected ? 'Desmarcar grupo' : 'Selecionar grupo'}
           </button>
         </div>
-        <div className="flex flex-col gap-3">
-          {groupItems.map(item => (
+        <PagedList as="div" className="flex flex-col gap-3" size={6} label="produtos" items={groupItems} render={item => (
             <ListItem key={item.id} item={item} marketId={marketId!} histRefresh={histRefresh}
               selected={selectedIds.has(item.id)} onSelect={v => toggleSelect(item.id, v)}
               onToggle={c => updateItem(item.id, { checked: c })} onUpdate={p => updateItem(item.id, p)}
               onRemove={() => removeItem(item.id)} onRecordPurchase={() => setRecordModal(item)}
               onCreateOrder={() => { setTab('pedidos'); setNewOrder({ highlightProductId: item.productId }); }} />
-          ))}
-        </div>
+          )} />
       </div>
     );
   };
@@ -1467,6 +1469,20 @@ const ShoppingListPage: React.FC = () => {
         {/* ── ABA: LISTA ── */}
         {tab === 'lista' && (
           <div className="flex flex-col gap-5">
+            <div className="grid gap-3 sm:grid-cols-4">
+              {[
+                { label: 'Na lista', value: overview.totalItems, color: 'var(--text-primary)' },
+                { label: 'Pendentes', value: overview.pendingItems, color: '#d97706' },
+                { label: 'Comprados', value: overview.checkedItems, color: 'var(--brand-700)' },
+                { label: 'Sugestões', value: restockSuggestions.length, color: '#1d4ed8' },
+              ].map(k => (
+                <div key={k.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{k.label}</span>
+                  <p className="mt-1 text-2xl font-bold" style={{ color: k.color }}>{k.value}</p>
+                </div>
+              ))}
+            </div>
+
             {marketId && (
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1509,20 +1525,6 @@ const ShoppingListPage: React.FC = () => {
                 <CatalogSearch marketId={marketId} productIds={productIds} onAdd={async p => addItem({ productId: p.productId, quantityTarget: suggestedQuantity(p), sourceTag: 'MANUAL', reasonSummary: `${formatDecimal(Number(p.salesVelocity || 0), 1)} un./dia · adicionado via busca` })} />
               </div>
             )}
-
-            <div className="grid gap-3 sm:grid-cols-4">
-              {[
-                { label: 'Na lista', value: overview.totalItems, color: 'var(--text-primary)' },
-                { label: 'Pendentes', value: overview.pendingItems, color: '#d97706' },
-                { label: 'Comprados', value: overview.checkedItems, color: 'var(--brand-700)' },
-                { label: 'Sugestões', value: restockSuggestions.length, color: '#1d4ed8' },
-              ].map(k => (
-                <div key={k.label} className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{k.label}</span>
-                  <p className="mt-1 text-2xl font-bold" style={{ color: k.color }}>{k.value}</p>
-                </div>
-              ))}
-            </div>
 
             <div className="flex flex-col gap-6">
               {items.length === 0
@@ -1622,7 +1624,6 @@ const ShoppingListPage: React.FC = () => {
                 : ORDER_GROUPS.map(group => {
                     const groupOrders = orders.filter(o => group.statuses.includes(o.status));
                     if (groupOrders.length === 0) return null;
-                    const visible = group.key === 'done' && !showAllDone ? groupOrders.slice(0, 5) : groupOrders;
                     return (
                       <section key={group.key} aria-labelledby={`orders-${group.key}`} className="flex flex-col gap-3">
                         <div className="flex items-baseline justify-between gap-3">
@@ -1631,8 +1632,7 @@ const ShoppingListPage: React.FC = () => {
                           </h2>
                           <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>{group.hint}</span>
                         </div>
-                        <div className="flex flex-col gap-3">
-                          {visible.map(order => {
+                        <PagedList as="div" className="flex flex-col gap-3" size={5} label="pedidos" items={groupOrders} render={order => {
                             const sup = order.supplierFantasia || order.supplierName;
                             return (
                               <div key={order.id} className="flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
@@ -1677,13 +1677,7 @@ const ShoppingListPage: React.FC = () => {
                                 </div>
                               </div>
                             );
-                          })}
-                        </div>
-                        {group.key === 'done' && groupOrders.length > 5 && !showAllDone && (
-                          <button type="button" onClick={() => setShowAllDone(true)} className="self-start text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>
-                            Ver os {groupOrders.length} pedidos concluídos
-                          </button>
-                        )}
+                          }} />
                       </section>
                     );
                   })}
@@ -1730,8 +1724,7 @@ const ShoppingListPage: React.FC = () => {
                     <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Cadastre fornecedores para criar pedidos de compra.</p>
                     <button type="button" onClick={() => setShowSupModal(true)} className="inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}><Plus className="h-4 w-4" /> Cadastrar fornecedor</button>
                   </div>
-                : <div className="flex flex-col gap-2">
-                    {suppliers.map(s => (
+                : <PagedList as="div" className="flex flex-col gap-2" size={10} label="fornecedores" items={suppliers} render={s => (
                       <div key={s.id} className="flex items-center gap-4 rounded-xl px-4 py-4" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-base)' }}>
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--surface-soft)' }}>
                           <Building2 className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
@@ -1760,8 +1753,7 @@ const ShoppingListPage: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>}
+                    )} />}
           </div>
         )}
       </div>

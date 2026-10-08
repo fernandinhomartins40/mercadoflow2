@@ -640,6 +640,15 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 .fx-pager button { min-width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--fx-line); background: var(--fx-card); color: var(--fx-ink); font: inherit; font-weight: 700; cursor: pointer; padding: 0 10px; }
 .fx-pager button[aria-current="page"] { background: var(--fx-ink); color: #fff; border-color: var(--fx-ink); }
 .fx-pager button:disabled { opacity: .4; cursor: default; }
+.fx-forest .fx-pager { color: var(--fx-on-forest-muted); }
+/* Lista paginada: corpo com altura travada e paginador sempre no rodapé do card. */
+.fx-paged { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.fx-paged-body { min-width: 0; scroll-margin-top: 80px; }
+.fx-paged > .fx-pager { margin-top: auto; padding-top: 12px; }
+.fx-col { display: flex; flex-direction: column; }
+/* Dois cards lado a lado com a mesma altura; o paginador de cada um desce até o rodapé. */
+.fx-split.even { align-items: stretch; }
+.fx-split.even > .fx-card, .fx-split.even > .fx-forest { display: flex; flex-direction: column; }
 
 /* F3/F6 do plano de experiência: no celular o cabeçalho cabe numa faixa.
    O hub (nó + curvas + 3 botões) ocupava meia tela e empurrava o conteúdo. */
