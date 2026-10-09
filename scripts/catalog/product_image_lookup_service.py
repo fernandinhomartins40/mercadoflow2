@@ -50,7 +50,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--email", default="")
     parser.add_argument("--password", default="")
     parser.add_argument("--images-dir", default="data/catalog/images")
-    parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
+    # Foto de fabricante passa facil de 3 MB; como e reduzida para 1000 px, o teto so limita o download.
+    parser.add_argument("--max-image-bytes", type=int, default=8_000_000)
     parser.add_argument("--gtin", action="append", default=[], help="procura só estes códigos e imprime, sem importar")
     return parser.parse_args()
 

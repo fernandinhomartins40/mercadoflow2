@@ -77,7 +77,8 @@ public class SuperAdminService {
 
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
-    private static final String DEFAULT_USER_AGENT = "MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)";
+    private static final String AUTO_RESUME_TRIGGER = "AUTO_RESUME";
+    private static final String DEFAULT_USER_AGENT ="MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)";
     private static final List<FixedCrawlerJob> FIXED_CRAWLER_JOBS = withVtexStores(List.of(
         new FixedCrawlerJob(
             "Pao de Acucar",
@@ -983,15 +984,35 @@ public class SuperAdminService {
             return;
         }
         LocalDateTime now = LocalDateTime.now();
+        List<CatalogCrawlerRun> resumed = new ArrayList<>();
         for (CatalogCrawlerRun run : abandoned) {
+            // Todo deploy reinicia o coletor. A fonte volta para a fila e retoma pelos
+            // checkpoints; so nao volta se a propria retomada morreu em menos de dois
+            // minutos, sinal de coletor caindo em loop e nao de reinicio.
+            boolean crashLoop = AUTO_RESUME_TRIGGER.equals(run.getTriggeredBy())
+                && run.getStartedAt() != null
+                && run.getStartedAt().isAfter(now.minusMinutes(2));
             run.setStatus("FAILED");
             run.setFinishedAt(now);
             run.setMessage(cleanMessage(
                 "Execucao abandonada: o coletor reiniciou antes de concluir. As paginas ja lidas ficam nos checkpoints."
+                    + (crashLoop ? " Nao foi retomada: a retomada anterior tambem caiu logo no inicio." : " Retomada automaticamente.")
                     + (run.getMessage() == null || run.getMessage().isBlank() ? "" : " | " + run.getMessage())
             ));
+            if (crashLoop || parseJsonArray(run.getSourcesJson()).size() != 1) {
+                continue;
+            }
+            CatalogCrawlerRun retry = new CatalogCrawlerRun();
+            retry.setRequestedAt(now);
+            retry.setStatus("QUEUED");
+            retry.setTriggeredBy(AUTO_RESUME_TRIGGER);
+            retry.setSourcesJson(run.getSourcesJson());
+            retry.setFiltersJson(run.getFiltersJson());
+            retry.setMessage("Retomada automatica por checkpoint depois do reinicio do coletor.");
+            resumed.add(retry);
         }
         crawlerRunRepository.saveAll(abandoned);
+        crawlerRunRepository.saveAll(resumed);
     }
 
     /**

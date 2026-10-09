@@ -116,17 +116,48 @@ class CrawlerAutoScheduleTest {
     }
 
     @Test
-    void execucaoRodandoNaHoraDoClaimFicouOrfaEViraFalha() {
+    @SuppressWarnings("unchecked")
+    void execucaoOrfaViraFalhaEAFonteVoltaParaAFila() {
         CatalogCrawlerRun orphan = runOf("ATACADAO_WEB_BR", LocalDateTime.now().minusDays(60));
         orphan.setStatus("RUNNING");
+        orphan.setStartedAt(LocalDateTime.now().minusDays(60));
         orphan.setFinishedAt(null);
+        orphan.setTriggeredBy("MANUAL_SUPER_ADMIN");
         when(runs.findByStatus("RUNNING")).thenReturn(List.of(orphan));
-        // a execucao orfa acabou de ser encerrada, entao a pausa comeca agora
+        List<CatalogCrawlerRun> saved = new java.util.ArrayList<>();
+        when(runs.saveAll(any(Iterable.class))).thenAnswer(invocation -> {
+            ((Iterable<CatalogCrawlerRun>) invocation.getArgument(0)).forEach(saved::add);
+            return saved;
+        });
+
+        claim();
+
+        assertEquals("FAILED", orphan.getStatus());
+        assertNotNull(orphan.getFinishedAt());
+        assertTrue(orphan.getMessage().startsWith("Execucao abandonada"));
+        CatalogCrawlerRun retry = saved.stream().filter(run -> "QUEUED".equals(run.getStatus())).findFirst().orElseThrow();
+        assertEquals("AUTO_RESUME", retry.getTriggeredBy());
+        assertEquals(orphan.getSourcesJson(), retry.getSourcesJson());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void retomadaQueCaiLogoNoInicioNaoEntraEmLoop() {
+        CatalogCrawlerRun orphan = runOf("ATACADAO_WEB_BR", LocalDateTime.now());
+        orphan.setStatus("RUNNING");
+        orphan.setStartedAt(LocalDateTime.now().minusSeconds(30));
+        orphan.setFinishedAt(null);
+        orphan.setTriggeredBy("AUTO_RESUME");
+        when(runs.findByStatus("RUNNING")).thenReturn(List.of(orphan));
+        List<CatalogCrawlerRun> saved = new java.util.ArrayList<>();
+        when(runs.saveAll(any(Iterable.class))).thenAnswer(invocation -> {
+            ((Iterable<CatalogCrawlerRun>) invocation.getArgument(0)).forEach(saved::add);
+            return saved;
+        });
         when(runs.findTopByFinishedAtIsNotNullOrderByFinishedAtDesc()).thenAnswer(invocation -> Optional.of(orphan));
 
         assertNull(claim());
         assertEquals("FAILED", orphan.getStatus());
-        assertNotNull(orphan.getFinishedAt());
-        assertTrue(orphan.getMessage().startsWith("Execucao abandonada"));
+        assertTrue(saved.stream().noneMatch(run -> "QUEUED".equals(run.getStatus())));
     }
 }
