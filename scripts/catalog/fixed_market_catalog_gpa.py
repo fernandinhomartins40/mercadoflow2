@@ -4,9 +4,10 @@ from __future__ import annotations
 import json
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from itertools import islice
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 import requests
 
@@ -49,6 +50,32 @@ def build_session() -> requests.Session:
         }
     )
     return session
+
+
+def iter_bounded(
+    executor: ThreadPoolExecutor,
+    fn: Callable[[Any], Any],
+    items: List[Any],
+    window: int,
+) -> Iterator[Tuple[Any, Future]]:
+    """Como as_completed, mas com no maximo `window` tarefas em voo e sem guardar
+    os resultados ja entregues: as_completed sobre a lista inteira mantinha na
+    memoria a resposta de todas as prateleiras ate o fim da varredura."""
+    queue = iter(items)
+    pending: Dict[Future, Any] = {}
+    for item in islice(queue, max(1, window)):
+        pending[executor.submit(fn, item)] = item
+    while pending:
+        done, _ = wait(pending, return_when=FIRST_COMPLETED)
+        for future in done:
+            item = pending.pop(future)
+            following = next(queue, _SENTINEL)
+            if following is not _SENTINEL:
+                pending[executor.submit(fn, following)] = following
+            yield item, future
+
+
+_SENTINEL = object()
 
 
 def thread_session() -> requests.Session:
@@ -142,27 +169,93 @@ def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, L
     return shelf_id, rows, shelf_hash
 
 
+class DetailRateGate:
+    """Ritmo compartilhado das consultas de detalhe do GPA.
+
+    O firewall da Azion na frente da API bloqueia por IP o endereco de detalhe
+    (unico que traz o EAN) quando chega pedido demais: devolve 429 por varios
+    minutos. Com 16 consultas simultaneas a maior parte era recusada e, antes de
+    09/10/2026, cada recusa virava produto "sem codigo de barras" (82% em junho).
+    Aqui todas as threads passam por um so ritmo; a cada 429 todo mundo para,
+    espera esfriar e volta mais devagar.
+    """
+
+    def __init__(self, min_interval: float = 0.5, max_interval: float = 6.0):
+        self.lock = threading.Lock()
+        self.interval = min_interval
+        self.max_interval = max_interval
+        self.next_at = 0.0
+        self.cooldown = 60.0
+        self.blocks = 0
+
+    def wait_turn(self) -> None:
+        with self.lock:
+            now = time.monotonic()
+            start = max(now, self.next_at)
+            self.next_at = start + self.interval
+        if start > now:
+            time.sleep(start - now)
+
+    def blocked(self) -> float:
+        with self.lock:
+            now = time.monotonic()
+            # As outras threads que ja estavam em voo tambem levam 429: conta como
+            # um bloqueio so, sem aumentar a espera de novo.
+            if self.next_at - now > 5:
+                return self.next_at - now
+            self.blocks += 1
+            pause = self.cooldown
+            self.next_at = now + pause
+            self.interval = min(self.max_interval, self.interval * 1.5)
+            self.cooldown = min(900.0, self.cooldown * 2)
+            return pause
+
+    def succeeded(self) -> None:
+        with self.lock:
+            self.cooldown = 60.0
+
+
+_DETAIL_GATES: Dict[str, DetailRateGate] = {}
+_DETAIL_GATES_LOCK = threading.Lock()
+
+
+def detail_gate(brand: str) -> DetailRateGate:
+    with _DETAIL_GATES_LOCK:
+        return _DETAIL_GATES.setdefault(brand, DetailRateGate())
+
+
 def fetch_best_prices(job: GpaJobConfig, product_id: str, pause_ms: int) -> Dict[str, Any]:
     session = thread_session()
-    # O EAN so vem neste detalhe. Devolver {} em qualquer falha fazia o produto
-    # seguir sem codigo e ser descartado pelo backend como GTIN invalido.
-    try:
-        response = request_with_retry(
-            session,
-            "GET",
-            f"https://api.vendas.gpa.digital/{job.brand}/v4/products/ecom/{product_id}/bestPrices",
-            params={"storeId": job.store_id, "sellType": "normal", "isClienteMais": "true"},
-            attempts=5,
-            timeout=40,
-        )
-    except requests.HTTPError as exc:
-        if exc.response is not None and exc.response.status_code == 404:
+    gate = detail_gate(job.brand)
+    url = f"https://api.vendas.gpa.digital/{job.brand}/v4/products/ecom/{product_id}/bestPrices"
+    params = {"storeId": job.store_id, "sellType": "normal", "isClienteMais": "true"}
+    # O EAN so vem neste detalhe: 429 nao conta como falha do produto, so faz
+    # esperar e tentar de novo. Falha de verdade sobe como erro.
+    for attempt in range(1, 9):
+        gate.wait_turn()
+        try:
+            response = session.get(url, params=params, timeout=40)
+        except requests.RequestException:
+            if attempt >= 4:
+                raise
+            time.sleep(2.0 * attempt)
+            continue
+        if response.status_code == 429:
+            pause = gate.blocked()
+            print(f"[{job.brand}] GPA limitou as consultas (429); pausa de {pause:.0f}s, ritmo {gate.interval:.2f}s/consulta", flush=True)
+            continue
+        if response.status_code == 404:
             return {}
-        raise
-    if pause_ms > 0:
-        time.sleep(pause_ms / 1000.0)
-    payload = response.json()
-    return payload if isinstance(payload, dict) else {}
+        if response.status_code >= 500 and attempt < 4:
+            time.sleep(2.0 * attempt)
+            continue
+        response.raise_for_status()
+        gate.succeeded()
+        if pause_ms > 0:
+            time.sleep(pause_ms / 1000.0)
+        payload = response.json()
+        return payload if isinstance(payload, dict) else {}
+    raise RuntimeError(f"GPA detalhe {product_id}: bloqueado (429) em todas as tentativas")
 
 
 def pick_category(details: Dict[str, Any], fallback: str) -> str:
@@ -436,11 +529,16 @@ def run_gpa_catalog_job(
     listing_rows_total = 0
     skipped_cached_shelves = 0
     processed_shelves: Dict[str, Dict[str, Any]] = {}
+    # Cada produto fica guardado como JSON compacto (~2,5 KB) e nao como dict
+    # (~10x mais): com 11 mil produtos o coletor passava dos 192 MB e morria.
+    row_meta: Dict[str, List[Any]] = {}
     executor = ThreadPoolExecutor(max_workers=max(1, max_workers_list))
     cancelled = False
-    futures = [executor.submit(crawl_shelf, job, shelf_id, pause_ms) for shelf_id in shelf_ids]
     try:
-        for index, future in enumerate(as_completed(futures), start=1):
+        for index, (shelf_arg, future) in enumerate(
+            iter_bounded(executor, lambda shelf: crawl_shelf(job, shelf, pause_ms), shelf_ids, max_workers_list * 2),
+            start=1,
+        ):
             if cancel_check and cancel_check():
                 cancelled = True
                 break
@@ -481,16 +579,14 @@ def run_gpa_catalog_job(
                 product_id = norm_text(row.get("id"))
                 if not product_id:
                     continue
-                current = unique_rows.get(product_id)
-                if current is None:
-                    copied = dict(row)
-                    copied["_crawlerCategoryPath"] = fallback_category
-                    copied["_crawlerShelfId"] = shelf_id
-                    unique_rows[product_id] = copied
-                elif not norm_text(current.get("_crawlerCategoryPath")) and fallback_category:
-                    current["_crawlerCategoryPath"] = fallback_category
-            if index % 25 == 0 or index == len(futures):
-                print(f"[{job.provider}] listing progress={index}/{len(futures)} rows={listing_rows_total} unique={len(unique_rows)}")
+                if product_id not in unique_rows:
+                    unique_rows[product_id] = json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+                    row_meta[product_id] = [fallback_category, shelf_id]
+                elif not row_meta[product_id][0] and fallback_category:
+                    row_meta[product_id][0] = fallback_category
+            rows = []
+            if index % 25 == 0 or index == len(shelf_ids):
+                print(f"[{job.provider}] listing progress={index}/{len(shelf_ids)} rows={listing_rows_total} unique={len(unique_rows)}")
     finally:
         executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
 
@@ -501,28 +597,35 @@ def run_gpa_catalog_job(
     failed_shelves: set[str] = set()
     executor = ThreadPoolExecutor(max_workers=max(1, max_workers_detail))
     cancelled = False
-    future_to_product = {
-        executor.submit(fetch_best_prices, job, product_id, pause_ms): product_id
-        for product_id in unique_rows.keys()
-    }
+    total_products = len(unique_rows)
     try:
-        for index, future in enumerate(as_completed(future_to_product), start=1):
+        for index, (product_id, future) in enumerate(
+            iter_bounded(
+                executor,
+                lambda pid: fetch_best_prices(job, pid, pause_ms),
+                list(unique_rows.keys()),
+                max_workers_detail * 2,
+            ),
+            start=1,
+        ):
             if cancel_check and cancel_check():
                 cancelled = True
                 break
-            product_id = future_to_product[future]
-            base = unique_rows[product_id]
+            category_path, shelf_id = row_meta[product_id]
+            shelf_key = f"shelf:{shelf_id}"
             try:
                 details = future.result()
             except Exception as exc:
                 detail_errors += 1
-                failed_shelves.add(f"shelf:{base.get('_crawlerShelfId')}")
+                failed_shelves.add(shelf_key)
                 print(f"[{job.provider}] detail error product_id={product_id} error={exc}")
                 continue
             try:
-                record = merge_record(job, base, details, norm_text(base.get("_crawlerCategoryPath")))
+                base = json.loads(unique_rows[product_id])
+                base["_crawlerCategoryPath"] = category_path
+                base["_crawlerShelfId"] = shelf_id
+                record = merge_record(job, base, details, norm_text(category_path))
                 gtin = norm_gtin(record.get("code"))
-                shelf_key = f"shelf:{base.get('_crawlerShelfId')}"
                 if gtin and shelf_key in processed_shelves:
                     gtins = processed_shelves[shelf_key]["metadata"].setdefault("gtins", [])
                     if isinstance(gtins, list) and gtin not in gtins:
@@ -531,8 +634,8 @@ def run_gpa_catalog_job(
             except RunCancelled:
                 cancelled = True
                 break
-            if index % 250 == 0 or index == len(future_to_product):
-                print(f"[{job.provider}] detail progress={index}/{len(future_to_product)} captured={session_import.captured}")
+            if index % 250 == 0 or index == total_products:
+                print(f"[{job.provider}] detail progress={index}/{total_products} captured={session_import.captured}")
     finally:
         executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
 

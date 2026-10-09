@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--worker-name", default="MERCADOFLOW_MARKET_DISPATCHER")
     parser.add_argument("--providers", default="")
     parser.add_argument("--gpa-list-workers", type=int, default=8)
-    parser.add_argument("--gpa-detail-workers", type=int, default=16)
+    parser.add_argument("--gpa-detail-workers", type=int, default=4)
     parser.add_argument("--koch-product-workers", type=int, default=12)
     parser.add_argument("--koch-max-products", type=int, default=0)
     parser.add_argument("--koch-store-id", default="", help="StoreId do Super Koch para pular a descoberta via HTML.")
