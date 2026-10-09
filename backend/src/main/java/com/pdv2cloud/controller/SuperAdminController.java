@@ -64,6 +64,9 @@ public class SuperAdminController {
     private com.pdv2cloud.service.CatalogImageLookupService catalogImageLookupService;
 
     @Autowired
+    private com.pdv2cloud.service.art.ArtImageLibrary artImageLibrary;
+
+    @Autowired
     private SuperAdminService superAdminService;
 
     @Autowired
@@ -354,6 +357,20 @@ public class SuperAdminController {
     ) {
         int marked = catalogImageLookupService.markGenericNotFound(body == null ? null : body.get("productIds"));
         return ResponseEntity.ok(java.util.Map.of("marked", marked));
+    }
+
+    /** Carga do índice do banco de imagens genéricas (generic_library_build.py). */
+    @PostMapping("/catalog/generic-images/import")
+    public ResponseEntity<java.util.Map<String, Object>> importGenericImages(
+        @RequestBody java.util.Map<String, java.util.List<java.util.Map<String, Object>>> body
+    ) {
+        int saved = artImageLibrary.importItems(body == null ? null : body.get("items"));
+        return ResponseEntity.ok(java.util.Map.of("saved", saved));
+    }
+
+    @GetMapping("/catalog/generic-images/summary")
+    public ResponseEntity<java.util.Map<String, Object>> genericImagesSummary() {
+        return ResponseEntity.ok(artImageLibrary.summary());
     }
 
     @PostMapping("/catalog/crawler/runs/claim")

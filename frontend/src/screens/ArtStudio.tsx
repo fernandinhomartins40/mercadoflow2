@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowDown, ArrowLeft, ArrowUp, Check, CheckCircle2, ClipboardList, Copy, Download, ExternalLink, FileText, ImagePlus,
+  ArrowDown, ArrowLeft, ArrowUp, Check, CheckCircle2, ClipboardList, Copy, Download, ExternalLink, FileText, ImagePlus, Images,
   Loader2, Megaphone, Plus, Printer, Search, Send, Sparkles, Star, Trash2, TrendingDown, TrendingUp, Upload, Users, X,
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { artService, apiMessage } from '../services/art.service';
 import type {
-  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, CampaignContent, CampaignItem, FormatKey, Palette, SuggestionGroup,
+  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, CampaignContent, CampaignItem, FormatKey, LibraryImage, Palette, SuggestionGroup,
 } from '../types/art.types';
 import { BUILTIN_THEME, BUILTIN_THEME_ID, FORMATS, FORMAT_KEYS, UNITS, readyFormats, themeFormat } from '../features/art-studio/formats';
 import { buildScene, useScene } from '../features/art-studio/scene';
@@ -126,9 +126,18 @@ const MoneyField: React.FC<{ value: number | null | undefined; onChange: (v: num
 
 // ── Linha de produto ─────────────────────────────────────────────────────
 
+const LIBRARY_GROUPS: Array<{ value: LibraryImage['group'] | ''; label: string }> = [
+  { value: '', label: 'Tudo' },
+  { value: 'hortifruti', label: 'Hortifrúti' },
+  { value: 'carnes', label: 'Carnes e peixes' },
+  { value: 'padaria', label: 'Padaria' },
+  { value: 'frios', label: 'Frios' },
+];
+
 /**
  * Foto do produto na arte: a do catálogo vem sozinha; dá para trocar por uma
- * do catálogo global (outra embalagem, foto melhor) ou por uma foto própria.
+ * do catálogo global (outra embalagem, foto melhor), por uma do banco de
+ * imagens (recortada, sem fundo) ou por uma foto própria.
  */
 const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (patch: Partial<CampaignItem>) => void }> = ({ marketId, item, onChange }) => {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -137,6 +146,10 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
   const [hits, setHits] = useState<ArtProduct[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bankOpen, setBankOpen] = useState(false);
+  const [bankQ, setBankQ] = useState('');
+  const [bankGroup, setBankGroup] = useState<LibraryImage['group'] | ''>('');
+  const [bankHits, setBankHits] = useState<LibraryImage[] | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -147,6 +160,14 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
     }, 300);
     return () => clearTimeout(t);
   }, [q, open, marketId]);
+
+  useEffect(() => {
+    if (!bankOpen) return undefined;
+    const t = setTimeout(() => {
+      artService.searchLibrary(marketId, bankQ.trim(), bankGroup || undefined).then(setBankHits).catch(() => setBankHits([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [bankQ, bankGroup, bankOpen, marketId]);
 
   const upload = async (file: File | undefined) => {
     if (!file) return;
@@ -172,9 +193,14 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
             : <ImagePlus className="h-6 w-6" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />}
         </span>
         <div className="flex flex-col items-start gap-1.5 text-sm font-semibold">
-          <button type="button" onClick={() => { setOpen((v) => !v); if (!q) setQ(item.name.split(' ').slice(0, 3).join(' ')); }}
+          <button type="button" onClick={() => { setOpen((v) => !v); setBankOpen(false); if (!q) setQ(item.name.split(' ').slice(0, 3).join(' ')); }}
             className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }} aria-expanded={open} title="Traz foto, nome, embalagem e o preço da loja">
             <Search className="h-4 w-4" />Buscar no catálogo
+          </button>
+          <button type="button" onClick={() => { setBankOpen((v) => !v); setOpen(false); if (!bankQ) setBankQ(item.name.split(' ').slice(0, 3).join(' ')); }}
+            className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }} aria-expanded={bankOpen}
+            title="Fotos recortadas, sem fundo, de frutas, verduras, carnes, pães e frios">
+            <Images className="h-4 w-4" />Banco de imagens
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} className={`inline-flex items-center gap-1.5 ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
             <Upload className="h-4 w-4" />Enviar foto
@@ -189,6 +215,44 @@ const PhotoPicker: React.FC<{ marketId: string; item: CampaignItem; onChange: (p
           onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {bankOpen && (
+        <div className="flex flex-col gap-2 rounded-xl p-2" style={{ background: 'var(--surface-soft)' }}>
+          <input className={INPUT} style={inputStyle} value={bankQ} onChange={(e) => setBankQ(e.target.value)} placeholder="Ex.: banana, alcatra, pão francês"
+            aria-label="Buscar no banco de imagens" />
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de produto">
+            {LIBRARY_GROUPS.map((g) => (
+              <button key={g.value} type="button" onClick={() => setBankGroup(g.value)} aria-pressed={bankGroup === g.value}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${FOCUS}`}
+                style={bankGroup === g.value
+                  ? { background: 'var(--brand-600)', color: '#fff' }
+                  : { background: '#fff', color: 'var(--text-primary)', border: '1px solid var(--border-soft)' }}>
+                {g.label}
+              </button>
+            ))}
+          </div>
+          {bankHits === null ? null : bankHits.length === 0 ? (
+            <p className="px-1 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma imagem para essa busca. Tente só o nome do produto.</p>
+          ) : (
+            <ul className="grid max-h-80 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4" aria-label="Imagens do banco">
+              {bankHits.map((img) => (
+                <li key={img.id}>
+                  <button type="button" aria-label={`Usar a imagem ${img.name}`} title={img.name}
+                    onClick={() => { onChange({ imageUrl: img.imageUrl }); setBankOpen(false); }}
+                    className={`flex w-full flex-col items-center gap-1 rounded-lg p-1.5 transition hover:ring-2 hover:ring-[var(--brand-600)] ${FOCUS}`}
+                    style={{ background: '#fff' }}>
+                    {/* Quadriculado: mostra que a foto é recortada, sem fundo. */}
+                    <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded"
+                      style={{ backgroundImage: 'conic-gradient(#eef0f2 25%, #fff 0 50%, #eef0f2 0 75%, #fff 0)', backgroundSize: '16px 16px' }}>
+                      <img src={img.imageUrl} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                    </span>
+                    <span className="w-full truncate text-center text-[0.7rem]" style={{ color: 'var(--text-muted)' }}>{img.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {open && (
         <div className="flex flex-col gap-2 rounded-xl p-2" style={{ background: 'var(--surface-soft)' }}>
           <input className={INPUT} style={inputStyle} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome ou código de barras"

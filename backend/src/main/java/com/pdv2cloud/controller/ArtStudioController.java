@@ -36,13 +36,27 @@ public class ArtStudioController {
     private final ArtThemeService themes;
     private final ArtImageProxy imageProxy;
     private final MarketAccessService access;
+    private final com.pdv2cloud.service.art.ArtImageLibrary library;
 
     public ArtStudioController(ArtStudioService studio, ArtThemeService themes, ArtImageProxy imageProxy,
-                               MarketAccessService access) {
+                               MarketAccessService access, com.pdv2cloud.service.art.ArtImageLibrary library) {
         this.studio = studio;
         this.themes = themes;
         this.imageProxy = imageProxy;
         this.access = access;
+        this.library = library;
+    }
+
+    /** Banco de imagens genéricas, recortadas e sem fundo (frutas, verduras, carnes, pães, frios). */
+    @GetMapping("/library")
+    public List<com.pdv2cloud.service.art.ArtImageLibrary.LibraryImage> library(
+        @PathVariable UUID marketId,
+        @RequestParam(required = false, defaultValue = "") String q,
+        @RequestParam(required = false) String group,
+        Authentication auth
+    ) {
+        access.assertCanAccessMarket(marketId, auth);
+        return library.search(q, group, 60);
     }
 
     @GetMapping("/themes")

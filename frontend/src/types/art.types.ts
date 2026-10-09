@@ -73,6 +73,17 @@ export interface ArtBrand {
   marketName: string | null;
 }
 
+/** Foto do banco de imagens genéricas: recortada, sem fundo. */
+export interface LibraryImage {
+  id: string;
+  name: string;
+  group: 'hortifruti' | 'carnes' | 'padaria' | 'frios' | 'outros';
+  category: string | null;
+  imageUrl: string;
+  width: number | null;
+  height: number | null;
+}
+
 export interface ArtProduct {
   productId: string;
   name: string;

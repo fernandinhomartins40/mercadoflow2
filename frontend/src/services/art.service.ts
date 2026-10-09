@@ -1,6 +1,6 @@
 import api from './api';
 import type {
-  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, PlatformAiSettings, PublicCampaign, Regions, SuggestionGroup,
+  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, LibraryImage, PlatformAiSettings, PublicCampaign, Regions, SuggestionGroup,
   ThemeSuggestion,
 } from '../types/art.types';
 
@@ -36,6 +36,9 @@ export const artService = {
   /** Catálogo global da plataforma, por código de barras ou nome. */
   searchCatalog: async (marketId: string, q: string): Promise<ArtProduct[]> =>
     (await api.get(`${market(marketId)}/catalog`, { params: { q }, timeout: 45000 })).data ?? [],
+  /** Banco de imagens genéricas, recortadas e sem fundo. */
+  searchLibrary: async (marketId: string, q: string, group?: string): Promise<LibraryImage[]> =>
+    (await api.get(`${market(marketId)}/library`, { params: { q, group } })).data ?? [],
   uploadItemImage: async (marketId: string, file: File): Promise<string> =>
     (await api.post(`${market(marketId)}/images`, form(file, 'file', file.name), multipart)).data?.url,
   suggestions: async (marketId: string): Promise<SuggestionGroup[]> =>

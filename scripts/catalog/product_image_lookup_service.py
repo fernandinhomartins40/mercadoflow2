@@ -218,7 +218,37 @@ def run_generic_cycle(backend: Backend, stores: List[VtexJobConfig], images: Loc
     print(f"ciclo generico: fila={len(rows)} com_foto={updated} sem_item_na_biblioteca={len(missing)}", flush=True)
 
 
+def sync_image_library(args: argparse.Namespace, backend: Backend) -> None:
+    """Carrega no backend o índice do banco de imagens recortadas quando ele muda.
+
+    As imagens são geradas fora da VPS (generic_library_build.py) e copiadas para
+    <images-dir>/library/ junto com o index.json; aqui só o índice é importado.
+    """
+    index_path = Path(args.images_dir).resolve() / "library" / "index.json"
+    marker = index_path.with_suffix(".imported")
+    if not index_path.is_file():
+        return
+    stamp = f"{index_path.stat().st_mtime_ns}:{index_path.stat().st_size}"
+    if marker.is_file() and marker.read_text(encoding="utf-8").strip() == stamp:
+        return
+    items = [
+        {key: item.get(key) for key in ("storageKey", "name", "group", "category", "store", "width", "height")}
+        for item in json.loads(index_path.read_text(encoding="utf-8"))
+        if (index_path.parent.parent / str(item.get("storageKey"))).is_file()
+    ]
+    saved = 0
+    for start in range(0, len(items), 500):
+        result = backend.call("POST", "/v1/super-admin/catalog/generic-images/import", json={"items": items[start:start + 500]})
+        saved += int((result or {}).get("saved", 0))
+    marker.write_text(stamp, encoding="utf-8")
+    print(f"banco de imagens: {saved} de {len(items)} imagens no indice", flush=True)
+
+
 def run_cycle(args: argparse.Namespace, backend: Backend, stores: List[VtexJobConfig], images: LocalImageStorage) -> int:
+    try:
+        sync_image_library(args, backend)
+    except Exception as exc:
+        print(f"banco de imagens: carga do indice falhou: {exc}", file=sys.stderr, flush=True)
     try:
         run_generic_cycle(backend, stores, images, GENERIC_LIBRARY)
     except Exception as exc:
