@@ -19,6 +19,8 @@ WEBP_QUALITY = 80
 # Esforco maximo do codificador: mesma qualidade, arquivo ~4% menor, ao custo de
 # ~25% mais CPU por foto (medido em 106 fotos reais em 09/10/2026).
 WEBP_METHOD = 6
+# ~16 MP: em RGB sao 48 MB, com folga para a copia redimensionada dentro de 192 MB.
+MAX_DECODE_PIXELS = 16_000_000
 
 
 def norm_text(value: Any) -> str:
@@ -111,6 +113,12 @@ class OptimizedImageStore:
 
     def _normalize_image(self, payload: io.BytesIO) -> Image.Image:
         with Image.open(payload) as source:
+            # Os coletores rodam com 192 MB: uma foto de fabricante de 8000 px aberta
+            # inteira passa disso e o processo morre (09/10/2026). JPEG ja decodifica
+            # reduzido; o resto, se for gigante, e recusado antes de carregar.
+            source.draft("RGB", (MAX_SIDE, MAX_SIDE))
+            if source.size[0] * source.size[1] > MAX_DECODE_PIXELS:
+                raise RuntimeError(f"image too large to decode: {source.size}")
             image = ImageOps.exif_transpose(source)
             if image.mode in {"RGBA", "LA"} or (image.mode == "P" and "transparency" in image.info):
                 background = Image.new("RGBA", image.size, (255, 255, 255, 255))
