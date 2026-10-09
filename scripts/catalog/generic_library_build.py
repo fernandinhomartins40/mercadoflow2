@@ -232,6 +232,7 @@ def main() -> int:
     http.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
     started = time.time()
     done = 0
+    failures = 0
 
     def flush() -> None:
         index_path.write_text(json.dumps(list(index.values()), ensure_ascii=False, indent=1), encoding="utf-8")
@@ -275,8 +276,26 @@ def main() -> int:
                 continue
             cut.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
             cut.save(out_dir / key, format="WEBP", quality=90, method=6, exact=False)
-        except Exception as exc:  # foto fora do ar ou corrompida: segue para a próxima
+        except requests.HTTPError as exc:
+            # 404/410: foto saiu do ar de vez. Outros códigos podem passar: tenta na próxima rodada.
+            if exc.response is not None and exc.response.status_code in (404, 410):
+                rejected[cand["key"]] = f"http {exc.response.status_code}"
+                continue
+            failures += 1
+        except (OSError, requests.RequestException) as exc:
+            # Rede, disco ou ambiente: não é defeito da foto, então não vira recusa permanente.
+            failures += 1
+            print(f"falha temporaria ({type(exc).__name__}: {str(exc)[:120]})", flush=True)
+        except Exception as exc:  # foto corrompida: segue para a próxima
             rejected[cand["key"]] = f"erro {type(exc).__name__}"
+            continue
+        else:
+            failures = 0
+        if failures >= 20:
+            flush()
+            print("20 falhas seguidas: parando para nao varrer a lista inteira com erro", flush=True)
+            return 1
+        if key not in index and not (out_dir / key).is_file():
             continue
         index[key] = {
             "storageKey": key,
