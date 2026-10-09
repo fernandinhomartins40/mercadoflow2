@@ -78,7 +78,7 @@ public class SuperAdminService {
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
     private static final String DEFAULT_USER_AGENT = "MercadoFlowCatalogBot/1.0 (+https://mercadoflow.com/catalog-bot)";
-    private static final List<FixedCrawlerJob> FIXED_CRAWLER_JOBS = List.of(
+    private static final List<FixedCrawlerJob> FIXED_CRAWLER_JOBS = withVtexStores(List.of(
         new FixedCrawlerJob(
             "Pao de Acucar",
             "PAODEACUCAR_WEB_BR",
@@ -195,11 +195,11 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Super Koch",
             "SUPERKOCH_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "Sitemap + GraphQL",
             "extract_and_import_superkoch.py",
-            "Importa o catalogo do Super Koch por sitemap de produtos e consulta GraphQL oficial por item para recuperar GTIN, preco e imagem quando disponivel.",
+            "DESLIGADO: Osuper deixou de expor o GTIN na API publica; sem codigo de barras nada e importado. Importa o catalogo do Super Koch por sitemap de produtos e consulta GraphQL oficial por item para recuperar GTIN, preco e imagem quando disponivel.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
@@ -248,11 +248,11 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Delivery Fort",
             "DELIVERYFORT_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "VTEX category tree + detail",
             "extract_and_import_deliveryfort.py",
-            "Importa o catalogo completo do Delivery Fort pela arvore oficial da VTEX legacy, com complemento por sitemap para recuperar itens residuais e detalhamento por slug.",
+            "DESLIGADO: Site migrou da VTEX para a Osuper, que nao expoe o GTIN. Importa o catalogo completo do Delivery Fort pela arvore oficial da VTEX legacy, com complemento por sitemap para recuperar itens residuais e detalhamento por slug.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
@@ -318,11 +318,11 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Supermercado Guanabara",
             "GUANABARA_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "Sitemap + HTML detail",
             "extract_and_import_guanabara.py",
-            "Importa o catalogo do Guanabara pela leitura de sitemap e detalhamento HTML/JSON-LD das paginas, mantendo compatibilidade com a plataforma online atual.",
+            "DESLIGADO: Osuper deixou de expor o GTIN na API publica; sem codigo de barras nada e importado. Importa o catalogo do Guanabara pela leitura de sitemap e detalhamento HTML/JSON-LD das paginas, mantendo compatibilidade com a plataforma online atual.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
@@ -369,11 +369,11 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Condor",
             "CONDOR_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "Sitemap + GraphQL",
             "extract_and_import_condor.py",
-            "Importa o catalogo completo do Condor por sitemap de produtos e detalhamento GraphQL oficial por item para recuperar GTIN, preco e imagem.",
+            "DESLIGADO: Osuper deixou de expor o GTIN na API publica; sem codigo de barras nada e importado. Importa o catalogo completo do Condor por sitemap de produtos e detalhamento GraphQL oficial por item para recuperar GTIN, preco e imagem.",
             "Public website/API data (respect provider terms and robots)",
             false,
             true,
@@ -403,11 +403,11 @@ public class SuperAdminService {
         new FixedCrawlerJob(
             "Extrafarma",
             "EXTRAFARMA_WEB_BR",
-            true,
+            false,
             "Catalogo completo",
             "VTEX category tree + detail",
             "extract_and_import_extrafarma.py",
-            "Importa o catalogo completo da Extrafarma pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
+            "DESLIGADO: Mesmo catalogo da Pague Menos (mesma conta VTEX); coletar os dois so duplicava. Importa o catalogo completo da Extrafarma pela arvore oficial da VTEX, com complemento por sitemap e detalhamento por slug para recuperar GTIN, preco e imagem.",
             "Public website/API data (respect provider terms and robots)",
             true,
             true,
@@ -451,7 +451,29 @@ public class SuperAdminService {
             ),
             List.of("www.drogaraia.com.br", "drogaraia.com.br")
         )
-    );
+    ));
+
+    private static List<FixedCrawlerJob> withVtexStores(List<FixedCrawlerJob> handWritten) {
+        List<FixedCrawlerJob> jobs = new ArrayList<>(handWritten);
+        for (CatalogCrawlerVtexStores.Store store : CatalogCrawlerVtexStores.STORES) {
+            jobs.add(new FixedCrawlerJob(
+                store.name(),
+                store.provider(),
+                true,
+                "Catalogo completo",
+                "VTEX category tree + detail",
+                "vtex_sources.json",
+                "Importa o catalogo completo de " + store.name()
+                    + " pela arvore oficial de categorias VTEX, com complemento por sitemap para recuperar GTIN e imagem.",
+                "Public website/API data (respect provider terms and robots)",
+                store.pharmacy(),
+                true,
+                List.of(store.categoryTreeUrl(), store.sitemapUrl()),
+                List.of(store.siteHost(), store.account() + ".vtexcommercestable.com.br")
+            ));
+        }
+        return List.copyOf(jobs);
+    }
 
     @Autowired
     private UserRepository userRepository;
@@ -923,10 +945,12 @@ public class SuperAdminService {
 
     public SuperAdminCrawlerRunDTO claimPendingCrawlerRun(SuperAdminCrawlerRunClaimRequestDTO request) {
         String workerName = request != null ? request.getWorkerName() : null;
+        failAbandonedCrawlerRuns();
         while (true) {
             CatalogCrawlerRun run = crawlerRunRepository.findFirstByStatusOrderByRequestedAtAsc("QUEUED").orElse(null);
             if (run == null) {
-                return null;
+                CatalogCrawlerRun scheduled = startNextAutomaticCrawlerRun();
+                return scheduled == null ? null : toCrawlerRunDTO(scheduled);
             }
             List<String> providers = parseJsonArray(run.getSourcesJson());
             if (providers.size() != 1) {
@@ -946,6 +970,81 @@ public class SuperAdminService {
             }
             return toCrawlerRunDTO(crawlerRunRepository.save(run));
         }
+    }
+
+    /**
+     * So existe um dispatcher e ele so pede trabalho quando esta ocioso. Entao um
+     * run ainda RUNNING na hora do claim ficou orfao (container reiniciado no meio
+     * da coleta) e, sem isto, bloqueava todo disparo novo para sempre.
+     */
+    private void failAbandonedCrawlerRuns() {
+        List<CatalogCrawlerRun> abandoned = crawlerRunRepository.findByStatus("RUNNING");
+        if (abandoned.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (CatalogCrawlerRun run : abandoned) {
+            run.setStatus("FAILED");
+            run.setFinishedAt(now);
+            run.setMessage(cleanMessage(
+                "Execucao abandonada: o coletor reiniciou antes de concluir. As paginas ja lidas ficam nos checkpoints."
+                    + (run.getMessage() == null || run.getMessage().isBlank() ? "" : " | " + run.getMessage())
+            ));
+        }
+        crawlerRunRepository.saveAll(abandoned);
+    }
+
+    /**
+     * Coleta automatica: com a fila vazia e passada a pausa configurada desde o
+     * fim da ultima execucao, inicia a fonte habilitada ha mais tempo sem rodar
+     * (as que nunca rodaram primeiro). Uma fonte por vez, como no disparo manual.
+     */
+    private CatalogCrawlerRun startNextAutomaticCrawlerRun() {
+        CatalogCrawlerConfig config = ensureCrawlerConfig();
+        if (!Boolean.TRUE.equals(config.getIsEnabled())) {
+            return null;
+        }
+        int pauseMinutes = Math.max(5, config.getIntervalMinutes() != null ? config.getIntervalMinutes() : 360);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastFinishedAt = crawlerRunRepository.findTopByFinishedAtIsNotNullOrderByFinishedAtDesc()
+            .map(CatalogCrawlerRun::getFinishedAt)
+            .orElse(null);
+        if (lastFinishedAt != null && lastFinishedAt.isAfter(now.minusMinutes(pauseMinutes))) {
+            return null;
+        }
+
+        FixedCrawlerJob next = null;
+        LocalDateTime nextLastRunAt = null;
+        for (FixedCrawlerJob job : FIXED_CRAWLER_JOBS) {
+            if (!job.enabled()) {
+                continue;
+            }
+            LocalDateTime lastRunAt = crawlerRunRepository
+                .findTopBySourcesJsonContainingOrderByRequestedAtDesc("\"" + job.provider() + "\"")
+                .map(CatalogCrawlerRun::getRequestedAt)
+                .orElse(null);
+            if (lastRunAt == null) {
+                next = job;
+                break;
+            }
+            if (next == null || lastRunAt.isBefore(nextLastRunAt)) {
+                next = job;
+                nextLastRunAt = lastRunAt;
+            }
+        }
+        if (next == null) {
+            return null;
+        }
+
+        CatalogCrawlerRun run = new CatalogCrawlerRun();
+        run.setRequestedAt(now);
+        run.setStartedAt(now);
+        run.setStatus("RUNNING");
+        run.setTriggeredBy("AUTO_SCHEDULER");
+        run.setMessage("Execucao automatica iniciada pelo dispatcher.");
+        run.setSourcesJson(toJsonArray(List.of(next.provider())));
+        run.setFiltersJson(toFiltersJson(Collections.emptyList()));
+        return crawlerRunRepository.save(run);
     }
 
     public SuperAdminCrawlerRunDTO startCrawlerRun(SuperAdminCrawlerRunStartRequestDTO request) {

@@ -86,7 +86,7 @@ public class CatalogCrawlerCategoryService {
                 Set.of()
             );
             case "ANGELONI_WEB_BR" -> fetchVtexCategories(
-                "https://eletroangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
+                "https://superangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
                 Set.of()
             );
             case "BISTEK_WEB_BR" -> fetchVtexCategories(
@@ -119,7 +119,9 @@ public class CatalogCrawlerCategoryService {
             );
             case "DROGARAIA_WEB_BR" -> fetchDrogariaRaiaCategories("https://www.drogaraia.com.br/");
             case "SUPERKOCH_WEB_BR" -> fetchKochCategories("https://www.superkoch.com.br/categorias/");
-            default -> List.of();
+            default -> CatalogCrawlerVtexStores.find(provider)
+                .map(store -> fetchVtexCategories(store.categoryTreeUrl(), Set.of()))
+                .orElseGet(List::of);
         };
     }
 

@@ -116,6 +116,9 @@ const SuperAdminCrawlerConfig: React.FC = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [autoEnabled, setAutoEnabled] = useState(true);
+  const [autoPauseMinutes, setAutoPauseMinutes] = useState('360');
+  const [savingAuto, setSavingAuto] = useState(false);
 
   const latestRun = monitor.latestRun || null;
   const totalImportedRecent = useMemo(
@@ -146,10 +149,35 @@ const SuperAdminCrawlerConfig: React.FC = () => {
     setMonitor(response.data);
   };
 
+  const loadAutoConfig = async () => {
+    const response = await api.get('/v1/super-admin/catalog/crawler/config');
+    setAutoEnabled(response.data?.enabled !== false);
+    setAutoPauseMinutes(String(response.data?.intervalMinutes ?? 360));
+  };
+
+  const saveAutoConfig = async () => {
+    setSavingAuto(true);
+    setError(null);
+    try {
+      const minutes = Math.max(5, Math.round(Number(autoPauseMinutes) || 360));
+      await api.put('/v1/super-admin/catalog/crawler/config', { enabled: autoEnabled, intervalMinutes: minutes });
+      setAutoPauseMinutes(String(minutes));
+      setSuccess(
+        autoEnabled
+          ? `Coleta automática ligada, com pausa de ${minutes} minutos entre uma fonte e a próxima.`
+          : 'Coleta automática desligada. As fontes só rodam quando disparadas aqui.'
+      );
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao salvar a coleta automática');
+    } finally {
+      setSavingAuto(false);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadJobs(), loadMonitor()]);
+      await Promise.all([loadJobs(), loadMonitor(), loadAutoConfig()]);
       setError(null);
     } catch (err: any) {
       setError(err?.message || 'Falha ao carregar o painel do crawler');
@@ -286,7 +314,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
       <div className="page super-admin-page super-admin-crawler-page">
         <PageHeader
           title={<mark>Crawler</mark>}
-          subtitle="Coleta manual por mercado."
+          subtitle="Coleta automática, uma fonte por vez, ou disparo manual por fonte."
           actions={latestRun?.id ?<ButtonLink variant="secondary" to={`/super-admin/crawler/runs/${latestRun.id}`}>Ver último run</ButtonLink> : null}
         />
 
@@ -294,7 +322,7 @@ const SuperAdminCrawlerConfig: React.FC = () => {
         {success ? <p style={{ color: 'var(--success)' }}>{success}</p> : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <MetricsCard title="Mercados" value={jobs.length} icon="MK" />
+          <MetricsCard title="Fontes" value={jobs.length} icon="MK" />
           <MetricsCard title="Em execução" value={activeJobs || monitor.runningRuns || 0} icon="RUN" />
           <MetricsCard title="Importados recentes" value={totalImportedRecent} icon="IMP" />
         </div>
@@ -303,6 +331,32 @@ const SuperAdminCrawlerConfig: React.FC = () => {
           <PanelSection reveal={false}>Carregando painel...</PanelSection>
         ) : (
           <>
+            <PanelSection kicker="Agenda" title="Coleta automática">
+              <p className="text-sm text-slate-600">
+                Com a fila vazia, o coletor inicia sozinho a fonte que está há mais tempo sem rodar, respeitando a pausa abaixo desde o fim da última execução.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <label className="flex h-10 items-center gap-2 text-sm font-medium text-slate-900">
+                  <input type="checkbox" checked={autoEnabled} onChange={(event) => setAutoEnabled(event.target.checked)} />
+                  Ligada
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+                  Pausa entre fontes (minutos)
+                  <input
+                    className="h-10 w-40 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/20"
+                    type="number"
+                    min={5}
+                    inputMode="numeric"
+                    value={autoPauseMinutes}
+                    onChange={(event) => setAutoPauseMinutes(event.target.value)}
+                  />
+                </label>
+                <Button onClick={saveAutoConfig} disabled={savingAuto}>
+                  {savingAuto ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </PanelSection>
+
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {jobs.map((job) => (
                 <article key={job.provider} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">

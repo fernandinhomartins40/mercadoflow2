@@ -2,6 +2,7 @@ package com.pdv2cloud.repository;
 
 import com.pdv2cloud.model.entity.CatalogCrawlerRun;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,8 @@ public interface CatalogCrawlerRunRepository extends JpaRepository<CatalogCrawle
     Optional<CatalogCrawlerRun> findTopByOrderByRequestedAtDesc();
     Optional<CatalogCrawlerRun> findFirstByStatusOrderByRequestedAtAsc(String status);
     Optional<CatalogCrawlerRun> findTopBySourcesJsonContainingOrderByRequestedAtDesc(String sourcesJson);
+    List<CatalogCrawlerRun> findByStatus(String status);
+    Optional<CatalogCrawlerRun> findTopByFinishedAtIsNotNullOrderByFinishedAtDesc();
     long countByStatus(String status);
     long countByStatusAndSourcesJsonContaining(String status, String sourcesJson);
     long countByStatusIn(Collection<String> statuses);

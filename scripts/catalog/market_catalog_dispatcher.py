@@ -21,9 +21,11 @@ from fixed_market_catalog_vipcommerce import (
     SupermercadosOnlineJobConfig,
     run_supermercados_online_catalog_job,
 )
-from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job, run_vtex_sitemap_job
+from fixed_market_catalog_vtex import VtexJobConfig, run_vtex_category_tree_job
 from fixed_market_catalog_koch import KochJobConfig, run_koch_catalog_job
 from fixed_market_catalog_nissei import NisseiJobConfig, run_nissei_catalog_job
+
+VTEX_SOURCES_PATH = Path(__file__).resolve().parent / "vtex_sources.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,23 +53,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-image-bytes", type=int, default=3_000_000)
     parser.add_argument("--worker-name", default="MERCADOFLOW_MARKET_DISPATCHER")
     parser.add_argument("--providers", default="")
-    parser.add_argument("--carrefour-page-size", type=int, default=50)
-    parser.add_argument("--carrefour-max-pages", type=int, default=0)
     parser.add_argument("--gpa-list-workers", type=int, default=8)
     parser.add_argument("--gpa-detail-workers", type=int, default=16)
-    parser.add_argument("--dsp-page-size", type=int, default=50)
-    parser.add_argument("--dsp-max-pages", type=int, default=0)
-    parser.add_argument("--dsp-product-workers", type=int, default=12)
-    parser.add_argument("--atacadao-page-size", type=int, default=50)
-    parser.add_argument("--atacadao-max-pages", type=int, default=0)
-    parser.add_argument("--atacadao-product-workers", type=int, default=12)
-    parser.add_argument("--muffato-page-size", type=int, default=50)
-    parser.add_argument("--muffato-max-pages", type=int, default=0)
-    parser.add_argument("--muffato-product-workers", type=int, default=12)
-    parser.add_argument("--amigao-page-size", type=int, default=50)
-    parser.add_argument("--amigao-max-pages", type=int, default=0)
-    parser.add_argument("--amigao-product-workers", type=int, default=12)
-    parser.add_argument("--carrefour-product-workers", type=int, default=12)
     parser.add_argument("--koch-product-workers", type=int, default=12)
     parser.add_argument("--koch-max-products", type=int, default=0)
     parser.add_argument("--koch-store-id", default="", help="StoreId do Super Koch para pular a descoberta via HTML.")
@@ -175,6 +162,12 @@ def claim_remote_run(api_base: str, endpoint: str, token: str, worker_name: str)
             timeout=60,
             accept_no_content=True,
         )
+    except requests.HTTPError as exc:
+        # Token vencido: sem renovar, o dispatcher ficava parado para sempre.
+        if exc.response is not None and exc.response.status_code in {401, 403}:
+            raise
+        print(f"claim run failed: {exc}", file=sys.stderr)
+        return None
     except Exception as exc:
         print(f"claim run failed: {exc}", file=sys.stderr)
         return None
@@ -308,27 +301,6 @@ def run_extra(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
 
-def run_carrefour(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Carrefour Brasil",
-        provider="CARREFOUR_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/carrefour_web_br_catalog",
-        site_base="https://mercado.carrefour.com.br",
-        catalog_api_base="https://carrefourbrfood.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://carrefourbrfood.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        selected_categories=selected_categories_for_provider(args, "CARREFOUR_WEB_BR"),
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=max(10, min(50, args.carrefour_page_size)),
-        max_pages_per_leaf=max(0, args.carrefour_max_pages),
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
 def run_drogaraia(args: argparse.Namespace) -> Dict[str, Any]:
     job = DrogariaRaiaJobConfig(
         name="Drogaria Raia",
@@ -343,106 +315,6 @@ def run_drogaraia(args: argparse.Namespace) -> Dict[str, Any]:
         job,
         build_options(args, job.provider, job.source_license, job.output),
         max_pages_per_category=max(0, args.drogaraia_max_pages),
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_drogariasp(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Drogaria Sao Paulo",
-        provider="DROGARIASP_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/drogariasp_web_br_catalog",
-        site_base="https://www.drogariasaopaulo.com.br",
-        # Dominio publico responde 503 no CDN para chamadas de API.
-        catalog_api_base="https://drogariasaopaulo.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://drogariasaopaulo.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        selected_categories=selected_categories_for_provider(args, "DROGARIASP_WEB_BR"),
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=max(10, min(50, args.dsp_page_size)),
-        max_pages_per_leaf=max(0, args.dsp_max_pages),
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_atacadao(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Atacadao Online",
-        provider="ATACADAO_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/atacadao_web_br_catalog",
-        site_base="https://www.atacadao.com.br",
-        catalog_api_base="https://www.atacadao.com.br",
-        mode="category-tree",
-        category_tree_url="https://www.atacadao.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.atacadao.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "ATACADAO_WEB_BR"),
-        catalog_retry_attempts=6,
-        catalog_min_interval_seconds=0.2,
-        brand_resolve_workers=3,
-        non_fatal_page_errors=1,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=max(10, min(50, args.atacadao_page_size)),
-        max_pages_per_leaf=max(0, args.atacadao_max_pages),
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_supermuffato(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Super Muffato",
-        provider="SUPERMUFFATO_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/supermuffato_web_br_catalog",
-        site_base="https://www.supermuffato.com.br",
-        # O dominio publico responde 503 no CDN para chamadas de API; o host
-        # vtexcommercestable da mesma conta serve o catalogo normalmente.
-        catalog_api_base="https://supermuffato.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://supermuffato.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.supermuffato.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "SUPERMUFFATO_WEB_BR"),
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=max(10, min(50, args.muffato_page_size)),
-        max_pages_per_leaf=max(0, args.muffato_max_pages),
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_amigao(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Amigao",
-        provider="AMIGAO_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/amigao_web_br_catalog",
-        site_base="https://novo.amigao.com",
-        catalog_api_base="https://amigao.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://amigao.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        selected_categories=selected_categories_for_provider(args, "AMIGAO_WEB_BR"),
-        catalog_retry_attempts=7,
-        catalog_min_interval_seconds=0.15,
-        brand_resolve_workers=4,
-        non_fatal_page_errors=1,
-        non_fatal_min_imported_products=2000,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=max(10, min(50, args.amigao_page_size)),
-        max_pages_per_leaf=max(0, args.amigao_max_pages),
-        residual_product_workers=4,
         cancel_check=getattr(args, "_cancel_check", None),
     )
 
@@ -499,162 +371,6 @@ def run_superkoch(args: argparse.Namespace) -> Dict[str, Any]:
         }
 
 
-def run_angeloni(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Angeloni",
-        provider="ANGELONI_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/angeloni_web_br_catalog",
-        # Antes apontava para a loja de eletro (eletroangeloni), que nao contem o
-        # catalogo de supermercado. A conta "superangeloni" e a do supermercado.
-        site_base="https://www.angeloni.com.br/supermercado",
-        catalog_api_base="https://superangeloni.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://superangeloni.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        selected_categories=selected_categories_for_provider(args, "ANGELONI_WEB_BR"),
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_bistek(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Bistek",
-        provider="BISTEK_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/bistek_web_br_catalog",
-        site_base="https://www.bistek.com.br",
-        # Dominio publico responde 503 no CDN para chamadas de API.
-        catalog_api_base="https://bistek.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://bistek.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.bistek.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "BISTEK_WEB_BR"),
-        non_fatal_page_errors=1,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_deliveryfort(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Delivery Fort",
-        provider="DELIVERYFORT_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/deliveryfort_web_br_catalog",
-        site_base="https://www.deliveryfort.com.br",
-        catalog_api_base="https://www.deliveryfort.com.br",
-        mode="category-tree",
-        category_tree_url="https://www.deliveryfort.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.deliveryfort.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "DELIVERYFORT_WEB_BR"),
-        catalog_retry_attempts=6,
-        catalog_min_interval_seconds=0.2,
-        brand_resolve_workers=3,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_festval(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Festval",
-        provider="FESTVAL_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/festval_web_br_catalog",
-        site_base="https://www.festval.com",
-        # Dominio publico responde 503 no CDN; a conta VTEX do Festval e "meufestval".
-        catalog_api_base="https://meufestval.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://meufestval.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.festval.com/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "FESTVAL_WEB_BR"),
-        catalog_retry_attempts=6,
-        catalog_min_interval_seconds=0.2,
-        brand_resolve_workers=3,
-        non_fatal_page_errors=1,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_giassi(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Giassi",
-        provider="GIASSI_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/giassi_web_br_catalog",
-        site_base="https://www.giassi.com.br",
-        # Dominio publico responde 503 no CDN para chamadas de API.
-        catalog_api_base="https://giassi.vtexcommercestable.com.br",
-        mode="category-tree",
-        category_tree_url="https://giassi.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.giassi.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "GIASSI_WEB_BR"),
-        catalog_retry_attempts=6,
-        catalog_min_interval_seconds=0.2,
-        brand_resolve_workers=3,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_supernosso(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Super Nosso",
-        provider="SUPERNOSSO_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/supernosso_web_br_catalog",
-        site_base="https://www.supernosso.com",
-        catalog_api_base="https://www.supernosso.com",
-        mode="category-tree",
-        category_tree_url="https://www.supernosso.com/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.supernosso.com/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "SUPERNOSSO_WEB_BR"),
-        catalog_retry_attempts=6,
-        catalog_min_interval_seconds=0.2,
-        brand_resolve_workers=3,
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        residual_product_workers=4,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
 def run_guanabara(args: argparse.Namespace) -> Dict[str, Any]:
     job = GuanabaraJobConfig(
         name="Supermercado Guanabara",
@@ -703,50 +419,6 @@ def run_nordestao(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
 
-def run_extrafarma(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Extrafarma",
-        provider="EXTRAFARMA_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/extrafarma_web_br_catalog",
-        site_base="https://www.extrafarma.com.br",
-        catalog_api_base="https://www.extrafarma.com.br",
-        mode="category-tree",
-        category_tree_url="https://www.extrafarma.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.extrafarma.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "EXTRAFARMA_WEB_BR"),
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
-def run_paguemenos(args: argparse.Namespace) -> Dict[str, Any]:
-    job = VtexJobConfig(
-        name="Pague Menos",
-        provider="PAGUEMENOS_WEB_BR",
-        source_license="Public website/API data (respect provider terms and robots)",
-        output="data/catalog/paguemenos_web_br_catalog",
-        site_base="https://www.paguemenos.com.br",
-        catalog_api_base="https://www.paguemenos.com.br",
-        mode="category-tree",
-        category_tree_url="https://www.paguemenos.com.br/api/catalog_system/pub/category/tree/20",
-        sitemap_index_url="https://www.paguemenos.com.br/sitemap.xml",
-        selected_categories=selected_categories_for_provider(args, "PAGUEMENOS_WEB_BR"),
-    )
-    return run_vtex_category_tree_job(
-        job,
-        build_options(args, job.provider, job.source_license, job.output),
-        page_size=50,
-        max_pages_per_leaf=0,
-        cancel_check=getattr(args, "_cancel_check", None),
-    )
-
-
 def run_condor(args: argparse.Namespace) -> Dict[str, Any]:
     job = CondorJobConfig(
         name="Condor",
@@ -787,32 +459,73 @@ def run_farmacias_nissei(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
 
+def load_vtex_stores() -> List[Dict[str, Any]]:
+    payload = json.loads(VTEX_SOURCES_PATH.read_text(encoding="utf-8"))
+    defaults = payload.get("defaults") or {}
+    return [{**defaults, **store} for store in payload.get("stores") or [] if norm_text(store.get("provider"))]
+
+
+def make_vtex_runner(store: Dict[str, Any]) -> Callable[[argparse.Namespace], Dict[str, Any]]:
+    provider = norm_text(store["provider"]).upper()
+    stable_base = f"https://{store['account']}.vtexcommercestable.com.br" if store.get("account") else ""
+    # Varios dominios publicos devolvem 503 no CDN para chamadas de API; o host
+    # vtexcommercestable da mesma conta serve catalogo e sitemap normalmente.
+    api_base = norm_text(store.get("apiBase")) or stable_base
+    sitemap_url = norm_text(store.get("sitemap")) or (f"{stable_base}/sitemap.xml" if stable_base else "")
+
+    def runner(args: argparse.Namespace) -> Dict[str, Any]:
+        job = VtexJobConfig(
+            name=norm_text(store.get("name")) or provider,
+            provider=provider,
+            source_license="Public website/API data (respect provider terms and robots)",
+            output=f"data/catalog/{provider.lower()}_catalog",
+            site_base=norm_text(store["site"]),
+            catalog_api_base=api_base,
+            mode="category-tree",
+            category_tree_url=f"{api_base}/api/catalog_system/pub/category/tree/20",
+            sitemap_index_url=sitemap_url,
+            selected_categories=selected_categories_for_provider(args, provider),
+            catalog_retry_attempts=int(store.get("retryAttempts") or 6),
+            catalog_min_interval_seconds=float(store.get("minIntervalSeconds") or 0.0),
+            brand_resolve_workers=int(store.get("brandResolveWorkers") or 3),
+            non_fatal_page_errors=int(store.get("nonFatalPageErrors") or 0),
+            non_fatal_min_imported_products=int(store.get("nonFatalMinImportedProducts") or 0),
+        )
+        return run_vtex_category_tree_job(
+            job,
+            build_options(args, job.provider, job.source_license, job.output),
+            page_size=50,
+            max_pages_per_leaf=0,
+            residual_product_workers=int(store.get("residualProductWorkers") or 4),
+            cancel_check=getattr(args, "_cancel_check", None),
+        )
+
+    return runner
+
+
+VTEX_STORES = load_vtex_stores()
+
 RUNNERS: Dict[str, Callable[[argparse.Namespace], Dict[str, Any]]] = {
     "PAODEACUCAR_WEB_BR": run_paodeacucar,
     "EXTRA_WEB_BR": run_extra,
-    "CARREFOUR_WEB_BR": run_carrefour,
-    "DROGARIASP_WEB_BR": run_drogariasp,
-    "ATACADAO_WEB_BR": run_atacadao,
-    "SUPERMUFFATO_WEB_BR": run_supermuffato,
-    "AMIGAO_WEB_BR": run_amigao,
     "SUPERKOCH_WEB_BR": run_superkoch,
-    "ANGELONI_WEB_BR": run_angeloni,
-    "BISTEK_WEB_BR": run_bistek,
-    "DELIVERYFORT_WEB_BR": run_deliveryfort,
-    "FESTVAL_WEB_BR": run_festval,
-    "GIASSI_WEB_BR": run_giassi,
-    "SUPERNOSSO_WEB_BR": run_supernosso,
     "GUANABARA_WEB_BR": run_guanabara,
     "REDETOPONLINE_WEB_BR": run_redetop,
     "NORDESTAO_WEB_BR": run_nordestao,
     "CONDOR_WEB_BR": run_condor,
-    "EXTRAFARMA_WEB_BR": run_extrafarma,
-    "PAGUEMENOS_WEB_BR": run_paguemenos,
     "FARMACIASNISSEI_WEB_BR": run_farmacias_nissei,
     "DROGARAIA_WEB_BR": run_drogaraia,
+    **{norm_text(store["provider"]).upper(): make_vtex_runner(store) for store in VTEX_STORES},
 }
 
-DISABLED_PROVIDERS: set[str] = set()
+# Condor, Koch e Guanabara usam a plataforma Osuper, cuja API publica deixou de
+# devolver o gtin: sem codigo de barras o backend descarta todos os registros.
+DISABLED_PROVIDERS: set[str] = {
+    "CONDOR_WEB_BR",
+    "SUPERKOCH_WEB_BR",
+    "GUANABARA_WEB_BR",
+    *(norm_text(store["provider"]).upper() for store in VTEX_STORES if store.get("disabled")),
+}
 
 
 def enabled_providers() -> List[str]:
@@ -983,7 +696,7 @@ def main() -> int:
 
     token = login_with_retry(args.api_base, args.login_endpoint, args.email, args.password)
     poll_seconds = max(5, int(args.manual_poll_seconds))
-    print(f"watch mode enabled manual_only=true providers={','.join(enabled_providers())} poll={poll_seconds}s")
+    print(f"watch mode enabled providers={','.join(enabled_providers())} poll={poll_seconds}s")
 
     while True:
         try:
@@ -1013,7 +726,7 @@ def main() -> int:
                 invalid_sources = [norm_text(value) for value in claimed_sources if norm_text(value)]
                 result = {
                     "status": "FAILED",
-                    "message": "O dispatcher manual aceita exatamente um supermercado por execucao.",
+                    "message": "O dispatcher aceita exatamente uma fonte por execucao.",
                     "summary": [
                         {
                             "provider": provider,
@@ -1031,7 +744,7 @@ def main() -> int:
             try:
                 with capture_run_output(run_log_path):
                     print(
-                        f"manual run claimed id={run_id} providers={providers} "
+                        f"run claimed id={run_id} providers={providers} "
                         f"selected_categories={selected_categories_map.get(providers[0], []) if providers else []}"
                     )
                     result = run_providers(
@@ -1062,6 +775,11 @@ def main() -> int:
         except KeyboardInterrupt:
             print("stopped by user")
             return 0
+        except requests.HTTPError as exc:
+            print(f"dispatcher cycle failed: {exc}", file=sys.stderr)
+            if exc.response is not None and exc.response.status_code in {401, 403}:
+                token = login_with_retry(args.api_base, args.login_endpoint, args.email, args.password)
+            time.sleep(poll_seconds)
         except Exception as exc:
             print(f"dispatcher cycle failed: {exc}", file=sys.stderr)
             time.sleep(poll_seconds)

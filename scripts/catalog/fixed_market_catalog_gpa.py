@@ -19,6 +19,7 @@ from fixed_market_catalog_common import (
     norm_text,
     normalize_key,
     plain_text,
+    request_with_retry,
     stable_hash,
 )
 
@@ -94,19 +95,28 @@ def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, L
     page = 1
     seen_signatures: set[str] = set()
     while True:
-        response = session.get(
-            f"https://api.vendas.gpa.digital/{job.brand}/v2/products/ecom/seeMore",
-            params={
-                "storeId": job.store_id,
-                "isClienteMais": "true",
-                "shelfId": shelf_id,
-                "page": page,
-                "size": 50,
-            },
-            timeout=40,
-        )
-        if response.status_code != 200:
-            break
+        # Antes qualquer resposta != 200 encerrava a prateleira em silencio e o
+        # restante dela nunca era lido. Agora 429/5xx sao repetidos e a falha
+        # persistente sobe como erro da prateleira.
+        try:
+            response = request_with_retry(
+                session,
+                "GET",
+                f"https://api.vendas.gpa.digital/{job.brand}/v2/products/ecom/seeMore",
+                params={
+                    "storeId": job.store_id,
+                    "isClienteMais": "true",
+                    "shelfId": shelf_id,
+                    "page": page,
+                    "size": 50,
+                },
+                attempts=5,
+                timeout=40,
+            )
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code == 404:
+                break
+            raise
         payload = response.json()
         items = payload.get("content") or []
         if not items:
@@ -134,15 +144,23 @@ def crawl_shelf(job: GpaJobConfig, shelf_id: int, pause_ms: int) -> Tuple[int, L
 
 def fetch_best_prices(job: GpaJobConfig, product_id: str, pause_ms: int) -> Dict[str, Any]:
     session = thread_session()
-    response = session.get(
-        f"https://api.vendas.gpa.digital/{job.brand}/v4/products/ecom/{product_id}/bestPrices",
-        params={"storeId": job.store_id, "sellType": "normal", "isClienteMais": "true"},
-        timeout=40,
-    )
+    # O EAN so vem neste detalhe. Devolver {} em qualquer falha fazia o produto
+    # seguir sem codigo e ser descartado pelo backend como GTIN invalido.
+    try:
+        response = request_with_retry(
+            session,
+            "GET",
+            f"https://api.vendas.gpa.digital/{job.brand}/v4/products/ecom/{product_id}/bestPrices",
+            params={"storeId": job.store_id, "sellType": "normal", "isClienteMais": "true"},
+            attempts=5,
+            timeout=40,
+        )
+    except requests.HTTPError as exc:
+        if exc.response is not None and exc.response.status_code == 404:
+            return {}
+        raise
     if pause_ms > 0:
         time.sleep(pause_ms / 1000.0)
-    if response.status_code != 200:
-        return {}
     payload = response.json()
     return payload if isinstance(payload, dict) else {}
 
@@ -480,6 +498,7 @@ def run_gpa_catalog_job(
         return cancelled_result(f"{job.name}: execucao cancelada durante a varredura de categorias.")
 
     detail_errors = 0
+    failed_shelves: set[str] = set()
     executor = ThreadPoolExecutor(max_workers=max(1, max_workers_detail))
     cancelled = False
     future_to_product = {
@@ -497,6 +516,7 @@ def run_gpa_catalog_job(
                 details = future.result()
             except Exception as exc:
                 detail_errors += 1
+                failed_shelves.add(f"shelf:{base.get('_crawlerShelfId')}")
                 print(f"[{job.provider}] detail error product_id={product_id} error={exc}")
                 continue
             try:
@@ -532,7 +552,9 @@ def run_gpa_catalog_job(
         }
     )
     total_errors = listing_errors + detail_errors + int(totals.get("errors", 0))
-    if total_errors == 0 and processed_shelves:
+    # Um detalhe com erro so impede o checkpoint da prateleira dele; antes um
+    # unico erro descartava o checkpoint de todas e a rodada seguinte relia tudo.
+    if int(totals.get("errors", 0)) == 0 and processed_shelves:
         checkpoint_store.save_many(
             [
                 {
@@ -544,6 +566,7 @@ def run_gpa_catalog_job(
                     "metadata": payload.get("metadata", {}),
                 }
                 for scope_key, payload in processed_shelves.items()
+                if scope_key not in failed_shelves
             ]
         )
     return {
