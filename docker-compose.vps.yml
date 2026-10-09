@@ -238,8 +238,10 @@ services:
     volumes:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog
-    mem_limit: 192m
-    memswap_limit: 192m
+    # 384 MB: foto PNG grande (ate 8 MP) chega a ~77 MB ao reduzir, somados aos
+    # ~110 MB da coleta do GPA; com 192 MB o coletor caia (09/10/2026).
+    mem_limit: 384m
+    memswap_limit: 384m
     # Coletor em lote, sem usuario esperando: meia vCPU e peso baixo impedem
     # que um ciclo de coleta dispute CPU com requisicoes interativas.
     cpus: 0.5

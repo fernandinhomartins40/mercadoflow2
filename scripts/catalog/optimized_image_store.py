@@ -21,6 +21,7 @@ WEBP_QUALITY = 80
 WEBP_METHOD = 6
 # ~16 MP: em RGB sao 48 MB, com folga para a copia redimensionada dentro de 192 MB.
 MAX_DECODE_PIXELS = 16_000_000
+MAX_DECODE_PIXELS_OTHER = 8_000_000
 
 
 def norm_text(value: Any) -> str:
@@ -117,17 +118,25 @@ class OptimizedImageStore:
             # inteira passa disso e o processo morre (09/10/2026). JPEG ja decodifica
             # reduzido; o resto, se for gigante, e recusado antes de carregar.
             source.draft("RGB", (MAX_SIDE, MAX_SIDE))
-            if source.size[0] * source.size[1] > MAX_DECODE_PIXELS:
+            # JPEG ja chega reduzido pelo draft; PNG/WebP abrem inteiros e, com
+            # transparencia, a reducao faz copia interna: teto menor (8 MP ~ 75 MB).
+            limit = MAX_DECODE_PIXELS if source.format == "JPEG" else MAX_DECODE_PIXELS_OTHER
+            if source.size[0] * source.size[1] > limit:
                 raise RuntimeError(f"image too large to decode: {source.size}")
-            image = ImageOps.exif_transpose(source)
+            # Reduz ANTES de girar e de tirar a transparencia: na ordem antiga uma PNG
+            # de 4000 px com transparencia passava por quatro copias em tamanho cheio
+            # (320 MB medidos) e derrubava o coletor da Drogaria SP.
+            image = source
+            if max(image.size) > MAX_SIDE:
+                # Paleta (P) so reduz com vizinho mais proximo e serrilha: vira RGBA antes.
+                if image.mode in {"P", "1"}:
+                    image = image.convert("RGBA")
+                image.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
+            image = ImageOps.exif_transpose(image)
             if image.mode in {"RGBA", "LA"} or (image.mode == "P" and "transparency" in image.info):
                 background = Image.new("RGBA", image.size, (255, 255, 255, 255))
                 background.alpha_composite(image.convert("RGBA"))
                 image = background.convert("RGB")
             else:
                 image = image.convert("RGB")
-
-            max_side = max(image.size)
-            if max_side > MAX_SIDE:
-                image.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
             return image.copy()
