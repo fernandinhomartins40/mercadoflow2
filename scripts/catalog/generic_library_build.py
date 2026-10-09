@@ -32,6 +32,8 @@ import requests
 from PIL import Image
 
 MAX_SIDE = 1000
+# Lado da foto entregue ao modelo: ele trabalha em 1024 px, e acima disso so o tempo dobra.
+SOURCE_SIDE = 1100
 MIN_SOURCE_SIDE = 500
 # Recorte que sobra quase nada ou quase tudo é falha do modelo, não produto.
 MIN_COVERAGE, MAX_COVERAGE = 0.04, 0.97
@@ -240,11 +242,24 @@ def main() -> int:
         key = f"library/{slug}.webp"
         if key in index or cand["key"] in rejected:
             continue
+        existing = out_dir / key
+        if existing.is_file() and existing.stat().st_size > 0:
+            # Interrompido antes de gravar o indice: a imagem pronta vale, nao refaz.
+            try:
+                with Image.open(existing) as ready:
+                    width, height = ready.size
+                index[key] = {
+                    "storageKey": key, "name": cand["name"], "group": cand["group"], "category": cand["category"],
+                    "store": cand["store"], "width": width, "height": height, "source": cand["imageUrl"],
+                }
+                continue
+            except Exception:
+                existing.unlink()
         try:
             response = http.get(cand["imageUrl"], timeout=30)
             response.raise_for_status()
             with Image.open(io.BytesIO(response.content)) as opened:
-                opened.draft("RGB", (MAX_SIDE * 2, MAX_SIDE * 2))
+                opened.draft("RGB", (SOURCE_SIDE, SOURCE_SIDE))
                 if min(opened.size) < MIN_SOURCE_SIDE:
                     rejected[cand["key"]] = f"pequena {opened.size}"
                     continue
@@ -253,7 +268,7 @@ def main() -> int:
                 white = Image.new("RGBA", source.size, (255, 255, 255, 255))
                 white.alpha_composite(source)
                 source = white.convert("RGB")
-            source.thumbnail((MAX_SIDE * 2, MAX_SIDE * 2), Image.Resampling.LANCZOS)
+            source.thumbnail((SOURCE_SIDE, SOURCE_SIDE), Image.Resampling.LANCZOS)
             cut = cut_out(source, session)
             if cut is None:
                 rejected[cand["key"]] = "recorte falhou"
