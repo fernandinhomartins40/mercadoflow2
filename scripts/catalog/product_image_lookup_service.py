@@ -15,7 +15,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import requests
 
@@ -112,15 +112,19 @@ def lookup_in_store(store: VtexJobConfig, gtin: str) -> Optional[Dict[str, Any]]
     return None
 
 
-def lookup(stores: List[VtexJobConfig], gtin: str) -> Tuple[Optional[VtexJobConfig], Optional[Dict[str, Any]]]:
+def iter_hits(stores: List[VtexJobConfig], gtin: str) -> Iterator[Tuple[VtexJobConfig, Dict[str, Any]]]:
+    """Lojas que têm o produto, na ordem de prioridade; só consulta o grupo seguinte se pedirem mais."""
     for start in range(0, len(stores), STORES_PER_ROUND):
         group = stores[start:start + STORES_PER_ROUND]
         with ThreadPoolExecutor(max_workers=len(group)) as executor:
             results = list(executor.map(lambda store: lookup_in_store(store, gtin), group))
         for store, record in zip(group, results):
             if record:
-                return store, record
-    return None, None
+                yield store, record
+
+
+def lookup(stores: List[VtexJobConfig], gtin: str) -> Tuple[Optional[VtexJobConfig], Optional[Dict[str, Any]]]:
+    return next(iter_hits(stores, gtin), (None, None))
 
 
 class Backend:
@@ -177,13 +181,15 @@ def run_cycle(args: argparse.Namespace, backend: Backend, stores: List[VtexJobCo
     found: Dict[str, List[Dict[str, Any]]] = {}
     missing: List[str] = []
     for gtin in gtins:
-        store, record = lookup(stores, gtin)
-        key = ""
-        if store and record:
+        store, record, key = None, None, ""
+        # A loja pode listar o produto com a foto fora do ar (404): vale a próxima que tiver.
+        for store, record in iter_hits(stores, gtin):
             try:
                 key = images.save(store.provider, gtin, record.get("imageUrl"))
             except Exception as exc:
                 print(f"foto nao baixou gtin={gtin} loja={store.provider} erro={exc}", flush=True)
+            if key:
+                break
         # Sem foto gravada o produto continuaria na fila: conta como não encontrado.
         if not key:
             missing.append(gtin)
