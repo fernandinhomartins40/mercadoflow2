@@ -27,7 +27,7 @@ from pathlib import Path
 from PIL import Image, ImageFile, ImageOps
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from optimized_image_store import MAX_SIDE, WEBP_QUALITY  # noqa: E402
+from optimized_image_store import MAX_SIDE, WEBP_METHOD, WEBP_QUALITY  # noqa: E402
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 SOURCE_EXT = {".jpg", ".jpeg", ".png"}
@@ -60,7 +60,7 @@ def convert(src: Path, originals: Path, dry_run: bool, delete: bool = False) -> 
         if max(image.size) > MAX_SIDE:
             image.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
         tmp = webp.with_suffix(".webp.tmp")
-        image.save(tmp, format="WEBP", quality=WEBP_QUALITY, method=4)
+        image.save(tmp, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD)
 
     after = tmp.stat().st_size
     with Image.open(tmp) as check:

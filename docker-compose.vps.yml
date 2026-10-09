@@ -226,7 +226,7 @@ services:
     logging: *mercadoflow_logging
     working_dir: /workspace
     command: >
-      sh -c "python /workspace/scripts/catalog/market_catalog_dispatcher.py
+      sh -c "python -u /workspace/scripts/catalog/market_catalog_dispatcher.py
       --watch
       --interval-minutes ${CATALOG_HARVESTER_INTERVAL_MINUTES:-360}
       --koch-store-id \"${SUPERKOCH_STORE_ID:-}\" 
@@ -254,15 +254,18 @@ services:
     restart: unless-stopped
     logging: *mercadoflow_logging
     working_dir: /workspace
+    # Busca de foto sob demanda: produto que entrou por um mercado (Confere ou
+    # PDV) sem imagem e procurado por codigo de barras nas lojas coletadas. O
+    # nome do container ficou do enriquecedor antigo (fonte Wireshape, que nunca
+    # devolveu nada) para o deploy nao deixar container orfao.
     command: >
-      python /workspace/scripts/catalog/barcode_enrichment_service.py
+      python -u /workspace/scripts/catalog/product_image_lookup_service.py
       --watch
-      --interval-minutes ${BARCODE_ENRICH_INTERVAL_MINUTES:-720}
+      --poll-seconds ${IMAGE_LOOKUP_POLL_SECONDS:-300}
       --api-base http://mercadoflow-backend:8080/api
       --login-endpoint /v1/super-admin/auth/login
       --email ${SUPER_ADMIN_EMAIL}
       --password ${SUPER_ADMIN_PASSWORD}
-      --fetch-catalog-from-api
     volumes:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog

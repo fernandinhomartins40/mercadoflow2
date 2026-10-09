@@ -61,6 +61,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class SuperAdminController {
 
     @Autowired
+    private com.pdv2cloud.service.CatalogImageLookupService catalogImageLookupService;
+
+    @Autowired
     private SuperAdminService superAdminService;
 
     @Autowired
@@ -311,6 +314,22 @@ public class SuperAdminController {
         @RequestParam(defaultValue = "MANUAL_SUPER_ADMIN_RESUME") String triggeredBy
     ) {
         return ResponseEntity.ok(superAdminService.resumeCrawlerRun(runId, triggeredBy));
+    }
+
+    /** Fila da busca de foto sob demanda: produtos com código de barras e sem imagem. */
+    @GetMapping("/catalog/image-lookups/pending")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> pendingImageLookups(
+        @RequestParam(defaultValue = "100") int limit
+    ) {
+        return ResponseEntity.ok(catalogImageLookupService.pending(limit));
+    }
+
+    @PostMapping("/catalog/image-lookups/not-found")
+    public ResponseEntity<java.util.Map<String, Object>> imageLookupsNotFound(
+        @RequestBody java.util.Map<String, java.util.List<String>> body
+    ) {
+        int marked = catalogImageLookupService.markNotFound(body == null ? null : body.get("gtins"));
+        return ResponseEntity.ok(java.util.Map.of("marked", marked));
     }
 
     @PostMapping("/catalog/crawler/runs/claim")

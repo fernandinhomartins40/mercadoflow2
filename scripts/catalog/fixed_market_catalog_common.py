@@ -620,10 +620,11 @@ class MarketImportSession:
                 self.publish_progress(stage="CAPTURING")
                 return
             self.seen_gtins.add(gtin)
-        code = norm_text(normalized.get("code") or normalized.get("providerProductId"))
-        if self.image_store is not None and normalized.get("imageUrl") and not normalized.get("imageStorageKey") and code:
+        # So baixa foto de quem tem codigo de barras: sem GTIN o backend descarta o
+        # registro e a foto ficava no disco sem dono (24 mil arquivos em 09/10/2026).
+        if self.image_store is not None and normalized.get("imageUrl") and not normalized.get("imageStorageKey") and gtin:
             try:
-                key = self.image_store.save(self.options.provider, code, str(normalized.get("imageUrl")))
+                key = self.image_store.save(self.options.provider, gtin, str(normalized.get("imageUrl")))
             except Exception:
                 key = ""
             if key:

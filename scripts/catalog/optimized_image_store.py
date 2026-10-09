@@ -16,6 +16,9 @@ GTIN_RE = re.compile(r"^\d{8,14}$")
 # Foto de produto: 1000 px no lado maior cobre do card ao encarte impresso.
 MAX_SIDE = 1000
 WEBP_QUALITY = 80
+# Esforco maximo do codificador: mesma qualidade, arquivo ~4% menor, ao custo de
+# ~25% mais CPU por foto (medido em 106 fotos reais em 09/10/2026).
+WEBP_METHOD = 6
 
 
 def norm_text(value: Any) -> str:
@@ -97,7 +100,7 @@ class OptimizedImageStore:
         normalized_image = self._normalize_image(payload)
         # WebP: 25-35% menor que o JPEG na mesma qualidade (ver convert_images_webp.py).
         with webp_target.open("wb") as handle:
-            normalized_image.save(handle, format="WEBP", quality=WEBP_QUALITY, method=4)
+            normalized_image.save(handle, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD)
 
         normalized = key.replace("\\", "/")
         self.cache[url] = normalized
