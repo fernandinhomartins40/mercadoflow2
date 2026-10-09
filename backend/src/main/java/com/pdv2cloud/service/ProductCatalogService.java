@@ -665,13 +665,23 @@ public class ProductCatalogService {
 
     private ProductIdentity resolveIdentity(InvoiceItemDTO item, UUID marketId) {
         String gtin = ProductCatalogUtils.normalizeGtin(item.getCodigoEAN());
-        if (gtin != null) {
+        if (gtin != null && !ProductCatalogUtils.isScaleBarcode(gtin)) {
             return new ProductIdentity(gtin, ProductIdentityType.GTIN);
         }
 
+        // Etiqueta de balança (prefixo 2) é código da loja com preço ou peso embutido:
+        // como GTIN, cada pesagem virava um produto e o código de um mercado se
+        // misturava com o de outro. Vira produto do mercado, pelo código interno ou,
+        // sem ele, pela parte fixa da etiqueta.
         String internalCode = ProductCatalogUtils.normalizeInternalCode(item.getCodigoInterno());
         if (internalCode != null) {
             return new ProductIdentity("INT:" + marketId + ":" + internalCode, ProductIdentityType.MARKET_INTERNAL);
+        }
+        if (gtin != null) {
+            return new ProductIdentity(
+                "INT:" + marketId + ":BAL" + ProductCatalogUtils.scaleItemCode(gtin),
+                ProductIdentityType.MARKET_INTERNAL
+            );
         }
 
         String normalizedName = ProductCatalogUtils.normalizeName(item.getDescricao());

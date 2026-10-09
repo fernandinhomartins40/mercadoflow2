@@ -332,6 +332,30 @@ public class SuperAdminController {
         return ResponseEntity.ok(java.util.Map.of("marked", marked));
     }
 
+    /** Fila da foto genérica: produto sem código de barras e sem foto (hortifrúti, açougue...). */
+    @GetMapping("/catalog/image-lookups/generic/pending")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> pendingGenericImages(
+        @RequestParam(defaultValue = "200") int limit
+    ) {
+        return ResponseEntity.ok(catalogImageLookupService.pendingGeneric(limit));
+    }
+
+    @PostMapping("/catalog/image-lookups/generic/assign")
+    public ResponseEntity<java.util.Map<String, Object>> assignGenericImages(
+        @RequestBody java.util.Map<String, java.util.List<java.util.Map<String, String>>> body
+    ) {
+        int updated = catalogImageLookupService.assignGeneric(body == null ? null : body.get("items"));
+        return ResponseEntity.ok(java.util.Map.of("updated", updated));
+    }
+
+    @PostMapping("/catalog/image-lookups/generic/not-found")
+    public ResponseEntity<java.util.Map<String, Object>> genericImagesNotFound(
+        @RequestBody java.util.Map<String, java.util.List<String>> body
+    ) {
+        int marked = catalogImageLookupService.markGenericNotFound(body == null ? null : body.get("productIds"));
+        return ResponseEntity.ok(java.util.Map.of("marked", marked));
+    }
+
     @PostMapping("/catalog/crawler/runs/claim")
     public ResponseEntity<SuperAdminCrawlerRunDTO> claimCrawlerRun(
         @RequestBody(required = false) SuperAdminCrawlerRunClaimRequestDTO request

@@ -31,7 +31,10 @@ from fixed_market_catalog_common import (
 )
 from fixed_market_catalog_vtex import VtexJobConfig, build_session, collect_item_image_urls, product_to_record
 
+from generic_image_library import GenericLibrary, storage_key as generic_storage_key
+
 VTEX_SOURCES_PATH = Path(__file__).resolve().parent / "vtex_sources.json"
+GENERIC_LIBRARY = GenericLibrary()
 SOURCE_LICENSE = "Public website/API data (respect provider terms and robots)"
 # Lojas consultadas ao mesmo tempo para um mesmo código; a ordem do arquivo é a
 # prioridade, então vale o primeiro resultado do primeiro grupo que achar.
@@ -162,6 +165,20 @@ class Backend:
         if gtins:
             self.call("POST", self.args.not_found_endpoint, json={"gtins": gtins})
 
+    def pending_generic(self) -> List[Dict[str, Any]]:
+        rows = self.call("GET", "/v1/super-admin/catalog/image-lookups/generic/pending", params={"limit": 200})
+        return [row for row in rows or [] if isinstance(row, dict) and row.get("id")]
+
+    def assign_generic(self, items: List[Dict[str, str]]) -> int:
+        if not items:
+            return 0
+        result = self.call("POST", "/v1/super-admin/catalog/image-lookups/generic/assign", json={"items": items})
+        return int((result or {}).get("updated", 0))
+
+    def generic_not_found(self, product_ids: List[str]) -> None:
+        if product_ids:
+            self.call("POST", "/v1/super-admin/catalog/image-lookups/generic/not-found", json={"productIds": product_ids})
+
     def import_found(self, provider: str, records: List[Dict[str, Any]]) -> int:
         options = ImportOptions(
             provider=provider,
@@ -174,7 +191,38 @@ class Backend:
         return import_records(options, self.token, records, session=self.session).get("importedProducts", 0)
 
 
+def run_generic_cycle(backend: Backend, stores: List[VtexJobConfig], images: LocalImageStorage, library: GenericLibrary) -> None:
+    """Produto sem código de barras: foto genérica casada pela descrição (generic_image_library)."""
+    rows = backend.pending_generic()
+    if not rows:
+        return
+    assigned: List[Dict[str, str]] = []
+    missing: List[str] = []
+    keys: Dict[str, str] = {}
+    for row in rows:
+        slug = library.match(row.get("name") or "")
+        if slug and slug not in keys:
+            item = library.item(slug)
+            url = item.get("photo") or (library.find_photo(slug, stores) or {}).get("imageUrl")
+            try:
+                keys[slug] = images.save("GENERIC", f"generic-{slug}", url) if url else ""
+            except Exception as exc:
+                print(f"foto generica nao baixou item={slug} erro={exc}", flush=True)
+                keys[slug] = ""
+        if slug and keys.get(slug):
+            assigned.append({"productId": str(row["id"]), "storageKey": generic_storage_key(slug)})
+        else:
+            missing.append(str(row["id"]))
+    updated = backend.assign_generic(assigned)
+    backend.generic_not_found(missing)
+    print(f"ciclo generico: fila={len(rows)} com_foto={updated} sem_item_na_biblioteca={len(missing)}", flush=True)
+
+
 def run_cycle(args: argparse.Namespace, backend: Backend, stores: List[VtexJobConfig], images: LocalImageStorage) -> int:
+    try:
+        run_generic_cycle(backend, stores, images, GENERIC_LIBRARY)
+    except Exception as exc:
+        print(f"ciclo generico falhou: {exc}", file=sys.stderr, flush=True)
     gtins = backend.pending()
     if not gtins:
         return 0

@@ -23,6 +23,9 @@ public class CatalogImageLookupService {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private CatalogImageUrlResolver catalogImageUrlResolver;
+
     @Transactional(readOnly = true)
     public List<Map<String, Object>> pending(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 500));
@@ -42,6 +45,77 @@ public class CatalogImageLookupService {
              limit ?
             """,
             safeLimit
+        );
+    }
+
+    /**
+     * Produto do mercado sem código de barras (código interno ou só descrição) e sem
+     * foto: hortifrúti, açougue, padaria. Recebe foto genérica casada pelo nome.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> pendingGeneric(int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 500));
+        return jdbc.queryForList(
+            """
+            select p.id::text as id, p.name as name
+              from products p
+              left join product_image_lookups l on l.product_id = p.id
+             where p.identity_type <> 'GTIN'
+               and coalesce(p.image_url, '') = ''
+               and coalesce(p.name, '') <> ''
+               and (l.product_id is null or l.next_attempt_at <= now())
+             order by p.last_seen_at desc nulls last, p.created_at desc
+             limit ?
+            """,
+            safeLimit
+        );
+    }
+
+    /** Liga a foto genérica ao produto; não troca foto que o produto já tenha. */
+    @Transactional
+    public int assignGeneric(List<Map<String, String>> items) {
+        int updated = 0;
+        for (Map<String, String> item : items == null ? List.<Map<String, String>>of() : items) {
+            String key = item.get("storageKey");
+            String productId = item.get("productId");
+            if (key == null || productId == null || !key.matches("^products/generic-[a-z0-9-]+\\.jpg$")) {
+                continue;
+            }
+            updated += jdbc.update(
+                "update products set image_url = ? where id = ?::uuid and coalesce(image_url, '') = '' and identity_type <> 'GTIN'",
+                catalogImageUrlResolver.managedUrl(key),
+                productId
+            );
+        }
+        return updated;
+    }
+
+    @Transactional
+    public int markGenericNotFound(List<String> productIds) {
+        List<String> clean = new ArrayList<>();
+        for (String id : productIds == null ? List.<String>of() : productIds) {
+            if (id != null && id.matches("^[0-9a-fA-F-]{36}$")) {
+                clean.add(id);
+            }
+        }
+        if (clean.isEmpty()) {
+            return 0;
+        }
+        return jdbc.update(
+            """
+            insert into product_image_lookups (product_id, attempts, last_attempt_at, next_attempt_at)
+            select p.id, 1, now(), now() + interval '2 days'
+              from products p
+             where p.id = any (?::uuid[])
+            on conflict (product_id) do update
+               set attempts = product_image_lookups.attempts + 1,
+                   last_attempt_at = now(),
+                   next_attempt_at = now() + make_interval(days => least(?, (2 ^ least(product_image_lookups.attempts + 1, 10))::int))
+            """,
+            ps -> {
+                ps.setArray(1, ps.getConnection().createArrayOf("text", clean.toArray()));
+                ps.setInt(2, MAX_RETRY_DAYS);
+            }
         );
     }
 

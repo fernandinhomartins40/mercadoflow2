@@ -36,6 +36,32 @@ public final class ProductCatalogUtils {
         return digits;
     }
 
+    /**
+     * Etiqueta de balança / circulação restrita (GS1 prefixo 2): o código é da loja,
+     * não do produto no mundo, e traz o preço ou o peso embutido. EAN-13 iniciado
+     * em 2 ou UPC-A iniciado em 2 (peso variável), aceitando zeros à esquerda.
+     */
+    public static boolean isScaleBarcode(String gtin) {
+        if (gtin == null) {
+            return false;
+        }
+        String stripped = gtin.replaceFirst("^0+", "");
+        return (stripped.length() == 13 || stripped.length() == 12) && stripped.charAt(0) == '2';
+    }
+
+    /**
+     * Parte fixa da etiqueta de balança: o prefixo 2 e os 6 dígitos seguintes
+     * (código do item na balança, de 5 ou 6 dígitos conforme o fabricante). O
+     * restante é o valor variável e o dígito verificador.
+     */
+    public static String scaleItemCode(String gtin) {
+        String stripped = gtin.replaceFirst("^0+", "");
+        if (stripped.length() == 12) {
+            stripped = "0" + stripped;
+        }
+        return stripped.substring(0, Math.min(7, stripped.length()));
+    }
+
     public static String normalizeName(String value) {
         if (value == null) {
             return "";
