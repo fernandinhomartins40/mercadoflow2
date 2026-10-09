@@ -43,6 +43,87 @@ SUFFIX_RE = re.compile(
     re.IGNORECASE,
 )
 WEIGHT_RE = re.compile(r"[\s\-–,]*\b\d+[.,]?\d*\s*(kg|g|gr|ml|l)\b\.?\s*$", re.IGNORECASE)
+# Marca própria da loja ou nenhuma: é o produto genérico de verdade. Marca nacional
+# sem código cadastrado na loja (Seara, Sadia...) já ganha foto pelo catálogo.
+OWN_BRANDS = {
+    "", "hortifruti", "oba", "oba bem querer", "oba reserve", "zona sul", "in natura", "sem marca", "propria",
+    "padaria", "quasi pronto", "cariorta", "do seu jeito", "corte doro", "cia do peixe", "organicos", "savegnago",
+    "natural da terra", "covabra", "acougue", "peixaria", "rotisserie", "generico",
+}
+GROUP_ORDER = {"hortifruti": 0, "carnes": 1, "padaria": 2, "frios": 3}
+# Categorias de industrializado dentro das seções de frescos: têm marca e código de
+# barras de fabricante, mesmo quando a loja não cadastrou.
+INDUSTRIAL_CATEGORY_WORDS = (
+    "iogurt", "sobremesa", "requeij", "cremos", "manteiga", "margarina", "leite", "creme", "chantilly", "torrada",
+    "pate", "conserva", "boursin", "antepasto", "pizza", "refeic", "prato", "sanduich", "panetone", "congelad",
+    "bebida", "suplement", "biscoit", "massas", "molho",
+)
+# Palavras que são nome de marca mas também de produto: não servem para barrar.
+BRAND_STOPWORDS = {
+    "natural", "fresh", "organico", "organicos", "premium", "select", "especial", "tradicional", "caseiro", "fazenda",
+    "sitio", "campo", "ouro", "sol", "bom", "bela", "real", "rei", "mineiro", "colonial", "serra", "terra", "vale",
+    "nobre", "angus", "light", "fit", "grill", "gourmet", "original", "italiano", "frances", "portuguesa", "argentino",
+}
+
+
+def load_brands(path: str) -> List[List[str]]:
+    """Marcas de fabricante conhecidas (uma por linha, "marca|quantidade"), como sequências de palavras.
+
+    Saem do nosso catálogo:
+      psql -At -F "|" -c "select lower(brand), count(*) from product_enrichments
+                          where coalesce(brand,'') <> '' group by 1 having count(*) >= 8"
+    """
+    brands: List[List[str]] = []
+    if not path:
+        return brands
+    for line in Path(path).read_text(encoding="utf-8", errors="ignore").splitlines():
+        words = re.findall(r"[a-z0-9]+", plain(line.split("|")[0]))
+        text = " ".join(words)
+        if not words or text in OWN_BRANDS or len(text) < 4:
+            continue
+        if len(words) == 1 and (words[0] in BRAND_STOPWORDS or words[0].isdigit()):
+            continue
+        brands.append(words)
+    return brands
+
+
+def refine_brands(brands: List[List[str]], candidates: List[Dict[str, Any]]) -> List[List[str]]:
+    """Tira da lista as "marcas" que são palavra comum (salada, peixe, minas, fresco).
+
+    Marca de verdade só aparece no nome de produto daquela marca; palavra comum
+    aparece em produtos de várias marcas. Mede isso nos próprios candidatos, usando
+    as lojas que cadastram a marca do fabricante (a Hortifruti põe a própria loja).
+    """
+    seen: Dict[str, int] = {}
+    own: Dict[str, int] = {}
+    for cand in candidates:
+        if cand["store"] == "Hortifruti":
+            continue
+        brand = " ".join(re.findall(r"[a-z0-9]+", plain(cand.get("brand"))))
+        for word in set(re.findall(r"[a-z0-9]+", plain(cand["name"]))):
+            seen[word] = seen.get(word, 0) + 1
+            if brand == word:
+                own[word] = own.get(word, 0) + 1
+    kept: List[List[str]] = []
+    for brand in brands:
+        if len(brand) > 1:
+            kept.append(brand)
+            continue
+        word = brand[0]
+        # Nunca vista nos frescos: fica. Vista, mas quase nunca como a marca do produto: é palavra comum.
+        if seen.get(word, 0) >= 3 and own.get(word, 0) / seen[word] < 0.5:
+            continue
+        kept.append(brand)
+    return kept
+
+
+def has_brand(name: str, brands: List[List[str]], index: Dict[str, List[List[str]]]) -> Optional[str]:
+    words = re.findall(r"[a-z0-9]+", plain(name))
+    for position, word in enumerate(words):
+        for brand in index.get(word, ()):
+            if words[position:position + len(brand)] == brand:
+                return " ".join(brand)
+    return None
 # Não é produto fresco genérico mesmo sem código: kits, flores, utensílios.
 SKIP_WORDS = ("kit ", "cesta", "buque", "vaso", "arranjo", "sacola", "embalagem", "taxa", "servico", "cartao")
 
@@ -68,12 +149,21 @@ def slug_for(name: str, key: str) -> str:
     return f"{base}-{hashlib.sha1(key.encode('utf-8')).hexdigest()[:6]}"
 
 
-def select(candidates: List[Dict[str, Any]], groups: Optional[set]) -> List[Dict[str, Any]]:
+def select(candidates: List[Dict[str, Any]], groups: Optional[set], brands: Optional[List[List[str]]] = None) -> List[Dict[str, Any]]:
     order = {store: i for i, store in enumerate(STORE_PRIORITY)}
+    brand_index: Dict[str, List[List[str]]] = {}
+    for brand in brands or []:
+        brand_index.setdefault(brand[0], []).append(brand)
     picked: Dict[str, Dict[str, Any]] = {}
     seen_urls: set = set()
-    for cand in sorted(candidates, key=lambda c: order.get(c["store"], 99)):
-        if not cand.get("generic") or (groups and cand["group"] not in groups):
+    for cand in sorted(candidates, key=lambda c: (GROUP_ORDER.get(c["group"], 9), order.get(c["store"], 99))):
+        if not cand.get("generic") or (groups and cand["group"] not in groups) or cand["group"] not in GROUP_ORDER:
+            continue
+        if plain(cand.get("brand")).strip() not in OWN_BRANDS:
+            continue
+        if any(word in plain(cand.get("category")) for word in INDUSTRIAL_CATEGORY_WORDS):
+            continue
+        if brand_index and has_brand(cand["name"], brands or [], brand_index):
             continue
         name = tidy_name(cand["name"])
         normalized = plain(name)
@@ -114,6 +204,7 @@ def main() -> int:
     parser.add_argument("--groups", default="", help="hortifruti,carnes,padaria,frios (vazio = todos)")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--model", default="birefnet-general-lite")
+    parser.add_argument("--brands-file", default="", help="marcas de fabricante conhecidas; ver load_brands")
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -126,7 +217,8 @@ def main() -> int:
     rejected: Dict[str, str] = json.loads(rejected_path.read_text(encoding="utf-8")) if rejected_path.exists() else {}
 
     groups = {g.strip() for g in args.groups.split(",") if g.strip()} or None
-    todo = select(json.loads(Path(args.candidates).read_text(encoding="utf-8")), groups)
+    candidates = json.loads(Path(args.candidates).read_text(encoding="utf-8"))
+    todo = select(candidates, groups, refine_brands(load_brands(args.brands_file), candidates))
     if args.limit:
         todo = todo[: args.limit]
     print(f"{len(todo)} fotos selecionadas; {len(index)} ja prontas", flush=True)
