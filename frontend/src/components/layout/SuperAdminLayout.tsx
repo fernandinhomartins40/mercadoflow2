@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, Bot, Plug, Briefcase, ClipboardCheck, CreditCard, Database, Factory, Globe2, Home, LayoutGrid, LayoutTemplate, LogOut, Palette,
-  Receipt, Search, ShieldCheck, Sparkles, UserSquare2, Users, X, type LucideIcon,
+  Receipt, Search, ShoppingBag, ShieldCheck, Sparkles, UserSquare2, Users, X, type LucideIcon,
 } from 'lucide-react';
 import type { WorkspaceNavSection } from './WorkspaceSidebar';
 import { Link, useLocation } from 'react-router-dom';
@@ -22,6 +22,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/super-admin/industria': { title: 'Indústrias', subtitle: 'Empresas, carteira de produtos, contratos e prévia', section: 'Indústria' },
   '/super-admin/industria/dados': { title: 'Privacidade e dados', subtitle: 'Regras de anonimato, lojas e agregados', section: 'Indústria' },
   '/super-admin/industria/cobranca': { title: 'Cobrança da indústria', subtitle: 'Faturas por produto analisado', section: 'Indústria' },
+  '/super-admin/vendas': { title: 'Vendas', subtitle: 'Indústrias e distribuidores vendendo às lojas', section: 'Indústria' },
   '/super-admin/temas': { title: 'Temas de encarte', subtitle: 'Fundos, selos e áreas que o editor dos mercados usa para montar as artes', section: 'Conteúdo' },
 };
 
@@ -73,6 +74,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         { to: '/super-admin/industria', label: 'Indústrias', hint: 'Carteira, contratos e prévia', icon: Factory, exact: true },
         { to: '/super-admin/industria/dados', label: 'Privacidade e dados', hint: 'Anonimato, lojas e agregados', icon: ShieldCheck },
         { to: '/super-admin/industria/cobranca', label: 'Cobrança da indústria', hint: 'Faturas por produto', icon: Receipt },
+        { to: '/super-admin/vendas', label: 'Vendas', hint: 'Vendedores, canais e pedidos', icon: ShoppingBag },
       ],
     },
     {

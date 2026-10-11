@@ -1,5 +1,7 @@
 import {
   ClipboardList,
+  Factory,
+  ShieldCheck,
   CreditCard,
   Database,
   Globe2,
@@ -80,6 +82,7 @@ export const DESTINATIONS: Destination[] = [
     inDock: true,
     pages: [
       { to: '/app/lista-compras', label: 'Pedidos', icon: ShoppingCart },
+      { to: '/app/compras-digitais', label: 'Indústrias e distribuidores', icon: Factory },
     ],
   },
   {
@@ -114,6 +117,7 @@ export const DESTINATIONS: Destination[] = [
       { to: '/app/assinatura', label: 'Assinatura e planos', icon: CreditCard, alsoMatches: ['/app/planos'] },
       { to: '/app/equipe', label: 'Equipe', icon: Users, ownerOnly: true },
       { to: '/app/integracoes', label: 'Integrações (ERP)', icon: Plug },
+      { to: '/app/vendedores', label: 'Vendedores e campanhas', icon: ShieldCheck, ownerOnly: true },
       { to: '/app/configuracoes', label: 'Conta', icon: Settings },
       { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true },
       ...(FEATURE_STATE_PRICES_ENABLED

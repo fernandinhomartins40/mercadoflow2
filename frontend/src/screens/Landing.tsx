@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Factory,
   Heart,
   Link2,
   Map,
@@ -314,6 +315,9 @@ const Landing: React.FC = () => {
                 {n.label}
               </a>
             ))}
+            <Link to="/para-industria" className="text-sm font-semibold no-underline transition-colors" style={{ color: '#16a34a' }}>
+              Para a indústria
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -416,6 +420,36 @@ const Landing: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ══════ BANNER INDÚSTRIA ══════ */}
+      <section className="pt-12" aria-label="MercadoFlow Indústria">
+        <div className="mx-auto max-w-7xl px-6">
+          <Link to="/para-industria" className="rv group relative flex flex-col gap-6 overflow-hidden rounded-3xl p-7 no-underline sm:p-10 lg:flex-row lg:items-center lg:justify-between"
+            style={{ background: 'linear-gradient(120deg, #0F3A29 0%, #164A35 60%, #1d5c41 100%)', boxShadow: '0 30px 60px -30px rgba(15,58,41,0.55)' }}>
+            <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full blur-3xl" style={{ background: 'rgba(217,249,157,0.18)' }} />
+            <div className="relative flex items-start gap-5">
+              <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl sm:flex" style={{ background: 'rgba(217,249,157,0.15)' }}>
+                <Factory className="h-7 w-7" style={{ color: '#d9f99d' }} />
+              </div>
+              <div>
+                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest" style={{ background: '#d9f99d', color: '#0F3A29' }}>
+                  Novo · Para a indústria
+                </span>
+                <h2 className="mt-3 text-2xl font-extrabold leading-tight text-white sm:text-3xl">
+                  É fabricante? Veja o giro real dos seus produtos na gôndola.
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed sm:text-base" style={{ color: '#bbf7d0' }}>
+                  Venda, preço praticado e possível ruptura por UF, cidade e bairro, com dados anônimos e sem identificar nenhuma loja.
+                </p>
+              </div>
+            </div>
+            <span className="relative inline-flex h-12 shrink-0 items-center justify-center gap-2 self-start rounded-full px-7 text-base font-semibold transition-transform group-hover:translate-x-1 lg:self-auto"
+              style={{ background: '#d9f99d', color: '#0F3A29' }}>
+              Conhecer o MercadoFlow Indústria <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
         </div>
       </section>
 
@@ -741,6 +775,7 @@ const Landing: React.FC = () => {
                 { href: '#funcionalidades', label: 'Funcionalidades' },
                 { href: '#planos', label: 'Planos' },
                 { to: '/download-agente', label: 'Baixar agente' },
+                { to: '/para-industria', label: 'Para a indústria' },
               ].map((l) => (
                 <li key={l.label}>
                   {l.to ? (

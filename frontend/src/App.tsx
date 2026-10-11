@@ -35,6 +35,18 @@ const ConfereApp = lazy(() => import('./screens/ConfereApp'));
 const SuperAdminConfere = lazy(() => import('./screens/SuperAdminConfere'));
 const SuperAdminAi = lazy(() => import('./screens/SuperAdminAi'));
 const Landing = lazy(() => import('./screens/Landing'));
+const IndustryLanding = lazy(() => import('./screens/IndustryLanding'));
+const SellerHome = lazy(() => import('./screens/vendas/SellerHome'));
+const SellerOrders = lazy(() => import('./screens/vendas/SellerOrders'));
+const SellerCampaigns = lazy(() => import('./screens/vendas/SellerCampaigns'));
+const SellerClients = lazy(() => import('./screens/vendas/SellerClients'));
+const SellerCatalog = lazy(() => import('./screens/vendas/SellerCatalog'));
+const SellerPrices = lazy(() => import('./screens/vendas/SellerPrices'));
+const SellerDistribution = lazy(() => import('./screens/vendas/SellerDistribution'));
+const SellerAccount = lazy(() => import('./screens/vendas/SellerAccount'));
+const DigitalSuppliers = lazy(() => import('./screens/comprar/DigitalSuppliers'));
+const SellerPrivacy = lazy(() => import('./screens/comprar/SellerPrivacy'));
+const SuperAdminCommerce = lazy(() => import('./screens/SuperAdminCommerce'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
 const AgentPairing = lazy(() => import('./screens/AgentPairing'));
 const AgentDownload = lazy(() => import('./screens/AgentDownload'));
@@ -78,6 +90,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (role === 'INDUSTRY_USER') {
     return <Navigate to="/industria" replace />;
   }
+  // Vendedor (indústria ou distribuidor) só vende: portal de vendas.
+  if (role === 'SELLER_USER') {
+    return <Navigate to="/vendas" replace />;
+  }
   // Conferente usa só o Confere.
   if (teamRole === 'CONFERENTE') {
     return <Navigate to="/confere/" replace />;
@@ -101,6 +117,22 @@ const IndustryRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 const secureIndustry = (element: React.ReactNode) => <IndustryRoute>{element}</IndustryRoute>;
+
+/** Portal de vendas: vendedor, ou usuário de indústria (a empresa pode ter vendedor ligado). */
+const SellerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { userId, role, loading } = useAuth();
+  if (loading) {
+    return <PageLoader />;
+  }
+  if (!userId) {
+    return <Navigate to="/login" replace />;
+  }
+  if (role !== 'SELLER_USER' && role !== 'INDUSTRY_USER') {
+    return <Navigate to="/app" replace />;
+  }
+  return <>{children}</>;
+};
+const secureSeller = (element: React.ReactNode) => <SellerRoute>{element}</SellerRoute>;
 
 const SuperAdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userId, role, loading } = useSuperAdminAuth();
@@ -167,6 +199,7 @@ const App: React.FC = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />
         <Route path="/" element={<Landing />} />
+        <Route path="/para-industria" element={<IndustryLanding />} />
         <Route path="/download-agente" element={<PublicAgentDownload />} />
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
         <Route path="/parear-agente" element={<AgentPairing />} />
@@ -186,6 +219,8 @@ const App: React.FC = () => {
         <Route path="/app/cesta" element={<Navigate to="/app/produtos" replace />} />
         <Route path="/app/alertas" element={<Navigate to="/app" replace />} />
         <Route path="/app/lista-compras" element={secure(<ShoppingListPage />)} />
+        <Route path="/app/compras-digitais" element={secure(<DigitalSuppliers />)} />
+        <Route path="/app/vendedores" element={secure(<SellerPrivacy />)} />
         <Route path="/app/pedidos" element={<Navigate to="/app/lista-compras" replace />} />
         <Route path="/app/mapa-loja" element={secure(<StoreMap />)} />
         <Route path="/app/encartes" element={secure(<ArtStudio />)} />
@@ -232,6 +267,15 @@ const App: React.FC = () => {
         <Route path="/industria/produtos" element={secureIndustry(<IndustryProducts />)} />
         <Route path="/industria/categoria" element={secureIndustry(<IndustryCategory />)} />
         <Route path="/industria/conta" element={secureIndustry(<IndustryAccount />)} />
+        <Route path="/super-admin/vendas" element={secureSuperAdmin(<SuperAdminCommerce />)} />
+        <Route path="/vendas" element={secureSeller(<SellerHome />)} />
+        <Route path="/vendas/pedidos" element={secureSeller(<SellerOrders />)} />
+        <Route path="/vendas/campanhas" element={secureSeller(<SellerCampaigns />)} />
+        <Route path="/vendas/clientes" element={secureSeller(<SellerClients />)} />
+        <Route path="/vendas/catalogo" element={secureSeller(<SellerCatalog />)} />
+        <Route path="/vendas/precos" element={secureSeller(<SellerPrices />)} />
+        <Route path="/vendas/distribuicao" element={secureSeller(<SellerDistribution />)} />
+        <Route path="/vendas/conta" element={secureSeller(<SellerAccount />)} />
         <Route path="/super-admin/ia" element={secureSuperAdmin(<SuperAdminAi />)} />
         <Route path="/super-admin/temas/:themeId" element={secureSuperAdmin(<SuperAdminArtThemes />)} />
         <Route path="/super-admin/crawler/runs/:runId" element={secureSuperAdmin(<SuperAdminCrawlerRunDetails />)} />

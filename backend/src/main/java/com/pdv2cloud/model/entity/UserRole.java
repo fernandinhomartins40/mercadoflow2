@@ -5,5 +5,6 @@ public enum UserRole {
     ADMIN,
     MARKET_OWNER,
     MARKET_MANAGER,
-    INDUSTRY_USER
+    INDUSTRY_USER,
+    SELLER_USER
 }

@@ -59,6 +59,9 @@ public class User {
 
     private UUID industryId;
 
+    /** Vendedor (indústria ou distribuidor) do portal de vendas. */
+    private UUID sellerId;
+
     private Boolean isActive = true;
 
     private LocalDateTime lastLoginAt;
