@@ -83,6 +83,7 @@ const SuperAdminPartners: React.FC = () => {
                   <h3 style={{ margin: 0, fontSize: 18 }}>{p.name}</h3>
                   <Chip tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Chip>
                   {p.publicListing && <Chip tone="green">Na lista pública</Chip>}
+                  {p.firstParty && <Chip tone="lime">Da casa</Chip>}
                 </div>
                 <p className="fx-muted" style={{ margin: '4px 0 0', fontSize: 13.5 }}>
                   {p.clientId} · {p.markets} {p.markets === 1 ? 'loja' : 'lojas'} · última chamada {p.lastCallAt ? new Date(p.lastCallAt).toLocaleString('pt-BR') : 'nunca'}
@@ -105,11 +106,37 @@ const SuperAdminPartners: React.FC = () => {
                 ) : (
                   <button type="button" className="fx-btn ghost small" disabled={!!busy} onClick={() => run(p.id, () => partnersAdmin.status(p.id, 'REGISTRADO'))}>Reativar</button>
                 )}
+                <button type="button" className="fx-btn ghost small" disabled={!!busy} onClick={() => {
+                  const msg = p.firstParty
+                    ? `Tirar ${p.name} da casa? Ele perde vendas, catálogo, decisões e encartes em todas as lojas.`
+                    : `Marcar ${p.name} como sistema da casa? Ele passa a poder receber vendas, catálogo por GTIN, decisões do Tino e encartes das lojas que autorizarem.`;
+                  if (window.confirm(msg)) void run(p.id, () => partnersAdmin.firstParty(p.id, !p.firstParty));
+                }}>
+                  {p.firstParty ? 'Tirar da casa' : 'Sistema da casa'}
+                </button>
                 <button type="button" className="fx-btn ghost small" disabled={!!busy} onClick={() => { if (window.confirm('Gerar segredo novo? O atual para de funcionar.')) void run(p.id, async () => setCreds(await partnersAdmin.rotate(p.id))); }}>
                   <KeyRound aria-hidden="true" />Novo segredo
                 </button>
               </div>
             </div>
+            {p.firstParty && (
+              <form style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={(e) => {
+                e.preventDefault();
+                const value = Number(new FormData(e.currentTarget).get('percent'));
+                if (Number.isNaN(value) || value < 0 || value > 100) return;
+                void run(p.id, () => partnersAdmin.planDiscount(p.id, value));
+              }}>
+                <label className="fx-field" style={{ flex: '0 1 220px' }}>
+                  Desconto no plano para cliente {p.name} (%)
+                  <input className="fx-input" name="percent" type="number" min={0} max={100} step={1} defaultValue={p.planDiscountPercent} />
+                </label>
+                <button type="submit" className="fx-btn ghost small" disabled={!!busy}>Salvar desconto</button>
+                <span className="fx-muted" style={{ fontSize: 13.5 }}>
+                  {p.activeCustomers} {p.activeCustomers === 1 ? 'loja cliente ativa' : 'lojas clientes ativas'} · {p.accountsCreated} {p.accountsCreated === 1 ? 'conta criada' : 'contas criadas'} pelo {p.name}.
+                  {' '}Vale no Pix e no boleto; as assinaturas ativas são recalculadas ao salvar.
+                </span>
+              </form>
+            )}
             <div style={{ marginTop: 14 }}>
               <b style={{ fontSize: 14 }}>Roteiro de homologação: {done} de {total}</b>
               <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6 }}>

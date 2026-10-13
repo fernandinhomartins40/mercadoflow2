@@ -78,6 +78,9 @@ public class AsaasService {
         this.publicBaseUrl = publicBaseUrl.replaceAll("/+$", "");
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerDiscount partnerDiscount;
+
     public boolean enabled() {
         return platform.key(PROVIDER).isPresent();
     }
@@ -133,8 +136,14 @@ public class AsaasService {
         if (cents <= 0) {
             throw new IllegalArgumentException("Este plano está sem preço; fale com o comercial.");
         }
-        BigDecimal value = BigDecimal.valueOf(cents, 2);
         String description = "MercadoFlow — plano " + plan.getDisplayName();
+        // Cliente ativo do parceiro da casa (Bipae): desconto no plano.
+        com.pdv2cloud.service.partner.PartnerDiscount.Discount discount = partnerDiscount == null ? null : partnerDiscount.forRoot(rootId);
+        if (discount != null) {
+            cents = com.pdv2cloud.service.partner.PartnerDiscount.apply(cents, discount);
+            description += " (desconto " + discount.partnerName() + " " + discount.percent() + "%)";
+        }
+        BigDecimal value = BigDecimal.valueOf(cents, 2);
 
         boolean paying = current.status() == SubscriptionService.Status.ACTIVE || current.status() == SubscriptionService.Status.PAST_DUE
             || current.status() == SubscriptionService.Status.RESTRICTED;

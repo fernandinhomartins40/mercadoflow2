@@ -58,6 +58,10 @@ app:
   downloads:
     installer-dir: ${INSTALLER_DIR:/opt/pdv2cloud/installer}
   public-base-url: ${APP_PUBLIC_BASE_URL:https://mercadoflow.com}
+  # Contêineres da mesma VPS que o parceiro da casa (Bipae) pode usar como
+  # endereço de aviso por http, pela rede interna do Docker (docs/INTEGRACAO-BIPAE.md).
+  partner:
+    internal-hosts: ${APP_PARTNER_INTERNAL_HOSTS:}
   # Cobranca de assinaturas. Sem STRIPE_SECRET_KEY a integracao fica desligada
   # e a aplicacao sobe normalmente — o upgrade volta a ser manual no painel.
   stripe:

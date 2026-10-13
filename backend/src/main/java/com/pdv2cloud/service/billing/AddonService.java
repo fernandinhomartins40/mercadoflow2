@@ -45,7 +45,8 @@ public class AddonService {
     /** Valor mensal: plano + adicionais (plano sob consulta conta como zero). */
     public int monthlyTotalCents(UUID rootId, PlanType plan) {
         Integer price = catalog.entryFor(plan).getMonthlyPriceCents();
-        int total = price == null || price < 0 ? 0 : price;
+        // Cliente ativo do parceiro da casa (Bipae) tem desconto no plano; os adicionais, não.
+        int total = price == null || price < 0 ? 0 : partnerDiscount == null ? price : partnerDiscount.planPrice(rootId, price);
         for (Addon a : list(rootId)) {
             total += a.priceCents() * a.quantity();
         }
@@ -95,9 +96,16 @@ public class AddonService {
         return list(root);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerDiscount partnerDiscount;
+
     /** Descrição da fatura: plano e adicionais. */
-    String description(UUID rootId, PlanType plan) {
+    public String description(UUID rootId, PlanType plan) {
         StringBuilder b = new StringBuilder("MercadoFlow — plano ").append(plan.getDisplayName());
+        com.pdv2cloud.service.partner.PartnerDiscount.Discount d = partnerDiscount == null ? null : partnerDiscount.forRoot(rootId);
+        if (d != null) {
+            b.append(" (desconto ").append(d.partnerName()).append(" ").append(d.percent()).append("%)");
+        }
         for (Addon a : list(rootId)) {
             if (a.quantity() > 0) {
                 b.append(" + ").append(a.quantity()).append(" ").append(a.name().toLowerCase());

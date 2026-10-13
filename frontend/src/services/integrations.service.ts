@@ -6,6 +6,11 @@ export interface IntegrationPartner {
   partnerId: string;
   name: string;
   website: string | null;
+  /** Sistema da mesma empresa (Bipae): pode receber os escopos da casa. */
+  firstParty: boolean;
+  /** Escopos que este parceiro pode receber. */
+  availableScopes: string[];
+  lastSalesAt: string | null;
   homologated: boolean;
   suspended: boolean;
   authorized: boolean;
@@ -25,6 +30,21 @@ export interface IntegrationsOverview {
   scopes: Record<string, string>;
   reciprocityDays: number;
   requests: { erpName: string; vendorEmail: string | null; createdAt: string; emailed: boolean }[];
+}
+
+/** O pedido de conexão aberto pelo sistema parceiro, antes do dono aprovar. */
+export interface ConnectPreview {
+  partnerId: string;
+  partnerName: string;
+  website: string | null;
+  firstParty: boolean;
+  status: 'PENDENTE' | 'APROVADO' | 'RECUSADO' | 'EXPIRADO' | 'INDISPONIVEL';
+  storeName: string | null;
+  cnpj: string | null;
+  cnpjMatches: boolean;
+  marketCnpj: string | null;
+  scopes: Record<string, string>;
+  connectedMarketId: string | null;
 }
 
 export interface PartnerCall {
@@ -47,6 +67,11 @@ export interface AdminPartner {
   clientId: string;
   status: 'REGISTRADO' | 'HOMOLOGADO' | 'SUSPENSO';
   publicListing: boolean;
+  firstParty: boolean;
+  /** Desconto no plano para loja que é cliente ativo deste parceiro (só o da casa). */
+  planDiscountPercent: number;
+  activeCustomers: number;
+  accountsCreated: number;
   webhook: boolean;
   createdAt: string;
   markets: number;
@@ -68,6 +93,12 @@ export const integrationsService = {
   log: (marketId: string, partnerId?: string) => api.get<PartnerCall[]>(`${base(marketId)}/log`, { params: { partnerId } }).then((r) => r.data),
   requestErp: (marketId: string, b: { erpName: string; vendorEmail?: string; note?: string }) =>
     api.post<{ ok: boolean; emailed: boolean }>(`${base(marketId)}/erp-request`, b).then((r) => r.data),
+  connectPreview: (marketId: string, code: string) =>
+    api.get<ConnectPreview>(`${base(marketId)}/connect/${encodeURIComponent(code)}`).then((r) => r.data),
+  connectApprove: (marketId: string, code: string, scopes: string[]) =>
+    api.post<{ ok: boolean; scopes: string[]; returnUrl: string | null }>(`${base(marketId)}/connect/${encodeURIComponent(code)}`, { scopes }).then((r) => r.data),
+  connectRefuse: (marketId: string, code: string) =>
+    api.post<{ ok: boolean; returnUrl: string | null }>(`${base(marketId)}/connect/${encodeURIComponent(code)}/refuse`).then((r) => r.data),
 };
 
 const SA = '/v1/super-admin/partners';
@@ -77,6 +108,25 @@ export const partnersAdmin = {
   rotate: (id: string) => api.post<PartnerCredentials>(`${SA}/${id}/rotate-secret`).then((r) => r.data),
   status: (id: string, status: AdminPartner['status'], publicListing?: boolean) =>
     api.post(`${SA}/${id}/status`, { status, publicListing }).then((r) => r.data),
+  firstParty: (id: string, firstParty: boolean) => api.post(`${SA}/${id}/first-party`, { firstParty }).then((r) => r.data),
+  planDiscount: (id: string, percent: number) =>
+    api.post<{ ok: boolean; percent: number; repriced: number }>(`${SA}/${id}/plan-discount`, { percent }).then((r) => r.data),
 };
 
 export const publicPartners = () => api.get<{ name: string; website: string | null }[]>('/v1/public/partners').then((r) => r.data);
+
+/** Escopos que só o sistema da mesma empresa (Bipae) recebe. */
+export const FIRST_PARTY_SCOPES = ['sales:write', 'catalog:read', 'insights:read', 'promotions:read', 'confere:use'];
+
+export interface ConnectPublicInfo {
+  partnerName: string;
+  firstParty: boolean;
+  status: ConnectPreview['status'];
+  storeName: string | null;
+  cnpj: string | null;
+  ownerEmail: string | null;
+}
+
+/** Link "Conectar ao MercadoFlow" antes do login. */
+export const connectPublicInfo = (code: string) =>
+  api.get<ConnectPublicInfo>(`/v1/public/partners/connect/${encodeURIComponent(code)}`).then((r) => r.data);

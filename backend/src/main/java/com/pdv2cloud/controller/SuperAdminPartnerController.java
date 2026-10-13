@@ -1,6 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.partner.PartnerAuthService;
+import com.pdv2cloud.service.partner.PartnerScopes;
 import com.pdv2cloud.tenancy.TenantContext;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,7 +45,10 @@ public class SuperAdminPartnerController {
         return TenantContext.runAsSystem(() -> {
             List<Map<String, Object>> rows = jdbc.queryForList(
                 "select p.id, p.name, p.contact_email as \"contactEmail\", p.website, p.client_id as \"clientId\", p.status, " +
-                "  p.public_listing as \"publicListing\", p.webhook_url is not null as \"webhook\", p.created_at as \"createdAt\", " +
+                "  p.public_listing as \"publicListing\", p.first_party as \"firstParty\", p.plan_discount_percent as \"planDiscountPercent\", " +
+                "  (select count(*) from partner_market_links l where l.partner_id = p.id and l.status = 'ATIVO' and l.customer_active) as \"activeCustomers\", " +
+                "  (select count(*) from markets m where m.created_by_partner_id = p.id) as \"accountsCreated\", " +
+                "  p.webhook_url is not null as \"webhook\", p.created_at as \"createdAt\", " +
                 "  (select count(*) from partner_market_links l where l.partner_id = p.id and l.status = 'ATIVO') as markets, " +
                 "  (select max(at) from partner_api_log a where a.partner_id = p.id) as \"lastCallAt\", " +
                 "  exists(select 1 from partner_api_log a where a.partner_id = p.id and a.dry_run and a.status = 200) as dry_run_ok, " +
@@ -113,6 +117,56 @@ public class SuperAdminPartnerController {
         });
         return Map.of("ok", true);
     }
+
+    /**
+     * Parceiro da casa (Bipae): recebe os escopos exclusivos (vendas, catálogo,
+     * decisões, encartes) e aparece em Integrações de toda loja. Ao tirar a
+     * marca, os escopos da casa saem dos vínculos já autorizados.
+     */
+    @PostMapping("/{partnerId}/first-party")
+    public Map<String, Object> firstParty(@PathVariable("partnerId") UUID partnerId, @RequestBody Map<String, Object> body) {
+        boolean on = Boolean.TRUE.equals(body.get("firstParty"));
+        TenantContext.runAsSystem(() -> {
+            jdbc.update("update integration_partners set first_party = :f, updated_at = now() where id = :p",
+                new MapSqlParameterSource("p", partnerId).addValue("f", on));
+            if (!on) {
+                jdbc.update("update partner_market_links set scopes = array(select s from unnest(scopes) s where not (s = any(cast(:fp as text[])))) " +
+                    "where partner_id = :p",
+                    new MapSqlParameterSource("p", partnerId).addValue("fp", "{" + String.join(",", PartnerScopes.FIRST_PARTY) + "}"));
+            }
+        });
+        if (!on) {
+            // Fora da casa, o desconto no plano dos clientes dele acaba.
+            TenantContext.runAsSystem(() -> jdbc.queryForList(
+                "select market_id from partner_market_links where partner_id = :p and status = 'ATIVO' and customer_active",
+                new MapSqlParameterSource("p", partnerId), UUID.class)).forEach(benefits::reprice);
+        }
+        return Map.of("ok", true, "firstParty", on);
+    }
+
+    /**
+     * Desconto no plano do MercadoFlow para cliente ativo do parceiro da casa.
+     * As assinaturas ativas pelo Asaas dos clientes dele são recalculadas.
+     */
+    @PostMapping("/{partnerId}/plan-discount")
+    public Map<String, Object> planDiscount(@PathVariable("partnerId") UUID partnerId, @RequestBody Map<String, Object> body) {
+        int percent = body.get("percent") instanceof Number n ? n.intValue() : -1;
+        if (percent < 0 || percent > 100) throw new IllegalArgumentException("Desconto de 0 a 100%.");
+        List<UUID> markets = TenantContext.runAsSystem(() -> {
+            Integer fp = jdbc.queryForObject("select count(*) from integration_partners where id = :p and first_party",
+                new MapSqlParameterSource("p", partnerId), Integer.class);
+            if (percent > 0 && (fp == null || fp == 0)) throw new IllegalArgumentException("Desconto só para o sistema da casa.");
+            jdbc.update("update integration_partners set plan_discount_percent = :d, updated_at = now() where id = :p",
+                new MapSqlParameterSource("p", partnerId).addValue("d", percent));
+            return jdbc.queryForList("select market_id from partner_market_links where partner_id = :p and status = 'ATIVO' and customer_active",
+                new MapSqlParameterSource("p", partnerId), UUID.class);
+        });
+        markets.forEach(benefits::reprice);
+        return Map.of("ok", true, "percent", percent, "repriced", markets.size());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.partner.PartnerBenefitService benefits;
 
     private static String text(Object v) {
         if (v == null) return null;

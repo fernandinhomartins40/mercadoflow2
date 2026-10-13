@@ -77,6 +77,9 @@ public class MySubscriptionController {
         this.jdbc = jdbc;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerDiscount partnerDiscount;
+
     @GetMapping("/overview")
     public Map<String, Object> overview(@PathVariable UUID marketId, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
@@ -107,6 +110,9 @@ public class MySubscriptionController {
 
         out.put("addons", addons.list(root));
         out.put("monthlyTotalCents", addons.monthlyTotalCents(root, contracted));
+        // Cliente ativo do Bipae: desconto no plano (no Pix e no boleto).
+        com.pdv2cloud.service.partner.PartnerDiscount.Discount d = partnerDiscount == null ? null : partnerDiscount.forRoot(root);
+        out.put("partnerDiscount", d == null ? null : Map.of("partner", d.partnerName(), "percent", d.percent()));
         List<?> invoices = List.of();
         try {
             if (asaas.enabled()) {

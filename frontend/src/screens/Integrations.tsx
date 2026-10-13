@@ -4,7 +4,7 @@ import { ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, KeyRound, Loader2, M
 import Layout from '../components/layout/Layout';
 import { ActionHub, Card, Chip, ExplainStrip, PageHero, PanelTitle } from '../components/flow/Flow';
 import { useAuth } from '../context/AuthContext';
-import { integrationsService, type IntegrationPartner, type IntegrationsOverview, type PartnerCall } from '../services/integrations.service';
+import { FIRST_PARTY_SCOPES, integrationsService, type IntegrationPartner, type IntegrationsOverview, type PartnerCall } from '../services/integrations.service';
 import { apiError } from './copilot/shared';
 
 /**
@@ -18,16 +18,20 @@ const when = (s: string | null | undefined) => (s ? new Date(s).toLocaleString('
 const RESOURCE_LABEL: Record<string, string> = {
   products: 'Produtos', suppliers: 'Fornecedores', costs: 'Custos', prices: 'Preços', stock: 'Estoque', receipts: 'Notas de entrada',
   'inbound-products': 'Cadastro pronto (saiu)', 'inbound-receipts': 'Entradas prontas (saiu)',
+  sales: 'Vendas do caixa', cancel: 'Vendas canceladas', catalog: 'Consulta ao catálogo', decisions: 'Decisões do Tino (saiu)',
+  'local-prices': 'Preços da região (saiu)', promotions: 'Encartes (saiu)',
 };
 
 const ScopeDialog: React.FC<{
-  partner: { partnerId: string; name: string };
+  partner: { partnerId: string; name: string; firstParty: boolean };
   scopes: Record<string, string>;
   initial: string[];
   busy: boolean;
   onCancel: () => void;
   onConfirm: (scopes: string[]) => void;
-}> = ({ partner, scopes, initial, busy, onCancel, onConfirm }) => {
+}> = ({ partner, scopes: all, initial, busy, onCancel, onConfirm }) => {
+  // Os escopos da casa só aparecem para o sistema da mesma empresa.
+  const scopes = Object.fromEntries(Object.entries(all).filter(([k]) => partner.firstParty || !FIRST_PARTY_SCOPES.includes(k)));
   const [chosen, setChosen] = useState<Set<string>>(new Set(initial.length ? initial : Object.keys(scopes)));
   const flip = (k: string) => setChosen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   return (
@@ -44,7 +48,9 @@ const ScopeDialog: React.FC<{
           ))}
         </div>
         <p className="fx-muted" style={{ fontSize: 13.5, margin: '12px 0 0' }}>
-          Giro, tração, previsão e as recomendações do Tino nunca saem para o ERP.
+          {partner.firstParty
+            ? `O ${partner.name} é da mesma empresa do MercadoFlow: mostra as decisões do Tino dentro do sistema, mas giro, tração e previsão continuam só aqui.`
+            : 'Giro, tração, previsão e as recomendações do Tino nunca saem para o ERP.'}
         </p>
         <div className="fx-actions" style={{ marginTop: 16 }}>
           <button type="button" className="fx-btn dark" disabled={busy || chosen.size === 0} onClick={() => onConfirm([...chosen])}>
@@ -69,13 +75,15 @@ const PartnerRow: React.FC<{
     <span style={{ flex: '1 1 220px', minWidth: 0 }}>
       <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <b style={{ fontSize: 15.5 }}>{p.name}</b>
-        {p.homologated && <Chip tone="lime">Homologado</Chip>}
+        {p.firstParty && <Chip tone="green">Da mesma empresa</Chip>}
+        {p.homologated && !p.firstParty && <Chip tone="lime">Homologado</Chip>}
         {p.suspended && <Chip tone="red">Suspenso</Chip>}
-        {p.authorized && (p.receivesInbound ? <Chip tone="green">Troca em dia</Chip> : <Chip tone="amber">Sem envio de estoque e preço há {reciprocityDays}+ dias</Chip>)}
+        {p.authorized && !p.firstParty && (p.receivesInbound ? <Chip tone="green">Troca em dia</Chip> : <Chip tone="amber">Sem envio de estoque e preço há {reciprocityDays}+ dias</Chip>)}
       </span>
       <span className="fx-muted" style={{ display: 'block', fontSize: 13.5, marginTop: 3 }}>
         {p.authorized
-          ? `Autorizado em ${when(p.authorizedAt)} · última chamada ${when(p.lastCallAt)} · estoque ${when(p.lastStockAt)} · preços ${when(p.lastPricesAt)}`
+          ? `Autorizado em ${when(p.authorizedAt)} · última chamada ${when(p.lastCallAt)}${p.firstParty ? ` · vendas ${when(p.lastSalesAt)}` : ''} · estoque ${when(p.lastStockAt)} · preços ${when(p.lastPricesAt)}`
+          : p.firstParty ? 'PDV e ERP da mesma empresa: as vendas entram na hora, sem instalar o agente. Conecte pelo Bipae ou autorize aqui.'
           : p.website ? p.website : 'Não autorizado nesta loja'}
       </span>
     </span>
@@ -99,7 +107,7 @@ const Integrations: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [dialog, setDialog] = useState<{ partnerId: string; name: string; scopes: string[] } | null>(null);
+  const [dialog, setDialog] = useState<{ partnerId: string; name: string; scopes: string[]; firstParty: boolean } | null>(null);
   const [code, setCode] = useState('');
   const [ask, setAsk] = useState({ erpName: '', vendorEmail: '', note: '' });
 
@@ -127,7 +135,7 @@ const Integrations: React.FC = () => {
     setBusy(true); setError(null);
     try {
       const p = await integrationsService.lookup(marketId, code.trim());
-      setDialog({ partnerId: p.partnerId, name: p.name, scopes: [] });
+      setDialog({ partnerId: p.partnerId, name: p.name, scopes: [], firstParty: data?.partners.find((x) => x.partnerId === p.partnerId)?.firstParty ?? false });
     } catch (e) {
       setError(apiError(e, 'Nenhum ERP com este código.'));
     } finally {
@@ -162,7 +170,7 @@ const Integrations: React.FC = () => {
             <div className="fx-stack" style={{ gap: 8, marginTop: 14 }}>
               {[...authorized, ...available].map((p) => (
                 <PartnerRow key={p.partnerId} p={p} reciprocityDays={data.reciprocityDays} busy={busy}
-                  onAuthorize={() => setDialog({ partnerId: p.partnerId, name: p.name, scopes: p.scopes })}
+                  onAuthorize={() => setDialog({ partnerId: p.partnerId, name: p.name, scopes: p.scopes, firstParty: p.firstParty })}
                   onRevoke={() => { if (marketId && window.confirm(`Revogar o acesso do ${p.name}? Ele para de enviar e de receber dados desta loja.`)) void run(() => integrationsService.revoke(marketId, p.partnerId), 'Acesso revogado.'); }} />
               ))}
               {data.partners.length === 0 && <p className="fx-muted" style={{ margin: 0 }}>Ainda não há ERP homologado na lista. Use o código do seu ERP ou peça a integração abaixo.</p>}

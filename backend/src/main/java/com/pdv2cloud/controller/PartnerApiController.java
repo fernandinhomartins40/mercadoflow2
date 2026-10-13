@@ -3,6 +3,7 @@ package com.pdv2cloud.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.security.PartnerPrincipal;
 import com.pdv2cloud.service.partner.PartnerAuthService;
+import com.pdv2cloud.service.partner.PartnerCallLog;
 import com.pdv2cloud.service.partner.PartnerIngestService;
 import com.pdv2cloud.service.partner.PartnerOutboundService;
 import com.pdv2cloud.service.partner.PartnerScopes;
@@ -49,16 +50,23 @@ public class PartnerApiController {
     private final PartnerIngestService ingest;
     private final PartnerOutboundService outbound;
     private final NamedParameterJdbcTemplate jdbc;
+    private final PartnerCallLog callLog;
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private final String publicBaseUrl;
+    /** Contêineres da mesma VPS que podem receber aviso por http (ex.: bipae-api). */
+    private final java.util.Set<String> internalHosts;
 
     public PartnerApiController(PartnerAuthService auth, PartnerIngestService ingest, PartnerOutboundService outbound,
-                                NamedParameterJdbcTemplate jdbc,
-                                @Value("${app.public-base-url:https://mercadoflow.com}") String publicBaseUrl) {
+                                NamedParameterJdbcTemplate jdbc, PartnerCallLog callLog,
+                                @Value("${app.public-base-url:https://mercadoflow.com}") String publicBaseUrl,
+                                @Value("${app.partner.internal-hosts:}") String internalHosts) {
+        this.internalHosts = java.util.Arrays.stream(internalHosts.split(","))
+            .map(String::trim).map(String::toLowerCase).filter(s -> !s.isEmpty()).collect(java.util.stream.Collectors.toSet());
         this.auth = auth;
         this.ingest = ingest;
         this.outbound = outbound;
         this.jdbc = jdbc;
+        this.callLog = callLog;
         this.publicBaseUrl = publicBaseUrl.replaceAll("/+$", "");
     }
 
@@ -107,10 +115,11 @@ public class PartnerApiController {
         PartnerPrincipal p = (PartnerPrincipal) authentication.getPrincipal();
         return TenantContext.runAsSystem(() -> {
             Map<String, Object> info = jdbc.queryForMap(
-                "select name, status, webhook_url is not null as webhook from integration_partners where id = :p",
+                "select name, status, webhook_url is not null as webhook, first_party as \"firstParty\" from integration_partners where id = :p",
                 new MapSqlParameterSource("p", p.partnerId()));
             List<Map<String, Object>> markets = jdbc.queryForList(
-                "select l.market_id as \"marketId\", m.name, l.scopes::text as scopes, l.authorized_at as \"authorizedAt\", " +
+                "select l.market_id as \"marketId\", m.name, m.cnpj, l.external_store_id as \"externalStoreId\", " +
+                "  l.scopes::text as scopes, l.authorized_at as \"authorizedAt\", l.last_sales_at as \"lastSalesAt\", l.customer_active as \"customerActive\", " +
                 "  l.last_stock_at as \"lastStockAt\", l.last_prices_at as \"lastPricesAt\", l.last_costs_at as \"lastCostsAt\" " +
                 "from partner_market_links l join markets m on m.id = l.market_id where l.partner_id = :p and l.status = 'ATIVO' order by m.name",
                 new MapSqlParameterSource("p", p.partnerId()));
@@ -123,7 +132,7 @@ public class PartnerApiController {
             out.put("partnerId", p.partnerId());
             out.put("markets", markets);
             out.put("reciprocityDays", PartnerOutboundService.RECIPROCITY_DAYS);
-            out.put("requestsPerMinute", PartnerAuthService.REQUESTS_PER_MINUTE);
+            out.put("requestsPerMinute", p.firstParty() ? PartnerAuthService.FIRST_PARTY_REQUESTS_PER_MINUTE : PartnerAuthService.REQUESTS_PER_MINUTE);
             return out;
         });
     }
@@ -141,7 +150,10 @@ public class PartnerApiController {
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(error("URL inválida."));
             }
-            if (!"https".equalsIgnoreCase(u.getScheme()) || u.getHost() == null) {
+            // http só para o parceiro da casa, num contêiner da mesma VPS (rede interna do Docker).
+            boolean internal = p.firstParty() && "http".equalsIgnoreCase(u.getScheme()) && u.getHost() != null
+                && internalHosts.contains(u.getHost().toLowerCase());
+            if (!internal && (!"https".equalsIgnoreCase(u.getScheme()) || u.getHost() == null)) {
                 return ResponseEntity.badRequest().body(error("Use uma URL https."));
             }
         }
@@ -176,12 +188,7 @@ public class PartnerApiController {
     }
 
     private void log(UUID partnerId, UUID marketId, String method, String path, PartnerIngestService.BatchResult r, int status) {
-        TenantContext.runAsSystem(() -> jdbc.update(
-            "insert into partner_api_log (partner_id, market_id, method, path, items, accepted, rejected, status, dry_run) " +
-            "values (:p, :m, :me, :pa, :i, :a, :r, :s, :d)",
-            new MapSqlParameterSource("p", partnerId).addValue("m", marketId).addValue("me", method).addValue("pa", path)
-                .addValue("i", r == null ? 0 : r.received()).addValue("a", r == null ? 0 : r.accepted())
-                .addValue("r", r == null ? 0 : r.rejected()).addValue("s", status).addValue("d", r != null && r.dryRun())));
+        callLog.record(partnerId, marketId, method, path, r, status);
     }
 
     @FunctionalInterface

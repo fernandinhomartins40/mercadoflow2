@@ -62,6 +62,8 @@ services:
     logging: *mercadoflow_logging
     environment:
       - SPRING_PROFILES_ACTIVE=production
+      # Bipae na mesma VPS: recebe os avisos por http na rede interna do Docker.
+      - APP_PARTNER_INTERNAL_HOSTS=${APP_PARTNER_INTERNAL_HOSTS:-bipae-api}
       # Sem mem_limit a JVM enxergava os 8 GB da VPS e reservava 25% (~2 GB) de
       # heap. Com o limite abaixo, MaxRAMPercentage passa a ser calculado sobre
       # 1 GB. A margem de 40% cobre metaspace, threads e buffers off-heap, que

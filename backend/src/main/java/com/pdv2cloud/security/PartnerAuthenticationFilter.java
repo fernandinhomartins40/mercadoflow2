@@ -45,7 +45,7 @@ public class PartnerAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer " + TOKEN_PREFIX)) {
             PartnerPrincipal principal = auth.authenticate(header.substring(7));
             if (principal != null) {
-                if (!auth.allowRequest(principal.partnerId())) {
+                if (!auth.allowRequest(principal.partnerId(), principal.firstParty())) {
                     response.setStatus(429);
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"erro\":\"Limite de requisicoes por minuto atingido. Tente de novo em instantes.\"}");

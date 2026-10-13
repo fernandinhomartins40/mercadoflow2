@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/common/Button';
 import AuthBrand from '../components/common/AuthBrand';
+import { afterLoginPath } from '../utils/pendingConnect';
 import {
   clearRememberedLogin,
   loadRememberedLogin,
@@ -72,7 +73,7 @@ const Login: React.FC = () => {
       } else {
         clearRememberedLogin(ADMIN_LOGIN_STORAGE_KEY, ADMIN_LEGACY_EMAIL_KEY);
       }
-      navigate('/app');
+      navigate(afterLoginPath('/app'));
     } catch (err: any) {
       if (!err?.response) {
         setError('Não foi possível entrar agora. Tente de novo.');
@@ -91,7 +92,7 @@ const Login: React.FC = () => {
     setError(null);
     try {
       await loginSecondStep(challenge, code.trim());
-      navigate('/app');
+      navigate(afterLoginPath('/app'));
     } catch (err: any) {
       const message: string | undefined = err?.response?.data?.userMessage;
       setError(message || 'Código não confere.');

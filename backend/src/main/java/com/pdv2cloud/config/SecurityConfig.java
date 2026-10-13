@@ -94,7 +94,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/mcp").permitAll()
                 // API de integração para ERPs: token e contrato públicos; o resto exige o parceiro.
                 .requestMatchers("/api/v1/partner/oauth/token", "/api/v1/partner/openapi.yaml").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/public/partners").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/public/partners", "/api/v1/public/partners/connect/*").permitAll()
                 .requestMatchers("/api/v1/partner/**").hasRole("PARTNER")
                 // Pareamento do Agente Mercado Flow: o agente ainda nao tem credencial
                 // alguma nestes passos. Protegido por codigo efemero de alta entropia,

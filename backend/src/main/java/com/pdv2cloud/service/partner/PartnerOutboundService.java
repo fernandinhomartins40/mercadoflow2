@@ -42,9 +42,12 @@ public class PartnerOutboundService {
     /** Null quando a troca está em dia; senão, o motivo (vai na resposta 409). */
     public String reciprocityProblem(UUID partnerId, UUID marketId) {
         List<Map<String, Object>> rows = jdbc.queryForList(
-            "select last_stock_at, last_prices_at from partner_market_links where partner_id = :p and market_id = :m and status = 'ATIVO'",
+            "select l.last_stock_at, l.last_prices_at, p.first_party from partner_market_links l " +
+            "join integration_partners p on p.id = l.partner_id where l.partner_id = :p and l.market_id = :m and l.status = 'ATIVO'",
             new MapSqlParameterSource("p", partnerId).addValue("m", marketId));
         if (rows.isEmpty()) return "Esta loja não autorizou o seu acesso.";
+        // O parceiro da casa já manda as vendas do caixa: a troca vale pela integração inteira.
+        if (Boolean.TRUE.equals(rows.get(0).get("first_party"))) return null;
         LocalDateTime limit = LocalDateTime.now().minusDays(RECIPROCITY_DAYS);
         Timestamp stock = (Timestamp) rows.get(0).get("last_stock_at");
         Timestamp prices = (Timestamp) rows.get(0).get("last_prices_at");

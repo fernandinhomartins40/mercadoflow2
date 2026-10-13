@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AuthBrand from '../components/common/AuthBrand';
+import { afterLoginPath, readPendingConnect } from '../utils/pendingConnect';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Check, Sparkles } from 'lucide-react';
 import Button from '../components/common/Button';
@@ -35,12 +36,14 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  // Vindo do "Conectar ao MercadoFlow" do Bipae: loja, CNPJ e e-mail já preenchidos.
+  const pending = readPendingConnect();
   const [form, setForm] = useState({
-    marketName: '',
-    marketCnpj: '',
+    marketName: pending?.storeName ?? '',
+    marketCnpj: pending?.cnpj ?? '',
     marketPhone: '',
     name: '',
-    email: '',
+    email: pending?.email ?? '',
     password: '',
     confirmPassword: '',
   });
@@ -130,7 +133,7 @@ const Register: React.FC = () => {
       // Entra direto: a conta já está ativa, e pedir para o usuário logar de
       // novo logo após criar a senha é atrito sem contrapartida.
       await login(form.email.trim().toLowerCase(), form.password, true);
-      navigate(selectedPlan === 'FREE' ? '/app' : '/app/planos?novo=1', { replace: true });
+      navigate(afterLoginPath(selectedPlan === 'FREE' ? '/app' : '/app/planos?novo=1'), { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Não foi possível concluir o cadastro.');
       setSubmitting(false);

@@ -49,6 +49,7 @@ const SellerPrivacy = lazy(() => import('./screens/comprar/SellerPrivacy'));
 const SuperAdminCommerce = lazy(() => import('./screens/SuperAdminCommerce'));
 const PublicAgentDownload = lazy(() => import('./screens/PublicAgentDownload'));
 const AgentPairing = lazy(() => import('./screens/AgentPairing'));
+const Connect = lazy(() => import('./screens/Connect'));
 const AgentDownload = lazy(() => import('./screens/AgentDownload'));
 const AdminCatalog = lazy(() => import('./screens/AdminCatalog'));
 const SuperAdminLogin = lazy(() => import('./screens/SuperAdminLogin'));
@@ -203,6 +204,7 @@ const App: React.FC = () => {
         <Route path="/download-agente" element={<PublicAgentDownload />} />
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
         <Route path="/parear-agente" element={<AgentPairing />} />
+        <Route path="/conectar" element={<Connect />} />
         <Route path="/encarte/:slug" element={<PublicEncarte />} />
         <Route path="/confere/*" element={<ConfereApp />} />
         <Route path="/desenvolvedores" element={<Developers />} />

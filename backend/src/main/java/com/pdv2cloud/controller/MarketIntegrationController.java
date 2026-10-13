@@ -2,7 +2,9 @@ package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.notify.EmailService;
+import com.pdv2cloud.service.partner.FirstPartyService;
 import com.pdv2cloud.service.partner.PartnerOutboundService;
+import com.pdv2cloud.service.partner.PartnerWebhookService;
 import com.pdv2cloud.service.partner.PartnerScopes;
 import java.sql.Array;
 import java.util.ArrayList;
@@ -34,13 +36,21 @@ public class MarketIntegrationController {
     private final NamedParameterJdbcTemplate jdbc;
     private final PartnerOutboundService outbound;
     private final EmailService email;
+    private final FirstPartyService firstParty;
+    private final PartnerWebhookService webhooks;
+    private final com.pdv2cloud.service.partner.PartnerBenefitService benefits;
 
     public MarketIntegrationController(MarketAccessService access, NamedParameterJdbcTemplate jdbc,
-                                       PartnerOutboundService outbound, EmailService email) {
+                                       PartnerOutboundService outbound, EmailService email,
+                                       FirstPartyService firstParty, PartnerWebhookService webhooks,
+                                       com.pdv2cloud.service.partner.PartnerBenefitService benefits) {
+        this.benefits = benefits;
         this.access = access;
         this.jdbc = jdbc;
         this.outbound = outbound;
         this.email = email;
+        this.firstParty = firstParty;
+        this.webhooks = webhooks;
     }
 
     private static List<String> strings(Object array) {
@@ -57,12 +67,13 @@ public class MarketIntegrationController {
         access.assertCanAccessMarket(id, authentication);
         // Parceiros visíveis: os homologados da lista pública e os que já têm vínculo com esta loja.
         List<Map<String, Object>> partners = jdbc.queryForList(
-            "select p.id, p.name, p.website, p.status, l.scopes, l.status as link_status, l.authorized_at, l.authorized_by, " +
-            "  l.last_stock_at, l.last_prices_at, l.last_costs_at, " +
+            "select p.id, p.name, p.website, p.status, p.first_party, l.scopes, l.status as link_status, l.authorized_at, l.authorized_by, " +
+            "  l.last_stock_at, l.last_prices_at, l.last_costs_at, l.last_sales_at, " +
             "  (select max(at) from partner_api_log a where a.partner_id = p.id and a.market_id = :m) as last_call " +
             "from integration_partners p left join partner_market_links l on l.partner_id = p.id and l.market_id = :m " +
-            "where (p.status = 'HOMOLOGADO' and p.public_listing) or l.id is not null " +
-            "order by (l.status = 'ATIVO') desc nulls last, p.name",
+            // O parceiro da casa aparece sempre: é o caminho mais curto para a loja.
+            "where (p.status = 'HOMOLOGADO' and p.public_listing) or (p.first_party and p.status <> 'SUSPENSO') or l.id is not null " +
+            "order by (l.status = 'ATIVO') desc nulls last, p.first_party desc, p.name",
             new MapSqlParameterSource("m", id));
         List<Map<String, Object>> out = new ArrayList<>();
         for (Map<String, Object> p : partners) {
@@ -70,6 +81,10 @@ public class MarketIntegrationController {
             m.put("partnerId", p.get("id"));
             m.put("name", p.get("name"));
             m.put("website", p.get("website"));
+            boolean firstParty = Boolean.TRUE.equals(p.get("first_party"));
+            m.put("firstParty", firstParty);
+            m.put("availableScopes", new ArrayList<>(PartnerScopes.labelsFor(firstParty).keySet()));
+            m.put("lastSalesAt", p.get("last_sales_at"));
             m.put("homologated", "HOMOLOGADO".equals(p.get("status")));
             m.put("suspended", "SUSPENSO".equals(p.get("status")));
             boolean active = "ATIVO".equals(p.get("link_status"));
@@ -112,17 +127,19 @@ public class MarketIntegrationController {
     public Map<String, Object> authorize(@PathVariable("id") UUID id, @PathVariable("partnerId") UUID partnerId,
                                          @RequestBody Map<String, Object> body, Authentication authentication) {
         access.assertCanAccessMarket(id, authentication);
+        List<Boolean> found = jdbc.queryForList("select first_party from integration_partners where id = :p and status <> 'SUSPENSO'",
+            new MapSqlParameterSource("p", partnerId), Boolean.class);
+        if (found.isEmpty()) throw new IllegalArgumentException("Este ERP não está disponível.");
+        boolean firstParty = Boolean.TRUE.equals(found.get(0));
         List<String> scopes = new ArrayList<>();
         if (body.get("scopes") instanceof List<?> l) {
             for (Object o : l) {
                 String s = String.valueOf(o);
-                if (PartnerScopes.LABELS.containsKey(s) && !scopes.contains(s)) scopes.add(s);
+                // Os escopos da casa nunca vão para um ERP de terceiros.
+                if (PartnerScopes.allowed(s, firstParty) && !scopes.contains(s)) scopes.add(s);
             }
         }
         if (scopes.isEmpty()) throw new IllegalArgumentException("Escolha ao menos uma permissão.");
-        Integer exists = jdbc.queryForObject("select count(*) from integration_partners where id = :p and status <> 'SUSPENSO'",
-            new MapSqlParameterSource("p", partnerId), Integer.class);
-        if (exists == null || exists == 0) throw new IllegalArgumentException("Este ERP não está disponível.");
         jdbc.update(
             "insert into partner_market_links (partner_id, market_id, scopes, status, authorized_by, authorized_at) " +
             "values (:p, :m, cast(:s as text[]), 'ATIVO', :u, now()) " +
@@ -145,7 +162,41 @@ public class MarketIntegrationController {
         jdbc.update("update partner_webhook_events set status = 'FALHOU', last_error = 'acesso revogado pela loja' " +
             "where partner_id = :p and market_id = :m and status = 'PENDENTE'",
             new MapSqlParameterSource("p", partnerId).addValue("m", id));
+        // O sistema do parceiro fica sabendo na hora e para de mandar.
+        if (n > 0) {
+            webhooks.enqueueTo(partnerId, id, PartnerWebhookService.EVENT_CONNECTION_REVOKED, Map.of("revokedBy", authentication.getName()));
+            // Sem o vínculo, o desconto de cliente do parceiro sai da próxima fatura.
+            benefits.repriceAfterCommit(id);
+        }
         return Map.of("ok", n > 0);
+    }
+
+    // ---------------------------------------------------------------- "Conectar ao MercadoFlow"
+
+    /** O que o link de conexão aberto pelo sistema do parceiro pede, antes do dono aprovar. */
+    @GetMapping("/connect/{code}")
+    public Map<String, Object> connectPreview(@PathVariable("id") UUID id, @PathVariable("code") String code,
+                                              Authentication authentication) {
+        access.assertCanAccessMarket(id, authentication);
+        return firstParty.connectPreview(id, code);
+    }
+
+    @PostMapping("/connect/{code}")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    public Map<String, Object> connectApprove(@PathVariable("id") UUID id, @PathVariable("code") String code,
+                                              @RequestBody(required = false) Map<String, Object> body, Authentication authentication) {
+        access.assertCanAccessMarket(id, authentication);
+        List<String> scopes = new ArrayList<>();
+        if (body != null && body.get("scopes") instanceof List<?> l) l.forEach(o -> scopes.add(String.valueOf(o)));
+        return firstParty.connectApprove(id, code, scopes, authentication.getName());
+    }
+
+    @PostMapping("/connect/{code}/refuse")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'ADMIN')")
+    public Map<String, Object> connectRefuse(@PathVariable("id") UUID id, @PathVariable("code") String code,
+                                             Authentication authentication) {
+        access.assertCanAccessMarket(id, authentication);
+        return firstParty.connectRefuse(code, authentication.getName());
     }
 
     /** O que cada ERP mandou e recebeu desta loja. */

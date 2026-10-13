@@ -28,6 +28,8 @@ interface Overview {
   confereBalance: number;
   addons: Addon[];
   monthlyTotalCents: number;
+  /** Cliente ativo do Bipae: desconto no plano (Pix e boleto). */
+  partnerDiscount: { partner: string; percent: number } | null;
   invoices: Invoice[];
   canChangeAddons: boolean;
   canPause: boolean;
@@ -191,6 +193,11 @@ const MySubscription: React.FC = () => {
               <span className="fx-money" style={{ fontSize: 30 }}>{brl(data.monthlyTotalCents)}</span><span className="text-sm" style={{ color: 'var(--fx-on-forest-muted)' }}> /mês</span>
             </p>
           )}
+          {data.partnerDiscount && (
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--fx-on-forest-muted)' }} data-testid="partner-discount">
+              Cliente {data.partnerDiscount.partner}: {data.partnerDiscount.percent}% de desconto no plano, no Pix e no boleto, enquanto a loja usar o {data.partnerDiscount.partner}.
+            </p>
+          )}
           <p style={{ margin: 0, fontSize: 15, color: 'var(--fx-on-forest-muted)' }}>
             {s.status === 'TRIAL' && s.trialEndsAt && `Teste grátis até ${day(s.trialEndsAt)}. `}
             {s.status === 'PAUSED' && data.pausedUntil && `Pausada até ${day(data.pausedUntil)}; a conta usa os limites do Grátis. `}
@@ -287,7 +294,7 @@ const MySubscription: React.FC = () => {
           </ul>
           {paidAddons.length > 0 && (
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Plano {brl(data.plan.priceCents)} + adicionais {brl(paidAddons.reduce((t, a) => t + a.priceCents * a.quantity, 0))} = {brl(data.monthlyTotalCents)} por mês.
+              Plano {brl(data.plan.priceCents)}{data.partnerDiscount ? ` − ${data.partnerDiscount.percent}% ${data.partnerDiscount.partner}` : ''} + adicionais {brl(paidAddons.reduce((t, a) => t + a.priceCents * a.quantity, 0))} = {brl(data.monthlyTotalCents)} por mês.
             </p>
           )}
         </section>

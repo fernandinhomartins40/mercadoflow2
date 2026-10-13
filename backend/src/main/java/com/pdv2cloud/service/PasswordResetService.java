@@ -82,6 +82,37 @@ public class PasswordResetService {
         });
     }
 
+    /**
+     * Conta criada por um sistema parceiro (Bipae): o dono nunca digitou senha
+     * aqui. Manda o link para ele criar a dele, válido por {@code days} dias.
+     */
+    public boolean welcome(UUID userId, String partnerName, String marketName, int days) {
+        return TenantContext.runAsSystem(() -> {
+            User user = users.findById(userId).orElse(null);
+            if (user == null) {
+                return false;
+            }
+            byte[] bytes = new byte[32];
+            random.nextBytes(bytes);
+            String token = HexFormat.of().formatHex(bytes);
+            jdbc.update("insert into password_reset_tokens (user_id, token_hash, expires_at, request_ip) "
+                    + "values (:u, :h, now() + make_interval(days => :d), :ip)",
+                new MapSqlParameterSource().addValue("u", userId).addValue("h", hash(token))
+                    .addValue("d", days).addValue("ip", "parceiro"));
+            EmailService.Sent sent = email.send(user.getEmail(), "Sua conta no MercadoFlow está pronta",
+                "Bem-vindo ao MercadoFlow",
+                List.of(greeting(user.getName()) + " O " + partnerName + " criou a conta da " + marketName
+                        + " no MercadoFlow, como você pediu.",
+                    "As vendas do caixa já chegam sozinhas. Crie a sua senha para ver as decisões de compra e preço, o Confere e os encartes.",
+                    "O link vale por " + days + " dias e só pode ser usado uma vez. Depois disso, use \"Esqueci minha senha\"."),
+                "Criar minha senha", email.link("/redefinir-senha?token=" + token));
+            if (!sent.ok()) {
+                log.warn("Boas-vindas não enviadas para o usuário {}: {}", userId, sent.error());
+            }
+            return sent.ok();
+        });
+    }
+
     public record Result(boolean ok, String message) {}
 
     /** Troca a senha com o link. */

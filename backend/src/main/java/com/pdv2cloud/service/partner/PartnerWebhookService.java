@@ -35,10 +35,29 @@ public class PartnerWebhookService {
 
     public static final String EVENT_ORDER_SENT = "order.sent";
     public static final String EVENT_PRICE_APPROVED = "price.approved";
+    public static final String EVENT_CONNECTION_AUTHORIZED = "connection.authorized";
+    public static final String EVENT_CONNECTION_REVOKED = "connection.revoked";
+    public static final String EVENT_CONFERE_DOCUMENT = "confere.document.received";
+    public static final String EVENT_CONFERE_CHECKED = "confere.check.finished";
+
+    /**
+     * Confere: nota de entrada nova (completa) ou conferência concluída. Vai a
+     * quem tem o escopo confere:use. Nunca impede o Confere de seguir.
+     */
+    public void confere(UUID marketId, String event, Map<String, Object> payload) {
+        if (payload == null) return;
+        try {
+            enqueueForScope(marketId, event, PartnerScopes.CONFERE_USE, payload);
+        } catch (RuntimeException e) {
+            log.warn("Aviso {} do Confere falhou (mercado {}): {}", event, marketId, e.getMessage());
+        }
+    }
     static final int MAX_ATTEMPTS = 8;
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
+    // Datas em ISO-8601 ("2026-10-12T14:31:05"), não em array: é o que o parceiro lê.
+    private final ObjectMapper json = new ObjectMapper().findAndRegisterModules()
+        .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     public PartnerWebhookService(NamedParameterJdbcTemplate jdbc) {
@@ -47,29 +66,58 @@ public class PartnerWebhookService {
 
     /** Enfileira para cada parceiro autorizado pela loja com o escopo do evento e com webhook configurado. */
     public int enqueue(UUID marketId, String event, Map<String, Object> payload) {
-        String scope = EVENT_ORDER_SENT.equals(event) ? "orders:read" : "prices:read";
+        return enqueueForScope(marketId, event, EVENT_ORDER_SENT.equals(event) ? "orders:read" : "prices:read", payload);
+    }
+
+    /** Para cada parceiro autorizado pela loja com {@code scope} e com webhook configurado. */
+    public int enqueueForScope(UUID marketId, String event, String scope, Map<String, Object> payload) {
         return TenantContext.runAsSystem(() -> {
             List<UUID> partners = jdbc.query(
                 "select l.partner_id from partner_market_links l join integration_partners p on p.id = l.partner_id " +
                 "where l.market_id = :m and l.status = 'ATIVO' and :s = any(l.scopes) and p.webhook_url is not null and p.status <> 'SUSPENSO'",
                 new MapSqlParameterSource("m", marketId).addValue("s", scope), (rs, n) -> rs.getObject("partner_id", UUID.class));
-            String body;
-            try {
-                Map<String, Object> envelope = new LinkedHashMap<>();
-                envelope.put("event", event);
-                envelope.put("marketId", marketId);
-                envelope.put("occurredAt", LocalDateTime.now().toString());
-                envelope.put("data", payload);
-                body = json.writeValueAsString(envelope);
-            } catch (Exception e) {
-                throw new IllegalStateException(e);
-            }
+            String body = envelope(marketId, event, payload);
             for (UUID p : partners) {
-                jdbc.update("insert into partner_webhook_events (partner_id, market_id, event, payload) values (:p, :m, :e, cast(:b as jsonb))",
-                    new MapSqlParameterSource("p", p).addValue("m", marketId).addValue("e", event).addValue("b", body));
+                insert(p, marketId, event, body);
             }
             return partners.size();
         });
+    }
+
+    /**
+     * Aviso a um parceiro só, sem depender de escopo: a loja aprovou ou revogou a
+     * conexão. Sem webhook configurado, não há o que enfileirar.
+     */
+    public void enqueueTo(UUID partnerId, UUID marketId, String event, Map<String, Object> payload) {
+        try {
+            TenantContext.runAsSystem(() -> {
+                Integer ready = jdbc.queryForObject(
+                    "select count(*) from integration_partners where id = :p and webhook_url is not null and status <> 'SUSPENSO'",
+                    new MapSqlParameterSource("p", partnerId), Integer.class);
+                if (ready != null && ready > 0) insert(partnerId, marketId, event, envelope(marketId, event, payload));
+                return null;
+            });
+        } catch (RuntimeException e) {
+            log.warn("Aviso {} ao parceiro {} falhou (mercado {}): {}", event, partnerId, marketId, e.getMessage());
+        }
+    }
+
+    private String envelope(UUID marketId, String event, Map<String, Object> payload) {
+        try {
+            Map<String, Object> envelope = new LinkedHashMap<>();
+            envelope.put("event", event);
+            envelope.put("marketId", marketId);
+            envelope.put("occurredAt", LocalDateTime.now().toString());
+            envelope.put("data", payload);
+            return json.writeValueAsString(envelope);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void insert(UUID partnerId, UUID marketId, String event, String body) {
+        jdbc.update("insert into partner_webhook_events (partner_id, market_id, event, payload) values (:p, :m, :e, cast(:b as jsonb))",
+            new MapSqlParameterSource("p", partnerId).addValue("m", marketId).addValue("e", event).addValue("b", body));
     }
 
     /** Pedido enviado ao fornecedor (o ERP dá entrada sem digitar). */

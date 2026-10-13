@@ -31,6 +31,8 @@ public class PartnerAuthService {
 
     public static final int TOKEN_TTL_MINUTES = 60;
     public static final int REQUESTS_PER_MINUTE = 120;
+    /** O parceiro da casa atende todas as lojas dele (catálogo no caixa, vendas): limite maior. */
+    public static final int FIRST_PARTY_REQUESTS_PER_MINUTE = 1200;
     public static final String TOKEN_PREFIX = "mfp_";
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -89,10 +91,11 @@ public class PartnerAuthService {
     public PartnerPrincipal authenticate(String token) {
         return TenantContext.runAsSystem(() -> {
             List<PartnerPrincipal> found = jdbc.query(
-                "select p.id, p.name, p.status from partner_tokens t join integration_partners p on p.id = t.partner_id " +
+                "select p.id, p.name, p.status, p.first_party from partner_tokens t join integration_partners p on p.id = t.partner_id " +
                 "where t.token_hash = :h and t.expires_at > now() and p.status <> 'SUSPENSO'",
                 new MapSqlParameterSource("h", sha256(token)),
-                (rs, n) -> new PartnerPrincipal(rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("status")));
+                (rs, n) -> new PartnerPrincipal(rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("status"),
+                    rs.getBoolean("first_party")));
             return found.isEmpty() ? null : found.get(0);
         });
     }
@@ -108,10 +111,10 @@ public class PartnerAuthService {
         });
     }
 
-    public boolean allowRequest(UUID partnerId) {
+    public boolean allowRequest(UUID partnerId, boolean firstParty) {
         long minute = System.currentTimeMillis() / 60_000;
         Window w = windows.compute(partnerId,
             (k, cur) -> cur == null || cur.minute() != minute ? new Window(minute, new AtomicInteger()) : cur);
-        return w.count().incrementAndGet() <= REQUESTS_PER_MINUTE;
+        return w.count().incrementAndGet() <= (firstParty ? FIRST_PARTY_REQUESTS_PER_MINUTE : REQUESTS_PER_MINUTE);
     }
 }

@@ -56,6 +56,13 @@ public class ConfereService {
         this.asaas = asaas;
     }
 
+    /** Avisos ao sistema parceiro da casa (Bipae) que usa o Confere por dentro. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.pdv2cloud.service.partner.PartnerWebhookService partnerWebhooks;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ConfereEntryExport entryExport;
+
     public ConfereService(NamedParameterJdbcTemplate jdbc, AiCredentialCipher cipher, MeuDanfeClient meuDanfe,
                           SefazClient sefaz, CatalogImageStorageService catalogImages, CatalogImageUrlResolver imageUrls,
                           NfeItemStore itemStore) {
@@ -293,6 +300,8 @@ public class ConfereService {
             .addValue("num", d.number()).addValue("ser", d.series())
             .addValue("iss", d.issuedAt() == null ? null : Timestamp.valueOf(d.issuedAt()))
             .addValue("tot", d.totalValue()).addValue("items", d.full() ? d.items().size() : null).addValue("vol", d.volumes());
+        List<String> before = jdbc.queryForList("select completeness from nfe_documents where market_id = :m and access_key = :k", p, String.class);
+        boolean newlyFull = d.full() && (before.isEmpty() || !"FULL".equals(before.get(0)));
         // Resumo nunca sobrescreve a nota completa.
         jdbc.update(
             "insert into nfe_documents (market_id, access_key, source, completeness, xml, emitter_cnpj, emitter_name, number, series, " +
@@ -308,6 +317,11 @@ public class ConfereService {
         UUID id = jdbc.queryForObject("select id from nfe_documents where market_id = :m and access_key = :k", p, UUID.class);
         if (d.full()) {
             itemStore.extract(marketId, id, d);
+        }
+        // Nota nova com os produtos: o Bipae avisa "chegou nota para conferir".
+        if (newlyFull && partnerWebhooks != null && entryExport != null) {
+            partnerWebhooks.confere(marketId, com.pdv2cloud.service.partner.PartnerWebhookService.EVENT_CONFERE_DOCUMENT,
+                entryExport.header(marketId, id));
         }
         return id;
     }
@@ -529,6 +543,11 @@ public class ConfereService {
         Check saved = latestCheck(marketId, documentId);
         if (finish) {
             itemStore.writeStockEntries(marketId, documentId, saved.id(), saved.counts());
+            // Entrada conferida pronta para o estoque do ERP (Bipae).
+            if (partnerWebhooks != null && entryExport != null) {
+                partnerWebhooks.confere(marketId, com.pdv2cloud.service.partner.PartnerWebhookService.EVENT_CONFERE_CHECKED,
+                    entryExport.entry(marketId, documentId));
+            }
         }
         return saved;
     }
