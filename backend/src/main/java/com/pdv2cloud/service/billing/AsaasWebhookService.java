@@ -79,15 +79,27 @@ public class AsaasWebhookService {
         switch (event) {
             case "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED" -> {
                 if (ref != null && ref.startsWith("ai:")) {
-                    wallets.markPaidByGateway(UUID.fromString(ref.substring(3)));
+                    UUID id = uuid(ref.substring(3));
+                    if (id == null) {
+                        return ignoredRef(ref);
+                    }
+                    wallets.markPaidByGateway(id);
                     return Outcome.CREDITS_AI;
                 }
                 if (ref != null && ref.startsWith("confere:")) {
-                    confere.markOrderPaidByGateway(UUID.fromString(ref.substring(8)));
+                    UUID id = uuid(ref.substring(8));
+                    if (id == null) {
+                        return ignoredRef(ref);
+                    }
+                    confere.markOrderPaidByGateway(id);
                     return Outcome.CREDITS_CONFERE;
                 }
                 if (ref != null && ref.startsWith("ind:") && industryBilling != null) {
-                    industryBilling.markPaid(UUID.fromString(ref.substring(4)), "asaas");
+                    UUID id = uuid(ref.substring(4));
+                    if (id == null) {
+                        return ignoredRef(ref);
+                    }
+                    industryBilling.markPaid(id, "asaas");
                     return Outcome.INDUSTRY_PAID;
                 }
                 if (subId != null) {
@@ -96,7 +108,11 @@ public class AsaasWebhookService {
             }
             case "PAYMENT_OVERDUE" -> {
                 if (ref != null && ref.startsWith("ind:") && industryBilling != null) {
-                    industryBilling.markOverdue(UUID.fromString(ref.substring(4)));
+                    UUID id = uuid(ref.substring(4));
+                    if (id == null) {
+                        return ignoredRef(ref);
+                    }
+                    industryBilling.markOverdue(id);
                     return Outcome.INDUSTRY_LATE;
                 }
                 if (subId != null) {
@@ -108,8 +124,9 @@ public class AsaasWebhookService {
                 }
             }
             case "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE" -> {
-                if (insights != null) {
-                    UUID root = subId == null ? null : anyRoot(subId);
+                UUID root = subId == null ? null : anyRoot(subId);
+                // A conta do Asaas é compartilhada com outros sistemas: estorno alheio não vira alerta aqui.
+                if (insights != null && (root != null || ours(ref))) {
                     insights.exception(event, root, paymentId, (event.equals("PAYMENT_REFUNDED") ? "Pagamento estornado" : "Pagamento contestado")
                         + " no Asaas: " + paymentId + " (" + AsaasService.text(payment, "value") + ")"
                         + (ref == null ? "" : ", referência " + ref) + ".");
@@ -150,8 +167,15 @@ public class AsaasWebhookService {
         } else if (ref != null && ref.startsWith("sub:") && ref.split(":").length == 3) {
             // A fatura herda a referência da assinatura: "sub:<rede>:<plano>".
             String[] parts = ref.split(":");
-            root = UUID.fromString(parts[1]);
+            root = uuid(parts[1]);
             plan = parts[2];
+            if (root == null) {
+                return ignoredRef(ref);
+            }
+        } else if (!ours(ref)) {
+            // Assinatura de outro sistema que usa a mesma conta do Asaas.
+            log.debug("Pagamento do Asaas que não é do MercadoFlow: assinatura {}", subId);
+            return Outcome.IGNORED;
         } else {
             log.warn("Pagamento do Asaas de assinatura desconhecida {}", subId);
             if (insights != null) {
@@ -177,6 +201,25 @@ public class AsaasWebhookService {
                     "data", AsaasService.periodEnd(AsaasService.text(payment, "dueDate")).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM"))));
         }
         return Outcome.SUBSCRIPTION_PAID;
+    }
+
+    /** Referências que o MercadoFlow põe nas cobranças; o resto é de outro sistema na mesma conta. */
+    static boolean ours(String ref) {
+        return ref != null && (ref.startsWith("ai:") || ref.startsWith("confere:") || ref.startsWith("ind:") || ref.startsWith("sub:"));
+    }
+
+    static UUID uuid(String s) {
+        try {
+            return UUID.fromString(s);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** Referência malformada: 200 sem ação, para o Asaas não reenviar nem pausar a fila. */
+    private Outcome ignoredRef(String ref) {
+        log.warn("Aviso do Asaas com referência inválida: {}", ref);
+        return Outcome.IGNORED;
     }
 
     private UUID anyRoot(String subId) {
