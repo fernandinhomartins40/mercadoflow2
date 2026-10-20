@@ -266,7 +266,7 @@ const MySubscription: React.FC = () => {
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {data.canChangeAddons
                 ? 'Cobrados na mesma assinatura. Mudou a quantidade, a próxima fatura já vem com o valor novo.'
-                : s.paymentMethod === 'CARTAO'
+                : s.paymentMethod === 'CARTAO' && s.provider === 'STRIPE'
                   ? 'Na assinatura pelo cartão, peça adicionais ao comercial (comercial@mercadoflow.com).'
                   : 'Para contratar adicionais, tenha uma assinatura ativa por Pix ou boleto.'}
             </p>
@@ -304,7 +304,7 @@ const MySubscription: React.FC = () => {
           <h2 className={H2} style={{ color: 'var(--text-primary)' }}>Faturas e notas fiscais</h2>
           {data.invoices.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {s.paymentMethod === 'CARTAO' ? 'As faturas do cartão ficam em "Gerenciar assinatura", na tela de planos.' : 'Nenhuma fatura ainda.'}
+              {s.paymentMethod === 'CARTAO' && s.provider === 'STRIPE' ? 'As faturas do cartão ficam em "Gerenciar assinatura", na tela de planos.' : 'Nenhuma fatura ainda.'}
             </p>
           ) : (
             <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--border-soft)' }}>

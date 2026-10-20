@@ -521,8 +521,10 @@ export interface BillingStatus {
   checkoutEnabled: boolean;
   essencialAvailable: boolean;
   profissionalAvailable: boolean;
-  /** Cartão pelo Stripe; Pix e boleto pelo Asaas. */
+  /** Cartão disponível (Asaas, ou Stripe sem o Asaas). */
   cardEnabled?: boolean;
+  /** Cartão pela fatura do Asaas: não depende dos preços do Stripe. */
+  cardViaAsaas?: boolean;
   pixEnabled?: boolean;
   boletoEnabled?: boolean;
 }

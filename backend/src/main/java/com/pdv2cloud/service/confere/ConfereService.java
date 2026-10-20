@@ -51,6 +51,14 @@ public class ConfereService {
     /** Com o Asaas ligado, o Pix sai com QR dele e o aviso de pagamento confirma sozinho. */
     private com.pdv2cloud.service.billing.AsaasService asaas;
 
+    /** Cartão pelo Stripe só aparece com o Stripe ligado no servidor, não só no interruptor do Confere. */
+    private com.pdv2cloud.service.StripeService stripe;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setStripe(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.StripeService stripe) {
+        this.stripe = stripe;
+    }
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setAsaas(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.AsaasService asaas) {
         this.asaas = asaas;
@@ -103,7 +111,7 @@ public class ConfereService {
         return new Status(Boolean.TRUE.equals(s.get("enabled")), accepted, version,
             termsText == null ? ConfereAdminService.DEFAULT_TERMS : termsText, balance, trial,
             ((Number) s.get("trial_reads")).intValue(), ((Number) s.get("price_per_read_cents")).intValue(), plans,
-            certificate(marketId), s.get("pix_key") != null || (asaas != null && asaas.enabled()), Boolean.TRUE.equals(s.get("stripe_enabled")),
+            certificate(marketId), s.get("pix_key") != null || (asaas != null && asaas.enabled()), Boolean.TRUE.equals(s.get("stripe_enabled")) && stripe != null && stripe.isConfigured(),
             (String) market.get("name"), (String) market.get("cnpj"),
             !acc.isEmpty() && Boolean.TRUE.equals(acc.get(0).get("manufacturer_visibility")),
             acc.isEmpty() ? null : ts((Timestamp) acc.get(0).get("manufacturer_visibility_at")));

@@ -33,13 +33,17 @@ import org.springframework.stereotype.Service;
 /**
  * Cobrança brasileira pelo Asaas: assinatura por Pix ou boleto, cobrança avulsa
  * de créditos por Pix e os avisos de pagamento (webhook) que confirmam tudo
- * sozinhos. O cartão continua no Stripe; o lojista escolhe no checkout.
+ * sozinhos. O cartão também vai pela fatura do Asaas, que guarda o cartão para
+ * as próximas mensalidades; o lojista escolhe no checkout.
+ *
+ * A conta do Asaas é compartilhada com outros sistemas (Fusai): o webhook do
+ * MercadoFlow é achado pela URL e nunca mexe nos outros.
  *
  * A chave vem do ambiente (ASAAS_API_KEY, secret do deploy) e, sem ela, do
  * painel de chaves da plataforma (provedor ASAAS), cifrada. O prefixo da chave
  * diz o ambiente: $aact_prod_ vai para produção, $aact_hmlg_ para o sandbox.
- * Nenhum dado de cartão passa por aqui: Pix e boleto são pagos na fatura
- * hospedada pelo Asaas.
+ * Nenhum dado de cartão passa por aqui: Pix, boleto e cartão são pagos na
+ * fatura hospedada pelo Asaas.
  */
 @Service
 public class AsaasService {
@@ -135,6 +139,7 @@ public class AsaasService {
         String id = created.path("id").asText();
         jdbc.update("insert into billing_customers (market_id, provider, customer_id) values (:m, 'ASAAS', :c) "
             + "on conflict (market_id, provider) do update set customer_id = excluded.customer_id", Map.of("m", rootId, "c", id));
+        emailOnlyNotifications(id);
         return id;
     }
 
@@ -148,7 +153,8 @@ public class AsaasService {
         String billingType = switch (method == null ? "" : method.toUpperCase()) {
             case "PIX" -> "PIX";
             case "BOLETO" -> "BOLETO";
-            default -> throw new IllegalArgumentException("Forma de pagamento inválida: escolha Pix ou boleto.");
+            case "CARTAO", "CREDIT_CARD" -> "CREDIT_CARD";
+            default -> throw new IllegalArgumentException("Forma de pagamento inválida: escolha Pix, boleto ou cartão.");
         };
         if (plan != PlanType.ESSENCIAL && plan != PlanType.PROFISSIONAL) {
             throw new IllegalArgumentException(plan == PlanType.REDE
@@ -322,7 +328,38 @@ public class AsaasService {
             body.put("email", email);
         }
         body.put("externalReference", externalReference);
-        return call("POST", "/customers", body).path("id").asText();
+        String id = call("POST", "/customers", body).path("id").asText();
+        emailOnlyNotifications(id);
+        return id;
+    }
+
+    /**
+     * O Asaas cria cada cliente avisando por e-mail, SMS e ligação, e SMS e
+     * ligação são cobrados por envio. Aqui fica só o e-mail; o MercadoFlow tem
+     * os próprios avisos. Falha não impede a cobrança.
+     */
+    void emailOnlyNotifications(String customerId) {
+        try {
+            ObjectNode body = json.createObjectNode();
+            body.put("customer", customerId);
+            var list = body.putArray("notifications");
+            for (JsonNode n : call("GET", "/customers/" + customerId + "/notifications", null).path("data")) {
+                if (text(n, "id") == null) {
+                    continue;
+                }
+                ObjectNode u = list.addObject();
+                u.put("id", text(n, "id"));
+                u.put("smsEnabledForCustomer", false);
+                u.put("phoneCallEnabledForCustomer", false);
+                u.put("whatsappEnabledForCustomer", false);
+                u.put("smsEnabledForProvider", false);
+            }
+            if (list.size() > 0) {
+                call("PUT", "/notifications/batch", body);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Não consegui deixar só o e-mail nos avisos do cliente {} no Asaas: {}", customerId, e.getMessage());
+        }
     }
 
     /** Fatura avulsa em que o pagador escolhe boleto, Pix ou cartão. */
@@ -340,7 +377,11 @@ public class AsaasService {
 
     // ── Avisos (webhook) ─────────────────────────────────────────────────
 
-    /** Gera um token novo e cadastra (ou recadastra) o aviso de pagamento no Asaas. */
+    /**
+     * Gera um token novo e cadastra o aviso de pagamento no Asaas. Se já houver
+     * um webhook com a URL do MercadoFlow, atualiza esse em vez de criar outro
+     * (a conta aceita só 10, e duplicado entregaria cada aviso duas vezes).
+     */
     public String registerWebhook(String alertEmail) {
         if (!cipher.isConfigured()) {
             throw new IllegalStateException("A chave mestra de criptografia (AI_ENCRYPTION_KEY) não está configurada no servidor");
@@ -365,10 +406,33 @@ public class AsaasService {
         body.put("sendType", "SEQUENTIALLY");
         var events = body.putArray("events");
         WEBHOOK_EVENTS.forEach(events::add);
-        call("POST", "/webhooks", body);
+        String existing = null;
+        for (JsonNode w : call("GET", "/webhooks?limit=100", null).path("data")) {
+            if (url.equals(text(w, "url"))) {
+                existing = text(w, "id");
+                break;
+            }
+        }
+        if (existing != null) {
+            call("PUT", "/webhooks/" + existing, body);
+        } else {
+            call("POST", "/webhooks", body);
+        }
         jdbc.update("update billing_settings set asaas_webhook_token_enc = :t, asaas_webhook_at = now() where id = 1",
             Map.of("t", cipher.encrypt(token)));
         return url;
+    }
+
+    /** Com chave e sem aviso conectado, conecta sozinho (na subida do servidor). */
+    public void autoConnectWebhook() {
+        if (!enabled() || !cipher.isConfigured() || webhookRegistered()) {
+            return;
+        }
+        try {
+            log.info("Avisos do Asaas conectados em {}", registerWebhook(null));
+        } catch (RuntimeException e) {
+            log.warn("Não consegui conectar os avisos do Asaas sozinho; use \"Conectar avisos\" no superadmin: {}", e.getMessage());
+        }
     }
 
     public boolean webhookRegistered() {

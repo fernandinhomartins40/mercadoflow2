@@ -151,14 +151,14 @@ const Plans: React.FC = () => {
     }
   };
 
-  /** Formas de pagamento disponíveis para o plano: Pix e boleto (Asaas), cartão (Stripe). */
+  /** Formas de pagamento disponíveis para o plano: Pix, boleto e cartão pelo Asaas (Stripe só sem ele). */
   const methodsFor = (plan: PlanDescriptor): PaymentMethod[] => {
     if (!billing || (plan.code !== 'ESSENCIAL' && plan.code !== 'PROFISSIONAL')) return [];
     const out: PaymentMethod[] = [];
     if (billing.pixEnabled) out.push('PIX');
     if (billing.boletoEnabled) out.push('BOLETO');
     const cardPrice = plan.code === 'ESSENCIAL' ? billing.essencialAvailable : billing.profissionalAvailable;
-    if (billing.checkoutEnabled && cardPrice) out.push('CARTAO');
+    if (billing.cardViaAsaas || (billing.checkoutEnabled && cardPrice)) out.push('CARTAO');
     return out;
   };
   const canCheckout = (plan: PlanDescriptor) => methodsFor(plan).length > 0;
@@ -192,7 +192,7 @@ const Plans: React.FC = () => {
             {paysByGateway && sub && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Pago por {sub.paymentMethod === 'BOLETO' ? 'boleto' : 'Pix'}
+                  Pago por {sub.paymentMethod === 'BOLETO' ? 'boleto' : sub.paymentMethod === 'CARTAO' ? 'cartão' : 'Pix'}
                   {sub.currentPeriodEnd && ` · plano válido até ${new Date(sub.currentPeriodEnd).toLocaleDateString('pt-BR')}`}
                   {sub.cancelAtPeriodEnd && ' · cancelada, volta ao Grátis depois'}
                 </span>

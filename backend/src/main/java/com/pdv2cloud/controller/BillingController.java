@@ -62,8 +62,9 @@ public class BillingController {
             stripeService.priceIdFor(PlanType.ESSENCIAL).isPresent());
         response.put("profissionalAvailable",
             stripeService.priceIdFor(PlanType.PROFISSIONAL).isPresent());
-        // Pix e boleto pelo Asaas, ao lado do cartão no Stripe.
-        response.put("cardEnabled", stripeService.isConfigured());
+        // Pix, boleto e cartão pelo Asaas; o Stripe só sem o Asaas configurado.
+        response.put("cardEnabled", asaas.enabled() || stripeService.isConfigured());
+        response.put("cardViaAsaas", asaas.enabled());
         response.put("pixEnabled", asaas.enabled());
         response.put("boletoEnabled", asaas.enabled());
         return ResponseEntity.ok(response);
@@ -79,7 +80,7 @@ public class BillingController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         try {
             String method = request.getMethod() == null ? "CARTAO" : request.getMethod().toUpperCase();
-            if (!"CARTAO".equals(method)) {
+            if (!"CARTAO".equals(method) || asaas.enabled()) {
                 UUID root = subscriptions.rootOf(marketId);
                 if (!root.equals(marketId)) {
                     throw new IllegalArgumentException("Esta loja é filial: a assinatura é contratada pela matriz da rede.");
