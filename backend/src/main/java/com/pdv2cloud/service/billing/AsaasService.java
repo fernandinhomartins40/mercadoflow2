@@ -35,7 +35,9 @@ import org.springframework.stereotype.Service;
  * de créditos por Pix e os avisos de pagamento (webhook) que confirmam tudo
  * sozinhos. O cartão continua no Stripe; o lojista escolhe no checkout.
  *
- * A chave fica no painel de chaves da plataforma (provedor ASAAS), cifrada.
+ * A chave vem do ambiente (ASAAS_API_KEY, secret do deploy) e, sem ela, do
+ * painel de chaves da plataforma (provedor ASAAS), cifrada. O prefixo da chave
+ * diz o ambiente: $aact_prod_ vai para produção, $aact_hmlg_ para o sandbox.
  * Nenhum dado de cartão passa por aqui: Pix e boleto são pagos na fatura
  * hospedada pelo Asaas.
  */
@@ -68,21 +70,42 @@ public class AsaasService {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8))
         .followRedirects(HttpClient.Redirect.NEVER).build();
     private final String publicBaseUrl;
+    private final Optional<AiPlatformConfig.Key> envKey;
 
     public AsaasService(AiPlatformConfig platform, AiCredentialCipher cipher, NamedParameterJdbcTemplate jdbc,
-                        PlanCatalogService catalog, @Value("${app.public-base-url:https://mercadoflow.com}") String publicBaseUrl) {
+                        PlanCatalogService catalog, @Value("${app.public-base-url:https://mercadoflow.com}") String publicBaseUrl,
+                        @Value("${app.asaas.api-key:}") String envApiKey) {
         this.platform = platform;
         this.cipher = cipher;
         this.jdbc = jdbc;
         this.catalog = catalog;
         this.publicBaseUrl = publicBaseUrl.replaceAll("/+$", "");
+        this.envKey = envKey(envApiKey);
+    }
+
+    /** Chave do ambiente; o $ do começo some com facilidade no caminho (shell, .env), então volta aqui. */
+    static Optional<AiPlatformConfig.Key> envKey(String raw) {
+        String k = raw == null ? "" : raw.trim().replaceAll("^['\"]|['\"]$", "");
+        if (k.isEmpty()) {
+            return Optional.empty();
+        }
+        if (k.startsWith("aact_")) {
+            k = "$" + k;
+        }
+        String base = k.startsWith("$aact_hmlg_") ? "https://api-sandbox.asaas.com/v3" : "https://api.asaas.com/v3";
+        return Optional.of(new AiPlatformConfig.Key(PROVIDER, base, k, null));
+    }
+
+    /** Secret do deploy tem precedência; sem ele, a chave do painel. */
+    private Optional<AiPlatformConfig.Key> key() {
+        return envKey.isPresent() ? envKey : platform.key(PROVIDER);
     }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.pdv2cloud.service.partner.PartnerDiscount partnerDiscount;
 
     public boolean enabled() {
-        return platform.key(PROVIDER).isPresent();
+        return key().isPresent();
     }
 
     // ── Clientes ─────────────────────────────────────────────────────────
@@ -382,6 +405,9 @@ public class AsaasService {
             + "nfse_observations, asaas_webhook_token_enc is not null as webhook, asaas_webhook_at from billing_settings where id = 1", Map.of());
         Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("configured", enabled());
+        // Chave vinda do secret do deploy (ASAAS_API_KEY) e se ela é de sandbox.
+        out.put("keyFromEnv", envKey.isPresent());
+        out.put("sandbox", key().map(k -> k.baseUrl().contains("sandbox")).orElse(false));
         out.put("webhookRegistered", s.get("webhook"));
         out.put("webhookAt", s.get("asaas_webhook_at"));
         out.put("webhookUrl", publicBaseUrl + "/api/v1/public/asaas/webhook");
@@ -479,7 +505,7 @@ public class AsaasService {
 
     /** Chamada à API do Asaas. Erro vira mensagem em português, sem a chave. */
     JsonNode call(String method, String path, JsonNode body) {
-        AiPlatformConfig.Key key = platform.key(PROVIDER)
+        AiPlatformConfig.Key key = key()
             .orElseThrow(() -> new IllegalStateException("Pagamento por Pix e boleto ainda não está disponível."));
         HttpRequest.Builder b = HttpRequest.newBuilder().uri(URI.create(key.baseUrl() + path)).timeout(Duration.ofSeconds(20))
             .header("access_token", key.apiKey()).header("User-Agent", "MercadoFlow").header("Accept", "application/json");

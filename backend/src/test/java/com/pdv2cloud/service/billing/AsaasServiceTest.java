@@ -38,4 +38,16 @@ class AsaasServiceTest {
         assertThat(AsaasService.text(node, "c")).isEqualTo("x");
         assertThat(AsaasService.text(node, "d")).isNull();
     }
+
+    @Test
+    void envKeyPicksTheEnvironmentFromThePrefixAndRestoresTheDollar() {
+        assertThat(AsaasService.envKey("")).isEmpty();
+        assertThat(AsaasService.envKey(null)).isEmpty();
+        var prod = AsaasService.envKey("$aact_prod_abc123").orElseThrow();
+        assertThat(prod.baseUrl()).isEqualTo("https://api.asaas.com/v3");
+        assertThat(prod.apiKey()).isEqualTo("$aact_prod_abc123");
+        var sandbox = AsaasService.envKey(" 'aact_hmlg_xyz' ").orElseThrow();
+        assertThat(sandbox.baseUrl()).isEqualTo("https://api-sandbox.asaas.com/v3");
+        assertThat(sandbox.apiKey()).isEqualTo("$aact_hmlg_xyz");
+    }
 }

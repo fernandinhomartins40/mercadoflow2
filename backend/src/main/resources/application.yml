@@ -62,6 +62,11 @@ app:
   # endereço de aviso por http, pela rede interna do Docker (docs/INTEGRACAO-BIPAE.md).
   partner:
     internal-hosts: ${APP_PARTNER_INTERNAL_HOSTS:}
+  # Asaas (Pix, boleto e cartao). Chave do secret ASAAS_API_KEY; vazia = vale a
+  # chave do painel "IA e APIs". O prefixo escolhe o ambiente ($aact_prod_ ou
+  # $aact_hmlg_ para o sandbox).
+  asaas:
+    api-key: ${ASAAS_API_KEY:}
   # Cobranca de assinaturas. Sem STRIPE_SECRET_KEY a integracao fica desligada
   # e a aplicacao sobe normalmente — o upgrade volta a ser manual no painel.
   stripe:

@@ -67,6 +67,11 @@ STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
 STRIPE_PRICE_ESSENCIAL="${STRIPE_PRICE_ESSENCIAL:-}"
 STRIPE_PRICE_PROFISSIONAL="${STRIPE_PRICE_PROFISSIONAL:-}"
+# Asaas: chave de API do secret ASAAS_API_KEY. Chega em base64
+# (ASAAS_API_KEY_B64) porque comeca com $ ($aact_prod_...) e o heredoc do
+# workflow apagaria o resto como se fosse variavel. Ver resolve_asaas_config.
+ASAAS_API_KEY_B64="${ASAAS_API_KEY_B64:-}"
+ASAAS_API_KEY=""
 # Contas de teste (TestUsersSeeder): vem dos GitHub Secrets, com fallback para o
 # .env do servidor (ver resolve_test_users_config). Nunca sao geradas aqui: uma
 # senha sorteada no servidor nao bateria com a documentada para o time.
@@ -183,6 +188,30 @@ resolve_stripe_config() {
     log "Stripe habilitado (chave presente)"
   else
     log "Stripe desabilitado; upgrade de plano permanece manual no painel"
+  fi
+}
+
+resolve_asaas_config() {
+  # Secret do CI > valor ja gravado no .env, como no Stripe: um deploy sem o
+  # secret nao derruba o Pix que ja funcionava.
+  if [[ -n "$ASAAS_API_KEY_B64" ]]; then
+    ASAAS_API_KEY="$(printf '%s' "$ASAAS_API_KEY_B64" | base64 -d | tr -d '\r\n')"
+  elif [[ -f .env ]]; then
+    # No .env fica entre aspas simples (o compose nao interpola o $ assim).
+    ASAAS_API_KEY="$(sed -n "s/^ASAAS_API_KEY=//p" .env | head -n 1 | sed "s/^'//; s/'\$//")"
+  fi
+
+  if [[ "$ASAAS_API_KEY" == *"'"* ]]; then
+    log "ASAAS_API_KEY com aspas simples nao e uma chave valida; ignorada"
+    ASAAS_API_KEY=""
+  fi
+
+  if [[ -z "$ASAAS_API_KEY" ]]; then
+    log "Asaas sem chave no deploy; vale a chave do painel do superadmin, se houver"
+  elif [[ "$ASAAS_API_KEY" == *aact_hmlg_* ]]; then
+    log "Asaas configurado (SANDBOX)"
+  else
+    log "Asaas configurado (producao)"
   fi
 }
 
@@ -316,6 +345,7 @@ STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
 STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
 STRIPE_PRICE_ESSENCIAL=${STRIPE_PRICE_ESSENCIAL}
 STRIPE_PRICE_PROFISSIONAL=${STRIPE_PRICE_PROFISSIONAL}
+ASAAS_API_KEY='${ASAAS_API_KEY}'
 TEST_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD}
 TEST_SUPER_ADMIN_PASSWORD=${TEST_SUPER_ADMIN_PASSWORD}
 AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY}
@@ -749,6 +779,7 @@ main() {
   ensure_secret_file ".app_role_secret" 24 "senha da role de aplicacao"
   resolve_super_admin_password
   resolve_stripe_config
+  resolve_asaas_config
   resolve_test_users_config
   resolve_ai_config
   write_env_file

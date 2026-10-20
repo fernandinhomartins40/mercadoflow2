@@ -99,6 +99,8 @@ services:
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - STRIPE_PRICE_ESSENCIAL=${STRIPE_PRICE_ESSENCIAL:-}
       - STRIPE_PRICE_PROFISSIONAL=${STRIPE_PRICE_PROFISSIONAL:-}
+      # Asaas (Pix, boleto e cartao). Vazia = vale a chave do painel do superadmin.
+      - ASAAS_API_KEY=${ASAAS_API_KEY:-}
       # Cifra as chaves de IA que os clientes cadastram (BYOK). Ausente = BYOK
       # desabilitado com aviso na tela; todo o resto do produto segue igual.
       - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
@@ -182,6 +184,8 @@ services:
       # O container de jobs tambem precisa: e ele quem interpreta as
       # oportunidades no batch noturno, decifrando a chave de cada mercado.
       - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
+      # Cobrancas mensais geradas pelos jobs (faturas da industria, renovacoes).
+      - ASAAS_API_KEY=${ASAAS_API_KEY:-}
     # Arquivo morto: detalhe antigo que sai do banco vira .csv.gz aqui
     # (retenção do preço estadual), recuperável a qualquer momento.
     volumes:
