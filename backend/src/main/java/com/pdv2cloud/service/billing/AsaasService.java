@@ -396,6 +396,10 @@ public class AsaasService {
         // Sem e-mail na chamada, vale o e-mail de alerta cadastrado junto com a chave.
         String email = alertEmail != null && !alertEmail.isBlank() ? alertEmail
             : platform.key(PROVIDER).map(AiPlatformConfig.Key::defaultModel).orElse(null);
+        if (email == null || email.isBlank()) {
+            // O Asaas exige o e-mail que recebe os alertas de falha: sem outro, o da própria conta.
+            email = text(call("GET", "/myAccount/commercialInfo", null), "email");
+        }
         if (email != null && !email.isBlank()) {
             body.put("email", email);
         }
