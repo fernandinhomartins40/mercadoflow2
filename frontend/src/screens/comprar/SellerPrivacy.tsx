@@ -27,7 +27,7 @@ const SellerPrivacyPage: React.FC = () => {
 
   return (
     <>
-      <PageHero title={<>Indústrias, distribuidores e <mark>a sua loja</mark></>}
+      <PageHero title="Escolha quais fornecedores podem ver a sua loja e mandar ofertas." 
         subtitle="Você decide quem fala com a sua loja. Sem autorização, ninguém sabe o nome da loja: as campanhas chegam sem identificar quem recebeu." />
       <Card>
         <PanelTitle icon={Megaphone} title="Campanhas" sub="Condições especiais que indústrias e distribuidores enviam para um público de lojas." />

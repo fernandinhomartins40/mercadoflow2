@@ -175,7 +175,7 @@ const MySubscription: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={<>Sua assinatura, <mark>sem surpresa.</mark></>} side={<ActionHub icon={HxCreditCard} actions={[{ label: 'Comparar planos', icon: HxLayers, to: '/app/planos' }, { label: 'Equipe e acessos', icon: HxUsers, to: '/app/equipe' }]} />} />
+        <PageHero title="Seu plano, o que ele inclui e as faturas." side={<ActionHub icon={HxCreditCard} actions={[{ label: 'Comparar planos', icon: HxLayers, to: '/app/planos' }]} />} />
 
         {notice && <p role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>{notice}</p>}
         {error && <p role="alert" className="rounded-xl p-3 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>{error}</p>}

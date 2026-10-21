@@ -1,0 +1,201 @@
+/*
+ * Painel do mercado para quem não é técnico (docs/auditoria-painel-leigo).
+ *
+ * Vale só dentro de .fx-clean (Layout do mercado): indústria, vendas e
+ * super-admin seguem com o Flow original. As regras:
+ *  1. o título é o nome da tela;          2. menu com nome, sempre à vista;
+ *  3. uma fila só de páginas por área;    4. uma cor, um significado;
+ *  5. fundo claro e cartões brancos;      7. problema grave numa faixa no topo.
+ */
+
+.fx-clean { background: var(--fx-ground); }
+
+/* ── Topo: marca, menu com nome, Tino e conta ── */
+.fx-clean .fx-top {
+  justify-content: flex-start; gap: clamp(12px, 2vw, 28px); min-height: 64px;
+  padding: 0 clamp(16px, 3vw, 40px); background: var(--fx-card); backdrop-filter: none;
+}
+.fx-clean .fx-brand { flex-shrink: 0; }
+.fx-clean .fx-top-right { margin-left: auto; position: relative; }
+.fx-clean .fx-menu { top: 52px; right: 0; }
+.fx-nav { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.fx-nav::-webkit-scrollbar { display: none; }
+.fx-nav a {
+  padding: 9px 14px; border-radius: 10px; font-weight: 600; font-size: 15px; color: var(--fx-ink-2);
+  text-decoration: none; white-space: nowrap;
+}
+.fx-nav a:hover { color: var(--fx-ink); background: var(--fx-card-2); }
+.fx-nav a.on { background: var(--fx-forest); color: #fff; }
+.fx-ask-btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--fx-line-2); background: var(--fx-card); color: var(--fx-ink);
+  font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap;
+}
+.fx-ask-btn:hover { border-color: var(--fx-ink-2); }
+.fx-ask-btn.on { border-color: var(--fx-forest); box-shadow: inset 0 0 0 1px var(--fx-forest); }
+.fx-ask-btn svg { width: 18px; height: 18px; }
+
+/* ── Faixa do problema que trava a loja ── */
+.fx-band {
+  display: flex; align-items: center; gap: 14px; padding: 12px clamp(16px, 3vw, 40px);
+  font-size: 16px; line-height: 1.4; border-bottom: 1px solid transparent;
+}
+.fx-band p { margin: 0; flex: 1; min-width: 0; }
+.fx-band.danger { background: var(--fx-red-soft); border-color: #F5C2BC; color: var(--fx-ink); }
+.fx-band.danger strong { color: #7A1D15; }
+.fx-band .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--fx-red); flex-shrink: 0; }
+
+/* ── Páginas da área: uma fila de abas sob o topo ── */
+.fx-subnav {
+  display: flex; gap: 4px; padding: 0 clamp(16px, 3vw, 40px); background: var(--fx-card);
+  border-bottom: 1px solid var(--fx-line); overflow-x: auto; scrollbar-width: none;
+}
+.fx-subnav::-webkit-scrollbar { display: none; }
+.fx-subnav a {
+  padding: 12px 14px 11px; font-weight: 600; font-size: 15px; color: var(--fx-muted); text-decoration: none;
+  white-space: nowrap; border-bottom: 3px solid transparent;
+}
+.fx-subnav a:hover { color: var(--fx-ink); }
+.fx-subnav a.on { color: var(--fx-ink); border-bottom-color: var(--fx-forest); }
+
+/* ── Conteúdo ── */
+.fx-clean .fx-main { padding: clamp(18px, 2.4vw, 28px) clamp(16px, 3vw, 40px) 56px; max-width: 1440px; }
+
+/* ── Cabeçalho da tela: nome em tamanho normal, frase embaixo, sem marca-texto ── */
+.fx-clean .fx-hero { align-items: flex-end; gap: 12px 24px; margin-bottom: 4px; }
+.fx-clean .fx-hero-text { flex: 1 1 420px; }
+.fx-clean .fx-title,
+.fx-clean .fx-main h1.text-xl, .fx-clean .fx-main h1.text-2xl, .fx-clean .fx-main h1.text-lg {
+  font-size: clamp(26px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.02em; line-height: 1.15;
+}
+.fx-lead { margin: 6px 0 0; font-size: 17px; font-weight: 600; line-height: 1.4; color: var(--fx-ink); max-width: 75ch; text-wrap: pretty; }
+.fx-clean .fx-sub { margin-top: 4px; font-size: 15.5px; color: var(--fx-muted); }
+.fx-clean .fx-title mark, .fx-clean .fx-lead mark, .fx-clean .fx-main h1 mark { background: none; padding: 0; color: inherit; }
+
+/* ── Painéis escuros viram cartões brancos ── */
+.fx-clean .fx-main .fx-forest {
+  --fx-on-forest: var(--fx-ink);
+  --fx-on-forest-muted: var(--fx-muted);
+  --fx-forest-line: var(--fx-line);
+  background: var(--fx-card); color: var(--fx-ink); border: 1px solid var(--fx-line);
+  border-radius: 22px; box-shadow: var(--fx-shadow);
+}
+.fx-clean .fx-main .fx-forest .fx-icon-tile { background: #E7F3EA; color: var(--fx-green); border: 0; }
+.fx-clean .fx-main .fx-forest :focus-visible { outline-color: var(--fx-green); }
+.fx-clean .fx-main .fx-forest .fx-tabs { background: var(--fx-card-2); border-color: var(--fx-line); }
+.fx-clean .fx-main .fx-forest .fx-tab { color: var(--fx-muted); }
+.fx-clean .fx-main .fx-forest .fx-tab[aria-selected="true"] { background: var(--fx-card); color: var(--fx-ink); }
+.fx-clean .fx-main .fx-forest .fx-btn.ghost,
+.fx-clean .fx-main .fx-forest .fx-white .fx-btn.ghost { background: var(--fx-card); color: var(--fx-ink); border-color: var(--fx-line-2); }
+.fx-clean .fx-main .fx-forest .fx-chip.ghost { background: var(--fx-card-2); color: var(--fx-ink-2); border-color: var(--fx-line); }
+.fx-clean .fx-main .fx-forest .fx-item,
+.fx-clean .fx-main .fx-forest .fx-white { border: 1px solid var(--fx-line); }
+.fx-clean .fx-main .fx-forest .fx-white { background: var(--fx-card-2); }
+.fx-clean .fx-main .fx-step.now { color: var(--fx-green); }
+.fx-clean .fx-main .fx-step.next { color: var(--fx-muted); }
+.fx-clean .fx-main .fx-step-line { background: var(--fx-line-2); }
+.fx-clean .fx-main .fx-trail .dot { color: var(--fx-green); background: var(--fx-card-2); }
+.fx-clean .fx-main .fx-trail li:not(:last-child)::before { background: var(--fx-lime-line); }
+.fx-clean .fx-main .fx-done a, .fx-clean .fx-main .fx-brief-day a { color: var(--fx-green); }
+.fx-clean .fx-main .fx-done h3 { color: var(--fx-ink); }
+.fx-clean .fx-main .fx-brief-day { background: var(--fx-card-2); }
+.fx-clean .fx-main .fx-brief-day > b { color: var(--fx-ink); }
+.fx-clean .fx-main .fx-brief-heard, .fx-clean .fx-main .fx-brief-text { background: var(--fx-card-2); }
+.fx-clean .fx-main .fx-brief-round { background: var(--fx-card-2); color: var(--fx-ink); }
+.fx-clean .fx-main .fx-brief-quick button { background: var(--fx-card); color: var(--fx-ink); border-color: var(--fx-line); }
+.fx-clean .fx-main .fx-brief-topics { border: 1px solid var(--fx-line); }
+.fx-clean .fx-main .fx-seg button[aria-pressed="true"] { color: #fff; border-color: var(--fx-forest); }
+.fx-clean .fx-main .fx-forest, .fx-clean .fx-main .fx-forest * { scrollbar-color: var(--fx-line-2) transparent; }
+
+/* ── Uma cor, um significado: verde-escuro é a ação principal; limão só marca onde se está ── */
+.fx-clean .fx-btn.lime { background: var(--fx-forest); color: #fff; }
+.fx-clean .fx-btn.lime:hover { background: var(--fx-forest-2); }
+.fx-clean .fx-money { background: none; padding: 0; color: var(--fx-ink); }
+.fx-clean .fx-brief-ready { background: var(--fx-lime-soft); border: 1px solid var(--fx-lime-line); }
+.fx-clean .fx-row[aria-current="true"], .fx-clean .fx-row.selected { box-shadow: inset 4px 0 0 var(--fx-forest); }
+
+/* ── Menu (celular): folha clara com todas as telas ── */
+.fx-clean .fx-shade { z-index: 51; }
+.fx-clean .fx-map {
+  z-index: 52; top: 50%; bottom: auto; transform: translate(-50%, -50%);
+  background: var(--fx-card); color: var(--fx-ink); border: 1px solid var(--fx-line);
+}
+.fx-clean .fx-map header button { color: var(--fx-ink); }
+.fx-clean .fx-map .search { background: var(--fx-card-2); border-color: var(--fx-line); }
+.fx-clean .fx-map .search input { color: var(--fx-ink); }
+.fx-clean .fx-map .search input::placeholder { color: var(--fx-muted); }
+.fx-clean .fx-map > section { background: var(--fx-card-2); border-color: var(--fx-line); }
+.fx-clean .fx-map h4 { color: var(--fx-ink-2); font-size: 14px; }
+.fx-clean .fx-map .tile { background: var(--fx-card); border-color: var(--fx-line); color: var(--fx-ink); }
+.fx-clean .fx-map .tile:hover { border-color: var(--fx-ink-2); }
+.fx-clean .fx-map .tile.active { background: var(--fx-forest); border-color: var(--fx-forest); color: #fff; }
+.fx-clean .fx-map, .fx-clean .fx-map * { scrollbar-color: var(--fx-line-2) transparent; }
+
+/* ── Barra do celular: ícone e nome ── */
+.fx-bar { display: none; }
+@media (max-width: 900px) {
+  .fx-nav { display: none; }
+  .fx-clean .fx-top { min-height: 56px; gap: 10px; }
+  .fx-ask-btn .lbl { display: none; }
+  .fx-bar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+    background: var(--fx-card); border-top: 1px solid var(--fx-line);
+    padding: 6px max(6px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
+  }
+  .fx-bar a, .fx-bar button {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 2px 0;
+    font: inherit; font-size: 12px; font-weight: 600; color: var(--fx-muted); text-decoration: none; background: none; border: 0; cursor: pointer;
+  }
+  .fx-bar i { display: grid; place-items: center; width: 52px; height: 30px; border-radius: 16px; }
+  .fx-bar svg { width: 21px; height: 21px; }
+  .fx-bar .on { color: var(--fx-forest); }
+  .fx-bar .on i { background: var(--fx-lime); color: var(--fx-lime-ink); }
+  .fx-clean .fx-main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  .fx-band { flex-wrap: wrap; font-size: 15px; }
+  .fx-band .fx-btn { width: 100%; }
+  .fx-clean .fx-map { top: auto; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-height: calc(100vh - 140px); }
+}
+@media (max-width: 420px) { .fx-clean .fx-brandname { display: none; } }
+
+/* ── Blocos do Início ── */
+.fx-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.fx-shortcuts a {
+  display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 14px; border: 1px solid var(--fx-line);
+  color: var(--fx-ink); text-decoration: none; font-weight: 700; font-size: 16px; background: var(--fx-card);
+}
+.fx-shortcuts a:hover { border-color: var(--fx-ink-2); }
+.fx-shortcuts svg { width: 24px; height: 24px; color: var(--fx-green); }
+.fx-more-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 700; color: var(--fx-green); text-decoration: none; }
+.fx-more-link svg { width: 18px; height: 18px; }
+.fx-more { border-top: 1px solid var(--fx-line); padding-top: 6px; }
+.fx-more > summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; cursor: pointer; list-style: none;
+  padding: 14px 18px; border-radius: 14px; background: var(--fx-card); border: 1px solid var(--fx-line); font-weight: 700; font-size: 17px;
+}
+.fx-more > summary::-webkit-details-marker { display: none; }
+.fx-more > summary::after { content: "Abrir"; margin-left: auto; font-size: 14px; color: var(--fx-green); }
+.fx-more[open] > summary::after { content: "Fechar"; }
+.fx-more > summary small { font-weight: 500; font-size: 14px; color: var(--fx-muted); }
+.fx-clean .fx-section-head .fx-section-title { font-size: 20px; }
+
+/* Abas de dentro da tela: mais leves que o menu e só do tamanho do conteúdo. */
+.fx-clean .fx-seg-tabs { box-shadow: none; border-radius: 14px; width: fit-content; max-width: 100%; }
+.fx-clean .fx-seg-tabs > button { flex: 0 0 auto !important; border-radius: 10px; }
+.fx-clean .fx-seg-tabs > button[aria-pressed="true"] { background: var(--fx-ink); }
+.fx-clean .fx-tabs { box-shadow: none; }
+
+/* ── Decidir: o item abre no lugar, logo abaixo da linha ── */
+.fx-decision.open { border: 2px solid var(--fx-forest); border-radius: 18px; padding: 6px; }
+.fx-decision.open > .fx-row { border-color: transparent; background: var(--fx-card); box-shadow: none; }
+.fx-decision-body { margin-top: 6px; }
+.fx-decision-body .fx-forest { border: 0; box-shadow: none; padding: clamp(12px, 1.6vw, 18px); background: var(--fx-card-2); }
+.fx-decision .fx-chev { transition: transform .15s; }
+.fx-decision-body .fx-desk-steps { display: none; }
+
+/* Passo a passo grande e numerado (programa do caixa). */
+.fx-steps-big { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.fx-steps-big li { background: var(--fx-card); border: 1px solid var(--fx-line); border-radius: 16px; padding: 18px; }
+.fx-steps-big b { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+.fx-steps-big i { font-style: normal; width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; background: var(--fx-lime); color: var(--fx-lime-ink); display: grid; place-items: center; font-size: 15px; }
+.fx-steps-big p { margin: 8px 0 0; color: var(--fx-muted); font-size: 15px; }
+@media (max-width: 760px) { .fx-steps-big { grid-template-columns: 1fr; } }

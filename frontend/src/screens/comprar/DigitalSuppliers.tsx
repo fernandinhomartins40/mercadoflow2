@@ -35,8 +35,8 @@ const DigitalSuppliersPage: React.FC = () => {
 
   return (
     <>
-      <PageHero title={<>Comprar direto da <mark>indústria e do distribuidor</mark></>}
-        subtitle="Os catálogos de quem atende a sua loja, com o preço que vale para você. O pedido vai para o vendedor e também aparece em Comprar → Pedidos." />
+      <PageHero title="Catálogos de quem atende a sua loja, com o preço que vale para você."
+        subtitle="O pedido vai para o fornecedor e também aparece em Pedidos." />
       <PillTabs label="Compras digitais" value={tab} onChange={setTab} tabs={[
         { key: 'comprar', label: 'Fornecedores', icon: Store },
         { key: 'campanhas', label: 'Campanhas recebidas', icon: Megaphone, count: fresh },

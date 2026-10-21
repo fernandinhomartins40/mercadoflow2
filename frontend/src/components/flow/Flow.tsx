@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, type LucideIcon } from 'lucide-react';
+import { ChevronRight, MoreHorizontal, type LucideIcon } from 'lucide-react';
 
 /**
  * Blocos do visual Flow (styles/flow.css): título com destaque, hub de ações,
@@ -8,15 +8,31 @@ import { ChevronRight, type LucideIcon } from 'lucide-react';
  * explicação. As telas montam a página com estes blocos.
  */
 
-export const PageHero: React.FC<{ title: React.ReactNode; subtitle?: React.ReactNode; side?: React.ReactNode }> = ({ title, subtitle, side }) => (
-  <header className="fx-hero">
-    <div className="fx-hero-text">
-      <h1 className="fx-title">{title}</h1>
-      {subtitle && <p className="fx-sub">{subtitle}</p>}
-    </div>
-    {side && <div className="fx-hero-side">{side}</div>}
-  </header>
-);
+/** Nome da tela atual, dado pela casca do mercado (Layout). Fora dela, nulo. */
+export const PageNameContext = React.createContext<string | null>(null);
+
+/**
+ * Cabeçalho da tela. No painel do mercado o título é o nome da tela ("Decidir",
+ * "Pedidos"), sempre igual e no mesmo lugar; a frase da tela vira a linha de
+ * baixo. Fora do mercado (indústria, vendas) segue o título recebido.
+ */
+export const PageHero: React.FC<{ title: React.ReactNode; subtitle?: React.ReactNode; side?: React.ReactNode }> = ({ title, subtitle, side }) => {
+  const name = React.useContext(PageNameContext);
+  return (
+    <header className="fx-hero">
+      <div className="fx-hero-text">
+        {name ? (
+          <>
+            <h1 className="fx-title">{name}</h1>
+            <p className="fx-lead">{title}</p>
+          </>
+        ) : <h1 className="fx-title">{title}</h1>}
+        {subtitle && <p className="fx-sub">{subtitle}</p>}
+      </div>
+      {side && <div className="fx-hero-side">{side}</div>}
+    </header>
+  );
+};
 
 export interface HubAction {
   label: string;
@@ -26,38 +42,21 @@ export interface HubAction {
   href?: string;
 }
 
-/** Nó verde-limão ligado por linhas curvas às ações da tela (até 3). */
-export const ActionHub: React.FC<{ icon: React.ElementType; actions: HubAction[]; label?: string; onForest?: boolean }> = ({ icon: Icon, actions, label, onForest }) => {
-  const list = actions.slice(0, 3);
-  const row = 64;
-  const h = list.length * row - 12;
-  const cy = h / 2;
-  return (
-    <nav className={`fx-hub ${onForest ? 'on-forest' : ''}`} aria-label={label ?? 'Ações desta tela'}>
-      <span className="fx-hub-node" aria-hidden="true"><Icon /></span>
-      <svg className="fx-hub-lines" viewBox={`0 0 64 ${h}`} style={{ height: h }} aria-hidden="true" preserveAspectRatio="none">
-        {list.map((_, i) => {
-          const y = 26 + i * row;
-          return (
-            <g key={i}>
-              <path d={`M0 ${cy} C 30 ${cy}, 30 ${y}, 58 ${y}`} />
-              <circle cx={58} cy={y} r={3.2} />
-            </g>
-          );
-        })}
-      </svg>
-      <div className="fx-hub-actions">
-        {list.map((a) => {
-          const A = a.icon;
-          const inner = <><A aria-hidden="true" />{a.label}</>;
-          if (a.to) return <Link key={a.label} to={a.to} className="fx-hub-btn">{inner}</Link>;
-          if (a.href) return <a key={a.label} href={a.href} className="fx-hub-btn" target="_blank" rel="noreferrer">{inner}</a>;
-          return <button key={a.label} type="button" onClick={a.onClick} className="fx-hub-btn">{inner}</button>;
-        })}
-      </div>
-    </nav>
-  );
-};
+/**
+ * Ações da tela (até 3), como botões simples ao lado do título. Antes era um nó
+ * verde-limão ligado por curvas aos botões: parecia desenho, não botão.
+ */
+export const ActionHub: React.FC<{ icon: React.ElementType; actions: HubAction[]; label?: string; onForest?: boolean }> = ({ actions, label }) => (
+  <nav className="fx-hub" aria-label={label ?? 'Ações desta tela'}>
+    {actions.slice(0, 3).map((a) => {
+      const A = a.icon;
+      const inner = <><A aria-hidden="true" />{a.label}</>;
+      if (a.to) return <Link key={a.label} to={a.to} className="fx-hub-btn">{inner}</Link>;
+      if (a.href) return <a key={a.label} href={a.href} className="fx-hub-btn" target="_blank" rel="noreferrer">{inner}</a>;
+      return <button key={a.label} type="button" onClick={a.onClick} className="fx-hub-btn">{inner}</button>;
+    })}
+  </nav>
+);
 
 export const Forest: React.FC<React.HTMLAttributes<HTMLElement> & { as?: 'section' | 'div' | 'aside' }> = ({ as = 'section', className = '', children, ...rest }) =>
   React.createElement(as, { className: `fx-forest ${className}`, ...rest }, children);
@@ -275,3 +274,42 @@ export const Kpi: React.FC<{ label: string; value: React.ReactNode; hint?: React
 
 export const brl = (v: number | null | undefined, max = 2) =>
   v == null ? '—' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: Math.abs(Number(v)) >= 1000 ? 0 : max });
+
+export interface MoreAction { label: string; icon?: LucideIcon; onClick: () => void; danger?: boolean; disabled?: boolean }
+
+/**
+ * Menu "⋯" para ações raras ou perigosas (remover, excluir). Fica longe da
+ * ação principal: um botão vermelho ao lado de "Publicar" convidava ao erro.
+ */
+export const MoreMenu: React.FC<{ label: string; actions: MoreAction[] }> = ({ label, actions }) => {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <div className="fx-more-menu" ref={ref}>
+      <button type="button" className="fx-more-btn" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <MoreHorizontal aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="fx-more-pop" role="menu">
+          {actions.map((a) => {
+            const I = a.icon;
+            return (
+              <button key={a.label} type="button" role="menuitem" disabled={a.disabled} className={a.danger ? 'danger' : ''}
+                onClick={() => { setOpen(false); a.onClick(); }}>
+                {I && <I aria-hidden="true" />}{a.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};

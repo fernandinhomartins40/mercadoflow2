@@ -11,7 +11,7 @@ import {
   Check, CheckCircle2, Copy, Download, Monitor, Plus, RefreshCw,
   Shield, Trash2, Wifi, WifiOff, X,
 } from 'lucide-react';
-import { ActionHub, Card, Forest, PageHero, PanelTitle } from '../components/flow/Flow';
+import { Card, Forest, MoreMenu, PageHero, PanelTitle } from '../components/flow/Flow';
 import { Download as HxDownload, KeyRound as HxKeyRound, Monitor as HxMonitor, MonitorSmartphone as HxMonitorSmartphone } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
 
@@ -213,7 +213,7 @@ const PDVs: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-5">
-        <PageHero title={headline} side={<ActionHub icon={HxMonitorSmartphone} actions={[{ label: 'Ver caixas', icon: HxMonitor, onClick: () => setTab('pdvs') }, { label: 'Chaves do agente', icon: HxKeyRound, onClick: () => setTab('agente') }, { label: 'Instalar agente', icon: HxDownload, onClick: () => setTab('download') }]} />} />
+        <PageHero title={headline} />
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
@@ -237,10 +237,9 @@ const PDVs: React.FC = () => {
                           <b style={{ display: 'block', fontSize: 15.5 }}>{pdv.name}</b>
                           <span className="fx-muted" style={{ fontSize: 13 }}>{pdv.serialNumber ? `Série ${pdv.serialNumber} · ` : ''}desde {fmtDate(pdv.createdAt)}</span>
                         </span>
-                        <button type="button" className="fx-btn ghost small" onClick={() => removePdv(pdv)} disabled={removing === pdv.id}
-                          aria-label={`Remover o caixa ${pdv.name}`} style={{ color: 'var(--fx-red)' }}>
-                          <Trash2 aria-hidden="true" />{removing === pdv.id ? 'Removendo...' : 'Remover'}
-                        </button>
+                        <MoreMenu label={`Mais ações do caixa ${pdv.name}`} actions={[
+                          { label: removing === pdv.id ? 'Removendo...' : 'Remover este caixa', icon: Trash2, danger: true, disabled: removing === pdv.id, onClick: () => { void removePdv(pdv); } },
+                        ]} />
                       </li>
                     ))}
                   </ul>

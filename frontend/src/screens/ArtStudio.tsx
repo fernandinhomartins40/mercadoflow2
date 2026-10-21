@@ -16,7 +16,7 @@ import { brDate, formatPrice } from '../features/art-studio/render';
 import { canvasBlob, downloadBlob, jpegPagesToPdf, posterPages, sceneCanvas, slugify } from '../features/art-studio/export';
 import { loadImage } from '../features/art-studio/assets';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
-import { ActionHub, Card, Forest, PageHero, PanelTitle, StepTrack, Thumb, brl } from '../components/flow/Flow';
+import { ActionHub, Card, Forest, MoreMenu, PageHero, PanelTitle, StepTrack, Thumb, brl } from '../components/flow/Flow';
 import { Newspaper, Pencil } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
 
@@ -1094,20 +1094,16 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
     }
   };
 
-  const live = (campaigns ?? []).filter((c) => c.status === 'PUBLISHED').length;
   const current = (campaigns ?? []).find((c) => c.id === selected) ?? campaigns?.[0] ?? null;
   const coverOf = (c: ArtCampaign) => c.publishedImages.find((i) => i.format === 'post') ?? c.publishedImages[0];
 
   return (
     <div className="flex flex-col gap-5">
       <PageHero
-        title={campaigns && campaigns.length > 0
-          ? <>Ofertas que vendem por você. <mark>{live === 0 ? 'Nenhuma no ar.' : `${live} no ar.`}</mark></>
-          : <>Ofertas que <mark>vendem por você.</mark></>}
+        title="Monte, revise e publique os encartes da loja." 
         side={<ActionHub icon={Newspaper} actions={[
           { label: creating ? 'Criando...' : 'Novo encarte', icon: Plus, onClick: () => { if (!creating) void create(); } },
-          { label: 'O que promover', icon: Sparkles, to: '/app/decidir?filtro=promover' },
-          { label: 'Campanhas', icon: Newspaper, to: '/app/promocoes' },
+          { label: 'Voltar às ofertas', icon: Newspaper, to: '/app/promocoes' },
         ]} />} />
       {error && <p role="alert" className="text-sm" style={{ color: 'var(--fx-red)' }}>{error}</p>}
       {campaigns === null ? (
@@ -1187,13 +1183,17 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
                   <div className="fx-actions">
                     <Link to={`/app/encartes/${current.id}`} className="fx-btn dark"><Pencil aria-hidden="true" />{current.status === 'PUBLISHED' ? 'Editar' : 'Continuar e publicar'}</Link>
                     {current.publicSlug && current.status === 'PUBLISHED' && <a href={`/encarte/${current.publicSlug}`} target="_blank" rel="noreferrer" className="fx-btn ghost"><ExternalLink aria-hidden="true" />Ver página</a>}
-                    <button type="button" className="fx-btn ghost" onClick={async () => { const d = await artService.duplicateCampaign(marketId, current.id); navigate(`/app/encartes/${d.id}`); }}><Copy aria-hidden="true" />Duplicar</button>
-                    <button type="button" className="fx-btn ghost" style={{ color: 'var(--fx-red)' }} onClick={async () => {
-                      if (!(await confirmDialog(`Excluir "${current.title}"? A página publicada sai do ar.`))) return;
-                      await artService.deleteCampaign(marketId, current.id);
-                      setSelected(null);
-                      load();
-                    }}><Trash2 aria-hidden="true" />Excluir</button>
+                    <span style={{ marginLeft: 'auto' }}>
+                      <MoreMenu label={`Mais ações do encarte ${current.title}`} actions={[
+                        { label: 'Duplicar', icon: Copy, onClick: () => { void artService.duplicateCampaign(marketId, current.id).then((d) => navigate(`/app/encartes/${d.id}`)); } },
+                        { label: 'Excluir encarte', icon: Trash2, danger: true, onClick: () => { void (async () => {
+                          if (!(await confirmDialog(`Excluir "${current.title}"? A página publicada sai do ar.`))) return;
+                          await artService.deleteCampaign(marketId, current.id);
+                          setSelected(null);
+                          load();
+                        })(); } },
+                      ]} />
+                    </span>
                   </div>
                 </div>
               </Forest>

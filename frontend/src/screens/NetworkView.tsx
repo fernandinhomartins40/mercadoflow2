@@ -127,8 +127,7 @@ const NetworkView: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero
-          title={latest ? <>Sua semana fechou em <mark>{fmt.money(latest.numeros?.faturamento)}{pct != null ? `, ${pct >= 0 ? '+' : ''}${pct}%.` : '.'}</mark></> : <>Como foi a <mark>sua semana.</mark></>}
-          side={<ActionHub icon={HxCalendarDays} actions={[{ label: 'Decidir', icon: HxSparkles, to: '/app/decidir' }, { label: 'Voltar ao Início', icon: HxCalendarDays, to: '/app' }]} />} />
+          title={latest ? <>Sua semana fechou em <mark>{fmt.money(latest.numeros?.faturamento)}{pct != null ? `, ${pct >= 0 ? '+' : ''}${pct}%.` : '.'}</mark></> : <>Como foi a <mark>sua semana.</mark></>} />
 
         {/* ── Semanas: a lista à esquerda, a semana aberta no painel ── */}
         {latest && week ? (

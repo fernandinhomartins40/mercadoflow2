@@ -75,7 +75,8 @@ const StoreMap: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>('montar');
+  // Abre no mapa de calor, que responde à pergunta da tela; montar a planta é a segunda aba.
+  const [mode, setMode] = useState<Mode>('calor');
   const [view, setView] = useState<View>('planta');
   const [tool, setTool] = useState<Tool>('select');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -151,6 +152,7 @@ const StoreMap: React.FC = () => {
       history.reset(saved);
       latestPlan.current = saved;
       setJustCreated(true);
+      setMode('montar');
       setSaveState('saved');
       setSelectedIds([]);
     } catch {
@@ -258,8 +260,8 @@ const StoreMap: React.FC = () => {
               <SegmentedTabs<Mode>
                 fit
                 tabs={[
-                  { key: 'montar', label: 'Montar', icon: <Hammer className="h-4 w-4" /> },
-                  { key: 'calor', label: 'Calor de vendas', icon: <Flame className="h-4 w-4" /> },
+                  { key: 'calor', label: 'Onde mais vende', icon: <Flame className="h-4 w-4" /> },
+                  { key: 'montar', label: 'Editar a planta', icon: <Hammer className="h-4 w-4" /> },
                   { key: 'sugestoes', label: 'Sugestões', icon: <Lightbulb className="h-4 w-4" />, badge: insights?.filter((i) => i.priority >= 60).length || undefined },
                 ]}
                 value={mode}

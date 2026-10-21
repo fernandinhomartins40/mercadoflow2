@@ -64,8 +64,7 @@ const AgentDownload: React.FC = () => {
     <Layout>
       <div className="page analytics-page">
         <PageHeader
-          title={<>Baixe o agente. <mark>Ligue o caixa.</mark></>}
-          subtitle="Baixe e instale o Agente Mercado Flow."
+          title="Instale no computador do caixa para as vendas chegarem aqui." 
           actions={
             <Button variant="secondary" onClick={fetchInstallerInfo} disabled={loading}>
               Verificar atualização
@@ -81,74 +80,30 @@ const AgentDownload: React.FC = () => {
             <Button variant="secondary" onClick={fetchInstallerInfo}>Tentar novamente</Button>
           </div>
         ) : installerInfo ? (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
-            <div className="flex min-w-0 flex-col gap-5">
-              {/* Info do instalador */}
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                  <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">Agente Mercado Flow</p>
-                    <h3 className="text-sm font-semibold text-slate-900">Instalador oficial</h3>
-                  </div>
-                  <Button onClick={handleDownload} disabled={downloading}>
-                    {downloading ? 'Baixando...' : 'Baixar instalador'}
-                  </Button>
-                </div>
-
-                <div className="settings-stack">
-                  <div className="settings-line-card">
-                    <div><strong>Arquivo</strong></div>
-                    <strong>{installerInfo.filename}</strong>
-                  </div>
-                  {installerInfo.version && (
-                    <div className="settings-line-card">
-                      <div><strong>Versão</strong></div>
-                      <strong>{installerInfo.version}</strong>
-                    </div>
-                  )}
-                  <div className="settings-line-card">
-                    <div><strong>Tamanho</strong></div>
-                    <strong>{installerInfo.sizeFormatted}</strong>
-                  </div>
-                  <div className="settings-line-card">
-                    <div><strong>Última atualização</strong></div>
-                    <strong>{installerInfo.lastModified}</strong>
-                  </div>
-                </div>
-
-                {installerInfo.sha256 && (
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400">SHA256</p>
-                    <div className="code-box">{installerInfo.sha256}</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Requisitos */}
-              <div className="flex flex-col gap-3">
-                <div className="border-b border-slate-100 pb-2">
-                  <h3 className="text-sm font-semibold text-slate-900">Requisitos do sistema</h3>
-                </div>
-                <div className="settings-stack">
-                  <div className="settings-line-card"><strong>✓ Windows 10/11 ou Windows Server 2016+</strong></div>
-                  <div className="settings-line-card"><strong>✓ 100 MB de espaço em disco</strong></div>
-                  <div className="settings-line-card"><strong>✓ Conexão estável com a internet</strong></div>
-                  <div className="settings-line-card"><strong>✓ Permissões de administrador</strong></div>
-                </div>
-              </div>
+          <div className="flex flex-col gap-5">
+            {/* Três passos em palavras do dia a dia; o técnico fica recolhido. */}
+            <ol className="fx-steps-big">
+              <li><b><i>1</i>Baixe no computador do caixa</b><p>Use o computador que emite as notas, com Windows 10 ou 11.</p></li>
+              <li><b><i>2</i>Abra o arquivo e siga as telas</b><p>Se o Windows perguntar, clique em "Sim" para permitir a instalação.</p></li>
+              <li><b><i>3</i>Cole a chave do caixa</b><p>A chave fica em Loja › Caixas e agente › Chaves do agente. Depois de colar, as vendas começam a chegar.</p></li>
+            </ol>
+            <div>
+              <Button onClick={handleDownload} disabled={downloading}>
+                {downloading ? 'Baixando...' : 'Baixar o programa do caixa'}
+              </Button>
             </div>
 
-            <aside className="flex flex-col gap-3">
-              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-sm font-semibold text-slate-900">Instruções</h3>
+            <details className="fx-more">
+              <summary>Detalhes técnicos<small>Para quem cuida da informática da loja</small></summary>
+              <div className="settings-stack" style={{ marginTop: 12 }}>
+                <div className="settings-line-card"><div><strong>Arquivo</strong></div><strong>{installerInfo.filename}</strong></div>
+                {installerInfo.version && <div className="settings-line-card"><div><strong>Versão</strong></div><strong>{installerInfo.version}</strong></div>}
+                <div className="settings-line-card"><div><strong>Tamanho</strong></div><strong>{installerInfo.sizeFormatted}</strong></div>
+                <div className="settings-line-card"><div><strong>Última atualização</strong></div><strong>{installerInfo.lastModified}</strong></div>
+                <div className="settings-line-card"><div><strong>Precisa de</strong></div><strong>Windows 10/11 ou Server 2016+, 100 MB livres, internet e permissão de administrador</strong></div>
+                {installerInfo.sha256 && <div className="settings-line-card"><div><strong>SHA256</strong></div><span className="code-box" style={{ wordBreak: 'break-all' }}>{installerInfo.sha256}</span></div>}
               </div>
-              <div className="grid gap-3">
-                <div><strong>1.</strong> Baixe o instalador e salve no servidor local.</div>
-                <div><strong>2.</strong> Execute como administrador.</div>
-                <div><strong>3.</strong> Informe a chave da API gerada em Configurações.</div>
-                <div><strong>4.</strong> Valide o status de sincronização.</div>
-              </div>
-            </aside>
+            </details>
           </div>
         ) : null}
       </div>

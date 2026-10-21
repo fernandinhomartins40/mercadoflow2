@@ -229,8 +229,8 @@ const DataChat: React.FC = () => {
     <Layout>
       <div className="mx-auto flex w-full flex-col gap-4" style={{ maxWidth: '56rem' }}>
         {messages.length === 0 && (
-          <PageHero title={<>Pergunte. <mark>A loja responde.</mark></>}
-            subtitle="As respostas vêm sempre dos números da sua loja. Nada é estimado." />
+          <PageHero title="Pergunte sobre a sua loja como perguntaria a um gerente."
+            subtitle="As respostas vêm dos números da sua loja." />
         )}
         {/* Conversa */}
         <div className="flex flex-col gap-4">

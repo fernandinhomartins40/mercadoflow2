@@ -1552,8 +1552,8 @@ const ShoppingListPage: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero
-          title={tab === 'lista' ? <>Lista de compras: <mark>{items.filter(i => !i.checked).length} sem pedido.</mark></> : tab === 'fornecedores' ? <>Seus <mark>fornecedores.</mark></> : <>{head.lead} <mark>{head.mark}</mark></>}
-          side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }, { label: `Lista de compras${overview.pendingItems ? ` (${overview.pendingItems})` : ''}`, icon: HxListChecks, onClick: () => setTab('lista') }, { label: 'Sugestões de compra', icon: Zap, to: '/app/decidir?filtro=comprar' }]} />} />
+          title={tab === 'lista' ? <>Lista de compras: <mark>{items.filter(i => !i.checked).length} sem pedido.</mark></> : tab === 'fornecedores' ? <>Quem vende para a sua loja.</> : <>{head.lead} <mark>{head.mark}</mark></>}
+          side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }]} />} />
 
         {/* Abas */}
         {tab === 'lista' ? (

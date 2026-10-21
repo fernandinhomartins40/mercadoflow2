@@ -59,6 +59,8 @@ const SubscriptionBanner: React.FC = () => {
   const tone = sub.bannerTone;
   const signature = `${sub.status}:${sub.daysLeft ?? ''}`;
   if (tone === 'INFO' && dismissed === signature) return null;
+  // Aviso informativo só onde o dono cuida do plano; repetido em toda tela, virava ruído.
+  if (tone === 'INFO' && !['/app', '/app/assinatura', '/app/planos'].includes(location.pathname)) return null;
 
   const colors = PALETTE[tone];
   const Icon = sub.status === 'RESTRICTED' ? Lock : sub.status === 'TRIAL' ? Clock : AlertTriangle;

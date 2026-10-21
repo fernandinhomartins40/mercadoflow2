@@ -149,7 +149,7 @@ const Integrations: React.FC = () => {
   return (
     <Layout>
       <PageHero
-        title={<>Seu ERP e a loja <mark>falando a mesma língua.</mark></>}
+        title="Ligue o seu sistema de gestão (ERP) para o custo e o estoque serem reais." 
         subtitle="O ERP manda estoque, custo e preço; recebe a entrada de mercadoria pronta, lida das notas do Confere."
         side={<ActionHub icon={Plug} label="Ações de integrações" actions={[{ label: 'Documentação para o ERP', icon: BookOpen, to: '/desenvolvedores' }]} />}
       />

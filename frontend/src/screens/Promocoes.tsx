@@ -507,11 +507,9 @@ const Promocoes: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero
-          title={tab === 'resultado' ? <>A promoção <mark>vendeu mais?</mark></> : <>Suas <mark>campanhas.</mark></>}
+          title={tab === 'resultado' ? <>A promoção <mark>vendeu mais?</mark></> : <>Crie ofertas com desconto e veja se elas venderam mais.</>}
           side={<ActionHub icon={HxTag} actions={[
-            { label: 'Nova campanha', icon: HxCalendarPlus, onClick: () => { setTab('campanhas'); setParams({ nova: '1' }, { replace: true }); } },
             { label: 'Montar encarte', icon: HxNewspaper, to: '/app/encartes' },
-            { label: 'O que promover', icon: HxSparkles, to: '/app/decidir?filtro=promover' },
           ]} />} />
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />

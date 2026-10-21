@@ -1,61 +1,58 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
-  ArrowRight, History, Home, LayoutGrid, LogOut, Mic, Search, Settings2, Sparkles, X,
+  History, LogOut, Menu, MessageCircle, Search, Settings2, Sparkles, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { DESTINATIONS, resolveLocation, visiblePages } from '../../config/navigation';
+import { DESTINATIONS, pageTitle, resolveLocation, visiblePages } from '../../config/navigation';
 import { activationService } from '../../services/activation.service';
 import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
 import HistoryNotice from '../intelligence/HistoryNotice';
+import { PageNameContext } from '../flow/Flow';
 import '../../styles/flow.css';
+import '../../styles/flow-clean.css';
 
 /**
- * Casca do app do mercado (visual Flow): topo com a trilha, o selo dos caixas
- * e o perfil (que guarda as páginas da loja); doca escura no pé com o mapa, o
- * Início, a pergunta ao Tino e as áreas. A pergunta ao Tino mora só na doca.
+ * Casca do app do mercado, desenhada para quem não é técnico
+ * (docs/auditoria-painel-leigo): menu com o nome de cada área sempre à vista
+ * (no topo do computador, numa barra clara no pé do celular), uma fila só de
+ * páginas da área, e o problema que trava a loja numa faixa no topo.
  */
 
-const ASK: Record<string, string> = {
-  inicio: 'O que você quer saber da loja?',
-  decidir: 'O que você quer resolver agora?',
-  comprar: 'O que você precisa comprar?',
-  produtos: 'Qual produto você quer entender?',
-  vender: 'O que você quer promover na loja?',
-  loja: 'O que você precisa configurar na loja?',
-};
+const daysSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
+const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
-const minutesAgo = (iso: string | null) => {
-  if (!iso) return null;
-  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (m < 1) return 'agora';
-  if (m < 60) return `há ${m} min`;
-  const h = Math.round(m / 60);
-  return h < 24 ? `há ${h} h` : `há ${Math.round(h / 24)} d`;
-};
-
-/** Selo dos caixas no topo: verde enviando, vermelho parado, cinza sem agente. */
-const AgentSeal: React.FC<{ marketId: string | null }> = ({ marketId }) => {
-  // Cache compartilhado entre as telas: trocar de tela não pede o estado de novo.
-  const { data: status, refresh } = useCached<ActivationStatus>(marketId ? `ativacao:${marketId}` : null,
+/** Estado dos caixas, compartilhado entre as telas (o cache evita pedir de novo a cada troca). */
+const useAgent = (marketId: string | null) => {
+  const { data, refresh } = useCached<ActivationStatus>(marketId ? `ativacao:${marketId}` : null,
     () => activationService.getStatus(marketId!), 60_000);
   useEffect(() => {
     if (!marketId) return undefined;
     const t = setInterval(() => { void refresh(); }, 120_000);
     return () => clearInterval(t);
   }, [marketId, refresh]);
-  if (!status) return null;
-  const { agent } = status;
-  const tone = agent.online ? '#22B45B' : agent.pairedPdvs > 0 ? 'var(--fx-red)' : 'var(--fx-muted)';
-  const text = agent.online
-    ? `Caixas enviando${agent.lastHeartbeatAt ? ` · ${minutesAgo(agent.lastHeartbeatAt)}` : ''}`
-    : agent.pairedPdvs > 0 ? 'Agente parado: ver caixas' : 'Conectar os caixas';
+  return data?.agent ?? null;
+};
+
+/** Faixa vermelha quando os caixas pararam de mandar vendas: o número da tela está velho. */
+const AgentStoppedBand: React.FC<{ agent: ActivationStatus['agent'] }> = ({ agent }) => {
+  const since = agent.lastHeartbeatAt;
+  const days = since ? daysSince(since) : null;
   return (
-    <Link to="/app/pdvs" className="fx-watch" role="status" style={{ textDecoration: 'none', color: agent.online ? undefined : tone, fontWeight: agent.online ? undefined : 700 }}>
-      <i aria-hidden="true" style={{ background: tone }} />{text}
-    </Link>
+    <div className="fx-band danger" role="alert">
+      <span className="dot" aria-hidden="true" />
+      <p>
+        <strong>
+          {since
+            ? `Seus caixas não mandam vendas desde ${dayMonth(since)}${days && days > 0 ? ` (há ${days} ${days === 1 ? 'dia' : 'dias'})` : ''}.`
+            : 'Seus caixas não estão mandando vendas.'}
+        </strong>{' '}
+        Os números do painel estão parados nesse dia.
+      </p>
+      <Link to="/app/pdvs" className="fx-btn danger small">Religar o caixa</Link>
+    </div>
   );
 };
 
@@ -65,25 +62,26 @@ const initialsOf = (name?: string | null, email?: string | null) => {
   return ((parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? '')).toUpperCase();
 };
 
+/** Itens do pé do celular: as quatro áreas do dia a dia e o menu com o resto. */
+const BAR_KEYS = ['inicio', 'decidir', 'comprar', 'produtos'] as const;
+
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const { role, name, email, logout, marketId } = useAuth();
   const { destination, page } = resolveLocation(pathname);
   const isAdmin = role === 'ADMIN';
   const isOwner = role === 'MARKET_OWNER';
-  const [mapOpen, setMapOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [ask, setAsk] = useState('');
-  const mapRef = useRef<HTMLDivElement>(null);
   const asking = pathname === '/app/perguntar';
   const siblings = visiblePages(destination, isAdmin, isOwner);
-  const lojaPages = visiblePages(DESTINATIONS.find((d) => d.key === 'loja')!, isAdmin, isOwner);
+  const agent = useAgent(marketId ?? null);
+  const agentStopped = !!agent && !agent.online && agent.pairedPdvs > 0;
 
-  useEffect(() => { setMapOpen(false); setMenuOpen(false); }, [pathname]);
+  useEffect(() => { setSheetOpen(false); setMenuOpen(false); }, [pathname]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMapOpen(false); setMenuOpen(false); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setSheetOpen(false); setMenuOpen(false); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -91,122 +89,113 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const areas = useMemo(() => DESTINATIONS.map((d) => ({ d, pages: visiblePages(d, isAdmin, isOwner) })), [isAdmin, isOwner]);
   const q = query.trim().toLowerCase();
   const found = (label: string, hint = '') => !q || label.toLowerCase().includes(q) || hint.toLowerCase().includes(q);
-
-  const submitAsk = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = ask.trim();
-    navigate(text ? `/app/perguntar?q=${encodeURIComponent(text)}` : '/app/perguntar');
-    setAsk('');
-  };
+  const firstOf = (key: string) => areas.find((a) => a.d.key === key)?.pages[0]?.to ?? '/app';
 
   return (
-    <div className="fx-app">
+    <div className="fx-app fx-clean">
       <header className="fx-top">
-        <div className="fx-brand">
-          <Link to="/app" className="fx-brand" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="MercadoFlow, início">
-            <span className="fx-logo" aria-hidden="true">MF</span>
-            <span className="fx-brandname">Mercado<span>Flow</span></span>
-          </Link>
-          <nav className="fx-crumbs" aria-label="Você está em">
-            <Link to={asking ? '/app' : siblings[0]?.to ?? '/app'}>{asking || page.label === destination.label ? 'Sua loja' : destination.label}</Link>
-            <span aria-hidden="true">/</span>
-            <b>{asking ? 'Perguntar aos dados' : page.label}</b>
-          </nav>
-        </div>
+        <Link to="/app" className="fx-brand" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="MercadoFlow, início">
+          <span className="fx-logo" aria-hidden="true">MF</span>
+          <span className="fx-brandname">Mercado<span>Flow</span></span>
+        </Link>
+        <nav className="fx-nav" aria-label="Menu">
+          {areas.map(({ d, pages }) => pages.length > 0 && (
+            <Link key={d.key} to={pages[0].to} className={!asking && destination.key === d.key ? 'on' : ''}
+              aria-current={!asking && destination.key === d.key ? 'page' : undefined}>{d.label}</Link>
+          ))}
+        </nav>
         <div className="fx-top-right">
-          <AgentSeal marketId={marketId ?? null} />
+          <Link to="/app/perguntar" className={`fx-ask-btn ${asking ? 'on' : ''}`}>
+            <MessageCircle aria-hidden="true" /><span><span className="lbl">Perguntar ao </span>Tino</span>
+          </Link>
           <button type="button" className="fx-avatar" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}
             aria-label="Sua conta">{initialsOf(name, email)}</button>
           {menuOpen && (
             <div className="fx-menu" role="menu">
               <div className="who"><b>{name || 'Sua conta'}</b><span>{email}</span></div>
-              {lojaPages.map((p) => {
-                const I = p.icon;
-                return <Link key={p.to} to={p.to} role="menuitem"><I size={17} />{p.label}</Link>;
-              })}
-              <Link to="/app/decidir?config=1" role="menuitem"><Settings2 size={17} />Como o Tino trabalha</Link>
+              <Link to="/app/configuracoes" role="menuitem"><Settings2 size={17} />Minha conta</Link>
+              <Link to="/app/decidir?config=1" role="menuitem"><Sparkles size={17} />Como o Tino trabalha</Link>
               <button type="button" role="menuitem" onClick={logout}><LogOut size={17} />Sair</button>
             </div>
           )}
         </div>
       </header>
 
-      <main className="fx-main">
-        {siblings.length > 1 && !asking && (
-          <nav className="fx-area" aria-label={`Páginas de ${destination.label}`}>
-            {siblings.map((p) => {
-              const I = p.icon;
-              return <Link key={p.to} to={p.to} className={p.to === page.to ? 'active' : ''} aria-current={p.to === page.to ? 'page' : undefined}><I aria-hidden="true" />{p.label}</Link>;
-            })}
-          </nav>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(14px, 1.6vw, 22px)' }}>
-          <SubscriptionBanner />
-          {/* Aviso de histórico só onde se lê o todo: no resto, era ruído em toda página (F1). */}
-          {(pathname === '/app' || pathname === '/app/configuracoes') && <HistoryNotice detailed={pathname === '/app/configuracoes'} />}
-          {children}
-        </div>
-      </main>
+      {agentStopped && pathname !== '/app/pdvs' && <AgentStoppedBand agent={agent} />}
 
-      {mapOpen && (
-        <div className="fx-map" ref={mapRef} role="dialog" aria-label="Mapa da loja">
-          <header>
-            <b>Mapa da loja</b>
-            <button type="button" onClick={() => setMapOpen(false)} aria-label="Fechar o mapa"><X size={20} /></button>
-          </header>
-          <label className="search">
-            <Search size={18} aria-hidden="true" />
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Encontrar uma área..." aria-label="Encontrar uma área" />
-          </label>
-          {areas.map(({ d, pages }) => {
-            const list = pages.filter((p) => found(p.label, d.label + ' ' + d.hint));
-            if (list.length === 0) return null;
-            return (
-              <section key={d.key}>
-                <h4>{d.label} · {d.hint}</h4>
-                <div className="grid">
-                  {list.map((p) => {
-                    const I = p.icon;
-                    return <Link key={p.to} to={p.to} className={`tile ${p.to === page.to ? 'active' : ''}`}><I aria-hidden="true" />{p.label}</Link>;
-                  })}
-                </div>
-              </section>
-            );
-          })}
-          {found('Perguntar aos dados', 'pergunta ia jev') && (
-            <section>
-              <h4>Tino</h4>
-              <div className="grid">
-                <Link to="/app/perguntar" className="tile"><Sparkles aria-hidden="true" />Perguntar aos dados</Link>
-                <Link to="/app/decidir?aba=resultado" className="tile"><History aria-hidden="true" />No que deu</Link>
-              </div>
-            </section>
-          )}
-        </div>
+      {siblings.length > 1 && !asking && (
+        <nav className="fx-subnav" aria-label={`Páginas de ${destination.label}`}>
+          {siblings.map((p) => (
+            <Link key={p.to} to={p.to} className={p.to === page.to ? 'on' : ''} aria-current={p.to === page.to ? 'page' : undefined}>{p.label}</Link>
+          ))}
+        </nav>
       )}
 
-      <nav className="fx-dock" aria-label="Navegação">
-        <button type="button" className="fx-dock-btn lime" aria-expanded={mapOpen} onClick={() => { setMapOpen((v) => !v); setQuery(''); }}>
-          <LayoutGrid aria-hidden="true" /><span className="lbl">Mapa</span>
-        </button>
-        <Link to="/app" className={`fx-dock-btn ${pathname === '/app' ? 'current' : ''}`}><Home aria-hidden="true" /><span className="lbl">Início</span></Link>
-        <form className="fx-ask" onSubmit={submitAsk} role="search">
-          <Sparkles className="spark" aria-hidden="true" />
-          <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={ASK[destination.key] ?? ASK.inicio} aria-label="Pergunte ou peça algo ao Tino" />
-          <button type="button" className="mic" aria-label="Falar com o Tino" onClick={() => navigate('/app/perguntar?voz=1')}><Mic size={20} /></button>
-          <button type="submit" className="send" aria-label="Enviar"><ArrowRight size={20} /></button>
-        </form>
-        <Link to="/app/perguntar" className="fx-dock-btn ask-mobile" aria-label="Perguntar ao Tino"><Sparkles aria-hidden="true" /></Link>
-        <span className="sep" aria-hidden="true" />
-        {DESTINATIONS.filter((d) => d.inDock && d.key !== 'inicio').map((d) => {
+      <main className="fx-main">
+        <PageNameContext.Provider value={pageTitle(pathname)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(14px, 1.6vw, 22px)' }}>
+            <SubscriptionBanner />
+            {/* Aviso de histórico só onde se lê o todo: no resto, era ruído em toda página (F1). */}
+            {(pathname === '/app' || pathname === '/app/configuracoes') && <HistoryNotice detailed={pathname === '/app/configuracoes'} />}
+            {children}
+          </div>
+        </PageNameContext.Provider>
+      </main>
+
+      {sheetOpen && (
+        <>
+          <div className="fx-shade" onClick={() => setSheetOpen(false)} aria-hidden="true" />
+          <div className="fx-map" role="dialog" aria-label="Menu">
+            <header>
+              <b>Menu</b>
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label="Fechar o menu"><X size={20} /></button>
+            </header>
+            <label className="search">
+              <Search size={18} aria-hidden="true" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Procurar uma tela..." aria-label="Procurar uma tela" />
+            </label>
+            {areas.map(({ d, pages }) => {
+              const list = pages.filter((p) => found(p.label, d.label + ' ' + d.hint));
+              if (list.length === 0) return null;
+              return (
+                <section key={d.key}>
+                  <h4>{d.label}</h4>
+                  <div className="grid">
+                    {list.map((p) => {
+                      const I = p.icon;
+                      return <Link key={p.to} to={p.to} className={`tile ${p.to === page.to ? 'active' : ''}`}><I aria-hidden="true" />{p.label}</Link>;
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+            {found('Perguntar ao Tino', 'pergunta ia no que deu') && (
+              <section>
+                <h4>Tino</h4>
+                <div className="grid">
+                  <Link to="/app/perguntar" className="tile"><MessageCircle aria-hidden="true" />Perguntar ao Tino</Link>
+                  <Link to="/app/decidir?aba=resultado" className="tile"><History aria-hidden="true" />O que já decidi</Link>
+                </div>
+              </section>
+            )}
+          </div>
+        </>
+      )}
+
+      <nav className="fx-bar" aria-label="Navegação">
+        {BAR_KEYS.map((key) => {
+          const d = DESTINATIONS.find((x) => x.key === key)!;
           const I = d.icon;
-          const first = visiblePages(d, isAdmin, isOwner)[0];
+          const on = !asking && !sheetOpen && destination.key === key;
           return (
-            <Link key={d.key} to={first?.to ?? '/app'} className={`fx-dock-btn ${destination.key === d.key ? 'current' : ''}`} aria-current={destination.key === d.key ? 'page' : undefined}>
-              <I aria-hidden="true" /><span className="lbl">{d.label}</span>
+            <Link key={key} to={firstOf(key)} className={on ? 'on' : ''} aria-current={on ? 'page' : undefined}>
+              <i aria-hidden="true"><I /></i>{d.label}
             </Link>
           );
         })}
+        <button type="button" className={sheetOpen ? 'on' : ''} aria-expanded={sheetOpen} onClick={() => { setSheetOpen((v) => !v); setQuery(''); }}>
+          <i aria-hidden="true"><Menu /></i>Menu
+        </button>
       </nav>
     </div>
   );

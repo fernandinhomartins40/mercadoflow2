@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play, RefreshCw, Settings2, Sparkles } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ClipboardList, History, Inbox, Loader2, Lock, Pause, Play, RefreshCw, Sparkles } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import { ActionHub, Card, Chip, PageHero, PagedBox, PanelTitle, PillTabs, Thumb, usePaged, usePaneFill } from '../components/flow/Flow';
+import { ActionHub, Card, Chip, PageHero, PanelTitle, PillTabs, Thumb } from '../components/flow/Flow';
 import RecommendationDesk from '../components/intelligence/RecommendationDesk';
 import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
@@ -40,6 +40,9 @@ type Filter = 'tudo' | QueueGroup;
 
 const FILTER_ORDER: Filter[] = ['tudo', 'comprar', 'promover', 'capital', 'preco', 'entregas', 'outros'];
 
+/** Valor de `selected` quando o dono fecha o item aberto. */
+const CLOSED = '__fechado__';
+
 const Decide: React.FC = () => {
   const { marketId } = useAuth();
   const navigate = useNavigate();
@@ -50,6 +53,7 @@ const Decide: React.FC = () => {
   const [signals, setSignals] = useState<OpportunityItem[]>([]);
   const [locked, setLocked] = useState<{ total: number; impacto: number | null }>({ total: 0, impacto: null });
   const [selected, setSelected] = useState<string | null>(params.get('item'));
+  // Item aberto: o escolhido, o primeiro por padrão, ou nenhum depois de fechar.
   const [config, setConfig] = useState(params.get('config') === '1');
   const [paused, setPaused] = useState(false);
   const [anyAlone, setAnyAlone] = useState(false);
@@ -115,22 +119,14 @@ const Decide: React.FC = () => {
   } : null;
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
-  // Fila em páginas com o paginador fixo no rodapé. No computador, a lista tem a
-  // altura do painel (que mostra 4 produtos) e põe quantas linhas couberem; no
-  // celular, 7 por página (F3: "Hoje" são as 7 que mais valem).
-  const { rows: TODAY, fill } = usePaneFill(92, 7);
-  const paged = usePaged(list, TODAY, filter);
-  // Celular: o detalhe abre numa folha por cima da lista.
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
-  useEffect(() => {
-    const on = () => setNarrow(window.innerWidth < 1100);
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, []);
-  const [sheet, setSheet] = useState(false);
+  // Uma lista só, que abre o item no lugar (sem painel ao lado nem folha por cima).
+  // Mostra as 10 que mais valem e "Mostrar mais".
+  const [shown, setShown] = useState(10);
+  useEffect(() => { setShown(10); }, [filter]);
+  const openKey = selected === CLOSED ? null : current?.key ?? null;
   useEffect(() => {
     const idx = selected ? list.findIndex((i) => i.key === selected) : -1;
-    if (idx >= 0 && Math.floor(idx / TODAY) !== paged.page) paged.setPage(Math.floor(idx / TODAY));
+    if (idx >= shown) setShown(idx + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, list.length]);
   const decisions = queue.items.length;
@@ -174,18 +170,18 @@ const Decide: React.FC = () => {
   };
 
   const pick = (key: string) => {
-    setSelected(key);
-    if (window.innerWidth < 1100) setSheet(true);
+    setSelected(key === openKey ? CLOSED : key);
+    if (key !== openKey) requestAnimationFrame(() => document.getElementById(`decisao-${key}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
 
   const renderRows = (items: QueueItem[]) => (
     <>
       {items.map((it) => {
-                    const on = current?.key === it.key;
+                    const on = openKey === it.key;
                     const Icon = it.decision ? agentOf(it.decision).icon : null;
                     return (
-                      <li key={it.key}>
-                        <button type="button" className={`fx-row compact ${on ? 'selected' : ''}`} aria-current={on || undefined} onClick={() => pick(it.key)} title={plainDates(it.title)}>
+                      <li key={it.key} id={`decisao-${it.key}`} className={`fx-decision ${on ? 'open' : ''}`} style={{ scrollMarginTop: 90 }}>
+                        <button type="button" className={`fx-row compact ${on ? 'selected' : ''}`} aria-expanded={on} onClick={() => pick(it.key)} title={plainDates(it.title)}>
                           {it.key === 'lote:comprar' ? <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><ClipboardList aria-hidden="true" /></span>
                             : Icon ? <span className="fx-icon-tile" style={{ width: 40, height: 40, ...(it.urgent ? { background: 'var(--fx-red-soft)', color: 'var(--fx-red)' } : {}) }}><Icon aria-hidden="true" /></span>
                             : <Thumb name={it.name} src={it.image} size={40} />}
@@ -193,12 +189,12 @@ const Decide: React.FC = () => {
                             <b className="t">{plainDates(it.title)}</b>
                             <span className="s">
                               <span className="fx-muted" style={{ fontSize: 12.5 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.rec && goesToOrder(it.rec) ? 'vai ao pedido' : ''].filter(Boolean).join(' · ')}</span>
-                              {it.urgent && <Chip tone="red">Urgente</Chip>}
-                              {it.source === 'tino' && <Chip tone="lime">Tino preparou</Chip>}
                             </span>
                           </span>
                           {it.value != null && <b className="fx-num" style={{ fontSize: 14.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
+                          <ChevronDown className="fx-chev" aria-hidden="true" style={{ transform: on ? 'rotate(180deg)' : undefined }} />
                         </button>
+                        {on && <div className="fx-decision-body">{detail(it)}</div>}
                       </li>
                     );
                   })}
@@ -207,8 +203,10 @@ const Decide: React.FC = () => {
 
   const hub = (
     <ActionHub icon={Sparkles} label="Ações do Decidir" actions={[
-      { label: checking ? 'Verificando…' : 'Verificar agora', icon: RefreshCw, onClick: check },
-      { label: 'Como o Tino trabalha', icon: Settings2, onClick: () => setConfig(true) },
+      tab === 'resultado'
+        ? { label: 'Voltar às sugestões', icon: Inbox, onClick: () => setParam('aba', null) }
+        : { label: 'Ver o que já decidi', icon: History, onClick: () => setParam('aba', 'resultado') },
+      ...(tab === 'decidir' ? [{ label: checking ? 'Procurando…' : 'Procurar sugestões novas', icon: RefreshCw, onClick: check }] : []),
     ]} />
   );
 
@@ -228,13 +226,11 @@ const Decide: React.FC = () => {
           : queue.loading ? <>Decidir.</>
             : decisions === 0 ? <>Nada esperando <mark>você.</mark></>
               : <>A loja pede <mark>{decisions} {decisions === 1 ? 'decisão.' : 'decisões.'}</mark></>}
-        subtitle={tab === 'decidir' && queue.total > 0 ? `${formatMoney(queue.total)} de ganho possível. Nada acontece sem o seu sim.` : undefined}
+        subtitle={tab === 'decidir' && decisions > 0 ? 'Sugestões do Tino. Você aprova ou dispensa; nada muda sem o seu sim.' : undefined}
         side={hub}
       />
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <PillTabs<Tab> label="Decidir" value={tab} onChange={(t) => setParam('aba', t === 'resultado' ? 'resultado' : null)}
-          tabs={[{ key: 'decidir', label: 'Para decidir', icon: Inbox, count: decisions }, { key: 'resultado', label: 'No que deu', icon: History }]} />
         {anyAlone && (
           <button type="button" className={`fx-btn small ${paused ? 'dark' : 'ghost'}`} onClick={togglePause} aria-pressed={paused}>
             {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}{paused ? 'Retomar o que o Tino faz sozinho' : 'Pausar o que o Tino faz sozinho'}
@@ -267,30 +263,25 @@ const Decide: React.FC = () => {
               {filter === 'capital' && <p className="fx-muted" style={{ margin: '6px 0 0' }}>Produto sem estoque medido não entra aqui: <Link to="/app/contar">conte o estoque</Link> ou confira as notas no Confere.</p>}
             </Card>
           ) : (
-            <div className="fx-split even panes">
-              <Card as="section" aria-label="Decisões" id="decidir-lista" className="fx-col" style={{ scrollMarginTop: 80 }}>
-                {paged.pages > 1 && (
-                  <p className="fx-muted" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>
-                    {paged.page === 0 ? 'Hoje · as que mais valem' : 'Depois · valem menos'}
-                  </p>
-                )}
-                <PagedBox page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="decisões" resetKey={filter} fill={fill}>
-                  <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
-                    {renderRows(paged.slice)}
-                  </ul>
-                </PagedBox>
-                {filter === 'tudo' && locked.total > 0 && (
-                  <Link to="/app/assinatura" className="fx-row" style={{ marginTop: 10, color: 'var(--fx-ink)', borderStyle: 'dashed' }}>
-                    <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><Lock aria-hidden="true" /></span>
-                    <span style={{ flex: 1 }}>
-                      <b style={{ display: 'block', fontSize: 14.5 }}>Mais {locked.total} {locked.total === 1 ? 'oportunidade' : 'oportunidades'} nos planos pagos</b>
-                      <span className="fx-muted" style={{ fontSize: 13 }}>{locked.impacto ? `${formatMoney(locked.impacto)} de ganho possível · ` : ''}risco de faltar e previsão de compra</span>
-                    </span>
-                  </Link>
-                )}
-              </Card>
-              {!narrow && <div id="decidir-painel" key={current?.key} className="fx-sticky" style={{ minWidth: 0, scrollMarginTop: 80 }}>{current && detail(current)}</div>}
-            </div>
+            <Card as="section" aria-label="Decisões">
+              <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
+                {renderRows(list.slice(0, shown))}
+              </ul>
+              {list.length > shown && (
+                <button type="button" className="fx-btn ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShown((n) => n + 10)}>
+                  Mostrar mais {Math.min(10, list.length - shown)} de {list.length - shown}
+                </button>
+              )}
+              {filter === 'tudo' && locked.total > 0 && (
+                <Link to="/app/assinatura" className="fx-row" style={{ marginTop: 10, color: 'var(--fx-ink)', borderStyle: 'dashed' }}>
+                  <span className="fx-icon-tile" style={{ width: 40, height: 40 }}><Lock aria-hidden="true" /></span>
+                  <span style={{ flex: 1 }}>
+                    <b style={{ display: 'block', fontSize: 14.5 }}>Mais {locked.total} {locked.total === 1 ? 'oportunidade' : 'oportunidades'} nos planos pagos</b>
+                    <span className="fx-muted" style={{ fontSize: 13 }}>Risco de faltar e previsão de compra</span>
+                  </span>
+                </Link>
+              )}
+            </Card>
           )}
 
           {/* O que falta medir vem depois da fila: a decisão é o assunto da tela. */}
@@ -317,18 +308,6 @@ const Decide: React.FC = () => {
             </Card>
           )}
         </>
-      )}
-
-      {narrow && sheet && current && (
-        <div className="fx-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Decisão" onClick={() => setSheet(false)}>
-          <div className="fx-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="fx-sheet-bar">
-              <b style={{ fontSize: 15 }}>Decisão</b>
-              <button type="button" className="fx-btn ghost small" onClick={() => setSheet(false)}>Fechar</button>
-            </div>
-            {detail(current)}
-          </div>
-        </div>
       )}
 
       {config && marketId && <HowItWorks marketId={marketId} onClose={() => { setConfig(false); setParam('config', null); }} onAloneChange={setAnyAlone} />}

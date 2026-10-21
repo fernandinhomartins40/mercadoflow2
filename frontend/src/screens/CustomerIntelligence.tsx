@@ -161,7 +161,7 @@ const CustomerIntelligence: React.FC = () => {
           subtitle={overview?.recurringAverageTicket != null
             ? `Quem volta gasta ${fmt.money(overview.recurringAverageTicket)} por compra; quem veio uma vez, ${fmt.money(overview.singleAverageTicket)}.`
             : 'Quem volta à loja, com que frequência e o que traz o cliente de volta.'}
-          side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/decidir?filtro=promover' }, { label: 'Voltar ao Início', icon: HxUsers, to: '/app' }]} />} />
+          side={<ActionHub icon={HxUsers} actions={[{ label: 'Promover o que traz de volta', icon: HxTag, to: '/app/decidir?filtro=promover' }]} />} />
 
         {locked ? (
           <PlanInvite

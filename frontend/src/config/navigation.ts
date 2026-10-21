@@ -99,12 +99,12 @@ export const DESTINATIONS: Destination[] = [
   {
     key: 'vender',
     label: 'Vender',
-    hint: 'Campanhas, encartes e mapa da loja',
+    hint: 'Ofertas, encartes e planta da loja',
     icon: Tag,
     inDock: true,
     pages: [
-      { to: '/app/promocoes', label: 'Campanhas', icon: Megaphone, alsoMatches: ['/app/encartes', '/app/encartes/'] },
-      { to: '/app/mapa-loja', label: 'Mapa da loja', icon: Map },
+      { to: '/app/promocoes', label: 'Ofertas', icon: Megaphone, alsoMatches: ['/app/encartes', '/app/encartes/'] },
+      { to: '/app/mapa-loja', label: 'Planta da loja', icon: Map },
     ],
   },
   {
@@ -146,3 +146,18 @@ export const resolveLocation = (pathname: string) => {
   }
   return { destination: DESTINATIONS[0], page: DESTINATIONS[0].pages[0] };
 };
+
+/** Nomes de telas que moram dentro de outra página do menu. */
+const TITLES: [RegExp, string][] = [
+  [/^\/app\/rede$/, 'Semana da loja'],
+  [/^\/app\/clientes$/, 'Clientes'],
+  [/^\/app\/perguntar$/, 'Perguntar ao Tino'],
+  [/^\/app\/encartes(\/|$)/, 'Encartes'],
+  [/^\/app\/planos$/, 'Planos'],
+  [/^\/app\/download-agente$/, 'Programa do caixa'],
+  [/^\/app\/produtos\/.+/, 'Produto'],
+];
+
+/** Nome da tela atual, como aparece no título da página. */
+export const pageTitle = (pathname: string) =>
+  TITLES.find(([re]) => re.test(pathname))?.[1] ?? resolveLocation(pathname).page.label;

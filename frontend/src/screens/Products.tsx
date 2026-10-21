@@ -250,15 +250,11 @@ const Products: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero
-          title={<>Como vai <mark>cada produto.</mark></>}
+          title="Busque um produto para ver venda, preço e estoque." 
           subtitle={[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ')
             ? <>{[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ')}. O que fazer com eles está em <a href="/app/decidir">Decidir</a>.</>
             : 'Busque um produto para ver venda, preço, tração e estoque.'}
-          side={<ActionHub icon={HxPackage} actions={[
-            { label: `Acabando${low ? ` (${low})` : ''}`, icon: HxZap, onClick: () => setFilter('acabando') },
-            { label: `Vendendo menos${down ? ` (${down})` : ''}`, icon: HxTrendingUp, onClick: () => setFilter('caindo') },
-            { label: 'Puxam venda', icon: HxCombine, onClick: () => setFilter('tracao') },
-          ]} />} />
+ />
 
         <div className="fx-filters" role="group" aria-label="Filtrar produtos">
           {(['tracao', 'todos', 'acabando', 'caindo', 'subindo', 'parado'] as ProductsFilter[]).map((f) => {

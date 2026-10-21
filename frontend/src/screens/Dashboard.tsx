@@ -5,13 +5,13 @@ import { ChartSkeleton } from '../components/charts/chartKit';
 const BarsChart = lazy(() => import('../components/charts/BarsChart'));
 import { Link } from 'react-router-dom';
 import {
-  ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Download, Loader2, PackageSearch, ShoppingCart, Sparkles, Store, Users, X,
+  ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, ClipboardList, Download, Loader2, Newspaper, PackageSearch, ShoppingCart, Sparkles, Store, Users, X,
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import UsageBanner from '../components/billing/UsageBanner';
 import ActivationChecklist from '../components/activation/ActivationChecklist';
 import CollectingBanner from '../components/activation/CollectingBanner';
-import { ActionHub, Card, Chip, Forest, PageHero, PanelTitle, PillTabs, Row, Thumb } from '../components/flow/Flow';
+import { Card, Chip, Forest, PageHero, PanelTitle, PillTabs, Row, Thumb } from '../components/flow/Flow';
 import DailyBriefCard from '../components/intelligence/DailyBriefCard';
 import CostCoverageCard from '../components/intelligence/CostCoverageCard';
 import { useActivation } from '../hooks/useActivation';
@@ -53,11 +53,10 @@ const pct = (v: number | null | undefined) => (v == null ? null : `${v > 0 ? '+'
 const METRIC: Record<OperationMetric['key'], { label: string; hint: string; fmt: (v: number) => string }> = {
   vendas: { label: 'Vendas', hint: 'faturamento', fmt: (v) => formatMoney(v) },
   clientes: { label: 'Clientes', hint: 'compras no caixa', fmt: (v) => Math.round(v).toLocaleString('pt-BR') },
-  ticket: { label: 'Ticket médio', hint: 'por compra', fmt: (v) => formatMoney(v) },
-  itens: { label: 'Itens por compra', hint: 'produtos por cupom', fmt: (v) => formatDecimal(v, 1) },
+  ticket: { label: 'Gasto médio por cliente', hint: 'por compra', fmt: (v) => formatMoney(v) },
+  itens: { label: 'Produtos por compra', hint: 'em cada compra', fmt: (v) => formatDecimal(v, 1) },
 };
 
-const PERIOD_TITLE: Record<OperationPeriod, string> = { dia: 'Hoje', semana: 'Nos últimos 7 dias', mes: 'Nas últimas 4 semanas' };
 
 const Delta: React.FC<{ change: number | null }> = ({ change }) => {
   if (change == null) return <small className="fx-muted">sem base de comparação</small>;
@@ -282,45 +281,12 @@ const Dashboard: React.FC = () => {
   const n = queue.items.length;
   const top = queue.items.slice(0, 3);
 
-  const hub = (
-    <ActionHub icon={Store} label="Atalhos do Início" actions={[
-      { label: n > 0 ? `Decidir (${n})` : 'Decidir', icon: Sparkles, to: '/app/decidir' },
-      { label: 'Comprar', icon: ShoppingCart, to: '/app/lista-compras' },
-      { label: 'Produtos', icon: PackageSearch, to: '/app/produtos' },
-    ]} />
-  );
-
   const pulling = traction.data ?? [];
   const sc = score.data;
-  const title = useMemo(() => {
-    // Manchete de capital só com estoque medido: número estimado não vira manchete.
-    if (sc?.stockMeasured && sc.stockValue != null && sc.daysOfStock != null) {
-      const d = Math.round(Number(sc.daysOfStock));
-      return <><mark>{formatMoney(Math.round(Number(sc.stockValue))).replace(/,00$/, '')}</mark> na prateleira, para {d} {d === 1 ? 'dia' : 'dias'} de venda.</>;
-    }
-    if (pulling.length > 0) {
-      return <><mark>{pulling.length} {pulling.length === 1 ? 'produto puxa' : 'produtos puxam'}</mark> a venda da sua loja.</>;
-    }
-    if (!panel || !sales) return <>{greeting()}, {first}.</>;
-    if (period === 'dia' && !panel.today) {
-      return panel.lastSaleAt ? <>Ainda sem vendas de hoje. <mark>Último dia: {new Date(`${panel.referenceDate}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.</mark></>
-        : <>{greeting()}, {first}. <mark>Sem vendas ainda.</mark></>;
-    }
-    return <>{PERIOD_TITLE[period]} a loja vendeu <mark>{formatMoney(sales.value)}.</mark></>;
-  }, [panel, sales, period, first, pulling.length, sc]);
-
-  const subtitle = sc?.stockMeasured && sc.stockValue != null && sc.daysOfStock != null
-    ? (Number(sc.idleValue) > 0
-      ? `${formatMoney(Math.round(Number(sc.idleValue))).replace(/,00$/, '')} estão parados em ${sc.idleProducts} ${sc.idleProducts === 1 ? 'produto' : 'produtos'}. Libere esse dinheiro em Decidir.`
-      : 'Nenhum produto encalhando entre os que têm estoque medido.')
-    : pulling.length > 0
-    ? `Quando entram no cupom, o cliente leva até ${money2(Math.max(...pulling.map((t) => t.liftPerBasket)))} a mais em outros produtos. Não deixe faltar.`
-    : !panel || !sales ? undefined
-    : period === 'dia' && !panel.today
-      ? <>Mostrando {dayLabel(panel.referenceDate).toLowerCase()}. <Link to="/app/pdvs">Ver os caixas</Link></>
-      : !panel.comparable ? 'Sem base de comparação: o período anterior ainda não tem todas as notas.'
-      : sales.change == null ? `Sem vendas no mesmo período da semana anterior para comparar.`
-        : `${pct(sales.change)} ${panel.comparisonLabel}.`;
+  const today = useMemo(() => {
+    const t = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }, []);
 
   const baixar = async (arquivo: string) => {
     if (!marketId) return;
@@ -355,26 +321,25 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <UsageBanner />
-      <PageHero title={title} subtitle={subtitle} side={hub} />
+      <PageHero title={today} />
 
       {activation.collecting && activation.status && (
         <CollectingBanner salesDays={activation.status.invoices.salesDays} targetDays={activation.status.invoices.targetDays} />
       )}
 
-      {/* Com estoque medido, o dinheiro abre a tela; estimado, vai para o fim junto do que falta medir. */}
-      {stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} />}
-
-      {/* O Tino traz o aviso de dados que explica os números de baixo; o "Aprovar" dele fica colado à fila. */}
-      <DailyBriefCard marketId={marketId} />
-
-      <DecideNow n={n} total={queue.total} loading={queue.loading} top={top} />
-
-      <h2 className="fx-section-title" style={{ margin: '8px 0 0' }}>Como a loja vendeu</h2>
-      <PillTabs<OperationPeriod> label="Período" value={period} onChange={setPeriod} tabs={[
-        { key: 'dia', label: panel && !panel.today && period === 'dia' ? 'Último dia' : 'Hoje' },
-        { key: 'semana', label: 'Semana' },
-        { key: 'mes', label: 'Mês' },
-      ]} />
+      {/* 1. Como a loja vendeu, com o dia escrito: número parado não se passa por "hoje". */}
+      <div className="fx-section-head">
+        <h2 className="fx-section-title">
+          {panel && period === 'dia' && !panel.today
+            ? <>Como a loja vendeu em {dayLabel(panel.referenceDate).toLowerCase()} <span className="fx-muted" style={{ fontWeight: 500 }}>(último dia que chegou)</span></>
+            : 'Como a loja vendeu'}
+        </h2>
+        <PillTabs<OperationPeriod> label="Período" value={period} onChange={setPeriod} tabs={[
+          { key: 'dia', label: panel && !panel.today && period === 'dia' ? 'Último dia' : 'Hoje' },
+          { key: 'semana', label: 'Semana' },
+          { key: 'mes', label: 'Mês' },
+        ]} />
+      </div>
 
       {/* Os números do período: tocar abre o porquê. */}
       {panelError ? (
@@ -400,7 +365,7 @@ const Dashboard: React.FC = () => {
             );
           })}
           {margin != null && (
-            <div className="fx-kpi" role="listitem" style={{ background: 'var(--fx-lime-soft)', borderColor: 'var(--fx-lime-line)' }}>
+            <div className="fx-kpi" role="listitem">
               <span>Margem estimada</span>
               <b className="fx-num">{formatDecimal(margin, 1)}%</b>
               <small>pelo último custo de compra de {Math.round((panel.margin.coverage) * 100)}% do vendido</small>
@@ -409,81 +374,97 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {panel && (
-        <Card>
-          <PanelTitle title={panel.period === 'dia' ? 'Vendas por hora' : 'Vendas por dia'}
-            sub={panel.period === 'dia' ? `${dayLabel(panel.referenceDate)}, contra a ${panel.seriesReferenceLabel}` : `Cada dia contra o mesmo dia da ${panel.seriesReferenceLabel}`} />
-          <SalesChart panel={panel} />
-        </Card>
-      )}
-
-      <DepartmentsCard panel={panel} />
-
-      {/* Lado a lado com a mesma altura. */}
-      <div className="fx-split even">
-        <TractionCard items={traction.data} />
-        <GiroCard portfolio={portfolio.data} />
+      {/* 2. O que fazer hoje e os atalhos do dia a dia. */}
+      <div className="fx-split wide-left">
+        <DecideNow n={n} loading={queue.loading} top={top} />
+        <Shortcuts />
       </div>
 
-      {!stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} hideActions />}
+      {/* O Tino traz o aviso de dados e o "Aprovar o que preparou". */}
+      <DailyBriefCard marketId={marketId} />
 
-      <CostCoverageCard marketId={marketId} withCount={!stockMeasured} />
+      {/* 3. O resto fica recolhido: quem quer mais detalhe abre. */}
+      <details className="fx-more">
+        <summary>Mais números da loja<small>Vendas por hora, departamentos, giro e dinheiro na prateleira</small></summary>
+        <div className="fx-stack" style={{ gap: 'clamp(14px, 1.6vw, 22px)', marginTop: 16 }}>
+          {stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} />}
 
-      {/* Uma linha para cada coisa que antes era uma página inteira. */}
-      <div className="fx-stack" style={{ gap: 10 }}>
-        {period !== 'dia' && extras.digest && (
-          <Row to="/app/rede">
-            <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><CalendarDays aria-hidden="true" /></span>
-            <span style={{ minWidth: 0, flex: 1 }}>
-              <b style={{ display: 'block', fontSize: 15.5 }}>Resumo da semana do Tino</b>
-              <span className="fx-muted" style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{extras.digest.resumo}</span>
-            </span>
-          </Row>
-        )}
-        {extras.network && (
-          <Row to="/app/rede">
-            <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Store aria-hidden="true" /></span>
-            <span style={{ flex: 1 }}><b style={{ display: 'block', fontSize: 15.5 }}>Comparar suas lojas</b><span className="fx-muted" style={{ fontSize: 13.5 }}>Faturamento, transferências e preços entre filiais</span></span>
-          </Row>
-        )}
-        {extras.recurring != null && (
-          <Row to="/app/clientes">
-            <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Users aria-hidden="true" /></span>
-            <span style={{ flex: 1 }}><b style={{ display: 'block', fontSize: 15.5 }}>{formatDecimal(extras.recurring, 0)}% dos clientes identificados voltam</b><span className="fx-muted" style={{ fontSize: 13.5 }}>Quem volta e o que traz o cliente de volta</span></span>
-          </Row>
-        )}
-        {extras.exportable && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span className="fx-muted" style={{ fontSize: 14 }}>Baixar planilha:</span>
-            {[['capital.csv', 'Dinheiro parado'], ['oportunidades.csv', 'Oportunidades'], ['decisoes.csv', 'Decisões']].map(([arquivo, label]) => (
-              <button key={arquivo} type="button" className="fx-btn ghost small" onClick={() => baixar(arquivo)} disabled={downloading === arquivo}>
-                {downloading === arquivo ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}{label}
-              </button>
-            ))}
+          {panel && (
+            <Card>
+              <PanelTitle title={panel.period === 'dia' ? 'Vendas por hora' : 'Vendas por dia'}
+                sub={panel.period === 'dia' ? `${dayLabel(panel.referenceDate)}, contra a ${panel.seriesReferenceLabel}` : `Cada dia contra o mesmo dia da ${panel.seriesReferenceLabel}`} />
+              <SalesChart panel={panel} />
+            </Card>
+          )}
+
+          <DepartmentsCard panel={panel} />
+
+          {/* Lado a lado com a mesma altura. */}
+          <div className="fx-split even">
+            <TractionCard items={traction.data} />
+            <GiroCard portfolio={portfolio.data} />
           </div>
-        )}
-      </div>
+
+          {!stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} hideActions />}
+
+          <CostCoverageCard marketId={marketId} withCount={!stockMeasured} />
+
+          {/* Uma linha para cada coisa que antes era uma página inteira. */}
+          <div className="fx-stack" style={{ gap: 10 }}>
+            {period !== 'dia' && extras.digest && (
+              <Row to="/app/rede">
+                <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><CalendarDays aria-hidden="true" /></span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <b style={{ display: 'block', fontSize: 15.5 }}>Resumo da semana do Tino</b>
+                  <span className="fx-muted" style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{extras.digest.resumo}</span>
+                </span>
+              </Row>
+            )}
+            {extras.network && (
+              <Row to="/app/rede">
+                <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Store aria-hidden="true" /></span>
+                <span style={{ flex: 1 }}><b style={{ display: 'block', fontSize: 15.5 }}>Comparar suas lojas</b><span className="fx-muted" style={{ fontSize: 13.5 }}>Faturamento, transferências e preços entre filiais</span></span>
+              </Row>
+            )}
+            {extras.recurring != null && (
+              <Row to="/app/clientes">
+                <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Users aria-hidden="true" /></span>
+                <span style={{ flex: 1 }}><b style={{ display: 'block', fontSize: 15.5 }}>{formatDecimal(extras.recurring, 0)}% dos clientes identificados voltam</b><span className="fx-muted" style={{ fontSize: 13.5 }}>Quem volta e o que traz o cliente de volta</span></span>
+              </Row>
+            )}
+            {extras.exportable && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span className="fx-muted" style={{ fontSize: 14 }}>Baixar planilha:</span>
+                {[['capital.csv', 'Dinheiro parado'], ['oportunidades.csv', 'Oportunidades'], ['decisoes.csv', 'Decisões']].map(([arquivo, label]) => (
+                  <button key={arquivo} type="button" className="fx-btn ghost small" onClick={() => baixar(arquivo)} disabled={downloading === arquivo}>
+                    {downloading === arquivo ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}{label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </details>
 
       {why && panel && <WhyDrawer panel={panel} metric={why} onClose={() => setWhy(null)} />}
     </Layout>
   );
 };
 
-/** As decisões que mais valem, do maior impacto para o menor. */
-const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: ReturnType<typeof useDecisionQueue>['items'] }> = ({ n, total, loading, top }) => (
-  <Forest as="section" aria-label="Decida agora">
-    <PanelTitle icon={Sparkles} title="Decida agora" sub={n > 0 ? `${n} ${n === 1 ? 'decisão espera' : 'decisões esperam'} você${total > 0 ? ` · ${formatMoney(total)} de ganho possível` : ''}` : 'Nada esperando você'} />
+/** As três decisões que mais valem: uma frase, um valor e o caminho para decidir. */
+const DecideNow: React.FC<{ n: number; loading: boolean; top: ReturnType<typeof useDecisionQueue>['items'] }> = ({ n, loading, top }) => (
+  <Card as="section" aria-label="Faça hoje">
+    <PanelTitle title="Faça hoje" sub={n > 0 ? 'As sugestões do Tino que mais valem. Nada muda sem o seu sim.' : 'Nada esperando você'} />
     {loading ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : top.length === 0 ? (
-      <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>A análise roda de madrugada e a cada lote de notas. Quando algo pedir sua decisão, aparece aqui.</p>
+      <p className="fx-muted" style={{ margin: '14px 0 0' }}>A análise roda de madrugada e a cada lote de notas. Quando algo pedir sua decisão, aparece aqui.</p>
     ) : (
       <ul className="fx-stack" style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, gap: 8 }}>
-        {top.map((it, i) => (
+        {top.map((it) => (
           <li key={it.key}>
-            <Link to={`/app/decidir?item=${encodeURIComponent(it.key)}`} className="fx-row" style={{ color: 'var(--fx-ink)' }}>
-              <span aria-hidden="true" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, display: 'grid', placeItems: 'center', fontWeight: 800, background: 'var(--fx-lime)', color: 'var(--fx-lime-ink)' }}>{i + 1}</span>
+            <Link to={`/app/decidir?item=${encodeURIComponent(it.key)}`} className="fx-row">
               <span style={{ minWidth: 0, flex: 1 }}>
-                <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{plainDates(it.title)}</b>
-                <span className="fx-muted" style={{ fontSize: 13 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.source === 'tino' ? 'Tino preparou' : ''].filter(Boolean).join(' · ')}</span>
+                <b style={{ display: 'block', fontSize: 16, lineHeight: 1.3 }}>{plainDates(it.title)}</b>
+                <span className="fx-muted" style={{ fontSize: 14 }}>{it.title.startsWith(GROUP_LABEL[it.group]) ? 'Sugestão do Tino' : GROUP_LABEL[it.group]}</span>
               </span>
               {it.value != null && <b className="fx-num" style={{ whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
             </Link>
@@ -491,8 +472,25 @@ const DecideNow: React.FC<{ n: number; total: number; loading: boolean; top: Ret
         ))}
       </ul>
     )}
-    {n > 3 && <Link to="/app/decidir" className="fx-btn lime" style={{ marginTop: 14, width: '100%' }}>Ver as {n} decisões<ArrowRight aria-hidden="true" /></Link>}
-  </Forest>
+    {n > top.length && <Link to="/app/decidir" className="fx-more-link">Ver todas as {n} sugestões<ArrowRight aria-hidden="true" /></Link>}
+  </Card>
+);
+
+/** O que o dono faz todo dia, a um toque do Início. */
+const SHORTCUTS = [
+  { to: '/app/lista-compras', label: 'Fazer pedido', icon: ShoppingCart },
+  { to: '/app/contar', label: 'Contar estoque', icon: ClipboardList },
+  { to: '/app/encartes', label: 'Montar encarte', icon: Newspaper },
+  { to: '/app/produtos', label: 'Ver um produto', icon: PackageSearch },
+];
+
+const Shortcuts: React.FC = () => (
+  <Card as="section" aria-label="Atalhos">
+    <PanelTitle title="Atalhos" sub="O que você mais faz no dia a dia" />
+    <div className="fx-shortcuts">
+      {SHORTCUTS.map(({ to, label, icon: I }) => <Link key={to} to={to}><I aria-hidden="true" />{label}</Link>)}
+    </div>
+  </Card>
 );
 
 /** Departamentos e mais vendidos no mesmo cartão: duas leituras da mesma venda. */
