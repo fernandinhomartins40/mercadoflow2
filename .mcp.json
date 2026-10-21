@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "google-play-store": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "@appeeky/google-play-store-cli@0.1.2",
+        "gps-mcp",
+        "--credentials",
+        "C:/Users/fusea/.bipae/play-service-account.json"
+      ]
+    }
+  }
+}
