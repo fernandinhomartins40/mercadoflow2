@@ -51,10 +51,10 @@ const fmt = {
   },
 };
 
+/** Só o último nível da categoria ("Batata Chips"): o caminho inteiro quebrava a linha. */
 const compactLabel = (v?: string | null) => {
   if (!v) return 'Sem categoria';
-  const s = v.replace(/\s*>\s*/g, ' > ').trim();
-  return s.length > 72 ? `${s.slice(0, 69)}...` : s;
+  return v.split('>').map((x) => x.trim()).filter(Boolean).pop() ?? 'Sem categoria';
 };
 
 const triggerLabel = (v?: string | null) =>
@@ -485,23 +485,24 @@ const ProductDetail: React.FC = () => {
         {/* ── Ver: o produto e como ele vai ── */}
         <div className="grid gap-6 lg:grid-cols-[180px_1fr] lg:items-start">
           <div className="flex items-center justify-center overflow-hidden rounded-xl p-4 lg:aspect-square" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
-            <ProductImage src={overview.imageUrl} alt={overview.name} className="max-h-full max-w-full object-contain" />
+            <ProductImage src={overview.imageUrl} alt={overview.name} className="max-h-full max-w-full object-contain" productId={overview.productId}
+              info={`${fmt.money(overview.averagePrice)} em média · ${compactLabel(overview.category)}`} />
           </div>
           <div className="flex flex-col gap-3">
             <PageHero
-              title={<>{overview.name} <mark>{trend > 1 ? `vende ${formatDecimal(trend, 0)}% mais.` : trend < -1 ? `vende ${formatDecimal(Math.abs(trend), 0)}% menos.` : 'vende estável.'}</mark></>}
+              name={overview.name}
+              title={trend > 1 ? `Está vendendo ${formatDecimal(trend, 0)}% mais.` : trend < -1 ? `Está vendendo ${formatDecimal(Math.abs(trend), 0)}% menos.` : 'Vendas estáveis.'}
               subtitle={`${fmt.money(overview.revenue)} em 90 dias · ${formatDecimal(Number(overview.salesVelocity || 0), 1)} por dia · última venda ${fmt.date(overview.lastSoldAt)}`}
               side={<ActionHub icon={Package} label="O que fazer com este produto" actions={[
                 inList ? { label: 'Já está na lista', icon: ListChecks, to: '/app/lista-compras' } : { label: 'Pôr na lista de compras', icon: ListChecks, onClick: () => { void addCurrentProductToList(); } },
                 FEATURE_OFFER_TEMPLATES_ENABLED
                   ? { label: 'Criar oferta', icon: Tag, to: buildOffersUrl('/ofertas', 'admin', `productId=${overview.productId}`) }
                   : { label: 'Montar encarte', icon: Tag, to: '/app/encartes' },
-                { label: 'Voltar aos produtos', icon: ArrowLeft, to: '/app/produtos' },
               ]} />}
             />
             <div className="flex flex-wrap gap-2">
               <Chip>{compactLabel(overview.category)}</Chip>
-              <Chip>GTIN {overview.ean || '--'}</Chip>
+              {overview.ean && <Chip>Código de barras {overview.ean}</Chip>}
               {highSeasonNow && <Chip variant="success">Alta temporada: {highSeasonNow.title}</Chip>}
             </div>
           </div>

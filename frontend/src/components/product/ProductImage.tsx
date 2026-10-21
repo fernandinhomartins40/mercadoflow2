@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { openProductPhoto } from '../flow/Flow';
 
 const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
@@ -14,13 +15,27 @@ interface ProductImageProps {
   src?: string | null;
   alt: string;
   className?: string;
+  /** Com foto de verdade, um toque abre a foto ampliada. */
+  productId?: string | null;
+  info?: string | null;
 }
 
-const ProductImage: React.FC<ProductImageProps> = ({ src, alt, className }) => {
+const ProductImage: React.FC<ProductImageProps> = ({ src, alt, className, productId, info }) => {
   const [broken, setBroken] = useState(false);
   const imageSrc = useMemo(() => (!broken && src ? src : FALLBACK_IMAGE), [broken, src]);
-
-  return <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
+  const img = <img className={className} src={imageSrc} alt={alt} loading="lazy" onError={() => setBroken(true)} />;
+  if (!src || broken) return img;
+  const open = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openProductPhoto({ src, name: alt, productId, info });
+  };
+  return (
+    <span role="button" tabIndex={0} className="fx-thumb-zoom fx-photo-fill" aria-label={`Ampliar a foto de ${alt}`} title="Ampliar a foto"
+      onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') open(e); }}>
+      {img}
+    </span>
+  );
 };
 
 export default ProductImage;

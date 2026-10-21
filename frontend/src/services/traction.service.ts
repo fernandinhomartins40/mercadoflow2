@@ -6,7 +6,7 @@ import api from './api';
  * Ver docs/AUDITORIA-ANALISES.md.
  */
 
-export interface TractionPartner { productId: string; name: string; baskets: number; lift: number }
+export interface TractionPartner { productId: string; name: string; baskets: number; lift: number; imageUrl?: string | null }
 
 export interface ProductTraction {
   productId: string;

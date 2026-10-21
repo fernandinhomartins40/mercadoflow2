@@ -742,3 +742,26 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 .fx-more-pop button.danger { color: var(--fx-red); }
 .fx-more-pop button:disabled { opacity: .5; cursor: default; }
 .fx-more-pop svg { width: 17px; height: 17px; }
+
+/* ── Foto do produto: miniatura que amplia e visualizador ── */
+.fx-thumb-zoom { display: inline-flex; flex-shrink: 0; cursor: zoom-in; border-radius: 12px; }
+.fx-thumb-zoom:focus-visible { outline: 2px solid var(--fx-green); outline-offset: 2px; }
+.fx-thumb-zoom .fx-thumb { background: #fff; border: 1px solid var(--fx-line); }
+.fx-photo-shade { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(11, 31, 22, .6); backdrop-filter: blur(3px); }
+.fx-photo { position: relative; margin: 0; width: min(520px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: #fff; border-radius: 22px; overflow: hidden; box-shadow: 0 30px 80px -30px rgba(11, 31, 22, .6); }
+.fx-photo-img { flex: 1 1 auto; min-height: 0; display: grid; place-items: center; padding: 28px; background: #fff; }
+.fx-photo-img img { max-width: 100%; max-height: min(60vh, 440px); object-fit: contain; }
+.fx-photo figcaption { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 20px 20px; border-top: 1px solid var(--fx-line); color: var(--fx-ink); }
+.fx-photo figcaption b { font-size: 18px; line-height: 1.3; }
+.fx-photo figcaption span { font-size: 15px; color: var(--fx-muted); }
+.fx-photo figcaption .fx-btn { margin-top: 6px; }
+.fx-photo-close { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--fx-line); background: #fff; color: var(--fx-ink); display: grid; place-items: center; cursor: pointer; }
+.fx-photo-close svg { width: 20px; height: 20px; }
+.fx-companions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; }
+.fx-companions > small { font-size: 13px; color: var(--fx-muted); }
+.fx-companion { display: inline-flex; align-items: center; gap: 6px; max-width: 240px; font-size: 13px; color: var(--fx-ink-2); }
+.fx-companion > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-companion .fx-thumb { border-radius: 7px; }
+/* Foto grande (página do produto, listas antigas): a área clicável ocupa o quadro e a foto cabe inteira. */
+.fx-thumb-zoom.fx-photo-fill { width: 100%; height: 100%; align-items: center; justify-content: center; }
+.fx-thumb-zoom.fx-photo-fill > img { max-width: 100%; max-height: 100%; object-fit: contain; }

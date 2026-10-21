@@ -214,6 +214,7 @@ export interface CatalogItem {
   unit_price: number;
   price_source: 'BASE' | 'TABELA';
   tiers: Tier[];
+  image_url?: string | null;
 }
 
 export interface MarketSeller {

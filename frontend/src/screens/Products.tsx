@@ -161,7 +161,7 @@ const DesempenhoTab: React.FC = () => {
                 <li key={product.productId}>
                   <button type="button" onClick={() => setSelected(product.productId)} aria-current={on || undefined}
                     className={`fx-row ${on ? 'selected' : ''}`} style={{ flexWrap: 'wrap' }}>
-                    <Thumb name={product.name || ''} src={product.imageUrl} size={48} />
+                    <Thumb name={product.name || ''} src={product.imageUrl} size={48} productId={product.productId} />
                     <span className="min-w-0 flex-1">
                       <b className="block truncate" style={{ fontSize: 15.5 }}>{product.name}</b>
                       <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px]" style={{ color: 'var(--fx-muted)' }}>
@@ -186,7 +186,7 @@ const DesempenhoTab: React.FC = () => {
             <Forest as="aside" aria-label="Produto selecionado" className="fx-sticky" key={current.productId}>
               <PanelTitle icon={Package} title="Detalhe do produto" sub="O que as vendas dizem sobre ele" />
               <div className="flex items-center gap-4" style={{ marginTop: 20 }}>
-                <Thumb name={current.name || ''} src={current.imageUrl} size={84} />
+                <Thumb name={current.name || ''} src={current.imageUrl} size={84} productId={current.productId} />
                 <div className="min-w-0">
                   <span className="fx-chip lime" style={{ marginBottom: 6 }}>{statusLabel(current).text}</span>
                   <h3 style={{ margin: 0, fontSize: 'clamp(20px, 2vw, 26px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15 }}>{current.name}</h3>

@@ -93,7 +93,7 @@ const SalesChart: React.FC<{ panel: OperationPanel }> = ({ panel }) => {
 const ProductMoveRow: React.FC<{ p: OperationProduct }> = ({ p }) => (
   <li>
     <Row to={`/app/produtos/${p.productId}`}>
-      <Thumb name={p.name} src={p.imageUrl} size={42} />
+      <Thumb name={p.name} src={p.imageUrl} size={42} productId={p.productId} />
       <span style={{ minWidth: 0, flex: 1 }}>
         <b style={{ display: 'block', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</b>
         <span className="fx-muted" style={{ fontSize: 13 }}>{formatMoney(p.revenue)} · antes {formatMoney(p.previous)}</span>
@@ -175,7 +175,7 @@ const TractionCard: React.FC<{ items: ProductTraction[] | undefined }> = ({ item
         {items.slice(0, 5).map((t) => (
           <li key={t.productId}>
             <Row to={`/app/produtos/${t.productId}`}>
-              <Thumb name={t.name} src={t.imageUrl} size={42} />
+              <Thumb name={t.name} src={t.imageUrl} size={42} productId={t.productId} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <b style={{ display: 'block', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</b>
                 <span className="fx-muted" style={{ display: 'block', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -209,7 +209,7 @@ const GiroCard: React.FC<{ portfolio: GiroSummary | undefined }> = ({ portfolio 
           {list.map((m) => (
             <li key={m.productId}>
               <Row to={`/app/produtos/${m.productId}`}>
-                <Thumb name={m.name} src={m.imageUrl} size={40} />
+                <Thumb name={m.name} src={m.imageUrl} size={40} productId={m.productId} />
                 <span style={{ minWidth: 0, flex: 1 }}>
                   <b style={{ display: 'block', fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</b>
                   <span className="fx-muted" style={{ fontSize: 12.5 }}>{rankLabel(m.abcClass)} · {paceLabel(m.momentumScore != null ? Number(m.momentumScore) : null)}</span>
@@ -462,6 +462,7 @@ const DecideNow: React.FC<{ n: number; loading: boolean; top: ReturnType<typeof 
         {top.map((it) => (
           <li key={it.key}>
             <Link to={`/app/decidir?item=${encodeURIComponent(it.key)}`} className="fx-row">
+              {it.image ? <Thumb name={it.name} src={it.image} size={44} /> : <span className="fx-icon-tile" style={{ width: 44, height: 44 }}><Sparkles aria-hidden="true" /></span>}
               <span style={{ minWidth: 0, flex: 1 }}>
                 <b style={{ display: 'block', fontSize: 16, lineHeight: 1.3 }}>{plainDates(it.title)}</b>
                 <span className="fx-muted" style={{ fontSize: 14 }}>{it.title.startsWith(GROUP_LABEL[it.group]) ? 'Sugestão do Tino' : GROUP_LABEL[it.group]}</span>

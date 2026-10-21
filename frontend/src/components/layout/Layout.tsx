@@ -10,7 +10,7 @@ import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
 import HistoryNotice from '../intelligence/HistoryNotice';
-import { PageNameContext } from '../flow/Flow';
+import { PageNameContext, PhotoViewer } from '../flow/Flow';
 import '../../styles/flow.css';
 import '../../styles/flow-clean.css';
 
@@ -181,6 +181,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </>
       )}
+
+      <PhotoViewer />
 
       <nav className="fx-bar" aria-label="Navegação">
         {BAR_KEYS.map((key) => {

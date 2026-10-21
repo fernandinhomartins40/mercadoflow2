@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Card, Chip, Forest, PanelTitle } from '../../components/flow/Flow';
+import { Card, Chip, Forest, PanelTitle, Thumb } from '../../components/flow/Flow';
 import { useAuth } from '../../context/AuthContext';
 import { useCached } from '../../hooks/useCached';
 import { tractionService, type ProductTraction } from '../../services/traction.service';
@@ -53,11 +53,16 @@ const ProductTractionPanel: React.FC<{ productId: string }> = ({ productId }) =>
             {t.partners.length > 0 && (
               <>
                 <h3 className="fx-panel-sub" style={{ margin: '16px 0 8px' }}>Costuma vir junto</h3>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
                   {t.partners.map((p) => (
-                    <li key={p.productId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                      <Link to={`/app/produtos/${p.productId}`}>{p.name}</Link>
-                      <span className="fx-muted" style={{ whiteSpace: 'nowrap', fontSize: 13 }}>{p.baskets} cupons · {affinityLabel(p.lift)}</span>
+                    <li key={p.productId}>
+                      <Link to={`/app/produtos/${p.productId}`} className="fx-row compact" style={{ color: 'var(--fx-ink)' }}>
+                        <Thumb name={p.name} src={p.imageUrl} size={44} productId={p.productId} />
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <b style={{ display: 'block', fontSize: 15, lineHeight: 1.3 }}>{p.name}</b>
+                          <span className="fx-muted" style={{ fontSize: 13.5 }}>Juntos em {p.baskets} cupons · {affinityLabel(p.lift)}</span>
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

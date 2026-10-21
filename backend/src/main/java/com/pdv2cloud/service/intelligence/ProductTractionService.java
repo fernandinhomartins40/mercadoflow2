@@ -56,7 +56,8 @@ public class ProductTractionService {
         this.completeness = completeness;
     }
 
-    public record Partner(UUID productId, String name, int baskets, double lift) { }
+    /** Produto que costuma vir junto. A foto não fica gravada: vem do cadastro na leitura. */
+    public record Partner(UUID productId, String name, int baskets, double lift, String imageUrl) { }
 
     public record Traction(
         UUID productId,
@@ -149,7 +150,7 @@ public class ProductTractionService {
                 if (!effect.containsKey(a)) return;
                 strongCount.merge(a, 1, Integer::sum);
                 partners.computeIfAbsent(a, k -> new ArrayList<>())
-                    .add(new Partner(rs.getObject("pb", UUID.class), rs.getString("name"), rs.getInt("c"), rs.getDouble("lift")));
+                    .add(new Partner(rs.getObject("pb", UUID.class), rs.getString("name"), rs.getInt("c"), rs.getDouble("lift"), null));
             });
 
         LocalDateTime now = LocalDateTime.now();
@@ -200,7 +201,7 @@ public class ProductTractionService {
             "where t.market_id = :m " + (onlyPositive ? "and t.lift_per_basket > 0 and coalesce(t.z_score, 0) >= 2 " : "") +
             "order by t.lift_total desc limit :lim",
             new MapSqlParameterSource("m", marketId).addValue("lim", limit),
-            (rs, n) -> map(rs));
+            (rs, n) -> map(rs)).stream().map(this::withPartnerImages).toList();
     }
 
     @Transactional(readOnly = true)
@@ -210,7 +211,23 @@ public class ProductTractionService {
             "where t.market_id = :m and t.product_id = :p",
             new MapSqlParameterSource("m", marketId).addValue("p", productId),
             (rs, n) -> map(rs));
-        return found.isEmpty() ? null : found.get(0);
+        return found.isEmpty() ? null : withPartnerImages(found.get(0));
+    }
+
+    /** Foto atual de cada produto que vem junto (o painel mostra a miniatura de todo produto). */
+    private Traction withPartnerImages(Traction t) {
+        if (t.partners().isEmpty()) return t;
+        String ids = t.partners().stream().map(x -> x.productId().toString()).collect(Collectors.joining(",", "{", "}"));
+        Map<UUID, String> images = new HashMap<>();
+        jdbc.query("select id, image_url from products where id = any(cast(:ids as uuid[])) and image_url is not null",
+            new MapSqlParameterSource("ids", ids),
+            rs -> { images.put(rs.getObject("id", UUID.class), rs.getString("image_url")); });
+        List<Partner> withImages = t.partners().stream()
+            .map(x -> new Partner(x.productId(), x.name(), x.baskets(), x.lift(), images.get(x.productId())))
+            .toList();
+        return new Traction(t.productId(), t.name(), t.imageUrl(), t.category(), t.baskets(), t.totalBaskets(),
+            t.ownRevenue(), t.liftPerBasket(), t.liftTotal(), t.zScore(), t.significant(), t.strongPartners(),
+            withImages, t.completeDays(), t.computedAt());
     }
 
     private Traction map(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -220,7 +237,7 @@ public class ProductTractionService {
             try {
                 for (Map<?, ?> m : JSON.readValue(json, Map[].class)) {
                     partners.add(new Partner(UUID.fromString(String.valueOf(m.get("productId"))), (String) m.get("name"),
-                        ((Number) m.get("baskets")).intValue(), ((Number) m.get("lift")).doubleValue()));
+                        ((Number) m.get("baskets")).intValue(), ((Number) m.get("lift")).doubleValue(), null));
                 }
             } catch (Exception ignored) {
                 // parceiros são complemento; a medida principal continua valendo

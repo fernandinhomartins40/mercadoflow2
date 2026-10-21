@@ -300,8 +300,10 @@ public class CommerceCatalogService {
         String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         PriceBook book = priceBook(seller.id(), store, consent);
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Map<String, Object> p : jdbc.queryForList("select gtin, name, brand, unit_type, units_per_pack, min_quantity, multiple_of, "
-            + "base_price, in_stock from commerce_seller_products where seller_id = :s and status = 'ATIVO' order by name",
+        // A foto vem do cadastro de produtos pelo código de barras: o painel mostra a miniatura de todo produto.
+        for (Map<String, Object> p : jdbc.queryForList("select sp.gtin, sp.name, sp.brand, sp.unit_type, sp.units_per_pack, sp.min_quantity, sp.multiple_of, "
+            + "sp.base_price, sp.in_stock, (select pr.image_url from products pr where pr.ean = sp.gtin and pr.image_url is not null limit 1) as image_url "
+            + "from commerce_seller_products sp where sp.seller_id = :s and sp.status = 'ATIVO' order by sp.name",
             Map.of("s", seller.id()))) {
             String gtin = (String) p.get("gtin");
             if (!q.isEmpty() && !(String.valueOf(p.get("name")).toLowerCase(Locale.ROOT).contains(q) || gtin.contains(q)

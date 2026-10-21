@@ -78,7 +78,7 @@ const StockCount: React.FC = () => {
             <ul className="fx-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
               {items.map((p) => (
                 <li key={p.productId} className="fx-row" style={{ cursor: 'default' }}>
-                  <Thumb name={p.name} src={p.imageUrl} size={44} />
+                  <Thumb name={p.name} src={p.imageUrl} size={44} productId={p.productId} />
                   <span style={{ minWidth: 0, flex: 1 }}>
                     <b style={{ display: 'block', fontSize: 15, lineHeight: 1.25 }}>{p.name}</b>
                     <span className="fx-muted" style={{ fontSize: 12.5 }}>vende {String(p.perDay).replace('.', ',')} por dia{p.ean ? ` · ${p.ean}` : ''}</span>

@@ -35,15 +35,21 @@ const TractionList: React.FC = () => {
       <PagedList items={data} size={10} label="produtos" style={{ marginTop: 16, gap: 8 }} render={(t) => (
           <li key={t.productId}>
             <Link to={`/app/produtos/${t.productId}`} className="fx-row" style={{ color: 'var(--fx-ink)', alignItems: 'flex-start' }}>
-              <Thumb name={t.name} src={t.imageUrl} size={44} />
+              <Thumb name={t.name} src={t.imageUrl} size={48} productId={t.productId} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <b style={{ display: 'block', fontSize: 15 }}>{t.name}</b>
                 <span className="fx-muted" style={{ display: 'block', fontSize: 13 }}>
                   {t.baskets.toLocaleString('pt-BR')} cupons · vende {formatMoney(t.ownRevenue)} · puxa {formatMoney(t.liftTotal)} em outros itens
                 </span>
                 {t.partners.length > 0 && (
-                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                    {t.partners.slice(0, 4).map((pt) => <Chip key={pt.productId} tone="ghost">{pt.name}</Chip>)}
+                  <span className="fx-companions">
+                    <small>Vem junto:</small>
+                    {t.partners.slice(0, 3).map((pt) => (
+                      <span key={pt.productId} className="fx-companion">
+                        <Thumb name={pt.name} src={pt.imageUrl} size={26} productId={pt.productId} />
+                        <span>{pt.name}</span>
+                      </span>
+                    ))}
                   </span>
                 )}
               </span>

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight, MoreHorizontal, type LucideIcon } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ChevronRight, MoreHorizontal, X, type LucideIcon } from 'lucide-react';
 
 /**
  * Blocos do visual Flow (styles/flow.css): título com destaque, hub de ações,
@@ -16,8 +16,9 @@ export const PageNameContext = React.createContext<string | null>(null);
  * "Pedidos"), sempre igual e no mesmo lugar; a frase da tela vira a linha de
  * baixo. Fora do mercado (indústria, vendas) segue o título recebido.
  */
-export const PageHero: React.FC<{ title: React.ReactNode; subtitle?: React.ReactNode; side?: React.ReactNode }> = ({ title, subtitle, side }) => {
-  const name = React.useContext(PageNameContext);
+export const PageHero: React.FC<{ title: React.ReactNode; subtitle?: React.ReactNode; side?: React.ReactNode; name?: React.ReactNode }> = ({ title, subtitle, side, name: own }) => {
+  const context = React.useContext(PageNameContext);
+  const name = own ?? context;
   return (
     <header className="fx-hero">
       <div className="fx-hero-text">
@@ -227,12 +228,71 @@ export const Row: React.FC<{ selected?: boolean; onClick?: () => void; to?: stri
 };
 
 const TILE = ['#2E7D5B', '#B4541A', '#6A4BC4', '#1F6FB2', '#A83262', '#5E7A10', '#8A5A00', '#2E7D7A'];
-/** Foto do produto, ou um quadrado colorido com as iniciais quando não há foto. */
-export const Thumb: React.FC<{ name: string; src?: string | null; size?: number }> = ({ name, src, size = 52 }) => {
-  if (src) return <img src={src} alt="" className="fx-thumb" style={{ width: size, height: size }} loading="lazy" />;
+
+/** Foto ampliada de um produto: o que o visualizador (PhotoViewer) mostra. */
+export interface ProductPhoto { src: string; name: string; productId?: string | null; info?: string | null }
+const PHOTO_EVENT = 'mf:foto-produto';
+/** Abre a foto ampliada de um produto, de qualquer tela. */
+export const openProductPhoto = (photo: ProductPhoto) => window.dispatchEvent(new CustomEvent<ProductPhoto>(PHOTO_EVENT, { detail: photo }));
+
+/**
+ * Foto do produto, ou um quadrado colorido com as iniciais quando não há foto.
+ * Com foto, um toque abre a foto ampliada (mesmo dentro de uma linha clicável).
+ */
+export const Thumb: React.FC<{ name: string; src?: string | null; size?: number; productId?: string | null; info?: string | null }> = ({ name, src, size = 52, productId, info }) => {
+  const [broken, setBroken] = React.useState(false);
+  if (src && !broken) {
+    const open = (e: React.SyntheticEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openProductPhoto({ src, name, productId, info });
+    };
+    return (
+      <span role="button" tabIndex={0} className="fx-thumb-zoom" aria-label={`Ampliar a foto de ${name}`} title="Ampliar a foto"
+        onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') open(e); }}>
+        <img src={src} alt="" className="fx-thumb" style={{ width: size, height: size }} loading="lazy" onError={() => setBroken(true)} />
+      </span>
+    );
+  }
   const color = TILE[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % TILE.length];
   const ini = name.split(/\s+/).filter((w) => /[A-Za-zÀ-ú]/.test(w[0] ?? '')).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
   return <span className="fx-thumb" aria-hidden="true" style={{ width: size, height: size, background: color, fontSize: size * 0.3 }}>{ini}</span>;
+};
+
+/**
+ * Foto ampliada do produto, por cima da tela: a foto grande, o nome inteiro,
+ * uma linha útil e o caminho para a página do produto. Montado uma vez na casca.
+ */
+export const PhotoViewer: React.FC = () => {
+  const [photo, setPhoto] = React.useState<ProductPhoto | null>(null);
+  const location = useLocation();
+  React.useEffect(() => {
+    const on = (e: Event) => setPhoto((e as CustomEvent<ProductPhoto>).detail);
+    window.addEventListener(PHOTO_EVENT, on);
+    return () => window.removeEventListener(PHOTO_EVENT, on);
+  }, []);
+  React.useEffect(() => { setPhoto(null); }, [location.pathname]);
+  React.useEffect(() => {
+    if (!photo) return undefined;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPhoto(null); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [photo]);
+  if (!photo) return null;
+  const productPage = photo.productId ? `/app/produtos/${photo.productId}` : null;
+  return (
+    <div className="fx-photo-shade" role="dialog" aria-modal="true" aria-label={`Foto de ${photo.name}`} onClick={() => setPhoto(null)}>
+      <figure className="fx-photo" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="fx-photo-close" onClick={() => setPhoto(null)} aria-label="Fechar a foto"><X aria-hidden="true" /></button>
+        <div className="fx-photo-img"><img src={photo.src} alt={`Foto de ${photo.name}`} /></div>
+        <figcaption>
+          <b>{photo.name}</b>
+          {photo.info && <span>{photo.info}</span>}
+          {productPage && location.pathname !== productPage && <Link to={productPage} className="fx-btn dark small">Ver o produto</Link>}
+        </figcaption>
+      </figure>
+    </div>
+  );
 };
 
 export interface Step { label: string; hint?: string; state: 'done' | 'now' | 'next' }

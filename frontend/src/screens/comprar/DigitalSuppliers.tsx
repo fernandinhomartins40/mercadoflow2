@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Factory, Megaphone, Minus, Network, Package, Plus, Search, ShoppingBag, ShoppingCart, Store, Truck, XCircle } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
-import { Card, Chip, Forest, PageHero, PanelTitle, PillTabs } from '../../components/flow/Flow';
+import { Card, Chip, Forest, PageHero, PanelTitle, PillTabs, Thumb } from '../../components/flow/Flow';
 import { promptDialog } from '../../components/common/Dialogs';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -117,6 +117,7 @@ const SellerCatalog: React.FC<{ marketId: string; seller: MarketSeller; onBack: 
               const qty = cart[i.gtin] ?? 0;
               return (
                 <li key={i.gtin} className="fx-row" style={{ cursor: 'default', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Thumb name={i.name} src={i.image_url} size={48} info={`${brlPrice(i.unit_price)} · ${i.unit_type}${i.units_per_pack ? ` com ${qtyLabel(i.units_per_pack)}` : ''}`} />
                   <span style={{ flex: '1 1 220px', minWidth: 0 }}>
                     <b style={{ display: 'block' }}>{i.name}</b>
                     <small className="fx-muted">{i.gtin} · {i.unit_type}{i.units_per_pack ? ` c/ ${qtyLabel(i.units_per_pack)}` : ''} · mínimo {qtyLabel(i.min_quantity)}</small>
