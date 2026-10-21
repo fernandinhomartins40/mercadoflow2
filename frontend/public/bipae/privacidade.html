@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Política de privacidade do Bipaê</title>
+  <meta name="description" content="Como o app Bipaê trata os dados do seu mercado: conferência de notas e contagem de estoque.">
+  <link rel="icon" href="/bipae/icon.svg">
+  <style>
+    :root { --verde: #045e48; --amarelo: #fcbf27; --tinta: #10231c; --suave: #4f6159; --linha: #dde7e2; --fundo: #f4f8f6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fundo); color: var(--tinta); font: 17px/1.6 -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header { background: var(--verde); color: #fff; padding: 28px 16px 32px; }
+    .wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+    header .marca { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 26px; }
+    header img { width: 48px; height: 48px; border-radius: 12px; }
+    header h1 { font-size: 30px; line-height: 1.2; margin: 18px 0 6px; }
+    header p { margin: 0; color: #d6efe6; }
+    main { padding: 24px 0 48px; }
+    section { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 20px 22px; margin-bottom: 16px; }
+    h2 { font-size: 20px; margin: 0 0 10px; color: var(--verde); }
+    h2::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--amarelo); margin-right: 10px; vertical-align: middle; }
+    ul { padding-left: 20px; margin: 8px 0; }
+    li { margin: 4px 0; }
+    p { margin: 8px 0; }
+    .nota { color: var(--suave); font-size: 15px; }
+    .destaque { background: #fff8e6; border-color: #f5dc9a; }
+    a { color: var(--verde); font-weight: 600; }
+    footer { color: var(--suave); font-size: 14px; text-align: center; padding: 0 16px 40px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="marca"><img src="/bipae/icon.svg" alt="">Bipaê</div>
+      <h1>Política de privacidade</h1>
+      <p>Vale para o app Bipaê (Android) e para o Bipaê na web (mercadoflow.com/confere). Atualizada em 21/10/2026.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>Quem cuida dos seus dados</h2>
+      <p>O Bipaê é um serviço do MercadoFlow. O controlador dos dados é [PREENCHER: razão social], CNPJ [PREENCHER], com endereço em [PREENCHER].</p>
+      <p>Encarregado de dados (LGPD): [PREENCHER: nome], pelo e-mail <a href="mailto:contato@mercadoflow.com">contato@mercadoflow.com</a> [PREENCHER: confirmar ou trocar por um e-mail do encarregado].</p>
+    </section>
+
+    <section>
+      <h2>O que o Bipaê faz</h2>
+      <ul>
+        <li><strong>Conferir a nota:</strong> você bipa o código de barras do DANFE e confere os produtos que chegaram.</li>
+        <li><strong>Contar estoque:</strong> você bipa o produto e informa quantas unidades há na prateleira e no depósito.</li>
+      </ul>
+      <p>O app usa a conta MercadoFlow do seu mercado. Ele é feito para empresas (supermercados e lojas), não para uso pessoal.</p>
+    </section>
+
+    <section>
+      <h2>Quais dados coletamos</h2>
+      <ul>
+        <li><strong>Conta:</strong> nome, e-mail e senha (guardada com criptografia de mão única). Registramos quando os termos foram aceitos e por quem.</li>
+        <li><strong>Dados do mercado:</strong> nome e CNPJ da empresa.</li>
+        <li><strong>Notas fiscais:</strong> o XML completo das notas lidas, importadas ou baixadas da Sefaz, com fornecedor, produtos, quantidades e preços, e o resultado da conferência (o que conferiu, faltou ou sobrou).</li>
+        <li><strong>Contagens de estoque:</strong> o produto, a quantidade contada, a data e quem contou.</li>
+        <li><strong>Certificado digital A1 (opcional):</strong> o arquivo e a senha, se você decidir cadastrá-los. Ficam guardados com criptografia AES-256-GCM.</li>
+        <li><strong>Pagamentos de créditos de leitura:</strong> valor, data, forma de pagamento (Pix ou cartão) e a situação da cobrança. Não guardamos o número do seu cartão.</li>
+      </ul>
+      <p class="nota">O leitor de código de barras do app é o do Google (Google Play Services). Ele lê o código direto no aparelho e entrega ao Bipaê só os números lidos. O Bipaê não grava fotos nem vídeos da câmera. Não coletamos localização, contatos nem dados de outros apps.</p>
+      <p class="nota">As contagens feitas sem internet ficam guardadas no próprio celular só até chegarem ao servidor.</p>
+    </section>
+
+    <section>
+      <h2>Para que usamos</h2>
+      <ul>
+        <li>Fazer a conferência da mercadoria e a contagem de estoque do seu mercado.</li>
+        <li>Manter o histórico do seu mercado: notas, fornecedores, custos e estoque, usados também no painel MercadoFlow da sua loja.</li>
+        <li>Baixar da Sefaz as notas emitidas contra o seu CNPJ e registrar a "Ciência da Operação", quando você cadastra o certificado A1.</li>
+        <li>Cobrar os créditos de leitura que você comprar.</li>
+        <li>Estudos de mercado de forma agregada e anônima, sem identificar o seu mercado nem os seus fornecedores.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Com quem compartilhamos</h2>
+      <ul>
+        <li><strong>Sefaz:</strong> para baixar as notas do seu CNPJ, usando o seu certificado A1.</li>
+        <li><strong>Meu Danfe:</strong> serviço que busca a nota pela chave de acesso quando você lê uma nota sem o certificado A1. Recebe só a chave de acesso.</li>
+        <li><strong>Provedores de pagamento</strong> (Asaas e Stripe): para cobrar os créditos. Recebem os dados necessários para a cobrança.</li>
+        <li><strong>Fabricantes:</strong> somente se você ligar a opção "aparecer para os fabricantes" na conta. Você pode desligar quando quiser. Desligada, o seu mercado só entra nos números agregados e anônimos.</li>
+        <li><strong>Hospedagem:</strong> os dados ficam em servidores contratados pelo MercadoFlow [PREENCHER: provedor e país do servidor].</li>
+      </ul>
+      <p>Não vendemos dados pessoais e não mostramos anúncios.</p>
+    </section>
+
+    <section>
+      <h2>Segurança</h2>
+      <p>Toda comunicação entre o app e o servidor é criptografada (HTTPS). O certificado A1 e a senha dele são guardados criptografados. O acesso aos dados de cada mercado é restrito às pessoas da conta desse mercado.</p>
+    </section>
+
+    <section>
+      <h2>Por quanto tempo guardamos</h2>
+      <p>As notas fiscais e as contagens ficam guardadas enquanto a conta do mercado existir, porque formam o histórico da loja. O certificado A1 fica até você removê-lo, o que pode ser feito a qualquer momento em Conta › Certificado. Depois de um pedido de exclusão, apagamos os dados em até [PREENCHER: prazo, ex. 30 dias], exceto o que a lei nos obriga a manter (por exemplo, registros de pagamento).</p>
+    </section>
+
+    <section class="destaque" id="exclusao">
+      <h2>Seus direitos e como excluir a conta</h2>
+      <p>Pela LGPD, você pode pedir acesso, correção, cópia ou exclusão dos seus dados, e revogar consentimentos.</p>
+      <p><strong>Para excluir a conta e os dados do mercado:</strong> envie um e-mail para <a href="mailto:contato@mercadoflow.com?subject=Excluir%20conta%20Bipa%C3%AA">contato@mercadoflow.com</a> com o assunto "Excluir conta Bipaê", a partir do e-mail cadastrado, informando o CNPJ do mercado. Respondemos em até [PREENCHER: prazo] e confirmamos quando a exclusão terminar.</p>
+      <p>O certificado A1 pode ser removido por você mesmo, a qualquer momento, no app.</p>
+    </section>
+
+    <section>
+      <h2>Mudanças nesta política</h2>
+      <p>Quando esta política mudar, a data no topo desta página será atualizada e avisaremos no app.</p>
+    </section>
+  </main>
+
+  <footer>Bipaê · MercadoFlow · <a href="mailto:contato@mercadoflow.com">contato@mercadoflow.com</a></footer>
+</body>
+</html>

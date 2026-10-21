@@ -6,6 +6,7 @@ import { SectionTitle, TabHeader } from './ui';
 import DocCard, { docState } from './DocCard';
 import InstallApp from './InstallApp';
 import { useDocuments } from './useDocuments';
+import { isNativeApp } from './native';
 
 /** Início: saldo em destaque, o que falta conferir e atalhos. */
 
@@ -29,9 +30,12 @@ const Wallet: React.FC<{ status: ConfereStatus }> = ({ status }) => {
         </span>
       </div>
       <div className="mt-5 flex gap-2">
-        <Link to="/confere/creditos" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/95 text-base max-[360px]:text-sm font-bold text-[#0F3A29] active:scale-[0.98]">
-          <Plus className="h-5 w-5" aria-hidden="true" />Comprar
-        </Link>
+        {/* No app Android a compra de leituras fica de fora: a Play Store exige o pagamento dela para créditos digitais. */}
+        {!isNativeApp() && (
+          <Link to="/confere/creditos" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/95 text-base max-[360px]:text-sm font-bold text-[#0F3A29] active:scale-[0.98]">
+            <Plus className="h-5 w-5" aria-hidden="true" />Comprar
+          </Link>
+        )}
         {!a1 && (
           <Link to="/confere/certificado" className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-white/15 text-base max-[360px]:text-sm font-bold ring-1 ring-white/30 active:scale-[0.98]">
             Usar o A1 grátis

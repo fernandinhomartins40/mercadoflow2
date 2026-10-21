@@ -15,6 +15,7 @@ import PartnersScreen from '../features/confere/PartnersScreen';
 import NotesScreen from '../features/confere/NotesScreen';
 import AccountScreen from '../features/confere/AccountScreen';
 import CountScreen from '../features/confere/CountScreen';
+import { isNativeApp } from '../features/confere/native';
 import { TabLayout } from '../features/confere/TabBar';
 import '../features/confere/confere.css';
 
@@ -70,7 +71,8 @@ const ConfereApp: React.FC = () => {
         <Route index element={<Home status={status} marketId={marketId} />} />
         <Route path="notas" element={<NotesScreen marketId={marketId} />} />
         <Route path="contar" element={<CountScreen marketId={marketId} />} />
-        <Route path="creditos" element={<Credits status={status} marketId={marketId} refresh={refresh} />} />
+        {/* Compra de leituras só no site: no app Android a Play Store exige o pagamento dela. */}
+        <Route path="creditos" element={isNativeApp() ? <Navigate to="/confere/" replace /> : <Credits status={status} marketId={marketId} refresh={refresh} />} />
         <Route path="conta" element={<AccountScreen status={status} />} />
         <Route path="certificado" element={<CertificateScreen status={status} marketId={marketId} refresh={refresh} />} />
         <Route path="importar" element={<ImportXml marketId={marketId} />} />
