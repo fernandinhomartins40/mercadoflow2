@@ -91,9 +91,9 @@ export const Welcome: React.FC = () => {
               <p className="text-sm font-semibold text-[#fcbf27]">Conferência e estoque</p>
             </div>
           </div>
-          <h1 className="mt-6 text-[1.9rem] font-extrabold leading-tight tracking-tight">Confira a entrega pela nota, em letras grandes.</h1>
+          <h1 className="mt-6 text-[1.9rem] font-extrabold leading-tight tracking-tight">Confira a nota e conte o estoque bipando.</h1>
           <p className="mt-3 text-lg text-white/85">
-            Aponte a câmera para o código de barras do DANFE: aparecem os produtos, com foto, e as quantidades para ticar.
+            Bipe o DANFE e confira a entrega com foto e quantidade. Bipe o produto na prateleira e anote quantos tem.
             Grátis com o certificado A1 do mercado{terms?.trialReads ? `, e ${terms.trialReads} leituras grátis para testar sem ele` : ''}.
           </p>
         </section>
