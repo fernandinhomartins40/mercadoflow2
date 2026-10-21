@@ -14,12 +14,13 @@ import ConferenceScreen from '../features/confere/ConferenceScreen';
 import PartnersScreen from '../features/confere/PartnersScreen';
 import NotesScreen from '../features/confere/NotesScreen';
 import AccountScreen from '../features/confere/AccountScreen';
+import CountScreen from '../features/confere/CountScreen';
 import { TabLayout } from '../features/confere/TabBar';
 import '../features/confere/confere.css';
 
 /**
- * MercadoFlow Confere (PWA): conferência de mercadoria pela nota do
- * fornecedor. Grátis e ilimitado com o certificado A1; sem ele, leituras de
+ * Bipaê (PWA e app Android): conferência de mercadoria pela nota do
+ * fornecedor e contagem de estoque bipando o produto. Grátis e ilimitado com o certificado A1; sem ele, leituras de
  * crédito (as primeiras grátis para testar). Porta de entrada do MercadoFlow.
  */
 
@@ -68,6 +69,7 @@ const ConfereApp: React.FC = () => {
       <Route element={<TabLayout />}>
         <Route index element={<Home status={status} marketId={marketId} />} />
         <Route path="notas" element={<NotesScreen marketId={marketId} />} />
+        <Route path="contar" element={<CountScreen marketId={marketId} />} />
         <Route path="creditos" element={<Credits status={status} marketId={marketId} refresh={refresh} />} />
         <Route path="conta" element={<AccountScreen status={status} />} />
         <Route path="certificado" element={<CertificateScreen status={status} marketId={marketId} refresh={refresh} />} />

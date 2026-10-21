@@ -55,7 +55,7 @@ const Home: React.FC<{ status: ConfereStatus; marketId: string }> = ({ status, m
   return (
     <>
       <TabHeader small subtitle="Olá," title={status.marketName}
-        action={<img src="/api/v1/public/confere/icon/icon192" alt="" className="h-11 w-11 shrink-0 rounded-2xl shadow-sm lg-card" />} />
+        action={<img src="/bipae/icon.svg" alt="Bipaê" className="h-11 w-11 shrink-0 rounded-2xl shadow-sm" />} />
       <div className="flex flex-col gap-6 px-4 pt-2">
         <Wallet status={status} />
 

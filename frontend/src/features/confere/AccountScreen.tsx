@@ -43,17 +43,17 @@ const AccountScreen: React.FC<{ status: ConfereStatus }> = ({ status }) => {
         <InstallApp />
 
         <Group label="Sobre">
-          <Row onClick={() => setTerms(true)} icon={<FileText className="h-5 w-5" />} tone="stone" title="Termos do Confere" detail={`Versão ${status.termsVersion}`} />
+          <Row onClick={() => setTerms(true)} icon={<FileText className="h-5 w-5" />} tone="stone" title="Termos de uso do Bipaê" detail={`Versão ${status.termsVersion}`} />
           <Row onClick={() => logout()} icon={<LogOut className="h-5 w-5" />} tone="red" title="Sair" trailing={<span />} />
         </Group>
       </div>
 
       {terms && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={() => setTerms(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Termos do Confere" onClick={(e) => e.stopPropagation()}
+          <div role="dialog" aria-modal="true" aria-label="Termos de uso do Bipaê" onClick={(e) => e.stopPropagation()}
             className="flex max-h-[85dvh] w-full max-w-xl flex-col gap-3 overflow-auto rounded-t-3xl bg-white p-5 pb-[max(20px,env(safe-area-inset-bottom))]">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-extrabold">Termos do Confere</h2>
+              <h2 className="text-xl font-extrabold">Termos de uso do Bipaê</h2>
               <button type="button" onClick={() => setTerms(false)} aria-label="Fechar" className="flex h-11 w-11 items-center justify-center rounded-full bg-stone-100"><X className="h-5 w-5" /></button>
             </div>
             <pre className="whitespace-pre-wrap font-sans text-base text-[#34443B]">{status.termsText}</pre>

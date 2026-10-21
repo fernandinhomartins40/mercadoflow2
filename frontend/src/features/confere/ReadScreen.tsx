@@ -1,9 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileUp, Keyboard } from 'lucide-react';
+import { ArrowLeft, FileUp, Keyboard, ScanBarcode } from 'lucide-react';
 import { confereService } from '../../services/confere.service';
 import Scanner from './Scanner';
 import { BigButton, Field, Stepper, errorText, keyFrom, validKey } from './ui';
+import { buzz, isNativeApp, scanWithNative } from './native';
 
 /**
  * Passo 1 — Ler a nota: câmera no código de barras do DANFE ou a chave
@@ -36,6 +37,17 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
     }
   }, [marketId, navigate, onBalance]);
 
+  const native = isNativeApp();
+  const scanNota = useCallback(async () => {
+    setError(null);
+    try {
+      const value = await scanWithNative('nota');
+      if (value) { void buzz('ok'); await read(value); }
+    } catch (e) {
+      setError(errorText(e, (e as Error)?.message || 'Não foi possível abrir o leitor.'));
+    }
+  }, [read]);
+
   return (
     <div className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col lg-canvas text-[#0B1F16]">
       <header className="flex shrink-0 flex-col gap-2 px-4 pb-2 pt-3">
@@ -54,10 +66,19 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
             <p className="text-lg text-[#5F7067]">Pode levar alguns segundos enquanto a Receita responde.</p>
           </div>
         ) : !typing ? (
-          <div className="min-h-0 flex-1">
-            <Scanner formats={['code_128', 'qr_code', 'itf']} onDetect={read} hint="Aponte para o código de barras do DANFE"
-              height="100%" accept={(v) => validKey(keyFrom(v))} />
-          </div>
+          native ? (
+            // No app, o leitor do Google lê a chave do DANFE (mais firme que a câmera do navegador).
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 rounded-3xl lg-card p-6 text-center">
+              <ScanBarcode className="h-16 w-16 text-[#045e48]" aria-hidden="true" />
+              <p className="text-xl font-bold">Bipe o código de barras do DANFE, a folha que vem com a mercadoria.</p>
+              <BigButton type="button" onClick={scanNota} className="w-full py-5 text-xl">Bipar a nota</BigButton>
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1">
+              <Scanner formats={['code_128', 'qr_code', 'itf']} onDetect={read} hint="Aponte para o código de barras do DANFE"
+                height="100%" accept={(v) => validKey(keyFrom(v))} />
+            </div>
+          )
         ) : null}
 
         {error && <p role="alert" className="max-h-[30dvh] shrink-0 overflow-auto rounded-2xl bg-red-50 p-4 text-lg text-red-800">{error}</p>}

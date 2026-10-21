@@ -83,3 +83,22 @@ export const confereAdminService = {
 
 export const money = (cents: number) =>
   (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+
+/** Produto achado pelo código de barras, para a contagem de estoque (Bipaê). */
+export interface CountProduct {
+  productId: string;
+  name: string;
+  imageUrl: string | null;
+  ean: string | null;
+  unit: string;
+  perDay: number | null;
+  lastUnits: number | null;
+  lastCountedAt: string | null;
+}
+
+export const stockCountService = {
+  lookup: async (m: string, code: string): Promise<CountProduct> =>
+    (await api.get(`/v1/markets/${m}/stock-count/lookup`, { params: { code } })).data,
+  save: async (m: string, items: { productId: string; units: number }[]): Promise<{ counted: number }> =>
+    (await api.post(`/v1/markets/${m}/stock-count`, { items })).data,
+};

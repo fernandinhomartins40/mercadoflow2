@@ -90,7 +90,7 @@ const RevenuePanel: React.FC = () => {
           <Kpi label="Recebido neste mês" value={brl(r.receivedThisMonthCents)}
             hint={`${brl(r.receivedSubscriptionsThisMonthCents)} assinaturas · ${brl(r.receivedCreditsThisMonthCents)} créditos`} />
           <Kpi label="Previsão do mês" value={brl(r.forecastMonthCents)} hint="recebido + renovações até o fim do mês" />
-          <Kpi label="Créditos (30 dias)" value={brl(r.creditsLast30Cents)} hint="IA e Confere" />
+          <Kpi label="Créditos (30 dias)" value={brl(r.creditsLast30Cents)} hint="IA e Bipaê" />
           <Kpi label="Churn (30 dias)" value={`${String(r.churnRate30).replace('.', ',')}%`} hint={`${r.churned30} conta(s) saíram do plano pago`} />
           <Kpi label="Teste → pago" value={`${String(r.trialConversionRate).replace('.', ',')}%`}
             hint={`${r.trialsConverted} de ${r.trialsFinished} testes encerrados · ${r.trialsRunning} em teste`} />

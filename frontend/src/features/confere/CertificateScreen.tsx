@@ -56,7 +56,7 @@ const CertificateScreen: React.FC<{ status: ConfereStatus; marketId: string; ref
       <TopBar title="Certificado A1" back="/confere/conta" />
       <div className="flex flex-col gap-4 px-4 pb-6 pt-1">
         <p className="text-lg text-stone-700">
-          Com o certificado digital A1 do mercado, o Confere baixa da Sefaz, de graça, todas as notas emitidas contra o seu CNPJ
+          Com o certificado digital A1 do mercado, o Bipaê baixa da Sefaz, de graça, todas as notas emitidas contra o seu CNPJ
           e registra a &quot;ciência da operação&quot; para liberar os produtos. Ele fica guardado cifrado e só é usado para isso.
         </p>
         {cert && (

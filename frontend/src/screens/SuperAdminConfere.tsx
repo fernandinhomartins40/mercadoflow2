@@ -8,7 +8,7 @@ import type { AdminAccount, AdminOrder, ConferePlan, ConfereSettings, ConfereSta
 import { confirmDialog, promptDialog } from '../components/common/Dialogs';
 
 /**
- * MercadoFlow Confere no superadmin: chave do Meu Danfe (revenda de leituras),
+ * MercadoFlow Bipaê no superadmin: chave do Meu Danfe (revenda de leituras),
  * preço avulso, planos, leituras grátis, termos, chave Pix, confirmação dos
  * pagamentos e saldo de cada mercado.
  */
@@ -100,7 +100,7 @@ const SettingsCard: React.FC<{ settings: ConfereSettings; onSaved: (s: ConfereSe
         </div>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <input type="checkbox" checked={draft.enabled} onChange={set('enabled')} className="h-4 w-4 accent-green-600" />
-          Confere ativo
+          Bipaê ativo
         </label>
       </div>
       {!settings.encryptionReady && (
@@ -308,7 +308,7 @@ const AccountsCard: React.FC<{ version: number }> = ({ version }) => {
 
   return (
     <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="acc-title">
-      <h2 id="acc-title" className="text-base font-semibold text-slate-900">Mercados no Confere</h2>
+      <h2 id="acc-title" className="text-base font-semibold text-slate-900">Mercados no Bipaê</h2>
       {accounts === null ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : accounts.length === 0 ? (
         <p className="text-sm text-slate-600">Nenhum mercado aceitou os termos ainda.</p>
       ) : (
@@ -348,7 +348,7 @@ const IconCard: React.FC = () => {
           {icons && <img src={icons.icon192} alt="Ícone atual do app" className="h-12 w-12 rounded-xl shadow" />}
           <div>
             <h2 id="icon-title" className="text-base font-semibold text-slate-900">Ícone do app</h2>
-            <p className="text-sm text-slate-600">{icons?.custom ? 'Ícone próprio.' : 'Ícone padrão do Confere.'} Envie uma imagem e recorte em quadrado: os tamanhos do Android e do iPhone são gerados sozinhos.</p>
+            <p className="text-sm text-slate-600">{icons?.custom ? 'Ícone próprio.' : 'Ícone padrão do Bipaê.'} Envie uma imagem e recorte em quadrado: os tamanhos do Android e do iPhone são gerados sozinhos.</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -358,7 +358,7 @@ const IconCard: React.FC = () => {
           </label>
           {icons?.custom && (
             <Button type="button" variant="ghost" onClick={async () => {
-              if (!(await confirmDialog('Voltar ao ícone padrão do Confere?'))) return;
+              if (!(await confirmDialog('Voltar ao ícone padrão do Bipaê?'))) return;
               setIcons(await confereAdminService.resetIcons());
               setMsg({ ok: true, text: 'Ícone padrão de volta.' });
             }}>Usar o padrão</Button>
@@ -460,7 +460,7 @@ const IntelligenceCard: React.FC = () => {
   };
   const c = data?.coverage;
   const tiles: Array<[string, string]> = c ? [
-    ['Mercados no Confere', num(c.markets)],
+    ['Mercados no Bipaê', num(c.markets)],
     ['Com localização', num(c.marketsWithLocation)],
     ['Notas completas', num(c.documents)],
     ['Itens guardados', num(c.items)],
@@ -583,7 +583,7 @@ const SuperAdminConfere: React.FC = () => {
     <SuperAdminLayout>
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">MercadoFlow <mark>Confere</mark></h1>
+          <h1 className="text-xl font-bold text-slate-900"><mark>Bipaê</mark></h1>
           <p className="text-sm text-slate-600">PWA grátis de conferência de mercadoria. Leitura grátis com certificado A1; sem ele, leituras de crédito revendidas do Meu Danfe.</p>
           <a href="/confere/" target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-semibold text-green-700 hover:underline">Abrir o app</a>
         </div>

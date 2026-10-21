@@ -320,7 +320,7 @@ const Channels: React.FC = () => {
       </Card>
 
       <Card>
-        <PanelTitle icon={AlertTriangle} title="Alertas pelas notas de entrada" sub="Comparação entre o que as indústrias declararam e quem de fato abastece as lojas (NF-e do Confere, 180 dias)." />
+        <PanelTitle icon={AlertTriangle} title="Alertas pelas notas de entrada" sub="Comparação entre o que as indústrias declararam e quem de fato abastece as lojas (NF-e do Bipaê, 180 dias)." />
         {!alerts.data ? <p className="fx-muted">Carregando…</p> : alerts.data.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nenhuma divergência.</p> : (
           <table style={{ ...tableStyle, marginTop: 12 }}>
             <thead><tr><th style={thStyle}>Indústria</th><th style={thStyle}>Alerta</th><th style={thStyle}>Fornecedor</th><th style={thStyle}>Alcance</th></tr></thead>

@@ -19,7 +19,7 @@ const STATUS: Record<string, { label: string; tone: 'green' | 'gray' | 'amber' |
 
 const COST: Record<string, string> = {
   PURCHASE_HISTORY: 'custo da última compra registrada',
-  NFE_ENTRADA: 'custo da NF-e de entrada (Confere)',
+  NFE_ENTRADA: 'custo da NF-e de entrada (Bipaê)',
   SUPPLIER_ORDER: 'custo do último pedido ao fornecedor',
   MARGIN_ESTIMATE: 'margem ESTIMADA (sem custo de compra registrado)',
 };

@@ -59,7 +59,7 @@ export const Welcome: React.FC = () => {
   const doRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!form.accept) { setError('Para usar o Confere é preciso aceitar os termos.'); return; }
+    if (!form.accept) { setError('Para usar o Bipaê é preciso aceitar os termos.'); return; }
     if (!isValidCnpj(form.cnpj)) { setError('CNPJ inválido. Confira os números.'); return; }
     setBusy(true);
     try {
@@ -85,10 +85,10 @@ export const Welcome: React.FC = () => {
       <div className="flex flex-col gap-6 px-4 pb-10 pt-[max(16px,env(safe-area-inset-top))]">
         <section className="cf-wallet relative overflow-hidden rounded-[32px] p-6 text-white shadow-[0_24px_50px_-24px_rgba(6,89,44,0.9)]">
           <div className="flex items-center gap-3">
-            <img src="/api/v1/public/confere/icon/icon192" alt="" className="h-14 w-14 rounded-2xl ring-2 ring-white/40" />
+            <img src="/bipae/icon.svg" alt="" className="h-14 w-14 rounded-2xl ring-2 ring-white/40" />
             <div>
-              <p className="text-sm font-semibold text-[#B6F36A]">MercadoFlow</p>
-              <p className="text-3xl font-extrabold leading-none tracking-tight">Confere</p>
+              <p className="text-3xl font-extrabold leading-none tracking-tight">Bipaê</p>
+              <p className="text-sm font-semibold text-[#fcbf27]">Conferência e estoque</p>
             </div>
           </div>
           <h1 className="mt-6 text-[1.9rem] font-extrabold leading-tight tracking-tight">Confira a entrega pela nota, em letras grandes.</h1>
@@ -159,7 +159,7 @@ export const TermsScreen: React.FC<{ status: ConfereStatus; marketId: string; on
     <Shell>
       <div className="flex flex-col gap-5 px-5 pb-10 pt-8">
         <ShieldCheck className="h-12 w-12 text-[#157A3D]" />
-        <h1 className="text-3xl font-extrabold">Termos do Confere</h1>
+        <h1 className="text-3xl font-extrabold">Termos de uso do Bipaê</h1>
         <pre className="whitespace-pre-wrap rounded-2xl bg-white p-5 font-sans text-lg text-stone-800">{status.termsText}</pre>
         {error && <p role="alert" className="text-lg text-red-700">{error}</p>}
         <BigButton onClick={accept} disabled={busy}>{busy ? 'Registrando…' : 'Aceito: as notas ficam armazenadas'}</BigButton>

@@ -268,7 +268,7 @@ const ConferenceScreen: React.FC<{ marketId: string; docId: string }> = ({ marke
     if (summary.sobra.length) lines.push('', 'Veio a mais:', ...summary.sobra.map((l) => `- ${l}`));
     if (summary.issues.length) lines.push('', 'Problemas:', ...summary.issues.map((l) => `- ${l}`));
     if (extras.length) lines.push('', `Produtos fora da nota (código): ${extras.join(', ')}`);
-    lines.push('', 'Conferido com o MercadoFlow Confere');
+    lines.push('', 'Conferido com o Bipaê');
     return lines.join('\n');
   };
 

@@ -886,7 +886,7 @@ const PlansOrdersCard: React.FC<{ plans: AiPlanRow[]; onPlans: (p: AiPlanRow[]) 
   return (
     <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="plans-title">
       <div><h2 id="plans-title" className="text-base font-semibold text-slate-900">Pacotes de créditos e pedidos</h2>
-        <p className="text-sm text-slate-600">O lojista compra pelo Pix na chave da plataforma (a mesma do Confere). Confirme aqui quando o pagamento cair.</p></div>
+        <p className="text-sm text-slate-600">O lojista compra pelo Pix na chave da plataforma (a mesma do Bipaê). Confirme aqui quando o pagamento cair.</p></div>
       <ul className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200">
         {plans.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">

@@ -89,7 +89,7 @@ const InstallApp: React.FC<{ tone?: 'light' | 'dark' }> = ({ tone = 'light' }) =
               <li className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 font-bold text-green-800">2</span>
                 <span>Escolha <SquarePlus className="inline h-6 w-6" aria-hidden="true" /> <strong>Adicionar à Tela de Início</strong>.</span></li>
               <li className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 font-bold text-green-800">3</span>
-                <span>Toque em <strong>Adicionar</strong>. O Confere aparece junto dos seus apps.</span></li>
+                <span>Toque em <strong>Adicionar</strong>. O Bipaê aparece junto dos seus apps.</span></li>
             </ol>
             <p className="mt-4 text-base text-stone-600">Precisa ser no Safari: outros navegadores do iPhone não instalam apps.</p>
           </div>

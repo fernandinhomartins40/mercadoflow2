@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { CircleUserRound, House, ReceiptText, ScanBarcode, Wallet } from 'lucide-react';
+import { Boxes, CircleUserRound, House, ReceiptText, ScanBarcode } from 'lucide-react';
 
 /**
  * Barra inferior de app nativo: Início, Notas, Conferir (no centro, em
- * destaque), Créditos e Conta. Vidro fosco flutuando sobre o conteúdo; o
+ * destaque), Contar (estoque) e Conta. Vidro fosco flutuando sobre o conteúdo; o
  * botão Conferir tem vidro verde e borda brilhante girando.
  */
 
@@ -13,9 +13,9 @@ interface Tab { to: string; label: string; icon: React.ElementType; match: (p: s
 const TABS: Tab[] = [
   { to: '/confere/', label: 'Início', icon: House, match: (p) => p === '/confere' || p === '/confere/' },
   { to: '/confere/notas', label: 'Notas', icon: ReceiptText, match: (p) => p.startsWith('/confere/notas') },
-  { to: '/confere/creditos', label: 'Créditos', icon: Wallet, match: (p) => p.startsWith('/confere/creditos') },
+  { to: '/confere/contar', label: 'Contar', icon: Boxes, match: (p) => p.startsWith('/confere/contar') },
   { to: '/confere/conta', label: 'Conta', icon: CircleUserRound,
-    match: (p) => ['/confere/conta', '/confere/certificado', '/confere/importar', '/confere/fabricantes'].some((x) => p.startsWith(x)) },
+    match: (p) => ['/confere/conta', '/confere/certificado', '/confere/importar', '/confere/fabricantes', '/confere/creditos'].some((x) => p.startsWith(x) && !p.startsWith('/confere/contar')) },
 ];
 
 const tap = () => { try { navigator.vibrate?.(8); } catch { /* sem vibração */ } };

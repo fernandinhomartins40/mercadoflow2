@@ -95,3 +95,20 @@
 .fx-confere .cf-fab::after { background: radial-gradient(120% 90% at 28% 18%, rgba(255, 255, 255, .6) 0%, transparent 55%), #D7F26B; backdrop-filter: none; }
 .fx-confere header.lg-bar::before, .fx-confere header.lg-bar::after, .fx-confere .lg-card::before, .fx-confere .lg-card::after { display: none !important; }
 .fx-confere.lg-canvas::before { display: none !important; }
+
+/* ── Bipaê: verde da marca e o amarelo do acento (o "^" do ê) ── */
+.fx-confere {
+  --cf-forest: #045e48; --cf-dock: #033f31; --cf-green: #017557;
+  --cf-lime: #fcbf27; --cf-lime-ink: #2a1f00;
+  background:
+    radial-gradient(900px 420px at 90% -10%, rgba(252, 191, 39, .14), transparent 60%),
+    radial-gradient(700px 500px at -10% 20%, rgba(4, 94, 72, .07), transparent 60%),
+    #EEF3EF !important;
+}
+.fx-confere .lg-tinted:hover { background: #034d3b !important; }
+.fx-confere .cf-wallet {
+  background: radial-gradient(90% 120% at 100% 0%, rgba(252, 191, 39, .16) 0%, transparent 55%), var(--cf-forest) !important;
+}
+.fx-confere .cf-fab { box-shadow: 0 0 0 7px rgba(252, 191, 39, .25), 0 10px 26px -8px rgba(120, 80, 0, .55); }
+.fx-confere .cf-fab::before { background: conic-gradient(from 0deg, #fcbf27, #ffffff 20%, #f5a800 45%, #ffffff 70%, #fcbf27); }
+.fx-confere .cf-fab::after { background: radial-gradient(120% 90% at 28% 18%, rgba(255, 255, 255, .6) 0%, transparent 55%), #fcbf27; }

@@ -18,7 +18,7 @@ const TITLES: Record<string, { title: string; subtitle: string; section: string 
   '/super-admin/ofertas': { title: 'Templates de ofertas', subtitle: 'Base visual compartilhada para as contas da plataforma', section: 'Dados' },
   '/super-admin/parceiros': { title: 'Parceiros ERP', subtitle: 'Cadastro, homologação e lista pública dos ERPs integrados', section: 'Dados' },
   '/super-admin/ia': { title: 'IA e APIs', subtitle: 'Chaves, roteamento, orçamento, piloto e console da IA da plataforma', section: 'Inteligência' },
-  '/super-admin/confere': { title: 'Confere', subtitle: 'App grátis de conferência: leitura de notas, créditos e pagamentos', section: 'Conteúdo' },
+  '/super-admin/confere': { title: 'Bipaê', subtitle: 'App grátis de conferência: leitura de notas, créditos e pagamentos', section: 'Conteúdo' },
   '/super-admin/industria': { title: 'Indústrias', subtitle: 'Empresas, carteira de produtos, contratos e prévia', section: 'Indústria' },
   '/super-admin/industria/dados': { title: 'Privacidade e dados', subtitle: 'Regras de anonimato, lojas e agregados', section: 'Indústria' },
   '/super-admin/industria/cobranca': { title: 'Cobrança da indústria', subtitle: 'Faturas por produto analisado', section: 'Indústria' },
@@ -97,7 +97,7 @@ const SuperAdminLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       title: 'Conteúdo',
       items: [
         { to: '/super-admin/temas', label: 'Temas de encarte', hint: 'Fundos, selos e áreas com IA', icon: Palette },
-        { to: '/super-admin/confere', label: 'Confere', hint: 'Leitura de notas e créditos', icon: ClipboardCheck },
+        { to: '/super-admin/confere', label: 'Bipaê', hint: 'Leitura de notas e créditos', icon: ClipboardCheck },
       ],
     },
   ].map((section) => ({

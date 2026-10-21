@@ -150,13 +150,13 @@ const Integrations: React.FC = () => {
     <Layout>
       <PageHero
         title="Ligue o seu sistema de gestão (ERP) para o custo e o estoque serem reais." 
-        subtitle="O ERP manda estoque, custo e preço; recebe a entrada de mercadoria pronta, lida das notas do Confere."
+        subtitle="O ERP manda estoque, custo e preço; recebe a entrada de mercadoria pronta, lida das notas do Bipaê."
         side={<ActionHub icon={Plug} label="Ações de integrações" actions={[{ label: 'Documentação para o ERP', icon: BookOpen, to: '/desenvolvedores' }]} />}
       />
 
       <ExplainStrip items={[
         { icon: ArrowDownToLine, title: 'O ERP envia', text: 'Estoque, custo de compra, preço de venda, notas de entrada e cadastro. Margem e estoque deixam de ser estimativa.' },
-        { icon: ArrowUpFromLine, title: 'O ERP recebe', text: 'Cadastro e entrada prontos das notas que o Confere lê, e os pedidos e preços que você aprovar.' },
+        { icon: ArrowUpFromLine, title: 'O ERP recebe', text: 'Cadastro e entrada prontos das notas que o Bipaê lê, e os pedidos e preços que você aprovar.' },
         { icon: ShieldOff, title: 'Nunca sai', text: 'Giro, tração, sazonalidade, previsão e as recomendações do Tino ficam só aqui.' },
       ]} />
 

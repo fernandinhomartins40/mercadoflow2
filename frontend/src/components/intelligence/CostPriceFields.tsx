@@ -60,7 +60,7 @@ const CostPriceFields: React.FC<{
         {c == null && !pendingNfe && <span className="fx-muted">Sem custo registrado: digite o da última compra.</span>}
         {c == null && pendingNfe && (
           <span className="fx-muted" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-            <FileText size={14} aria-hidden="true" />O custo está na nota de {pendingNfe.supplier || 'um fornecedor'} que chegou e não foi conferida no Confere.
+            <FileText size={14} aria-hidden="true" />O custo está na nota de {pendingNfe.supplier || 'um fornecedor'} que chegou e não foi conferida no Bipaê.
           </span>
         )}
         {onPrice && margin != null && !below && (

@@ -253,7 +253,7 @@ const MySubscription: React.FC = () => {
                   ? `${data.ai.included ?? 0} de ${data.ai.includedMonthly} do plano neste mês (renovam todo mês) + ${data.ai.balance} comprados (não vencem).`
                   : `${data.ai.balance} comprados.`}
               </p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{data.confereBalance} leituras do Confere.</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{data.confereBalance} leituras do Bipaê.</p>
               <Link to="/app/configuracoes" className="text-xs font-semibold text-green-700 hover:underline">Comprar mais créditos</Link>
             </div>
           </section>

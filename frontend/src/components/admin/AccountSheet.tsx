@@ -92,7 +92,7 @@ const AccountSheet: React.FC<{ marketId: string; onChanged?: () => void }> = ({ 
         {sheet.payments.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum pagamento.</p> : (
           <ul className="text-[11px]" style={{ color: 'var(--text-primary)' }}>
             {sheet.payments.slice(0, 10).map((p, i) => (
-              <li key={i}>{day(p.paid_at)} · {brl(p.value_cents)} · {p.kind === 'SUBSCRIPTION' ? 'assinatura' : p.kind === 'AI' ? 'créditos de IA' : 'Confere'}{p.method ? ` · ${p.method}` : ''}</li>
+              <li key={i}>{day(p.paid_at)} · {brl(p.value_cents)} · {p.kind === 'SUBSCRIPTION' ? 'assinatura' : p.kind === 'AI' ? 'créditos de IA' : 'Bipaê'}{p.method ? ` · ${p.method}` : ''}</li>
             ))}
           </ul>
         )}

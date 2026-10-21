@@ -1,5 +1,6 @@
 package com.pdv2cloud.controller;
 
+import com.pdv2cloud.exception.CustomExceptions;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.decision.DecisionInputsService;
 import com.pdv2cloud.service.intelligence.CapitalScoreboardService;
@@ -81,6 +82,36 @@ public class StockCountController {
                 + "  and not exists (select 1 from product_inventory_estimates e where e.market_id = :m and e.product_id = p.id and e.confidence_score >= 0.4) "
                 + "order by s.rev desc limit :n",
             new MapSqlParameterSource("m", id).addValue("n", Math.max(1, Math.min(limit, 50))));
+    }
+
+    /**
+     * Produto pelo código de barras (app Bipaê: bipa e conta). Aceita o código
+     * com ou sem os zeros à esquerda. Traz o que ajuda a contar: foto, unidade,
+     * quanto vende por dia nesta loja e a última contagem.
+     */
+    @GetMapping("/lookup")
+    public Map<String, Object> lookup(@PathVariable("id") UUID id, @RequestParam("code") String code, Authentication authentication) {
+        access.assertCanAccessMarket(id, authentication);
+        String digits = code == null ? "" : code.replaceAll("\\D", "");
+        if (digits.length() < 6 || digits.length() > 14) {
+            throw new IllegalArgumentException("Código de barras inválido. Bipe de novo ou digite os números.");
+        }
+        String trimmed = digits.replaceFirst("^0+", "");
+        List<Map<String, Object>> found = jdbc.queryForList(
+            "select p.id as \"productId\", p.name, p.image_url as \"imageUrl\", p.ean, coalesce(p.unit, 'UN') as unit, "
+                + "  (select round(sum(it.quantidade) / 90.0, 1) from invoice_items it join invoices i on i.id = it.invoice_id "
+                + "   where i.market_id = :m and it.product_id = p.id and i.data_emissao >= now() - interval '90 days') as \"perDay\", "
+                + "  c.units as \"lastUnits\", c.counted_at as \"lastCountedAt\" "
+                + "from products p "
+                + "left join lateral (select units, counted_at from stock_counts where market_id = :m and product_id = p.id "
+                + "  order by counted_at desc limit 1) c on true "
+                + "where p.ean in (:a, :b) or ltrim(p.ean, '0') = :b "
+                + "order by (p.ean = :a) desc, (p.image_url is not null) desc limit 1",
+            new MapSqlParameterSource("m", id).addValue("a", digits).addValue("b", trimmed.isEmpty() ? digits : trimmed));
+        if (found.isEmpty()) {
+            throw new CustomExceptions.NotFound("Produto não encontrado no cadastro.");
+        }
+        return found.get(0);
     }
 
     /** Salva a contagem (unidades na loja agora) e recalcula o capital em segundo plano. */

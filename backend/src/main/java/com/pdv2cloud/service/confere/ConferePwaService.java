@@ -115,17 +115,17 @@ public class ConferePwaService {
         Icons i = icons();
         String v = i.updatedAt() == null ? "" : "?v=" + i.updatedAt().toString().replaceAll("\\D", "");
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("name", "MercadoFlow Confere");
-        m.put("short_name", "Confere");
-        m.put("description", "Conferência de mercadoria pela nota do fornecedor: leia o código do DANFE e confira em letras grandes.");
+        m.put("name", "Bipaê");
+        m.put("short_name", "Bipaê");
+        m.put("description", "Conferência de mercadoria pela nota do fornecedor e contagem de estoque bipando o produto.");
         m.put("lang", "pt-BR");
         m.put("id", "/confere/");
         m.put("start_url", "/confere/");
         m.put("scope", "/confere/");
         m.put("display", "standalone");
         m.put("orientation", "portrait");
-        m.put("background_color", "#f5f5f4");
-        m.put("theme_color", "#15803d");
+        m.put("background_color", "#045e48");
+        m.put("theme_color", "#045e48");
         m.put("categories", List.of("business", "productivity"));
         m.put("icons", List.of(
             icon(i.icon192() + v, "192x192", null),

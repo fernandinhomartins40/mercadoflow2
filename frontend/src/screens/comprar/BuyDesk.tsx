@@ -232,7 +232,7 @@ export const SuggestionsPanel: React.FC<{ marketId: string; suggestions: Recomme
                     {(() => {
                       const k = known[pid(r) ?? ''];
                       if (k?.unitCost != null && parseMoney(costs[r.id] ?? '') === k.unitCost) return COST_SOURCE_LABEL[k.costSource ?? ''] ?? '';
-                      if (!costs[r.id] && k?.pendingNfe) return 'está na nota não conferida no Confere';
+                      if (!costs[r.id] && k?.pendingNfe) return 'está na nota não conferida no Bipaê';
                       return !costs[r.id] ? 'sem custo registrado' : '';
                     })()}
                   </span>

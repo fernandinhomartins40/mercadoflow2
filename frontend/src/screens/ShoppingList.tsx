@@ -493,14 +493,14 @@ const ProductSearchDropdown: React.FC<{ marketId: string; existingIds: Set<strin
   );
 };
 
-/** O que o fornecedor vende, pelas notas lidas no Confere: código, embalagem e último custo. */
+/** O que o fornecedor vende, pelas notas lidas no Bipaê: código, embalagem e último custo. */
 const SupplierProducts: React.FC<{ marketId: string; supplierId: string }> = ({ marketId, supplierId }) => {
   const [rows, setRows] = useState<SupplierProductLink[] | null>(null);
   useEffect(() => {
     marketService.getSupplierProducts(marketId, supplierId).then((d) => setRows(d || [])).catch(() => setRows([]));
   }, [marketId, supplierId]);
   if (rows == null) return <div className="flex justify-center py-3"><div className="h-4 w-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>;
-  if (rows.length === 0) return <p className="py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum produto ligado ainda. Quando uma nota dele for lida no Confere, os produtos aparecem aqui.</p>;
+  if (rows.length === 0) return <p className="py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum produto ligado ainda. Quando uma nota dele for lida no Bipaê, os produtos aparecem aqui.</p>;
   return (
     <PagedList as="div" className="flex flex-col gap-1.5" size={8} label="produtos" items={rows} render={(r) => (
       <div key={r.productId} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: 'var(--surface-soft)' }}>
@@ -553,7 +553,7 @@ const AddItemForm: React.FC<{
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Da última nota deste fornecedor (Confere): embalagem e custo já preenchidos.
+  // Da última nota deste fornecedor (Bipaê): embalagem e custo já preenchidos.
   useEffect(() => {
     if (!supplierId) { setLastBuy(null); return; }
     let alive = true;
@@ -934,7 +934,7 @@ const NewOrderFlow: React.FC<NewOrderFlowProps> = ({
 
   useEffect(() => { loadSuppliers(); }, [loadSuppliers]);
 
-  // Quantos dos produtos escolhidos cada fornecedor já vendeu (notas do Confere).
+  // Quantos dos produtos escolhidos cada fornecedor já vendeu (notas do Bipaê).
   const [covers, setCovers] = useState<Record<string, number>>({});
   const wanted = [...new Set([...(selectedProductIds ?? []), ...(highlightProductId ? [highlightProductId] : [])])];
   const wantedKey = wanted.sort().join(',');
@@ -1806,7 +1806,7 @@ const ShoppingListPage: React.FC = () => {
         {tab === 'fornecedores' && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Cada nota lida no Confere cadastra o fornecedor e liga os produtos a ele. Um produto pode ter vários fornecedores.</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Cada nota lida no Bipaê cadastra o fornecedor e liga os produtos a ele. Um produto pode ter vários fornecedores.</p>
               <button type="button" onClick={() => setShowSupModal(true)} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition hover:opacity-90" style={{ background: 'var(--brand-500)', color: '#fff' }}>
                 <Plus className="h-4 w-4" /> Cadastrar fornecedor
               </button>
@@ -1836,7 +1836,7 @@ const ShoppingListPage: React.FC = () => {
                             {s.telefone && <span>· {s.telefone}</span>}
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {s.source === 'CONFERE' && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Cadastrado pela nota no Confere</span>}
+                            {s.source === 'CONFERE' && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}>Cadastrado pela nota no Bipaê</span>}
                             <span>{s.productCount ? `${s.productCount} ${s.productCount === 1 ? 'produto' : 'produtos'}` : 'Sem produtos ligados'}{s.lastPurchaseAt ? ` · última nota ${fmtDate(s.lastPurchaseAt)}` : ''}</span>
                           </div>
                         </div>
