@@ -101,7 +101,7 @@ const AgentDownload: React.FC = () => {
                 <div className="settings-line-card"><div><strong>Tamanho</strong></div><strong>{installerInfo.sizeFormatted}</strong></div>
                 <div className="settings-line-card"><div><strong>Última atualização</strong></div><strong>{installerInfo.lastModified}</strong></div>
                 <div className="settings-line-card"><div><strong>Precisa de</strong></div><strong>Windows 10/11 ou Server 2016+, 100 MB livres, internet e permissão de administrador</strong></div>
-                {installerInfo.sha256 && <div className="settings-line-card"><div><strong>SHA256</strong></div><span className="code-box" style={{ wordBreak: 'break-all' }}>{installerInfo.sha256}</span></div>}
+                {installerInfo.sha256 && <div className="settings-line-card"><div><strong>Código de verificação do arquivo (SHA-256)</strong></div><span className="code-box" style={{ wordBreak: 'break-all' }}>{installerInfo.sha256}</span></div>}
               </div>
             </details>
           </div>

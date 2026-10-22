@@ -7,6 +7,7 @@ import {
 } from '../../services/aiPlatform.service';
 import { AGENT, REASONS, agentOf, apiError, certainty, when } from './shared';
 import CostPriceFields from '../../components/intelligence/CostPriceFields';
+import { useTeamPermission } from '../../lib/teamPermissions';
 import { NeighborhoodLine } from '../../components/product/NeighborhoodPrice';
 import { localPriceService, type LocalPriceSnapshot } from '../../services/localPrice.service';
 import { moneyInput, parseMoney } from '../../services/decisionInputs.service';
@@ -73,6 +74,9 @@ const DecisionDesk: React.FC<{
   onValue?: (id: string, v: number | null) => void;
   onLater?: () => void;
 }> = ({ marketId, decision: d, onDecided, onValue, onLater }) => {
+  // Mesma regra do servidor: comprador decide só o que é de compras (Compras, Recebimento).
+  const perm = useTeamPermission();
+  const denied = perm.hint(d.agent === 'COMPRAS' || d.agent === 'RECEBIMENTO' ? 'COPILOT_PURCHASE_DECISION' : 'COPILOT_DECISION');
   const [data, setData] = useState<DecisionItems | null>(null);
   const [off, setOff] = useState<Set<string>>(new Set());
   const [qty, setQty] = useState<Record<string, number>>({});
@@ -300,7 +304,7 @@ const DecisionDesk: React.FC<{
             </>}
           </p>
           {view.status === 'APROVADA' && view.decidedAt && Date.now() - new Date(view.decidedAt).getTime() < 86400000 && (
-            <button type="button" className="fx-btn ghost small" style={{ marginTop: 16 }} onClick={undo} disabled={!!busy}>
+            <button type="button" className="fx-btn ghost small" style={{ marginTop: 16 }} onClick={undo} disabled={!!busy || !!denied} title={denied}>
               <Undo2 aria-hidden="true" />Desfazer
             </button>
           )}
@@ -360,7 +364,9 @@ const DecisionDesk: React.FC<{
               ) : data.kind === 'RECOMENDACOES' && !lead ? (
                 <p style={{ margin: '0 0 12px', color: 'var(--fx-ink-2)', fontSize: 14 }}>{closing(d.agent)}</p>
               ) : null}
-              {refusing ? (
+              {denied ? (
+                <p role="note" className="fx-muted" style={{ margin: 0, fontSize: 14 }}>{denied}</p>
+              ) : refusing ? (
                 <div className="fx-stack" style={{ gap: 10 }}>
                   <b>Por que não? O Tino aprende com a sua resposta.</b>
                   <div className="fx-actions">

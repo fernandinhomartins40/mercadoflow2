@@ -6,6 +6,9 @@ import { Card, PageHero, Thumb } from '../components/flow/Flow';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { invalidateCached } from '../hooks/useCached';
+import LoadError from '../components/common/LoadError';
+import { useTeamPermission } from '../lib/teamPermissions';
+import RoleNotice from '../components/common/RoleNotice';
 
 /**
  * Contagem rápida (F7 do plano de experiência): os produtos que mais vendem e
@@ -22,12 +25,16 @@ const StockCount: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const denied = useTeamPermission().hint('OPERATION');
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!marketId) return;
+    setLoadError(null);
     api.get<Suggested[]>(`/v1/markets/${marketId}/stock-count/suggested`, { params: { limit: 20 } })
-      .then((r) => setItems(r.data)).catch(() => setError('Não foi possível carregar os produtos.'));
-  }, [marketId]);
+      .then((r) => setItems(r.data)).catch((e) => setLoadError(e));
+  }, [marketId, attempt]);
 
   const filled = useMemo(() => Object.entries(counts).filter(([, v]) => v.trim() !== '' && Number(v.replace(',', '.')) >= 0), [counts]);
 
@@ -51,6 +58,7 @@ const StockCount: React.FC = () => {
     <Layout>
       <PageHero title={<>Conte o estoque <mark>em 5 minutos.</mark></>}
         subtitle="Os produtos que mais vendem e ainda não têm estoque medido. Digite quantas unidades há na loja agora (prateleira e depósito)." />
+      <RoleNotice area="OPERATION" what="registrar a contagem" />
 
       {done != null ? (
         <Card style={{ textAlign: 'center', padding: 32 }}>
@@ -65,7 +73,8 @@ const StockCount: React.FC = () => {
           </div>
         </Card>
       ) : !items ? (
-        <Card>{error ? <p role="alert" style={{ margin: 0 }}>{error}</p> : <Loader2 className="animate-spin" aria-label="Carregando" />}</Card>
+        loadError ? <LoadError what="os produtos para contar" error={loadError} onRetry={() => setAttempt((n) => n + 1)} />
+          : <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card>
       ) : items.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: 32 }}>
           <Check size={36} style={{ color: 'var(--fx-green)' }} aria-hidden="true" />
@@ -93,7 +102,7 @@ const StockCount: React.FC = () => {
           <div style={{ position: 'sticky', bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))', zIndex: 5 }}>
             <Card style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '12px 16px' }}>
               <span style={{ fontSize: 14.5 }}><b>{filled.length}</b> de {items.length} contados. Deixe em branco o que não contar agora.</span>
-              <button type="button" className="fx-btn dark" disabled={busy || filled.length === 0} onClick={save}>
+              <button type="button" className="fx-btn dark" disabled={busy || filled.length === 0 || !!denied} title={denied} onClick={save}>
                 {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ClipboardList aria-hidden="true" />}Salvar contagem
               </button>
               {error && <p role="alert" style={{ color: 'var(--fx-red)', margin: 0, width: '100%' }}>{error}</p>}

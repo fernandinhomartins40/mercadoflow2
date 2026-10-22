@@ -350,15 +350,15 @@ class UpdateChecker:
 
     def _verify_checksum(self, path: Path) -> bool:
         """
-        Verifica SHA-256.  Se o servidor não forneceu hash, aceita com aviso
-        (compatibilidade com versões antigas do backend).
+        Verifica SHA-256.  Sem hash do servidor, não instala: o instalador roda
+        como SYSTEM, e o CI sempre publica o .sha256 ao lado do .exe (AGT-05).
         """
         if not self._latest_sha256:
             logger.warning(
-                "Servidor não forneceu SHA-256 — pulando validação de integridade "
-                "(atualize o backend para habilitar verificação)"
+                "Servidor não forneceu SHA-256 — atualização recusada até o hash "
+                "voltar a ser publicado"
             )
-            return True
+            return False
 
         local_hash = _sha256_of_file(path)
         if local_hash.lower() == self._latest_sha256.lower():

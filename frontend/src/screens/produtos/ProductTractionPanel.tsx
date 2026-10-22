@@ -6,6 +6,7 @@ import { useCached } from '../../hooks/useCached';
 import { tractionService, type ProductTraction } from '../../services/traction.service';
 import workingCapitalService, { type CapitalMetric } from '../../services/workingCapital.service';
 import { formatDecimal, formatMoney } from '../../utils/formatters';
+import LoadError from '../../components/common/LoadError';
 import { affinityLabel, paceLabel, rankLabel, regularityLabel } from '../../utils/plain';
 
 const money2 = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -24,7 +25,7 @@ const COST: Record<string, string> = {
   MARGIN_ESTIMATE: 'margem ESTIMADA (sem custo de compra registrado)',
 };
 
-/** Tração e giro de um produto: o que importa para decidir quanto capital ele merece. */
+/** Se puxa a venda (tração) e giro de um produto: o que importa para decidir quanto capital ele merece. */
 const ProductTractionPanel: React.FC<{ productId: string }> = ({ productId }) => {
   const { marketId } = useAuth();
   const traction = useCached<ProductTraction | null>(marketId ? `tracao-produto:${marketId}:${productId}` : null,
@@ -39,7 +40,9 @@ const ProductTractionPanel: React.FC<{ productId: string }> = ({ productId }) =>
     <div className="fx-split">
       <Card>
         <PanelTitle title="Puxa a venda?" sub="O resto do cupom quando ele está, contra cupons do mesmo tamanho sem ele (90 dias, só dias completos)" />
-        {traction.loading && t === undefined ? null : !t ? (
+        {traction.loading && t === undefined ? null : traction.error && t === undefined ? (
+          <LoadError inline what="esta medida" error={traction.error} onRetry={() => { void traction.refresh(); }} />
+        ) : !t ? (
           <p className="fx-muted" style={{ margin: '14px 0 0' }}>Sem medida ainda: precisa aparecer em pelo menos 30 cupons de dias completos.</p>
         ) : (
           <>

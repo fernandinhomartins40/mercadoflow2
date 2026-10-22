@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ActionHub, PageHero } from '../components/flow/Flow';
 import { CreditCard as HxCreditCard, Layers as HxLayers } from 'lucide-react';
+import RoleNotice from '../components/common/RoleNotice';
 
 /**
  * Comparativo de planos com o consumo atual do mercado em destaque.
@@ -174,6 +175,7 @@ const Plans: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero title={<>Comece de graça. <mark>Cresça com a loja.</mark></>} subtitle="Escolha o plano conforme sua operação. O Grátis continua grátis." side={<ActionHub icon={HxLayers} actions={[{ label: 'Minha assinatura', icon: HxCreditCard, to: '/app/assinatura' }]} />} />
+        <RoleNotice area="BILLING" what="trocar de plano nem pagar" />
 
         {usage && (
           <div

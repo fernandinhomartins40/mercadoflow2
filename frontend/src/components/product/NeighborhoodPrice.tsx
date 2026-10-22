@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ExternalLink, Loader2, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
 import { Card, Chip, PanelTitle, brl } from '../flow/Flow';
 import { useCached, invalidateCached } from '../../hooks/useCached';
+import LoadError from '../common/LoadError';
 import { localPriceService, positionOf, type LocalPriceSnapshot } from '../../services/localPrice.service';
 
 /**
@@ -61,6 +62,7 @@ const NeighborhoodPrice: React.FC<{ marketId: string; productId?: string; ownPri
     </p>
   );
 
+  if (!st && status.error) return <LoadError what="o preço na vizinhança" error={status.error} onRetry={() => { void status.refresh(); }} />;
   if (!st) return <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card>;
 
   if (!st.inParana) {

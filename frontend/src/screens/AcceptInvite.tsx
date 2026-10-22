@@ -17,15 +17,28 @@ const AcceptInvite: React.FC = () => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  // Falta de rede ou servidor fora não é convite ruim: mostra "Tentar de novo".
+  const [canRetry, setCanRetry] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setError(null);
+    setCanRetry(false);
     api.get<InviteInfo>(`/v1/public/invites/${token}`)
       .then(({ data }) => {
         setInfo(data);
         setName(data.name || '');
       })
-      .catch((err) => setError(err?.response?.data?.userMessage || 'Convite inválido.'));
-  }, [token]);
+      .catch((err) => {
+        const status: number | undefined = err?.response?.status;
+        if (!status || status >= 500 || status === 429) {
+          setCanRetry(true);
+          setError(`Não foi possível abrir o convite agora. ${err?.message || 'Confira a internet e tente de novo.'}`);
+        } else {
+          setError(err?.response?.data?.userMessage || 'Este convite não vale mais (já foi usado, venceu ou foi cancelado). Peça um novo ao dono da loja.');
+        }
+      });
+  }, [token, attempt]);
 
   const accept = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,12 +60,13 @@ const AcceptInvite: React.FC = () => {
     <div className="login-page lg-canvas">
       <div className="lg-thick login-card">
         <div className="login-heading">
-          <h2>Convite para a equipe</h2>
+          <h1>Convite para a equipe</h1>
           {info && <p>{info.store} convidou você como <strong>{info.teamRole}</strong>.</p>}
         </div>
         {!info ? (
           <>
             <p role={error ? 'alert' : 'status'} style={{ color: error ? 'var(--danger)' : undefined }}>{error || 'Abrindo o convite...'}</p>
+            {canRetry && <Button type="button" onClick={() => setAttempt((n) => n + 1)}>Tentar de novo</Button>}
             <p className="login-switch"><Link to="/login">Ir para o login</Link></p>
           </>
         ) : (

@@ -68,6 +68,8 @@ public class ArtFileStorage {
         int width;
         int height;
         try {
+            // Lado conferido pelo cabeçalho antes de decodificar (bomba de descompressão, SEG-11).
+            ImageDimensions.requireWithin(new ByteArrayInputStream(bytes), MAX_SIDE);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
             if (image == null) {
                 // WebP não tem leitor no ImageIO da JDK: aceita sem medir; o

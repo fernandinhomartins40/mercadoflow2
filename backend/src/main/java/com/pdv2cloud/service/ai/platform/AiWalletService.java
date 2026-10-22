@@ -49,6 +49,19 @@ public class AiWalletService {
         this.entitlements = entitlements;
     }
 
+    /**
+     * Débito atômico: só passa com saldo (inclusos + comprados) e dentro do teto
+     * do mês, a mesma conta de {@link #wallet}: teto do mercado ou o padrão da
+     * plataforma, mais os créditos que o plano deu no mês. Sem teto configurado
+     * em lugar nenhum, não há limite (o wallet() nem chegaria a montar a carteira).
+     */
+    static final String DEBIT_SQL = "update ai_wallets set included_balance = included_balance - least(included_balance, :c), "
+        + "balance = balance - greatest(0, :c - included_balance), month_used = month_used + :c, updated_at = now() "
+        + "where market_id = :m and included_balance + balance >= :c "
+        + "and (coalesce(monthly_cap, (select s.default_monthly_cap_credits from ai_platform_settings s where s.id = 'default')) is null "
+        + "  or month_used::bigint + :c <= coalesce(monthly_cap, (select s.default_monthly_cap_credits from ai_platform_settings s "
+        + "where s.id = 'default'))::bigint + included_granted)";
+
     public AiWalletService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -139,9 +152,9 @@ public class AiWalletService {
         }
         rollMonth(marketId);
         // Gasta primeiro o que o plano dá no mês; o comprado fica para depois.
-        int n = jdbc.update("update ai_wallets set included_balance = included_balance - least(included_balance, :c), "
-            + "balance = balance - greatest(0, :c - included_balance), month_used = month_used + :c, updated_at = now() "
-            + "where market_id = :m and included_balance + balance >= :c", Map.of("m", marketId, "c", credits));
+        // Saldo e teto do mês são conferidos na mesma instrução (REC-10): antes o
+        // teto só era visto no canSpend e chamadas simultâneas passavam dele.
+        int n = jdbc.update(DEBIT_SQL, Map.of("m", marketId, "c", credits));
         if (n == 0) {
             return false;
         }

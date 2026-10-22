@@ -81,7 +81,7 @@ const Settings: React.FC = () => {
           <div className="flex flex-col divide-y divide-[color:var(--border-soft)]">
             {[
               { label: 'ID do mercado', value: marketId || '—', copyable: !!marketId, copyKey: 'market-id' },
-              { label: 'URL da API', value: apiBaseUrl, copyable: true, copyKey: 'api-url' },
+              { label: 'Endereço do MercadoFlow (URL da API): o programa do caixa pede este endereço na instalação', value: apiBaseUrl, copyable: true, copyKey: 'api-url' },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <div className="min-w-0">

@@ -5,6 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.pdv2cloud.model.entity.UserRole;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -77,5 +80,62 @@ class JwtAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         assertThat(chain.getRequest()).isNotNull();
+    }
+
+    // ── SEG-05: revogação por troca de credenciais ─────────────────────
+
+    private AppUserDetails userChangedAt(LocalDateTime changedAt) {
+        return new AppUserDetails("dono@loja.com", "x", true,
+            List.of(new SimpleGrantedAuthority("ROLE_MARKET_OWNER")), UUID.randomUUID(), UserRole.MARKET_OWNER, null, changedAt);
+    }
+
+    private static Date at(LocalDateTime t) {
+        return Date.from(t.atZone(ZoneId.systemDefault()).toInstant());
+    }
+
+    @Test
+    void tokenEmitidoAntesDaTrocaDeSenhaPerdeASessao() throws Exception {
+        LocalDateTime changed = LocalDateTime.now();
+        when(users.loadUserByUsername("dono@loja.com")).thenReturn(userChangedAt(changed));
+        when(tokens.getIssuedAt("t")).thenReturn(at(changed.minusMinutes(10)));
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request(), new MockHttpServletResponse(), chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    void tokenEmitidoDepoisDaTrocaAutentica() throws Exception {
+        LocalDateTime changed = LocalDateTime.now().minusMinutes(5);
+        when(users.loadUserByUsername("dono@loja.com")).thenReturn(userChangedAt(changed));
+        when(tokens.getIssuedAt("t")).thenReturn(at(changed.plusMinutes(1)));
+
+        filter.doFilter(request(), new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    @Test
+    void tokenDoMesmoSegundoDaTrocaAutentica() throws Exception {
+        // O iat é truncado no segundo: o token emitido logo após a troca não pode cair.
+        LocalDateTime changed = LocalDateTime.of(2026, 10, 22, 10, 0, 0, 800_000_000);
+        when(users.loadUserByUsername("dono@loja.com")).thenReturn(userChangedAt(changed));
+        when(tokens.getIssuedAt("t")).thenReturn(at(changed.withNano(0)));
+
+        filter.doFilter(request(), new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    @Test
+    void semTrocaRegistradaNenhumTokenCai() throws Exception {
+        when(users.loadUserByUsername("dono@loja.com")).thenReturn(userChangedAt(null));
+        when(tokens.getIssuedAt("t")).thenReturn(at(LocalDateTime.now().minusDays(20)));
+
+        filter.doFilter(request(), new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
     }
 }

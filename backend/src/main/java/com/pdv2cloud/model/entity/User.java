@@ -74,6 +74,10 @@ public class User {
     @Column(name = "totp_enabled", nullable = false)
     private Boolean totpEnabled = false;
 
+    /** Tokens emitidos antes deste instante não valem mais (reset de senha, troca de papel, desativação). */
+    @Column(name = "credentials_changed_at")
+    private LocalDateTime credentialsChangedAt;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

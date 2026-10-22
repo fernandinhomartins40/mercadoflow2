@@ -6,6 +6,7 @@ import { ActionHub, Card, Chip, ExplainStrip, PageHero, PanelTitle } from '../co
 import { useAuth } from '../context/AuthContext';
 import { FIRST_PARTY_SCOPES, integrationsService, type IntegrationPartner, type IntegrationsOverview, type PartnerCall } from '../services/integrations.service';
 import { apiError } from './copilot/shared';
+import RoleNotice from '../components/common/RoleNotice';
 
 /**
  * Integrações: o dono decide quais ERPs conversam com a loja, com que
@@ -49,8 +50,8 @@ const ScopeDialog: React.FC<{
         </div>
         <p className="fx-muted" style={{ fontSize: 13.5, margin: '12px 0 0' }}>
           {partner.firstParty
-            ? `O ${partner.name} é da mesma empresa do MercadoFlow: mostra as decisões do Tino dentro do sistema, mas giro, tração e previsão continuam só aqui.`
-            : 'Giro, tração, previsão e as recomendações do Tino nunca saem para o ERP.'}
+            ? `O ${partner.name} é da mesma empresa do MercadoFlow: mostra as decisões do Tino dentro do sistema, mas giro, o que puxa venda e previsão continuam só aqui.`
+            : 'Giro, o que puxa venda, previsão e as recomendações do Tino nunca saem para o ERP.'}
         </p>
         <div className="fx-actions" style={{ marginTop: 16 }}>
           <button type="button" className="fx-btn dark" disabled={busy || chosen.size === 0} onClick={() => onConfirm([...chosen])}>
@@ -111,14 +112,17 @@ const Integrations: React.FC = () => {
   const [code, setCode] = useState('');
   const [ask, setAsk] = useState({ erpName: '', vendorEmail: '', note: '' });
 
+  const [loadFailed, setLoadFailed] = useState(false);
   const load = useCallback(async () => {
     if (!marketId) return;
+    setLoadFailed(false);
     try {
       const [o, l] = await Promise.all([integrationsService.overview(marketId), integrationsService.log(marketId)]);
       setData(o);
       setCalls(l);
     } catch (e) {
       setError(apiError(e, 'Não foi possível carregar as integrações.'));
+      setLoadFailed(true);
     }
   }, [marketId]);
   useEffect(() => { void load(); }, [load]);
@@ -153,17 +157,22 @@ const Integrations: React.FC = () => {
         subtitle="O ERP manda estoque, custo e preço; recebe a entrada de mercadoria pronta, lida das notas do Bipaê."
         side={<ActionHub icon={Plug} label="Ações de integrações" actions={[{ label: 'Documentação para o ERP', icon: BookOpen, to: '/desenvolvedores' }]} />}
       />
+      <RoleNotice area="OPERATION" what="autorizar nem revogar sistemas" />
 
       <ExplainStrip items={[
         { icon: ArrowDownToLine, title: 'O ERP envia', text: 'Estoque, custo de compra, preço de venda, notas de entrada e cadastro. Margem e estoque deixam de ser estimativa.' },
         { icon: ArrowUpFromLine, title: 'O ERP recebe', text: 'Cadastro e entrada prontos das notas que o Bipaê lê, e os pedidos e preços que você aprovar.' },
-        { icon: ShieldOff, title: 'Nunca sai', text: 'Giro, tração, sazonalidade, previsão e as recomendações do Tino ficam só aqui.' },
+        { icon: ShieldOff, title: 'Nunca sai', text: 'Giro, o que puxa venda, sazonalidade, previsão e as recomendações do Tino ficam só aqui.' },
       ]} />
 
       {error && <p role="alert" className="fx-chip red" style={{ whiteSpace: 'normal', padding: '10px 14px' }}>{error}</p>}
       {notice && <p role="status" className="fx-chip green" style={{ whiteSpace: 'normal', padding: '10px 14px' }}>{notice}</p>}
 
-      {!data ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : (
+      {!data && loadFailed ? (
+        <Card style={{ textAlign: 'center', padding: 28 }}>
+          <button type="button" className="fx-btn dark" onClick={() => { setError(null); void load(); }}>Tentar de novo</button>
+        </Card>
+      ) : !data ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : (
         <>
           <Card>
             <PanelTitle title="ERPs desta loja" sub={authorized.length ? `${authorized.length} autorizado${authorized.length > 1 ? 's' : ''}` : 'Nenhum autorizado ainda'} />

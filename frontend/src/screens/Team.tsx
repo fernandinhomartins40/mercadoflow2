@@ -144,7 +144,7 @@ const Team: React.FC = () => {
               )}
               <p className="text-xs sm:col-span-2 lg:col-span-4" style={{ color: 'var(--text-muted)' }}>
                 {data.roles.find((r) => r.code === form.role)?.description}.
-                {multiStore && ' Quem fica na matriz vê a rede toda; quem fica numa filial vê só a filial.'}
+                {multiStore && ' Quem fica na loja principal (matriz) vê a rede toda; quem fica numa filial vê só a filial.'}
               </p>
               <div className="sm:col-span-2 lg:col-span-4">
                 <button type="submit" disabled={busy} className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
@@ -256,7 +256,7 @@ const Team: React.FC = () => {
             </div>
           ) : transferable.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Para passar a conta a outra pessoa, convide-a para a matriz primeiro. Ela precisa aceitar do lado dela.
+              Para passar a conta a outra pessoa, convide-a para a loja principal (matriz) primeiro. Ela precisa aceitar do lado dela.
             </p>
           ) : (
             <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => {

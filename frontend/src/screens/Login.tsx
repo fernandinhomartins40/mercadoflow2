@@ -109,7 +109,7 @@ const Login: React.FC = () => {
         <div className="lg-thick login-card">
           <AuthBrand />
           <div className="login-heading">
-            <h2>Verificação em duas etapas</h2>
+            <h1>Verificação em duas etapas</h1>
             <p>Digite o código de 6 números do seu aplicativo autenticador. Sem o celular, use um código de recuperação.</p>
           </div>
           <form onSubmit={handleCode}>
@@ -136,7 +136,7 @@ const Login: React.FC = () => {
       <div className="lg-thick login-card">
         <AuthBrand />
         <div className="login-heading">
-          <h2>Entrar</h2>
+          <h1>Entrar</h1>
           <p>Veja o que vende, o que está parado e quanto comprar.</p>
         </div>
         <form onSubmit={handleSubmit}>

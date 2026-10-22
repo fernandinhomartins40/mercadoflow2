@@ -741,6 +741,14 @@ public class PlanService {
     }
 
     /**
+     * A recomendação é visível no plano? Segue o tipo da oportunidade de origem;
+     * recomendação sem oportunidade não tem tipo pago (REC-07).
+     */
+    public boolean canSeeRecommendation(EffectiveLimits limits, com.pdv2cloud.model.entity.Recommendation r) {
+        return r == null || r.getOpportunity() == null || canSeeOpportunityType(limits, r.getOpportunity().getType());
+    }
+
+    /**
      * Janela de análise em dias, limitada pela retenção do plano.
      *
      * O campo {@code historyDays} existia desde sempre no catálogo e era

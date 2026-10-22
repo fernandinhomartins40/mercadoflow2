@@ -159,18 +159,16 @@ public class AuditService {
         }
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
+    /**
+     * Mesma regra do RateLimitFilter. O X-Real-IP é sempre reescrito pelo nginx
+     * interno a partir do proxy confiável; o primeiro valor do X-Forwarded-For
+     * vem de quem chama e deixava forjar o IP da trilha de auditoria (LGPD-06).
+     */
+    static String getClientIp(HttpServletRequest request) {
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
         }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // If X-Forwarded-For contains multiple IPs, take the first one
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
+        return request.getRemoteAddr();
     }
 }

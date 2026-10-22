@@ -5,6 +5,8 @@ import { Card, Chip, ExplainStrip, PageHero, PanelTitle } from '../../components
 import { useAuth } from '../../context/AuthContext';
 import { marketCommerceService as svc, type MarketPreferences } from '../../services/commerce.service';
 import { dateOnly, useAction, useLoad } from '../vendas/ui';
+import LoadError from '../../components/common/LoadError';
+import RoleNotice from '../../components/common/RoleNotice';
 
 /**
  * O que a loja decide sobre indústrias e distribuidores: receber campanhas ou
@@ -29,6 +31,7 @@ const SellerPrivacyPage: React.FC = () => {
     <>
       <PageHero title="Escolha quais fornecedores podem ver a sua loja e mandar ofertas." 
         subtitle="Você decide quem fala com a sua loja. Sem autorização, ninguém sabe o nome da loja: as campanhas chegam sem identificar quem recebeu." />
+      <RoleNotice area="OPERATION" what="mudar quem pode ver a loja" />
       <Card>
         <PanelTitle icon={Megaphone} title="Campanhas" sub="Condições especiais que indústrias e distribuidores enviam para um público de lojas." />
         <label style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 14 }}>
@@ -47,7 +50,9 @@ const SellerPrivacyPage: React.FC = () => {
 
       <Card>
         <PanelTitle icon={Store} title="Vendedores" sub="Autorizar deixa o vendedor ver o nome da sua loja e mandar condições só para ela. Bloquear tira tudo dele da sua loja." />
-        {known.size === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nenhum vendedor atende a sua região ainda.</p> : (
+        {known.size === 0 && (prefs.error || sellers.error) ? (
+          <LoadError inline what="os vendedores" error={{ message: prefs.error || sellers.error }} onRetry={() => { void prefs.reload(); void sellers.reload(); }} />
+        ) : known.size === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nenhum vendedor atende a sua região ainda.</p> : (
           <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'grid', gap: 8 }}>
             {[...known.values()].map((s) => {
               const st = consentOf(s.id);

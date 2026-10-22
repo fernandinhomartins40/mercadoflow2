@@ -45,6 +45,9 @@ import BuyDesk, { buyHeadline } from './comprar/BuyDesk';
 import { goesToOrder } from '../components/intelligence/RecommendationCard';
 import { ListChecks as HxListChecks, Plus as HxPlus, ShoppingCart as HxShoppingCart } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
+import LoadError from '../components/common/LoadError';
+import { useTeamPermission } from '../lib/teamPermissions';
+import RoleNotice from '../components/common/RoleNotice';
 
 /* ─── Formatadores ─── */
 const fmtMoney = (v?: number | null) =>
@@ -1392,7 +1395,8 @@ interface NewOrderState { supplier?: Supplier | null; highlightProductId?: strin
 const ShoppingListPage: React.FC = () => {
   const { marketId } = useAuth();
   const { dashboard, loading: dLoading } = useMarketData();
-  const { overview, items, productIds, loading, error, addItem, updateItem, removeItem } = useShoppingList();
+  const { overview, items, productIds, loading, error, addItem, updateItem, removeItem, reload } = useShoppingList();
+  const canBuy = useTeamPermission().can('PURCHASING');
 
   // Abre em Pedidos: a mesa do que pede ação (enviar, receber, lista sem
   // pedido) e, embaixo, os concluídos. Sugestões de compra ficam no Decidir.
@@ -1505,7 +1509,7 @@ const ShoppingListPage: React.FC = () => {
     return <Layout><div className="flex min-h-[300px] items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div></Layout>;
   }
   if (error) {
-    return <Layout><div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center"><p className="text-sm text-red-600">{error}</p></div></Layout>;
+    return <Layout><LoadError what="a lista de compras" error={{ message: error }} onRetry={() => { void reload(); }} /></Layout>;
   }
 
   const urgentItems    = items.filter(i => !i.checked && Number(i.quantityTarget || 0) >= 10);
@@ -1553,7 +1557,8 @@ const ShoppingListPage: React.FC = () => {
       <div className="flex flex-col gap-5">
         <PageHero
           title={tab === 'lista' ? <>Lista de compras: <mark>{items.filter(i => !i.checked).length} sem pedido.</mark></> : tab === 'fornecedores' ? <>Quem vende para a sua loja.</> : <>{head.lead} <mark>{head.mark}</mark></>}
-          side={<ActionHub icon={HxShoppingCart} actions={[{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }]} />} />
+          side={<ActionHub icon={HxShoppingCart} actions={canBuy ? [{ label: 'Novo pedido', icon: HxPlus, onClick: () => { setTab('pedidos'); setNewOrder({}); } }] : []} />} />
+        <RoleNotice area="PURCHASING" what="montar, enviar nem receber pedidos" />
 
         {/* Abas */}
         {tab === 'lista' ? (

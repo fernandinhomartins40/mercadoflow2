@@ -1,6 +1,7 @@
 package com.pdv2cloud.security;
 
 import com.pdv2cloud.model.entity.UserRole;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
@@ -14,6 +15,8 @@ public class AppUserDetails extends org.springframework.security.core.userdetail
     private final UUID marketId;
     private final UserRole role;
     private final com.pdv2cloud.service.team.TeamRole teamRole;
+    /** Tokens emitidos antes disto não valem mais (SEG-05). Nulo = nenhum token derrubado. */
+    private final LocalDateTime credentialsChangedAt;
 
     public AppUserDetails(
             String username,
@@ -33,10 +36,27 @@ public class AppUserDetails extends org.springframework.security.core.userdetail
             UUID marketId,
             UserRole role,
             com.pdv2cloud.service.team.TeamRole teamRole) {
+        this(username, password, enabled, authorities, marketId, role, teamRole, null);
+    }
+
+    public AppUserDetails(
+            String username,
+            String password,
+            boolean enabled,
+            Collection<? extends GrantedAuthority> authorities,
+            UUID marketId,
+            UserRole role,
+            com.pdv2cloud.service.team.TeamRole teamRole,
+            LocalDateTime credentialsChangedAt) {
         super(username, password, enabled, true, true, true, authorities);
         this.marketId = marketId;
         this.role = role;
         this.teamRole = teamRole;
+        this.credentialsChangedAt = credentialsChangedAt;
+    }
+
+    public LocalDateTime getCredentialsChangedAt() {
+        return credentialsChangedAt;
     }
 
     /** Papel de equipe (null para superadmin, admin e indústria). */

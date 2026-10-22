@@ -10,6 +10,7 @@ import { useShoppingList } from '../hooks/useShoppingList';
 import Button from '../components/common/Button';
 import ShoppingListButton from '../components/common/ShoppingListButton';
 import ProductImage from '../components/product/ProductImage';
+import LoadError from '../components/common/LoadError';
 import { ProductPerformance } from '../types/analytics.types';
 import {
   AlertTriangle, Search, TrendingUp, TrendingDown, Minus,
@@ -61,7 +62,7 @@ const DesempenhoTab: React.FC = () => {
   );
   const pageData = perf.data ?? null;
   const loading = perf.loading;
-  const error = perf.error && !pageData ? 'Erro ao carregar produtos' : null;
+  const error = perf.error && !pageData ? perf.error : null;
 
   const products = useMemo(() => pageData?.content || [], [pageData]);
   const current = products.find((x) => x.productId === selected) ?? products[0] ?? null;
@@ -140,10 +141,10 @@ const DesempenhoTab: React.FC = () => {
         ))}
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-
       {loading ? (
         <div className="flex min-h-[200px] items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" /></div>
+      ) : error ? (
+        <LoadError what="os produtos" error={error} onRetry={() => { void perf.refresh(); }} />
       ) : products.length === 0 ? (
         <div className="rounded-xl p-8 text-center" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}><p style={{ color: 'var(--text-muted)' }}>Nenhum produto encontrado.</p></div>
       ) : (
@@ -253,7 +254,7 @@ const Products: React.FC = () => {
           title="Busque um produto para ver venda, preço e estoque." 
           subtitle={[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ')
             ? <>{[low ? `${low} acabando` : '', down ? `${down} vendendo menos` : ''].filter(Boolean).join(' · ')}. O que fazer com eles está em <a href="/app/decidir">Decidir</a>.</>
-            : 'Busque um produto para ver venda, preço, tração e estoque.'}
+            : 'Busque um produto para ver venda, preço, se ele puxa venda e estoque.'}
  />
 
         <div className="fx-filters" role="group" aria-label="Filtrar produtos">

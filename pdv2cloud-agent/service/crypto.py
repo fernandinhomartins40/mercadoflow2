@@ -5,6 +5,10 @@ import win32crypt
 logger = logging.getLogger("PDV2Cloud.Crypto")
 
 
+class EncryptionError(Exception):
+    """A cifragem DPAPI falhou. Quem chama não deve gravar o dado em claro."""
+
+
 class SecureConfig:
     """
     Enterprise-grade encryption using Windows Data Protection API (DPAPI).
@@ -49,6 +53,9 @@ class SecureConfig:
 
         Returns:
             Base64-encoded encrypted string
+
+        Raises:
+            EncryptionError: se a DPAPI falhar.
         """
         try:
             # Convert string to bytes
@@ -69,10 +76,10 @@ class SecureConfig:
             return base64.b64encode(encrypted_bytes).decode('utf-8')
 
         except Exception as exc:
+            # Nunca devolver o dado em claro: quem chamaria gravaria o segredo
+            # sem cifra no disco. Quem chama decide manter só em memória.
             logger.error("DPAPI encryption failed: %s", exc)
-            # Return original data if encryption fails (fail-safe mode)
-            logger.warning("Returning unencrypted data - this is a security risk!")
-            return data
+            raise EncryptionError(str(exc)) from exc
 
     def decrypt(self, encrypted_data: str) -> str:
         """

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ActionHub, PagedList, PageHero } from '../components/flow/Flow';
 import { CalendarPlus as HxCalendarPlus, Newspaper as HxNewspaper, Sparkles as HxSparkles, Tag as HxTag } from 'lucide-react';
+import RoleNotice from '../components/common/RoleNotice';
 
 /* ─── Formatadores ─── */
 const fmtMoney = (v?: number | null) =>
@@ -511,6 +512,7 @@ const Promocoes: React.FC = () => {
           side={<ActionHub icon={HxTag} actions={[
             { label: 'Montar encarte', icon: HxNewspaper, to: '/app/encartes' },
           ]} />} />
+        <RoleNotice area="OPERATION" what="criar nem mudar ofertas" />
 
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} fit label="Seções da tela" />
 

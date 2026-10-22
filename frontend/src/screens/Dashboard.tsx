@@ -160,16 +160,18 @@ const WhyDrawer: React.FC<{ panel: OperationPanel; metric: OperationMetric; onCl
   );
 };
 
-// ── Tração e giro: o centro da decisão ──────────────────────────────────────
+// ── Quem puxa a venda (tração) e giro: o centro da decisão ──────────────────────────────────────
 
 const money2 = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const TractionCard: React.FC<{ items: ProductTraction[] | undefined }> = ({ items }) => (
+const TractionCard: React.FC<{ items: ProductTraction[] | undefined; failed?: boolean; onRetry?: () => void }> = ({ items, failed, onRetry }) => (
   <Card>
     <PanelTitle title="Quem puxa a venda"
       sub="Cupons com estes produtos levam mais em OUTROS itens do que cupons do mesmo tamanho sem eles (90 dias, só dias completos)" />
-    {!items ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : items.length === 0 ? (
-      <p className="fx-muted" style={{ margin: '14px 0 0' }}>Ainda sem cálculo de tração. Ele roda de madrugada e precisa de pelo menos 3 semanas de histórico completo.</p>
+    {!items && failed ? (
+      <p className="fx-muted" role="alert" style={{ margin: '14px 0 0' }}>Não foi possível carregar agora. <button type="button" className="fx-btn ghost small" onClick={onRetry}>Tentar de novo</button></p>
+    ) : !items ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : items.length === 0 ? (
+      <p className="fx-muted" style={{ margin: '14px 0 0' }}>Ainda sem o cálculo de quem puxa a venda. Ele roda de madrugada e precisa de pelo menos 3 semanas de histórico completo.</p>
     ) : (
       <ul className="fx-stack" style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, gap: 8 }}>
         {items.slice(0, 5).map((t) => (
@@ -194,7 +196,7 @@ const TractionCard: React.FC<{ items: ProductTraction[] | undefined }> = ({ item
   </Card>
 );
 
-const GiroCard: React.FC<{ portfolio: GiroSummary | undefined }> = ({ portfolio }) => {
+const GiroCard: React.FC<{ portfolio: GiroSummary | undefined; failed?: boolean; onRetry?: () => void }> = ({ portfolio, failed, onRetry }) => {
   const [view, setView] = useState<'rapido' | 'perdendo'>('rapido');
   const list = portfolio ? portfolio[view] : [];
   const noStock = portfolio?.noStock ?? true;
@@ -202,7 +204,9 @@ const GiroCard: React.FC<{ portfolio: GiroSummary | undefined }> = ({ portfolio 
     <Forest as="aside" aria-label="Giro">
       <PanelTitle title="Giro" sub={noStock ? 'Pela venda por dia. Sem compras registradas, o estoque e o dinheiro parado ainda não aparecem.' : 'Pela venda por dia e pelo estoque registrado'}
         right={<PillTabs<'rapido' | 'perdendo'> label="Giro" value={view} onChange={setView} tabs={[{ key: 'rapido', label: 'Vale reforçar' }, { key: 'perdendo', label: 'Perdendo giro' }]} />} />
-      {!portfolio ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : list.length === 0 ? (
+      {!portfolio && failed ? (
+        <p role="alert" style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Não foi possível carregar agora. <button type="button" className="fx-btn ghost small" onClick={onRetry}>Tentar de novo</button></p>
+      ) : !portfolio ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : list.length === 0 ? (
         <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)' }}>Nenhum produto neste grupo agora.</p>
       ) : (
         <ul className="fx-stack" style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, gap: 8 }}>
@@ -397,12 +401,12 @@ const Dashboard: React.FC = () => {
             </Card>
           )}
 
-          <DepartmentsCard panel={panel} />
+          <DepartmentsCard panel={panel} failed={panelError} onRetry={() => { void op.refresh(); }} />
 
           {/* Lado a lado com a mesma altura. */}
           <div className="fx-split even">
-            <TractionCard items={traction.data} />
-            <GiroCard portfolio={portfolio.data} />
+            <TractionCard items={traction.data} failed={!!traction.error} onRetry={() => { void traction.refresh(); }} />
+            <GiroCard portfolio={portfolio.data} failed={!!portfolio.error} onRetry={() => { void portfolio.refresh(); }} />
           </div>
 
           {!stockMeasured && <CapitalScoreboard score={sc} loading={score.loading} results={results.data} hideActions />}
@@ -495,13 +499,15 @@ const Shortcuts: React.FC = () => (
 );
 
 /** Departamentos e mais vendidos no mesmo cartão: duas leituras da mesma venda. */
-const DepartmentsCard: React.FC<{ panel: OperationPanel | null }> = ({ panel }) => {
+const DepartmentsCard: React.FC<{ panel: OperationPanel | null; failed?: boolean; onRetry?: () => void }> = ({ panel, failed, onRetry }) => {
   const [view, setView] = useState<'dep' | 'prod'>('dep');
   return (
     <Card>
       <PanelTitle title="Onde a loja vendeu" sub={panel?.comparisonLabel ? `Variação ${panel.comparisonLabel}` : undefined}
         right={<PillTabs<'dep' | 'prod'> label="Ver por" value={view} onChange={setView} tabs={[{ key: 'dep', label: 'Departamentos' }, { key: 'prod', label: 'Produtos' }]} />} />
-      {!panel ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : view === 'dep' ? (
+      {!panel && failed ? (
+        <p className="fx-muted" role="alert" style={{ margin: '14px 0 0' }}>Não foi possível carregar agora. <button type="button" className="fx-btn ghost small" onClick={onRetry}>Tentar de novo</button></p>
+      ) : !panel ? <Loader2 className="animate-spin" aria-label="Carregando" style={{ marginTop: 16 }} /> : view === 'dep' ? (
         panel.departments.length === 0 ? <p className="fx-muted" style={{ margin: '14px 0 0' }}>Ainda sem vendas neste período.</p> : (
           <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {panel.departments.map((d) => (

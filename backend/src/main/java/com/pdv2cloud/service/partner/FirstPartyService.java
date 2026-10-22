@@ -637,10 +637,15 @@ public class FirstPartyService {
         if (scopes.isEmpty()) throw new IllegalArgumentException("Escolha ao menos uma permissão.");
         UUID partnerId = (UUID) r.get("partner_id");
         String external = (String) r.get("external_store_id");
-        link(partnerId, marketId, scopes, user, external, null);
-        TenantContext.runAsSystem(() -> jdbc.update(
-            "update partner_connect_requests set status = 'APROVADO', market_id = :m, decided_by = :u, decided_at = now() where id = :id",
+        // Marca o pedido como aprovado só se ainda estiver pendente (SEG-10): de duas
+        // aprovações simultâneas do mesmo código, a segunda encontra 0 linhas e para
+        // antes de vincular outra loja.
+        int claimed = TenantContext.runAsSystem(() -> jdbc.update(
+            "update partner_connect_requests set status = 'APROVADO', market_id = :m, decided_by = :u, decided_at = now() "
+                + "where id = :id and status = 'PENDENTE'",
             new MapSqlParameterSource("m", marketId).addValue("u", user).addValue("id", r.get("id"))));
+        if (claimed == 0) throw new IllegalArgumentException("Este link já foi usado.");
+        link(partnerId, marketId, scopes, user, external, null);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("ok", true);
         out.put("scopes", scopes);

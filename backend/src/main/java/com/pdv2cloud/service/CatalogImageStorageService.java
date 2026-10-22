@@ -36,6 +36,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class CatalogImageStorageService {
 
     private static final long DEFAULT_MAX_IMAGE_BYTES = 5_000_000L;
+    /** Mesmo teto de lado do estúdio de encartes: conferido antes de decodificar (SEG-11). */
+    static final int MAX_SIDE = 6000;
     private static final String DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; MercadoFlowCatalogRecovery/1.0)";
 
     private final CatalogImageUrlResolver catalogImageUrlResolver;
@@ -124,8 +126,10 @@ public class CatalogImageStorageService {
         }
 
         try {
+            byte[] bytes = file.getBytes();
+            com.pdv2cloud.service.art.ImageDimensions.requireWithin(new java.io.ByteArrayInputStream(bytes), MAX_SIDE);
             Files.createDirectories(imagePath.getParent());
-            BufferedImage sourceImage = ImageIO.read(file.getInputStream());
+            BufferedImage sourceImage = ImageIO.read(new java.io.ByteArrayInputStream(bytes));
             if (sourceImage == null) {
                 throw new IllegalArgumentException("Arquivo enviado nao e uma imagem valida");
             }
@@ -370,6 +374,10 @@ public class CatalogImageStorageService {
     private boolean persistRecoveredImage(Path tempFile, Path imagePath) throws IOException {
         String lowerName = imagePath.getFileName().toString().toLowerCase(Locale.ROOT);
         if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+            int[] size = com.pdv2cloud.service.art.ImageDimensions.read(tempFile.toFile());
+            if (size != null && (size[0] > MAX_SIDE || size[1] > MAX_SIDE)) {
+                return false;
+            }
             BufferedImage sourceImage = ImageIO.read(tempFile.toFile());
             if (sourceImage == null) {
                 return false;

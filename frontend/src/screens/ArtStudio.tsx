@@ -19,6 +19,8 @@ import ArtCanvas from '../features/art-studio/ArtCanvas';
 import { ActionHub, Card, Forest, MoreMenu, PageHero, PanelTitle, StepTrack, Thumb, brl } from '../components/flow/Flow';
 import { Newspaper, Pencil } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
+import { useTeamPermission } from '../lib/teamPermissions';
+import RoleNotice from '../components/common/RoleNotice';
 
 /**
  * Encartes e cartazes (F18). O lojista diz o que quer ofertar — ou aceita a
@@ -1074,6 +1076,7 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const canEdit = useTeamPermission().can('OPERATION');
 
   const load = useCallback(() => {
     artService.campaigns(marketId).then(setCampaigns).catch((err) => { setCampaigns([]); setError(apiMessage(err, 'Não foi possível carregar os encartes.')); });
@@ -1102,9 +1105,10 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
       <PageHero
         title="Monte, revise e publique os encartes da loja." 
         side={<ActionHub icon={Newspaper} actions={[
-          { label: creating ? 'Criando...' : 'Novo encarte', icon: Plus, onClick: () => { if (!creating) void create(); } },
+          ...(canEdit ? [{ label: creating ? 'Criando...' : 'Novo encarte', icon: Plus, onClick: () => { if (!creating) void create(); } }] : []),
           { label: 'Voltar às ofertas', icon: Newspaper, to: '/app/promocoes' },
         ]} />} />
+      <RoleNotice area="OPERATION" what="criar, editar nem publicar encartes" />
       {error && <p role="alert" className="text-sm" style={{ color: 'var(--fx-red)' }}>{error}</p>}
       {campaigns === null ? (
         <div className="fx-split"><div className="fx-card h-72 animate-pulse" /><div className="fx-forest h-72" /></div>

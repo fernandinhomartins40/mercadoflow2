@@ -38,6 +38,11 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
 
     Optional<Recommendation> findByIdAndMarketId(UUID id, UUID marketId);
 
+    /** Com a oportunidade carregada: o tipo dela decide se o plano enxerga a recomendação (REC-07). */
+    @Query("select r from Recommendation r join fetch r.opportunity "
+        + "where r.id = :id and r.market.id = :marketId")
+    Optional<Recommendation> findWithOpportunity(@Param("id") UUID id, @Param("marketId") UUID marketId);
+
     /** Existe recomendação viva para esta oportunidade? Evita duplicar sugestão. */
     @Query("select count(r) > 0 from Recommendation r "
         + "where r.opportunity.id = :opportunityId and r.status in ('PROPOSTA', 'ACEITA')")

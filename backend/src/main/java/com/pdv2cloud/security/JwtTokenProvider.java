@@ -50,6 +50,15 @@ public class JwtTokenProvider {
         return claims.getSubject();
     }
 
+    /** Instante de emissão (iat); usado para recusar token anterior à troca de credenciais. */
+    public Date getIssuedAt(String token) {
+        return Jwts.parser()
+            .setSigningKey(jwtSecret)
+            .parseClaimsJws(token)
+            .getBody()
+            .getIssuedAt();
+    }
+
     public boolean validateToken(String authToken) {
         try {
             Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(authToken);

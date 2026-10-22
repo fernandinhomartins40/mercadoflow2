@@ -211,7 +211,10 @@ public class TeamService {
         if (active && !Boolean.TRUE.equals(u.get("is_active"))) {
             requireSeat(root);
         }
-        jdbc.update("update users set is_active = :a, updated_at = now() where id = :id", Map.of("a", active, "id", userId));
+        // Ao desativar, os tokens já emitidos deixam de valer mesmo se a pessoa for reativada depois (SEG-05).
+        jdbc.update("update users set is_active = :a, updated_at = now(), "
+                + "credentials_changed_at = case when :a then credentials_changed_at else now() end where id = :id",
+            Map.of("a", active, "id", userId));
     }
 
     @Transactional
@@ -227,7 +230,7 @@ public class TeamService {
         }
         UUID store = storeId == null ? (UUID) u.get("market_id") : storeInNetwork(root, storeId);
         jdbc.update("update users set team_role = :t, role = :r, market_id = :m, totp_enabled = case when :t in ('DONO','FINANCEIRO') "
-                + "then totp_enabled else false end, updated_at = now() where id = :id",
+                + "then totp_enabled else false end, updated_at = now(), credentials_changed_at = now() where id = :id",
             new MapSqlParameterSource().addValue("t", role.name()).addValue("r", role.systemRole().name()).addValue("m", store)
                 .addValue("id", userId));
     }
@@ -293,8 +296,9 @@ public class TeamService {
         }
         UUID root = (UUID) t.get("market_id");
         UUID from = (UUID) t.get("from_user_id");
+        // O antigo dono vira gerente: as sessões dele como dono caem (SEG-05). O novo dono segue logado.
         jdbc.update("update users set role = 'MARKET_MANAGER', team_role = 'GERENTE', totp_enabled = false, totp_secret_enc = null, "
-            + "totp_recovery_hashes = null, updated_at = now() where id = :id", Map.of("id", from));
+            + "totp_recovery_hashes = null, updated_at = now(), credentials_changed_at = now() where id = :id", Map.of("id", from));
         jdbc.update("update users set role = 'MARKET_OWNER', team_role = 'DONO', updated_at = now() where id = :id", Map.of("id", userId));
         jdbc.update("update markets set owner_id = :u, account_owner_email = (select email from users where id = :u), updated_at = now() "
             + "where id = :r", Map.of("u", userId, "r", root));

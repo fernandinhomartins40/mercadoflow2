@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCached } from '../../hooks/useCached';
 import { tractionService, type ProductTraction } from '../../services/traction.service';
 import { formatMoney } from '../../utils/formatters';
+import LoadError from '../../components/common/LoadError';
 
 const money2 = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -16,14 +17,16 @@ const money2 = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
  */
 const TractionList: React.FC = () => {
   const { marketId } = useAuth();
-  const { data, loading } = useCached<ProductTraction[]>(marketId ? `tracao-lista:${marketId}` : null,
+  const { data, loading, error, refresh } = useCached<ProductTraction[]>(marketId ? `tracao-lista:${marketId}` : null,
     () => tractionService.list(marketId!, true, 100), 10 * 60_000);
 
   if (loading && !data) return <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card>;
+  // Falha não é "ainda sem cálculo": sem isso o dono acha que a loja não tem dado.
+  if (error && !data) return <LoadError what="os produtos que puxam a venda" error={error} onRetry={() => { void refresh(); }} />;
   if (!data || data.length === 0) {
     return (
       <Card>
-        <PanelTitle title="Ainda sem cálculo de tração" sub="Roda de madrugada e precisa de pelo menos 3 semanas com todas as notas." />
+        <PanelTitle title="Ainda sem o cálculo de quem puxa a venda" sub="Roda de madrugada e precisa de pelo menos 3 semanas com todas as notas." />
       </Card>
     );
   }

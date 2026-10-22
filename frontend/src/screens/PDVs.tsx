@@ -14,6 +14,7 @@ import {
 import { Card, Forest, MoreMenu, PageHero, PanelTitle } from '../components/flow/Flow';
 import { Download as HxDownload, KeyRound as HxKeyRound, Monitor as HxMonitor, MonitorSmartphone as HxMonitorSmartphone } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
+import RoleNotice from '../components/common/RoleNotice';
 
 /* ── Types ── */
 interface PDVItem {
@@ -214,6 +215,7 @@ const PDVs: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero title={headline} />
+        <RoleNotice area="OPERATION" what="cadastrar caixas nem mexer nas chaves do programa" />
 
         {/* Abas */}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da tela" />
@@ -286,7 +288,7 @@ const PDVs: React.FC = () => {
             <div className="rounded-xl p-4 flex flex-col gap-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
               <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Configuração do agente</p>
               {[
-                { label: 'URL da API', value: apiBaseUrl },
+                { label: 'Endereço do MercadoFlow (URL da API), que o programa do caixa pede', value: apiBaseUrl },
                 { label: 'ID do mercado', value: resolvedMarketId || '—' },
               ].map(row => (
                 <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5"
@@ -458,10 +460,10 @@ const PDVs: React.FC = () => {
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Como instalar</p>
               <ol className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-primary)' }}>
                 {[
-                  'Baixe e execute o instalador no computador do PDV',
-                  'Gere uma chave de API na aba Agente',
-                  'Configure a URL da API e a chave no agente instalado',
-                  'O agente começa a enviar dados automaticamente',
+                  'Baixe e execute o instalador no computador do caixa',
+                  'Gere uma chave na aba Agente',
+                  'No programa instalado, cole o endereço do MercadoFlow (URL da API, mostrado ao lado) e a chave',
+                  'O programa começa a mandar as vendas sozinho',
                 ].map((step, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"

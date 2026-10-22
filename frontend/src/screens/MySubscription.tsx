@@ -10,6 +10,7 @@ import { marketDataService } from '../services/industry.service';
 import { confirmDialog } from '../components/common/Dialogs';
 import { ShieldCheck } from 'lucide-react';
 import { CreditCard as HxCreditCard, Layers as HxLayers, Users as HxUsers } from 'lucide-react';
+import RoleNotice from '../components/common/RoleNotice';
 
 /**
  * Minha assinatura: plano e estado, o que o plano inclui, uso, créditos,
@@ -176,6 +177,7 @@ const MySubscription: React.FC = () => {
     <Layout>
       <div className="flex flex-col gap-5">
         <PageHero title="Seu plano, o que ele inclui e as faturas." side={<ActionHub icon={HxCreditCard} actions={[{ label: 'Comparar planos', icon: HxLayers, to: '/app/planos' }]} />} />
+        <RoleNotice area="BILLING" what="mudar o plano, pagar, pausar nem cancelar" />
 
         {notice && <p role="status" className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface-soft)', color: 'var(--text-primary)' }}>{notice}</p>}
         {error && <p role="alert" className="rounded-xl p-3 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>{error}</p>}

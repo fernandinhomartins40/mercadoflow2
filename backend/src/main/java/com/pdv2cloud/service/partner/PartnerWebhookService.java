@@ -60,6 +60,10 @@ public class PartnerWebhookService {
         .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
+    /** Hosts da rede interna do Docker aceitos em http só para o parceiro da casa (mesma regra do cadastro). */
+    @org.springframework.beans.factory.annotation.Value("${app.partner.internal-hosts:}")
+    private String internalHosts = "";
+
     public PartnerWebhookService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -191,25 +195,33 @@ public class PartnerWebhookService {
     public int deliverDue() {
         return TenantContext.runAsSystem(() -> {
             List<Map<String, Object>> due = jdbc.queryForList(
-                "select e.id, e.event, e.payload::text as body, e.attempts, p.webhook_url, p.webhook_secret from partner_webhook_events e " +
+                "select e.id, e.event, e.payload::text as body, e.attempts, p.webhook_url, p.webhook_secret, p.first_party " +
+                "from partner_webhook_events e " +
                 "join integration_partners p on p.id = e.partner_id where e.status = 'PENDENTE' and e.next_attempt_at <= now() " +
                 "and p.webhook_url is not null order by e.created_at limit 50", Map.of());
             int delivered = 0;
             for (Map<String, Object> e : due) {
                 String body = String.valueOf(e.get("body"));
-                String error = null;
-                try {
-                    HttpRequest req = HttpRequest.newBuilder(URI.create(String.valueOf(e.get("webhook_url"))))
-                        .timeout(Duration.ofSeconds(15))
-                        .header("Content-Type", "application/json")
-                        .header("X-MercadoFlow-Event", String.valueOf(e.get("event")))
-                        .header("X-MercadoFlow-Delivery", String.valueOf(e.get("id")))
-                        .header("X-MercadoFlow-Signature", "sha256=" + sign(String.valueOf(e.get("webhook_secret")), body))
-                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build();
-                    HttpResponse<Void> res = http.send(req, HttpResponse.BodyHandlers.discarding());
-                    if (res.statusCode() / 100 != 2) error = "HTTP " + res.statusCode();
-                } catch (Exception ex) {
-                    error = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                String url = String.valueOf(e.get("webhook_url"));
+                // Revalida o endereço na hora do envio (SEG-06): URL gravada antes da
+                // regra ou DNS trocado depois do cadastro não pode mirar a rede interna.
+                String error = blockedUrl(url, Boolean.TRUE.equals(e.get("first_party")));
+                if (error != null) {
+                    log.warn("Aviso {} não enviado: {}", e.get("id"), error);
+                } else {
+                    try {
+                        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                            .timeout(Duration.ofSeconds(15))
+                            .header("Content-Type", "application/json")
+                            .header("X-MercadoFlow-Event", String.valueOf(e.get("event")))
+                            .header("X-MercadoFlow-Delivery", String.valueOf(e.get("id")))
+                            .header("X-MercadoFlow-Signature", "sha256=" + sign(String.valueOf(e.get("webhook_secret")), body))
+                            .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build();
+                        HttpResponse<Void> res = http.send(req, HttpResponse.BodyHandlers.discarding());
+                        if (res.statusCode() / 100 != 2) error = "HTTP " + res.statusCode();
+                    } catch (Exception ex) {
+                        error = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                    }
                 }
                 int attempts = ((Number) e.get("attempts")).intValue() + 1;
                 if (error == null) {
@@ -226,5 +238,21 @@ public class PartnerWebhookService {
             }
             return delivered;
         });
+    }
+
+    /** Nulo se o endereço pode receber o aviso; senão o motivo, gravado em last_error. */
+    String blockedUrl(String url, boolean firstParty) {
+        try {
+            URI u = URI.create(url.trim());
+            if (firstParty && "http".equalsIgnoreCase(u.getScheme()) && u.getHost() != null && internalHosts != null
+                && java.util.Arrays.stream(internalHosts.split(",")).map(h -> h.trim().toLowerCase())
+                    .anyMatch(h -> !h.isEmpty() && h.equals(u.getHost().toLowerCase()))) {
+                return null;
+            }
+            com.pdv2cloud.util.OutboundUrlGuard.assertPublicHttps(url);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return "URL recusada: " + ex.getMessage();
+        }
     }
 }

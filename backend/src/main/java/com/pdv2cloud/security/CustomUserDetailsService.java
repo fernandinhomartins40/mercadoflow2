@@ -37,7 +37,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
             user.getMarket() != null ? user.getMarket().getId() : null,
             user.getRole(),
-            com.pdv2cloud.service.team.TeamRole.of(user.getTeamRole(), user.getRole())
+            com.pdv2cloud.service.team.TeamRole.of(user.getTeamRole(), user.getRole()),
+            user.getCredentialsChangedAt()
         );
     }
 

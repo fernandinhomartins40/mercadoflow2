@@ -94,8 +94,12 @@ api.interceptors.response.use(
       }
       // /parear-agente autentica sozinha no próprio fluxo: redirecionar para
       // /login perderia o código de pareamento que veio na query string.
-      const publicPaths = ['/', '/login', '/register', '/esqueci-senha', '/redefinir-senha', '/aceitar-convite', '/download-agente', '/parear-agente', '/super-admin/login'];
-      const isPublic = publicPaths.includes(window.location.pathname);
+      // Páginas abertas (encarte do cliente, indústria, conectar ERP, documentação):
+      // um 401 nelas nunca pode mandar o visitante para o login.
+      const publicPaths = ['/', '/login', '/register', '/esqueci-senha', '/redefinir-senha', '/aceitar-convite', '/download-agente', '/parear-agente', '/super-admin/login', '/para-industria', '/conectar', '/desenvolvedores'];
+      const publicPrefixes = ['/encarte/'];
+      const path = window.location.pathname.replace(/\/+$/, '') || '/';
+      const isPublic = publicPaths.includes(path) || publicPrefixes.some((p) => window.location.pathname.startsWith(p));
       if (!isPublic) {
         if (window.location.pathname === '/confere' || window.location.pathname.startsWith('/confere/')) {
           // O Confere tem entrada própria (PWA): sessão vencida volta para ela.

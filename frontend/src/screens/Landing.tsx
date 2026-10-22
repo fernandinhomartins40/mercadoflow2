@@ -64,7 +64,7 @@ const features = [
   {
     icon: ShoppingCart,
     title: 'Pedido inteligente',
-    text: 'Sugestões de reposição baseadas em tração real. Ao criar o pedido, o sistema exibe quais produtos evitar e calcula unidades por embalagem automaticamente.',
+    text: 'Sugestões de reposição baseadas no que de fato puxa a venda. Ao criar o pedido, o sistema exibe quais produtos evitar e calcula unidades por embalagem automaticamente.',
     accent: '#d97706',
     bg: '#fffbeb',
   },
@@ -308,14 +308,14 @@ const Landing: React.FC = () => {
               { href: '#como-funciona', label: 'Como funciona' },
               { href: '#planos', label: 'Planos' },
             ].map((n) => (
-              <a key={n.href} href={n.href} className="text-sm font-medium no-underline transition-colors" style={{ color: '#64748b' }}
+              <a key={n.href} href={n.href} className="inline-flex min-h-[44px] items-center text-sm font-medium no-underline transition-colors" style={{ color: '#64748b' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#0f172a')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
               >
                 {n.label}
               </a>
             ))}
-            <Link to="/para-industria" className="text-sm font-semibold no-underline transition-colors" style={{ color: '#16a34a' }}>
+            <Link to="/para-industria" className="inline-flex min-h-[44px] items-center text-sm font-semibold no-underline transition-colors" style={{ color: '#16a34a' }}>
               Para a indústria
             </Link>
           </nav>
@@ -369,7 +369,7 @@ const Landing: React.FC = () => {
                 <ButtonLink to="/register" className="!h-12 !min-h-0 !max-h-none !px-7 !text-base">
                   Começar grátis por 14 dias <ArrowRight className="h-4 w-4" />
                 </ButtonLink>
-                <a href="#como-funciona" className="inline-flex items-center gap-1.5 text-sm font-semibold no-underline transition-colors" style={{ color: '#64748b' }}
+                <a href="#como-funciona" className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold no-underline transition-colors" style={{ color: '#64748b' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#0f172a')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
                 >
@@ -748,7 +748,7 @@ const Landing: React.FC = () => {
             <ButtonLink to="/register" className="!h-12 !min-h-0 !max-h-none !px-8 !text-base">
               Começar grátis agora <ArrowRight className="h-4 w-4" />
             </ButtonLink>
-            <a href="#como-funciona" className="text-sm font-semibold no-underline transition-colors" style={{ color: '#94a3b8' }}
+            <a href="#como-funciona" className="inline-flex min-h-[44px] items-center text-sm font-semibold no-underline transition-colors" style={{ color: '#94a3b8' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#e2e8f0')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
             >
@@ -770,7 +770,7 @@ const Landing: React.FC = () => {
 
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#475569' }}>Produto</h4>
-            <ul className="mt-4 flex flex-col gap-2.5">
+            <ul className="mt-3 flex flex-col">
               {[
                 { href: '#funcionalidades', label: 'Funcionalidades' },
                 { href: '#planos', label: 'Planos' },
@@ -779,12 +779,12 @@ const Landing: React.FC = () => {
               ].map((l) => (
                 <li key={l.label}>
                   {l.to ? (
-                    <Link to={l.to} className="text-sm no-underline transition-colors" style={{ color: '#64748b' }}
+                    <Link to={l.to} className="inline-flex min-h-[44px] items-center text-sm no-underline transition-colors" style={{ color: '#64748b' }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = '#e2e8f0')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
                     >{l.label}</Link>
                   ) : (
-                    <a href={l.href} className="text-sm no-underline transition-colors" style={{ color: '#64748b' }}
+                    <a href={l.href} className="inline-flex min-h-[44px] items-center text-sm no-underline transition-colors" style={{ color: '#64748b' }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = '#e2e8f0')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
                     >{l.label}</a>
@@ -796,12 +796,12 @@ const Landing: React.FC = () => {
 
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#475569' }}>Empresa</h4>
-            <ul className="mt-4 flex flex-col gap-2.5">
+            <ul className="mt-3 flex flex-col">
               {[
                 { href: '#como-funciona', label: 'Como funciona' },
               ].map((l) => (
                 <li key={l.label}>
-                  <a href={l.href} className="text-sm no-underline transition-colors" style={{ color: '#64748b' }}
+                  <a href={l.href} className="inline-flex min-h-[44px] items-center text-sm no-underline transition-colors" style={{ color: '#64748b' }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = '#e2e8f0')}
                     onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
                   >{l.label}</a>
@@ -812,10 +812,10 @@ const Landing: React.FC = () => {
 
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#475569' }}>Contato</h4>
-            <ul className="mt-4 flex flex-col gap-2.5">
+            <ul className="mt-3 flex flex-col">
               <li><span className="text-sm break-all" style={{ color: '#64748b' }}>contato@mercadoflow.com</span></li>
               <li>
-                <Link to="/super-admin/login" className="text-sm no-underline transition-colors" style={{ color: '#334155' }}
+                <Link to="/super-admin/login" className="inline-flex min-h-[44px] items-center text-sm no-underline transition-colors" style={{ color: '#334155' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#64748b')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = '#334155')}
                 >Administração</Link>

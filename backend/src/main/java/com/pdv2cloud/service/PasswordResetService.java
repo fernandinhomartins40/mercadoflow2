@@ -147,6 +147,8 @@ public class PasswordResetService {
                 return new Result(false, "Conta não encontrada.");
             }
             user.setPassword(encoder.encode(newPassword));
+            // Sessões abertas antes da troca deixam de valer (SEG-05).
+            user.setCredentialsChangedAt(java.time.LocalDateTime.now());
             users.save(user);
             // Qualquer outro link pendente deixa de valer.
             jdbc.update("update password_reset_tokens set used_at = now() where user_id = :u and used_at is null", Map.of("u", userId));

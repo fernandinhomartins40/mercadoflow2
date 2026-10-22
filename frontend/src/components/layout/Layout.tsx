@@ -10,6 +10,7 @@ import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
 import HistoryNotice from '../intelligence/HistoryNotice';
+import { useTeamPermission } from '../../lib/teamPermissions';
 import { PageNameContext, PhotoViewer } from '../flow/Flow';
 import '../../styles/flow.css';
 import '../../styles/flow-clean.css';
@@ -52,6 +53,23 @@ const AgentStoppedBand: React.FC<{ agent: ActivationStatus['agent'] }> = ({ agen
         Os números do painel estão parados nesse dia.
       </p>
       <Link to="/app/pdvs" className="fx-btn danger small">Religar o caixa</Link>
+    </div>
+  );
+};
+
+/** Papel que não altera tudo: avisa antes do clique (o servidor recusaria com 403). */
+const ROLE_BAND: Partial<Record<string, string>> = {
+  COMPRADOR: 'pode ver tudo e mexer em compras, pedidos e na conferência do Bipaê.',
+  FINANCEIRO: 'pode ver tudo e cuidar da assinatura e dos pagamentos.',
+  LEITURA: 'pode ver tudo, mas não mudar nada.',
+};
+const RoleBand: React.FC = () => {
+  const { teamRole, label } = useTeamPermission();
+  const text = teamRole ? ROLE_BAND[teamRole] : undefined;
+  if (!text) return null;
+  return (
+    <div className="fx-band" role="note" style={{ fontSize: 14.5 }}>
+      <p><strong>Você entrou como {label}:</strong> {text} O resto, só o dono ou o gerente mudam.</p>
     </div>
   );
 };
@@ -135,6 +153,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <PageNameContext.Provider value={pageTitle(pathname)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(14px, 1.6vw, 22px)' }}>
             <SubscriptionBanner />
+            <RoleBand />
             {/* Aviso de histórico só onde se lê o todo: no resto, era ruído em toda página (F1). */}
             {(pathname === '/app' || pathname === '/app/configuracoes') && <HistoryNotice detailed={pathname === '/app/configuracoes'} />}
             {children}

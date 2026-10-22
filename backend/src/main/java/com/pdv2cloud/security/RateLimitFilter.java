@@ -15,22 +15,30 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Profile("!jobs")
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
+    /*
+     * Mapas em ordem de acesso (LinkedHashMap accessOrder), sempre usados dentro de
+     * synchronized(mapa). Ao passar do teto saem os mais antigos, poupando os
+     * buckets travados (sem fichas) -- antes um clear() zerava a trava de todos.
+     */
+    private final Map<String, Bucket> cache = new LinkedHashMap<>(16, 0.75f, true);
     /** Buckets do pareamento, chaveados por IP (nao ha API key nessas rotas). */
-    private final Map<String, Bucket> pairingCache = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> pairingCache = new LinkedHashMap<>(16, 0.75f, true);
     /** Buckets de login e cadastro, chaveados por "tipo:ip" e "tipo:email". */
-    private final Map<String, Bucket> authCache = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> authCache = new LinkedHashMap<>(16, 0.75f, true);
 
     /** Teto de chaves por mapa: sem ele uma varredura de IPs/e-mails cresce a memoria sem limite. */
-    private static final int MAX_KEYS = 50_000;
+    static final int MAX_KEYS = 50_000;
+    /** Ao passar do teto, a limpeza desce até aqui (evita varrer o mapa a cada requisição). */
+    private static final int TRIM_TO = MAX_KEYS * 9 / 10;
     private static final ObjectMapper JSON = new ObjectMapper();
 
     @Override
@@ -67,6 +75,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 }
                 return;
             }
+            // Token OAuth do parceiro: o segredo é a credencial, então limitamos o chute por IP.
+            if ("/api/v1/partner/oauth/token".equals(path)) {
+                if (consume(authCache, "partner-token:ip:" + clientIp(request), this::createPartnerTokenBucket)) {
+                    filterChain.doFilter(request, response);
+                } else {
+                    writeAuthRateLimited(response);
+                }
+                return;
+            }
             if ("/api/v1/auth/register".equals(path)) {
                 if (consume(authCache, "register:ip:" + clientIp(request), this::createRegisterBucket)) {
                     filterChain.doFilter(request, response);
@@ -75,6 +92,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 }
                 return;
             }
+        }
+
+        // Convite da equipe (ver e aceitar): rota pública com token na URL, limitada por IP.
+        if (path.startsWith("/api/v1/public/invites/")) {
+            if (consume(authCache, "invite:ip:" + clientIp(request), this::createInviteBucket)) {
+                filterChain.doFilter(request, response);
+            } else {
+                writeAuthRateLimited(response);
+            }
+            return;
         }
 
         // Pareamento do agente: rotas publicas, sem API key para identificar o
@@ -106,9 +133,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        Bucket bucket = resolveBucket(apiKey);
-
-        if (bucket.tryConsume(1)) {
+        if (consume(cache, apiKey, this::createNewBucket)) {
             filterChain.doFilter(request, response);
         } else {
             writeRateLimited(response);
@@ -116,10 +141,34 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean consume(Map<String, Bucket> buckets, String key, java.util.function.Supplier<Bucket> factory) {
-        if (buckets.size() > MAX_KEYS) {
-            buckets.clear();
+        Bucket bucket;
+        synchronized (buckets) {
+            bucket = buckets.computeIfAbsent(key, k -> factory.get());
+            if (buckets.size() > MAX_KEYS) {
+                trim(buckets, key);
+            }
         }
-        return buckets.computeIfAbsent(key, k -> factory.get()).tryConsume(1);
+        return bucket.tryConsume(1);
+    }
+
+    /**
+     * Remove os buckets acessados há mais tempo até {@link #TRIM_TO}. Primeiro passa
+     * só pelos que ainda têm fichas (a trava de quem estourou o limite fica); se não
+     * bastar, remove os mais antigos mesmo travados. A chave atual nunca sai.
+     */
+    private static void trim(Map<String, Bucket> buckets, String keep) {
+        for (int pass = 0; pass < 2 && buckets.size() > TRIM_TO; pass++) {
+            Iterator<Map.Entry<String, Bucket>> it = buckets.entrySet().iterator();
+            while (it.hasNext() && buckets.size() > TRIM_TO) {
+                Map.Entry<String, Bucket> e = it.next();
+                if (e.getKey().equals(keep)) {
+                    continue;
+                }
+                if (pass == 1 || e.getValue().getAvailableTokens() > 0) {
+                    it.remove();
+                }
+            }
+        }
     }
 
     private String loginEmail(CachedBodyHttpServletRequest request) {
@@ -156,6 +205,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(15)))).build();
     }
 
+    private Bucket createPartnerTokenBucket() {
+        // 20/min por IP: o parceiro renova o token de hora em hora; não cabe chute de segredo.
+        return Bucket.builder().addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofMinutes(1)))).build();
+    }
+
+    private Bucket createInviteBucket() {
+        // 30 a cada 15 min por IP: abrir o convite e aceitar cabem com folga; varrer tokens, não.
+        return Bucket.builder().addLimit(Bandwidth.classic(30, Refill.intervally(30, Duration.ofMinutes(15)))).build();
+    }
+
     private Bucket createRegisterBucket() {
         return Bucket.builder().addLimit(Bandwidth.classic(5, Refill.intervally(5, Duration.ofHours(1)))).build();
     }
@@ -185,10 +244,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return realIp.trim();
         }
         return request.getRemoteAddr();
-    }
-
-    private Bucket resolveBucket(String apiKey) {
-        return cache.computeIfAbsent(apiKey, key -> createNewBucket());
     }
 
     private Bucket createNewBucket() {

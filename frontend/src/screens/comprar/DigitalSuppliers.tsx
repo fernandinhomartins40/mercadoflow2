@@ -8,7 +8,10 @@ import { useAuth } from '../../context/AuthContext';
 import {
   brlCents, brlPrice, marketCommerceService as svc, qtyLabel, type CatalogItem, type InboxCampaign, type MarketSeller, type Order,
 } from '../../services/commerce.service';
+import LoadError from '../../components/common/LoadError';
 import { Drawer, OrderChip, dateOnly, dateTime, tableStyle, tdStyle, thStyle, useAction, useLoad } from '../vendas/ui';
+import { useTeamPermission } from '../../lib/teamPermissions';
+import RoleNotice from '../../components/common/RoleNotice';
 
 /**
  * Compras digitais da loja: catálogo de cada indústria e distribuidor que
@@ -37,13 +40,14 @@ const DigitalSuppliersPage: React.FC = () => {
     <>
       <PageHero title="Catálogos de quem atende a sua loja, com o preço que vale para você."
         subtitle="O pedido vai para o fornecedor e também aparece em Pedidos." />
+      <RoleNotice area="OPERATION" what="enviar pedidos digitais nem responder campanhas" />
       <PillTabs label="Compras digitais" value={tab} onChange={setTab} tabs={[
         { key: 'comprar', label: 'Fornecedores', icon: Store },
         { key: 'campanhas', label: 'Campanhas recebidas', icon: Megaphone, count: fresh },
         { key: 'pedidos', label: 'Pedidos digitais', icon: ShoppingBag },
       ]} />
       {tab === 'comprar' && <Buy marketId={marketId} onOrdered={() => setTab('pedidos')} />}
-      {tab === 'campanhas' && <Inbox marketId={marketId} list={inbox.data} reload={inbox.reload} onOrdered={() => setTab('pedidos')} />}
+      {tab === 'campanhas' && <Inbox marketId={marketId} list={inbox.data} error={inbox.error} reload={inbox.reload} onOrdered={() => setTab('pedidos')} />}
       {tab === 'pedidos' && <MyOrders marketId={marketId} />}
     </>
   );
@@ -60,7 +64,8 @@ const Buy: React.FC<{ marketId: string; onOrdered: () => void }> = ({ marketId, 
   return (
     <Card>
       <PanelTitle icon={Store} title="Quem atende a sua loja" sub="Só aparecem os vendedores com produtos que podem ser vendidos para a sua loja, respeitando os contratos de distribuição." />
-      {!sellers.data ? <p className="fx-muted">Carregando…</p> : available.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Ainda nenhum vendedor atende a sua região pela plataforma.</p> : (
+      {!sellers.data && sellers.error ? <LoadError inline what="os fornecedores" error={{ message: sellers.error }} onRetry={() => { void sellers.reload(); }} />
+        : !sellers.data ? <p className="fx-muted">Carregando…</p> : available.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Ainda nenhum vendedor atende a sua região pela plataforma.</p> : (
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', marginTop: 14 }}>
           {available.map((s) => (
             <button key={s.id} type="button" className="fx-row" style={{ textAlign: 'left', alignItems: 'flex-start' }} onClick={() => setSeller(s)}>
@@ -85,6 +90,7 @@ const SellerCatalog: React.FC<{ marketId: string; seller: MarketSeller; onBack: 
   const [cart, setCart] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState('');
   const act = useAction();
+  const denied = useTeamPermission().hint('OPERATION');
   const items = useMemo(() => (catalog.data ?? []).filter((i) => !q || `${i.name} ${i.gtin} ${i.brand ?? ''}`.toLowerCase().includes(q.toLowerCase())), [catalog.data, q]);
   const byGtin = useMemo(() => Object.fromEntries((catalog.data ?? []).map((i) => [i.gtin, i])), [catalog.data]);
   const price = (i: CatalogItem, qty: number) => {
@@ -111,7 +117,8 @@ const SellerCatalog: React.FC<{ marketId: string; seller: MarketSeller; onBack: 
           <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Search size={15} aria-hidden="true" />Procurar no catálogo</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, marca ou código" />
         </label>
-        {!catalog.data ? <p className="fx-muted">Carregando…</p> : items.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nada encontrado.</p> : (
+        {!catalog.data && catalog.error ? <LoadError inline what="o catálogo" error={{ message: catalog.error }} onRetry={() => { void catalog.reload(); }} />
+          : !catalog.data ? <p className="fx-muted">Carregando…</p> : items.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nada encontrado.</p> : (
           <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'grid', gap: 8 }}>
             {items.map((i) => {
               const qty = cart[i.gtin] ?? 0;
@@ -158,7 +165,7 @@ const SellerCatalog: React.FC<{ marketId: string; seller: MarketSeller; onBack: 
         <label className="fx-field" style={{ marginTop: 12, color: 'inherit' }}>Observação para o vendedor
           <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
-        <button type="button" className="fx-btn lime" style={{ marginTop: 12, width: '100%' }} disabled={act.busy || lines.length === 0 || total < seller.min_order_cents}
+        <button type="button" className="fx-btn lime" style={{ marginTop: 12, width: '100%' }} disabled={act.busy || lines.length === 0 || total < seller.min_order_cents || !!denied} title={denied}
           onClick={async () => {
             const r = await act.run(() => svc.createOrder(marketId, { sellerId: seller.id, items: lines.map((l) => ({ gtin: l.item.gtin, quantity: l.qty })), notes }));
             if (r) { setCart({}); onOrdered(); }
@@ -172,8 +179,9 @@ const SellerCatalog: React.FC<{ marketId: string; seller: MarketSeller; onBack: 
 
 // ── Campanhas recebidas ───────────────────────────────────────────────────
 
-const Inbox: React.FC<{ marketId: string; list: InboxCampaign[] | null; reload: () => Promise<void>; onOrdered: () => void }> = ({ marketId, list, reload, onOrdered }) => {
+const Inbox: React.FC<{ marketId: string; list: InboxCampaign[] | null; error?: string | null; reload: () => Promise<void>; onOrdered: () => void }> = ({ marketId, list, error, reload, onOrdered }) => {
   const [open, setOpen] = useState<InboxCampaign | null>(null);
+  if (!list && error) return <LoadError what="as campanhas" error={{ message: error }} onRetry={() => { void reload(); }} />;
   if (!list) return <p className="fx-muted">Carregando…</p>;
   return (
     <Card>
@@ -275,7 +283,8 @@ const MyOrders: React.FC<{ marketId: string }> = ({ marketId }) => {
   return (
     <Card>
       <PanelTitle icon={ShoppingBag} title="Pedidos digitais" sub="Acompanhe a confirmação, a nota e a entrega de cada pedido." />
-      {!list.data ? <p className="fx-muted">Carregando…</p> : list.data.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nenhum pedido digital ainda.</p> : (
+      {!list.data && list.error ? <LoadError inline what="os pedidos digitais" error={{ message: list.error }} onRetry={() => { void list.reload(); }} />
+        : !list.data ? <p className="fx-muted">Carregando…</p> : list.data.length === 0 ? <p className="fx-muted" style={{ marginTop: 12 }}>Nenhum pedido digital ainda.</p> : (
         <div style={{ overflowX: 'auto', marginTop: 12 }}>
           <table style={tableStyle}>
             <thead><tr><th style={thStyle}>Pedido</th><th style={thStyle}>Vendedor</th><th style={thStyle}>Valor</th><th style={thStyle}>Situação</th><th style={thStyle} /></tr></thead>

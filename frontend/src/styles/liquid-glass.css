@@ -265,6 +265,7 @@
   border-radius: 32px;
   color: var(--lg-ink);
 }
+.login-card.lg-thick h1,
 .login-card.lg-thick h2,
 .super-admin-login-card.lg-thick h2 {
   margin: 0;
@@ -313,6 +314,13 @@
 }
 .login-card.lg-thick .login-switch a {
   color: var(--lg-green);
+}
+/* Alvo de toque de 44 px (WCAG 2.5.5) sem mudar o texto de lugar. */
+.login-card.lg-thick .login-switch a,
+.login-card.lg-thick .login-switch .link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 @media (max-width: 480px) {
   .login-card.lg-thick,

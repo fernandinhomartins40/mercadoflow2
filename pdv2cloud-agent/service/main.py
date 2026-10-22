@@ -8,7 +8,7 @@ import threading
 import schedule
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from .config import load_config_secure, save_config
+from .config import load_config_secure, save_config, validate_api_url
 from .crypto import SecureConfig
 from .queue_manager import QueueManager
 from .watcher import FileWatcher
@@ -106,6 +106,12 @@ class ServiceApp:
                 "healthcheck_port": 8765,
                 "auto_update_enabled": True,
             }
+
+        url_ok, url_reason = validate_api_url(self.config.get("api_url", ""))
+        if not url_ok:
+            # Recusa a URL insegura: o agente fica em standby até corrigir o config.json.
+            logger.error("%s Agente em standby ate corrigir o config.json.", url_reason)
+            self.config["api_url"] = ""
 
         api_key = self.config.get("api_key", "")
         if not api_key:

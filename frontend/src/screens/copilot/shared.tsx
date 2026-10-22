@@ -32,11 +32,11 @@ export const apiError = (e: unknown, fallback: string) => {
   return data?.message || data?.userMessage || fallback;
 };
 
-/** Certeza da triagem em palavras. */
+/** Confiança da triagem em palavras (mesmo termo de utils/plain.confidenceLabel). */
 export const certainty = (d: CopilotDecision) => {
   const p = d.funnel?.probabilidadeVale ?? d.funnel?.confianca;
   if (p == null) return null;
-  return p >= 0.8 ? 'Certeza alta' : p >= 0.55 ? 'Certeza média' : 'Certeza baixa';
+  return p >= 0.8 ? 'Confiança alta' : p >= 0.55 ? 'Confiança média' : 'Confiança baixa';
 };
 
 /** Valor da decisão para a lista e para o título. */

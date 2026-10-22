@@ -1,6 +1,9 @@
 package com.pdv2cloud.security;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -23,6 +26,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String AUTH_SCOPE_HEADER = "X-Auth-Scope";
     private static final String MAIN_COOKIE_NAME = "pdv2cloud_token";
     private static final String SUPER_ADMIN_COOKIE_NAME = "pdv2cloud_superadmin_token";
+    /** Folga para o token emitido no mesmo instante da troca (iat tem precisão de segundo). */
+    private static final long REVOCATION_TOLERANCE_MS = 1000;
 
     @Autowired
     private JwtTokenProvider tokenProvider;
@@ -54,6 +59,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
+            // Senha trocada, papel mudado ou titularidade transferida: tokens
+            // emitidos antes disso deixam de valer (SEG-05).
+            if (issuedBeforeCredentialsChange(token, userDetails)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -61,6 +72,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean issuedBeforeCredentialsChange(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof AppUserDetails app) || app.getCredentialsChangedAt() == null) {
+            return false;
+        }
+        Date issuedAt = tokenProvider.getIssuedAt(token);
+        if (issuedAt == null) {
+            return true;
+        }
+        LocalDateTime changedAt = app.getCredentialsChangedAt();
+        long changedMs = changedAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return issuedAt.getTime() + REVOCATION_TOLERANCE_MS < changedMs;
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

@@ -513,7 +513,7 @@ const ProductDetail: React.FC = () => {
 
         {/* ── Entender: uma leitura de cada vez ── */}
         <PillTabs<'tracao' | 'vendas' | 'preco' | 'junto'> label="Ver do produto" value={view} onChange={setView} tabs={[
-          { key: 'tracao', label: 'Tração e giro' },
+          { key: 'tracao', label: 'Puxa venda e giro' },
           { key: 'vendas', label: 'Vendas' },
           { key: 'preco', label: 'Preço' },
           { key: 'junto', label: 'Vende junto', count: relatedPairs.length },

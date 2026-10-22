@@ -146,7 +146,7 @@ const Register: React.FC = () => {
     <div className="login-page lg-canvas">
       <div className="lg-thick login-card" style={{ maxWidth: '520px' }}>
         <AuthBrand badge="Grátis" />
-        <h2>Criar conta grátis</h2>
+        <h1>Criar conta grátis</h1>
         <p className="login-lead">
           Comece agora no plano gratuito, sem cartão de crédito. Você já pode instalar o Agente
           Mercado Flow e receber suas notas fiscais.

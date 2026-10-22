@@ -231,14 +231,18 @@ const McpCard: React.FC<{ marketId: string }> = ({ marketId }) => {
 const HowItWorks: React.FC<{ marketId: string; onClose: () => void; onAloneChange: (v: boolean) => void }> = ({ marketId, onClose, onAloneChange }) => {
   const [agents, setAgents] = useState<CopilotAgentSettings[] | null>(null);
   const [prefs, setPrefs] = useState<CopilotPrefs | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [lessons, setLessons] = useState<CopilotLesson[]>([]);
   const [platform, setPlatform] = useState<AutonomyConfig | null>(null);
   useEffect(() => {
-    copilotAgentsService.agents(marketId).then((r) => { setAgents(r.agentes); setPrefs(r.preferencias); setLessons(r.licoes); setPlatform(r.autonomia); });
+    setLoadError(null);
+    copilotAgentsService.agents(marketId).then((r) => { setAgents(r.agentes); setPrefs(r.preferencias); setLessons(r.licoes); setPlatform(r.autonomia); })
+      .catch((e) => setLoadError(apiError(e, 'Não foi possível carregar os agentes.')));
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [marketId, onClose]);
+  }, [marketId, onClose, attempt]);
   return (
     <>
       <div className="fx-shade" onClick={onClose} aria-hidden="true" />
@@ -250,7 +254,12 @@ const HowItWorks: React.FC<{ marketId: string; onClose: () => void; onAloneChang
           </div>
           <button type="button" className="fx-btn ghost small" onClick={onClose} aria-label="Fechar"><X aria-hidden="true" /></button>
         </div>
-        {!agents || !prefs ? <p className="fx-muted">Carregando…</p> : (
+        {(!agents || !prefs) && loadError ? (
+          <div role="alert">
+            <p className="fx-muted">{loadError}</p>
+            <button type="button" className="fx-btn dark" onClick={() => setAttempt((n) => n + 1)}>Tentar de novo</button>
+          </div>
+        ) : !agents || !prefs ? <p className="fx-muted">Carregando…</p> : (
           <>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {agents.map((a) => <AgentRow key={a.agent} marketId={marketId} agent={a} platform={platform}

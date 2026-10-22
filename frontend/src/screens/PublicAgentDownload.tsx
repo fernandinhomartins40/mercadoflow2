@@ -144,7 +144,7 @@ const PublicAgentDownload: React.FC = () => {
                           letterSpacing: '0.08em',
                         }}
                       >
-                        SHA256
+                        Código de verificação do arquivo (SHA-256)
                       </span>
                       <div className="code-box" style={{ marginTop: 6 }}>
                         {installerInfo.sha256}

@@ -172,8 +172,8 @@ const Connect: React.FC = () => {
               </div>
               <p className={muted}>
                 {preview.firstParty
-                  ? 'Sistema da mesma empresa do MercadoFlow. Giro, tração e previsão continuam só aqui.'
-                  : 'Giro, tração, previsão e as recomendações do Tino nunca saem para o sistema.'}
+                  ? 'Sistema da mesma empresa do MercadoFlow. Giro, o que puxa venda e previsão continuam só aqui.'
+                  : 'Giro, o que puxa venda, previsão e as recomendações do Tino nunca saem para o sistema.'}
                 {' '}Só o dono da loja aprova, e pode revogar quando quiser em Integrações.
               </p>
               {error && <p className="text-sm font-medium text-red-600">{error}</p>}

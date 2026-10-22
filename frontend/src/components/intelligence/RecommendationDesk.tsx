@@ -9,6 +9,7 @@ import { NeighborhoodLine } from '../product/NeighborhoodPrice';
 import { localPriceService, type LocalPriceSnapshot } from '../../services/localPrice.service';
 import { decisionInputsService, moneyInput, parseMoney, type KnownInputs } from '../../services/decisionInputs.service';
 import { confidenceLabel } from '../../utils/plain';
+import { useTeamPermission } from '../../lib/teamPermissions';
 
 /** Promover, liquidar e comprar não se aceitam às cegas: custo e preço por item. */
 export const needsInputs = (rec: RecommendationItem) =>
@@ -31,6 +32,7 @@ const RecommendationDesk: React.FC<{
   deciding: boolean;
   onDecide: (id: string, decision: 'ACEITA' | 'REJEITADA') => void;
 }> = ({ rec, marketId, deciding, onDecide }) => {
+  const denied = useTeamPermission().hint('PURCHASING');
   const [trace, setTrace] = useState(false);
   const inputs = !!marketId && needsInputs(rec);
   const productId = rec.productId || rec.parameters?.produtoId || null;
@@ -129,6 +131,7 @@ const RecommendationDesk: React.FC<{
             {problem && <p role="alert" style={{ color: 'var(--fx-red)', margin: '8px 0 0', fontSize: 14 }}>{problem}</p>}
           </div>
         )}
+        {denied ? <p role="note" style={{ margin: '16px 0 0', fontSize: 14 }}>{denied}</p> : (
         <div className="fx-actions" style={{ marginTop: 16 }}>
           <button type="button" className="fx-btn dark" disabled={deciding || saving} onClick={accept}>
             {saving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}{goesToOrder(rec) ? 'Aceitar e pôr no pedido' : 'Aceitar'}
@@ -137,6 +140,7 @@ const RecommendationDesk: React.FC<{
             <X aria-hidden="true" />Não faz sentido
           </button>
         </div>
+        )}
       </div>
     </Forest>
   );

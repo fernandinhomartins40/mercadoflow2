@@ -20,7 +20,7 @@ const AiCreditsCard: React.FC<{ marketId: string }> = ({ marketId }) => {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(() => { aiCreditsService.status(marketId).then(setData).catch(() => setError('Não foi possível carregar os créditos.')); }, [marketId]);
+  const load = useCallback(() => { setError(null); aiCreditsService.status(marketId).then(setData).catch((e: { message?: string }) => setError(`Não foi possível carregar os créditos. ${e?.message ?? ''}`.trim())); }, [marketId]);
   useEffect(load, [load]);
 
   // Pix pendente: consulta até o pagamento ser confirmado.
@@ -58,7 +58,12 @@ const AiCreditsCard: React.FC<{ marketId: string }> = ({ marketId }) => {
         </div>
       </div>
 
-      {!data ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : (
+      {!data && error ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3">
+          <p className="text-sm" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>
+          <button type="button" className="fx-btn ghost small" style={{ minHeight: 44 }} onClick={load}>Tentar de novo</button>
+        </div>
+      ) : !data ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" aria-label="Carregando" /> : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl p-4" style={{ background: 'var(--surface-soft)' }}>

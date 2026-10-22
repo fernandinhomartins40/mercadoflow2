@@ -165,7 +165,7 @@ public class OpportunityController {
         PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         return ResponseEntity.ok(recommendationRepository.findPendingByMarket(marketId)
             .stream()
-            .filter(r -> r.getOpportunity() == null || planService.canSeeOpportunityType(limits, r.getOpportunity().getType()))
+            .filter(r -> planService.canSeeRecommendation(limits, r))
             .map(RecommendationDTO::from).toList());
     }
 
@@ -180,8 +180,11 @@ public class OpportunityController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+        // Decisão tomada no teste grátis com tipo pago não reaparece no gratuito (REC-07).
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         return ResponseEntity.ok(recommendationRepository.findDecidedByMarket(marketId)
-            .stream().map(RecommendationDTO::from).toList());
+            .stream().filter(r -> planService.canSeeRecommendation(limits, r))
+            .map(RecommendationDTO::from).toList());
     }
 
     /** Marca como vistas as oportunidades que o usuário abriu no feed. */
@@ -245,6 +248,7 @@ public class OpportunityController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+        assertRecommendationVisible(marketId, recommendationId);
 
         String decisionRaw = body.getOrDefault("decision", "");
         Recommendation.Status decision;
@@ -283,6 +287,7 @@ public class OpportunityController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+        assertRecommendationVisible(marketId, recommendationId);
         try {
             RecommendationOrderService.DecisionResult result = recommendationOrderService.addToOrder(
                 marketId, recommendationId, parseUuid(body.get("supplierId")));
@@ -300,6 +305,7 @@ public class OpportunityController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+        assertRecommendationVisible(marketId, recommendationId);
         try {
             RecommendationOrderService.UndoResult result = recommendationOrderService.undo(
                 marketId, recommendationId, authentication.getName());
@@ -310,6 +316,19 @@ public class OpportunityController {
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(Map.of("message", e.getMessage()));
         }
+    }
+
+    /**
+     * Ação por id de recomendação de tipo pago: o id não aparece mais nas
+     * listas do gratuito, e também é recusado se for informado (REC-07).
+     * Recomendação inexistente segue para o serviço, que já responde como antes.
+     */
+    private void assertRecommendationVisible(UUID marketId, UUID recommendationId) {
+        recommendationRepository.findWithOpportunity(recommendationId, marketId).ifPresent(r -> {
+            if (!planService.canSeeRecommendation(planService.limitsFor(marketId), r)) {
+                throw new com.pdv2cloud.exception.CustomExceptions.NotFound("Recomendação não encontrada");
+            }
+        });
     }
 
     private static UUID parseUuid(String raw) {
