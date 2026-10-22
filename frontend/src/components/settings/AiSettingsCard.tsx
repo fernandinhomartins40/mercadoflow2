@@ -48,7 +48,7 @@ const AiSettingsCard: React.FC<{ marketId?: string | null }> = ({ marketId }) =>
 
   const [form, setForm] = useState<{
     provider: AiProviderId; apiKey: string; baseUrl: string; model: string;
-  }>({ provider: 'GROQ', apiKey: '', baseUrl: '', model: '' });
+  }>({ provider: 'OPENROUTER', apiKey: '', baseUrl: '', model: '' });
 
   const selected = useMemo(
     () => providers.find(p => p.id === form.provider),

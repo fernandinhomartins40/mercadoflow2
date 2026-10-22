@@ -310,7 +310,7 @@ class DataChatServiceTest {
 
     private AiOrchestrator.ActiveCredential credential() {
         return new AiOrchestrator.ActiveCredential(
-            com.pdv2cloud.service.ai.AiProvider.GROQ,
+            com.pdv2cloud.service.ai.AiProvider.OPENAI,
             "https://api.groq.com/openai/v1",
             "sk-teste",
             "llama-3.3-70b-versatile",

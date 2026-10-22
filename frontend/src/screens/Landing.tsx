@@ -815,7 +815,7 @@ const Landing: React.FC = () => {
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#475569' }}>Contato</h4>
             <ul className="mt-3 flex flex-col">
-              <li><span className="text-sm break-all" style={{ color: '#64748b' }}>contato@mercadoflow.com</span></li>
+              <li><span className="text-sm break-all" style={{ color: '#64748b' }}>fuseagencia10@gmail.com</span></li>
               <li>
                 <Link to="/super-admin/login" className="inline-flex min-h-[44px] items-center text-sm no-underline transition-colors" style={{ color: '#334155' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#64748b')}

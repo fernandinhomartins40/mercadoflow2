@@ -206,6 +206,10 @@ public class AiOrchestrator {
                 continue;
             }
             // Só camada paga (LGPD-07): modelo gratuito nunca recebe os dados.
+            if (credential.getProvider().retired()) {
+                lastError = AiProvider.RETIRED_REFUSED;
+                continue;
+            }
             if (AiProvider.isFreeModel(credential.effectiveModel())) {
                 lastError = AiProvider.FREE_MODEL_REFUSED;
                 continue;
@@ -277,6 +281,9 @@ public class AiOrchestrator {
      * texto, seria uma experiência ruim.
      */
     public LlmClient.LlmResponse testCredential(AiProviderCredential credential) {
+        if (credential.getProvider().retired()) {
+            return LlmClient.LlmResponse.fail(AiProvider.RETIRED_REFUSED, false, 0);
+        }
         if (AiProvider.isFreeModel(credential.effectiveModel())) {
             return LlmClient.LlmResponse.fail(AiProvider.FREE_MODEL_REFUSED, false, 0);
         }
@@ -341,7 +348,8 @@ public class AiOrchestrator {
                 decision.model(), null, decision.route()));
         }
         for (AiProviderCredential credential : credentialRepository.findChain(marketId)) {
-            if (isOpen(credential.getId()) || AiProvider.isFreeModel(credential.effectiveModel())) {
+            if (isOpen(credential.getId()) || credential.getProvider().retired()
+                || AiProvider.isFreeModel(credential.effectiveModel())) {
                 continue;
             }
             try {

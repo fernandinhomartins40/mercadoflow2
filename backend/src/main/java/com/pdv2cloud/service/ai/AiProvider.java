@@ -91,6 +91,19 @@ public enum AiProvider {
     }
 
     /** Frase para o cliente quando um modelo gratuito é recusado. */
+    /**
+     * Fora do catálogo do lojista (dono, 22/10/2026): têm camada gratuita e a API
+     * não diz se a chave do cliente é de conta paga. Os valores ficam na enum
+     * porque credenciais antigas guardam o nome; só não são cadastrados nem usados.
+     */
+    public boolean retired() {
+        return this == CEREBRAS || this == GROQ || this == NVIDIA_NIM || this == GEMINI;
+    }
+
+    public static final String RETIRED_REFUSED =
+        "Este provedor saiu da lista: ele tem plano gratuito, em que pode usar seus dados para treinar a IA. "
+            + "Use OpenRouter, OpenAI, DeepSeek ou um endpoint próprio.";
+
     public static final String FREE_MODEL_REFUSED =
         "Modelos gratuitos não são aceitos: nesses planos o provedor pode usar seus dados para treinar a IA. "
             + "Escolha um modelo pago.";

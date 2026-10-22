@@ -101,6 +101,8 @@ export const cancelPairing = async (apiUrl: string): Promise<void> => {
   }
   const base = normalizeApiUrl(apiUrl);
   const userCode = activeUserCode;
+  // O servidor exige o segredo para cancelar sessão já aprovada (SEG-12).
+  const agentSecret = activeSecret;
   activeSecret = null;
   activeUserCode = null;
 
@@ -108,7 +110,7 @@ export const cancelPairing = async (apiUrl: string): Promise<void> => {
     await fetch(`${base}/api/v1/agent-pairing/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userCode }),
+      body: JSON.stringify({ userCode, agentSecret }),
     });
   } catch (err) {
     logger.debug('Falha ao cancelar pareamento (ignorado)', err);

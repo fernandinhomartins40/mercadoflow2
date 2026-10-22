@@ -63,6 +63,7 @@ public class AiSettingsController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         List<Map<String, Object>> catalog = Arrays.stream(AiProvider.values())
+            .filter(p -> !p.retired())
             .map(p -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", p.name());

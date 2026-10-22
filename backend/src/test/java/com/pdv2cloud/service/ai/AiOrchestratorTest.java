@@ -100,7 +100,7 @@ class AiOrchestratorTest {
     @Test
     void provedorRespondendoDevolveOTextoDaIa() {
         when(credentialRepository.findChain(marketId))
-            .thenReturn(List.of(credential(AiProvider.GROQ, 10)));
+            .thenReturn(List.of(credential(AiProvider.OPENAI, 10)));
         when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
             anyInt(), anyDouble()))
             .thenReturn(LlmClient.LlmResponse.ok("Análise escrita pelo modelo.", 100, 40, 800));
@@ -109,13 +109,13 @@ class AiOrchestratorTest {
 
         assertEquals("Análise escrita pelo modelo.", result.content());
         assertFalse(result.deterministic());
-        assertEquals("GROQ", result.provider());
+        assertEquals("OPENAI", result.provider());
 
         // A gravação vai para o recorder, que tem transação própria: o
         // orquestrador roda fora de transação para não prender conexão do pool
         // durante a chamada HTTP.
         verify(usageRecorder).storeInterpretation(eq(marketId), anyString(), anyString(),
-            any(), eq("hash-abc"), eq("Análise escrita pelo modelo."), eq("GROQ"),
+            any(), eq("hash-abc"), eq("Análise escrita pelo modelo."), eq("OPENAI"),
             anyString(), anyString(), eq(false));
     }
 
@@ -128,7 +128,7 @@ class AiOrchestratorTest {
     @Test
     void fallbackDeCadeiaQueFalhouEGuardadoComoDeterministico() {
         when(credentialRepository.findChain(marketId))
-            .thenReturn(List.of(credential(AiProvider.GROQ, 10)));
+            .thenReturn(List.of(credential(AiProvider.OPENAI, 10)));
         when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
             anyInt(), anyDouble()))
             .thenReturn(LlmClient.LlmResponse.fail("provedor fora do ar", true, 100));
@@ -159,28 +159,28 @@ class AiOrchestratorTest {
     @Test
     void primeiroProvedorFalhandoCaiParaOSegundo() {
         when(credentialRepository.findChain(marketId)).thenReturn(List.of(
-            credential(AiProvider.CEREBRAS, 10),
-            credential(AiProvider.GROQ, 20)
+            credential(AiProvider.DEEPSEEK, 10),
+            credential(AiProvider.OPENAI, 20)
         ));
-        when(llmClient.chat(eq(AiProvider.CEREBRAS.defaultBaseUrl()), anyString(), anyString(),
+        when(llmClient.chat(eq(AiProvider.DEEPSEEK.defaultBaseUrl()), anyString(), anyString(),
             anyString(), anyString(), anyInt(), anyDouble()))
             .thenReturn(LlmClient.LlmResponse.fail("HTTP 429", true, 100));
-        when(llmClient.chat(eq(AiProvider.GROQ.defaultBaseUrl()), anyString(), anyString(),
+        when(llmClient.chat(eq(AiProvider.OPENAI.defaultBaseUrl()), anyString(), anyString(),
             anyString(), anyString(), anyInt(), anyDouble()))
             .thenReturn(LlmClient.LlmResponse.ok("Escrito pelo segundo.", 50, 20, 300));
 
         AiOrchestrator.Interpretation result = interpret();
 
         assertEquals("Escrito pelo segundo.", result.content());
-        assertEquals("GROQ", result.provider());
+        assertEquals("OPENAI", result.provider());
     }
 
     /** Toda a cadeia falhando ainda entrega algo ao usuário. */
     @Test
     void cadeiaInteiraFalhandoDevolveFallback() {
         when(credentialRepository.findChain(marketId)).thenReturn(List.of(
-            credential(AiProvider.CEREBRAS, 10),
-            credential(AiProvider.GROQ, 20)
+            credential(AiProvider.DEEPSEEK, 10),
+            credential(AiProvider.OPENAI, 20)
         ));
         when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
             anyInt(), anyDouble()))
@@ -203,7 +203,7 @@ class AiOrchestratorTest {
         AiInterpretation cached = new AiInterpretation();
         cached.setContent("Texto já gerado antes.");
         cached.setDeterministic(false);
-        cached.setProvider("GROQ");
+        cached.setProvider("OPENAI");
         when(interpretationRepository.findByMarketIdAndTaskAndContextHash(
             marketId, "TAREFA", "hash-abc")).thenReturn(Optional.of(cached));
 
@@ -221,7 +221,7 @@ class AiOrchestratorTest {
      */
     @Test
     void provedorQueFalhouNaoEDeTentadoNaChamadaSeguinte() {
-        AiProviderCredential groq = credential(AiProvider.GROQ, 10);
+        AiProviderCredential groq = credential(AiProvider.OPENAI, 10);
         when(credentialRepository.findChain(marketId)).thenReturn(List.of(groq));
         when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
             anyInt(), anyDouble()))
@@ -270,7 +270,7 @@ class AiOrchestratorTest {
         when(interpretationRepository.findByMarketIdAndTaskAndContextHash(
             marketId, "TAREFA", "hash-abc")).thenReturn(Optional.of(cached));
         when(credentialRepository.findChain(marketId))
-            .thenReturn(List.of(credential(AiProvider.GROQ, 10)));
+            .thenReturn(List.of(credential(AiProvider.OPENAI, 10)));
         when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
             anyInt(), anyDouble()))
             .thenReturn(LlmClient.LlmResponse.ok("Agora a IA respondeu.", 10, 20, 100));
@@ -302,7 +302,7 @@ class AiOrchestratorTest {
      */
     @Test
     void credencialNovaEsqueceFalhasETiraDaQuarentena() {
-        AiProviderCredential groq = credential(AiProvider.GROQ, 10);
+        AiProviderCredential groq = credential(AiProvider.OPENAI, 10);
         when(credentialRepository.findChain(marketId)).thenReturn(List.of(groq));
         when(llmClient.chat(anyString(), anyString(), anyString(), anyString(), anyString(),
             anyInt(), anyDouble()))

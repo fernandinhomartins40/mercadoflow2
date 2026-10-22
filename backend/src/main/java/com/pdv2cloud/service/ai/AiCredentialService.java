@@ -118,6 +118,9 @@ public class AiCredentialService {
                     + "(app.ai.encryption-key). Sem ela, guardar a sua chave de API "
                     + "em segurança é impossível.");
         }
+        if (provider.retired()) {
+            throw new IllegalArgumentException(AiProvider.RETIRED_REFUSED);
+        }
         if (AiProvider.isFreeModel(model)
             || ((model == null || model.isBlank()) && AiProvider.isFreeModel(provider.defaultModel()))) {
             throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
@@ -207,6 +210,9 @@ public class AiCredentialService {
         AiProviderCredential credential = credentialRepository
             .findByIdAndMarketId(credentialId, marketId)
             .orElseThrow(() -> new IllegalArgumentException("Credencial não encontrada"));
+        if (enabled && credential.getProvider().retired()) {
+            throw new IllegalArgumentException(AiProvider.RETIRED_REFUSED);
+        }
         if (enabled && AiProvider.isFreeModel(credential.effectiveModel())) {
             throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
         }

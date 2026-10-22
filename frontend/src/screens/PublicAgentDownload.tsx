@@ -190,7 +190,7 @@ const PublicAgentDownload: React.FC = () => {
 
       <footer className="landing-footer">
         <span>MercadoFlow - Inteligência de Vendas</span>
-        <span>contato@mercadoflow.com</span>
+        <span>fuseagencia10@gmail.com</span>
       </footer>
     </div>
   );

@@ -118,6 +118,37 @@ class PaidModelsOnlyTest {
     }
 
     @Test
+    void provedoresRetiradosSaoOsQuatroComCamadaGratuita() {
+        assertTrue(AiProvider.GROQ.retired() && AiProvider.CEREBRAS.retired()
+            && AiProvider.NVIDIA_NIM.retired() && AiProvider.GEMINI.retired());
+        assertFalse(AiProvider.OPENROUTER.retired() || AiProvider.OPENAI.retired()
+            || AiProvider.DEEPSEEK.retired() || AiProvider.CUSTOM.retired());
+    }
+
+    @Test
+    void chaveAntigaDeProvedorRetiradoEPuladaEOPagoAtende() {
+        AiProviderCredential paid = credential(AiProvider.DEEPSEEK, null);
+        when(credentials.findChain(market)).thenReturn(List.of(credential(AiProvider.GROQ, "llama-3.3-70b-versatile"), paid));
+        when(llm.chat(anyString(), anyString(), anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+            .thenReturn(LlmClient.LlmResponse.ok("Texto da IA.", 10, 5, 100));
+
+        AiOrchestrator.Interpretation r = interpret();
+
+        assertEquals("DEEPSEEK", r.provider());
+        verify(llm, never()).chat(anyString(), anyString(), eq("llama-3.3-70b-versatile"), anyString(), anyString(), anyInt(), anyDouble());
+        assertEquals(paid.getId(), orchestrator.resolveCredential(market).orElseThrow().credentialId());
+    }
+
+    @Test
+    void cadastroRecusaProvedorRetirado() {
+        AiCredentialService service = new AiCredentialService(credentials, mock(AiUsageLogRepository.class),
+            mock(MarketRepository.class), cipher, orchestrator);
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> service.save(
+            market, AiProvider.GEMINI, "chave", null, "gemini-2.0-flash", 10, "dono"));
+        assertEquals(AiProvider.RETIRED_REFUSED, e.getMessage());
+    }
+
+    @Test
     void cadastroRecusaModeloGratuito() {
         AiCredentialService service = new AiCredentialService(credentials, mock(AiUsageLogRepository.class),
             mock(MarketRepository.class), cipher, orchestrator);

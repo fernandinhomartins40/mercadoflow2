@@ -49,7 +49,7 @@ const useReveal = () => {
   return ref;
 };
 
-const CONTACT = 'mailto:contato@mercadoflow.com?subject=MercadoFlow%20Ind%C3%BAstria';
+const CONTACT = 'mailto:fuseagencia10@gmail.com?subject=MercadoFlow%20Ind%C3%BAstria';
 
 const sees = [
   { icon: TrendingUp, title: 'Venda na gôndola', text: 'Unidades e faturamento de cada produto seu por dia e por semana, direto das notas do caixa.', accent: '#16a34a', bg: '#f0fdf4' },
@@ -434,7 +434,7 @@ const IndustryLanding: React.FC = () => {
           <nav className="flex flex-wrap items-center justify-center gap-6" aria-label="Rodapé">
             <Link to="/" className="lp-link-dark text-sm no-underline">Para supermercados</Link>
             <Link to="/login" className="lp-link-dark text-sm no-underline">Acessar o painel</Link>
-            <span className="text-sm" style={{ color: '#64748b' }}>contato@mercadoflow.com</span>
+            <span className="text-sm" style={{ color: '#64748b' }}>fuseagencia10@gmail.com</span>
           </nav>
           <p className="text-xs" style={{ color: '#475569' }}>&copy; {new Date().getFullYear()} MercadoFlow</p>
         </div>

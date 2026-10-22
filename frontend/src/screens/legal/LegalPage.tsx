@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 export const CONTROLLER = 'FUSE AGENCIA LTDA';
 export const CONTROLLER_CNPJ = '42.761.086/0001-15';
 export const DPO_NAME = 'Luiz Fernando Martins Oliveira';
-export const PRIVACY_EMAIL = 'privacidade@mercadoflow.com';
+export const PRIVACY_EMAIL = 'fuseagencia10@gmail.com';
 export const UPDATED_AT = '22/10/2026';
 
 export const LegalSection: React.FC<{ id?: string; title: string; children: React.ReactNode; highlight?: boolean }> = ({ id, title, children, highlight }) => (
