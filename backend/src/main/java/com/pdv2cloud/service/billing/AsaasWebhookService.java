@@ -19,7 +19,8 @@ import org.springframework.stereotype.Service;
  *   <li>pagamento confirmado de crédito de IA ou do Confere: credita;</li>
  *   <li>pagamento confirmado da assinatura: plano ativo até o próximo mês;</li>
  *   <li>fatura da assinatura vencida: entra em atraso (carência, depois só consulta);</li>
- *   <li>assinatura apagada no Asaas: cancela no fim do período pago.</li>
+ *   <li>assinatura apagada no Asaas: cancela no fim do período pago;</li>
+ *   <li>estorno ou contestação: alerta, retira os créditos não usados do pacote ou põe a assinatura em atraso (D-01).</li>
  * </ul>
  */
 @Service
@@ -132,10 +133,14 @@ public class AsaasWebhookService {
             case "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE" -> {
                 UUID root = subId == null ? null : anyRoot(subId);
                 // A conta do Asaas é compartilhada com outros sistemas: estorno alheio não vira alerta aqui.
-                if (insights != null && (root != null || ours(ref))) {
-                    insights.exception(event, root, paymentId, (event.equals("PAYMENT_REFUNDED") ? "Pagamento estornado" : "Pagamento contestado")
-                        + " no Asaas: " + paymentId + " (" + AsaasService.text(payment, "value") + ")"
-                        + (ref == null ? "" : ", referência " + ref) + ".");
+                if (root != null || ours(ref)) {
+                    String reason = event.equals("PAYMENT_REFUNDED") ? "Pagamento estornado" : "Pagamento contestado";
+                    String effect = reverse(ref, root, reason);
+                    if (insights != null) {
+                        insights.exception(event, root, paymentId, reason
+                            + " no Asaas: " + paymentId + " (" + AsaasService.text(payment, "value") + ")"
+                            + (ref == null ? "" : ", referência " + ref) + "." + (effect == null ? "" : " " + effect));
+                    }
                     return Outcome.EXCEPTION;
                 }
             }
@@ -207,6 +212,27 @@ public class AsaasWebhookService {
                     "data", AsaasService.periodEnd(AsaasService.text(payment, "dueDate")).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM"))));
         }
         return Outcome.SUBSCRIPTION_PAID;
+    }
+
+    /**
+     * Efeito do estorno ou da contestação (D-01): pacote de IA ou do Confere
+     * perde os créditos ainda não usados; assinatura entra em atraso (carência
+     * normal, depois só consulta). Devolve o resumo para o alerta.
+     */
+    private String reverse(String ref, UUID root, String reason) {
+        if (ref != null && ref.startsWith("ai:")) {
+            UUID id = uuid(ref.substring(3));
+            return id == null ? null : "Créditos de IA retirados: " + wallets.reverseOrder(id, reason) + ".";
+        }
+        if (ref != null && ref.startsWith("confere:")) {
+            UUID id = uuid(ref.substring(8));
+            return id == null ? null : "Leituras do Confere retiradas: " + confere.reverseOrder(id, reason) + ".";
+        }
+        if (root != null) {
+            SubscriptionService.Subscription s = subscriptions.paymentFailed(root, reason + " no Asaas");
+            return s == null ? null : "Assinatura: " + s.status() + ".";
+        }
+        return null;
     }
 
     /** Referências que o MercadoFlow põe nas cobranças; o resto é de outro sistema na mesma conta. */

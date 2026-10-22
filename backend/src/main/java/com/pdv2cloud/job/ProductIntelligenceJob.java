@@ -43,7 +43,7 @@ public class ProductIntelligenceJob {
      * @Transactional faz antes de o corpo executar. Um mercado que falha não
      * derruba os demais — a materialização de cada loja é independente.
      */
-    @Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "0 0 3 * * ?", zone = "America/Sao_Paulo")
     public void materializeProductIntelligence() {
         List<Market> markets = TenantContext.runAsSystem(materializer::activeMarkets);
         log.info("Materializacao da inteligencia de produto iniciada para {} mercado(s)", markets.size());

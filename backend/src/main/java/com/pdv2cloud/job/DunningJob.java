@@ -17,7 +17,7 @@ public class DunningJob {
 
     private final DunningService dunningService;
 
-    @Scheduled(cron = "0 0 9 * * *")
+    @Scheduled(cron = "0 0 9 * * *", zone = "America/Sao_Paulo")
     public void run() {
         dunningService.run();
     }

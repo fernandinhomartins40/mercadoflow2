@@ -131,6 +131,9 @@ public class TenantAccessFilter extends OncePerRequestFilter {
         Object principal = authentication.getPrincipal();
         if (principal instanceof AgentPrincipal agentPrincipal) {
             TenantContext.set(new TenantContext.TenantInfo(agentPrincipal.getMarketId(), false));
+        } else if (principal instanceof CatalogServicePrincipal) {
+            // Coletor de catálogo: escopo global, como o superadmin que ele substitui.
+            TenantContext.set(new TenantContext.TenantInfo(null, true));
         } else if (principal instanceof AppUserDetails userDetails) {
             boolean bypass = userDetails.getRole() == UserRole.ADMIN || userDetails.getRole() == UserRole.SUPER_ADMIN;
             TenantContext.set(new TenantContext.TenantInfo(userDetails.getMarketId(), bypass));

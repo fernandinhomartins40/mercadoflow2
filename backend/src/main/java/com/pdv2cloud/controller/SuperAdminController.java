@@ -57,7 +57,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/super-admin")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+// CATALOG_SERVICE (coletores): o SecurityConfig só deixa entrar nas rotas de
+// CatalogServiceTokenFilter; as demais continuam só para SUPER_ADMIN (SEG-08).
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CATALOG_SERVICE')")
 public class SuperAdminController {
 
     @Autowired

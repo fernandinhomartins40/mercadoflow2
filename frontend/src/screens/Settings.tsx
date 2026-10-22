@@ -2,10 +2,12 @@ import React, { useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import AiCreditsCard from '../components/settings/AiCreditsCard';
 import SecurityCard from '../components/settings/SecurityCard';
+import DeleteAccountCard from '../components/settings/DeleteAccountCard';
 import NeighborhoodPrice from '../components/product/NeighborhoodPrice';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ActionHub, PageHero } from '../components/flow/Flow';
 import { CreditCard as HxCreditCard, UserCog as HxUserCog, Users as HxUsers } from 'lucide-react';
 
@@ -81,7 +83,6 @@ const Settings: React.FC = () => {
           <div className="flex flex-col divide-y divide-[color:var(--border-soft)]">
             {[
               { label: 'ID do mercado', value: marketId || '—', copyable: !!marketId, copyKey: 'market-id' },
-              { label: 'Endereço do MercadoFlow (URL da API): o programa do caixa pede este endereço na instalação', value: apiBaseUrl, copyable: true, copyKey: 'api-url' },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <div className="min-w-0">
@@ -98,6 +99,28 @@ const Settings: React.FC = () => {
                 )}
               </div>
             ))}
+            {/* Ligar o caixa é pelo código do programa; o endereço só serve para quem usa a chave manual. */}
+            <div className="px-5 py-3.5">
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Ligar um caixa</p>
+              <p className="mt-0.5 text-sm" style={{ color: 'var(--text-primary)' }}>
+                Instale o programa no computador do caixa e digite o código que ele mostra.{' '}
+                <Link to="/app/pdvs?aba=ligar" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>Ver os 3 passos</Link>
+              </p>
+            </div>
+            <details className="px-5 py-3.5">
+              <summary className="cursor-pointer text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                Avançado: endereço do MercadoFlow (só se o programa do caixa pedir)
+              </summary>
+              <div className="mt-2 flex items-center justify-between gap-4">
+                <p className="min-w-0 break-all text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{apiBaseUrl}</p>
+                <button type="button" onClick={() => copyText(apiBaseUrl, 'api-url')}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition hover:opacity-80"
+                  style={{ border: '1px solid var(--border-strong)', background: 'var(--surface-soft)', color: 'var(--text-muted)' }}>
+                  {copied === 'api-url' ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                  {copied === 'api-url' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -115,6 +138,8 @@ const Settings: React.FC = () => {
             </button>
           </div>
         </div>
+
+        <DeleteAccountCard />
         </div>
         {showAi ? (
           <div className="min-w-0">

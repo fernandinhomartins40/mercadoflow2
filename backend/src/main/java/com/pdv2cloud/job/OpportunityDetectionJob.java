@@ -60,7 +60,7 @@ public class OpportunityDetectionJob {
      * que o @Transactional faz antes de o corpo executar. Um mercado que falha
      * não derruba os outros.
      */
-    @Scheduled(cron = "0 30 3 * * ?")
+    @Scheduled(cron = "0 30 3 * * ?", zone = "America/Sao_Paulo")
     public void detectOpportunities() {
         List<Market> markets = TenantContext.runAsSystem(marketRepository::findAllActive);
         log.info("Deteccao de oportunidades iniciada para {} mercado(s)", markets.size());

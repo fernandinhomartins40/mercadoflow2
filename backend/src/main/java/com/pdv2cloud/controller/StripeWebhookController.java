@@ -3,7 +3,6 @@ package com.pdv2cloud.controller;
 import org.springframework.context.annotation.Profile;
 
 import com.pdv2cloud.repository.StripeProcessedEventRepository;
-import com.pdv2cloud.model.entity.StripeProcessedEvent;
 import com.pdv2cloud.service.InvoiceReconciliationService;
 import com.pdv2cloud.service.StripeService;
 import com.pdv2cloud.tenancy.TenantContext;
@@ -12,6 +11,7 @@ import com.stripe.model.Event;
 import com.stripe.model.Invoice;
 import com.stripe.model.Subscription;
 import com.stripe.net.Webhook;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +34,9 @@ import org.springframework.web.bind.annotation.RestController;
  *    invalidaria a assinatura, e por isso o parâmetro é String, não um DTO.
  *
  *  IDEMPOTÊNCIA — o Stripe reenvia até receber 2xx e não garante entrega única.
- *    O id do evento é registrado; reenvios são reconhecidos e ignorados.
+ *    O id do evento é registrado ANTES de processar, num insert atômico;
+ *    reenvios são reconhecidos e ignorados. Eventos de assinatura mais antigos
+ *    que o último aplicado ao mercado são descartados.
  *
  * Responde 200 mesmo em erro de processamento, exceto falha de assinatura: um
  * retorno de erro faz o Stripe reenviar em backoff por dias, e um evento que
@@ -90,7 +92,13 @@ public class StripeWebhookController {
             return ResponseEntity.badRequest().body("malformed");
         }
 
-        if (TenantContext.runAsSystem(() -> processedEventRepository.existsById(event.getId()))) {
+        // Registro e checagem num passo só (REC-09): insert ... on conflict do
+        // nothing. Dois reenvios simultâneos não processam duas vezes — o
+        // segundo insert espera o primeiro e volta com 0 linhas.
+        Long createdEpoch = isSubscriptionEvent(event) ? event.getCreated() : null;
+        int claimed = TenantContext.runAsSystem(
+            () -> processedEventRepository.claim(event.getId(), event.getType(), createdEpoch));
+        if (claimed == 0) {
             log.debug("Evento {} já processado — reenvio ignorado", event.getId());
             return ResponseEntity.ok("duplicate");
         }
@@ -109,15 +117,6 @@ public class StripeWebhookController {
             return ResponseEntity.ok("error-logged");
         }
 
-        // Também sob escopo de sistema: a tabela tem market_id e a gravação
-        // acontece fora de qualquer request de usuário.
-        TenantContext.runAsSystem(() -> {
-            StripeProcessedEvent processed = new StripeProcessedEvent();
-            processed.setEventId(event.getId());
-            processed.setEventType(event.getType());
-            processedEventRepository.save(processed);
-        });
-
         return ResponseEntity.ok("ok");
     }
 
@@ -129,7 +128,7 @@ public class StripeWebhookController {
             case "customer.subscription.created",
                  "customer.subscription.updated",
                  "customer.subscription.deleted" -> deserialize(event, Subscription.class)
-                .ifPresent(stripeService::syncSubscription);
+                .ifPresent(subscription -> syncInOrder(event, subscription));
 
             // Ciclo de vida da fatura. Todos caem na mesma conciliação porque o
             // objeto do evento traz o estado completo e sincronizar é idempotente.
@@ -180,6 +179,30 @@ public class StripeWebhookController {
 
             default -> log.debug("Evento {} não tratado", event.getType());
         }
+    }
+
+    private static boolean isSubscriptionEvent(Event event) {
+        return event.getType() != null && event.getType().startsWith("customer.subscription.");
+    }
+
+    /**
+     * O Stripe não garante a ordem de entrega: um "updated" (active) antigo
+     * chegando depois do "deleted" reativaria o plano sem pagamento. Evento
+     * mais antigo que o último já aplicado ao mercado é descartado (REC-09).
+     * Mesmo segundo não é "mais antigo": aplica, como antes.
+     */
+    private void syncInOrder(Event event, Subscription subscription) {
+        UUID marketId = stripeService.marketIdFor(subscription).orElse(null);
+        if (marketId != null && event.getCreated() != null) {
+            Long last = processedEventRepository.lastSubscriptionEventEpoch(marketId, event.getId());
+            if (last != null && last > event.getCreated()) {
+                log.info("Evento {} ({}) mais antigo que o último aplicado ao mercado {} — ignorado",
+                    event.getId(), event.getType(), marketId);
+                return;
+            }
+            processedEventRepository.attachMarket(event.getId(), marketId);
+        }
+        stripeService.syncSubscription(subscription);
     }
 
     /**

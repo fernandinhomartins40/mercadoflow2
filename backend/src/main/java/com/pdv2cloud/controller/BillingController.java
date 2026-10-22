@@ -80,6 +80,8 @@ public class BillingController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         try {
             String method = request.getMethod() == null ? "CARTAO" : request.getMethod().toUpperCase();
+            // Em atraso, só sobe de plano: descer reduziria a fatura vencida (D-02).
+            com.pdv2cloud.service.billing.SubscriptionService.assertCanChangePlan(subscriptions.of(marketId), request.getPlan());
             if (!"CARTAO".equals(method) || asaas.enabled()) {
                 UUID root = subscriptions.rootOf(marketId);
                 if (!root.equals(marketId)) {

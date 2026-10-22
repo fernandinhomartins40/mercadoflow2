@@ -6,6 +6,8 @@ import Layout from '../components/layout/Layout';
 import { marketService } from '../services/market.service';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import ConnectCashierSteps, { PAIRING_PATH } from '../components/activation/ConnectCashierSteps';
 import ButtonLink from '../components/common/ButtonLink';
 import {
   Check, CheckCircle2, Copy, Download, Monitor, Plus, RefreshCw,
@@ -53,11 +55,17 @@ const isHeartbeatFresh = (at?: string | null) => {
   return Date.now() - new Date(at).getTime() <= 1000 * 60 * 10;
 };
 
-type Tab = 'pdvs' | 'agente' | 'download';
+// "ligar" ensina o código do programa; a chave manual fica recolhida dentro dela (avançado).
+type Tab = 'pdvs' | 'ligar';
 
 const PDVs: React.FC = () => {
   const { marketId, role } = useAuth();
-  const [tab, setTab] = useState<Tab>('pdvs');
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  // Links antigos (?aba=agente / ?aba=download) caem na aba nova; "agente" e #chave-manual já abrem o avançado.
+  const abaParam = searchParams.get('aba');
+  const [tab, setTab] = useState<Tab>(abaParam === 'ligar' || abaParam === 'agente' || abaParam === 'download' ? 'ligar' : 'pdvs');
+  const [advancedOpen, setAdvancedOpen] = useState(abaParam === 'agente' || location.hash === '#chave-manual');
   const activation = useActivation();
 
   /* ── PDVs state ── */
@@ -107,7 +115,7 @@ const PDVs: React.FC = () => {
     if (!marketId) return;
     setPdvsLoading(true);
     try { setPdvs(await marketService.getPdvs(marketId) || []); setPdvError(null); }
-    catch (e: any) { setPdvError(e?.message || 'Erro ao carregar PDVs'); }
+    catch (e: any) { setPdvError(e?.message || 'Não foi possível carregar os caixas.'); }
     finally { setPdvsLoading(false); }
   };
   useEffect(() => { loadPdvs(); }, [marketId]);
@@ -119,7 +127,7 @@ const PDVs: React.FC = () => {
     try { setKeys((await api.get('/v1/agent-keys', { params: { marketId: resolvedMarketId } })).data || []); }
     catch { /* silent */ } finally { setKeysLoading(false); setKeysLoaded(true); }
   };
-  useEffect(() => { if (tab === 'agente') loadKeys(); }, [tab, resolvedMarketId]);
+  useEffect(() => { if (tab === 'ligar' && advancedOpen) loadKeys(); }, [tab, advancedOpen, resolvedMarketId]);
 
   /* ── Load installer info ── */
   useEffect(() => {
@@ -153,13 +161,13 @@ const PDVs: React.FC = () => {
   };
 
   const createPdv = async () => {
-    if (!marketId || !pdvName.trim()) { setPdvError('Informe o nome do PDV'); return; }
+    if (!marketId || !pdvName.trim()) { setPdvError('Informe o nome do caixa'); return; }
     setPdvSaving(true); setPdvError(null);
     try {
       await marketService.createPdv(marketId, { name: pdvName.trim(), serialNumber: pdvSerial.trim() || undefined });
       setPdvName(''); setPdvSerial('');
       await loadPdvs();
-    } catch (e: any) { setPdvError(e?.message || 'Erro ao criar PDV'); }
+    } catch (e: any) { setPdvError(e?.message || 'Não foi possível cadastrar o caixa.'); }
     finally { setPdvSaving(false); }
   };
 
@@ -194,8 +202,7 @@ const PDVs: React.FC = () => {
 
   const TABS: Array<{ key: Tab; label: string }> = [
     { key: 'pdvs', label: `Caixas (${pdvs.length})` },
-    { key: 'agente', label: 'Chaves do agente' },
-    { key: 'download', label: 'Instalar agente' },
+    { key: 'ligar', label: 'Ligar um caixa' },
   ];
 
   const st = activation.status;
@@ -261,15 +268,42 @@ const PDVs: React.FC = () => {
                 </form>
               </Card>
               {activation.status
-                ? <ConnectionStatus status={activation.status} onInstall={() => setTab('download')} />
+                ? <ConnectionStatus status={activation.status} onInstall={() => setTab('ligar')} />
                 : <Forest><p className="fx-muted" style={{ margin: 0 }}>Lendo o estado da conexão…</p></Forest>}
             </div>
           </div>
         )}
 
-        {/* ── ABA: AGENTE ── */}
-        {tab === 'agente' && (
+        {/* ── ABA: LIGAR UM CAIXA ── */}
+        {tab === 'ligar' && (
           <div className="flex flex-col gap-5">
+            <Card as="section" aria-label="Ligar um caixa">
+              <PanelTitle title="Ligar um caixa em 3 passos" sub="Sem copiar chave: o programa mostra um código e você digita aqui" />
+              <div style={{ marginTop: 16 }}><ConnectCashierSteps /></div>
+              <div className="flex flex-wrap gap-3" style={{ marginTop: 16 }}>
+                <a className="fx-btn dark" href="/api/v1/downloads/agent-installer" download>
+                  <Download aria-hidden="true" />Baixar o programa do caixa
+                </a>
+                <ButtonLink variant="secondary" to={PAIRING_PATH}>Digitar o código</ButtonLink>
+              </div>
+              {installer && (
+                <p className="fx-muted" style={{ marginTop: 12, fontSize: 13 }}>
+                  {installer.version ? `Versão ${installer.version}` : 'Versão atual'}
+                  {installer.sizeFormatted ? ` · ${installer.sizeFormatted}` : ''}
+                  {' · '}<Link to="/app/download-agente">mais detalhes do download</Link>
+                </p>
+              )}
+            </Card>
+
+            {/* Avançado: chave manual, para quem já liga o caixa assim. Recolhido por padrão. */}
+            <details id="chave-manual" className="fx-more" open={advancedOpen}
+              onToggle={(e) => setAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}>
+              <summary>Avançado: ligar com chave<small>Só para quem já usa a chave do caixa ou precisa excluir uma</small></summary>
+              <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>
+            <p className="fx-muted" style={{ margin: 0 }}>
+              Gere uma chave aqui e, no programa do caixa, clique em "Configurar" e cole a chave no campo "API Key".
+              Caixas já ligados por chave continuam funcionando.
+            </p>
             {/* Métricas */}
             <div className="grid gap-3 sm:grid-cols-3">
               {[
@@ -288,7 +322,7 @@ const PDVs: React.FC = () => {
             <div className="rounded-xl p-4 flex flex-col gap-3" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
               <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Configuração do agente</p>
               {[
-                { label: 'Endereço do MercadoFlow (URL da API), que o programa do caixa pede', value: apiBaseUrl },
+                { label: 'Endereço do MercadoFlow (só se o programa pedir)', value: apiBaseUrl },
                 { label: 'ID do mercado', value: resolvedMarketId || '—' },
               ].map(row => (
                 <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5"
@@ -423,58 +457,11 @@ const PDVs: React.FC = () => {
                 )}
               </div>
             </div>
+              </div>
+            </details>
           </div>
         )}
 
-        {/* ── ABA: DOWNLOAD ── */}
-        {tab === 'download' && (
-          <div className="flex flex-col gap-5 max-w-xl">
-            <div className="rounded-xl p-5 flex flex-col gap-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-base)' }}>
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--surface-soft)' }}>
-                  <Download className="h-6 w-6" style={{ color: 'var(--brand-600)' }} />
-                </div>
-                <div>
-                  <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Agente MercadoFlow</p>
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Coletor local que lê as notas fiscais do PDV e envia dados em tempo real para a plataforma.
-                  </p>
-                  {installer && (
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs" style={{ color: 'var(--text-soft)' }}>
-                      {installer.version && <span>Versão: <strong>{installer.version}</strong></span>}
-                      {installer.sizeFormatted && <span>Tamanho: <strong>{installer.sizeFormatted}</strong></span>}
-                      {installer.lastModified && <span>Atualizado em: <strong>{new Date(installer.lastModified).toLocaleDateString('pt-BR')}</strong></span>}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <ButtonLink to="/app/download-agente" variant="primary">
-                  <Download className="h-4 w-4" /> Abrir página de download
-                </ButtonLink>
-              </div>
-            </div>
-
-            <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-soft)' }}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Como instalar</p>
-              <ol className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-primary)' }}>
-                {[
-                  'Baixe e execute o instalador no computador do caixa',
-                  'Gere uma chave na aba Agente',
-                  'No programa instalado, cole o endereço do MercadoFlow (URL da API, mostrado ao lado) e a chave',
-                  'O programa começa a mandar as vendas sozinho',
-                ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                      style={{ background: 'var(--brand-500)', color: '#fff' }}>{i + 1}</span>
-                    {step}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );

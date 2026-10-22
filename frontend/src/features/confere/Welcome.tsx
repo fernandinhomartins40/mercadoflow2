@@ -8,6 +8,7 @@ import type { ConfereStatus } from '../../types/confere.types';
 import { isValidCnpj, maskCnpj, onlyDigits } from '../../utils/formMasks';
 import { BigButton, Field, Shell, errorText } from './ui';
 import InstallApp from './InstallApp';
+import { accountDeletion, deletionErrorText, isDeletionPending } from '../../services/accountDeletion';
 
 /** Entrada do Confere: criar a conta do mercado (com aceite dos termos) ou entrar. */
 
@@ -25,20 +26,35 @@ export const Welcome: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
+  // Conta marcada para exclusão (LGPD-03): senha certa, oferece desistir.
+  const [deletionPending, setDeletionPending] = useState(false);
 
   useEffect(() => { api.get('/v1/public/confere/terms').then((r) => setTerms(r.data)).catch(() => {}); }, []);
 
-  const doLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogin = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setBusy(true);
     setError(null);
+    setDeletionPending(false);
     try {
       const pending = await login(form.email.trim().toLowerCase(), form.password, true);
       if (pending) setChallenge(pending);
     } catch (err) {
+      setDeletionPending(isDeletionPending(err));
       setError(errorText(err, 'E-mail ou senha incorretos.'));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const giveUpDeletion = async () => {
+    setError(null);
+    try {
+      await accountDeletion.cancelFromLogin(form.email.trim().toLowerCase(), form.password);
+      setDeletionPending(false);
+      await doLogin();
+    } catch (err) {
+      setError(deletionErrorText(err, 'Não foi possível desistir agora. Tente de novo.'));
     }
   };
 
@@ -105,6 +121,7 @@ export const Welcome: React.FC = () => {
           ))}
         </div>
         {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-lg text-red-800">{error}</p>}
+        {deletionPending && <BigButton type="button" tone="white" onClick={() => { void giveUpDeletion(); }}>Desistir da exclusão</BigButton>}
         {challenge ? (
           <form onSubmit={doCode} className="flex flex-col gap-4">
             <Field label="Código do aplicativo autenticador" inputMode="numeric" autoComplete="one-time-code" required

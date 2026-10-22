@@ -40,7 +40,9 @@ public class OutcomeEvaluationJob {
         this.marketRepository = marketRepository;
     }
 
-    @Scheduled(cron = "0 0 4 * * MON")
+    // 01:00 de Brasília (o mesmo horário real de antes do fuso explícito): o
+    // CopilotAgentsJob.learn das 04:30 lê estes resultados e precisa de folga.
+    @Scheduled(cron = "0 0 1 * * MON", zone = "America/Sao_Paulo")
     public void evaluateOutcomes() {
         List<Market> markets = TenantContext.runAsSystem(marketRepository::findAllActive);
         log.info("Avaliacao de resultados iniciada para {} mercado(s)", markets.size());

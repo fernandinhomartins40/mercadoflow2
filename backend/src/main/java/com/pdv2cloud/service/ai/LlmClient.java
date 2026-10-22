@@ -455,6 +455,9 @@ public class LlmClient {
      * padrão nos modelos atuais: ele gasta o teto de tokens "pensando" (a
      * resposta sai vazia) e custa mais. As tarefas do Copiloto são curtas e já
      * recebem os números calculados, então o raciocínio fica desligado.
+     *
+     * No OpenRouter, {@code provider.data_collection = deny} só deixa a chamada
+     * ir para provedores que não guardam nem treinam com os dados (LGPD-07).
      */
     String providerOptions(String baseUrl, String body) {
         boolean deepseek = baseUrl != null && baseUrl.contains("deepseek.com");
@@ -470,6 +473,9 @@ public class LlmClient {
             // OpenRouter: parâmetro unificado de raciocínio (modelos sem raciocínio ignoram).
             if (openrouter && !root.has("reasoning")) {
                 root.putObject("reasoning").put("enabled", false);
+            }
+            if (openrouter && !root.has("provider")) {
+                root.putObject("provider").put("data_collection", "deny");
             }
             return root.toString();
         } catch (Exception e) {

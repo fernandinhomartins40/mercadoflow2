@@ -59,6 +59,8 @@ public class PartnerWebhookService {
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules()
         .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    /** Envio para parceiros externos: resolve uma vez e conecta no IP conferido (SEG-06). Trocável nos testes. */
+    com.pdv2cloud.util.PinnedHttp pinned = com.pdv2cloud.util.PinnedHttp.DEFAULT;
 
     /** Hosts da rede interna do Docker aceitos em http só para o parceiro da casa (mesma regra do cadastro). */
     @org.springframework.beans.factory.annotation.Value("${app.partner.internal-hosts:}")
@@ -209,16 +211,28 @@ public class PartnerWebhookService {
                 if (error != null) {
                     log.warn("Aviso {} não enviado: {}", e.get("id"), error);
                 } else {
+                    Map<String, String> headers = new LinkedHashMap<>();
+                    headers.put("Content-Type", "application/json");
+                    headers.put("X-MercadoFlow-Event", String.valueOf(e.get("event")));
+                    headers.put("X-MercadoFlow-Delivery", String.valueOf(e.get("id")));
+                    headers.put("X-MercadoFlow-Signature", "sha256=" + sign(String.valueOf(e.get("webhook_secret")), body));
                     try {
-                        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-                            .timeout(Duration.ofSeconds(15))
-                            .header("Content-Type", "application/json")
-                            .header("X-MercadoFlow-Event", String.valueOf(e.get("event")))
-                            .header("X-MercadoFlow-Delivery", String.valueOf(e.get("id")))
-                            .header("X-MercadoFlow-Signature", "sha256=" + sign(String.valueOf(e.get("webhook_secret")), body))
-                            .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build();
-                        HttpResponse<Void> res = http.send(req, HttpResponse.BodyHandlers.discarding());
-                        if (res.statusCode() / 100 != 2) error = "HTTP " + res.statusCode();
+                        int status;
+                        if (isInternalHost(url, Boolean.TRUE.equals(e.get("first_party")))) {
+                            // Parceiro da casa na rede do Docker: endereço interno é o esperado.
+                            HttpRequest.Builder req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(15));
+                            headers.forEach(req::header);
+                            status = http.send(req.POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build(),
+                                HttpResponse.BodyHandlers.discarding()).statusCode();
+                        } else {
+                            // Conecta no IP que acabou de ser conferido: um DNS que mude de
+                            // resposta depois da checagem não leva o POST à rede interna.
+                            status = pinned.send("POST", url, headers, body.getBytes(StandardCharsets.UTF_8),
+                                15_000, 64 * 1024).status();
+                        }
+                        if (status / 100 != 2) error = "HTTP " + status;
+                    } catch (IllegalArgumentException ex) {
+                        error = "URL recusada: " + ex.getMessage();
                     } catch (Exception ex) {
                         error = ex.getClass().getSimpleName() + ": " + ex.getMessage();
                     }
@@ -243,10 +257,7 @@ public class PartnerWebhookService {
     /** Nulo se o endereço pode receber o aviso; senão o motivo, gravado em last_error. */
     String blockedUrl(String url, boolean firstParty) {
         try {
-            URI u = URI.create(url.trim());
-            if (firstParty && "http".equalsIgnoreCase(u.getScheme()) && u.getHost() != null && internalHosts != null
-                && java.util.Arrays.stream(internalHosts.split(",")).map(h -> h.trim().toLowerCase())
-                    .anyMatch(h -> !h.isEmpty() && h.equals(u.getHost().toLowerCase()))) {
+            if (isInternalHost(url, firstParty)) {
                 return null;
             }
             com.pdv2cloud.util.OutboundUrlGuard.assertPublicHttps(url);
@@ -254,5 +265,13 @@ public class PartnerWebhookService {
         } catch (IllegalArgumentException ex) {
             return "URL recusada: " + ex.getMessage();
         }
+    }
+
+    /** http para host de app.partner.internal-hosts, só do parceiro da casa. */
+    private boolean isInternalHost(String url, boolean firstParty) {
+        URI u = URI.create(url.trim());
+        return firstParty && "http".equalsIgnoreCase(u.getScheme()) && u.getHost() != null && internalHosts != null
+            && java.util.Arrays.stream(internalHosts.split(",")).map(h -> h.trim().toLowerCase())
+                .anyMatch(h -> !h.isEmpty() && h.equals(u.getHost().toLowerCase()));
     }
 }

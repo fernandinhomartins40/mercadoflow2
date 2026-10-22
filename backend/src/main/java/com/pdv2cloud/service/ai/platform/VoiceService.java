@@ -25,7 +25,8 @@ import org.springframework.stereotype.Service;
  * por código. Aqui ficam só as reservas pagas:
  * <ul>
  *   <li>transcrição pelo Deepgram, quando o navegador não reconhece fala
- *       (o áudio passa direto e não é guardado);</li>
+ *       (o áudio passa direto, não é guardado e vai com mip_opt_out, fora do
+ *       programa de melhoria de modelo do Deepgram);</li>
  *   <li>o Jev, quando a lista fixa não reconheceu o comando: ele só escolhe
  *       entre as ações permitidas naquela tela, nunca lê número.</li>
  * </ul>
@@ -100,8 +101,9 @@ public class VoiceService {
         }
         long started = System.currentTimeMillis();
         try {
+            // mip_opt_out: o áudio fica fora do programa de melhoria de modelo do Deepgram (LGPD-07).
             String url = d.key().baseUrl() + "/v1/listen?model=" + URLEncoder.encode(d.model(), StandardCharsets.UTF_8)
-                + "&language=pt-BR&smart_format=true&numerals=true";
+                + "&language=pt-BR&smart_format=true&numerals=true&mip_opt_out=true";
             HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(30))
                 .header("Authorization", "Token " + d.key().apiKey())

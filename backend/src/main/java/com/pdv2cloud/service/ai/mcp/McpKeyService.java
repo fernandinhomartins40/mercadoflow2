@@ -37,7 +37,28 @@ public class McpKeyService {
 
     public record Created(KeyRow key, String secret) {}
 
-    public record Resolved(UUID keyId, UUID marketId) {}
+    /** @param planAllowed o plano da loja tem o recurso data_export (D-06); sem ele a chamada recebe erro de plano */
+    public record Resolved(UUID keyId, UUID marketId, boolean planAllowed) {
+        public Resolved(UUID keyId, UUID marketId) {
+            this(keyId, marketId, true);
+        }
+    }
+
+    /** Recurso de plano que libera as chaves MCP ("Exportação de dados e integração"). */
+    public static final String PLAN_MESSAGE = "A integração por MCP faz parte do recurso Exportação de dados e integração, "
+        + "que não está no plano atual da loja. Veja os planos em Minha assinatura.";
+
+    private com.pdv2cloud.service.PlanService plans;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setPlans(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.PlanService plans) {
+        this.plans = plans;
+    }
+
+    /** O plano da loja tem data_export? A mesma checagem da exportação em CSV (DataExportController). */
+    boolean planAllows(UUID marketId) {
+        return plans == null || plans.canUseDataExport(plans.limitsFor(marketId));
+    }
 
     public List<KeyRow> list(UUID marketId) {
         return jdbc.query("select * from ai_mcp_keys where market_id = :m order by revoked_at nulls first, created_at desc",
@@ -50,6 +71,9 @@ public class McpKeyService {
         String clean = name == null ? "" : name.trim();
         if (clean.isEmpty() || clean.length() > 80) {
             throw new IllegalArgumentException("Dê um nome à integração (até 80 caracteres), ex.: Claude do escritório.");
+        }
+        if (!planAllows(marketId)) {
+            throw new IllegalArgumentException(PLAN_MESSAGE);
         }
         Integer active = jdbc.queryForObject("select count(*) from ai_mcp_keys where market_id = :m and revoked_at is null",
             Map.of("m", marketId), Integer.class);
@@ -92,7 +116,9 @@ public class McpKeyService {
             if (m == null || m.isEmpty() || !canLogin(m.get(0))) {
                 return Optional.<Resolved>empty();
             }
-            return Optional.of(r.get(0));
+            // Chave criada antes da regra (ou plano que desceu): a chamada recebe erro de plano (D-06).
+            return Optional.of(planAllows(r.get(0).marketId()) ? r.get(0)
+                : new Resolved(r.get(0).keyId(), r.get(0).marketId(), false));
         });
     }
 

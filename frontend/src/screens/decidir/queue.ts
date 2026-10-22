@@ -5,6 +5,8 @@ import { copilotAgentsService, type CopilotDecision } from '../../services/aiPla
 import { ACTION_LABEL } from '../../components/intelligence/RecommendationCard';
 import { agentOf, valueOf } from '../copilot/shared';
 import type { RecommendationItem } from '../../types/analytics.types';
+import { operationService, type OperationPanel } from '../../services/operation.service';
+import { checkedGain, gainOfRecommendation } from '../../utils/gain';
 
 /**
  * Fila única do "Decidir": as recomendações da análise e o que o Tino deixou
@@ -31,7 +33,10 @@ export interface QueueItem {
   /** O verbo: "Comprar", "Liquidar", "Resolver entrega incompleta". */
   action: string;
   title: string;
+  /** Ganho (utils/gain). Null quando não há valor ou quando passou do teto de bom senso. */
   value: number | null;
+  /** O ganho veio, mas passou do teto: a tela mostra "—" com a dica. */
+  outOfRange?: boolean;
   name: string;
   image?: string | null;
   urgent: boolean;
@@ -60,7 +65,7 @@ export const fromRecommendation = (r: RecommendationItem): QueueItem => ({
   group: REC_GROUP[r.actionType] ?? 'outros',
   action: ACTION_LABEL[r.actionType] || r.actionType,
   title: r.title,
-  value: r.expectedImpactValue ? Number(r.expectedImpactValue) : null,
+  value: gainOfRecommendation(r),
   name: r.productName || r.title,
   image: r.productImage,
   urgent: false,
@@ -91,6 +96,25 @@ export const sortQueue = (items: QueueItem[]) =>
 
 const isOpen = (d: CopilotDecision) => d.status === 'PENDENTE' || d.status === 'INFORMATIVA';
 
+/**
+ * Teto de bom senso do ganho: o faturamento das últimas 4 semanas (o maior entre
+ * elas e as 4 anteriores, para o agente parado não esconder tudo). Mesma chave
+ * de cache do Início, então não pede de novo.
+ */
+export const useGainCap = (marketId: string | null | undefined, enabled = true): number | null => {
+  const q = useCached<OperationPanel>(marketId && enabled ? `operacao:${marketId}:mes` : null,
+    () => operationService.get(marketId!, 'mes'), 10 * 60_000);
+  const vendas = q.data?.metrics.find((m) => m.key === 'vendas');
+  const cap = vendas ? Math.max(Number(vendas.value) || 0, Number(vendas.previous) || 0) : 0;
+  return cap > 0 ? cap : null;
+};
+
+/** Aplica o teto ao ganho do item: acima dele, o valor vira "—" com a dica. */
+export const withCap = (item: QueueItem, cap: number | null): QueueItem => {
+  const g = checkedGain(item.value, cap);
+  return g.outOfRange ? { ...item, value: null, outOfRange: true } : item;
+};
+
 export const useDecisionQueue = (marketId: string | null | undefined, enabled = true) => {
   const on = !!marketId && enabled;
   const recsQ = useCached<RecommendationItem[]>(on ? `recs:${marketId}` : null,
@@ -110,11 +134,12 @@ export const useDecisionQueue = (marketId: string | null | undefined, enabled = 
     await Promise.allSettled([recsQ.refresh(), tinoQ.refresh()]);
   }, [marketId, recsQ, tinoQ]);
 
-  const items = sortQueue([...tino.filter(isOpen).map(fromDecision), ...recs.map(fromRecommendation)]);
+  const cap = useGainCap(marketId, enabled);
+  const items = sortQueue([...tino.filter(isOpen).map(fromDecision), ...recs.map(fromRecommendation)].map((i) => withCap(i, cap)));
   const total = items.reduce((a, i) => a + (i.value ?? 0), 0);
   const loading = on && recsQ.loading && tinoQ.loading;
   // As duas buscas falharam e não há nada guardado: a lista vazia NÃO quer dizer "nada para decidir".
   const failed = on && !recsQ.loading && !tinoQ.loading && !!recsQ.error && !!tinoQ.error && !recsQ.data && !tinoQ.data;
   const setTinoList = (fn: (cur: CopilotDecision[]) => CopilotDecision[]) => setTino((cur) => fn(cur ?? tinoQ.data ?? []));
-  return { items, recs, tino, setTino: setTinoList, total, loading, failed, reload };
+  return { items, recs, tino, setTino: setTinoList, total, cap, loading, failed, reload };
 };

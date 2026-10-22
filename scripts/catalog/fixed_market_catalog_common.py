@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import os
 import re
 import sys
 import time
@@ -267,7 +268,21 @@ def request_with_retry(
     raise RuntimeError(f"{method.upper()} {url} failed without an explicit error")
 
 
+def catalog_service_token() -> str:
+    """Token de serviço dos coletores (CATALOG_SERVICE_TOKEN). Vazio = login antigo."""
+    return os.environ.get("CATALOG_SERVICE_TOKEN", "").strip()
+
+
+def has_backend_credentials(email: str, password: str) -> bool:
+    return bool(catalog_service_token() or (email and password))
+
+
 def login_super_admin(api_base: str, endpoint: str, email: str, password: str) -> str:
+    # Com o token de serviço não há login: o superadmin pode ter a verificação
+    # em duas etapas ligada. Sem ele (deploy de transição), entra como antes.
+    service_token = catalog_service_token()
+    if service_token:
+        return service_token
     path = endpoint if endpoint.startswith("/") else f"/{endpoint}"
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MercadoFlowCatalogHarvester/1.0)"})
@@ -307,8 +322,7 @@ class RemoteCheckpointStore:
     def enabled(self) -> bool:
         return bool(
             self.options.api_base
-            and self.options.email
-            and self.options.password
+            and has_backend_credentials(self.options.email, self.options.password)
             and self.options.checkpoints_list_endpoint
             and self.options.checkpoints_batch_endpoint
         )
@@ -651,8 +665,8 @@ class MarketImportSession:
     def ensure_token(self) -> str:
         if self.token:
             return self.token
-        if not self.options.email or not self.options.password:
-            raise RuntimeError("Missing super admin credentials for import")
+        if not has_backend_credentials(self.options.email, self.options.password):
+            raise RuntimeError("Missing CATALOG_SERVICE_TOKEN or super admin credentials for import")
         self.token = login_super_admin(
             self.options.api_base,
             self.options.login_endpoint,

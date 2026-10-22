@@ -24,7 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/me")
-@PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER')")
+// ADMIN e SUPER_ADMIN entram para ligar a verificação em duas etapas (SEG-08).
+@PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN', 'SUPER_ADMIN')")
 public class MyAccountController {
 
     private final TwoFactorService twoFactor;
@@ -37,25 +38,36 @@ public class MyAccountController {
         this.jdbc = jdbc;
     }
 
-    private record Me(UUID id, String email, TeamRole role) {}
+    private record Me(UUID id, String email, TeamRole role, UserRole system) {
+        /** Escopo global (vê todos os mercados): pode ligar sempre. */
+        boolean staff() {
+            return system == UserRole.ADMIN || system == UserRole.SUPER_ADMIN;
+        }
+
+        boolean canUseTwoFactor() {
+            return staff() || (role != null && role.canUseTwoFactor());
+        }
+    }
 
     private Me me(Authentication auth) {
         Map<String, Object> u = jdbc.queryForMap("select id, email, role, team_role from users where email = :e", Map.of("e", auth.getName()));
-        return new Me((UUID) u.get("id"), (String) u.get("email"),
-            TeamRole.of((String) u.get("team_role"), UserRole.valueOf((String) u.get("role"))));
+        UserRole system = UserRole.valueOf((String) u.get("role"));
+        return new Me((UUID) u.get("id"), (String) u.get("email"), TeamRole.of((String) u.get("team_role"), system), system);
     }
 
     @GetMapping("/2fa")
     public Map<String, Object> status(Authentication auth) {
         Me me = me(auth);
-        return Map.of("enabled", twoFactor.enabled(me.id()), "available", me.role() != null && me.role().canUseTwoFactor());
+        boolean enabled = twoFactor.enabled(me.id());
+        // recommended: superadmin/ADMIN sem a segunda etapa (aviso no painel, sem obrigar).
+        return Map.of("enabled", enabled, "available", me.canUseTwoFactor(), "recommended", me.staff() && !enabled);
     }
 
     @PostMapping("/2fa/setup")
     public ResponseEntity<?> setup(Authentication auth) {
         return guard(() -> {
             Me me = me(auth);
-            return twoFactor.setup(me.id(), me.email(), me.role());
+            return me.staff() ? twoFactor.setupStaff(me.id(), me.email()) : twoFactor.setup(me.id(), me.email(), me.role());
         });
     }
 

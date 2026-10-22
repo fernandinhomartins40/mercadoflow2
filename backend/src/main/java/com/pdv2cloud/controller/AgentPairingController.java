@@ -149,8 +149,12 @@ public class AgentPairingController {
     }
 
     @PostMapping("/cancel")
-    public ResponseEntity<Void> cancel(@Valid @RequestBody CancelRequest request) {
-        TenantContext.runAsSystem(() -> pairingService.cancel(request.getUserCode()));
+    public ResponseEntity<?> cancel(@Valid @RequestBody CancelRequest request) {
+        try {
+            TenantContext.runAsSystem(() -> pairingService.cancel(request.getUserCode(), request.getAgentSecret()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        }
         return ResponseEntity.noContent().build();
     }
 
@@ -195,5 +199,8 @@ public class AgentPairingController {
     public static class CancelRequest {
         @NotBlank
         private String userCode;
+
+        /** Opcional por compatibilidade com agentes instalados; obrigatório para sessão APPROVED (SEG-12). */
+        private String agentSecret;
     }
 }

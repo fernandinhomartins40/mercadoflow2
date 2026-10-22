@@ -64,6 +64,8 @@ const Team = lazy(() => import('./screens/Team'));
 const Integrations = lazy(() => import('./screens/Integrations'));
 const StockCount = lazy(() => import('./screens/StockCount'));
 const Developers = lazy(() => import('./screens/Developers'));
+const Privacidade = lazy(() => import('./screens/legal/Privacidade'));
+const Termos = lazy(() => import('./screens/legal/Termos'));
 const SuperAdminPartners = lazy(() => import('./screens/SuperAdminPartners'));
 const AcceptInvite = lazy(() => import('./screens/AcceptInvite'));
 const SuperAdminCatalogManager = lazy(() => import('./screens/SuperAdminCatalogManager'));
@@ -72,6 +74,8 @@ const SuperAdminCrawlerRunDetails = lazy(() => import('./screens/SuperAdminCrawl
 const StatePriceComparison = lazy(() => import('./screens/StatePriceComparison'));
 const StoreMap = lazy(() => import('./screens/StoreMap'));
 const Promocoes = lazy(() => import('./screens/Promocoes'));
+// CSS do painel: fica fora só do encarte público e do Bipaê (abertos no 4G).
+const PanelStyles = lazy(() => import('./styles/PanelStyles'));
 
 const PageLoader = () => (
   <div className="card flex min-h-[220px] items-center justify-center text-base font-medium text-[color:var(--text-muted)]">
@@ -193,6 +197,9 @@ const App: React.FC = () => {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
+        <Route path="/encarte/:slug" element={<PublicEncarte />} />
+        <Route path="/confere/*" element={<ConfereApp />} />
+        <Route element={<PanelStyles />}>
         <Route path="/login" element={<Login />} />
         <Route path="/esqueci-senha" element={<ForgotPassword />} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />
@@ -205,9 +212,9 @@ const App: React.FC = () => {
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
         <Route path="/parear-agente" element={<AgentPairing />} />
         <Route path="/conectar" element={<Connect />} />
-        <Route path="/encarte/:slug" element={<PublicEncarte />} />
-        <Route path="/confere/*" element={<ConfereApp />} />
         <Route path="/desenvolvedores" element={<Developers />} />
+        <Route path="/privacidade" element={<Privacidade />} />
+        <Route path="/termos" element={<Termos />} />
 
         <Route path="/app" element={secure(<Dashboard />)} />
         <Route path="/app/decidir" element={secure(<Decide />)} />
@@ -296,6 +303,7 @@ const App: React.FC = () => {
         <Route path="/configuracoes" element={<Navigate to="/app/configuracoes" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Routes>
     </Suspense>
   );

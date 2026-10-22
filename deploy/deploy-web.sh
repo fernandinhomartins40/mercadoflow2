@@ -83,6 +83,9 @@ TEST_SUPER_ADMIN_PASSWORD="${TEST_SUPER_ADMIN_PASSWORD:-}"
 # e ficariam indecifraveis. Por isso e gerada UMA vez no servidor e preservada
 # do .env em diante (ver resolve_ai_config), nunca regerada a cada deploy.
 AI_ENCRYPTION_KEY="${AI_ENCRYPTION_KEY:-}"
+# Token de servico dos coletores de catalogo (SEG-08): substitui o login do
+# superadmin nas rotas de catalogo. Gerado uma vez e preservado do .env.
+CATALOG_SERVICE_TOKEN="${CATALOG_SERVICE_TOKEN:-}"
 DOCKER_CLEANUP_ENABLED="${DOCKER_CLEANUP_ENABLED:-true}"
 DOCKER_CLEANUP_PROJECT_CONTAINERS="${DOCKER_CLEANUP_PROJECT_CONTAINERS:-true}"
 DOCKER_CLEANUP_DANGLING_IMAGES="${DOCKER_CLEANUP_DANGLING_IMAGES:-true}"
@@ -259,6 +262,26 @@ resolve_ai_config() {
   fi
 }
 
+# Mesmo padrao da chave de IA: secret do GitHub > valor ja no .env > gerar.
+# Preservar evita derrubar os coletores a cada deploy (backend e coletores leem
+# o mesmo valor do .env, entao trocar nao quebraria, mas nao ha motivo).
+resolve_catalog_service_token() {
+  if [[ -z "$CATALOG_SERVICE_TOKEN" && -f .env ]]; then
+    local existing
+    existing="$(sed -n 's/^CATALOG_SERVICE_TOKEN=//p' .env | head -n 1)"
+    if [[ -n "$existing" ]]; then
+      CATALOG_SERVICE_TOKEN="$existing"
+    fi
+  fi
+
+  if [[ -z "$CATALOG_SERVICE_TOKEN" ]]; then
+    CATALOG_SERVICE_TOKEN="mfcat_$(openssl rand -hex 32)"
+    log "Token de servico dos coletores gerado (primeira vez); sera preservado nos proximos deploys"
+  else
+    log "Token de servico dos coletores preservado"
+  fi
+}
+
 ensure_app_role() {
   # A aplicacao conecta com uma role SEM superuser e SEM bypassrls, para que as
   # policies de row-level security sejam de fato avaliadas. Com a role dona do
@@ -349,6 +372,7 @@ ASAAS_API_KEY='${ASAAS_API_KEY}'
 TEST_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD}
 TEST_SUPER_ADMIN_PASSWORD=${TEST_SUPER_ADMIN_PASSWORD}
 AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY}
+CATALOG_SERVICE_TOKEN=${CATALOG_SERVICE_TOKEN}
 MERCADOFLOW_POSTGRES_VOLUME=${POSTGRES_VOLUME_NAME}
 BUILD_TIMESTAMP=$(date +%s)
 EOF
@@ -782,6 +806,7 @@ main() {
   resolve_asaas_config
   resolve_test_users_config
   resolve_ai_config
+  resolve_catalog_service_token
   write_env_file
 
   log "Validando docker compose"

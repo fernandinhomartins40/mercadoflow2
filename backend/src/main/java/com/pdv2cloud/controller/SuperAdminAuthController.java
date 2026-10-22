@@ -43,9 +43,27 @@ public class SuperAdminAuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         LoginResponse response = authService.superAdminLogin(request);
+        if (response.isMfaRequired()) {
+            // Sem cookie: a sessão só existe depois do código do aplicativo (SEG-08).
+            return ResponseEntity.ok(response);
+        }
         boolean keepConnected = request.getKeepConnected() != null && request.getKeepConnected();
         ResponseCookie cookie = buildCookie(response.getToken(), http.isSecure(), keepConnected);
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+    }
+
+    /** Segunda etapa do login do superadmin: código do aplicativo autenticador (ou de recuperação). */
+    @PostMapping("/login/2fa")
+    public ResponseEntity<?> loginSecondStep(@RequestBody java.util.Map<String, String> body, HttpServletRequest http) {
+        try {
+            var result = com.pdv2cloud.tenancy.TenantContext.runAsSystem(
+                () -> authService.superAdminLoginSecondStep(body.get("challenge"), body.get("code")));
+            ResponseCookie cookie = buildCookie(result.getKey().getToken(), http.isSecure(), result.getValue());
+            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(result.getKey());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                .body(java.util.Map.of("error", "mfa_failed", "userMessage", e.getMessage()));
+        }
     }
 
     @GetMapping("/me")

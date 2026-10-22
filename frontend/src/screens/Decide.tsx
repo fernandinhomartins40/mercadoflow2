@@ -15,12 +15,13 @@ import { useShoppingList } from '../hooks/useShoppingList';
 import { marketService } from '../services/market.service';
 import { copilotAgentsService, type CopilotDecision } from '../services/aiPlatform.service';
 import { formatMoney } from '../utils/formatters';
+import { gainOfRecommendation, OUT_OF_RANGE_HINT } from '../utils/gain';
 import { plainDates } from '../utils/plain';
 import DecisionDesk from './copilot/DecisionDesk';
 import { SuggestionsPanel } from './comprar/BuyDesk';
 import HowItWorks from './copilot/HowItWorks';
 import { agentOf } from './copilot/shared';
-import { GROUP_LABEL, useDecisionQueue, type QueueGroup, type QueueItem } from './decidir/queue';
+import { GROUP_LABEL, useDecisionQueue, withCap, type QueueGroup, type QueueItem } from './decidir/queue';
 import OpportunityPanel, { SIGNAL_LABEL } from './decidir/OpportunityPanel';
 import Results from './decidir/Results';
 import type { OpportunityItem } from '../types/analytics.types';
@@ -96,9 +97,9 @@ const Decide: React.FC = () => {
       && !(o.type === 'ANOMALIA_DE_VENDAS' && Number(o.evidence?.desvioPercent ?? -1) > 0))
     .map((o) => ({
       key: `sinal:${o.id}`, source: 'rec' as const, group: 'outros' as const, action: SIGNAL_LABEL[o.type] ?? 'Atenção',
-      title: o.title, value: o.expectedImpactValue ? Number(o.expectedImpactValue) : null, name: o.productName || o.title,
+      title: o.title, value: gainOfRecommendation(o), name: o.productName || o.title,
       image: o.productImage, urgent: false,
-    })), [signals, withRec]);
+    })).map((i) => withCap(i, queue.cap)), [signals, withRec, queue.cap]);
 
   // O mesmo aviso pode vir do Tino e do sinal: fica uma linha só.
   const all = useMemo(() => {
@@ -112,11 +113,11 @@ const Decide: React.FC = () => {
   }, [all]);
   // Em Comprar, a primeira linha põe todas as compras sugeridas no pedido de uma vez.
   const buySugs = useMemo(() => queue.recs.filter(goesToOrder), [queue.recs]);
-  const batch: QueueItem | null = buySugs.length >= 2 ? {
+  const batch: QueueItem | null = buySugs.length >= 2 ? withCap({
     key: 'lote:comprar', source: 'rec', group: 'comprar', action: 'Comprar',
     title: `Pôr as ${buySugs.length} compras no pedido de uma vez`, name: 'Compras', urgent: false,
-    value: buySugs.reduce((a, r) => a + Number(r.expectedImpactValue || 0), 0) || null,
-  } : null;
+    value: buySugs.reduce((a, r) => a + (gainOfRecommendation(r) ?? 0), 0) || null,
+  }, queue.cap) : null;
   const list = filter === 'tudo' ? all : [...(filter === 'comprar' && batch ? [batch] : []), ...all.filter((i) => i.group === filter)];
   const current = list.find((i) => i.key === selected) ?? list[0] ?? null;
   // Uma lista só, que abre o item no lugar (sem painel ao lado nem folha por cima).
@@ -191,7 +192,8 @@ const Decide: React.FC = () => {
                               <span className="fx-muted" style={{ fontSize: 12.5 }}>{[it.title.startsWith(GROUP_LABEL[it.group]) ? '' : GROUP_LABEL[it.group], it.rec && goesToOrder(it.rec) ? 'vai ao pedido' : ''].filter(Boolean).join(' · ')}</span>
                             </span>
                           </span>
-                          {it.value != null && <b className="fx-num" style={{ fontSize: 14.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
+                          {it.value != null ? <b className="fx-num" style={{ fontSize: 14.5, whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>
+                            : it.outOfRange ? <b className="fx-num" title={OUT_OF_RANGE_HINT} aria-label={OUT_OF_RANGE_HINT} style={{ fontSize: 14.5 }}>—</b> : null}
                           <ChevronDown className="fx-chev" aria-hidden="true" style={{ transform: on ? 'rotate(180deg)' : undefined }} />
                         </button>
                         {on && <div className="fx-decision-body">{detail(it)}</div>}
@@ -213,10 +215,10 @@ const Decide: React.FC = () => {
   const detail = (it: QueueItem) => {
     if (!marketId) return null;
     if (it.key === 'lote:comprar') return <SuggestionsPanel key="lote" marketId={marketId} suggestions={buySugs} onChanged={reloadAll} />;
-    if (it.decision) return <DecisionDesk key={it.key} marketId={marketId} decision={it.decision} onDecided={onTinoDecided} />;
-    if (it.rec) return <RecommendationDesk key={it.key} rec={it.rec} marketId={marketId} deciding={deciding === it.rec.id} onDecide={decide} />;
+    if (it.decision) return <DecisionDesk key={it.key} marketId={marketId} decision={it.decision} onDecided={onTinoDecided} gainCap={queue.cap} />;
+    if (it.rec) return <RecommendationDesk key={it.key} rec={it.rec} marketId={marketId} deciding={deciding === it.rec.id} onDecide={decide} gainCap={queue.cap} />;
     const opp = signals.find((o) => `sinal:${o.id}` === it.key);
-    return opp ? <OpportunityPanel key={it.key} marketId={marketId} opp={opp} onDismiss={dismiss} /> : null;
+    return opp ? <OpportunityPanel key={it.key} marketId={marketId} opp={opp} onDismiss={dismiss} gainCap={queue.cap} /> : null;
   };
 
   return (

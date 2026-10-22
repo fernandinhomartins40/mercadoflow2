@@ -193,6 +193,7 @@ public class SubscriptionAdminService {
         if (newPlan != PlanType.FREE && market.getBillingStatus() != MarketBillingStatus.ACTIVE) {
             market.setBillingStatus(MarketBillingStatus.ACTIVE);
             market.setIsActive(true);
+            market.setDisabledByAdminAt(null);
         }
         marketRepository.save(market);
         if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "superadmin: plano"); }
@@ -241,6 +242,10 @@ public class SubscriptionAdminService {
         // CustomUserDetailsService, e divergir deixaria o acesso inconsistente.
         market.setIsActive(newStatus == MarketBillingStatus.ACTIVE
             || newStatus == MarketBillingStatus.TRIAL);
+        if (Boolean.TRUE.equals(market.getIsActive())) {
+            // O superadmin religou a loja: a marca de desligada à mão sai (D-04).
+            market.setDisabledByAdminAt(null);
+        }
         marketRepository.save(market);
         if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "superadmin: estado"); }
 

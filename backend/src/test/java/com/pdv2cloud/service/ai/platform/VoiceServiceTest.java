@@ -84,6 +84,8 @@ class VoiceServiceTest {
         assertEquals(1, t.creditosUsados());
         assertEquals("Token chave-teste", seenAuth.get());
         assertTrue(seenQuery.get().contains("language=pt-BR"));
+        // LGPD-07: áudio fora do programa de melhoria de modelo do Deepgram.
+        assertTrue(seenQuery.get().contains("mip_opt_out=true"));
         // 4,2 s de áudio viram 5 "tokens" (segundos) no registro de uso.
         verify(usage).recordFull(eq(market), eq(VoiceService.TRANSCRIBE_TASK), eq("DEEPGRAM"), eq("nova-3"), anyString(),
             any(), eq(5), eq(0), any(), any(), any(), any(), eq("VOZ"), eq(1), eq(true));

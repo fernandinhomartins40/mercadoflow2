@@ -817,6 +817,44 @@ public class ConfereService {
         return true;
     }
 
+    /**
+     * Estorno ou contestação do pagamento de um pacote (D-01): tira as leituras
+     * do pedido que ainda não foram usadas (o menor entre as leituras do pedido
+     * e o saldo; nunca negativo). Uma vez só por pedido.
+     *
+     * @return leituras retiradas
+     */
+    @Transactional
+    public int reverseOrder(UUID orderId, String reason) {
+        List<Map<String, Object>> o = jdbc.queryForList("select market_id, reads from confere_orders where id = :id and status = 'PAID'",
+            Map.of("id", orderId));
+        if (o.isEmpty()) {
+            return 0;
+        }
+        UUID marketId = (UUID) o.get(0).get("market_id");
+        int reads = ((Number) o.get(0).get("reads")).intValue();
+        String ref = com.pdv2cloud.service.ai.platform.AiWalletService.REVERSAL_PREFIX + orderId;
+        jdbc.update("insert into confere_accounts (market_id) values (:m) on conflict do nothing", Map.of("m", marketId));
+        // Trava a conta: estorno e contestação do mesmo pagamento não tiram duas vezes.
+        List<Integer> balance = jdbc.queryForList("select balance from confere_accounts where market_id = :m for update",
+            Map.of("m", marketId), Integer.class);
+        Integer done = jdbc.queryForObject("select count(*) from confere_ledger where market_id = :m and reference = :r",
+            Map.of("m", marketId, "r", ref), Integer.class);
+        if (done != null && done > 0) {
+            return 0;
+        }
+        int take = com.pdv2cloud.service.ai.platform.AiWalletService.reversal(reads,
+            balance.isEmpty() || balance.get(0) == null ? 0 : balance.get(0));
+        if (take > 0) {
+            jdbc.update("update confere_accounts set balance = balance - :d, updated_at = now() where market_id = :m and balance >= :d",
+                Map.of("m", marketId, "d", take));
+        }
+        jdbc.update("insert into confere_ledger (market_id, delta, kind, reference, note) values (:m, :d, 'REFUND', :r, :n)",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("d", -take).addValue("r", ref)
+                .addValue("n", com.pdv2cloud.service.ai.platform.AiWalletService.reversalNote(reason, take, reads, "leituras")));
+        return take;
+    }
+
     public UUID orderIdBySession(String sessionId) {
         List<UUID> ids = jdbc.queryForList("select id from confere_orders where stripe_session_id = :s", Map.of("s", sessionId), UUID.class);
         return ids.isEmpty() ? null : ids.get(0);

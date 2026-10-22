@@ -40,6 +40,12 @@ export interface DestinationPage {
   adminOnly?: boolean;
   /** Só para o dono da conta (equipe). */
   ownerOnly?: boolean;
+  /**
+   * Subitem: a página mora dentro de outra (o `to` da página-mãe). O menu
+   * mostra no máximo 9 itens principais (auditoria de 20/10, §4 C); os
+   * subitens aparecem em letra menor, logo abaixo da página-mãe.
+   */
+  parent?: string;
 }
 
 export interface Destination {
@@ -82,7 +88,9 @@ export const DESTINATIONS: Destination[] = [
     inDock: true,
     pages: [
       { to: '/app/lista-compras', label: 'Pedidos', icon: ShoppingCart },
-      { to: '/app/compras-digitais', label: 'Indústrias e distribuidores', icon: Factory },
+      // As duas páginas de fornecedor ficam juntas: quem vende e o que a loja deixa os vendedores verem.
+      { to: '/app/compras-digitais', label: 'Fornecedores', icon: Factory },
+      { to: '/app/vendedores', label: 'Vendedores e campanhas', icon: ShieldCheck, ownerOnly: true, parent: '/app/compras-digitais' },
     ],
   },
   {
@@ -93,7 +101,7 @@ export const DESTINATIONS: Destination[] = [
     inDock: true,
     pages: [
       { to: '/app/produtos', label: 'Produtos', icon: PackageSearch, alsoMatches: ['/app/produtos/'] },
-      { to: '/app/contar', label: 'Contar estoque', icon: ClipboardList },
+      { to: '/app/contar', label: 'Contar estoque', icon: ClipboardList, parent: '/app/produtos' },
     ],
   },
   {
@@ -113,15 +121,16 @@ export const DESTINATIONS: Destination[] = [
     hint: 'Caixas, ERP, assinatura e conta',
     icon: Store,
     pages: [
-      { to: '/app/pdvs', label: 'Caixas e agente', icon: Store, alsoMatches: ['/app/download-agente'] },
-      { to: '/app/assinatura', label: 'Assinatura e planos', icon: CreditCard, alsoMatches: ['/app/planos'] },
-      { to: '/app/equipe', label: 'Equipe', icon: Users, ownerOnly: true },
-      { to: '/app/integracoes', label: 'Integrações (ERP)', icon: Plug },
-      { to: '/app/vendedores', label: 'Vendedores e campanhas', icon: ShieldCheck, ownerOnly: true },
+      // Conexões: caixas e ERP no mesmo lugar.
+      { to: '/app/pdvs', label: 'Caixas e ERP', icon: Store, alsoMatches: ['/app/download-agente'] },
+      { to: '/app/integracoes', label: 'Integrações (ERP)', icon: Plug, parent: '/app/pdvs' },
+      // Conta: perfil, plano e equipe.
       { to: '/app/configuracoes', label: 'Conta', icon: Settings },
-      { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true },
+      { to: '/app/assinatura', label: 'Assinatura e planos', icon: CreditCard, alsoMatches: ['/app/planos'], parent: '/app/configuracoes' },
+      { to: '/app/equipe', label: 'Equipe', icon: Users, ownerOnly: true, parent: '/app/configuracoes' },
+      { to: '/app/admin/catalogo', label: 'Catálogo global', icon: Database, adminOnly: true, parent: '/app/configuracoes' },
       ...(FEATURE_STATE_PRICES_ENABLED
-        ? [{ to: '/app/admin/precos-estaduais', label: 'Preços estaduais', icon: Globe2, adminOnly: true }]
+        ? [{ to: '/app/admin/precos-estaduais', label: 'Preços estaduais', icon: Globe2, adminOnly: true, parent: '/app/configuracoes' }]
         : []),
     ],
   },
@@ -137,6 +146,12 @@ const pageMatches = (page: DestinationPage, pathname: string) =>
 /** Páginas do destino visíveis para o papel do usuário. */
 export const visiblePages = (destination: Destination, isAdmin: boolean, isOwner = true) =>
   destination.pages.filter((page) => (!page.adminOnly || isAdmin) && (!page.ownerOnly || isOwner || isAdmin));
+
+/** Itens principais (sem subitens). Somados em todos os destinos, no máximo 9. */
+export const mainPages = (pages: DestinationPage[]) => pages.filter((page) => !page.parent);
+
+/** Subitens de uma página principal, na ordem do menu. */
+export const subPages = (pages: DestinationPage[], parentTo: string) => pages.filter((page) => page.parent === parentTo);
 
 /** Destino e página ativos para a rota atual (o Início é o padrão). */
 export const resolveLocation = (pathname: string) => {

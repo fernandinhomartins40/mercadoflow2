@@ -8,26 +8,33 @@ package com.pdv2cloud.service.ai;
  * modelo. É por isso que acrescentar um provedor aqui é acrescentar uma linha,
  * não uma implementação.
  *
- * A ordem da enum é a ordem sugerida da cadeia de fallback, e reflete a cota
- * gratuita de cada um (levantamento de ago/2026, no plano §24): Cerebras dá 1M
- * tokens/dia, Groq não tem sistema de créditos, NVIDIA NIM tem plano free
- * permanente. Os limites mudam — o cliente pode reordenar pela prioridade.
+ * A ordem da enum é a ordem sugerida da cadeia de fallback; o cliente pode
+ * reordenar pela prioridade.
+ *
+ * Só camada paga (dono, 22/10/2026, LGPD-07): nas camadas gratuitas o provedor
+ * pode usar perguntas e números do mercado para treinar modelos. Por isso
+ * nenhum modelo gratuito ({@link #isFreeModel}) é cadastrado nem chamado, e o
+ * padrão de cada provedor é um modelo pago. O tipo de plano da chave do
+ * cliente (BYOK) não é visível pela API; a tela pede uma conta paga.
  */
 public enum AiProvider {
 
-    /** 1M tokens/dia no free tier; contexto menor exige contexto enxuto. */
+    /** Tem free tier; aqui só com conta paga. Contexto menor exige contexto enxuto. */
     CEREBRAS("https://api.cerebras.ai/v1", "llama-3.3-70b", true),
 
-    /** LPU: latência muito baixa; free sem cartão. */
+    /** LPU: latência muito baixa. Tem free tier; aqui só com conta paga. */
     GROQ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", true),
 
-    /** Catálogo grande, plano free permanente. */
+    /** Catálogo grande. Tem plano free; aqui só com conta paga. */
     NVIDIA_NIM("https://integrate.api.nvidia.com/v1", "meta/llama-3.3-70b-instruct", true),
 
-    /** Agregador: rotas :free e fallback entre modelos num endpoint só. */
-    OPENROUTER("https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free", true),
+    /**
+     * Agregador. O padrão era um modelo ":free"; passou ao mesmo modelo pago da
+     * reserva da plataforma (V69). Rotas ":free" são recusadas.
+     */
+    OPENROUTER("https://openrouter.ai/api/v1", "qwen/qwen3.7-flash", true),
 
-    /** Camada compatível com OpenAI do Gemini. */
+    /** Camada compatível com OpenAI do Gemini. Sem faturamento, o Google usa os dados para treino. */
     GEMINI("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.0-flash", true),
 
     /**
@@ -63,10 +70,30 @@ public enum AiProvider {
         return defaultModel;
     }
 
-    /** Usado pela UI para sinalizar quais opções não custam nada ao cliente. */
+    /**
+     * O provedor também tem camada gratuita. A UI usa para pedir conta paga
+     * (na gratuita os dados podem ir para treino), não para oferecer o grátis.
+     */
     public boolean hasFreeTier() {
         return hasFreeTier;
     }
+
+    /**
+     * Modelo de camada gratuita: as rotas ":free" do OpenRouter e o roteador
+     * "openrouter/free". Nunca é cadastrado nem chamado (LGPD-07).
+     */
+    public static boolean isFreeModel(String model) {
+        if (model == null) {
+            return false;
+        }
+        String m = model.trim().toLowerCase(java.util.Locale.ROOT);
+        return m.endsWith(":free") || m.equals("openrouter/free");
+    }
+
+    /** Frase para o cliente quando um modelo gratuito é recusado. */
+    public static final String FREE_MODEL_REFUSED =
+        "Modelos gratuitos não são aceitos: nesses planos o provedor pode usar seus dados para treinar a IA. "
+            + "Escolha um modelo pago.";
 
     /** CUSTOM exige que o cliente informe a URL; os demais já a trazem. */
     public boolean requiresBaseUrl() {

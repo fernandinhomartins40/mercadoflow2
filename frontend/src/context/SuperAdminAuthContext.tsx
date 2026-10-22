@@ -11,7 +11,9 @@ interface SuperAdminAuthState {
 }
 
 interface SuperAdminAuthContextValue extends SuperAdminAuthState {
-  login: (email: string, password: string, keepConnected?: boolean) => Promise<void>;
+  /** Devolve o desafio quando falta o código do aplicativo (duas etapas); senão null. */
+  login: (email: string, password: string, keepConnected?: boolean) => Promise<string | null>;
+  loginSecondStep: (challenge: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -60,8 +62,7 @@ export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = (
     load();
   }, [location.pathname, location.search]);
 
-  const login = async (email: string, password: string, keepConnected = false) => {
-    await superAdminAuthService.login(email, password, keepConnected);
+  const loadMe = async () => {
     const me = await superAdminAuthService.me();
     if (me.role !== 'SUPER_ADMIN') {
       throw new Error('Acesso negado ao painel Super Admin');
@@ -74,13 +75,27 @@ export const SuperAdminAuthProvider: React.FC<{ children: React.ReactNode }> = (
     });
   };
 
+  const login = async (email: string, password: string, keepConnected = false) => {
+    const response = await superAdminAuthService.login(email, password, keepConnected);
+    if (response.mfaRequired && response.mfaChallenge) {
+      return response.mfaChallenge;
+    }
+    await loadMe();
+    return null;
+  };
+
+  const loginSecondStep = async (challenge: string, code: string) => {
+    await superAdminAuthService.loginSecondStep(challenge, code);
+    await loadMe();
+  };
+
   const logout = async () => {
     await superAdminAuthService.logout();
     setState({ role: null, userId: null, email: null, name: null });
   };
 
   return (
-    <SuperAdminAuthContext.Provider value={{ ...state, login, logout, loading }}>
+    <SuperAdminAuthContext.Provider value={{ ...state, login, loginSecondStep, logout, loading }}>
       {children}
     </SuperAdminAuthContext.Provider>
   );

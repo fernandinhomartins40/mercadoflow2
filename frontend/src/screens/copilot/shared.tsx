@@ -1,5 +1,6 @@
 import { CalendarClock, Megaphone, MessageCircle, PiggyBank, ShoppingCart, Sparkles, Sun, Tag, Truck, type LucideIcon } from 'lucide-react';
 import type { CopilotDecision } from '../../services/aiPlatform.service';
+import { gainOfDecision } from '../../utils/gain';
 
 /** O que cada agente faz, em palavras de quem decide. */
 export const AGENT: Record<string, { label: string; icon: LucideIcon; action: string; valueLabel: string }> = {
@@ -39,16 +40,10 @@ export const certainty = (d: CopilotDecision) => {
   return p >= 0.8 ? 'Confiança alta' : p >= 0.55 ? 'Confiança média' : 'Confiança baixa';
 };
 
-/** Valor da decisão para a lista e para o título. */
+/** Valor da decisão para a lista e para o título: o mesmo ganho do Início e do Decidir (utils/gain). */
 export const valueOf = (d: CopilotDecision, override?: number) => {
   if (override != null) return override > 0 ? override : null;
-  if (d.impact != null && d.impact > 0) return Number(d.impact);
-  const n = d.numbers ?? {};
-  for (const k of ['valorEstimado', 'valorEstoque', 'valor', 'vendaProtegida']) {
-    const v = Number((n as Record<string, unknown>)[k]);
-    if (Number.isFinite(v) && v > 0) return v;
-  }
-  return null;
+  return gainOfDecision(d);
 };
 
 export const REASONS = ['Não preciso agora', 'Valor alto demais', 'Já resolvi', 'Não confio nesse fornecedor'];

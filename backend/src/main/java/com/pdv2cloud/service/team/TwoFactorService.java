@@ -47,6 +47,16 @@ public class TwoFactorService {
         if (role == null || !role.canUseTwoFactor()) {
             throw new IllegalArgumentException("A verificação em duas etapas é para o dono e o financeiro.");
         }
+        return newSecret(userId, email);
+    }
+
+    /** Superadmin e ADMIN (escopo global): podem ligar sempre (SEG-08). */
+    @Transactional
+    public Setup setupStaff(UUID userId, String email) {
+        return newSecret(userId, email);
+    }
+
+    private Setup newSecret(UUID userId, String email) {
         if (!cipher.isConfigured()) {
             throw new IllegalStateException("A chave mestra de criptografia não está configurada no servidor.");
         }

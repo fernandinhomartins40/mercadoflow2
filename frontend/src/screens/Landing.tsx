@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ButtonLink from '../components/common/ButtonLink';
+import subscriptionService, { PlanDescriptor, featureText, formatPrice } from '../services/subscription.service';
 import {
   ArrowRight,
   BarChart3,
@@ -126,56 +127,13 @@ const steps = [
   },
 ];
 
-const plans = [
-  {
-    name: 'Essencial',
-    price: 'R$ 197',
-    period: '/mês',
-    desc: 'Para mercados que querem começar a decidir com dados',
-    features: [
-      'Painel do dia completo',
-      'Até 2.000 produtos',
-      'Pedido inteligente',
-      'Alertas automáticos (5 tipos)',
-      '1 PDV / 1 usuário',
-    ],
-    cta: 'Começar agora',
-    highlight: false,
-  },
-  {
-    name: 'Profissional',
-    price: 'R$ 397',
-    period: '/mês',
-    desc: 'Para mercados que querem crescer com inteligência',
-    features: [
-      'Tudo do Essencial',
-      'Produtos ilimitados',
-      'Combos e mapa da loja',
-      'Promoções com resultado',
-      'Previsão de demanda 30 dias',
-      'Alertas completos (8 tipos)',
-      'Até 5 usuários',
-    ],
-    cta: 'Escolher Profissional',
-    highlight: true,
-  },
-  {
-    name: 'Rede',
-    price: 'Sob consulta',
-    period: '',
-    desc: 'Para redes com múltiplas filiais',
-    features: [
-      'Tudo do Profissional',
-      'Multi-loja centralizado',
-      'Comparação entre filiais',
-      'API de integração',
-      'Suporte dedicado',
-      'Usuários ilimitados',
-    ],
-    cta: 'Falar com vendas',
-    highlight: false,
-  },
-];
+// Planos vêm do catálogo real (GET /v1/plans). Nada de preço fixo aqui:
+// se o catálogo mudar no painel, a vitrine acompanha.
+const planCta = (p: PlanDescriptor) => {
+  if (p.free || p.monthlyPriceCents === 0) return 'Começar grátis';
+  if (p.custom || p.monthlyPriceCents < 0) return 'Falar com vendas';
+  return `Escolher ${p.name}`;
+};
 
 // ── Fake dashboard mockup ─────────────────────────────────────────────────────
 
@@ -282,6 +240,26 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // ── Component ─────────────────────────────────────────────────────────────────
 const Landing: React.FC = () => {
   const containerRef = useReveal();
+  const [plans, setPlans] = useState<PlanDescriptor[] | null>(null);
+  const [plansFailed, setPlansFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    subscriptionService
+      .getPublicPlans()
+      .then((list) => {
+        if (cancelled) return;
+        if (list.length) setPlans(list);
+        else setPlansFailed(true);
+      })
+      .catch(() => {
+        // Sem o catálogo a seção de preços some e fica só o "Ver planos".
+        if (!cancelled) setPlansFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div ref={containerRef} className="min-h-screen" style={{ background: '#ffffff', color: '#0f172a' }}>
@@ -367,7 +345,7 @@ const Landing: React.FC = () => {
 
               <div className="rv rv-delay-3 mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <ButtonLink to="/register" className="!h-12 !min-h-0 !max-h-none !px-7 !text-base">
-                  Começar grátis por 14 dias <ArrowRight className="h-4 w-4" />
+                  Começar grátis <ArrowRight className="h-4 w-4" />
                 </ButtonLink>
                 <a href="#como-funciona" className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold no-underline transition-colors" style={{ color: '#64748b' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#0f172a')}
@@ -686,48 +664,70 @@ const Landing: React.FC = () => {
             <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: '#0f172a' }}>
               Escolha o plano ideal para a sua loja
             </h2>
-            <p className="mt-4 text-base" style={{ color: '#64748b' }}>Todos incluem 14 dias grátis, sem cartão de crédito.</p>
+            <p className="mt-4 text-base" style={{ color: '#64748b' }}>Comece no plano gratuito, sem cartão de crédito.</p>
           </div>
 
-          <div className="rv mx-auto mt-14 grid max-w-5xl gap-6 lg:grid-cols-3">
-            {plans.map((p) => (
-              <article
-                key={p.name}
-                className="relative flex flex-col rounded-2xl p-7 shadow-sm"
-                style={p.highlight
-                  ? { background: '#ffffff', border: '2px solid #16a34a', boxShadow: '0 0 0 4px rgba(22,163,74,0.08)' }
-                  : { background: '#ffffff', border: '1px solid #e2e8f0' }}
-              >
-                {p.highlight && (
-                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-bold text-white shadow-md" style={{ background: '#16a34a' }}>
-                    Recomendado
-                  </span>
-                )}
-                <h3 className="text-base font-bold" style={{ color: '#0f172a' }}>{p.name}</h3>
-                <p className="mt-1 text-sm" style={{ color: '#64748b' }}>{p.desc}</p>
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold" style={{ color: '#0f172a' }}>{p.price}</span>
-                  {p.period && <span className="text-sm" style={{ color: '#94a3b8' }}>{p.period}</span>}
-                </div>
-                <ul className="mt-6 flex flex-col gap-2.5">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}>
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: '#16a34a' }} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto pt-7">
-                  <ButtonLink
-                    to="/register"
-                    variant={p.highlight ? 'primary' : 'secondary'}
-                    className="!h-11 !min-h-0 !max-h-none w-full"
-                  >
-                    {p.cta}
-                  </ButtonLink>
-                </div>
-              </article>
-            ))}
+          {/* O wrapper .rv existe desde o início: o observer do reveal só enxerga o que já está montado. */}
+          <div className="rv mx-auto mt-14 max-w-6xl" aria-busy={!plans && !plansFailed}>
+            {!plans && !plansFailed && (
+              <p className="text-center text-sm" style={{ color: '#94a3b8' }} role="status">Carregando planos...</p>
+            )}
+            {plansFailed && (
+              <div className="flex justify-center">
+                <ButtonLink to="/register" className="!h-11 !min-h-0 !max-h-none !px-7">
+                  Ver planos <ArrowRight className="h-4 w-4" />
+                </ButtonLink>
+              </div>
+            )}
+            {plans && (
+              <div className={`grid gap-6 md:grid-cols-2 ${plans.length >= 4 ? 'xl:grid-cols-4' : 'lg:grid-cols-3'}`}>
+                {plans.map((p) => {
+                  const highlight = p.code === 'PROFISSIONAL';
+                  const items = [
+                    ...(p.highlights || []),
+                    ...(p.features || []).filter((f) => f.enabled).map(featureText),
+                  ];
+                  return (
+                    <article
+                      key={p.code}
+                      className="relative flex flex-col rounded-2xl p-7 shadow-sm"
+                      style={highlight
+                        ? { background: '#ffffff', border: '2px solid #16a34a', boxShadow: '0 0 0 4px rgba(22,163,74,0.08)' }
+                        : { background: '#ffffff', border: '1px solid #e2e8f0' }}
+                    >
+                      {highlight && (
+                        <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-bold text-white shadow-md" style={{ background: '#16a34a' }}>
+                          Recomendado
+                        </span>
+                      )}
+                      <h3 className="text-base font-bold" style={{ color: '#0f172a' }}>{p.name}</h3>
+                      {p.description && <p className="mt-1 text-sm" style={{ color: '#64748b' }}>{p.description}</p>}
+                      <div className="mt-5 flex items-baseline gap-1">
+                        <span className="text-4xl font-extrabold" style={{ color: '#0f172a' }}>{formatPrice(p.monthlyPriceCents)}</span>
+                        {p.monthlyPriceCents > 0 && <span className="text-sm" style={{ color: '#94a3b8' }}>/mês</span>}
+                      </div>
+                      <ul className="mt-6 flex flex-col gap-2.5" aria-label={`O que o plano ${p.name} inclui`}>
+                        {items.map((f) => (
+                          <li key={f} className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}>
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: '#16a34a' }} />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-auto pt-7">
+                        <ButtonLink
+                          to="/register"
+                          variant={highlight ? 'primary' : 'secondary'}
+                          className="!h-11 !min-h-0 !max-h-none w-full"
+                        >
+                          {planCta(p)}
+                        </ButtonLink>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -736,7 +736,7 @@ const Landing: React.FC = () => {
       <section style={{ background: '#0f172a' }} className="py-20">
         <div className="rv mx-auto max-w-3xl px-6 text-center">
           <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold" style={{ background: 'rgba(22,163,74,0.15)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.25)' }}>
-            <Sparkles className="h-3.5 w-3.5" /> 14 dias grátis, sem cartão
+            <Sparkles className="h-3.5 w-3.5" /> Comece grátis, sem cartão
           </span>
           <h2 className="mt-5 text-3xl font-extrabold text-white sm:text-4xl">
             Pronto para decidir com dados, não com achismo?
@@ -799,6 +799,8 @@ const Landing: React.FC = () => {
             <ul className="mt-3 flex flex-col">
               {[
                 { href: '#como-funciona', label: 'Como funciona' },
+                { href: '/privacidade', label: 'Política de privacidade' },
+                { href: '/termos', label: 'Termos de uso' },
               ].map((l) => (
                 <li key={l.label}>
                   <a href={l.href} className="inline-flex min-h-[44px] items-center text-sm no-underline transition-colors" style={{ color: '#64748b' }}

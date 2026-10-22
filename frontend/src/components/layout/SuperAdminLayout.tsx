@@ -6,7 +6,6 @@ import {
 import type { WorkspaceNavSection } from './WorkspaceSidebar';
 import { Link, useLocation } from 'react-router-dom';
 import { useSuperAdminAuth } from '../../context/SuperAdminAuthContext';
-import '../../styles/flow.css';
 import { FEATURE_OFFER_TEMPLATES_ENABLED, FEATURE_STATE_PRICES_ENABLED } from '../../config/features';
 
 const TITLES: Record<string, { title: string; subtitle: string; section: string }> = {

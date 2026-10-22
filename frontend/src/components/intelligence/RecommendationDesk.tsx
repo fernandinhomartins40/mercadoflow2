@@ -3,6 +3,7 @@ import { Check, ChevronDown, Loader2, Sparkles, X } from 'lucide-react';
 import { Chip, Forest, PanelTitle, Thumb } from '../flow/Flow';
 import { ACTION_LABEL, goesToOrder } from './RecommendationCard';
 import { formatMoney } from '../../utils/formatters';
+import { checkedGain, gainOfRecommendation, OUT_OF_RANGE_HINT } from '../../utils/gain';
 import type { RecommendationItem } from '../../types/analytics.types';
 import CostPriceFields from './CostPriceFields';
 import { NeighborhoodLine } from '../product/NeighborhoodPrice';
@@ -31,7 +32,10 @@ const RecommendationDesk: React.FC<{
   marketId?: string | null;
   deciding: boolean;
   onDecide: (id: string, decision: 'ACEITA' | 'REJEITADA') => void;
-}> = ({ rec, marketId, deciding, onDecide }) => {
+  /** Teto de bom senso do ganho (faturamento de 4 semanas); acima dele mostra "—". */
+  gainCap?: number | null;
+}> = ({ rec, marketId, deciding, onDecide, gainCap }) => {
+  const gain = checkedGain(gainOfRecommendation(rec), gainCap);
   const denied = useTeamPermission().hint('PURCHASING');
   const [trace, setTrace] = useState(false);
   const inputs = !!marketId && needsInputs(rec);
@@ -99,7 +103,9 @@ const RecommendationDesk: React.FC<{
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>
             <small>{rec.actionType === 'COMPRAR' && rec.parameters?.acao !== 'reduzir_proxima_compra' ? 'Margem que esta compra traz' : 'Ganho estimado'}</small>
-            <span style={{ display: 'block', marginTop: 4 }}><span className="fx-money" style={{ fontSize: 26 }}>{formatMoney(rec.expectedImpactValue)}</span></span>
+            <span style={{ display: 'block', marginTop: 4 }}>{gain.outOfRange
+              ? <span className="fx-money" style={{ fontSize: 26 }} title={OUT_OF_RANGE_HINT}>—<small style={{ display: 'block', fontSize: 13, fontWeight: 500 }}>{OUT_OF_RANGE_HINT}</small></span>
+              : <span className="fx-money" style={{ fontSize: 26 }}>{formatMoney(gain.value)}</span>}</span>
           </span>
           {goesToOrder(rec) && rec.parameters?.valorEstimado != null && (
             <span style={{ textAlign: 'right' }}>

@@ -29,7 +29,7 @@ public class MarketBasketAnalysisJob {
     @Autowired
     private MarketBasketRuleRepository marketBasketRuleRepository;
 
-    @Scheduled(cron = "0 30 2 * * ?")
+    @Scheduled(cron = "0 30 2 * * ?", zone = "America/Sao_Paulo")
     public void runMarketBasket() {
         log.info("Starting market basket analysis");
         List<Market> markets = marketRepository.findAllActive();

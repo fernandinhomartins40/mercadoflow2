@@ -28,7 +28,8 @@ import org.springframework.web.bind.annotation.*;
 @Profile("!jobs")
 @RestController
 @RequestMapping("/api/v1/admin")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+// CATALOG_SERVICE: só /catalog/import/records, pela regra do SecurityConfig (SEG-08).
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'CATALOG_SERVICE')")
 public class AdminController {
 
     @Autowired

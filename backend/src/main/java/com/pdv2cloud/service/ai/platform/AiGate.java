@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
  *   <li>interruptor geral ligado;</li>
  *   <li>modo piloto: só mercados da lista de teste;</li>
  *   <li>chave do provedor cadastrada e ligada;</li>
+ *   <li>modelo pago: modelo de camada gratuita nunca é chamado (LGPD-07);</li>
  *   <li>teto de gasto diário global da plataforma;</li>
  *   <li>créditos do mercado e teto mensal dele.</li>
  * </ol>
@@ -29,7 +30,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AiGate {
 
-    public enum Reason { OK, TEMPLATE, DISABLED_TASK, PLATFORM_OFF, NOT_PILOT, NO_KEY, DAILY_BUDGET, NO_CREDITS, RESTRICTED }
+    public enum Reason { OK, TEMPLATE, DISABLED_TASK, PLATFORM_OFF, NOT_PILOT, NO_KEY, FREE_MODEL, DAILY_BUDGET, NO_CREDITS, RESTRICTED }
 
     public record Decision(Reason reason, AiPlatformConfig.Route route, AiPlatformConfig.Key key) {
         public boolean allowed() {
@@ -89,6 +90,10 @@ public class AiGate {
         if (key.isEmpty()) {
             return new Decision(Reason.NO_KEY, route, null);
         }
+        // Só camada paga (LGPD-07): rota ou padrão do provedor com modelo gratuito não atende.
+        if (com.pdv2cloud.service.ai.AiProvider.isFreeModel(new Decision(Reason.OK, route, key.get()).model())) {
+            return new Decision(Reason.FREE_MODEL, route, null);
+        }
         if (spentTodayUsd() >= s.dailyBudgetUsd().doubleValue()) {
             return new Decision(Reason.DAILY_BUDGET, route, key.get());
         }
@@ -133,7 +138,7 @@ public class AiGate {
     /**
      * Cadeia de tentativas de uma decisão liberada: o modelo da rota e, se ele
      * falhar, as reservas configuradas (cada uma com o próprio preço, numa cópia
-     * da rota). Reserva sem chave cadastrada fica de fora.
+     * da rota). Reserva sem chave cadastrada ou com modelo gratuito fica de fora.
      */
     public List<Decision> attempts(Decision primary) {
         List<Decision> out = new java.util.ArrayList<>();
@@ -143,6 +148,9 @@ public class AiGate {
         }
         AiPlatformConfig.Route r = primary.route();
         for (AiPlatformConfig.Fallback f : config.fallbacks(r.task())) {
+            if (com.pdv2cloud.service.ai.AiProvider.isFreeModel(f.model())) {
+                continue;
+            }
             Optional<AiPlatformConfig.Key> key = config.key(f.provider());
             if (key.isEmpty()) {
                 continue;

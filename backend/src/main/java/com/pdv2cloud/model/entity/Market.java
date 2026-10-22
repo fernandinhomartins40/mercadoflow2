@@ -60,6 +60,10 @@ public class Market {
 
     private Boolean isActive = true;
 
+    /** Desligada à mão pelo superadmin: pagamento reativa a assinatura, não a loja (V101, D-04). */
+    @Column(name = "disabled_by_admin_at")
+    private LocalDateTime disabledByAdminAt;
+
     private Integer userSeatLimit;
 
     private LocalDateTime accessExpiresAt;

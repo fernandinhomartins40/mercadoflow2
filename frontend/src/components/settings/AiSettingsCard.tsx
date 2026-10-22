@@ -15,7 +15,8 @@ import {
  *
  * A tela precisa comunicar três coisas com clareza, porque cadastrar uma chave
  * de API não é gesto trivial para um supermercadista:
- *   1. que existem opções gratuitas;
+ *   1. que só vale conta paga: nos planos gratuitos o provedor pode treinar
+ *      a IA com os dados da loja (LGPD-07), e modelos gratuitos são recusados;
  *   2. que a chave fica cifrada e não é recuperável nem por nós;
  *   3. que **nada quebra** se ele não configurar nada.
  */
@@ -153,6 +154,12 @@ const AiSettingsCard: React.FC<{ marketId?: string | null }> = ({ marketId }) =>
           com os textos que o próprio sistema escreve.
         </p>
 
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          Use uma conta <strong style={{ color: 'var(--text-primary)' }}>paga</strong> no serviço de IA.
+          Nos planos gratuitos, o serviço pode usar os dados da sua loja para treinar a IA dele.
+          Por isso, modelos gratuitos não são aceitos.
+        </p>
+
         {cryptoOff && (
           <div
             className="flex gap-2 rounded-lg px-4 py-3 text-sm"
@@ -192,14 +199,6 @@ const AiSettingsCard: React.FC<{ marketId?: string | null }> = ({ marketId }) =>
                 <div className="min-w-[9rem]">
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                     {c.providerLabel}
-                    {c.hasFreeTier && (
-                      <span
-                        className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold"
-                        style={{ background: 'var(--surface-success)', color: 'var(--brand-700)' }}
-                      >
-                        GRÁTIS
-                      </span>
-                    )}
                   </p>
                   <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                     {c.keyHint} · {c.model}
@@ -270,7 +269,7 @@ const AiSettingsCard: React.FC<{ marketId?: string | null }> = ({ marketId }) =>
               >
                 {providers.map(p => (
                   <option key={p.id} value={p.id}>
-                    {p.nome}{p.gratuito ? ' — tem plano gratuito' : ''}
+                    {p.nome}
                   </option>
                 ))}
               </select>

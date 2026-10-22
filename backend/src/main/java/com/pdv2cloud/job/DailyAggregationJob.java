@@ -8,6 +8,7 @@ import com.pdv2cloud.repository.ProductRepository;
 import com.pdv2cloud.repository.SalesAnalyticsRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -41,10 +42,13 @@ public class DailyAggregationJob {
     /** Notas do PDV que o agente envia atrasadas (fila offline) entram no recálculo. */
     static final int DAYS_BACK = 7;
 
-    @Scheduled(cron = "0 0 2 * * ?")
+    /** Dia comercial da loja: data_emissao guarda a hora local da nota, e a JVM roda em UTC. */
+    static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
+
+    @Scheduled(cron = "0 0 2 * * ?", zone = "America/Sao_Paulo")
     public void aggregateDailySales() {
         log.info("Starting daily sales aggregation");
-        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDate yesterday = LocalDate.now(ZONE).minusDays(1);
         List<Market> markets = marketRepository.findAllActive();
 
         int failures = 0;

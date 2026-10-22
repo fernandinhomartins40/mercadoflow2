@@ -20,6 +20,7 @@ import { operationService, type OperationMetric, type OperationPanel, type Opera
 import { networkService, weeklyDigestService, type WeeklyDigest } from '../services/network.service';
 import { customerService, exportService } from '../services/advanced.service';
 import { formatDecimal, formatMoney } from '../utils/formatters';
+import { isSanePercent, OUT_OF_RANGE_HINT } from '../utils/gain';
 import { GROUP_LABEL, useDecisionQueue } from './decidir/queue';
 import { useCached } from '../hooks/useCached';
 import { tractionService, type ProductTraction } from '../services/traction.service';
@@ -48,7 +49,8 @@ const dayLabel = (iso: string) => {
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
 
-const pct = (v: number | null | undefined) => (v == null ? null : `${v > 0 ? '+' : ''}${formatDecimal(v, Math.abs(v) < 10 ? 1 : 0)}%`);
+// Teto de bom senso (utils/gain): variação acima de ±1.000% é dado a conferir, não notícia.
+const pct = (v: number | null | undefined) => (v == null ? null : !isSanePercent(v) ? '—' : `${v > 0 ? '+' : ''}${formatDecimal(v, Math.abs(v) < 10 ? 1 : 0)}%`);
 
 const METRIC: Record<OperationMetric['key'], { label: string; hint: string; fmt: (v: number) => string }> = {
   vendas: { label: 'Vendas', hint: 'faturamento', fmt: (v) => formatMoney(v) },
@@ -60,6 +62,7 @@ const METRIC: Record<OperationMetric['key'], { label: string; hint: string; fmt:
 
 const Delta: React.FC<{ change: number | null }> = ({ change }) => {
   if (change == null) return <small className="fx-muted">sem base de comparação</small>;
+  if (!isSanePercent(change)) return <small className="fx-muted" title={OUT_OF_RANGE_HINT} aria-label={OUT_OF_RANGE_HINT}>—</small>;
   const up = change >= 0.5;
   const down = change <= -0.5;
   const I = up ? ArrowUpRight : down ? ArrowDownRight : null;
@@ -471,7 +474,8 @@ const DecideNow: React.FC<{ n: number; loading: boolean; top: ReturnType<typeof 
                 <b style={{ display: 'block', fontSize: 16, lineHeight: 1.3 }}>{plainDates(it.title)}</b>
                 <span className="fx-muted" style={{ fontSize: 14 }}>{it.title.startsWith(GROUP_LABEL[it.group]) ? 'Sugestão do Tino' : GROUP_LABEL[it.group]}</span>
               </span>
-              {it.value != null && <b className="fx-num" style={{ whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>}
+              {it.value != null ? <b className="fx-num" style={{ whiteSpace: 'nowrap' }}>{formatMoney(it.value)}</b>
+                : it.outOfRange ? <b className="fx-num" title={OUT_OF_RANGE_HINT} aria-label={OUT_OF_RANGE_HINT}>—</b> : null}
             </Link>
           </li>
         ))}

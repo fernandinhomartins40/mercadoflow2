@@ -10,6 +10,7 @@ import {
   persistRememberedLogin,
 } from '../utils/rememberedLogin';
 import { ADMIN_TEST_LOGINS, type TestLoginCredentials } from '../config/testLogins';
+import { accountDeletion, deletionErrorText, isDeletionPending } from '../services/accountDeletion';
 
 const ADMIN_LOGIN_STORAGE_KEY = 'mf_admin_login';
 const ADMIN_LEGACY_EMAIL_KEY = 'mf_remember_email';
@@ -43,6 +44,8 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState(rememberedLogin.password);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Conta marcada para exclusão (LGPD-03): senha certa, a tela oferece desistir.
+  const [deletionPending, setDeletionPending] = useState(false);
   const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
   const [keepConnected, setKeepConnected] = useState(rememberedLogin.keepConnected);
 
@@ -52,9 +55,10 @@ const Login: React.FC = () => {
     setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError(null);
+    setDeletionPending(false);
     try {
       const normalizedEmail = email.trim();
       const pending = await login(normalizedEmail, password, keepConnected);
@@ -81,8 +85,20 @@ const Login: React.FC = () => {
       }
       // Conta bloqueada (senha certa): mostra o motivo e o que fazer. Senha errada: mensagem em português.
       const data = err?.response?.data;
+      setDeletionPending(isDeletionPending(err));
       if (err?.response?.status === 429) setError('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
       else setError(data?.userMessage || (err?.response?.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar agora. Tente de novo.'));
+    }
+  };
+
+  const giveUpDeletion = async () => {
+    setError(null);
+    try {
+      await accountDeletion.cancelFromLogin(email.trim(), password);
+      setDeletionPending(false);
+      await handleSubmit();
+    } catch (err) {
+      setError(deletionErrorText(err, 'Não foi possível desistir agora. Tente de novo.'));
     }
   };
 
@@ -209,6 +225,9 @@ const Login: React.FC = () => {
             </label>
           </div>
           {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
+          {deletionPending && (
+            <Button type="button" variant="secondary" onClick={() => { void giveUpDeletion(); }}>Desistir da exclusão</Button>
+          )}
           <Button type="submit">Entrar</Button>
           <p className="login-switch" style={{ marginTop: 12 }}><Link to="/esqueci-senha">Esqueci minha senha</Link></p>
         </form>

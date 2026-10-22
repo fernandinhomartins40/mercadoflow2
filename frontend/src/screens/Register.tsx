@@ -336,6 +336,10 @@ const Register: React.FC = () => {
             {submitting ? 'Criando conta...' : 'Criar conta grátis'}
             {!submitting && <ArrowRight size={15} />}
           </Button>
+          <p className="mt-2 text-center text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Ao criar a conta você concorda com os <Link to="/termos" target="_blank">Termos de uso</Link> e a{' '}
+            <Link to="/privacidade" target="_blank">Política de privacidade</Link>.
+          </p>
         </form>
 
         <p className="login-switch">

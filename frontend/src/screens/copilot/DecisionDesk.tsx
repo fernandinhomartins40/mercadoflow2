@@ -6,6 +6,7 @@ import {
   copilotAgentsService, type CopilotDecision, type DecisionAdjustments, type DecisionItem, type DecisionItems,
 } from '../../services/aiPlatform.service';
 import { AGENT, REASONS, agentOf, apiError, certainty, when } from './shared';
+import { checkedGain, gainOfDecision, OUT_OF_RANGE_HINT } from '../../utils/gain';
 import CostPriceFields from '../../components/intelligence/CostPriceFields';
 import { useTeamPermission } from '../../lib/teamPermissions';
 import { NeighborhoodLine } from '../../components/product/NeighborhoodPrice';
@@ -73,7 +74,11 @@ const DecisionDesk: React.FC<{
   onDecided: (d: CopilotDecision) => void;
   onValue?: (id: string, v: number | null) => void;
   onLater?: () => void;
-}> = ({ marketId, decision: d, onDecided, onValue, onLater }) => {
+  /** Teto de bom senso do ganho (faturamento de 4 semanas); acima dele mostra "—". */
+  gainCap?: number | null;
+}> = ({ marketId, decision: d, onDecided, onValue, onLater, gainCap }) => {
+  // O número grande é o mesmo da linha da lista no Decidir e no Início (utils/gain).
+  const gain = checkedGain(gainOfDecision(d), gainCap);
   // Mesma regra do servidor: comprador decide só o que é de compras (Compras, Recebimento).
   const perm = useTeamPermission();
   const denied = perm.hint(d.agent === 'COMPRAS' || d.agent === 'RECEBIMENTO' ? 'COPILOT_PURCHASE_DECISION' : 'COPILOT_DECISION');
@@ -399,9 +404,13 @@ const DecisionDesk: React.FC<{
               {error && <p role="alert" style={{ color: 'var(--fx-red)', margin: '12px 0 0' }}>{error}</p>}
             </div>
             <div className="fx-impact">
-              <h3><BarChart3 size={18} aria-hidden="true" />Impacto da sua decisão</h3>
-              <span className="fx-money fx-num">{total != null ? brl(total) : (() => { const n = (data?.items ?? []).filter((it) => data?.kind !== 'ENTREGA' || (choice[it.id] ?? defaultChoice(it)) !== 'ignorar').length; return n > 0 ? `${n} ${n === 1 ? 'item' : 'itens'}` : 'sem valor'; })()}</span>
-              <p>{impactText(d.agent)}</p>
+              <h3><BarChart3 size={18} aria-hidden="true" />Valor desta decisão</h3>
+              <span className="fx-money fx-num" title={gain.outOfRange ? OUT_OF_RANGE_HINT : undefined}>{gain.value != null ? brl(gain.value) : gain.outOfRange ? '—' : total != null ? brl(total) : (() => { const n = (data?.items ?? []).filter((it) => data?.kind !== 'ENTREGA' || (choice[it.id] ?? defaultChoice(it)) !== 'ignorar').length; return n > 0 ? `${n} ${n === 1 ? 'item' : 'itens'}` : 'sem valor'; })()}</span>
+              <p>{gain.outOfRange ? `${OUT_OF_RANGE_HINT[0].toUpperCase()}${OUT_OF_RANGE_HINT.slice(1)}: confira os dados antes de decidir.` : gain.value != null ? `${agentOf(d).valueLabel ? `${agentOf(d).valueLabel[0].toUpperCase()}${agentOf(d).valueLabel.slice(1)}. ` : ''}Mesmo valor da lista do Decidir e do Início.` : impactText(d.agent)}</p>
+              {/* O total recalculado com as escolhas (pedido, encarte, parados) não é o ganho: fica à parte. */}
+              {(gain.value != null || gain.outOfRange) && total != null && Math.abs(total - (gain.value ?? -1)) >= 0.01 && (
+                <p><b className="fx-num">{brl(total)}</b> · {impactText(d.agent)}</p>
+              )}
               <hr />
               <button type="button" onClick={explain} disabled={busy === 'why'} aria-expanded={!!why}
                 style={{ display: 'flex', gap: 8, alignItems: 'center', border: 0, background: 'none', padding: 0, cursor: 'pointer', color: 'var(--fx-green)', fontWeight: 700, fontSize: 14 }}>

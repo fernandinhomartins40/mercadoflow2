@@ -5,6 +5,7 @@ import MetricsCard from '../components/dashboard/MetricsCard';
 import PageHeader from '../components/layout/PageHeader';
 import ButtonLink from '../components/common/ButtonLink';
 import api from '../services/api';
+import SecurityCard from '../components/settings/SecurityCard';
 
 interface Overview {
   totalUsers: number;
@@ -63,6 +64,9 @@ const SuperAdminDashboard: React.FC = () => {
                 </>
               }
             />
+
+            {/* Verificação em duas etapas do superadmin (SEG-08): recomendada, não obrigatória. */}
+            <SecurityCard variant="staff" />
 
             {/* KPIs */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

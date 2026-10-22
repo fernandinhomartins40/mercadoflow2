@@ -50,7 +50,7 @@ class DailyAggregationJobTest {
 
         job.aggregateDailySales();
 
-        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDate yesterday = LocalDate.now(DailyAggregationJob.ZONE).minusDays(1);
         verify(analytics).deleteByMarketAndDate(m.getId(), yesterday);
         verify(analytics).deleteByMarketAndDate(m.getId(), yesterday.minusDays(DailyAggregationJob.DAYS_BACK - 1));
         verify(txManager, times(DailyAggregationJob.DAYS_BACK)).getTransaction(any());

@@ -20,10 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Cadastro das chaves de IA do cliente (BYOK).
  *
- * A decisão de produto por trás desta classe (dono, 11/08/2026): a plataforma
- * não fornece chave. Cada mercado usa a própria conta no provedor — e como
- * quase todos os provedores do catálogo têm free tier generoso, o cliente
- * consegue operar sem pagar nada.
+ * A decisão de produto por trás desta classe (dono, 11/08/2026): cada mercado
+ * pode usar a própria conta no provedor. Desde 22/10/2026 (LGPD-07) só modelos
+ * pagos: nas camadas gratuitas o provedor pode treinar com os dados do mercado.
  *
  * O que isso resolve, além de custo: a cota de um cliente nunca é consumida por
  * outro, e o limite de gasto é o da conta dele, não um teto artificial nosso.
@@ -119,6 +118,10 @@ public class AiCredentialService {
                     + "(app.ai.encryption-key). Sem ela, guardar a sua chave de API "
                     + "em segurança é impossível.");
         }
+        if (AiProvider.isFreeModel(model)
+            || ((model == null || model.isBlank()) && AiProvider.isFreeModel(provider.defaultModel()))) {
+            throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
+        }
         if (provider.requiresBaseUrl() && (baseUrl == null || baseUrl.isBlank())) {
             throw new IllegalArgumentException(
                 "Para endpoint próprio é obrigatório informar a URL do serviço.");
@@ -204,6 +207,9 @@ public class AiCredentialService {
         AiProviderCredential credential = credentialRepository
             .findByIdAndMarketId(credentialId, marketId)
             .orElseThrow(() -> new IllegalArgumentException("Credencial não encontrada"));
+        if (enabled && AiProvider.isFreeModel(credential.effectiveModel())) {
+            throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
+        }
         credential.setEnabled(enabled);
         credential.setUpdatedAt(LocalDateTime.now());
         credentialRepository.save(credential);

@@ -42,6 +42,10 @@ services:
       -c shared_preload_libraries=pg_stat_statements
       -c pg_stat_statements.track=top
     mem_limit: 1536m
+    # /dev/shm padrao do Docker (64 MB) e menor que maintenance_work_mem (128 MB):
+    # VACUUM paralelo e hash joins paralelos grandes falhavam com "could not
+    # resize shared memory segment" (medido em 22/10/2026, PERF-10).
+    shm_size: 256m
     memswap_limit: 1536m
     # Sem teto de CPU (consultas do usuario competem com o boot do backend), mas
     # com peso cheio: sob disputa ele e servido antes dos jobs e coletores.
@@ -89,6 +93,8 @@ services:
       - APP_SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - APP_SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
       - APP_SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME}
+      # Token de serviço dos coletores, aceito só nas rotas de catálogo (SEG-08).
+      - CATALOG_SERVICE_TOKEN=${CATALOG_SERVICE_TOKEN:-}
       # Contas de teste (TestUsersSeeder). Vazias = seeder nao cria.
       - TEST_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD:-}
       - TEST_SUPER_ADMIN_PASSWORD=${TEST_SUPER_ADMIN_PASSWORD:-}
@@ -104,12 +110,6 @@ services:
       # Cifra as chaves de IA que os clientes cadastram (BYOK). Ausente = BYOK
       # desabilitado com aviso na tela; todo o resto do produto segue igual.
       - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
-      - CATALOG_IMAGE_REPAIR_ENABLED=${CATALOG_IMAGE_REPAIR_ENABLED:-true}
-      - CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS=${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS:-60000}
-      - CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS=${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-21600000}
-      - CATALOG_IMAGE_REPAIR_BATCH_SIZE=${CATALOG_IMAGE_REPAIR_BATCH_SIZE:-300}
-      - CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN=${CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN:-250000}
-      - CATALOG_IMAGE_REPAIR_PROVIDER=${CATALOG_IMAGE_REPAIR_PROVIDER:-}
     depends_on:
       mercadoflow-postgres:
         condition: service_healthy
@@ -186,10 +186,20 @@ services:
       - AI_ENCRYPTION_KEY=${AI_ENCRYPTION_KEY:-}
       # Cobrancas mensais geradas pelos jobs (faturas da industria, renovacoes).
       - ASAAS_API_KEY=${ASAAS_API_KEY:-}
+      # Reparo de fotos do catalogo (CatalogImageRepairJob e @Profile("jobs")):
+      # ficava no contêiner web, onde a classe nem carrega, e nunca rodou (PERF-06).
+      - APP_CATALOG_IMAGES_DIR=/opt/pdv2cloud/catalog-data/images
+      - CATALOG_IMAGE_REPAIR_ENABLED=${CATALOG_IMAGE_REPAIR_ENABLED:-true}
+      - CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS=${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS:-60000}
+      - CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS=${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-21600000}
+      - CATALOG_IMAGE_REPAIR_BATCH_SIZE=${CATALOG_IMAGE_REPAIR_BATCH_SIZE:-300}
+      - CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN=${CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN:-250000}
+      - CATALOG_IMAGE_REPAIR_PROVIDER=${CATALOG_IMAGE_REPAIR_PROVIDER:-}
     # Arquivo morto: detalhe antigo que sai do banco vira .csv.gz aqui
     # (retenção do preço estadual), recuperável a qualquer momento.
     volumes:
       - ./data/archive:/opt/pdv2cloud/archive
+      - ./data/catalog:/opt/pdv2cloud/catalog-data
     mem_limit: 640m
     memswap_limit: 640m
     # Medido em 2026-09-25: o cron chegou a 195% de CPU numa VPS de 2 vCPU
@@ -244,6 +254,8 @@ services:
     environment:
       - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
+      # Com o token, o coletor não faz login (o superadmin pode ter duas etapas).
+      - CATALOG_SERVICE_TOKEN=${CATALOG_SERVICE_TOKEN:-}
     volumes:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog
@@ -278,6 +290,8 @@ services:
     environment:
       - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
+      # Com o token, o coletor não faz login (o superadmin pode ter duas etapas).
+      - CATALOG_SERVICE_TOKEN=${CATALOG_SERVICE_TOKEN:-}
     volumes:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog

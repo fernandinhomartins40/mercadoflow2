@@ -4,7 +4,7 @@ import {
   History, LogOut, Menu, MessageCircle, Search, Settings2, Sparkles, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { DESTINATIONS, pageTitle, resolveLocation, visiblePages } from '../../config/navigation';
+import { DESTINATIONS, mainPages, pageTitle, resolveLocation, visiblePages } from '../../config/navigation';
 import { activationService } from '../../services/activation.service';
 import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
@@ -12,7 +12,6 @@ import SubscriptionBanner from '../billing/SubscriptionBanner';
 import HistoryNotice from '../intelligence/HistoryNotice';
 import { useTeamPermission } from '../../lib/teamPermissions';
 import { PageNameContext, PhotoViewer } from '../flow/Flow';
-import '../../styles/flow.css';
 import '../../styles/flow-clean.css';
 
 /**
@@ -176,15 +175,27 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {areas.map(({ d, pages }) => {
               const list = pages.filter((p) => found(p.label, d.label + ' ' + d.hint));
               if (list.length === 0) return null;
+              // Itens principais em quadro; subitens (ex.: Contar estoque dentro de Produtos) em linha menor.
+              const subs = list.filter((p) => p.parent);
               return (
                 <section key={d.key}>
                   <h4>{d.label}</h4>
                   <div className="grid">
-                    {list.map((p) => {
+                    {mainPages(list).map((p) => {
                       const I = p.icon;
                       return <Link key={p.to} to={p.to} className={`tile ${p.to === page.to ? 'active' : ''}`}><I aria-hidden="true" />{p.label}</Link>;
                     })}
                   </div>
+                  {subs.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', margin: '8px 2px 0', fontSize: 13.5 }}>
+                      {subs.map((p) => (
+                        <Link key={p.to} to={p.to} aria-current={p.to === page.to ? 'page' : undefined}
+                          style={{ color: 'inherit', fontWeight: p.to === page.to ? 700 : 500, minHeight: 32, display: 'inline-flex', alignItems: 'center' }}>
+                          {p.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </section>
               );
             })}

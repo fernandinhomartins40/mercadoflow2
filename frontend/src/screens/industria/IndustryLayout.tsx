@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { industryService, type IndustryMe } from '../../services/industry.service';
-import '../../styles/flow.css';
 import { ChartSkeleton } from '../../components/charts/chartKit';
 
 const BarsChart = lazy(() => import('../../components/charts/BarsChart'));

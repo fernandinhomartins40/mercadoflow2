@@ -30,8 +30,11 @@ const PasswordVisibilityIcon: React.FC<{ visible: boolean }> = ({ visible }) =>
   );
 
 const SuperAdminLogin: React.FC = () => {
-  const { login } = useSuperAdminAuth();
+  const { login, loginSecondStep } = useSuperAdminAuth();
   const navigate = useNavigate();
+  // Verificação em duas etapas (SEG-08): desafio devolvido depois da senha certa.
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const rememberedLogin = loadRememberedLogin(SUPER_ADMIN_LOGIN_STORAGE_KEY, {
     defaultKeepConnected: true,
   });
@@ -53,7 +56,12 @@ const SuperAdminLogin: React.FC = () => {
     setError(null);
     try {
       const normalizedEmail = email.trim();
-      await login(normalizedEmail, password, keepConnected);
+      const pending = await login(normalizedEmail, password, keepConnected);
+      if (pending) {
+        setChallenge(pending);
+        setCode('');
+        return;
+      }
       if (rememberMe) {
         persistRememberedLogin(SUPER_ADMIN_LOGIN_STORAGE_KEY, {
           email: normalizedEmail,
@@ -69,6 +77,49 @@ const SuperAdminLogin: React.FC = () => {
       setError(err?.message || 'Falha ao entrar no painel do super admin');
     }
   };
+
+  const handleCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!challenge) return;
+    setError(null);
+    try {
+      await loginSecondStep(challenge, code.trim());
+      navigate('/super-admin');
+    } catch (err: any) {
+      const message: string | undefined = err?.response?.data?.userMessage || err?.message;
+      setError(message || 'Código não confere.');
+      if (message && /Entre de novo/.test(message)) {
+        setChallenge(null);
+        setCode('');
+      }
+    }
+  };
+
+  if (challenge) {
+    return (
+      <div className="super-admin-login-page lg-canvas">
+        <div className="super-admin-login-card lg-thick">
+          <AuthBrand badge="Super Admin" />
+          <div className="login-heading">
+            <h2>Verificação em duas etapas</h2>
+            <p>Digite o código de 6 números do seu aplicativo autenticador. Sem o celular, use um código de recuperação.</p>
+          </div>
+          <form className="super-admin-login-form" onSubmit={handleCode}>
+            <div className="form-group">
+              <label htmlFor="sa-mfa-code">Código</label>
+              <input id="sa-mfa-code" className="input" inputMode="numeric" autoComplete="one-time-code" autoFocus
+                value={code} onChange={(e) => setCode(e.target.value)} maxLength={9} required />
+            </div>
+            {error ? <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p> : null}
+            <Button type="submit">Confirmar</Button>
+            <Button type="button" variant="secondary" onClick={() => { setChallenge(null); setCode(''); setError(null); }}>
+              Voltar
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="super-admin-login-page lg-canvas">

@@ -57,6 +57,11 @@ public class McpController {
                 .header("WWW-Authenticate", "Bearer realm=\"mercadoflow-mcp\"")
                 .body(json(server.error(null, -32001, "Chave MCP inválida ou revogada")));
         }
+        if (!key.get().planAllowed()) {
+            // Chave válida, mas o plano da loja não tem o recurso data_export (D-06).
+            return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                .body(json(server.error(null, -32003, McpKeyService.PLAN_MESSAGE)));
+        }
         if (!allow(key.get().keyId())) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(json(server.error(null, -32002, "Limite de " + RATE_PER_MINUTE + " chamadas por minuto")));

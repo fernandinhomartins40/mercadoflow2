@@ -1,0 +1,7 @@
+/*
+ * CSS do painel inteiro, num arquivo só para manter a ordem de antes:
+ * componentes do painel, depois Liquid Glass, depois Flow.
+ */
+@import "./panel.css";
+@import "./liquid-glass.css";
+@import "./flow.css";

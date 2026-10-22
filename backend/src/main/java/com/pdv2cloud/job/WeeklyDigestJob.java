@@ -36,7 +36,7 @@ public class WeeklyDigestJob {
         this.marketRepository = marketRepository;
     }
 
-    @Scheduled(cron = "0 0 5 * * MON")
+    @Scheduled(cron = "0 0 5 * * MON", zone = "America/Sao_Paulo")
     public void generateWeeklyDigests() {
         List<Market> markets = TenantContext.runAsSystem(marketRepository::findAllActive);
         log.info("Resumo semanal iniciado para {} mercado(s)", markets.size());

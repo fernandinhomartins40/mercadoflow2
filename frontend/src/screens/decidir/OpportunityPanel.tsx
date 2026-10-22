@@ -4,6 +4,7 @@ import { ArrowRight, Sparkles, X } from 'lucide-react';
 import { Forest, PanelTitle } from '../../components/flow/Flow';
 import { aiCreditsService } from '../../services/aiPlatform.service';
 import { formatMoney } from '../../utils/formatters';
+import { checkedGain, gainOfRecommendation, OUT_OF_RANGE_HINT } from '../../utils/gain';
 import type { OpportunityItem } from '../../types/analytics.types';
 
 /** Nome de cada sinal da análise em palavras do supermercadista. */
@@ -29,7 +30,9 @@ export const SIGNAL_LABEL: Record<string, string> = {
  * Um sinal da análise sem ação pronta (venda subindo, anomalia...): o que se
  * viu, o "por quê" sob demanda e o descarte. Fica no filtro "Atenção".
  */
-const OpportunityPanel: React.FC<{ marketId: string; opp: OpportunityItem; onDismiss: (id: string) => void }> = ({ marketId, opp, onDismiss }) => {
+const OpportunityPanel: React.FC<{ marketId: string; opp: OpportunityItem; onDismiss: (id: string) => void; gainCap?: number | null }> = ({ marketId, opp, onDismiss, gainCap }) => {
+  // Mesmo ganho e mesmo teto da linha da lista (utils/gain).
+  const gain = checkedGain(gainOfRecommendation(opp), gainCap);
   const [why, setWhy] = useState<{ texto: string; ia: boolean } | null>(opp.aiInsight ? { texto: opp.aiInsight, ia: true } : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +47,8 @@ const OpportunityPanel: React.FC<{ marketId: string; opp: OpportunityItem; onDis
     <Forest as="aside" aria-label="O que a análise viu">
       <PanelTitle title={opp.title} sub={SIGNAL_LABEL[opp.type] ?? 'Atenção'} />
       {opp.description && <p style={{ margin: '14px 0 0', color: 'var(--fx-on-forest)', lineHeight: 1.5 }}>{opp.description}</p>}
-      {opp.expectedImpactValue ? <p style={{ margin: '10px 0 0' }}><b className="fx-num" style={{ fontSize: 22 }}>{formatMoney(opp.expectedImpactValue)}</b> <span style={{ color: 'var(--fx-on-forest-muted)' }}>em jogo</span></p> : null}
+      {gain.value != null ? <p style={{ margin: '10px 0 0' }}><b className="fx-num" style={{ fontSize: 22 }}>{formatMoney(gain.value)}</b> <span style={{ color: 'var(--fx-on-forest-muted)' }}>em jogo</span></p>
+        : gain.outOfRange ? <p style={{ margin: '10px 0 0' }} title={OUT_OF_RANGE_HINT}><b className="fx-num" style={{ fontSize: 22 }}>—</b> <span style={{ color: 'var(--fx-on-forest-muted)' }}>{OUT_OF_RANGE_HINT}</span></p> : null}
       <div className="fx-white" style={{ marginTop: 14 }}>
         {why ? (
           <p style={{ margin: 0, lineHeight: 1.55 }}>

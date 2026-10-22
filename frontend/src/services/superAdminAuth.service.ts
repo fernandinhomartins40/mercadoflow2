@@ -9,15 +9,23 @@ export interface SuperAdminProfile {
 }
 
 export interface SuperAdminLoginResponse {
-  token: string;
+  token: string | null;
   userId: string;
   role: string;
   marketId: string | null;
+  /** Verificação em duas etapas ligada: falta o código do aplicativo. */
+  mfaRequired?: boolean;
+  mfaChallenge?: string;
 }
 
 const superAdminAuthService = {
   async login(email: string, password: string, keepConnected = false): Promise<SuperAdminLoginResponse> {
     const response = await api.post('/v1/super-admin/auth/login', { email, password, keepConnected });
+    return response.data;
+  },
+
+  async loginSecondStep(challenge: string, code: string): Promise<SuperAdminLoginResponse> {
+    const response = await api.post('/v1/super-admin/auth/login/2fa', { challenge, code });
     return response.data;
   },
 

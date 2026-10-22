@@ -7,7 +7,6 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { sellerService, type SellerMe } from '../../services/commerce.service';
 import { errorText } from '../../services/industry.service';
-import '../../styles/flow.css';
 
 /**
  * Casca do portal de vendas (indústria e distribuidor) no visual Flow, a mesma

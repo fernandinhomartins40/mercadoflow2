@@ -4,11 +4,13 @@ import { stockCountService, type CountProduct } from '../../services/confere.ser
 import Scanner from './Scanner';
 import { BigButton, Card, SectionTitle, TabHeader, errorText } from './ui';
 import { buzz, isNativeApp, scanWithNative } from './native';
+import { COUNT_TEXT as T, fmtUnits as qty, parseUnits as num } from '../../lib/stockCount';
 
 /**
  * Contar estoque (Bipaê): bipa o produto, diz quantos tem na prateleira e no
  * depósito, salva e já bipa o próximo. A contagem fica guardada no celular
  * até chegar ao MercadoFlow: sem internet no depósito, nada se perde.
+ * Textos iguais aos do painel (/app/contar), em lib/stockCount.
  */
 
 interface Counted { productId: string; name: string; imageUrl: string | null; units: number; at: number; sent: boolean }
@@ -21,11 +23,6 @@ const writeQueue = (marketId: string, list: Counted[]) => {
   try { localStorage.setItem(queueKey(marketId), JSON.stringify(list.slice(0, 300))); } catch { /* sem armazenamento */ }
 };
 
-const num = (v: string) => {
-  const n = Number(v.replace(',', '.'));
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-};
-const qty = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
 const Photo: React.FC<{ src: string | null; name: string; size: number }> = ({ src, name, size }) => {
@@ -64,6 +61,9 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
   const [stock, setStock] = useState('');
   const [list, setList] = useState<Counted[]>(() => readQueue(marketId));
   const syncing = useRef(false);
+  const lastCode = useRef('');
+  // Envio da fila: 'erro' mostra "Tentar de novo"; a contagem segue guardada no celular.
+  const [sendState, setSendState] = useState<'parado' | 'enviando' | 'erro'>('parado');
 
   const pending = list.filter((c) => !c.sent);
   const total = num(shelf) + num(stock);
@@ -75,14 +75,17 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
     const toSend = current.filter((c) => !c.sent);
     if (toSend.length === 0) return;
     syncing.current = true;
+    setSendState('enviando');
     try {
       await stockCountService.save(marketId, toSend.slice(0, 200).map((c) => ({ productId: c.productId, units: c.units })));
       const sentIds = new Set(toSend.slice(0, 200).map((c) => c.productId + c.at));
       const next = readQueue(marketId).map((c) => (sentIds.has(c.productId + c.at) ? { ...c, sent: true } : c));
       writeQueue(marketId, next);
       setList(next);
+      setSendState('parado');
     } catch {
       // continua na fila
+      setSendState('erro');
     } finally {
       syncing.current = false;
     }
@@ -98,6 +101,7 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
   const find = useCallback(async (raw: string) => {
     const digits = raw.replace(/\D/g, '');
     if (digits.length < 6) return;
+    lastCode.current = digits;
     setLooking(true); setError(null); setMissing(null);
     try {
       const p = await stockCountService.lookup(marketId, digits);
@@ -111,7 +115,7 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
       void buzz('erro');
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 404) setMissing(digits);
-      else setError(errorText(e, 'Não foi possível buscar o produto. Confira a internet e bipe de novo.'));
+      else setError(errorText(e, T.lookupError));
     } finally {
       setLooking(false);
     }
@@ -144,7 +148,7 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
 
   return (
     <>
-      <TabHeader title="Contar estoque" subtitle="Bipe o produto e diga quantos tem" />
+      <TabHeader title={T.title} subtitle={T.subtitle} />
       <div className="flex flex-col gap-5 px-4 pt-2">
         {product ? (
           <Card className="flex flex-col gap-5" aria-label="Produto bipado">
@@ -159,27 +163,27 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Stepper id="cont-prateleira" label="Na prateleira" value={shelf} onChange={setShelf} autoFocus={!native} />
-              <Stepper id="cont-deposito" label="No depósito" value={stock} onChange={setStock} />
+              <Stepper id="cont-prateleira" label={T.shelf} value={shelf} onChange={setShelf} autoFocus={!native} />
+              <Stepper id="cont-deposito" label={T.stock} value={stock} onChange={setStock} />
             </div>
-            <p className="rounded-2xl bg-[#EEF3EF] px-4 py-3 text-lg">Total na loja: <strong className="tabular-nums">{qty(total)} {product.unit === 'KG' ? 'kg' : 'un.'}</strong></p>
+            <p className="rounded-2xl bg-[#EEF3EF] px-4 py-3 text-lg">{T.total}: <strong className="tabular-nums">{qty(total)} {product.unit === 'KG' ? 'kg' : 'un.'}</strong></p>
             <div className="flex flex-col gap-2">
-              <BigButton type="button" onClick={save}>{native ? 'Salvar e bipar o próximo' : 'Salvar contagem'}</BigButton>
-              <button type="button" onClick={reset} className="py-3 text-base font-bold text-[#5F7067]">Pular este produto</button>
+              <BigButton type="button" onClick={save}>{native ? T.saveAndNext : T.save}</BigButton>
+              <button type="button" onClick={reset} className="py-3 text-base font-bold text-[#5F7067]">{T.skip}</button>
             </div>
           </Card>
         ) : missing ? (
           <Card className="flex flex-col items-center gap-3 text-center" aria-live="polite">
             <PackageX className="h-10 w-10 text-amber-700" aria-hidden="true" />
-            <p className="text-xl font-extrabold">Produto não está no cadastro</p>
-            <p className="text-[#5F7067]">Código {missing}. Ele aparece aqui depois da primeira venda ou da primeira nota de entrada.</p>
-            <BigButton type="button" onClick={() => { reset(); if (native) void scan(); }}>Bipar outro produto</BigButton>
+            <p className="text-xl font-extrabold">{T.missingTitle}</p>
+            <p className="text-[#5F7067]">{T.missingHint(missing)}</p>
+            <BigButton type="button" onClick={() => { reset(); if (native) void scan(); }}>{T.scanOther}</BigButton>
           </Card>
         ) : (
           <Card className="flex flex-col gap-4">
             {native ? (
               <BigButton type="button" onClick={scan} disabled={looking} className="flex items-center justify-center gap-2 py-5 text-xl">
-                <ScanBarcode className="h-7 w-7" aria-hidden="true" />{looking ? 'Buscando...' : 'Bipar produto'}
+                <ScanBarcode className="h-7 w-7" aria-hidden="true" />{looking ? T.searching : T.scan}
               </BigButton>
             ) : (
               <div className="overflow-hidden rounded-3xl">
@@ -191,30 +195,52 @@ const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
               <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void find(code); }}>
                 <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} inputMode="numeric" autoFocus aria-label="Código de barras"
                   placeholder="Números do código de barras" className="min-w-0 flex-1 rounded-2xl bg-white px-4 py-3 text-lg ring-1 ring-[#CCD8CF] outline-none" />
-                <button type="submit" disabled={code.length < 6 || looking} className="rounded-2xl bg-[#045e48] px-5 text-lg font-bold text-white disabled:opacity-50">Buscar</button>
+                <button type="submit" disabled={code.length < 6 || looking} className="rounded-2xl bg-[#045e48] px-5 text-lg font-bold text-white disabled:opacity-50">{looking ? T.searching : 'Buscar'}</button>
               </form>
             ) : (
               <button type="button" onClick={() => setTyping(true)} className="flex items-center justify-center gap-2 py-2 text-base font-bold text-[#045e48]">
-                <Keyboard className="h-5 w-5" aria-hidden="true" />Digitar o código
+                <Keyboard className="h-5 w-5" aria-hidden="true" />{T.typeCode}
               </button>
             )}
           </Card>
         )}
 
-        {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-lg text-red-800">{error}</p>}
+        {error && (
+          <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-red-50 p-4 text-lg text-red-800">
+            <p>{error}</p>
+            {lastCode.current && !product && (
+              <button type="button" onClick={() => { void find(lastCode.current); }} disabled={looking}
+                className="self-start rounded-2xl bg-white px-5 py-3 text-base font-bold text-red-800 ring-1 ring-red-200">{T.retry}</button>
+            )}
+          </div>
+        )}
+
+        {list.length === 0 && !product && !missing && (
+          <p className="pb-6 text-center text-base text-[#5F7067]">{T.empty}</p>
+        )}
 
         {list.length > 0 && (
           <section className="flex flex-col gap-3 pb-6">
-            <SectionTitle action={pending.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-sm font-bold text-amber-700"><CloudOff className="h-4 w-4" aria-hidden="true" />{pending.length} na fila</span>
-            )}>Contados ({list.length})</SectionTitle>
+            <SectionTitle action={pending.length > 0 ? (
+              <span className="inline-flex items-center gap-1 text-sm font-bold text-amber-700" aria-live="polite">
+                <CloudOff className="h-4 w-4" aria-hidden="true" />{sendState === 'enviando' ? T.saving : `${pending.length} na fila`}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-sm font-bold text-[#157A3D]"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />{T.allSent}</span>
+            )}>{T.counted(list.length)}</SectionTitle>
+            {sendState === 'erro' && pending.length > 0 && (
+              <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-base text-amber-900">
+                <span>{T.saveError} A contagem fica guardada no celular.</span>
+                <button type="button" onClick={() => { void sync(); }} className="shrink-0 rounded-2xl bg-white px-4 py-2.5 font-bold ring-1 ring-amber-200">{T.retry}</button>
+              </div>
+            )}
             <ul className="flex flex-col gap-2">
               {list.slice(0, 50).map((c) => (
                 <li key={c.productId + c.at} className="flex items-center gap-3 rounded-2xl px-3 py-2.5 lg-card">
                   <Photo src={c.imageUrl} name={c.name} size={44} />
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 font-bold leading-snug">{c.name}</span>
-                    <span className="text-sm text-[#5F7067]">{c.sent ? 'Enviado' : 'Esperando internet'}</span>
+                    <span className="text-sm text-[#5F7067]">{c.sent ? T.sent : T.waiting}</span>
                   </span>
                   <span className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums">
                     {qty(c.units)}{c.sent && <CheckCircle2 className="h-5 w-5 text-[#157A3D]" aria-label="enviado" />}

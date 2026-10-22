@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
+import { CONNECT_STEPS, PAIRING_PATH } from '../components/activation/ConnectCashierSteps';
 
 interface InstallerInfo {
   filename: string;
@@ -65,7 +66,7 @@ const PublicAgentDownload: React.FC = () => {
           <span className="brand-mark">MF</span>
           <div>
             <p className="brand-name">MercadoFlow</p>
-            <p className="brand-subtitle">Download do Agente Coletor</p>
+            <p className="brand-subtitle">Programa do caixa</p>
           </div>
         </div>
         <nav className="landing-nav">
@@ -76,28 +77,29 @@ const PublicAgentDownload: React.FC = () => {
 
       <section className="hero reveal stagger-1">
         <div className="hero-text">
-          <span className="eyebrow">Agente Windows</span>
+          <span className="eyebrow">Para Windows 10 e 11</span>
           <h1>
-            Baixe o instalador do <span className="accent-text">MercadoFlow Agent</span>.
+            Ligue o caixa ao <span className="accent-text">MercadoFlow</span> em 3 passos.
           </h1>
           <p>
-            Instale no computador que recebe os XMLs do seu sistema de PDV. O programa monitora as pastas automaticamente,
-            guarda os dados localmente se a internet cair e envia tudo para a nuvem de forma segura.
+            Instale no computador do caixa, o que emite as notas fiscais. O programa acha as notas sozinho, guarda tudo
+            se a internet cair e manda as vendas para o MercadoFlow.
           </p>
 
           <div className="hero-actions">
             <Button onClick={handleDownload} disabled={downloading || loading || !installerInfo}>
-              {downloading ? 'Baixando...' : 'Baixar instalador'}
+              {downloading ? 'Baixando...' : 'Baixar o programa do caixa'}
             </Button>
-            <Button variant="secondary" onClick={fetchInstallerInfo} disabled={loading}>
-              Atualizar status
-            </Button>
+            <ButtonLink variant="secondary" to={PAIRING_PATH}>Digitar o código</ButtonLink>
           </div>
 
           {loading ? (
             <p style={{ color: 'var(--muted)' }}>Carregando informações...</p>
           ) : error ? (
-            <p style={{ color: 'var(--danger)' }}>{error}</p>
+            <p style={{ color: 'var(--danger)' }}>
+              {error}{' '}
+              <button type="button" onClick={fetchInstallerInfo} style={{ background: 'none', border: 0, padding: 0, color: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Tentar de novo</button>
+            </p>
           ) : null}
         </div>
 
@@ -167,21 +169,23 @@ const PublicAgentDownload: React.FC = () => {
       </section>
 
       <section className="section reveal stagger-2">
-        <h2>Como instalar</h2>
+        <h2>Como ligar o caixa</h2>
         <div className="feature-grid">
-          <div className="feature-card">
-            <h3>1. Baixe e execute</h3>
-            <p>Execute como administrador no Windows 10/11 ou Windows Server.</p>
-          </div>
-          <div className="feature-card">
-            <h3>2. Ligue à sua conta</h3>
-            <p>Entre com o e-mail e a senha do MercadoFlow quando o programa pedir, ou cole a chave que fica em Loja › Caixas e agente › Chaves do agente.</p>
-          </div>
-          <div className="feature-card">
-            <h3>3. Aponte as pastas</h3>
-            <p>Escolha a pasta onde o sistema do caixa guarda as notas fiscais (arquivos XML). O programa avisa quando a conexão estiver funcionando.</p>
-          </div>
+          {CONNECT_STEPS.map((step, i) => (
+            <div key={step.title} className="feature-card">
+              <h3>{i + 1}. {step.title}</h3>
+              <p>{step.text}</p>
+            </div>
+          ))}
         </div>
+        {/* Caminho antigo por chave: continua valendo, mas fica recolhido. */}
+        <details style={{ marginTop: 18 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Avançado: já usa a chave do caixa?</summary>
+          <p style={{ color: 'var(--muted)', marginTop: 8 }}>
+            No programa do caixa, clique em "Configurar" e cole a chave no campo "API Key". A chave fica no painel, em
+            Caixas e ERP › Ligar um caixa › Avançado. Caixas já ligados por chave continuam funcionando.
+          </p>
+        </details>
       </section>
 
       <footer className="landing-footer">

@@ -224,16 +224,33 @@ public class AgentPairingService {
         };
     }
 
-    /** Rota publica: o agente desiste antes de ter credencial. Escopo de sistema no controller. */
+    /**
+     * Rota publica: o agente desiste antes de ter credencial. Escopo de sistema no controller.
+     *
+     * SEG-12: com o segredo, cancela PENDING ou APPROVED. Sem o segredo (versões
+     * instaladas do pdv2cloud-config só mandam o userCode), cancela apenas a
+     * sessão ainda PENDING; a APPROVED, que já tem chave reservada, exige o
+     * segredo. Segredo informado e errado é recusado em qualquer estado.
+     */
     @Transactional
-    public void cancel(String userCode) {
-        doCancel(userCode);
+    public void cancel(String userCode, String agentSecret) {
+        doCancel(userCode, agentSecret);
     }
 
-    private void doCancel(String userCode) {
+    private void doCancel(String userCode, String agentSecret) {
         pairingRepository.findByUserCode(normalizeCode(userCode)).ifPresent(session -> {
-            if (session.getStatus() == AgentPairingSession.Status.PENDING
-                || session.getStatus() == AgentPairingSession.Status.APPROVED) {
+            boolean hasSecret = agentSecret != null && !agentSecret.isBlank();
+            if (hasSecret && !constantTimeEquals(session.getAgentSecretHash(), sha256Hex(agentSecret))) {
+                log.warn("Cancelamento com segredo invalido: userCode={}", userCode);
+                throw new SecurityException("Segredo de pareamento inválido");
+            }
+            AgentPairingSession.Status status = session.getStatus();
+            if (status == AgentPairingSession.Status.APPROVED && !hasSecret) {
+                log.warn("Cancelamento sem segredo de sessao aprovada recusado: userCode={}", userCode);
+                throw new SecurityException("Informe o segredo do pareamento para cancelar");
+            }
+            if (status == AgentPairingSession.Status.PENDING
+                || status == AgentPairingSession.Status.APPROVED) {
                 session.setStatus(AgentPairingSession.Status.CANCELLED);
                 session.setIssuedApiKey(null);
                 pairingRepository.save(session);

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -48,7 +49,7 @@ public class MLPredictionJob {
     @Autowired private DemandForecastRepository demandForecastRepository;
     @Autowired private ProductRepository productRepository;
 
-    @Scheduled(cron = "0 0 4 * * ?")
+    @Scheduled(cron = "0 0 4 * * ?", zone = "America/Sao_Paulo")
     public void runPrediction() {
         List<Market> markets = marketRepository.findAllActive();
         for (Market market : markets) {
@@ -62,7 +63,8 @@ public class MLPredictionJob {
 
     private void generateForecast(Market market) {
         UUID marketId = market.getId();
-        LocalDate today = LocalDate.now();
+        // Dia comercial da loja (a JVM roda em UTC; data_emissao é hora local).
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
         LocalDate historyStart = today.minusDays(84);
         LocalDate historyEnd = today.minusDays(1);
         LocalDate forecastStart = today.plusDays(1);

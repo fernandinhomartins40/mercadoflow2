@@ -1,6 +1,7 @@
 package com.pdv2cloud.service.ai.platform;
 
 import com.pdv2cloud.service.ai.AiCredentialCipher;
+import com.pdv2cloud.service.ai.AiProvider;
 import com.pdv2cloud.service.ai.LlmClient;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -101,6 +102,8 @@ public class AiPlatformConfig {
             }
         } else if (model != null && !model.isBlank() && (model.length() > 120 || !model.trim().matches("[A-Za-z0-9._:/-]+"))) {
             throw new IllegalArgumentException("Nome de modelo inválido");
+        } else if (AiProvider.isFreeModel(model)) {
+            throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
         }
         String key = cleanKey(apiKey);
         if (!key.isEmpty()) {
@@ -364,6 +367,9 @@ public class AiPlatformConfig {
         if (model != null && (model.isEmpty() || model.length() > 120 || !model.matches("[A-Za-z0-9._:/-]+"))) {
             throw new IllegalArgumentException("Nome de modelo inválido");
         }
+        if (AiProvider.isFreeModel(model)) {
+            throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
+        }
         jdbc.update("update ai_task_routes set layer = coalesce(:layer, layer), provider = coalesce(:provider, provider), "
                 + "model = coalesce(:model, model), max_context_tokens = coalesce(:ctx, max_context_tokens), "
                 + "max_output_tokens = coalesce(:out, max_output_tokens), temperature = coalesce(:temp, temperature), "
@@ -476,6 +482,9 @@ public class AiPlatformConfig {
         String model = String.valueOf(body.getOrDefault("model", "")).trim();
         if (model.isEmpty() || model.length() > 120) {
             throw new IllegalArgumentException("Informe o modelo da reserva");
+        }
+        if (AiProvider.isFreeModel(model)) {
+            throw new IllegalArgumentException(AiProvider.FREE_MODEL_REFUSED);
         }
         BigDecimal in = decimal(body.get("inputPriceUsdM"));
         BigDecimal out = decimal(body.get("outputPriceUsdM"));

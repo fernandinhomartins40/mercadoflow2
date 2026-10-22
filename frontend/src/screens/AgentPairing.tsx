@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import agentPairingService, { type PairingSessionInfo } from '../services/agentPairing.service';
 import Card from '../components/common/Card';
@@ -94,7 +94,7 @@ const AgentPairing: React.FC = () => {
         if (cancelled) return;
         setSession(null);
         setOffline(!err?.response);
-        setError(err?.message || 'Código de pareamento inválido ou expirado.');
+        setError(err?.message || 'Código inválido ou vencido.');
         setStage('invalid');
       });
 
@@ -114,7 +114,7 @@ const AgentPairing: React.FC = () => {
     event.preventDefault();
     const normalized = normalizeCode(typedCode);
     if (!normalized) {
-      setError('Digite o código exibido no Agente Mercado Flow.');
+      setError('Digite o código que aparece no programa do caixa.');
       return;
     }
     setError(null);
@@ -162,8 +162,8 @@ const AgentPairing: React.FC = () => {
     <div className="min-h-screen bg-slate-50 px-4 py-10">
       <div className="mx-auto w-full max-w-lg">
         <header className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">Agente Mercado Flow</h1>
-          <p className={mutedText}>Ligue o computador do caixa à sua conta em poucos passos.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Ligar o caixa</h1>
+          <p className={mutedText}>Digite o código que aparece no programa do caixa. Não precisa copiar chave nenhuma.</p>
         </header>
 
         <StepDots current={currentStepIndex} />
@@ -173,12 +173,13 @@ const AgentPairing: React.FC = () => {
 
           {stage === 'code' && !authLoading && (
             <form onSubmit={handleCodeSubmit} className="grid gap-4">
-              <h2 className="text-lg font-semibold text-slate-900">Digite o código do agente</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Digite o código do programa</h2>
               <p className={mutedText}>
-                O código de 8 caracteres aparece na tela do Agente Mercado Flow, logo abaixo do QR Code.
+                No computador do caixa, o programa Agente Mercado Flow mostra um QR Code e, logo abaixo, um código de 8
+                letras e números. Digite esse código aqui (ou leia o QR Code com a câmera do celular).
               </p>
               <div className="form-group">
-                <label htmlFor="pairing-code">Código de pareamento</label>
+                <label htmlFor="pairing-code">Código do programa</label>
                 <input
                   id="pairing-code"
                   className="input text-center text-xl font-semibold tracking-[0.3em] uppercase"
@@ -191,6 +192,9 @@ const AgentPairing: React.FC = () => {
               </div>
               {error && <p className="text-sm font-medium text-red-600">{error}</p>}
               <Button type="submit">Continuar</Button>
+              <p className="text-center text-xs text-slate-500">
+                Ainda não instalou o programa? <Link to="/download-agente" className="font-semibold text-green-700">Baixar o programa do caixa</Link>
+              </p>
             </form>
           )}
 
@@ -198,7 +202,7 @@ const AgentPairing: React.FC = () => {
             <div className="grid gap-4" role="alert">
               <h2 className="text-lg font-semibold text-slate-900">Sem conexão com o MercadoFlow</h2>
               <p className={mutedText}>
-                {error} O código vale só por alguns minutos: se vencer, gere outro no computador do caixa.
+                {error} O código vale só por alguns minutos: se vencer, clique em "Gerar novo QR Code" no programa do caixa.
               </p>
               <Button onClick={() => setRetry((n) => n + 1)}>Tentar de novo</Button>
             </div>
@@ -208,8 +212,8 @@ const AgentPairing: React.FC = () => {
             <div className="grid gap-4">
               <h2 className="text-lg font-semibold text-slate-900">Código inválido ou expirado</h2>
               <p className={mutedText}>
-                {error || 'Este código não é mais válido.'} Abra novamente o Agente Mercado Flow no
-                computador do caixa para gerar um novo QR Code.
+                {error || 'Este código não é mais válido.'} No programa do caixa, clique em "Gerar novo QR Code" e
+                digite o código novo.
               </p>
               <Button
                 onClick={() => {
@@ -298,7 +302,7 @@ const AgentPairing: React.FC = () => {
               </div>
               {error && <p className="text-sm font-medium text-red-600">{error}</p>}
               <Button type="submit" disabled={submitting}>
-                {submitting ? 'Conectando...' : 'Conectar agente'}
+                {submitting ? 'Ligando...' : 'Ligar este caixa'}
               </Button>
             </form>
           )}
@@ -314,8 +318,8 @@ const AgentPairing: React.FC = () => {
                 <strong>{result.marketName}</strong>.
               </p>
               <p className={mutedText}>
-                Pode voltar ao computador do caixa: o Agente Mercado Flow já recebeu a configuração e
-                está localizando sozinho as pastas de notas fiscais. Você já pode fechar esta página.
+                Volte ao computador do caixa: o programa avança sozinho e procura as pastas das notas fiscais.
+                Confira e clique em "Concluir" para as vendas começarem a chegar. Você já pode fechar esta página.
               </p>
             </div>
           )}
@@ -323,7 +327,7 @@ const AgentPairing: React.FC = () => {
 
         <footer className="mt-6 text-center">
           <p className="text-xs text-slate-500">
-            Por segurança, a chave de acesso nunca é exibida aqui: ela vai direto para o agente
+            Por segurança, a chave de acesso nunca aparece aqui: ela vai direto para o programa
             instalado no computador do caixa.
           </p>
         </footer>

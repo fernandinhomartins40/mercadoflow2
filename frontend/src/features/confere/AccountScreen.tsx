@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Factory, FileText, FileUp, KeyRound, LogOut, ShieldCheck, Trash2, X } from 'lucide-react';
+import { Factory, FileText, FileUp, KeyRound, LogOut, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import type { ConfereStatus } from '../../types/confere.types';
 import { maskCnpj } from '../../utils/formMasks';
 import { Group, Row, TabHeader } from './ui';
 import InstallApp from './InstallApp';
+import DeleteAccount from './DeleteAccount';
 
-/** Política pública (também exigida pela Play Store: privacidade e exclusão de conta). */
+/** Política pública (Play Store). A exclusão de conta é feita no próprio app (DeleteAccount). */
 const PRIVACY = 'https://mercadoflow.com/bipae/privacidade.html';
 const openPage = (url: string) => { window.open(url, '_blank', 'noopener'); };
 
@@ -49,7 +50,7 @@ const AccountScreen: React.FC<{ status: ConfereStatus }> = ({ status }) => {
         <Group label="Sobre">
           <Row onClick={() => setTerms(true)} icon={<FileText className="h-5 w-5" />} tone="stone" title="Termos de uso do Bipaê" detail={`Versão ${status.termsVersion}`} />
           <Row onClick={() => openPage(PRIVACY)} icon={<ShieldCheck className="h-5 w-5" />} tone="stone" title="Política de privacidade" detail="Quais dados usamos e por quê" />
-          <Row onClick={() => openPage(`${PRIVACY}#exclusao`)} icon={<Trash2 className="h-5 w-5" />} tone="stone" title="Excluir minha conta e meus dados" detail="Como pedir a exclusão" />
+          <DeleteAccount />
           <Row onClick={() => logout()} icon={<LogOut className="h-5 w-5" />} tone="red" title="Sair" trailing={<span />} />
         </Group>
       </div>

@@ -13,7 +13,15 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import requests
 
-from fixed_market_catalog_common import ImportOptions, empty_totals, norm_text, utc_now_iso, write_json_atomic
+from fixed_market_catalog_common import (
+    ImportOptions,
+    catalog_service_token,
+    empty_totals,
+    has_backend_credentials,
+    norm_text,
+    utc_now_iso,
+    write_json_atomic,
+)
 from fixed_market_catalog_condor import CondorJobConfig, run_condor_catalog_job
 from fixed_market_catalog_drogaraia import DrogariaRaiaJobConfig, run_drogaraia_catalog_job
 from fixed_market_catalog_gpa import GpaJobConfig, run_gpa_catalog_job
@@ -67,12 +75,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--nissei-max-products", type=int, default=0)
     parser.add_argument("--drogaraia-max-pages", type=int, default=0)
     args = parser.parse_args()
-    if not args.email or not args.password:
-        parser.error("informe --email/--password ou SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD")
+    if not has_backend_credentials(args.email, args.password):
+        parser.error("defina CATALOG_SERVICE_TOKEN ou informe --email/--password (SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD)")
     return args
 
 
 def login(api_base: str, login_endpoint: str, email: str, password: str) -> str:
+    # Token de serviço (SEG-08): sem login, funciona com o superadmin em duas etapas.
+    service_token = catalog_service_token()
+    if service_token:
+        return service_token
     endpoint = login_endpoint if login_endpoint.startswith("/") else f"/{login_endpoint}"
     response = requests.post(
         f"{api_base.rstrip('/')}{endpoint}",

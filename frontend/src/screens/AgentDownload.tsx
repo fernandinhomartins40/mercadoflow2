@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import PageHeader from '../components/layout/PageHeader';
+import ButtonLink from '../components/common/ButtonLink';
+import ConnectCashierSteps, { PAIRING_PATH } from '../components/activation/ConnectCashierSteps';
+import { Link } from 'react-router-dom';
 import { alertDialog } from '../components/common/Dialogs';
 
 interface InstallerInfo {
@@ -81,17 +84,23 @@ const AgentDownload: React.FC = () => {
           </div>
         ) : installerInfo ? (
           <div className="flex flex-col gap-5">
-            {/* Três passos em palavras do dia a dia; o técnico fica recolhido. */}
-            <ol className="fx-steps-big">
-              <li><b><i>1</i>Baixe no computador do caixa</b><p>Use o computador que emite as notas, com Windows 10 ou 11.</p></li>
-              <li><b><i>2</i>Abra o arquivo e siga as telas</b><p>Se o Windows perguntar, clique em "Sim" para permitir a instalação.</p></li>
-              <li><b><i>3</i>Cole a chave do caixa</b><p>A chave fica em Loja › Caixas e agente › Chaves do agente. Depois de colar, as vendas começam a chegar.</p></li>
-            </ol>
-            <div>
+            {/* Três passos em palavras do dia a dia: o código do programa é o caminho ensinado; a chave fica no avançado. */}
+            <ConnectCashierSteps />
+            <div className="flex flex-wrap gap-3">
               <Button onClick={handleDownload} disabled={downloading}>
                 {downloading ? 'Baixando...' : 'Baixar o programa do caixa'}
               </Button>
+              <ButtonLink variant="secondary" to={PAIRING_PATH}>Digitar o código</ButtonLink>
             </div>
+
+            <details className="fx-more">
+              <summary>Avançado: ligar com chave<small>Só para quem já usa a chave do caixa</small></summary>
+              <p className="fx-muted" style={{ marginTop: 12 }}>
+                Se o programa já está ligado por chave, não precisa mudar nada. Para gerar ou excluir uma chave, abra{' '}
+                <Link to="/app/pdvs?aba=ligar#chave-manual">Caixas e ERP › Ligar um caixa › Avançado</Link>. No programa do caixa, clique
+                em "Configurar" e cole a chave no campo "API Key".
+              </p>
+            </details>
 
             <details className="fx-more">
               <summary>Detalhes técnicos<small>Para quem cuida da informática da loja</small></summary>

@@ -5,38 +5,7 @@
  * painéis verde-floresta para "o que o Tino preparou", e uma doca escura no pé
  * da tela com o mapa, o início, a pergunta e as áreas.
  */
-:root {
-  --fx-ground: #EEF3EF;
-  --fx-ground-2: #E4EDE6;
-  --fx-card: #FFFFFF;
-  --fx-card-2: #F6F9F6;
-  --fx-line: #E1E8E2;
-  --fx-line-2: #CCD8CF;
-  --fx-ink: #0B1F16;
-  --fx-ink-2: #2F4339;
-  --fx-muted: #5F7067;
-  --fx-forest: #0F3A29;
-  --fx-forest-2: #164A35;
-  --fx-forest-line: rgba(255, 255, 255, 0.1);
-  --fx-on-forest: #F2F8F3;
-  --fx-on-forest-muted: #A9C2B4;
-  --fx-dock: #0D2E21;
-  --fx-dock-pill: #143D2C;
-  --fx-lime: #D7F26B;
-  --fx-lime-strong: #C9EA45;
-  --fx-lime-soft: #F4FBDD;
-  --fx-lime-line: #CFE57A;
-  --fx-lime-ink: #142400;
-  --fx-green: #157A3D;
-  --fx-green-2: #0F6332;
-  --fx-red: #C2362B;
-  --fx-red-soft: #FDE4E1;
-  --fx-amber: #9A5B00;
-  --fx-amber-soft: #FFF3D6;
-  --fx-shadow: 0 1px 0 rgba(11, 31, 22, 0.03), 0 10px 30px -18px rgba(11, 31, 22, 0.28);
-  --fx-shadow-lg: 0 24px 60px -28px rgba(11, 31, 22, 0.45);
-  --fx-display: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
-}
+/* Tokens :root: ver flow-core.css (CSS global). */
 
 .fx-app {
   min-height: 100vh;
@@ -162,18 +131,7 @@
 .fx-chip.ghost { background: rgba(255, 255, 255, .1); color: var(--fx-on-forest); border: 1px solid var(--fx-forest-line); }
 .fx-chip.gray { background: var(--fx-card-2); color: var(--fx-ink-2); border: 1px solid var(--fx-line); }
 
-/* ── Botões ── */
-.fx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border-radius: 14px; border: 1px solid transparent; font-weight: 700; font-size: 15.5px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-.fx-btn svg { width: 19px; height: 19px; }
-.fx-btn:disabled { opacity: .5; cursor: not-allowed; }
-.fx-btn.primary { background: var(--fx-green); color: #fff; }
-.fx-btn.primary:hover:not(:disabled) { background: var(--fx-green-2); }
-.fx-btn.dark { background: var(--fx-forest); color: #fff; }
-.fx-btn.lime { background: var(--fx-lime); color: var(--fx-lime-ink); }
-.fx-btn.lime:hover { background: var(--fx-lime-strong); }
-.fx-btn.ghost { background: var(--fx-card); border-color: var(--fx-line-2); color: var(--fx-ink); }
-.fx-btn.ghost:hover { border-color: var(--fx-ink-2); }
-.fx-btn.small { min-height: 38px; padding: 0 14px; font-size: 14px; border-radius: 11px; }
+/* Botão .fx-btn: ver flow-core.css. */
 .fx-forest .fx-btn.ghost { background: rgba(255, 255, 255, .06); color: var(--fx-on-forest); border-color: var(--fx-forest-line); }
 
 /* ── Etapas ── */
@@ -558,28 +516,7 @@
 @media (max-width: 640px) { .fx-map { grid-template-columns: minmax(0, 1fr); } }
 .fx-forest[style*="text-align: center"] .fx-panel-title { text-align: center; }
 
-/* ── Barras de rolagem: finas e arredondadas, no tom de cada superfície ── */
-html, .fx-app, .fx-app * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--fx-line-2) transparent;
-}
-.fx-forest, .fx-forest *, .fx-map, .fx-map *, .fx-dock, .fx-dock * {
-  scrollbar-color: rgba(255, 255, 255, .22) transparent;
-}
-html::-webkit-scrollbar, .fx-app::-webkit-scrollbar, .fx-app *::-webkit-scrollbar { width: 10px; height: 10px; }
-html::-webkit-scrollbar-track, .fx-app::-webkit-scrollbar-track, .fx-app *::-webkit-scrollbar-track { background: transparent; }
-html::-webkit-scrollbar-corner, .fx-app *::-webkit-scrollbar-corner { background: transparent; }
-html::-webkit-scrollbar-thumb, .fx-app::-webkit-scrollbar-thumb, .fx-app *::-webkit-scrollbar-thumb {
-  background: var(--fx-line-2); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box;
-}
-html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { background-color: var(--fx-muted); }
-.fx-forest::-webkit-scrollbar-thumb, .fx-forest *::-webkit-scrollbar-thumb,
-.fx-map::-webkit-scrollbar-thumb, .fx-map *::-webkit-scrollbar-thumb,
-.fx-dock::-webkit-scrollbar-thumb, .fx-dock *::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, .22); }
-.fx-forest *::-webkit-scrollbar-thumb:hover, .fx-map::-webkit-scrollbar-thumb:hover, .fx-map *::-webkit-scrollbar-thumb:hover { background-color: var(--fx-lime); }
-/* Os brancos dentro do painel escuro voltam ao tom claro. */
-.fx-forest .fx-white, .fx-forest .fx-white *, .fx-forest .fx-item, .fx-forest .fx-item * { scrollbar-color: var(--fx-line-2) transparent; }
-.fx-forest .fx-white *::-webkit-scrollbar-thumb, .fx-forest .fx-item *::-webkit-scrollbar-thumb { background-color: var(--fx-line-2); }
+/* Barras de rolagem: ver flow-core.css. */
 .fx-app .fx-seg-tabs { scrollbar-width: none; }
 .fx-app .fx-seg-tabs::-webkit-scrollbar { display: none; }
 .fx-field { font-weight: 650; color: var(--fx-ink-2); min-width: 0; }
@@ -587,29 +524,7 @@ html::-webkit-scrollbar-thumb:hover, .fx-app *::-webkit-scrollbar-thumb:hover { 
 .fx-field-hint { font-weight: 500; font-size: 12px; color: var(--fx-muted); }
 .fx-field textarea { border: 1px solid var(--fx-line-2); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 15px; color: var(--fx-ink); background: #fff; }
 
-/* ── Diálogos da aplicação (confirmar, avisar, perguntar) ── */
-.fx-dialog-shade {
-  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px;
-  background: rgba(11, 31, 22, .45); backdrop-filter: blur(4px);
-  animation: fx-dialog-fade .14s ease-out;
-}
-.fx-dialog {
-  width: min(440px, 100%); background: #fff; color: #0B1F16; border-radius: 22px; padding: 24px;
-  box-shadow: 0 30px 80px -30px rgba(11, 31, 22, .55); font-family: inherit;
-  animation: fx-dialog-pop .16s ease-out;
-}
-.fx-dialog-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: #D7F26B; color: #142400; margin-bottom: 14px; }
-.fx-dialog.danger .fx-dialog-icon { background: #FDE4E1; color: #C2362B; }
-.fx-dialog-icon svg { width: 22px; height: 22px; }
-.fx-dialog h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.3; color: #0B1F16; }
-.fx-dialog p { margin: 8px 0 0; font-size: 15px; line-height: 1.55; color: #2F4339; white-space: pre-line; }
-.fx-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
-.fx-dialog .fx-btn { min-height: 44px; }
-.fx-btn.danger { background: #C2362B; color: #fff; }
-.fx-btn.danger:hover:not(:disabled) { background: #A92D23; }
-@keyframes fx-dialog-fade { from { opacity: 0; } }
-@keyframes fx-dialog-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
-@media (prefers-reduced-motion: reduce) { .fx-dialog-shade, .fx-dialog { animation: none; } }
+/* Diálogos: ver flow-core.css. */
 
 /* Painel de detalhe que acompanha a rolagem de uma lista longa (só lado a lado). */
 /* Painel ao lado de uma lista: gruda no topo, mas nunca passa da altura da tela

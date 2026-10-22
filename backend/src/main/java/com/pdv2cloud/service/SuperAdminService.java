@@ -1141,6 +1141,7 @@ public class SuperAdminService {
         market.setPlanType(request.getPlanType() != null ? request.getPlanType() : PlanType.FREE);
         market.setBillingStatus(request.getBillingStatus() != null ? request.getBillingStatus() : MarketBillingStatus.ACTIVE);
         market.setIsActive(request.getActive() == null || request.getActive());
+        markAdminDisabled(market);
         market.setUserSeatLimit(resolveSeatLimit(request.getUserSeatLimit(), market.getPlanType()));
         market.setAccessExpiresAt(request.getAccessExpiresAt());
         market.setTrialEndsAt(request.getTrialEndsAt());
@@ -1169,6 +1170,7 @@ public class SuperAdminService {
         }
         if (request.getActive() != null) {
             market.setIsActive(request.getActive());
+            markAdminDisabled(market);
         }
         if (request.getUserSeatLimit() != null) {
             market.setUserSeatLimit(resolveSeatLimit(request.getUserSeatLimit(), market.getPlanType()));
@@ -1180,6 +1182,17 @@ public class SuperAdminService {
         market.setContactPhone(normalizeOptionalText(request.getContactPhone()));
         market.setNotes(normalizeOptionalLongText(request.getNotes()));
         ensureTrialDefaults(market);
+    }
+
+    /** Desligada aqui fica marcada: um pagamento depois não religa a loja (D-04). Religada, a marca sai. */
+    static void markAdminDisabled(Market market) {
+        if (Boolean.FALSE.equals(market.getIsActive())) {
+            if (market.getDisabledByAdminAt() == null) {
+                market.setDisabledByAdminAt(LocalDateTime.now());
+            }
+        } else {
+            market.setDisabledByAdminAt(null);
+        }
     }
 
     private Market resolveMarket(UUID marketId) {

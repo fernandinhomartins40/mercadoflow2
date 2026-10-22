@@ -177,9 +177,24 @@ public class SubscriptionService {
     @Transactional
     public Subscription changePlan(UUID marketId, PlanType plan, String reason) {
         Subscription s = of(marketId);
+        assertCanChangePlan(s, plan);
         jdbc.update("update subscriptions set plan_code = :p, updated_at = now() where market_id = :m",
             new MapSqlParameterSource().addValue("m", s.marketId()).addValue("p", plan.name()));
         return applyAndRecord(s, reason);
+    }
+
+    /**
+     * Conta em atraso (carência ou só consulta) não desce de plano até pagar:
+     * a troca no Asaas reduziria o valor da fatura vencida (D-02). Subir continua liberado.
+     */
+    public static void assertCanChangePlan(Subscription current, PlanType target) {
+        if (current == null || target == null) {
+            return;
+        }
+        boolean late = current.status() == Status.PAST_DUE || current.status() == Status.RESTRICTED;
+        if (late && target.ordinal() < PlanType.fromString(current.planCode()).ordinal()) {
+            throw new IllegalStateException("Regularize o pagamento para trocar para um plano menor.");
+        }
     }
 
     /** Cobrança falhou ou venceu: entra em atraso (a data do primeiro atraso não muda). */
@@ -502,7 +517,10 @@ public class SubscriptionService {
             m.setPlanType(plan);
             m.setBillingStatus(billing);
             m.setTrialEndsAt(s.trialEndsAt());
-            m.setIsActive(true);
+            // Loja desligada à mão pelo superadmin continua desligada (D-04).
+            if (m.getDisabledByAdminAt() == null) {
+                m.setIsActive(true);
+            }
             if (fromPlan != plan) {
                 m.setPlanChangedAt(LocalDateTime.now());
             }

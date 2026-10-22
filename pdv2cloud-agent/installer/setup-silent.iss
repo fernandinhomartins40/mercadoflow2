@@ -26,6 +26,20 @@ Source: "silent-config.json"; DestDir: "{commonappdata}\PDV2Cloud"; DestName: "c
 ; Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AgenteMercadoFlow"; ValueData: """{app}\config-ui\Agente Mercado Flow.exe"""; Flags: uninsdeletevalue
 
 [Run]
+; Criar estrutura de diretórios em ProgramData
+Filename: "{sys}\cmd.exe"; Parameters: "/c if not exist ""{commonappdata}\PDV2Cloud\logs"" mkdir ""{commonappdata}\PDV2Cloud\logs"""; Flags: runhidden waituntilterminated
+; AGT-02: a pasta guarda a chave do agente (config.json) e CPFs da fila
+; (queue.db). Só SYSTEM (o serviço) e Administradores (a UI roda elevada,
+; requireAdministrator) acessam. Sem herança de Usuários. Roda na instalação
+; e em toda atualização (/VERYSILENT também executa esta seção).
+; 1) dono = Administradores, para um usuário comum que tenha criado arquivo
+;    aqui não manter o acesso implícito de dono;
+; 2) a pasta perde a herança e fica só com SYSTEM e Administradores;
+; 3) o que já existe dentro volta a herdar da pasta (descarta ACL antiga).
+; SIDs em vez de nomes: funcionam em Windows em qualquer idioma.
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\PDV2Cloud"" /setowner *S-1-5-32-544 /T /C /Q"; Flags: runhidden waituntilterminated
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\PDV2Cloud"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F /C /Q"; Flags: runhidden waituntilterminated
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\PDV2Cloud\*"" /reset /T /C /Q"; Flags: runhidden waituntilterminated
 ; Install dependencies silently
 Filename: "{app}\python\python.exe"; Parameters: "get-pip.py"; WorkingDir: "{app}\python"; Flags: runhidden
 Filename: "{app}\python\python.exe"; Parameters: "-m pip install -r requirements.txt"; WorkingDir: "{app}\service"; Flags: runhidden

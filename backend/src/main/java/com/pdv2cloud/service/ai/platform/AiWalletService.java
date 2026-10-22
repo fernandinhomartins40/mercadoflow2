@@ -62,6 +62,9 @@ public class AiWalletService {
         + "  or month_used::bigint + :c <= coalesce(monthly_cap, (select s.default_monthly_cap_credits from ai_platform_settings s "
         + "where s.id = 'default'))::bigint + included_granted)";
 
+    /** Estados da conta que não recebem os créditos mensais do plano (D-04). */
+    static final java.util.Set<String> NO_MONTHLY_CREDITS = java.util.Set.of("CANCELLED", "SUSPENDED");
+
     public AiWalletService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -98,6 +101,11 @@ public class AiWalletService {
      */
     void refreshIncluded(UUID marketId) {
         if (entitlements == null) {
+            return;
+        }
+        // Conta cancelada ou suspensa não recebe os créditos do mês (D-04).
+        List<String> status = jdbc.queryForList("select billing_status from markets where id = :m", Map.of("m", marketId), String.class);
+        if (!status.isEmpty() && NO_MONTHLY_CREDITS.contains(status.get(0))) {
             return;
         }
         int allowance;
@@ -338,6 +346,59 @@ public class AiWalletService {
         }
         markPaid(orderId, "asaas");
         return true;
+    }
+
+    /**
+     * Estorno ou contestação do pagamento de um pacote (D-01): tira da carteira
+     * os créditos do pedido que ainda não foram usados. Tira o menor entre os
+     * créditos do pedido e o saldo comprado; o que já foi gasto vira perda e o
+     * saldo nunca fica negativo. Uma vez só por pedido (estorno e contestação
+     * do mesmo pagamento não tiram duas vezes).
+     *
+     * @return créditos retirados (0 se o pedido não foi pago ou já foi estornado)
+     */
+    @Transactional
+    public int reverseOrder(UUID orderId, String reason) {
+        List<Map<String, Object>> o = jdbc.queryForList("select market_id, credits from ai_orders where id = :id and status = 'PAID'",
+            Map.of("id", orderId));
+        if (o.isEmpty()) {
+            return 0;
+        }
+        UUID marketId = (UUID) o.get(0).get("market_id");
+        int credits = ((Number) o.get(0).get("credits")).intValue();
+        String ref = REVERSAL_PREFIX + orderId;
+        jdbc.update("insert into ai_wallets (market_id) values (:m) on conflict do nothing", Map.of("m", marketId));
+        // Trava a carteira: dois avisos do mesmo pagamento chegando juntos não tiram duas vezes.
+        List<Integer> balance = jdbc.queryForList("select balance from ai_wallets where market_id = :m for update",
+            Map.of("m", marketId), Integer.class);
+        Integer done = jdbc.queryForObject("select count(*) from ai_ledger where market_id = :m and reference = :r",
+            Map.of("m", marketId, "r", ref), Integer.class);
+        if (done != null && done > 0) {
+            return 0;
+        }
+        int take = reversal(credits, balance.isEmpty() || balance.get(0) == null ? 0 : balance.get(0));
+        if (take > 0) {
+            jdbc.update("update ai_wallets set balance = balance - :d, updated_at = now() where market_id = :m and balance >= :d",
+                Map.of("m", marketId, "d", take));
+        }
+        jdbc.update("insert into ai_ledger (market_id, delta, kind, reference, note) values (:m, :d, 'REFUND', :r, :n)",
+            new MapSqlParameterSource().addValue("m", marketId).addValue("d", -take).addValue("r", ref)
+                .addValue("n", reversalNote(reason, take, credits, "créditos")));
+        return take;
+    }
+
+    /** Referência do lançamento de estorno no extrato (uma por pedido). */
+    public static final String REVERSAL_PREFIX = "estorno:";
+
+    /** Quanto sai no estorno: o que ainda não foi usado, nunca mais que o saldo. */
+    public static int reversal(int orderUnits, int balance) {
+        return Math.max(0, Math.min(orderUnits, balance));
+    }
+
+    public static String reversalNote(String reason, int taken, int ordered, String unit) {
+        String r = reason == null || reason.isBlank() ? "Pagamento estornado" : reason;
+        return r + ": " + taken + " de " + ordered + " " + unit + " retirados"
+            + (taken < ordered ? " (" + (ordered - taken) + " já usados)" : "");
     }
 
     @Transactional

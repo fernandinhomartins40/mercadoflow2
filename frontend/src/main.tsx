@@ -5,9 +5,9 @@ import App from './App';
 import { DialogHost } from './components/common/Dialogs';
 import { AuthProvider } from './context/AuthContext';
 import { SuperAdminAuthProvider } from './context/SuperAdminAuthContext';
+// CSS global mínimo (Tailwind, base e diálogos). O do painel vem com PanelStyles.
 import './tailwind.css';
-import './styles/liquid-glass.css';
-import './styles/flow.css';
+import './styles/flow-core.css';
 
 document.documentElement.lang = 'pt-BR';
 document.documentElement.setAttribute('dir', 'ltr');

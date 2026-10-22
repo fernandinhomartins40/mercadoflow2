@@ -6,6 +6,9 @@ import { useAuth } from '../../context/AuthContext';
 /**
  * Segurança da própria conta: verificação em duas etapas (dono e financeiro)
  * e o pedido de titularidade que chegou para esta pessoa.
+ *
+ * variant="staff": painel do super admin (SEG-08). Sem pedido de titularidade
+ * e com o aviso recomendando ligar enquanto estiver desligada.
  */
 
 interface Setup { secret: string; otpauthUri: string; qrPng: string }
@@ -15,9 +18,12 @@ const BTN = 'rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60';
 const INPUT = 'rounded-lg px-3 py-2 text-sm';
 const INPUT_STYLE = { background: 'var(--surface-soft)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' };
 
-const SecurityCard: React.FC = () => {
-  const { refresh } = useAuth();
-  const [status, setStatus] = useState<{ enabled: boolean; available: boolean } | null>(null);
+const SecurityCard: React.FC<{ variant?: 'store' | 'staff' }> = ({ variant = 'store' }) => {
+  const staff = variant === 'staff';
+  const auth = useAuth();
+  // No painel do super admin a sessão é outra: não há o que recarregar no AuthContext da loja.
+  const refresh = async () => { if (!staff) await auth.refresh(); };
+  const [status, setStatus] = useState<{ enabled: boolean; available: boolean; recommended?: boolean } | null>(null);
   const [setup, setSetup] = useState<Setup | null>(null);
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +35,9 @@ const SecurityCard: React.FC = () => {
 
   const load = () => {
     api.get('/v1/me/2fa').then(({ data }) => setStatus(data)).catch(() => setStatus(null));
-    api.get<Transfer[]>('/v1/me/ownership-transfers').then(({ data }) => setTransfers(data)).catch(() => setTransfers([]));
+    if (!staff) {
+      api.get<Transfer[]>('/v1/me/ownership-transfers').then(({ data }) => setTransfers(data)).catch(() => setTransfers([]));
+    }
   };
 
   useEffect(load, []);
@@ -72,6 +80,15 @@ const SecurityCard: React.FC = () => {
             </div>
           </div>
         ))}
+
+        {status?.recommended && (
+          <div role="alert" className="rounded-lg p-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }} data-testid="2fa-recommended">
+            <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Recomendado: ligue a verificação em duas etapas</p>
+            <p className="text-xs" style={{ color: '#92400e' }}>
+              Esta conta vê todos os mercados. Com a segunda etapa, uma senha vazada não basta para entrar.
+            </p>
+          </div>
+        )}
 
         {status?.available && (
           <div className="flex flex-col gap-3">

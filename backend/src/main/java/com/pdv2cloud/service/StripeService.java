@@ -349,6 +349,11 @@ public class StripeService {
             market.getId(), status, market.getPlanType());
     }
 
+    /** Mercado da assinatura (metadata ou cliente Stripe), para o webhook checar a ordem dos eventos. */
+    public Optional<UUID> marketIdFor(Subscription subscription) {
+        return resolveMarket(subscription).map(Market::getId);
+    }
+
     /** Localiza o mercado pelo metadata da assinatura, ou pelo cliente Stripe. */
     private Optional<Market> resolveMarket(Subscription subscription) {
         Map<String, String> metadata = subscription.getMetadata();

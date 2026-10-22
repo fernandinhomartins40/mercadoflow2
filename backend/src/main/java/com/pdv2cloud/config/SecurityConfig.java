@@ -39,6 +39,9 @@ public class SecurityConfig {
     private com.pdv2cloud.security.PartnerAuthenticationFilter partnerAuthFilter;
 
     @Autowired
+    private com.pdv2cloud.security.CatalogServiceTokenFilter catalogServiceTokenFilter;
+
+    @Autowired
     private AgentApiKeyAuthenticationFilter apiKeyAuthFilter;
 
     @Autowired
@@ -61,10 +64,12 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
-                    "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/login/2fa").permitAll()
+                    "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/login/2fa",
+                    "/api/v1/auth/account-deletion/cancel").permitAll()
                 // Convite para a equipe: o link (token) é a credencial.
                 .requestMatchers("/api/v1/public/invites/**").permitAll()
-                .requestMatchers("/api/v1/super-admin/auth/login", "/api/v1/super-admin/auth/logout").permitAll()
+                .requestMatchers("/api/v1/super-admin/auth/login", "/api/v1/super-admin/auth/login/2fa",
+                    "/api/v1/super-admin/auth/logout").permitAll()
                 .requestMatchers("/actuator/health", "/health", "/api/v1/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/downloads/**").permitAll()
@@ -111,6 +116,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/industry/**").hasRole("INDUSTRY_USER")
                 // Portal de vendas: vendedor, ou indústria com vendedor ligado.
                 .requestMatchers("/api/v1/seller/**").hasAnyRole("SELLER_USER", "INDUSTRY_USER")
+                // Coletores de catálogo (token de serviço, SEG-08): só a lista fechada
+                // de CatalogServiceTokenFilter; o resto de /admin e /super-admin não.
+                .requestMatchers(com.pdv2cloud.security.CatalogServiceTokenFilter::isAdminCatalogRoute)
+                    .hasAnyRole("ADMIN", "SUPER_ADMIN", com.pdv2cloud.security.CatalogServiceTokenFilter.ROLE)
+                .requestMatchers(com.pdv2cloud.security.CatalogServiceTokenFilter::isSuperAdminCatalogRoute)
+                    .hasAnyRole("SUPER_ADMIN", com.pdv2cloud.security.CatalogServiceTokenFilter.ROLE)
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/super-admin/**").hasRole("SUPER_ADMIN")
                 .anyRequest().authenticated()
@@ -119,6 +130,7 @@ public class SecurityConfig {
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(hmacSignatureFilter, AgentApiKeyAuthenticationFilter.class)
             .addFilterBefore(partnerAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(catalogServiceTokenFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             // Roda apos todos os filtros de autenticacao: popula o TenantContext e
             // valida {marketId} da URL contra o tenant do principal (isolamento estrutural)

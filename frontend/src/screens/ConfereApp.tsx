@@ -17,6 +17,7 @@ import AccountScreen from '../features/confere/AccountScreen';
 import CountScreen from '../features/confere/CountScreen';
 import { isNativeApp } from '../features/confere/native';
 import { TabLayout } from '../features/confere/TabBar';
+import '../styles/liquid-glass.css';
 import '../features/confere/confere.css';
 
 /**

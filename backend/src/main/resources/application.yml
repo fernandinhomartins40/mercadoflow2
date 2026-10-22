@@ -89,6 +89,9 @@ app:
   ai:
     encryption-key: ${AI_ENCRYPTION_KEY:}
   catalog:
+    # Credencial dos coletores (scripts/catalog) só nas rotas de catálogo que
+    # eles usam (CatalogServiceTokenFilter). Vazia = desligada (SEG-08).
+    service-token: ${CATALOG_SERVICE_TOKEN:}
     images-dir: ${APP_CATALOG_IMAGES_DIR:../data/catalog/images}
     max-image-bytes: ${APP_CATALOG_MAX_IMAGE_BYTES:5000000}
     runs-dir: ${APP_CATALOG_RUNS_DIR:../data/catalog/runs}

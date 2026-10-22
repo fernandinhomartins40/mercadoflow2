@@ -62,6 +62,9 @@ public class AuthService {
     @Autowired
     private com.pdv2cloud.service.billing.AccessPolicy accessPolicy;
 
+    @Autowired(required = false)
+    private com.pdv2cloud.service.account.AccountDeletionService accountDeletion;
+
     /**
      * O cadastro público cria o mercado e o primeiro usuário sem que exista
      * tenant na sessão — é ele que dá origem ao tenant.
@@ -170,6 +173,15 @@ public class AuthService {
             // resposta continua sendo "e-mail ou senha incorretos".
             User user = userRepository.findForAuthenticationByEmail(request.getEmail()).orElse(null);
             if (user != null && user.getPassword() != null && passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                // Pedido de exclusão em andamento (LGPD-03): a tela oferece "Desistir da exclusão".
+                java.util.Optional<LocalDateTime> deletion = accountDeletion == null ? java.util.Optional.empty()
+                    : com.pdv2cloud.tenancy.TenantContext.runAsSystem(() -> accountDeletion.pendingUntil(user.getId()));
+                if (deletion.isPresent()) {
+                    throw new com.pdv2cloud.exception.AccountAccessException("DELETION_PENDING",
+                        "Sua conta está marcada para exclusão em "
+                            + deletion.get().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                            + ". Para continuar usando, toque em \"Desistir da exclusão\".");
+                }
                 com.pdv2cloud.service.billing.AccessPolicy.Access access = accessPolicy.of(user);
                 throw new com.pdv2cloud.exception.AccountAccessException(access.state(), access.message());
             }
@@ -201,6 +213,10 @@ public class AuthService {
         }
         com.pdv2cloud.service.team.TwoFactorService.Challenge c = twoFactor.complete(challenge, code);
         User user = userRepository.findById(c.userId()).orElseThrow();
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            // O superadmin conclui pelo próprio login (cookie do painel super admin).
+            throw new IllegalArgumentException("Use o login do painel Super Admin");
+        }
         org.springframework.security.core.userdetails.UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
         if (!details.isEnabled()) {
             throw new IllegalArgumentException("Conta sem acesso no momento.");
@@ -247,14 +263,41 @@ public class AuthService {
         long tokenTtl = Boolean.TRUE.equals(request.getKeepConnected())
             ? Duration.ofDays(30).toMillis()
             : Duration.ofDays(1).toMillis();
-        String token = tokenProvider.generateToken(auth, tokenTtl);
 
         User user = userRepository.findForAuthenticationByEmail(request.getEmail()).orElseThrow();
         if (user.getRole() != UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Credenciais sem permissao de Super Admin");
         }
+        // Segunda etapa ligada (SEG-08): o token só sai depois do código. Quem
+        // ainda não ligou entra como antes (o painel recomenda ligar).
+        if (Boolean.TRUE.equals(user.getTotpEnabled()) && twoFactor != null) {
+            String challenge = twoFactor.challenge(user.getId(), Boolean.TRUE.equals(request.getKeepConnected()));
+            return new LoginResponse(null, user.getId(), user.getRole().name(), null, true, challenge);
+        }
+        String token = tokenProvider.generateToken(auth, tokenTtl);
         touchLastLogin(user);
         return new LoginResponse(token, user.getId(), user.getRole().name(), null);
+    }
+
+    /** Segunda etapa do superadmin: confere o código e emite o token do painel. */
+    public java.util.Map.Entry<LoginResponse, Boolean> superAdminLoginSecondStep(String challenge, String code) {
+        if (twoFactor == null) {
+            throw new IllegalStateException("Verificação em duas etapas indisponível");
+        }
+        com.pdv2cloud.service.team.TwoFactorService.Challenge c = twoFactor.complete(challenge, code);
+        User user = userRepository.findById(c.userId()).orElseThrow();
+        if (user.getRole() != UserRole.SUPER_ADMIN) {
+            throw new IllegalArgumentException("Credenciais sem permissao de Super Admin");
+        }
+        org.springframework.security.core.userdetails.UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
+        if (!details.isEnabled()) {
+            throw new IllegalArgumentException("Conta sem acesso no momento.");
+        }
+        Authentication auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
+        long ttl = c.keep() ? Duration.ofDays(30).toMillis() : Duration.ofDays(1).toMillis();
+        String token = tokenProvider.generateToken(auth, ttl);
+        touchLastLogin(user);
+        return java.util.Map.entry(new LoginResponse(token, user.getId(), user.getRole().name(), null), c.keep());
     }
 
     private void touchLastLogin(User user) {
