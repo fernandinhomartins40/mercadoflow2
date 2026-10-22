@@ -23,11 +23,10 @@ import subscriptionService, {
 import { confirmDialog } from '../common/Dialogs';
 
 /**
- * Contratos sob medida (plano Rede) e cobrança por fatura.
+ * Contratos sob medida (plano Rede).
  *
- * O valor e os limites são negociados aqui; o Stripe emite a fatura mensal com
- * boleto e a envia por e-mail. A baixa é automática: quando o boleto compensa,
- * o Stripe avisa por webhook no dia útil seguinte.
+ * O valor e os limites são negociados aqui. A cobrança da rede é emitida pelo
+ * comercial; as faturas listadas são o histórico antigo (Stripe, não mais usada).
  */
 
 const fmtDate = (v?: string | null) => {
@@ -166,7 +165,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
       setMessage(
         result.warning
           ? { text: result.warning, tone: 'warn' }
-          : { text: 'Contrato salvo e cobrança configurada no Stripe.', tone: 'ok' },
+          : { text: 'Contrato salvo.', tone: 'ok' },
       );
     } catch (err: any) {
       setMessage({ text: err?.message || 'Falha ao salvar o contrato.', tone: 'warn' });
@@ -401,11 +400,6 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
                     desde {fmtDate(contract.startedAt)}
                     {contract.contactEmail && ` · fatura para ${contract.contactEmail}`}
                   </div>
-                  {!contract.stripeSubscriptionId && (
-                    <div className="mt-1 text-[11px]" style={{ color: '#b45309' }}>
-                      Sem cobrança ativa no Stripe
-                    </div>
-                  )}
                 </div>
                 <button
                   type="button"
@@ -469,7 +463,7 @@ const NetworkContractsPanel: React.FC<Props> = ({ markets }) => {
               Contrato de rede — {form.marketName}
             </h3>
             <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-              O Stripe emite a fatura mensal com boleto e envia por e-mail. Deixe um limite em branco
+              A cobrança da rede é emitida pelo comercial. Deixe um limite em branco
               para herdar o padrão, ou use <strong>-1</strong> para ilimitado.
             </p>
 

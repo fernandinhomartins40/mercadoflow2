@@ -63,13 +63,13 @@ class SubscriptionStateTest {
         assertThat((String) v.get("bannerMessage")).contains("Essencial").contains("faltam 3 dias");
         assertThat(v.get("trialAvailable")).isEqualTo(false);
 
-        Subscription late = new Subscription(UUID.randomUUID(), "ESSENCIAL", Status.PAST_DUE, "STRIPE", null, null, null, null,
+        Subscription late = new Subscription(UUID.randomUUID(), "ESSENCIAL", Status.PAST_DUE, "ASAAS", null, null, null, null,
             false, null, null, true, now.minusDays(2), null, null, null, null, null);
         v = com.pdv2cloud.controller.SubscriptionControllerAccess.view(late, cfg, now);
         assertThat(v.get("daysLeft")).isEqualTo(5);
         assertThat((String) v.get("bannerMessage")).contains("06/10");
 
-        Subscription restricted = new Subscription(UUID.randomUUID(), "ESSENCIAL", Status.RESTRICTED, "STRIPE", null, null, null,
+        Subscription restricted = new Subscription(UUID.randomUUID(), "ESSENCIAL", Status.RESTRICTED, "ASAAS", null, null, null,
             null, false, null, null, true, now.minusDays(9), now.minusDays(2), null, null, null, null);
         v = com.pdv2cloud.controller.SubscriptionControllerAccess.view(restricted, cfg, now);
         assertThat(v.get("bannerTone")).isEqualTo("DANGER");

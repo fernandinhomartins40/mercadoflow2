@@ -72,6 +72,7 @@ public class NetworkContract {
     private Integer seatLimit;
 
     /** Price dedicado a esta rede; não aparece no catálogo público. */
+    // Legado da Stripe (não é mais usada): colunas mantidas só para o histórico.
     @Column(name = "stripe_price_id", length = 64)
     private String stripePriceId;
 

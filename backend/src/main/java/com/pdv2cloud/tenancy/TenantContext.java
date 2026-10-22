@@ -37,7 +37,7 @@ public final class TenantContext {
     }
 
     /**
-     * Executa trabalho de sistema com escopo global (webhooks do Stripe, jobs
+     * Executa trabalho de sistema com escopo global (webhooks do Asaas, jobs
      * agendados, migrações de dados).
      *
      * Sem isto, esse código roda sem tenant na sessão: hoje isso é inofensivo

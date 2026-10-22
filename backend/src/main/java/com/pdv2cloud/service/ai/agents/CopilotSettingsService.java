@@ -43,6 +43,13 @@ public class CopilotSettingsService {
         this.entitlements = entitlements;
     }
 
+    private com.pdv2cloud.service.AuditService audit;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAudit(com.pdv2cloud.service.AuditService audit) {
+        this.audit = audit;
+    }
+
     public CopilotSettingsService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -59,7 +66,29 @@ public class CopilotSettingsService {
 
     public record AutonomyConfig(boolean enabled, BigDecimal maxActionCap) {}
 
-    public record Prefs(LocalTime quietStart, LocalTime quietEnd, String whatsappPhone, boolean whatsappOptIn) {}
+    /** Versão do texto do aviso de WhatsApp mostrado na tela (S7). Mudou o texto? Suba a versão aqui e na tela. */
+    public static final String WHATSAPP_CONSENT_VERSION = "2026-10-22";
+
+    public record Prefs(LocalTime quietStart, LocalTime quietEnd, String whatsappPhone, boolean whatsappOptIn,
+                        java.time.LocalDateTime whatsappOptInAt, java.time.LocalDateTime whatsappOptOutAt) {
+        public Prefs(LocalTime quietStart, LocalTime quietEnd, String whatsappPhone, boolean whatsappOptIn) {
+            this(quietStart, quietEnd, whatsappPhone, whatsappOptIn, null, null);
+        }
+    }
+
+    /** O que mudou no consentimento do WhatsApp nesta gravação. */
+    enum ConsentChange { NONE, GRANT, REVOKE }
+
+    /** Ligar (ou trocar o número com o aviso ligado) é um aceite novo; desligar é revogação. */
+    static ConsentChange consentChange(Prefs cur, boolean optIn, String phone) {
+        if (optIn && (!cur.whatsappOptIn() || !java.util.Objects.equals(cur.whatsappPhone(), phone))) {
+            return ConsentChange.GRANT;
+        }
+        if (!optIn && cur.whatsappOptIn()) {
+            return ConsentChange.REVOKE;
+        }
+        return ConsentChange.NONE;
+    }
 
     public List<AgentSettings> agents(UUID marketId) {
         Map<String, AgentSettings> saved = new LinkedHashMap<>();
@@ -215,14 +244,30 @@ public class CopilotSettingsService {
     }
 
     public Prefs prefs(UUID marketId) {
-        List<Prefs> r = jdbc.query("select quiet_start, quiet_end, whatsapp_phone, whatsapp_opt_in from ai_copilot_prefs where market_id = :m",
+        List<Prefs> r = jdbc.query("select quiet_start, quiet_end, whatsapp_phone, whatsapp_opt_in, whatsapp_opt_in_at, whatsapp_opt_out_at "
+                + "from ai_copilot_prefs where market_id = :m",
             Map.of("m", marketId), (rs, i) -> new Prefs(rs.getTime("quiet_start").toLocalTime(), rs.getTime("quiet_end").toLocalTime(),
-                rs.getString("whatsapp_phone"), rs.getBoolean("whatsapp_opt_in")));
+                rs.getString("whatsapp_phone"), rs.getBoolean("whatsapp_opt_in"), local(rs.getTimestamp("whatsapp_opt_in_at")),
+                local(rs.getTimestamp("whatsapp_opt_out_at"))));
         return r.isEmpty() ? new Prefs(LocalTime.of(21, 0), LocalTime.of(7, 0), null, false) : r.get(0);
+    }
+
+    private static java.time.LocalDateTime local(java.sql.Timestamp t) {
+        return t == null ? null : t.toLocalDateTime();
     }
 
     @Transactional
     public Prefs savePrefs(UUID marketId, Map<String, Object> body, String actor) {
+        return savePrefs(marketId, body, actor, null);
+    }
+
+    /**
+     * Grava as preferências. No aceite do WhatsApp guarda data, IP, número e a
+     * versão do texto mostrado; na revogação guarda a data e mantém o último
+     * aceite como prova (S7).
+     */
+    @Transactional
+    public Prefs savePrefs(UUID marketId, Map<String, Object> body, String actor, String ip) {
         Prefs cur = prefs(marketId);
         LocalTime start = body.get("quietStart") != null ? LocalTime.parse(String.valueOf(body.get("quietStart"))) : cur.quietStart();
         LocalTime end = body.get("quietEnd") != null ? LocalTime.parse(String.valueOf(body.get("quietEnd"))) : cur.quietEnd();
@@ -234,14 +279,34 @@ public class CopilotSettingsService {
         if (optIn && !cur.whatsappOptIn() && entitlements != null && !entitlements.has(marketId, "copilot_whatsapp")) {
             throw new IllegalArgumentException("O Copiloto no WhatsApp faz parte do plano Profissional.");
         }
-        jdbc.update("insert into ai_copilot_prefs (market_id, quiet_start, quiet_end, whatsapp_phone, whatsapp_opt_in, whatsapp_opt_in_at, updated_by) "
-                + "values (:m, :s, :e, :p, :o, case when :o then now() end, :u) on conflict (market_id) do update set "
+        ConsentChange change = consentChange(cur, optIn, phone);
+        if (change == ConsentChange.GRANT && !WHATSAPP_CONSENT_VERSION.equals(body.get("whatsappConsentVersion"))) {
+            // O aceite só vale com o texto atual na tela; página antiga em cache precisa recarregar.
+            throw new IllegalArgumentException("O texto do aviso foi atualizado. Recarregue a página, leia e marque de novo.");
+        }
+        boolean grant = change == ConsentChange.GRANT;
+        boolean revoke = change == ConsentChange.REVOKE;
+        jdbc.update("insert into ai_copilot_prefs (market_id, quiet_start, quiet_end, whatsapp_phone, whatsapp_opt_in, whatsapp_opt_in_at, "
+                + "whatsapp_opt_in_ip, whatsapp_opt_in_phone, whatsapp_opt_in_text_version, updated_by) "
+                + "values (:m, :s, :e, :p, :o, case when :g then now() end, case when :g then :ip end, case when :g then :p end, "
+                + "case when :g then :v end, :u) on conflict (market_id) do update set "
                 + "quiet_start = excluded.quiet_start, quiet_end = excluded.quiet_end, whatsapp_phone = excluded.whatsapp_phone, "
-                + "whatsapp_opt_in_at = case when excluded.whatsapp_opt_in and not ai_copilot_prefs.whatsapp_opt_in then now() "
-                + "when not excluded.whatsapp_opt_in then null else ai_copilot_prefs.whatsapp_opt_in_at end, "
+                + "whatsapp_opt_in_at = case when :g then now() else ai_copilot_prefs.whatsapp_opt_in_at end, "
+                + "whatsapp_opt_in_ip = case when :g then :ip else ai_copilot_prefs.whatsapp_opt_in_ip end, "
+                + "whatsapp_opt_in_phone = case when :g then :p else ai_copilot_prefs.whatsapp_opt_in_phone end, "
+                + "whatsapp_opt_in_text_version = case when :g then :v else ai_copilot_prefs.whatsapp_opt_in_text_version end, "
+                + "whatsapp_opt_out_at = case when :g then null when :r then now() else ai_copilot_prefs.whatsapp_opt_out_at end, "
                 + "whatsapp_opt_in = excluded.whatsapp_opt_in, updated_at = now(), updated_by = excluded.updated_by",
             new MapSqlParameterSource().addValue("m", marketId).addValue("s", Time.valueOf(start)).addValue("e", Time.valueOf(end))
-                .addValue("p", phone).addValue("o", optIn).addValue("u", actor));
+                .addValue("p", phone).addValue("o", optIn).addValue("u", actor).addValue("g", grant).addValue("r", revoke)
+                .addValue("ip", ip).addValue("v", WHATSAPP_CONSENT_VERSION));
+        if (change != ConsentChange.NONE && audit != null) {
+            // Sem o número em claro na trilha: só os 4 últimos dígitos.
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("textVersion", WHATSAPP_CONSENT_VERSION);
+            details.put("phoneEnd", phone == null || phone.length() < 4 ? null : phone.substring(phone.length() - 4));
+            audit.logAction("MARKET", marketId, grant ? "WHATSAPP_CONSENT_GRANTED" : "WHATSAPP_CONSENT_REVOKED", true, details);
+        }
         return prefs(marketId);
     }
 

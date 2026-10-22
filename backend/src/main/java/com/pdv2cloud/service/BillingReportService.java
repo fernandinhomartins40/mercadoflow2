@@ -22,10 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Relatórios de faturamento do SaaS.
  *
- * As métricas vêm do banco, não da API do Stripe: são consultadas a cada
- * abertura do painel, e buscar no Stripe a cada vez seria lento e sujeito a
- * rate limit. O banco é atualizado por webhook, então reflete o estado real da
- * cobrança com atraso de segundos.
+ * As métricas vêm do banco, não da API do Asaas: são consultadas a cada
+ * abertura do painel, e o banco é atualizado pelo webhook, então reflete o
+ * estado real da cobrança com atraso de segundos.
  */
 @Service
 @Slf4j
@@ -33,6 +32,10 @@ public class BillingReportService {
 
     private final MarketRepository marketRepository;
     private final PlanCatalogService planCatalogService;
+
+    /** Lê quais contas têm assinatura no Asaas (cobrança automática). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc;
 
     public BillingReportService(
         MarketRepository marketRepository,
@@ -45,6 +48,9 @@ public class BillingReportService {
     @Transactional(readOnly = true)
     public BillingReport build() {
         List<Market> markets = marketRepository.findAll();
+        java.util.Set<UUID> billed = jdbc == null ? java.util.Set.of() : new java.util.HashSet<>(jdbc.queryForList(
+            "select market_id from subscriptions where provider = 'ASAAS' and provider_subscription_id is not null",
+            Map.of(), UUID.class));
 
         long mrrCents = 0;
         long pastDueCents = 0;
@@ -106,7 +112,7 @@ public class BillingReportService {
                     entry.getDisplayName(),
                     priceCents,
                     market.getBillingStatus() != null ? market.getBillingStatus().name() : null,
-                    market.getStripeSubscriptionId() != null,
+                    billed.contains(market.getId()),
                     Boolean.TRUE.equals(market.getCancelAtPeriodEnd()),
                     market.getCurrentPeriodEnd(),
                     market.getCreatedAt()
@@ -116,10 +122,10 @@ public class BillingReportService {
 
         accounts.sort(Comparator.comparingInt(AccountRevenue::monthlyPriceCents).reversed());
 
-        // Contas pagas sem assinatura no Stripe: liberadas à mão ou com a
+        // Contas pagas sem assinatura no Asaas: liberadas à mão ou com a
         // cobrança perdida. É a lista que revela receita que não está entrando.
         List<AccountRevenue> unbilled = accounts.stream()
-            .filter(a -> !a.hasStripeSubscription())
+            .filter(a -> !a.hasAutomaticBilling())
             .toList();
 
         return new BillingReport(
@@ -163,7 +169,7 @@ public class BillingReportService {
         UUID marketId, String marketName,
         String planCode, String planName,
         int monthlyPriceCents, String billingStatus,
-        boolean hasStripeSubscription, boolean cancelAtPeriodEnd,
+        boolean hasAutomaticBilling, boolean cancelAtPeriodEnd,
         LocalDateTime currentPeriodEnd, LocalDateTime createdAt
     ) {}
 
@@ -176,7 +182,7 @@ public class BillingReportService {
         int trialAccounts,
         int freeAccounts,
         int cancelingAccounts,
-        /** Contas em plano pago sem assinatura ativa no Stripe. */
+        /** Contas em plano pago sem assinatura no Asaas. */
         int unbilledAccounts,
         long averageTicketCents,
         List<PlanRevenue> byPlan,

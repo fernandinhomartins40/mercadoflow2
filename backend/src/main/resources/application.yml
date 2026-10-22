@@ -69,15 +69,6 @@ app:
   # $aact_hmlg_ para o sandbox).
   asaas:
     api-key: ${ASAAS_API_KEY:}
-  # Cobranca de assinaturas. Sem STRIPE_SECRET_KEY a integracao fica desligada
-  # e a aplicacao sobe normalmente — o upgrade volta a ser manual no painel.
-  stripe:
-    enabled: ${STRIPE_ENABLED:false}
-    secret-key: ${STRIPE_SECRET_KEY:}
-    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-    # IDs de preco (price_...) criados no painel do Stripe, um por plano pago.
-    price-essencial: ${STRIPE_PRICE_ESSENCIAL:}
-    price-profissional: ${STRIPE_PRICE_PROFISSIONAL:}
   # Inteligencia com IA generativa. Cada mercado cadastra a PROPRIA chave de API
   # (BYOK) na tela de configuracao; a plataforma nao fornece chave.
   #

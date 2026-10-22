@@ -8,17 +8,6 @@ import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.repository.NetworkContractRepository;
 import com.pdv2cloud.repository.NetworkInvoiceRepository;
-import com.stripe.exception.StripeException;
-import com.stripe.model.Invoice;
-import com.stripe.model.Price;
-import com.stripe.model.Product;
-import com.stripe.model.Subscription;
-import com.stripe.param.InvoiceSendInvoiceParams;
-import com.stripe.param.PriceCreateParams;
-import com.stripe.param.ProductCreateParams;
-import com.stripe.param.SubscriptionCancelParams;
-import com.stripe.param.SubscriptionCreateParams;
-import com.stripe.param.SubscriptionUpdateParams;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,18 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Contratos sob medida do plano Rede, com cobrança por fatura.
+ * Contratos sob medida do plano Rede.
  *
- * Redes não compram plano de prateleira: negociam valor e limites, e pagam por
- * boleto contra nota fiscal, com prazo. Por isso a assinatura usa
- * {@code collection_method=send_invoice} em vez de débito automático — o Stripe
- * emite a fatura, envia por e-mail e o cliente paga como preferir (boleto,
- * cartão, e Pix quando a capability for liberada).
- *
- * Sobre conciliação: não há leitura de retorno bancário. O Stripe confirma a
- * compensação do boleto e dispara {@code invoice.paid} no dia útil seguinte;
- * {@link NetworkInvoice} espelha esse estado para o painel responder quem deve
- * e há quantos dias sem consultar a API a cada tela.
+ * Redes não compram plano de prateleira: negociam valor e limites. A cobrança
+ * da rede é combinada e emitida pelo comercial (a Stripe, que emitia as faturas,
+ * não é mais usada). {@link NetworkInvoice} guarda o histórico das faturas antigas.
  */
 @Service
 @Slf4j
@@ -53,20 +35,17 @@ public class NetworkContractService {
     private final NetworkContractRepository contractRepository;
     private final NetworkInvoiceRepository invoiceRepository;
     private final MarketRepository marketRepository;
-    private final StripeService stripeService;
     private final SubscriptionEventService subscriptionEventService;
 
     public NetworkContractService(
         NetworkContractRepository contractRepository,
         NetworkInvoiceRepository invoiceRepository,
         MarketRepository marketRepository,
-        StripeService stripeService,
         SubscriptionEventService subscriptionEventService
     ) {
         this.contractRepository = contractRepository;
         this.invoiceRepository = invoiceRepository;
         this.marketRepository = marketRepository;
-        this.stripeService = stripeService;
         this.subscriptionEventService = subscriptionEventService;
     }
 
@@ -83,7 +62,7 @@ public class NetworkContractService {
     }
 
     /**
-     * Cria ou substitui o contrato da rede e liga a cobrança no Stripe.
+     * Cria ou substitui o contrato da rede.
      *
      * Os limites contratados são gravados como overrides no mercado, que é onde
      * {@link PlanService} os lê — assim o contrato define o comercial e o
@@ -138,19 +117,8 @@ public class NetworkContractService {
         marketRepository.save(market);
         if (subscriptionSync != null) { subscriptionSync.syncFromMarket(market, "contrato de rede"); }
 
-        String warning = null;
-        if (stripeService.isConfigured()) {
-            try {
-                setupStripeBilling(market, contract);
-            } catch (StripeException exc) {
-                // Contrato vale mesmo sem cobrança: o painel avisa e o super
-                // admin pode tentar de novo, em vez de perder o cadastro.
-                warning = "Contrato salvo, mas a cobrança no Stripe falhou: " + exc.getMessage();
-                log.error("Falha ao configurar cobrança da rede {}: {}", marketId, exc.getMessage(), exc);
-            }
-        } else {
-            warning = "Stripe não configurado: o contrato vale, mas nenhuma fatura será emitida.";
-        }
+        // Sem cobrança automática: o comercial emite a cobrança da rede.
+        String warning = "Contrato salvo. A cobrança da rede é emitida pelo comercial.";
 
         subscriptionEventService.recordPlanChange(
             market, market.getPlanType(), PlanType.REDE,
@@ -161,98 +129,7 @@ public class NetworkContractService {
         return new ContractResult(contractRepository.save(contract), warning);
     }
 
-    /**
-     * Cria o Price dedicado e a assinatura por fatura.
-     *
-     * O Price fica fora do catálogo público de propósito: é exclusivo desta
-     * rede e não deve aparecer para contratação por ninguém.
-     */
-    private void setupStripeBilling(Market market, NetworkContract contract) throws StripeException {
-        String customerId = stripeService.ensureCustomerFor(market);
-
-        Product product = Product.create(
-            ProductCreateParams.builder()
-                .setName("Mercado Flow Rede — " + market.getName())
-                .setDescription("Contrato sob medida")
-                .putMetadata("app", "mercadoflow")
-                .putMetadata("planCode", PlanType.REDE.name())
-                .putMetadata("marketId", market.getId().toString())
-                .build()
-        );
-
-        Price price = Price.create(
-            PriceCreateParams.builder()
-                .setProduct(product.getId())
-                .setUnitAmount((long) contract.getMonthlyPriceCents())
-                .setCurrency("brl")
-                .setRecurring(
-                    PriceCreateParams.Recurring.builder()
-                        .setInterval(PriceCreateParams.Recurring.Interval.MONTH)
-                        .build()
-                )
-                .putMetadata("marketId", market.getId().toString())
-                .build()
-        );
-        contract.setStripePriceId(price.getId());
-
-        // Substitui a assinatura anterior, se houver: duas ativas cobrariam o
-        // cliente duas vezes.
-        cancelStripeSubscription(contract.getStripeSubscriptionId());
-        if (market.getStripeSubscriptionId() != null) {
-            cancelStripeSubscription(market.getStripeSubscriptionId());
-        }
-
-        Subscription subscription = Subscription.create(
-            SubscriptionCreateParams.builder()
-                .setCustomer(customerId)
-                .addItem(
-                    SubscriptionCreateParams.Item.builder()
-                        .setPrice(price.getId())
-                        .setQuantity(1L)
-                        .build()
-                )
-                // send_invoice: fatura com prazo em vez de débito automático,
-                // que é como redes pagam (boleto contra nota fiscal).
-                .setCollectionMethod(SubscriptionCreateParams.CollectionMethod.SEND_INVOICE)
-                .setDaysUntilDue((long) contract.getDaysUntilDue())
-                .setPaymentSettings(
-                    SubscriptionCreateParams.PaymentSettings.builder()
-                        .addPaymentMethodType(
-                            SubscriptionCreateParams.PaymentSettings.PaymentMethodType.BOLETO)
-                        .addPaymentMethodType(
-                            SubscriptionCreateParams.PaymentSettings.PaymentMethodType.CARD)
-                        .build()
-                )
-                .putMetadata("marketId", market.getId().toString())
-                .putMetadata("planCode", PlanType.REDE.name())
-                .putMetadata("contractId", contract.getId().toString())
-                .build()
-        );
-
-        contract.setStripeSubscriptionId(subscription.getId());
-        market.setStripeSubscriptionId(subscription.getId());
-        market.setStripePriceId(price.getId());
-        market.setStripeStatus(subscription.getStatus());
-        marketRepository.save(market);
-
-        log.info("Cobrança de rede configurada | market={} | subscription={} | valor={}",
-            market.getId(), subscription.getId(), contract.getMonthlyPriceCents());
-    }
-
-    private void cancelStripeSubscription(String subscriptionId) {
-        if (subscriptionId == null || subscriptionId.isBlank()) {
-            return;
-        }
-        try {
-            Subscription.retrieve(subscriptionId)
-                .cancel(SubscriptionCancelParams.builder().build());
-        } catch (StripeException exc) {
-            log.warn("Não foi possível cancelar a assinatura anterior {}: {}",
-                subscriptionId, exc.getMessage());
-        }
-    }
-
-    /** Encerra o contrato e cancela a cobrança. */
+    /** Encerra o contrato (a cobrança da rede é encerrada pelo comercial). */
     @Transactional
     public String endContract(UUID marketId, boolean cancelImmediately, String reason) {
         NetworkContract contract = contractRepository.findActiveByMarket(marketId)
@@ -263,31 +140,7 @@ public class NetworkContractService {
         contract.setNotes(reason);
         contractRepository.save(contract);
 
-        String warning = null;
-        if (stripeService.isConfigured() && contract.getStripeSubscriptionId() != null) {
-            try {
-                Subscription subscription = Subscription.retrieve(contract.getStripeSubscriptionId());
-                if (cancelImmediately) {
-                    subscription.cancel(SubscriptionCancelParams.builder().build());
-                } else {
-                    subscription.update(
-                        SubscriptionUpdateParams.builder().setCancelAtPeriodEnd(true).build()
-                    );
-                }
-            } catch (StripeException exc) {
-                warning = "Contrato encerrado, mas a assinatura no Stripe segue ativa: "
-                    + exc.getMessage();
-            }
-        }
-
-        marketRepository.findById(marketId).ifPresent(market -> {
-            if (cancelImmediately) {
-                market.setStripeSubscriptionId(null);
-            }
-            marketRepository.save(market);
-        });
-
-        return warning;
+        return null;
     }
 
     // ── Faturas ──────────────────────────────────────────────────────────────
@@ -308,33 +161,16 @@ public class NetworkContractService {
     }
 
     /**
-     * Reenvia a fatura por e-mail.
-     *
-     * Só funciona em faturas abertas: o Stripe recusa reenvio de fatura paga ou
-     * cancelada, e insistir geraria confusão para o cliente.
+     * Reenvio de fatura por e-mail: existia só na Stripe, que não é mais usada.
+     * Devolve o aviso (a régua e o painel mostram em vez de reenviar).
      */
     @Transactional
     public String resendInvoice(UUID invoiceId) {
         NetworkInvoice invoice = invoiceRepository.findById(invoiceId)
             .orElseThrow(() -> new IllegalArgumentException("Fatura não encontrada"));
 
-        if (!"open".equals(invoice.getStatus())) {
-            throw new IllegalArgumentException(
-                "Só é possível reenviar faturas em aberto (esta está " + invoice.getStatus() + ").");
-        }
-        if (!stripeService.isConfigured()) {
-            throw new IllegalStateException("Stripe não configurado.");
-        }
-
-        try {
-            Invoice.retrieve(invoice.getStripeInvoiceId())
-                .sendInvoice(InvoiceSendInvoiceParams.builder().build());
-            log.info("Fatura reenviada | invoice={}", invoice.getStripeInvoiceId());
-            return null;
-        } catch (StripeException exc) {
-            log.error("Falha ao reenviar fatura {}: {}", invoice.getStripeInvoiceId(), exc.getMessage());
-            return "Não foi possível reenviar: " + exc.getMessage();
-        }
+        log.info("Reenvio de fatura antiga pedido e recusado | invoice={}", invoice.getId());
+        return "O reenvio automático de faturas foi desligado. Envie a cobrança da rede pelo comercial.";
     }
 
     // ── Tipos ────────────────────────────────────────────────────────────────

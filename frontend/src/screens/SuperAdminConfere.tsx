@@ -36,7 +36,6 @@ const SettingsCard: React.FC<{ settings: ConfereSettings; onSaved: (s: ConfereSe
     pixKey: settings.pixKey ?? '',
     pixName: settings.pixMerchantName ?? '',
     pixCity: settings.pixMerchantCity ?? '',
-    stripe: settings.stripeEnabled,
     terms: settings.termsText,
   });
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
@@ -54,7 +53,6 @@ const SettingsCard: React.FC<{ settings: ConfereSettings; onSaved: (s: ConfereSe
         pixKey: draft.pixKey.trim() || null,
         pixMerchantName: draft.pixName.trim() || null,
         pixMerchantCity: draft.pixCity.trim() || null,
-        stripeEnabled: draft.stripe,
         termsText: draft.terms,
         ...(apiKey.trim() ? { meuDanfeApiKey: apiKey.trim() } : {}),
       });
@@ -154,10 +152,6 @@ const SettingsCard: React.FC<{ settings: ConfereSettings; onSaved: (s: ConfereSe
         <p className="text-xs text-slate-500 sm:col-span-3">
           O mercado recebe o QR code com o valor e um identificador. Ao ver o pagamento no extrato, confirme o pedido na lista abaixo e as leituras entram na hora.
         </p>
-        <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-3">
-          <input type="checkbox" checked={draft.stripe} onChange={set('stripe')} className="h-4 w-4 accent-green-600" />
-          Oferecer também pagamento pelo Stripe (confirmação automática; Pix no Stripe quando liberado na conta)
-        </label>
       </fieldset>
 
       <label className="flex flex-col gap-1.5">

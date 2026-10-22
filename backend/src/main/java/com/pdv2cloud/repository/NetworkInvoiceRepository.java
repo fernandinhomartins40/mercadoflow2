@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface NetworkInvoiceRepository extends JpaRepository<NetworkInvoice, UUID> {
 
-    Optional<NetworkInvoice> findByStripeInvoiceId(String stripeInvoiceId);
 
     @Query("select i from NetworkInvoice i join fetch i.market "
         + "where i.market.id = :marketId order by i.createdAt desc")

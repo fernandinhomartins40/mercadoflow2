@@ -7,6 +7,8 @@ import { clearCached } from '../hooks/useCached';
 interface AuthState {
   teamRole?: TeamRole | null;
   twoFactorEnabled?: boolean;
+  /** S1: falta aceitar a versão vigente dos documentos legais. */
+  legalAcceptanceRequired?: boolean;
   role: string | null;
   marketId: string | null;
   userId: string | null;
@@ -19,6 +21,8 @@ interface AuthContextValue extends AuthState {
   login: (email: string, password: string, keepConnected?: boolean) => Promise<string | null>;
   loginSecondStep: (challenge: string, code: string) => Promise<void>;
   refresh: () => Promise<void>;
+  /** Registra o aceite da versão vigente (tela de aceite do painel e do Bipaê). */
+  acceptLegal: () => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -63,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: me.name,
           teamRole: me.teamRole ?? null,
           twoFactorEnabled: !!me.twoFactorEnabled,
+          legalAcceptanceRequired: !!me.legalAcceptanceRequired,
         });
       } catch {
         setState({
@@ -79,8 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     load();
   }, [location.pathname, location.search]);
 
-  const loadMe = async () => {
-    const me = await authService.me();
+  const applyMe = (me: Awaited<ReturnType<typeof authService.me>>) => {
     setState({
       role: me.role,
       marketId: me.marketId,
@@ -89,7 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: me.name,
       teamRole: me.teamRole ?? null,
       twoFactorEnabled: !!me.twoFactorEnabled,
+      legalAcceptanceRequired: !!me.legalAcceptanceRequired,
     });
+  };
+
+  const loadMe = async () => {
+    applyMe(await authService.me());
+  };
+
+  const acceptLegal = async () => {
+    applyMe(await authService.acceptLegal());
   };
 
   const login = async (email: string, password: string, keepConnected = false) => {
@@ -113,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, loginSecondStep, refresh: loadMe, logout, loading }}>
+    <AuthContext.Provider value={{ ...state, login, loginSecondStep, refresh: loadMe, acceptLegal, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

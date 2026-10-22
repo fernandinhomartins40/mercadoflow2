@@ -17,6 +17,7 @@ import AccountScreen from '../features/confere/AccountScreen';
 import CountScreen from '../features/confere/CountScreen';
 import { isNativeApp } from '../features/confere/native';
 import { TabLayout } from '../features/confere/TabBar';
+import LegalAcceptanceGate from '../components/LegalAcceptanceGate';
 import '../styles/liquid-glass.css';
 import '../features/confere/confere.css';
 
@@ -32,7 +33,7 @@ const NotaRoute: React.FC<{ marketId: string }> = ({ marketId }) => {
 };
 
 const ConfereApp: React.FC = () => {
-  const { marketId, loading, email } = useAuth();
+  const { marketId, loading, email, legalAcceptanceRequired } = useAuth();
   const [status, setStatus] = useState<ConfereStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +61,8 @@ const ConfereApp: React.FC = () => {
 
   if (loading) return <Spinner />;
   if (!email) return <Welcome />;
+  // S1: versão nova dos Termos, da Privacidade ou do Contrato de operador ainda não aceita.
+  if (legalAcceptanceRequired) return <LegalAcceptanceGate />;
   if (!marketId) return <Shell><p className="p-6 text-lg">Esta conta não está ligada a um mercado. Entre com a conta do mercado.</p></Shell>;
   if (error) return <Shell><p className="p-6 text-lg text-red-800">{error}</p></Shell>;
   if (!status) return <Spinner />;

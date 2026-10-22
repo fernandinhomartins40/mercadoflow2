@@ -51,6 +51,32 @@ class PersonalDataRetentionJobTest {
     }
 
     @Test
+    void ipENavegadorDaAuditoriaSomemDepoisDeDozeMesesEmLotes() {
+        String sql = PersonalDataRetentionJob.AUDIT_IP_SQL;
+        assertTrue(sql.startsWith("update audit_logs set ip_address = null, user_agent = null"));
+        assertTrue(sql.contains("created_at < ?"));
+        assertTrue(sql.contains("(ip_address is not null or user_agent is not null)"), "idempotente: não regrava o que já limpou");
+        assertTrue(sql.contains("limit ?"));
+        assertFalse(sql.contains("delete"), "o evento fica até os 5 anos");
+
+        when(jdbc.update(eq(sql), any(Timestamp.class), anyInt())).thenReturn(PersonalDataRetentionJob.BATCH, 3);
+
+        job.run(NOW);
+
+        verify(jdbc, times(2)).update(sql, Timestamp.valueOf(LocalDateTime.of(2025, 10, 22, 1, 30)),
+            PersonalDataRetentionJob.BATCH);
+    }
+
+    @Test
+    void limpezaDoIpTemTetoDeLotes() {
+        when(jdbc.update(eq(PersonalDataRetentionJob.AUDIT_IP_SQL), any(Timestamp.class), anyInt()))
+            .thenReturn(PersonalDataRetentionJob.BATCH);
+
+        assertEquals(PersonalDataRetentionJob.BATCH * PersonalDataRetentionJob.MAX_BATCHES,
+            job.clearAuditNetworkData(NOW.minusMonths(12)));
+    }
+
+    @Test
     void segundaRodadaSemPendenciaFazUmaConsultaSo() {
         when(jdbc.update(anyString(), any(Timestamp.class), anyInt())).thenReturn(0);
 
@@ -102,6 +128,8 @@ class PersonalDataRetentionJobTest {
         when(jdbc.update(anyString(), any(Timestamp.class), anyInt())).thenReturn(0);
         when(jdbc.update(eq(PersonalDataRetentionJob.MASK_SQL), any(Timestamp.class), anyInt())).thenThrow(new IllegalStateException("boom"));
         when(jdbc.update(eq(tokensSql), any(Timestamp.class), anyInt())).thenThrow(new IllegalStateException("boom"));
+        when(jdbc.update(eq(PersonalDataRetentionJob.AUDIT_IP_SQL), any(Timestamp.class), anyInt()))
+            .thenThrow(new IllegalStateException("boom"));
 
         job.run(NOW);
 

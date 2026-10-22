@@ -51,14 +51,6 @@ public class ConfereService {
     /** Com o Asaas ligado, o Pix sai com QR dele e o aviso de pagamento confirma sozinho. */
     private com.pdv2cloud.service.billing.AsaasService asaas;
 
-    /** Cartão pelo Stripe só aparece com o Stripe ligado no servidor, não só no interruptor do Confere. */
-    private com.pdv2cloud.service.StripeService stripe;
-
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    void setStripe(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.StripeService stripe) {
-        this.stripe = stripe;
-    }
-
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setAsaas(@org.springframework.context.annotation.Lazy com.pdv2cloud.service.billing.AsaasService asaas) {
         this.asaas = asaas;
@@ -92,7 +84,7 @@ public class ConfereService {
 
     public record Status(boolean enabled, boolean termsAccepted, String termsVersion, String termsText, int balance,
                          boolean trialGranted, int trialReads, int pricePerReadCents, List<Plan> plans,
-                         CertificateInfo certificate, boolean pixAvailable, boolean stripeAvailable,
+                         CertificateInfo certificate, boolean pixAvailable,
                          String marketName, String marketCnpj, boolean manufacturerVisibility,
                          LocalDateTime manufacturerVisibilityAt) {}
 
@@ -111,7 +103,7 @@ public class ConfereService {
         return new Status(Boolean.TRUE.equals(s.get("enabled")), accepted, version,
             termsText == null ? ConfereAdminService.DEFAULT_TERMS : termsText, balance, trial,
             ((Number) s.get("trial_reads")).intValue(), ((Number) s.get("price_per_read_cents")).intValue(), plans,
-            certificate(marketId), s.get("pix_key") != null || (asaas != null && asaas.enabled()), Boolean.TRUE.equals(s.get("stripe_enabled")) && stripe != null && stripe.isConfigured(),
+            certificate(marketId), s.get("pix_key") != null || (asaas != null && asaas.enabled()),
             (String) market.get("name"), (String) market.get("cnpj"),
             !acc.isEmpty() && Boolean.TRUE.equals(acc.get(0).get("manufacturer_visibility")),
             acc.isEmpty() ? null : ts((Timestamp) acc.get(0).get("manufacturer_visibility_at")));
@@ -732,17 +724,6 @@ public class ConfereService {
         return order(marketId, id);
     }
 
-    @Transactional
-    public UUID createStripeOrder(UUID marketId, UUID planId, String sessionId) {
-        Plan plan = plan(planId);
-        UUID id = UUID.randomUUID();
-        jdbc.update("insert into confere_orders (id, market_id, plan_id, reads, amount_cents, method, txid, stripe_session_id) " +
-                "values (:id, :m, :p, :r, :a, 'STRIPE', :t, :s)",
-            new MapSqlParameterSource().addValue("id", id).addValue("m", marketId).addValue("p", plan.id())
-                .addValue("r", plan.reads()).addValue("a", plan.priceCents()).addValue("t", txid()).addValue("s", sessionId));
-        return id;
-    }
-
     public Plan plan(UUID planId) {
         List<Plan> p = jdbc.query("select * from confere_plans where id = :id and active", Map.of("id", planId),
             (rs, i) -> new Plan((UUID) rs.getObject("id"), rs.getString("name"), rs.getInt("reads"), rs.getInt("price_cents"), true));
@@ -853,11 +834,6 @@ public class ConfereService {
             new MapSqlParameterSource().addValue("m", marketId).addValue("d", -take).addValue("r", ref)
                 .addValue("n", com.pdv2cloud.service.ai.platform.AiWalletService.reversalNote(reason, take, reads, "leituras")));
         return take;
-    }
-
-    public UUID orderIdBySession(String sessionId) {
-        List<UUID> ids = jdbc.queryForList("select id from confere_orders where stripe_session_id = :s", Map.of("s", sessionId), UUID.class);
-        return ids.isEmpty() ? null : ids.get(0);
     }
 
     // ── Apoio ──────────────────────────────────────────────────────────────

@@ -88,8 +88,7 @@ public class DunningService {
      * Executa a régua sobre todas as faturas em aberto.
      *
      * Diário às 9h: cedo o bastante para a cobrança sair no horário comercial,
-     * tarde o bastante para o Stripe já ter processado as compensações da noite
-     * (boleto pago cai como {@code invoice.paid} no dia útil seguinte).
+     * depois das compensações bancárias da noite.
      */
     /**
      * A régua percorre faturas de todos os mercados e roda sem usuário. Sob

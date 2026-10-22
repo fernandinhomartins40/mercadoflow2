@@ -20,7 +20,8 @@ import org.springframework.stereotype.Service;
  *   <li>pagamento confirmado da assinatura: plano ativo até o próximo mês;</li>
  *   <li>fatura da assinatura vencida: entra em atraso (carência, depois só consulta);</li>
  *   <li>assinatura apagada no Asaas: cancela no fim do período pago;</li>
- *   <li>estorno ou contestação: alerta, retira os créditos não usados do pacote ou põe a assinatura em atraso (D-01).</li>
+ *   <li>estorno ou contestação: alerta, retira os créditos não usados do pacote ou põe a assinatura em atraso (D-01);</li>
+ *   <li>estorno pedido pela desistência em 7 dias: só registra (a assinatura já voltou ao Grátis).</li>
  * </ul>
  */
 @Service
@@ -40,6 +41,14 @@ public class AsaasWebhookService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setIndustryBilling(com.pdv2cloud.service.industry.IndustryBillingService industryBilling) {
         this.industryBilling = industryBilling;
+    }
+
+    private WithdrawalService withdrawals;
+
+    /** Estornos da desistência em 7 dias não repetem o fluxo de estorno/atraso. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setWithdrawals(WithdrawalService withdrawals) {
+        this.withdrawals = withdrawals;
     }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -131,6 +140,12 @@ public class AsaasWebhookService {
                 }
             }
             case "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE" -> {
+                // Estorno que nós mesmos pedimos na desistência em 7 dias: a assinatura
+                // já foi cancelada (ou está sendo); não entra em atraso nem vira alerta.
+                if (event.equals("PAYMENT_REFUNDED") && withdrawals != null && withdrawals.refundedByWithdrawal(paymentId)) {
+                    log.info("Estorno {} da desistência em 7 dias: nada a fazer", paymentId);
+                    return Outcome.IGNORED;
+                }
                 UUID root = subId == null ? null : anyRoot(subId);
                 // A conta do Asaas é compartilhada com outros sistemas: estorno alheio não vira alerta aqui.
                 if (root != null || ours(ref)) {

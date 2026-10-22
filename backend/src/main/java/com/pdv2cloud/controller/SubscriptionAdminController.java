@@ -15,7 +15,7 @@ import com.pdv2cloud.service.BillingReportService;
 import com.pdv2cloud.service.InvoiceReconciliationService;
 import com.pdv2cloud.service.NetworkContractService;
 import com.pdv2cloud.service.PlanCatalogService;
-import com.pdv2cloud.service.StripeAdminService;
+import com.pdv2cloud.service.PlanPriceService;
 import com.pdv2cloud.service.SubscriptionAdminService;
 import jakarta.validation.constraints.NotNull;
 import java.util.LinkedHashMap;
@@ -43,7 +43,7 @@ public class SubscriptionAdminController {
 
     private final SubscriptionAdminService subscriptionAdminService;
     private final PlanCatalogService planCatalogService;
-    private final StripeAdminService stripeAdminService;
+    private final PlanPriceService planPriceService;
     private final BillingReportService billingReportService;
     private final PlanPriceHistoryRepository priceHistoryRepository;
     private final NetworkContractService networkContractService;
@@ -52,7 +52,7 @@ public class SubscriptionAdminController {
     public SubscriptionAdminController(
         SubscriptionAdminService subscriptionAdminService,
         PlanCatalogService planCatalogService,
-        StripeAdminService stripeAdminService,
+        PlanPriceService planPriceService,
         BillingReportService billingReportService,
         PlanPriceHistoryRepository priceHistoryRepository,
         NetworkContractService networkContractService,
@@ -60,7 +60,7 @@ public class SubscriptionAdminController {
     ) {
         this.subscriptionAdminService = subscriptionAdminService;
         this.planCatalogService = planCatalogService;
-        this.stripeAdminService = stripeAdminService;
+        this.planPriceService = planPriceService;
         this.billingReportService = billingReportService;
         this.priceHistoryRepository = priceHistoryRepository;
         this.networkContractService = networkContractService;
@@ -152,17 +152,17 @@ public class SubscriptionAdminController {
 
     // ── Catálogo de planos (preços e limites editáveis) ──────────────────────
 
-    /** Planos com preço, limites e vínculo com o Stripe. */
+    /** Planos com preço e limites. */
     @GetMapping("/catalog")
     public ResponseEntity<List<PlanCatalogEntry>> catalog() {
         return ResponseEntity.ok(planCatalogService.listAll());
     }
 
     /**
-     * Altera o preço do plano e cria o Price correspondente no Stripe.
+     * Altera o preço do plano no catálogo.
      *
-     * Por padrão o novo valor vale só para novas contratações — quem já assina
-     * continua no preço contratado até ser migrado de propósito.
+     * O novo valor vale para novas contratações; quem já assina continua no
+     * preço contratado.
      */
     @PatchMapping("/catalog/{planCode}/price")
     public ResponseEntity<Map<String, Object>> changePrice(
@@ -170,10 +170,9 @@ public class SubscriptionAdminController {
         @RequestBody ChangePriceRequest request,
         Authentication authentication
     ) {
-        StripeAdminService.PriceChangeResult result = stripeAdminService.changePlanPrice(
+        PlanPriceService.PriceChangeResult result = planPriceService.changePlanPrice(
             planCode,
             request.getPriceCents(),
-            Boolean.TRUE.equals(request.getMigrateExisting()),
             request.getReason(),
             authentication.getName()
         );
@@ -182,13 +181,12 @@ public class SubscriptionAdminController {
         response.put("planCode", result.planCode());
         response.put("fromPriceCents", result.fromPriceCents());
         response.put("toPriceCents", result.toPriceCents());
-        response.put("stripePriceId", result.stripePriceId());
-        response.put("migratedSubscriptions", result.migratedSubscriptions());
+        response.put("migratedSubscriptions", 0);
         response.put("warning", result.warning());
         return ResponseEntity.ok(response);
     }
 
-    /** Limites e apresentação do plano. Preço tem rota própria (toca o Stripe). */
+    /** Limites e apresentação do plano. Preço tem rota própria (guarda o histórico). */
     @PatchMapping("/catalog/{planCode}")
     public ResponseEntity<PlanCatalogEntry> updatePlan(
         @PathVariable("planCode") String planCode,
@@ -207,12 +205,6 @@ public class SubscriptionAdminController {
         if (request.getPurchasable() != null) entry.setPurchasable(request.getPurchasable());
         if (request.getIsActive() != null) entry.setIsActive(request.getIsActive());
         return ResponseEntity.ok(planCatalogService.save(entry));
-    }
-
-    /** Cria no Stripe os produtos/preços dos planos que ainda não têm. */
-    @PostMapping("/catalog/sync-stripe")
-    public ResponseEntity<Map<String, Object>> syncCatalog() {
-        return ResponseEntity.ok(Map.of("results", stripeAdminService.syncCatalogToStripe()));
     }
 
     /** Histórico de reajustes: qual preço vigorava em cada data. */
@@ -236,7 +228,7 @@ public class SubscriptionAdminController {
     }
 
     /**
-     * Define preço e limites da rede e liga a cobrança por fatura no Stripe.
+     * Define preço e limites da rede (a cobrança da rede é combinada com o comercial).
      *
      * Substitui o contrato anterior, se houver — só um fica ativo por rede.
      */
@@ -307,7 +299,7 @@ public class SubscriptionAdminController {
         return ResponseEntity.ok(networkContractService.invoicesOf(marketId));
     }
 
-    /** Reenvia a fatura por e-mail. Só vale para faturas em aberto. */
+    /** Reenvio de fatura: desligado com a saída da Stripe; devolve o aviso. */
     @PostMapping("/invoices/{invoiceId}/resend")
     public ResponseEntity<Map<String, Object>> resendInvoice(@PathVariable("invoiceId") UUID invoiceId) {
         try {
@@ -396,7 +388,7 @@ public class SubscriptionAdminController {
         private Integer pdvLimit;
         private Integer seatLimit;
         private String contactName;
-        /** Para onde o Stripe envia a fatura. */
+        /** Contato de cobrança da rede. */
         private String contactEmail;
         private String notes;
     }
@@ -406,6 +398,7 @@ public class SubscriptionAdminController {
         @NotNull(message = "Informe o preço em centavos")
         private Integer priceCents;
         /** Quando true, move também as assinaturas ativas para o novo valor. */
+        /** Ignorado: a migração de assinaturas existia só na Stripe. */
         private Boolean migrateExisting;
         private String reason;
     }

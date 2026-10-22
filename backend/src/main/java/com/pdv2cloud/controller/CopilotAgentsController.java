@@ -152,9 +152,12 @@ public class CopilotAgentsController {
 
     @PutMapping("/prefs")
     public CopilotSettingsService.Prefs savePrefs(@PathVariable UUID marketId, @RequestBody Map<String, Object> body,
-                                                  Authentication auth) {
+                                                  Authentication auth, jakarta.servlet.http.HttpServletRequest request) {
         access.assertCanAccessMarket(marketId, auth);
-        return settings.savePrefs(marketId, body, auth.getName());
+        // IP do aceite do WhatsApp (S7): mesma regra da auditoria, X-Real-IP do proxy ou o endereço da conexão.
+        String realIp = request.getHeader("X-Real-IP");
+        String ip = realIp != null && !realIp.isBlank() ? realIp.trim() : request.getRemoteAddr();
+        return settings.savePrefs(marketId, body, auth.getName(), ip);
     }
 
     /** "Verificar agora": roda o funil sem esperar a próxima rodada. */

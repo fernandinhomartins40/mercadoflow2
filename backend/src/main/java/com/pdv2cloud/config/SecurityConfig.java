@@ -83,10 +83,6 @@ public class SecurityConfig {
                 // Catalogo de planos: a pagina de cadastro precisa exibir os
                 // limites antes de existir conta. Nao expoe dado de cliente.
                 .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
-                // Webhook do Stripe: o remetente e o Stripe, que nao tem JWT.
-                // A autenticidade vem da assinatura HMAC do corpo, verificada
-                // em StripeWebhookController com o webhook secret.
-                .requestMatchers(HttpMethod.POST, "/api/v1/stripe/webhook").permitAll()
                 // Webhook do WhatsApp: o remetente e a Meta. A verificacao usa o token
                 // cadastrado e cada mensagem exige a assinatura HMAC do corpo
                 // (WhatsAppWebhookController / WhatsAppChannel.validSignature).

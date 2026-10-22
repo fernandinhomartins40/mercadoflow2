@@ -61,9 +61,6 @@ public class AddonService {
         if (s.status() != SubscriptionService.Status.ACTIVE || s.cancelAtPeriodEnd()) {
             throw new IllegalStateException("Adicionais são para assinaturas ativas. Assine um plano para contratar.");
         }
-        if ("STRIPE".equals(s.provider())) {
-            throw new IllegalStateException("Na assinatura pelo cartão, peça os adicionais ao comercial (comercial@mercadoflow.com).");
-        }
         if (!AsaasService.PROVIDER.equals(s.provider()) || s.providerSubscriptionId() == null) {
             throw new IllegalStateException("Sua assinatura foi negociada com o comercial: peça os adicionais por lá.");
         }

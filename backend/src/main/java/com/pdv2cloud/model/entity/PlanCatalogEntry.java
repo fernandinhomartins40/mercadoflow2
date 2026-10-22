@@ -60,7 +60,7 @@ public class PlanCatalogEntry {
     @Column(name = "full_insights", nullable = false)
     private Boolean fullInsights = false;
 
-    // Stripe
+    // Legado da Stripe (não é mais usada): colunas mantidas só para o histórico.
 
     @Column(name = "stripe_product_id", length = 64)
     private String stripeProductId;

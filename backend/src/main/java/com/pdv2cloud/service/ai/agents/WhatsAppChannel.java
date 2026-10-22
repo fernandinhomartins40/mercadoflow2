@@ -319,8 +319,9 @@ public class WhatsAppChannel implements com.pdv2cloud.service.billing.Notificati
         String normalized = text == null ? "" : java.text.Normalizer.normalize(text.toLowerCase().trim(), java.text.Normalizer.Form.NFD)
             .replaceAll("\\p{M}", "");
         if (normalized.matches("(parar|pare|sair|cancelar|stop|descadastrar)\\W*")) {
-            jdbc.update("update ai_copilot_prefs set whatsapp_opt_in = false, whatsapp_opt_in_at = null, updated_at = now(), "
-                + "updated_by = 'whatsapp' where whatsapp_phone = :p", Map.of("p", from));
+            // Revogação (S7): grava a data e mantém o último aceite como prova.
+            jdbc.update("update ai_copilot_prefs set whatsapp_opt_in = false, whatsapp_opt_out_at = now(), updated_at = now(), "
+                + "updated_by = 'whatsapp' where whatsapp_phone = :p and whatsapp_opt_in", Map.of("p", from));
             reply(logMarket, from, "Pronto: você não vai mais receber avisos do MercadoFlow no WhatsApp. Para voltar, ative em Copiloto → Agentes.");
             return;
         }

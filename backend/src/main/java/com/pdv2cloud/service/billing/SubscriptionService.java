@@ -222,7 +222,7 @@ public class SubscriptionService {
     public Subscription cancel(UUID marketId, boolean atPeriodEnd, String reason) {
         Subscription s = of(marketId);
         if (atPeriodEnd && s.currentPeriodEnd() == null) {
-            // Assinatura do cartão: o fim do período pago fica no espelho do Stripe.
+            // Sem fim de período na assinatura (contas antigas): usa o espelho do mercado.
             jdbc.update("update subscriptions set current_period_end = (select current_period_end from markets where id = :m) "
                 + "where market_id = :m", Map.of("m", s.marketId()));
             s = of(s.marketId());
@@ -385,7 +385,7 @@ public class SubscriptionService {
             throw new IllegalArgumentException("Cortesia de 1 a 365 dias.");
         }
         if ((s.status() == Status.ACTIVE || s.status() == Status.PAST_DUE)
-            && ("ASAAS".equals(s.provider()) || "STRIPE".equals(s.provider()))) {
+            && "ASAAS".equals(s.provider())) {
             throw new IllegalStateException("A conta já paga uma assinatura. Use a troca de plano ou fale com o cliente.");
         }
         jdbc.update("update subscriptions set status = 'ACTIVE', plan_code = :p, provider = 'MANUAL', "

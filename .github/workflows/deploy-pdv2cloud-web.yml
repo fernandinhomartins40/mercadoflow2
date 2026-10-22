@@ -292,7 +292,7 @@ jobs:
           ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY }}
         run: |
           ASAAS_API_KEY_B64="$(printf '%s' "$ASAAS_API_KEY" | base64 -w0)"
-          # Sem aspas no delimitador: as variaveis do Stripe precisam ser
+          # Sem aspas no delimitador: as variaveis dos secrets precisam ser
           # expandidas AQUI, no runner, para chegarem ao script na VPS. Os
           # valores nao aparecem no log porque o GitHub mascara secrets.
           #
@@ -330,11 +330,6 @@ jobs:
           DOCKER_CLEANUP_PROJECT_CONTAINERS=false \
           DOCKER_CLEANUP_DANGLING_IMAGES=false \
           DOCKER_CLEANUP_BUILD_CACHE=false \
-          STRIPE_ENABLED='${{ secrets.STRIPE_ENABLED }}' \
-          STRIPE_SECRET_KEY='${{ secrets.STRIPE_SECRET_KEY }}' \
-          STRIPE_WEBHOOK_SECRET='${{ secrets.STRIPE_WEBHOOK_SECRET }}' \
-          STRIPE_PRICE_ESSENCIAL='${{ secrets.STRIPE_PRICE_ESSENCIAL }}' \
-          STRIPE_PRICE_PROFISSIONAL='${{ secrets.STRIPE_PRICE_PROFISSIONAL }}' \
           ASAAS_API_KEY_B64='${ASAAS_API_KEY_B64}' \
           TEST_ADMIN_PASSWORD='${{ secrets.TEST_ADMIN_PASSWORD }}' \
           TEST_SUPER_ADMIN_PASSWORD='${{ secrets.TEST_SUPER_ADMIN_PASSWORD }}' \

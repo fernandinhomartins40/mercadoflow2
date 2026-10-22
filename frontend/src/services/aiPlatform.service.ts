@@ -254,6 +254,11 @@ export interface CopilotPrefs {
   quietEnd: string;
   whatsappPhone: string | null;
   whatsappOptIn: boolean;
+  /** Último aceite e última revogação dos avisos no WhatsApp (S7). */
+  whatsappOptInAt?: string | null;
+  whatsappOptOutAt?: string | null;
+  /** Versão do texto do aviso que a pessoa leu; enviada só ao ligar. */
+  whatsappConsentVersion?: string;
 }
 
 export interface CopilotLesson {

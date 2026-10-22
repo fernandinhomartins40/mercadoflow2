@@ -52,6 +52,8 @@ const Register: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  // S1 (LGPD): aceite obrigatório dos Termos, da Privacidade e do Contrato de operador.
+  const [acceptLegal, setAcceptLegal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +98,8 @@ const Register: React.FC = () => {
     && strength.valid
     && form.password === form.confirmPassword
     && !cnpjError
-    && !phoneError;
+    && !phoneError
+    && acceptLegal;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -115,6 +118,10 @@ const Register: React.FC = () => {
       setError('CNPJ inválido — confira os números.');
       return;
     }
+    if (!acceptLegal) {
+      setError('Para criar a conta, marque que leu e aceita os termos.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -128,6 +135,7 @@ const Register: React.FC = () => {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         intendedPlan: selectedPlan,
+        acceptLegal,
       });
 
       // Entra direto: a conta já está ativa, e pedir para o usuário logar de
@@ -321,6 +329,23 @@ const Register: React.FC = () => {
             </div>
           )}
 
+          <label htmlFor="reg-accept" className="mt-3 flex items-start gap-2 text-xs" style={{ color: 'var(--text-primary)' }}>
+            <input
+              id="reg-accept"
+              type="checkbox"
+              checked={acceptLegal}
+              onChange={(e) => setAcceptLegal(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0"
+              required
+            />
+            <span>
+              Li e aceito os <Link to="/termos" target="_blank">Termos de uso</Link>, a{' '}
+              <Link to="/privacidade" target="_blank">Política de privacidade</Link> e o{' '}
+              <Link to="/contrato-operador" target="_blank">Contrato de tratamento de dados (operador)</Link>, e declaro que
+              posso representar a empresa.
+            </span>
+          </label>
+
           {error && (
             <div
               role="alert"
@@ -336,10 +361,6 @@ const Register: React.FC = () => {
             {submitting ? 'Criando conta...' : 'Criar conta grátis'}
             {!submitting && <ArrowRight size={15} />}
           </Button>
-          <p className="mt-2 text-center text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Ao criar a conta você concorda com os <Link to="/termos" target="_blank">Termos de uso</Link> e a{' '}
-            <Link to="/privacidade" target="_blank">Política de privacidade</Link>.
-          </p>
         </form>
 
         <p className="login-switch">

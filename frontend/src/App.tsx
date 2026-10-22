@@ -26,6 +26,7 @@ const Products = lazy(() => import('./screens/Products'));
 const ProductDetail = lazy(() => import('./screens/ProductDetail'));
 const PDVs = lazy(() => import('./screens/PDVs'));
 const Settings = lazy(() => import('./screens/Settings'));
+const PrivacyRequests = lazy(() => import('./screens/PrivacyRequests'));
 const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
 const ArtStudio = lazy(() => import('./screens/ArtStudio'));
@@ -76,6 +77,8 @@ const StoreMap = lazy(() => import('./screens/StoreMap'));
 const Promocoes = lazy(() => import('./screens/Promocoes'));
 // CSS do painel: fica fora só do encarte público e do Bipaê (abertos no 4G).
 const PanelStyles = lazy(() => import('./styles/PanelStyles'));
+const ContratoOperador = lazy(() => import('./screens/legal/ContratoOperador'));
+const LegalAcceptanceGate = lazy(() => import('./components/LegalAcceptanceGate'));
 
 const PageLoader = () => (
   <div className="card flex min-h-[220px] items-center justify-center text-base font-medium text-[color:var(--text-muted)]">
@@ -84,7 +87,7 @@ const PageLoader = () => (
 );
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userId, teamRole, role, loading } = useAuth();
+  const { userId, teamRole, role, loading, legalAcceptanceRequired } = useAuth();
   if (loading) {
     return <PageLoader />;
   }
@@ -102,6 +105,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // Conferente usa só o Confere.
   if (teamRole === 'CONFERENTE') {
     return <Navigate to="/confere/" replace />;
+  }
+  // S1: versão nova dos termos ainda não aceita; a tela não fecha.
+  if (legalAcceptanceRequired) {
+    return <LegalAcceptanceGate />;
   }
   return <>{children}</>;
 };
@@ -199,6 +206,8 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/encarte/:slug" element={<PublicEncarte />} />
         <Route path="/confere/*" element={<ConfereApp />} />
+        {/* Contrato de operador (DPA): página leve, fora do CSS do painel. */}
+        <Route path="/contrato-operador" element={<ContratoOperador />} />
         <Route element={<PanelStyles />}>
         <Route path="/login" element={<Login />} />
         <Route path="/esqueci-senha" element={<ForgotPassword />} />
@@ -245,6 +254,7 @@ const App: React.FC = () => {
         <Route path="/app/previsao-demanda" element={<Navigate to="/app/produtos" replace />} />
         <Route path="/app/promocoes" element={secure(<Promocoes />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
+        <Route path="/app/privacidade-clientes" element={secure(<PrivacyRequests />)} />
         <Route path="/app/planos" element={secure(<Plans />)} />
         <Route path="/app/assinatura" element={secure(<MySubscription />)} />
         <Route path="/app/equipe" element={secure(<Team />)} />

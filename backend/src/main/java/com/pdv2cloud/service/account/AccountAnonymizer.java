@@ -191,7 +191,8 @@ public class AccountAnonymizer {
             + "contact_phone = null, notes = null, account_owner_email = null, branch_label = null, is_active = false, "
             + "updated_at = now() where id in (:m)", m);
         jdbc.update("update network_contracts set contact_name = null, contact_email = null where market_id in (:m)", m);
-        jdbc.update("update ai_copilot_prefs set whatsapp_phone = null, whatsapp_opt_in = false, updated_at = now() "
+        jdbc.update("update ai_copilot_prefs set whatsapp_phone = null, whatsapp_opt_in = false, whatsapp_opt_in_ip = null, "
+            + "whatsapp_opt_in_phone = null, updated_at = now() "
             + "where market_id in (:m)", m);
         jdbc.update("update suppliers set email = null, telefone = null, updated_at = now() where market_id in (:m)", m);
         jdbc.update("update agent_api_keys set is_active = false where market_id in (:m)", m);

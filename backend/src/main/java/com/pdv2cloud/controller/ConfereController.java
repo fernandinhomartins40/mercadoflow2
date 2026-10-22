@@ -1,7 +1,6 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.MarketAccessService;
-import com.pdv2cloud.service.StripeService;
 import com.pdv2cloud.service.confere.ConfereService;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -30,12 +29,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class ConfereController {
 
     private final ConfereService confere;
-    private final StripeService stripe;
     private final MarketAccessService access;
 
-    public ConfereController(ConfereService confere, StripeService stripe, MarketAccessService access) {
+    public ConfereController(ConfereService confere, MarketAccessService access) {
         this.confere = confere;
-        this.stripe = stripe;
         this.access = access;
     }
 
@@ -133,26 +130,12 @@ public class ConfereController {
         return confere.order(marketId, id);
     }
 
-    /** Pix na chave da plataforma (padrão) ou checkout do Stripe. */
+    /** Pix na chave da plataforma ou pelo Asaas. */
     @PostMapping("/orders")
     public ConfereService.Order createOrder(@PathVariable UUID marketId, @RequestBody Map<String, Object> body,
-                                            Authentication auth) throws com.stripe.exception.StripeException {
+                                            Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
         UUID planId = UUID.fromString(String.valueOf(body.get("planId")));
-        if ("STRIPE".equals(body.get("method"))) {
-            if (!confere.status(marketId).stripeAvailable() || !stripe.isConfigured()) {
-                throw new IllegalArgumentException("Pagamento pelo Stripe indisponível");
-            }
-            ConfereService.Plan plan = confere.plan(planId);
-            StripeService.OneTimeCheckout co = stripe.createOneTimeCheckout(marketId, plan.priceCents(),
-                "MercadoFlow Confere — " + plan.reads() + " leituras de nota",
-                Map.of("kind", "confere", "marketId", marketId.toString(), "planId", planId.toString()),
-                "/confere/creditos?pagamento=ok", "/confere/creditos?pagamento=cancelado");
-            UUID id = confere.createStripeOrder(marketId, planId, co.sessionId());
-            ConfereService.Order o = confere.order(marketId, id);
-            return new ConfereService.Order(o.id(), o.planName(), o.reads(), o.amountCents(), o.method(), o.status(), o.txid(),
-                null, null, co.url(), o.createdAt(), o.paidAt());
-        }
         return confere.createPixOrder(marketId, planId);
     }
 }

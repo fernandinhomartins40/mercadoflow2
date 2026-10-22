@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 public class DunningRule {
 
     public enum Action {
-        /** Reenvia a fatura por e-mail pelo Stripe. */
+        /** Reenviava a fatura pela Stripe; hoje só registra o aviso (reenvio desligado). */
         RESEND_INVOICE,
         /** Abre um follow-up para a equipe. */
         CREATE_TASK,

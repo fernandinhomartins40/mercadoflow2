@@ -11,5 +11,4 @@ public interface PlanCatalogRepository extends JpaRepository<PlanCatalogEntry, S
 
     List<PlanCatalogEntry> findAllByOrderByDisplayOrderAsc();
 
-    Optional<PlanCatalogEntry> findByStripePriceId(String stripePriceId);
 }

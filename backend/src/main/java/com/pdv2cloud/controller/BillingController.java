@@ -4,15 +4,12 @@ import org.springframework.context.annotation.Profile;
 
 import com.pdv2cloud.model.entity.PlanType;
 import com.pdv2cloud.service.MarketAccessService;
-import com.pdv2cloud.service.StripeService;
-import com.stripe.exception.StripeException;
 import jakarta.validation.constraints.NotNull;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -21,9 +18,8 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Contratação e gestão da assinatura pelo próprio cliente.
  *
- * Ambas as rotas apenas devolvem uma URL do Stripe: o pagamento e a gestão do
- * cartão acontecem em páginas hospedadas por ele, então nenhum dado sensível
- * passa por aqui.
+ * O pagamento (Pix, boleto e cartão) acontece em páginas hospedadas pelo
+ * Asaas, então nenhum dado de cartão passa por aqui.
  *
  * Restrito a MARKET_OWNER: contratar plano e alterar cobrança é decisão do dono
  * da conta, não de qualquer usuário do mercado.
@@ -35,15 +31,13 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class BillingController {
 
-    private final StripeService stripeService;
     private final MarketAccessService marketAccessService;
     private final com.pdv2cloud.service.billing.AsaasService asaas;
     private final com.pdv2cloud.service.billing.SubscriptionService subscriptions;
 
-    public BillingController(StripeService stripeService, MarketAccessService marketAccessService,
+    public BillingController(MarketAccessService marketAccessService,
                              com.pdv2cloud.service.billing.AsaasService asaas,
                              com.pdv2cloud.service.billing.SubscriptionService subscriptions) {
-        this.stripeService = stripeService;
         this.marketAccessService = marketAccessService;
         this.asaas = asaas;
         this.subscriptions = subscriptions;
@@ -57,13 +51,11 @@ public class BillingController {
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("checkoutEnabled", stripeService.isConfigured());
-        response.put("essencialAvailable",
-            stripeService.priceIdFor(PlanType.ESSENCIAL).isPresent());
-        response.put("profissionalAvailable",
-            stripeService.priceIdFor(PlanType.PROFISSIONAL).isPresent());
-        // Pix, boleto e cartão pelo Asaas; o Stripe só sem o Asaas configurado.
-        response.put("cardEnabled", asaas.enabled() || stripeService.isConfigured());
+        // Contratação online só pelo Asaas (Pix, boleto e cartão).
+        response.put("checkoutEnabled", asaas.enabled());
+        response.put("essencialAvailable", asaas.enabled());
+        response.put("profissionalAvailable", asaas.enabled());
+        response.put("cardEnabled", asaas.enabled());
         response.put("cardViaAsaas", asaas.enabled());
         response.put("pixEnabled", asaas.enabled());
         response.put("boletoEnabled", asaas.enabled());
@@ -82,34 +74,29 @@ public class BillingController {
             String method = request.getMethod() == null ? "CARTAO" : request.getMethod().toUpperCase();
             // Em atraso, só sobe de plano: descer reduziria a fatura vencida (D-02).
             com.pdv2cloud.service.billing.SubscriptionService.assertCanChangePlan(subscriptions.of(marketId), request.getPlan());
-            if (!"CARTAO".equals(method) || asaas.enabled()) {
-                UUID root = subscriptions.rootOf(marketId);
-                if (!root.equals(marketId)) {
-                    throw new IllegalArgumentException("Esta loja é filial: a assinatura é contratada pela matriz da rede.");
-                }
-                var current = subscriptions.of(root);
-                var checkout = asaas.checkout(root, request.getPlan(), method, current);
-                if (checkout.changedInPlace()) {
-                    // Só o plano muda: atraso e restrição continuam até o pagamento (REC-01).
-                    subscriptions.changePlan(root, request.getPlan(), "Troca de plano (" + authentication.getName() + ")");
-                    return ResponseEntity.ok(Map.of("url", "/app/planos?checkout=alterado"));
-                }
-                return ResponseEntity.ok(Map.of("url", checkout.url()));
+            if (!asaas.enabled()) {
+                throw new IllegalStateException("Pagamento online ainda não está configurado. Fale com o comercial para contratar.");
             }
-            String url = stripeService.createCheckoutSession(marketId, request.getPlan());
-            return ResponseEntity.ok(Map.of("url", url));
+            UUID root = subscriptions.rootOf(marketId);
+            if (!root.equals(marketId)) {
+                throw new IllegalArgumentException("Esta loja é filial: a assinatura é contratada pela matriz da rede.");
+            }
+            var current = subscriptions.of(root);
+            var checkout = asaas.checkout(root, request.getPlan(), method, current);
+            if (checkout.changedInPlace()) {
+                // Só o plano muda: atraso e restrição continuam até o pagamento (REC-01).
+                subscriptions.changePlan(root, request.getPlan(), "Troca de plano (" + authentication.getName() + ")");
+                return ResponseEntity.ok(Map.of("url", "/app/planos?checkout=alterado"));
+            }
+            return ResponseEntity.ok(Map.of("url", checkout.url()));
         } catch (IllegalArgumentException | IllegalStateException exc) {
             return ResponseEntity.badRequest().body(Map.of("error", exc.getMessage()));
-        } catch (StripeException exc) {
-            log.error("Falha ao criar checkout do mercado {}: {}", marketId, exc.getMessage(), exc);
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(Map.of("error", "Não foi possível abrir o pagamento. Tente novamente em instantes."));
         }
     }
 
     /**
      * Fatura em aberto para o botão "Pagar agora": no Asaas, a fatura vencida
-     * (ou a da contratação ainda não paga); no Stripe, o portal do cartão.
+     * (ou a da contratação ainda não paga).
      */
     @PostMapping("/pay")
     public ResponseEntity<Map<String, Object>> pay(@PathVariable("marketId") UUID marketId, Authentication authentication) {
@@ -125,16 +112,9 @@ public class BillingController {
             if (s.pendingInvoiceUrl() != null) {
                 return ResponseEntity.ok(Map.of("url", s.pendingInvoiceUrl()));
             }
-            if ("STRIPE".equals(s.provider())) {
-                return ResponseEntity.ok(Map.of("url", stripeService.createPortalSession(marketId)));
-            }
             return ResponseEntity.badRequest().body(Map.of("error", "Não há fatura em aberto. Escolha um plano para assinar."));
         } catch (IllegalArgumentException | IllegalStateException exc) {
             return ResponseEntity.badRequest().body(Map.of("error", exc.getMessage()));
-        } catch (StripeException exc) {
-            log.error("Falha ao abrir portal do mercado {}: {}", marketId, exc.getMessage(), exc);
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(Map.of("error", "Não foi possível abrir o pagamento agora."));
         }
     }
 
@@ -144,9 +124,6 @@ public class BillingController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         try {
             var s = subscriptions.of(marketId);
-            if ("STRIPE".equals(s.provider())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Assinatura no cartão: cancele em \"Gerenciar assinatura\"."));
-            }
             if (!com.pdv2cloud.service.billing.AsaasService.PROVIDER.equals(s.provider())) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Não há assinatura paga para cancelar."));
             }
@@ -158,31 +135,12 @@ public class BillingController {
         }
     }
 
-    /** Abre o Billing Portal: trocar cartão, mudar plano ou cancelar. */
-    @PostMapping("/portal")
-    public ResponseEntity<Map<String, Object>> portal(
-        @PathVariable("marketId") UUID marketId,
-        Authentication authentication
-    ) {
-        marketAccessService.assertCanAccessMarket(marketId, authentication);
-        try {
-            String url = stripeService.createPortalSession(marketId);
-            return ResponseEntity.ok(Map.of("url", url));
-        } catch (IllegalArgumentException | IllegalStateException exc) {
-            return ResponseEntity.badRequest().body(Map.of("error", exc.getMessage()));
-        } catch (StripeException exc) {
-            log.error("Falha ao abrir portal do mercado {}: {}", marketId, exc.getMessage(), exc);
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(Map.of("error", "Não foi possível abrir a gestão da assinatura."));
-        }
-    }
-
     @Data
     public static class CheckoutRequest {
         @NotNull(message = "Informe o plano")
         private PlanType plan;
 
-        /** CARTAO (Stripe, padrão), PIX ou BOLETO (Asaas). */
+        /** CARTAO (padrão), PIX ou BOLETO, todos pelo Asaas. */
         private String method;
     }
 }

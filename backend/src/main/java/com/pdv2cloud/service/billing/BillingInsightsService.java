@@ -119,6 +119,7 @@ public class BillingInsightsService {
 
         long trials = num("select count(*) from subscriptions where trial_used and status <> 'TRIAL'");
         long converted = num("select count(*) from subscriptions where trial_used and status in ('ACTIVE', 'PAST_DUE') "
+            // 'STRIPE' fica só para contar conversões antigas (a Stripe não é mais usada).
             + "and provider in ('ASAAS', 'STRIPE')");
         out.put("trialsFinished", trials);
         out.put("trialsConverted", converted);

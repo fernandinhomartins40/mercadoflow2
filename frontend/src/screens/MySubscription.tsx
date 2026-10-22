@@ -37,6 +37,8 @@ interface Overview {
   canResume: boolean;
   canCancel: boolean;
   pausedUntil?: string | null;
+  /** Desistência em 7 dias (CDC art. 49): só a primeira contratação paga, até 7 dias do primeiro pagamento. */
+  withdrawal?: { eligible: boolean; reason?: string | null; deadline?: string | null; valueCents?: number | null } | null;
 }
 
 const brl = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
@@ -144,6 +146,21 @@ const MySubscription: React.FC = () => {
     await api.post(`/v1/markets/${marketId}/subscription/cancel`, { reason: reason || 'OUTRO', comment });
     setLeaving(false);
   }, 'Assinatura cancelada. O plano vale até o fim do período pago e depois a conta vai para o Grátis.');
+
+  const withdraw = async () => {
+    const w = data?.withdrawal;
+    if (!w?.eligible) return;
+    const value = w.valueCents != null ? brl(w.valueCents) : 'o valor pago';
+    const ok = await confirmDialog(
+      `Desistir da contratação? Devolvemos ${value} pelo mesmo meio de pagamento e a conta volta ao plano Grátis agora. Os seus dados ficam guardados.`,
+      { confirmLabel: 'Desistir e receber de volta' },
+    );
+    if (!ok) return;
+    await act('withdraw', async () => {
+      await api.post(`/v1/markets/${marketId}/subscription/withdraw`, { reason: reason || 'OUTRO', comment });
+      setLeaving(false);
+    }, `Pronto. Pedimos a devolução de ${value} e a conta voltou ao plano Grátis. O dinheiro volta pelo mesmo meio de pagamento (no cartão, pode levar até duas faturas).`);
+  };
 
   const resume = () => act('resume', () => api.post(`/v1/markets/${marketId}/subscription/resume`), 'Assinatura de volta. Tudo liberado.');
 
@@ -268,9 +285,7 @@ const MySubscription: React.FC = () => {
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {data.canChangeAddons
                 ? 'Cobrados na mesma assinatura. Mudou a quantidade, a próxima fatura já vem com o valor novo.'
-                : s.paymentMethod === 'CARTAO' && s.provider === 'STRIPE'
-                  ? 'Na assinatura pelo cartão, peça adicionais ao comercial (comercial@mercadoflow.com).'
-                  : 'Para contratar adicionais, tenha uma assinatura ativa por Pix ou boleto.'}
+                : 'Para contratar adicionais, tenha uma assinatura ativa pelo site.'}
             </p>
           </div>
           <ul className="flex flex-col gap-2">
@@ -306,7 +321,7 @@ const MySubscription: React.FC = () => {
           <h2 className={H2} style={{ color: 'var(--text-primary)' }}>Faturas e notas fiscais</h2>
           {data.invoices.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {s.paymentMethod === 'CARTAO' && s.provider === 'STRIPE' ? 'As faturas do cartão ficam em "Gerenciar assinatura", na tela de planos.' : 'Nenhuma fatura ainda.'}
+              Nenhuma fatura ainda.
             </p>
           ) : (
             <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--border-soft)' }}>
@@ -332,6 +347,24 @@ const MySubscription: React.FC = () => {
             </ul>
           )}
         </section>
+
+        {/* Desistência em 7 dias (CDC art. 49): visível só dentro do prazo */}
+        {data.withdrawal?.eligible && (
+          <section className={CARD} style={{ border: '1px solid #fde68a', background: '#fffbeb' }} aria-label="Desistir da contratação" data-testid="withdrawal">
+            <h2 className={H2} style={{ color: '#78350f' }}>Mudou de ideia?</h2>
+            <p className="text-sm" style={{ color: '#78350f' }}>
+              Você contratou pela internet e pode desistir em até 7 dias do primeiro pagamento
+              {data.withdrawal.deadline ? ` (até ${new Date(data.withdrawal.deadline).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})` : ''}.
+              Devolvemos {data.withdrawal.valueCents != null ? brl(data.withdrawal.valueCents) : 'o valor pago'} inteiro e a conta volta ao plano Grátis na hora.
+            </p>
+            <div>
+              <button type="button" disabled={busy !== null} onClick={withdraw}
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60" style={{ border: '1px solid #b45309', color: '#78350f', background: '#fff' }}>
+                {busy === 'withdraw' ? 'Pedindo a devolução...' : 'Desistir da contratação (7 dias)'}
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Pausar ou cancelar */}
         {(data.canCancel || data.canPause) && (

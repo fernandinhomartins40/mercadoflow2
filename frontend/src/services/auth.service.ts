@@ -10,6 +10,8 @@ export interface AuthProfile {
   name: string;
   teamRole?: TeamRole | null;
   twoFactorEnabled?: boolean;
+  /** Falta aceitar a versão vigente dos Termos, da Privacidade ou do Contrato de operador. */
+  legalAcceptanceRequired?: boolean;
 }
 
 export interface LoginResponse {
@@ -32,6 +34,8 @@ export interface RegisterRequest {
   marketPhone?: string;
   /** Plano escolhido na tela. A conta sempre nasce no gratuito. */
   intendedPlan?: string;
+  /** Caixa "Li e aceito os Termos, a Política de privacidade e o Contrato de operador". Obrigatória. */
+  acceptLegal: boolean;
 }
 
 export interface RegisterResponse {
@@ -59,6 +63,12 @@ const authService = {
 
   async me(): Promise<AuthProfile> {
     const response = await api.get('/v1/auth/me');
+    return response.data;
+  },
+
+  /** Registra o aceite da versão vigente dos documentos legais e devolve o perfil atualizado. */
+  async acceptLegal(): Promise<AuthProfile> {
+    const response = await api.post('/v1/auth/legal-acceptance');
     return response.data;
   },
 

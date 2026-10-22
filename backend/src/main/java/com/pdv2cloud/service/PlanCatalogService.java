@@ -62,14 +62,6 @@ public class PlanCatalogService {
         return entry;
     }
 
-    @Transactional(readOnly = true)
-    public Optional<PlanCatalogEntry> findByStripePriceId(String stripePriceId) {
-        if (stripePriceId == null || stripePriceId.isBlank()) {
-            return Optional.empty();
-        }
-        return catalogRepository.findByStripePriceId(stripePriceId);
-    }
-
     @Transactional
     public PlanCatalogEntry save(PlanCatalogEntry entry) {
         PlanCatalogEntry saved = catalogRepository.save(entry);

@@ -287,9 +287,6 @@ export interface PlanCatalogEntry {
   userSeatLimit: number;
   historyRetentionDays: number;
   fullInsights: boolean;
-  stripeProductId?: string | null;
-  stripePriceId?: string | null;
-  previousStripePriceId?: string | null;
   priceChangedAt?: string | null;
   purchasable: boolean;
   displayOrder: number;
@@ -300,9 +297,7 @@ export interface PriceChangeResult {
   planCode: string;
   fromPriceCents?: number | null;
   toPriceCents: number;
-  stripePriceId?: string | null;
   migratedSubscriptions: number;
-  /** Preenchido quando o Stripe não pôde ser sincronizado. */
   warning?: string | null;
 }
 
@@ -311,7 +306,6 @@ export interface PlanPriceHistoryEntry {
   planCode: string;
   fromPriceCents?: number | null;
   toPriceCents: number;
-  stripePriceId?: string | null;
   migratedCount: number;
   reason?: string | null;
   actorEmail?: string | null;
@@ -332,7 +326,8 @@ export interface AccountRevenue {
   planName: string;
   monthlyPriceCents: number;
   billingStatus?: string | null;
-  hasStripeSubscription: boolean;
+  /** Tem assinatura no Asaas (cobrança automática). */
+  hasAutomaticBilling: boolean;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd?: string | null;
   createdAt?: string | null;
@@ -347,7 +342,7 @@ export interface BillingReport {
   trialAccounts: number;
   freeAccounts: number;
   cancelingAccounts: number;
-  /** Contas em plano pago sem assinatura ativa no Stripe. */
+  /** Contas em plano pago sem assinatura no Asaas. */
   unbilledAccounts: number;
   averageTicketCents: number;
   byPlan: PlanRevenue[];
@@ -364,16 +359,14 @@ const getCatalog = async (): Promise<PlanCatalogEntry[]> => {
   return data;
 };
 
-/** Altera o preço e cria o Price correspondente no Stripe. */
+/** Altera o preço do plano no catálogo (vale para novas contratações). */
 const changePlanPrice = async (
   planCode: PlanCode,
   priceCents: number,
-  migrateExisting: boolean,
   reason?: string,
 ): Promise<PriceChangeResult> => {
   const { data } = await api.patch<PriceChangeResult>(`${adminBase}/catalog/${planCode}/price`, {
     priceCents,
-    migrateExisting,
     reason,
   });
   return data;
@@ -385,11 +378,6 @@ const updatePlan = async (
 ): Promise<PlanCatalogEntry> => {
   const { data } = await api.patch<PlanCatalogEntry>(`${adminBase}/catalog/${planCode}`, payload);
   return data;
-};
-
-const syncCatalogToStripe = async (): Promise<string[]> => {
-  const { data } = await api.post<{ results: string[] }>(`${adminBase}/catalog/sync-stripe`);
-  return data.results;
 };
 
 const getPriceHistory = async (): Promise<PlanPriceHistoryEntry[]> => {
@@ -413,8 +401,6 @@ export interface NetworkContract {
   pdvPerBranchLimit?: number | null;
   pdvLimit?: number | null;
   seatLimit?: number | null;
-  stripePriceId?: string | null;
-  stripeSubscriptionId?: string | null;
   status: 'ACTIVE' | 'SUSPENDED' | 'ENDED';
   contactName?: string | null;
   contactEmail?: string | null;
@@ -427,7 +413,6 @@ export interface NetworkContract {
 
 export interface NetworkInvoice {
   id: string;
-  stripeInvoiceId: string;
   invoiceNumber?: string | null;
   /** draft | open | paid | void | uncollectible */
   status: string;
@@ -514,16 +499,16 @@ const resendInvoice = async (invoiceId: string): Promise<{ sent: boolean; warnin
   return data;
 };
 
-/* ─── Cobrança (Stripe) ─── */
+/* ─── Cobrança (Asaas) ─── */
 
 export interface BillingStatus {
-  /** Falso quando o Stripe não está configurado: a UI cai para "falar com o comercial". */
+  /** Falso quando o Asaas não está configurado: a UI cai para "falar com o comercial". */
   checkoutEnabled: boolean;
   essencialAvailable: boolean;
   profissionalAvailable: boolean;
-  /** Cartão disponível (Asaas, ou Stripe sem o Asaas). */
+  /** Cartão disponível (pelo Asaas). */
   cardEnabled?: boolean;
-  /** Cartão pela fatura do Asaas: não depende dos preços do Stripe. */
+  /** Cartão pela fatura do Asaas. */
   cardViaAsaas?: boolean;
   pixEnabled?: boolean;
   boletoEnabled?: boolean;
@@ -536,7 +521,7 @@ const getBillingStatus = async (marketId: string): Promise<BillingStatus> => {
   return data;
 };
 
-/** Devolve a URL do Checkout do Stripe para redirecionar o cliente. */
+/** Devolve a URL da página de pagamento do Asaas para redirecionar o cliente. */
 const startCheckout = async (marketId: string, plan: PlanCode, method: PaymentMethod = 'CARTAO'): Promise<string> => {
   const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/checkout`, {
     plan,
@@ -545,7 +530,7 @@ const startCheckout = async (marketId: string, plan: PlanCode, method: PaymentMe
   return data.url;
 };
 
-/** Fatura em aberto (Pix/boleto) ou portal do cartão. */
+/** Fatura em aberto no Asaas. */
 const openPayment = async (marketId: string): Promise<string> => {
   const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/pay`);
   return data.url;
@@ -555,12 +540,6 @@ const openPayment = async (marketId: string): Promise<string> => {
 const cancelSubscription = async (marketId: string): Promise<void> => {
   await api.post(`/v1/markets/${marketId}/billing/cancel`);
   window.dispatchEvent(new Event(SUBSCRIPTION_CHANGED));
-};
-
-/** Portal do Stripe: trocar cartão, mudar de plano ou cancelar. */
-const openBillingPortal = async (marketId: string): Promise<string> => {
-  const { data } = await api.post<{ url: string }>(`/v1/markets/${marketId}/billing/portal`);
-  return data.url;
 };
 
 /* ─── Assinatura única (estado, teste grátis, avisos) ─── */
@@ -634,7 +613,6 @@ export default {
   getCatalog,
   changePlanPrice,
   updatePlan,
-  syncCatalogToStripe,
   getPriceHistory,
   getBillingReport,
   getContracts,
@@ -656,7 +634,6 @@ export default {
   startCheckout,
   openPayment,
   cancelSubscription,
-  openBillingPortal,
   getPublicPlans,
   getSubscription,
   startTrial,

@@ -6,13 +6,14 @@ import com.pdv2cloud.repository.MarketRepository;
 import com.pdv2cloud.service.MarketAccessService;
 import com.pdv2cloud.service.PlanCatalogService;
 import com.pdv2cloud.service.PlanService;
-import com.pdv2cloud.service.StripeAdminService;
 import com.pdv2cloud.service.ai.platform.AiWalletService;
 import com.pdv2cloud.service.billing.AddonService;
 import com.pdv2cloud.service.billing.AsaasService;
 import com.pdv2cloud.service.billing.Entitlements;
 import com.pdv2cloud.service.billing.SubscriptionService;
 import com.pdv2cloud.service.billing.SubscriptionService.Status;
+import com.pdv2cloud.service.billing.WithdrawalService;
+import com.pdv2cloud.tenancy.TenantContext;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -55,14 +56,13 @@ public class MySubscriptionController {
     private final PlanService plans;
     private final PlanCatalogService catalog;
     private final AiWalletService wallets;
-    private final StripeAdminService stripeAdmin;
     private final MarketRepository markets;
     private final MarketAccessService access;
     private final NamedParameterJdbcTemplate jdbc;
 
     public MySubscriptionController(SubscriptionService subscriptions, AddonService addons, AsaasService asaas,
                                     Entitlements entitlements, PlanService plans, PlanCatalogService catalog,
-                                    AiWalletService wallets, StripeAdminService stripeAdmin, MarketRepository markets,
+                                    AiWalletService wallets, MarketRepository markets,
                                     MarketAccessService access, NamedParameterJdbcTemplate jdbc) {
         this.subscriptions = subscriptions;
         this.addons = addons;
@@ -71,7 +71,6 @@ public class MySubscriptionController {
         this.plans = plans;
         this.catalog = catalog;
         this.wallets = wallets;
-        this.stripeAdmin = stripeAdmin;
         this.markets = markets;
         this.access = access;
         this.jdbc = jdbc;
@@ -79,6 +78,9 @@ public class MySubscriptionController {
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.pdv2cloud.service.partner.PartnerDiscount partnerDiscount;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private WithdrawalService withdrawals;
 
     @GetMapping("/overview")
     public Map<String, Object> overview(@PathVariable UUID marketId, Authentication auth) {
@@ -126,8 +128,18 @@ public class MySubscriptionController {
         out.put("canChangeAddons", paidActive && AsaasService.PROVIDER.equals(s.provider()));
         out.put("canPause", paidActive && AsaasService.PROVIDER.equals(s.provider()));
         out.put("canResume", s.status() == Status.PAUSED);
-        out.put("canCancel", paidActive && (AsaasService.PROVIDER.equals(s.provider()) || "STRIPE".equals(s.provider())));
+        out.put("canCancel", paidActive && AsaasService.PROVIDER.equals(s.provider()));
         out.put("pausedUntil", s.pausedUntil());
+        // Desistência em 7 dias (CDC art. 49): o botão só aparece dentro do prazo.
+        Map<String, Object> withdrawal = null;
+        if (withdrawals != null) {
+            try {
+                withdrawal = TenantContext.runAsSystem(() -> withdrawals.view(root));
+            } catch (RuntimeException e) {
+                log.warn("Desistência: situação indisponível para {}: {}", root, e.getMessage());
+            }
+        }
+        out.put("withdrawal", withdrawal);
         return out;
     }
 
@@ -203,12 +215,6 @@ public class MySubscriptionController {
             }
             if (AsaasService.PROVIDER.equals(s.provider())) {
                 asaas.cancelSubscription(s.providerSubscriptionId());
-            } else if ("STRIPE".equals(s.provider())) {
-                Market market = markets.findById(root).orElseThrow();
-                String warning = stripeAdmin.cancelSubscription(market, true, reason(body));
-                if (warning != null) {
-                    throw new IllegalStateException("Não foi possível cancelar no cartão agora. Tente de novo em instantes.");
-                }
             } else {
                 throw new IllegalStateException("Sua assinatura foi negociada com o comercial: o cancelamento é feito por lá.");
             }
@@ -217,6 +223,29 @@ public class MySubscriptionController {
             return ResponseEntity.ok(Map.of("ok", true));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "cancel", "userMessage", e.getMessage()));
+        }
+    }
+
+    /**
+     * Desistência em 7 dias (CDC art. 49): estorna o primeiro pagamento no Asaas
+     * e volta ao Grátis na hora. Se o Asaas recusar, nada muda e a pessoa vê o erro.
+     */
+    @PostMapping("/withdraw")
+    @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
+    public ResponseEntity<?> withdraw(@PathVariable UUID marketId, @RequestBody(required = false) Map<String, Object> body,
+                                      Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        Map<String, Object> b = body == null ? Map.of() : body;
+        try {
+            if (withdrawals == null) {
+                throw new IllegalStateException("A desistência não está disponível agora. Fale com o suporte.");
+            }
+            UUID root = subscriptions.rootOf(marketId);
+            // Assinatura e pagamentos ficam na matriz: como no cancelamento, roda como sistema depois da checagem de acesso.
+            TenantContext.runAsSystem(() -> withdrawals.withdraw(root, reason(b), comment(b), auth.getName()));
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "withdraw", "userMessage", e.getMessage()));
         }
     }
 

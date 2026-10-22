@@ -44,11 +44,13 @@ public class AuthController {
     private String sameSite;
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
         // Escopo de sistema antes do serviço: o cadastro cria o mercado que
         // ainda não existe, e a conexão precisa estar marcada como is_admin
         // antes de o @Transactional obtê-la.
-        RegisterResponse response = TenantContext.runAsSystem(() -> authService.register(request));
+        String ip = com.pdv2cloud.service.AuditService.getClientIp(http);
+        String userAgent = http.getHeader("User-Agent");
+        RegisterResponse response = TenantContext.runAsSystem(() -> authService.register(request, ip, userAgent));
         TenantContext.runAsSystem(() -> authService.sendWelcome(response.getMarketId(), request.getName()));
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
@@ -102,6 +104,22 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Aceite da versão vigente dos documentos legais (S1). O painel e o Bipaê
+     * chamam quando o /me traz legalAcceptanceRequired.
+     */
+    @PostMapping("/legal-acceptance")
+    public ResponseEntity<MeResponse> acceptLegal(@AuthenticationPrincipal UserDetails userDetails, HttpServletRequest http) {
+        String ip = com.pdv2cloud.service.AuditService.getClientIp(http);
+        String userAgent = http.getHeader("User-Agent");
+        MeResponse me = userProfileService.getProfile(userDetails.getUsername());
+        if ("SUPER_ADMIN".equalsIgnoreCase(me.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        TenantContext.runAsSystem(() -> userProfileService.acceptLegal(userDetails.getUsername(), ip, userAgent));
+        return ResponseEntity.ok(userProfileService.getProfile(userDetails.getUsername()));
     }
 
     @PostMapping("/logout")

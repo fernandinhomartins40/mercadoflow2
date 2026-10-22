@@ -164,7 +164,7 @@ public class AuditService {
      * interno a partir do proxy confiável; o primeiro valor do X-Forwarded-For
      * vem de quem chama e deixava forjar o IP da trilha de auditoria (LGPD-06).
      */
-    static String getClientIp(HttpServletRequest request) {
+    public static String getClientIp(HttpServletRequest request) {
         String realIp = request.getHeader("X-Real-IP");
         if (realIp != null && !realIp.isBlank()) {
             return realIp.trim();

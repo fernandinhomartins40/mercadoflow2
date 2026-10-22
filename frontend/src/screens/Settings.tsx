@@ -3,6 +3,7 @@ import Layout from '../components/layout/Layout';
 import AiCreditsCard from '../components/settings/AiCreditsCard';
 import SecurityCard from '../components/settings/SecurityCard';
 import DeleteAccountCard from '../components/settings/DeleteAccountCard';
+import DownloadMyDataCard from '../components/settings/DownloadMyDataCard';
 import NeighborhoodPrice from '../components/product/NeighborhoodPrice';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Copy, Check, LogOut, ShieldCheck, User } from 'lucide-react';
@@ -139,6 +140,15 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
+        {/* Pedido de cliente (LGPD, S5): só dono e gerente. */}
+        {(teamRole ? teamRole === 'DONO' || teamRole === 'GERENTE' : role === 'MARKET_OWNER' || role === 'MARKET_MANAGER' || role === 'ADMIN') && (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Um cliente pediu para apagar o CPF dele?{' '}
+            <Link to="/app/privacidade-clientes" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>Pedido de cliente (LGPD)</Link>
+          </p>
+        )}
+
+        <DownloadMyDataCard />
         <DeleteAccountCard />
         </div>
         {showAi ? (

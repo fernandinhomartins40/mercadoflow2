@@ -18,10 +18,8 @@ import subscriptionService, {
 } from '../../services/subscription.service';
 
 /**
- * Catálogo de planos editável, com sincronização para o Stripe.
- *
- * Alterar o preço aqui cria um novo Price no Stripe automaticamente — o painel
- * é a fonte de verdade, e não é preciso abrir o painel deles.
+ * Catálogo de planos editável. O preço daqui é o que o Asaas cobra nas novas
+ * contratações; quem já assina segue no valor contratado.
  */
 
 const fmtDate = (v?: string | null) => {
@@ -86,7 +84,6 @@ const PlanCatalogPanel: React.FC = () => {
       const result = await subscriptionService.changePlanPrice(
         dialog.plan.code,
         cents,
-        dialog.migrate,
         dialog.reason || undefined,
       );
       setDialog(null);
@@ -95,26 +92,10 @@ const PlanCatalogPanel: React.FC = () => {
       if (result.warning) {
         setMessage({ text: result.warning, tone: 'warn' });
       } else {
-        const migrated = result.migratedSubscriptions > 0
-          ? ` ${result.migratedSubscriptions} assinatura(s) migrada(s).`
-          : ' Vale para novas contratações.';
-        setMessage({ text: `Preço atualizado no sistema e no Stripe.${migrated}`, tone: 'ok' });
+        setMessage({ text: 'Preço atualizado. Vale para novas contratações.', tone: 'ok' });
       }
     } catch (err: any) {
       setMessage({ text: err?.message || 'Falha ao alterar o preço.', tone: 'warn' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const syncStripe = async () => {
-    setSaving(true);
-    try {
-      const results = await subscriptionService.syncCatalogToStripe();
-      setMessage({ text: results.join(' · ') || 'Nada a sincronizar.', tone: 'ok' });
-      await load();
-    } catch (err: any) {
-      setMessage({ text: err?.message || 'Falha ao sincronizar com o Stripe.', tone: 'warn' });
     } finally {
       setSaving(false);
     }
@@ -145,19 +126,8 @@ const PlanCatalogPanel: React.FC = () => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Alterar o preço cria um novo valor no Stripe automaticamente.
+          O novo preço vale para novas contratações; quem já assina segue no valor contratado.
         </p>
-        <button
-          type="button"
-          onClick={syncStripe}
-          disabled={saving}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-60"
-          style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-          title="Cria no Stripe os produtos e preços dos planos que ainda não têm"
-        >
-          <RefreshCw size={13} />
-          Sincronizar com o Stripe
-        </button>
       </div>
 
       {message && (
@@ -220,25 +190,6 @@ const PlanCatalogPanel: React.FC = () => {
                 {formatLimit(plan.historyRetentionDays)} dias de histórico
               </span>
               <span>{plan.fullInsights ? 'Inteligência completa' : 'Prévia da inteligência'}</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 text-[10px]">
-              {plan.stripePriceId ? (
-                <span
-                  className="rounded px-1.5 py-0.5 font-mono"
-                  style={{ background: '#dcfce7', color: '#15803d' }}
-                  title="Preço vinculado no Stripe"
-                >
-                  {plan.stripePriceId.slice(0, 20)}…
-                </span>
-              ) : (
-                <span
-                  className="rounded px-1.5 py-0.5"
-                  style={{ background: '#fef3c7', color: '#92400e' }}
-                >
-                  sem preço no Stripe
-                </span>
-              )}
             </div>
 
             <div className="mt-auto flex flex-wrap gap-2">
@@ -359,21 +310,6 @@ const PlanCatalogPanel: React.FC = () => {
                   }}
                 />
               </div>
-
-              <label className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                <input
-                  type="checkbox"
-                  checked={dialog.migrate}
-                  onChange={(e) => setDialog({ ...dialog, migrate: e.target.checked })}
-                  className="mt-0.5"
-                />
-                <span>
-                  <strong style={{ color: 'var(--text-primary)' }}>Migrar quem já assina</strong>
-                  <br />
-                  Sem marcar, o novo valor vale só para novas contratações e os
-                  assinantes atuais seguem no preço contratado.
-                </span>
-              </label>
 
               <div>
                 <label htmlFor="f-plancatalogpanel-2" className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>

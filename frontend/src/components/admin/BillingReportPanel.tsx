@@ -6,8 +6,8 @@ import subscriptionService, { BillingReport, formatPrice } from '../../services/
 /**
  * Relatório de faturamento do SaaS.
  *
- * As métricas vêm do banco, sincronizado por webhook — não da API do Stripe a
- * cada abertura, o que seria lento e sujeito a rate limit.
+ * As métricas vêm do banco, sincronizado pelo webhook do Asaas — não da API a
+ * cada abertura, o que seria lento e sujeito a limite de chamadas.
  */
 
 const fmtNumber = (v?: number | null) => new Intl.NumberFormat('pt-BR').format(Number(v || 0));
@@ -142,7 +142,7 @@ const BillingReportPanel: React.FC = () => {
               <Ban size={16} style={{ color: '#b91c1c' }} />
               <span className="text-sm" style={{ color: '#991b1b' }}>
                 <strong>{fmtNumber(report.unbilledAccounts)}</strong> conta(s) em plano pago sem
-                assinatura no Stripe — receita não está entrando
+                assinatura no Asaas — receita não está entrando
               </span>
             </div>
           )}
@@ -194,7 +194,7 @@ const BillingReportPanel: React.FC = () => {
             Contas pagas sem cobrança ativa
           </h3>
           <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Liberadas manualmente ou com a assinatura perdida no Stripe.
+            Liberadas manualmente ou sem assinatura no Asaas.
           </p>
           <div
             className="overflow-x-auto rounded-xl"

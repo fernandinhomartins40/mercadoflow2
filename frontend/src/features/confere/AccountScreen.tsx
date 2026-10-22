@@ -6,6 +6,7 @@ import { maskCnpj } from '../../utils/formMasks';
 import { Group, Row, TabHeader } from './ui';
 import InstallApp from './InstallApp';
 import DeleteAccount from './DeleteAccount';
+import DownloadMyData from './DownloadMyData';
 
 /** Política pública (Play Store). A exclusão de conta é feita no próprio app (DeleteAccount). */
 const PRIVACY = 'https://mercadoflow.com/bipae/privacidade.html';
@@ -50,6 +51,7 @@ const AccountScreen: React.FC<{ status: ConfereStatus }> = ({ status }) => {
         <Group label="Sobre">
           <Row onClick={() => setTerms(true)} icon={<FileText className="h-5 w-5" />} tone="stone" title="Termos de uso do Bipaê" detail={`Versão ${status.termsVersion}`} />
           <Row onClick={() => openPage(PRIVACY)} icon={<ShieldCheck className="h-5 w-5" />} tone="stone" title="Política de privacidade" detail="Quais dados usamos e por quê" />
+          <DownloadMyData />
           <DeleteAccount />
           <Row onClick={() => logout()} icon={<LogOut className="h-5 w-5" />} tone="red" title="Sair" trailing={<span />} />
         </Group>

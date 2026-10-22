@@ -19,5 +19,4 @@ public interface NetworkContractRepository extends JpaRepository<NetworkContract
 
     List<NetworkContract> findByMarketIdOrderByCreatedAtDesc(UUID marketId);
 
-    Optional<NetworkContract> findByStripeSubscriptionId(String stripeSubscriptionId);
 }

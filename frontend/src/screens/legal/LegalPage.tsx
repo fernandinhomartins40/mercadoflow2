@@ -8,6 +8,8 @@ export const CONTROLLER_CNPJ = '42.761.086/0001-15';
 export const DPO_NAME = 'Luiz Fernando Martins Oliveira';
 export const PRIVACY_EMAIL = 'fuseagencia10@gmail.com';
 export const UPDATED_AT = '22/10/2026';
+/** Versão dos textos legais. Mude junto com UPDATED_AT; é a versão registrada no aceite. */
+export const LEGAL_VERSION = '2026-10-22';
 
 export const LegalSection: React.FC<{ id?: string; title: string; children: React.ReactNode; highlight?: boolean }> = ({ id, title, children, highlight }) => (
   <section
@@ -48,13 +50,15 @@ const LegalPage: React.FC<{ title: string; intro: string; children: React.ReactN
       <main style={{ maxWidth: 820, margin: '0 auto', padding: '24px 16px 64px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 'clamp(26px, 4vw, 38px)', letterSpacing: '-.02em', lineHeight: 1.15, color: '#10231c' }}>{title}</h1>
-          <p style={{ margin: '8px 0 0', color: '#4f6159' }}>{intro} Atualizada em {UPDATED_AT}.</p>
+          <p style={{ margin: '8px 0 0', color: '#4f6159' }}>{intro} Atualizada em {UPDATED_AT} (versão {LEGAL_VERSION}).</p>
         </div>
         {children}
         <p style={{ margin: '8px 0 0', fontSize: 14, color: '#4f6159', textAlign: 'center' }}>
           <Link to="/privacidade" style={{ color: '#045e48' }}>Política de privacidade</Link>
           {' · '}
           <Link to="/termos" style={{ color: '#045e48' }}>Termos de uso</Link>
+          {' · '}
+          <Link to="/contrato-operador" style={{ color: '#045e48' }}>Contrato de operador</Link>
           {' · '}
           <a href="/bipae/privacidade.html" style={{ color: '#045e48' }}>Privacidade do Bipaê</a>
           <br />

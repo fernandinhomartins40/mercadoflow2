@@ -1,5 +1,6 @@
 package com.pdv2cloud.model.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -45,4 +46,12 @@ public class RegisterRequest {
      * conversão que o plano gratuito existe para criar.
      */
     private String intendedPlan;
+
+    /**
+     * Caixa "Li e aceito os Termos de uso, a Política de privacidade e o
+     * Contrato de tratamento de dados" (S1 do parecer LGPD). Sem ela o cadastro
+     * é recusado; o AuthService confere de novo, porque null passa no @AssertTrue.
+     */
+    @AssertTrue(message = "Para criar a conta, aceite os Termos de uso, a Política de privacidade e o Contrato de tratamento de dados")
+    private Boolean acceptLegal;
 }

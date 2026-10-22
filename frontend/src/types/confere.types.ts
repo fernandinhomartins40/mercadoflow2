@@ -21,7 +21,6 @@ export interface ConfereStatus {
   plans: ConferePlan[];
   certificate: ConfereCertificate | null;
   pixAvailable: boolean;
-  stripeAvailable: boolean;
   marketName: string;
   marketCnpj: string | null;
   manufacturerVisibility: boolean;
@@ -111,6 +110,7 @@ export interface ConfereOrder {
   planName: string | null;
   reads: number;
   amountCents: number;
+  /** 'STRIPE' só em pedidos antigos (a Stripe não é mais usada). */
   method: 'PIX' | 'STRIPE';
   status: 'PENDING' | 'PAID' | 'CANCELED';
   txid: string;
@@ -136,7 +136,6 @@ export interface ConfereSettings {
   pixKey: string | null;
   pixMerchantName: string | null;
   pixMerchantCity: string | null;
-  stripeEnabled: boolean;
   encryptionReady: boolean;
   updatedAt: string | null;
   updatedBy: string | null;

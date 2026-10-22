@@ -134,6 +134,15 @@ const QuietCard: React.FC<{ marketId: string; prefs: CopilotPrefs }> = ({ market
   );
 };
 
+/** Versão do texto do aviso abaixo (S7). Mudou o texto? Suba aqui e em CopilotSettingsService.WHATSAPP_CONSENT_VERSION. */
+const WHATSAPP_CONSENT_VERSION = '2026-10-22';
+
+const fmtDate = (iso?: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+};
+
 const WhatsAppCard: React.FC<{ marketId: string; prefs: CopilotPrefs; onSaved: (p: CopilotPrefs) => void }> = ({ marketId, prefs, onSaved }) => {
   const [phone, setPhone] = useState(prefs.whatsappPhone ? prefs.whatsappPhone.replace(/^55/, '') : '');
   const [consent, setConsent] = useState(prefs.whatsappOptIn);
@@ -142,7 +151,8 @@ const WhatsAppCard: React.FC<{ marketId: string; prefs: CopilotPrefs; onSaved: (
     e.preventDefault();
     if (consent && !phone.replace(/\D/g, '')) { setState('Informe o número com DDD para receber no WhatsApp.'); return; }
     try {
-      const p = await copilotAgentsService.savePrefs(marketId, { whatsappPhone: phone, whatsappOptIn: consent });
+      const p = await copilotAgentsService.savePrefs(marketId, { whatsappPhone: phone, whatsappOptIn: consent,
+        whatsappConsentVersion: WHATSAPP_CONSENT_VERSION });
       onSaved(p);
       setState(p.whatsappOptIn ? 'Pronto: os avisos chegam no seu WhatsApp.' : 'Salvo. Você não recebe avisos no WhatsApp.');
     } catch (err) {
@@ -157,10 +167,26 @@ const WhatsAppCard: React.FC<{ marketId: string; prefs: CopilotPrefs; onSaved: (
         <label className="fx-field">Número com DDD
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="(11) 98765-4321" maxLength={20} />
         </label>
+        <div className="fx-muted" style={{ fontSize: 14 }}>
+          <p style={{ margin: 0 }}>O que o MercadoFlow vai mandar para este número:</p>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+            <li>o resumo do dia da sua loja (vendas e o que merece atenção);</li>
+            <li>avisos do Copiloto, como pedido de compra pronto ou produto acabando, com os botões Aprovar e Depois;</li>
+            <li>a resposta quando você tocar num botão.</li>
+          </ul>
+          <p style={{ margin: '4px 0 0' }}>Nada de propaganda. Respeitamos o seu horário de silêncio. Para parar, responda PARAR
+            ou desmarque aqui. Guardamos a data, o número e o IP deste aceite como prova.</p>
+        </div>
         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <input type="checkbox" className="fx-check" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          <span>Aceito receber avisos do MercadoFlow no WhatsApp. Posso cancelar quando quiser respondendo PARAR.</span>
+          <span>Li o texto acima e aceito receber esses avisos do MercadoFlow no WhatsApp. Posso cancelar quando quiser respondendo PARAR.</span>
         </label>
+        {prefs.whatsappOptIn && fmtDate(prefs.whatsappOptInAt) && (
+          <p className="fx-muted" style={{ margin: 0, fontSize: 13 }}>Ligado em {fmtDate(prefs.whatsappOptInAt)}.</p>
+        )}
+        {!prefs.whatsappOptIn && fmtDate(prefs.whatsappOptOutAt) && (
+          <p className="fx-muted" style={{ margin: 0, fontSize: 13 }}>Desligado em {fmtDate(prefs.whatsappOptOutAt)}.</p>
+        )}
         <div className="fx-actions">
           <button type="submit" className="fx-btn primary small">Salvar WhatsApp</button>
           {state && <span role="status" className="fx-muted">{state}</span>}

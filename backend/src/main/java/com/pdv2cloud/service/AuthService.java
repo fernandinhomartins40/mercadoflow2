@@ -75,9 +75,29 @@ public class AuthService {
      * runAsSystem interno marcaria is_admin tarde demais.
      */
     @Transactional
+    public RegisterResponse register(RegisterRequest request, String ip, String userAgent) {
+        // S1 (LGPD): sem a caixa de aceite marcada, a conta não nasce.
+        if (!Boolean.TRUE.equals(request.getAcceptLegal())) {
+            throw new IllegalArgumentException(
+                "Para criar a conta, aceite os Termos de uso, a Política de privacidade e o Contrato de tratamento de dados.");
+        }
+        RegisterResponse response = doRegister(request);
+        legalAcceptance.record(response.getUserId(), response.getMarketId(), UserRole.MARKET_OWNER, ip, userAgent);
+        return response;
+    }
+
+    /**
+     * Cadastro sem aceite registrado: só para a conta criada pelo parceiro da
+     * casa (PartnerAccountService), em que o dono aceitou no app do parceiro.
+     * Sem linha em legal_acceptances, o dono vê a tela de aceite no primeiro login.
+     */
+    @Transactional
     public RegisterResponse register(RegisterRequest request) {
         return doRegister(request);
     }
+
+    @Autowired
+    private com.pdv2cloud.service.legal.LegalAcceptanceService legalAcceptance;
 
     private RegisterResponse doRegister(RegisterRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();

@@ -13,7 +13,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.pdv2cloud.repository.MarketRepository;
-import com.pdv2cloud.service.StripeAdminService;
 import com.pdv2cloud.service.billing.AsaasService;
 import com.pdv2cloud.service.billing.SubscriptionService;
 import com.pdv2cloud.service.notify.EmailService;
@@ -47,7 +46,7 @@ class AccountDeletionServiceTest {
         subscriptions = mock(SubscriptionService.class);
         asaas = mock(AsaasService.class);
         service = new AccountDeletionService(jdbc, passwords, mock(EmailService.class), subscriptions, asaas,
-            mock(StripeAdminService.class), mock(MarketRepository.class));
+            mock(MarketRepository.class));
         when(passwords.matches("Certa@123", "hash")).thenReturn(true);
     }
 

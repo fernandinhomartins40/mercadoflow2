@@ -49,7 +49,7 @@ const Plans: React.FC = () => {
   const [usage, setUsage] = useState<MarketUsage | null>(null);
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [redirecting, setRedirecting] = useState<PlanCode | 'PORTAL' | null>(null);
+  const [redirecting, setRedirecting] = useState<PlanCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sub, setSub] = useState<MarketSubscription | null>(null);
   const [notices, setNotices] = useState<AppNotice[]>([]);
@@ -100,7 +100,7 @@ const Plans: React.FC = () => {
     setRedirecting(plan);
     setError(null);
     try {
-      // O backend devolve a página de pagamento: fatura do Asaas (Pix/boleto) ou Checkout do Stripe (cartão).
+      // O backend devolve a página de pagamento do Asaas (Pix, boleto ou cartão).
       window.location.href = await subscriptionService.startCheckout(marketId, plan, method);
     } catch (err: any) {
       setError(reason(err, 'Não foi possível abrir o pagamento.'));
@@ -143,33 +143,19 @@ const Plans: React.FC = () => {
     }
   };
 
-  const manageSubscription = async () => {
-    if (!marketId) return;
-    setRedirecting('PORTAL');
-    setError(null);
-    try {
-      window.location.href = await subscriptionService.openBillingPortal(marketId);
-    } catch (err: any) {
-      setError(reason(err, 'Não foi possível abrir a gestão da assinatura.'));
-      setRedirecting(null);
-    }
-  };
-
-  /** Formas de pagamento disponíveis para o plano: Pix, boleto e cartão pelo Asaas (Stripe só sem ele). */
+  /** Formas de pagamento disponíveis para o plano: Pix, boleto e cartão, todos pelo Asaas. */
   const methodsFor = (plan: PlanDescriptor): PaymentMethod[] => {
     if (!billing || (plan.code !== 'ESSENCIAL' && plan.code !== 'PROFISSIONAL')) return [];
     const out: PaymentMethod[] = [];
     if (billing.pixEnabled) out.push('PIX');
     if (billing.boletoEnabled) out.push('BOLETO');
-    const cardPrice = plan.code === 'ESSENCIAL' ? billing.essencialAvailable : billing.profissionalAvailable;
-    if (billing.cardViaAsaas || (billing.checkoutEnabled && cardPrice)) out.push('CARTAO');
+    if (billing.cardViaAsaas) out.push('CARTAO');
     return out;
   };
   const canCheckout = (plan: PlanDescriptor) => methodsFor(plan).length > 0;
   const late = sub?.status === 'PAST_DUE' || sub?.status === 'RESTRICTED';
   const paysByGateway = sub?.provider === 'ASAAS' && (sub.status === 'ACTIVE' || late);
 
-  const hasPaidPlan = usage != null && usage.planCode !== 'FREE';
 
   return (
     <Layout>
@@ -211,19 +197,6 @@ const Plans: React.FC = () => {
               </div>
             )}
 
-            {hasPaidPlan && billing?.checkoutEnabled && sub?.provider === 'STRIPE' && (
-              <button
-                type="button"
-                disabled={redirecting !== null}
-                onClick={manageSubscription}
-                className="mt-3 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-              >
-                <CreditCard size={13} />
-                {redirecting === 'PORTAL' ? 'Abrindo...' : 'Gerenciar assinatura'}
-                <ExternalLink size={12} />
-              </button>
-            )}
           </div>
         )}
 

@@ -148,7 +148,9 @@ public class Market {
     @Column(name = "custom_price_cents")
     private Integer customPriceCents;
 
-    // ── Cobrança Stripe (ver V35__stripe_billing.sql) ──────────────────────
+    // ── Legado da Stripe (V35__stripe_billing.sql) ─────────────────────────
+    // A Stripe não é mais usada. As colunas ficam no banco só para leitura
+    // do histórico; nenhum código novo deve gravar nelas.
 
     /** Cliente no Stripe, reaproveitado entre assinaturas do mesmo mercado. */
     @Column(name = "stripe_customer_id", length = 64)

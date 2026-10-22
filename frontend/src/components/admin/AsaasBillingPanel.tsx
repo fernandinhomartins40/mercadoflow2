@@ -84,8 +84,7 @@ const AsaasBillingPanel: React.FC = () => {
       <div>
         <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Pix e boleto (Asaas)</h2>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          O lojista escolhe Pix, boleto ou cartão ao assinar. Pix e boleto confirmam sozinhos pelo aviso do Asaas;
-          o cartão segue no Stripe.
+          O lojista escolhe Pix, boleto ou cartão ao assinar. Os três confirmam sozinhos pelo aviso do Asaas.
         </p>
       </div>
 

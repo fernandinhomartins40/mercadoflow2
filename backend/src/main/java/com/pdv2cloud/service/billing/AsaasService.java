@@ -176,9 +176,6 @@ public class AsaasService {
 
         boolean paying = current.status() == SubscriptionService.Status.ACTIVE || current.status() == SubscriptionService.Status.PAST_DUE
             || current.status() == SubscriptionService.Status.RESTRICTED;
-        if (paying && "STRIPE".equals(current.provider())) {
-            throw new IllegalStateException("Sua assinatura atual é no cartão. Para mudar de plano, use \"Gerenciar assinatura\".");
-        }
         // Já assina pelo Asaas: troca o valor da assinatura atual, sem cobrança dupla.
         if (paying && current.cancelAtPeriodEnd()) {
             throw new IllegalStateException("Sua assinatura foi cancelada e vale até "
@@ -282,6 +279,18 @@ public class AsaasService {
         if (subscriptionId != null && !subscriptionId.isBlank()) {
             call("DELETE", "/subscriptions/" + subscriptionId, null);
         }
+    }
+
+    /** Estorno integral do pagamento (POST /payments/{id}/refund). Erro do Asaas vira IllegalStateException. */
+    public void refundPayment(String paymentId, String description) {
+        if (paymentId == null || paymentId.isBlank()) {
+            throw new IllegalStateException("Pagamento não encontrado para estornar.");
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode body = json.createObjectNode();
+        if (description != null) {
+            body.put("description", description);
+        }
+        call("POST", "/payments/" + paymentId + "/refund", body);
     }
 
     /** Fatura em aberto da assinatura (a vencida primeiro), para o botão "Pagar agora". */

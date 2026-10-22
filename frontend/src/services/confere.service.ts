@@ -38,7 +38,7 @@ export const confereService = {
   ledger: async (m: string): Promise<LedgerEntry[]> => (await api.get(`${base(m)}/ledger`)).data ?? [],
   orders: async (m: string): Promise<ConfereOrder[]> => (await api.get(`${base(m)}/orders`)).data ?? [],
   order: async (m: string, id: string): Promise<ConfereOrder> => (await api.get(`${base(m)}/orders/${id}`)).data,
-  createOrder: async (m: string, planId: string, method: 'PIX' | 'STRIPE'): Promise<ConfereOrder> =>
+  createOrder: async (m: string, planId: string, method: 'PIX'): Promise<ConfereOrder> =>
     (await api.post(`${base(m)}/orders`, { planId, method })).data,
 };
 

@@ -17,7 +17,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * Mantém o valor da assinatura certo quando o desconto do parceiro da casa
  * entra ou sai: vínculo aprovado ou revogado, loja que vira (ou deixa de ser)
  * cliente do Bipae. Só mexe em assinatura ativa pelo Asaas; a próxima fatura
- * já vem com o valor novo. Cartão (Stripe) e contrato negociado ficam como estão.
+ * já vem com o valor novo. Contrato negociado fica como está.
  */
 @Service
 @Slf4j

@@ -10,6 +10,7 @@ import lombok.ToString;
 
 /**
  * Espelho de uma fatura do Stripe (ver V37__network_contracts_and_invoices.sql).
+ * LEGADO: a Stripe não é mais usada; a tabela fica só como histórico.
  *
  * Mantido por webhook. Existe para o painel responder "quem deve, há quantos
  * dias e quanto entrou" sem consultar a API do Stripe a cada tela — e para o

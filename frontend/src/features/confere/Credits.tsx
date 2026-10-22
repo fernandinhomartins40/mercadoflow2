@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { CheckCircle2, Copy, CreditCard, QrCode } from 'lucide-react';
+import { CheckCircle2, Copy, QrCode } from 'lucide-react';
 import { confereService, money } from '../../services/confere.service';
 import type { ConfereOrder, ConfereStatus } from '../../types/confere.types';
 import { BigButton, SectionTitle, TabHeader, errorText } from './ui';
 
-/** Saldo e compra de leituras: Pix na chave da plataforma (QR + copia e cola) ou Stripe. */
+/** Saldo e compra de leituras: Pix (QR + copia e cola), na chave da plataforma ou pelo Asaas. */
 const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () => void }> = ({ status, marketId, refresh }) => {
   const [order, setOrder] = useState<ConfereOrder | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -25,7 +25,7 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
     return () => clearInterval(t);
   }, [order, marketId, refresh]);
 
-  const buy = async (planId: string, method: 'PIX' | 'STRIPE') => {
+  const buy = async (planId: string, method: 'PIX') => {
     setBusy(planId + method);
     setError(null);
     try {
@@ -101,14 +101,11 @@ const Credits: React.FC<{ status: ConfereStatus; marketId: string; refresh: () =
                   {status.pixAvailable && (
                     <BigButton onClick={() => buy(p.id, 'PIX')} disabled={!!busy} className="h-14 text-lg"><QrCode className="h-5 w-5" aria-hidden="true" />Pagar com Pix</BigButton>
                   )}
-                  {status.stripeAvailable && (
-                    <BigButton tone="white" onClick={() => buy(p.id, 'STRIPE')} disabled={!!busy} className="h-14 text-lg"><CreditCard className="h-5 w-5" aria-hidden="true" />Cartão</BigButton>
-                  )}
                 </div>
               </div>
               );
             })}
-            {!status.pixAvailable && !status.stripeAvailable && <p className="text-lg text-stone-700">A compra de créditos abre em breve.</p>}
+            {!status.pixAvailable && <p className="text-lg text-stone-700">A compra de créditos abre em breve.</p>}
           </section>
         )}
       </div>

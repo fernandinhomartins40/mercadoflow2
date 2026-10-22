@@ -75,13 +75,14 @@ export const Welcome: React.FC = () => {
   const doRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!form.accept) { setError('Para usar o Bipaê é preciso aceitar os termos.'); return; }
+    if (!form.accept) { setError('Para criar a conta, marque que leu e aceita os termos.'); return; }
     if (!isValidCnpj(form.cnpj)) { setError('CNPJ inválido. Confira os números.'); return; }
     setBusy(true);
     try {
       await authService.register({
         name: form.name.trim(), email: form.email.trim().toLowerCase(), password: form.password,
         marketName: form.marketName.trim(), marketCnpj: onlyDigits(form.cnpj), intendedPlan: 'FREE',
+        acceptLegal: form.accept,
       });
       // O aceite do formulário vale para esta versão dos termos.
       sessionStorage.setItem(PENDING_ACCEPT, terms?.version ?? '');
@@ -146,7 +147,10 @@ export const Welcome: React.FC = () => {
             <label className="flex items-start gap-3 rounded-2xl p-4 text-base lg-card">
               <input type="checkbox" checked={form.accept} onChange={set('accept')} className="mt-1 h-6 w-6 shrink-0 accent-[#157A3D]" />
               <span>
-                Li e aceito os termos: <strong>as notas lidas ficam armazenadas pelo MercadoFlow</strong>, ligadas ao meu mercado.{' '}
+                Li e aceito os <a href="/termos" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0F3A29] underline">Termos de uso</a>,
+                a <a href="/bipae/privacidade.html" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0F3A29] underline">Política de privacidade</a> e
+                o <a href="/contrato-operador" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0F3A29] underline">Contrato de tratamento de dados (operador)</a>,
+                e os termos do Bipaê: <strong>as notas lidas ficam armazenadas pelo MercadoFlow</strong>, ligadas ao meu mercado.{' '}
                 <button type="button" onClick={() => setShowTerms((v) => !v)} className="font-semibold text-[#0F3A29] underline">{showTerms ? 'Esconder' : 'Ler os termos'}</button>
               </span>
             </label>

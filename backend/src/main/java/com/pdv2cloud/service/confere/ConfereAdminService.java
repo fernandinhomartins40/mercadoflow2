@@ -43,7 +43,7 @@ public class ConfereAdminService {
 
     public record Settings(boolean enabled, boolean meuDanfeConfigured, String meuDanfeKeyHint, int pricePerReadCents,
                            int trialReads, String termsVersion, String termsText, String pixKey, String pixMerchantName,
-                           String pixMerchantCity, boolean stripeEnabled, boolean encryptionReady,
+                           String pixMerchantCity, boolean encryptionReady,
                            LocalDateTime updatedAt, String updatedBy) {}
 
     public Settings settings() {
@@ -52,7 +52,7 @@ public class ConfereAdminService {
             rs.getInt("price_per_read_cents"), rs.getInt("trial_reads"), rs.getString("terms_version"),
             rs.getString("terms_text") == null ? DEFAULT_TERMS : rs.getString("terms_text"),
             rs.getString("pix_key"), rs.getString("pix_merchant_name"), rs.getString("pix_merchant_city"),
-            rs.getBoolean("stripe_enabled"), cipher.isConfigured(),
+            cipher.isConfigured(),
             rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toLocalDateTime(),
             rs.getString("updated_by")));
     }
@@ -95,7 +95,7 @@ public class ConfereAdminService {
         jdbc.update(
             "update confere_settings set enabled = :enabled, price_per_read_cents = :price, trial_reads = :trial, " +
             "terms_text = :terms, terms_version = :version, pix_key = :pixKey, pix_merchant_name = :pixName, " +
-            "pix_merchant_city = :pixCity, stripe_enabled = :stripe, updated_at = now(), updated_by = :actor, " +
+            "pix_merchant_city = :pixCity, updated_at = now(), updated_by = :actor, " +
             "meudanfe_api_key_enc = coalesce(:enc, meudanfe_api_key_enc), meudanfe_key_hint = coalesce(:hint, meudanfe_key_hint) " +
             "where id = 'default'",
             new MapSqlParameterSource()
@@ -105,7 +105,6 @@ public class ConfereAdminService {
                 .addValue("pixKey", pixKey)
                 .addValue("pixName", body.containsKey("pixMerchantName") ? str(body.get("pixMerchantName")) : current.pixMerchantName())
                 .addValue("pixCity", body.containsKey("pixMerchantCity") ? str(body.get("pixMerchantCity")) : current.pixMerchantCity())
-                .addValue("stripe", bool(body.get("stripeEnabled"), current.stripeEnabled()))
                 .addValue("actor", actor).addValue("enc", enc).addValue("hint", hint));
         return settings();
     }

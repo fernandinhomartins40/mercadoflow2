@@ -17,7 +17,9 @@ import org.springframework.stereotype.Component;
  *  1. CPF/CNPJ do destinatário das notas com mais de 5 anos vira máscara
  *     ("***.***.***-NN"). A nota e os valores ficam; o perfil de cliente usa só
  *     os últimos 365 dias e ignora o que não tem 11 dígitos, então não muda.
- *  2. Apaga tokens vencidos (senha, convite, 2FA) 90 dias após o vencimento;
+ *  2. IP e navegador (user-agent) da trilha de auditoria somem após 12 meses
+ *     (S4 do parecer LGPD); o evento continua até os 5 anos.
+ *  3. Apaga tokens vencidos (senha, convite, 2FA) 90 dias após o vencimento;
  *     WhatsApp e registros de IA após 2 anos; trilha de auditoria após 5 anos.
  *
  * Nada financeiro ou fiscal é apagado (carteira, extrato de créditos, pedidos,
@@ -34,6 +36,7 @@ public class PersonalDataRetentionJob {
     // Teto por tabela e por noite (1 milhão de linhas): o acúmulo antigo sai em algumas noites.
     static final int MAX_BATCHES = 200;
     static final int CPF_YEARS = 5;
+    static final int AUDIT_IP_MONTHS = 12;
 
     /** Tabela, coluna de data e prazo contado a partir dela. */
     record Purge(String table, String dateColumn, int years, int days) {
@@ -67,6 +70,11 @@ public class PersonalDataRetentionJob {
             + "order by data_emissao limit ?) s "
             + "where i.id = s.id";
 
+    // Só pega linha que ainda tem IP ou navegador: rodar de novo não regrava nada.
+    static final String AUDIT_IP_SQL =
+        "update audit_logs set ip_address = null, user_agent = null where id in (select id from audit_logs "
+            + "where created_at < ? and (ip_address is not null or user_agent is not null) limit ?)";
+
     private final JdbcTemplate jdbc;
 
     public PersonalDataRetentionJob(JdbcTemplate jdbc) {
@@ -87,6 +95,13 @@ public class PersonalDataRetentionJob {
         } catch (Exception e) {
             log.error("Retenção LGPD: máscara do CPF das notas falhou; os lotes já gravados ficam", e);
         }
+        try {
+            int cleared = clearAuditNetworkData(now.minusMonths(AUDIT_IP_MONTHS));
+            log.info("Retenção LGPD: IP e navegador apagados de {} registros de auditoria (mais de {} meses)",
+                cleared, AUDIT_IP_MONTHS);
+        } catch (Exception e) {
+            log.error("Retenção LGPD: limpeza do IP da auditoria falhou; os lotes já gravados ficam", e);
+        }
         for (Purge purge : PURGES) {
             try {
                 int deleted = purge(purge, now);
@@ -104,6 +119,17 @@ public class PersonalDataRetentionJob {
         int total = 0;
         for (int i = 0; i < MAX_BATCHES; i++) {
             int n = jdbc.update(MASK_SQL, before, BATCH);
+            total += n;
+            if (n < BATCH) break;
+        }
+        return total;
+    }
+
+    int clearAuditNetworkData(LocalDateTime cutoff) {
+        Timestamp before = Timestamp.valueOf(cutoff);
+        int total = 0;
+        for (int i = 0; i < MAX_BATCHES; i++) {
+            int n = jdbc.update(AUDIT_IP_SQL, before, BATCH);
             total += n;
             if (n < BATCH) break;
         }

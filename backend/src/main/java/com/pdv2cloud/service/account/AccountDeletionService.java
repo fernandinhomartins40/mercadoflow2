@@ -2,7 +2,6 @@ package com.pdv2cloud.service.account;
 
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.repository.MarketRepository;
-import com.pdv2cloud.service.StripeAdminService;
 import com.pdv2cloud.service.billing.AsaasService;
 import com.pdv2cloud.service.billing.SubscriptionService;
 import com.pdv2cloud.service.billing.SubscriptionService.Status;
@@ -51,18 +50,16 @@ public class AccountDeletionService {
     private final EmailService email;
     private final SubscriptionService subscriptions;
     private final AsaasService asaas;
-    private final StripeAdminService stripeAdmin;
     private final MarketRepository markets;
 
     public AccountDeletionService(NamedParameterJdbcTemplate jdbc, PasswordEncoder passwords, EmailService email,
-                                  SubscriptionService subscriptions, AsaasService asaas, StripeAdminService stripeAdmin,
+                                  SubscriptionService subscriptions, AsaasService asaas,
                                   MarketRepository markets) {
         this.jdbc = jdbc;
         this.passwords = passwords;
         this.email = email;
         this.subscriptions = subscriptions;
         this.asaas = asaas;
-        this.stripeAdmin = stripeAdmin;
         this.markets = markets;
     }
 
@@ -126,7 +123,7 @@ public class AccountDeletionService {
             }
             scope = "STORE";
             storeName = jdbc.queryForObject("select name from markets where id = :r", Map.of("r", root), String.class);
-            // Antes de gravar: se o Asaas/Stripe recusar, nada muda e a pessoa tenta de novo.
+            // Antes de gravar: se o Asaas recusar, nada muda e a pessoa tenta de novo.
             subscriptionNote = cancelSubscription(root, mail);
         }
         LocalDateTime scheduled = LocalDateTime.now().plusDays(GRACE_DAYS);
@@ -157,11 +154,6 @@ public class AccountDeletionService {
         try {
             if (AsaasService.PROVIDER.equals(provider)) {
                 asaas.cancelSubscription(s.providerSubscriptionId());
-            } else if ("STRIPE".equals(provider)) {
-                Market market = markets.findById(root).orElseThrow();
-                if (stripeAdmin.cancelSubscription(market, true, "EXCLUSAO_CONTA") != null) {
-                    throw new IllegalStateException("stripe");
-                }
             } else {
                 // Contrato negociado: o comercial encerra por lá. Não impede a exclusão.
                 log.warn("Exclusão de conta da rede {} com assinatura {}: avisar o comercial", root, provider);
