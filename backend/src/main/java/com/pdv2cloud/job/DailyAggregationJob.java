@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 @Slf4j
@@ -34,17 +35,35 @@ public class DailyAggregationJob {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private TransactionTemplate tx;
+
+    /** Notas do PDV que o agente envia atrasadas (fila offline) entram no recálculo. */
+    static final int DAYS_BACK = 7;
+
     @Scheduled(cron = "0 0 2 * * ?")
     public void aggregateDailySales() {
         log.info("Starting daily sales aggregation");
         LocalDate yesterday = LocalDate.now().minusDays(1);
         List<Market> markets = marketRepository.findAllActive();
 
+        int failures = 0;
         for (Market market : markets) {
-            aggregateMarketSales(market.getId(), yesterday);
+            for (int back = DAYS_BACK - 1; back >= 0; back--) {
+                LocalDate date = yesterday.minusDays(back);
+                // Uma transação por mercado e dia: o delete @Modifying exige transação
+                // (sem ela o job caía no primeiro mercado, toda noite, e sales_analytics
+                // ficava vazia) e a falha de um mercado não interrompe os outros.
+                try {
+                    tx.executeWithoutResult(status -> aggregateMarketSales(market.getId(), date));
+                } catch (RuntimeException e) {
+                    failures++;
+                    log.error("Daily sales aggregation failed for market {} on {}: {}", market.getId(), date, e.getMessage(), e);
+                }
+            }
         }
 
-        log.info("Daily sales aggregation completed");
+        log.info("Daily sales aggregation completed ({} markets, {} failures)", markets.size(), failures);
     }
 
     private void aggregateMarketSales(UUID marketId, LocalDate date) {

@@ -100,7 +100,7 @@ const AgentRow: React.FC<{ marketId: string; agent: CopilotAgentSettings; platfo
               {agent.autonomy.acceptedAt ? <p className="fx-muted" style={{ margin: 0, fontSize: 13 }}>Você aceitou em {when(agent.autonomy.acceptedAt)}.</p> : (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   <input type="checkbox" className="fx-check" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
-                  <span>Aceito que o Copiloto monte o rascunho de pedido sozinho dentro desses limites e me avise.</span>
+                  <span>Aceito que o Tino monte o rascunho de pedido sozinho dentro desses limites e me avise.</span>
                 </label>
               )}
             </fieldset>

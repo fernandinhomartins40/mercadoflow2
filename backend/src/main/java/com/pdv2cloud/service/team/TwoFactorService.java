@@ -112,8 +112,14 @@ public class TwoFactorService {
         return token;
     }
 
-    /** Confere o código do desafio; até 5 tentativas, uso único. */
-    @Transactional
+    /**
+     * Confere o código do desafio; até 5 tentativas, uso único.
+     *
+     * O erro de código errado não desfaz a transação: sem o noRollbackFor, o
+     * "attempts + 1" gravado antes da exceção voltava atrás e o limite de 5
+     * tentativas nunca chegava (SEG-02).
+     */
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
     public Challenge complete(String token, String code) {
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("Entre de novo com e-mail e senha.");

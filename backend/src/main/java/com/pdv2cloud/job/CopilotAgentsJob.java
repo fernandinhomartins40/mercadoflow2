@@ -40,8 +40,8 @@ public class CopilotAgentsJob {
         List<Market> active = TenantContext.runAsSystem(markets::findAllActive);
         int created = 0;
         for (Market m : active) {
-            if (m.getBillingStatus() == com.pdv2cloud.model.entity.MarketBillingStatus.RESTRICTED) {
-                continue; // conta só para consulta: agentes e avisos param até o pagamento
+            if (!com.pdv2cloud.service.billing.AccessPolicy.allowsPaidUse(m)) {
+                continue; // só consulta, cancelada, suspensa, pendente ou vencida: agentes e avisos param
             }
             try {
                 created += TenantContext.runAsSystem(() -> runner.run(m.getId(), "HORARIO").created());

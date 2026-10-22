@@ -253,7 +253,13 @@ const Decide: React.FC = () => {
             ))}
           </div>
 
-          {queue.loading ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : list.length === 0 ? (
+          {queue.loading ? <Card><Loader2 className="animate-spin" aria-label="Carregando" /></Card> : queue.failed && list.length === 0 ? (
+            <Card role="alert" style={{ textAlign: 'center', padding: 36 }}>
+              <h2 className="fx-section-title">Não foi possível carregar as decisões</h2>
+              <p className="fx-muted" style={{ margin: '6px 0 12px' }}>Confira a internet e tente de novo. Suas decisões continuam guardadas.</p>
+              <button type="button" className="fx-btn dark" onClick={() => { void reloadAll(); }}>Tentar de novo</button>
+            </Card>
+          ) : list.length === 0 ? (
             <Card style={{ textAlign: 'center', padding: 36 }}>
               <CheckCircle2 size={36} style={{ color: 'var(--fx-green)' }} aria-hidden="true" />
               <h2 className="fx-section-title" style={{ marginTop: 10 }}>

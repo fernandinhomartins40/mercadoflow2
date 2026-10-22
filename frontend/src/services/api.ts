@@ -36,13 +36,47 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/** Mensagens do tratador global que são técnicas ou genéricas: nesses casos vale o `userMessage`. */
+const GENERIC_SERVER_MESSAGES = new Set(['Requisicao invalida', 'Unexpected server error', 'Recurso inexistente']);
+
+/**
+ * Frase que a tela mostra quando a chamada falha. As telas exibem `error.message`;
+ * sem isto o dono via "timeout of 30000ms exceeded", "Network Error",
+ * "Request failed with status code 502" ou "validation_error: Validation failed for argument [0]...".
+ */
+const friendlyErrorMessage = (error: any): string | null => {
+  const response = error.response;
+  if (!response) {
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || /timeout/i.test(error.message ?? '')) {
+      return 'Demorou mais que o normal para responder. Tente de novo em instantes.';
+    }
+    if (error.code === 'ERR_CANCELED') return null;
+    return 'Sem conexão com o MercadoFlow. Confira a internet e tente de novo.';
+  }
+  const data = response.data && typeof response.data === 'object' ? response.data : {};
+  const message = typeof data.message === 'string' ? data.message.trim() : '';
+  const userMessage = typeof data.userMessage === 'string' ? data.userMessage.trim() : '';
+  const errorField = typeof data.error === 'string' ? data.error.trim() : '';
+  // Erro de validação: `message` traz a exceção do Spring; `userMessage` diz qual campo falhou.
+  if (data.error === 'validation_error' && userMessage) return userMessage;
+  if (message && !GENERIC_SERVER_MESSAGES.has(message)) return message;
+  if (userMessage) return userMessage;
+  // Alguns endpoints devolvem só { error: "frase pronta" } (ex.: pareamento do agente, pagamento).
+  if (errorField && /\s/.test(errorField)) return errorField;
+  if (response.status >= 500) {
+    return 'O MercadoFlow está com instabilidade agora. Tente de novo em alguns minutos.';
+  }
+  if (response.status === 404) return 'Não encontramos o que você procurou.';
+  if (response.status === 429) return 'Muitas tentativas seguidas. Espere um minuto e tente de novo.';
+  return null;
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const serverMessage = error.response?.data?.message;
-    const serverError = error.response?.data?.error;
-    if (typeof serverMessage === 'string' && serverMessage.trim()) {
-      error.message = serverError ? `${serverError}: ${serverMessage}` : serverMessage;
+    const friendly = friendlyErrorMessage(error);
+    if (friendly) {
+      error.message = friendly;
     }
     // Papel da equipe sem permissão para a ação: a frase vem pronta.
     if (error.response?.status === 403 && typeof error.response?.data?.userMessage === 'string') {

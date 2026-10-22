@@ -49,7 +49,9 @@ cors:
 
 auth:
   cookie:
-    same-site: ${AUTH_COOKIE_SAMESITE:None}
+    # Lax: o painel e o app Bipaê chamam /api na mesma origem. Com None, um site
+    # qualquer podia disparar POSTs sem corpo JSON com o cookie do usuário (CSRF).
+    same-site: ${AUTH_COOKIE_SAMESITE:Lax}
 
 jobs:
   enabled: ${JOBS_ENABLED:false}

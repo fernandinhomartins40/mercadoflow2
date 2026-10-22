@@ -33,11 +33,30 @@ public class AccessPolicy {
     }
 
     public Access of(Market market) {
-        if (!Boolean.TRUE.equals(market.getIsActive())) {
+        return evaluate(market.getIsActive(), market.getBillingStatus(), market.getAccessExpiresAt());
+    }
+
+    /**
+     * Pode gastar recurso pago (IA, WhatsApp, agentes, MCP)? Só quem entra e
+     * não está só para consulta. Jobs e chaves de integração não passam pelo
+     * login, então perguntam aqui: conta cancelada, suspensa, vencida ou
+     * pendente não consome nada.
+     */
+    public static boolean allowsPaidUse(Market market) {
+        return market != null && allowsPaidUse(market.getIsActive(), market.getBillingStatus(), market.getAccessExpiresAt());
+    }
+
+    public static boolean allowsPaidUse(Boolean isActive, MarketBillingStatus status, LocalDateTime accessExpiresAt) {
+        Access a = evaluate(isActive, status, accessExpiresAt);
+        return a.canLogin() && !a.readOnly();
+    }
+
+    /** A regra em si, sobre os campos do mercado (serve a quem lê do banco sem a entidade). */
+    public static Access evaluate(Boolean isActive, MarketBillingStatus status, LocalDateTime accessExpiresAt) {
+        if (!Boolean.TRUE.equals(isActive)) {
             return new Access("MARKET_DISABLED", false, false,
                 "O acesso desta loja está bloqueado. Fale com o suporte do MercadoFlow para entender o motivo.");
         }
-        MarketBillingStatus status = market.getBillingStatus();
         if (status == MarketBillingStatus.PENDING) {
             return new Access("PENDING", false, false,
                 "O cadastro desta loja ainda está em análise. Você recebe um aviso assim que for liberado.");
@@ -50,7 +69,7 @@ public class AccessPolicy {
             return new Access("CANCELLED", false, false,
                 "Esta conta foi encerrada. Para voltar a usar, fale com o suporte do MercadoFlow.");
         }
-        if (market.getAccessExpiresAt() != null && !market.getAccessExpiresAt().isAfter(LocalDateTime.now())) {
+        if (accessExpiresAt != null && !accessExpiresAt.isAfter(LocalDateTime.now())) {
             return new Access("EXPIRED", false, false,
                 "O período de acesso desta loja terminou. Fale com o suporte do MercadoFlow para renovar.");
         }

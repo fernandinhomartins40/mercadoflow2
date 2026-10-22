@@ -13,7 +13,7 @@ import Button from '../components/common/Button';
 
 type Stage = 'loading' | 'invalid' | 'code' | 'login' | 'naming' | 'done';
 
-const STEP_LABELS = ['Identificar', 'Entrar', 'Nomear PDV', 'Pronto'];
+const STEP_LABELS = ['Identificar', 'Entrar', 'Nomear caixa', 'Pronto'];
 
 const normalizeCode = (value: string) => value.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -60,6 +60,9 @@ const AgentPairing: React.FC = () => {
   const [session, setSession] = useState<PairingSessionInfo | null>(null);
   const [stage, setStage] = useState<Stage>(codeFromUrl ? 'loading' : 'code');
   const [error, setError] = useState<string | null>(null);
+  // Falha de rede não é código vencido: a tela pede para tentar de novo, não para gerar outro QR Code.
+  const [offline, setOffline] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,6 +80,7 @@ const AgentPairing: React.FC = () => {
     let cancelled = false;
     setStage('loading');
     setError(null);
+    setOffline(false);
 
     agentPairingService
       .getSession(code)
@@ -89,6 +93,7 @@ const AgentPairing: React.FC = () => {
       .catch((err: any) => {
         if (cancelled) return;
         setSession(null);
+        setOffline(!err?.response);
         setError(err?.message || 'Código de pareamento inválido ou expirado.');
         setStage('invalid');
       });
@@ -96,7 +101,7 @@ const AgentPairing: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [code, userId]);
+  }, [code, userId, retry]);
 
   // Assim que a sessão do usuário existir, avança do login para a nomeação.
   useEffect(() => {
@@ -134,7 +139,7 @@ const AgentPairing: React.FC = () => {
     event.preventDefault();
     const trimmed = pdvName.trim();
     if (!trimmed) {
-      setError('Dê um nome para este PDV, por exemplo "Caixa 1".');
+      setError('Dê um nome para este caixa, por exemplo "Caixa 1".');
       return;
     }
     setError(null);
@@ -158,7 +163,7 @@ const AgentPairing: React.FC = () => {
       <div className="mx-auto w-full max-w-lg">
         <header className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-slate-900">Agente Mercado Flow</h1>
-          <p className={mutedText}>Conecte o computador do seu PDV à sua conta em poucos passos.</p>
+          <p className={mutedText}>Ligue o computador do caixa à sua conta em poucos passos.</p>
         </header>
 
         <StepDots current={currentStepIndex} />
@@ -189,12 +194,22 @@ const AgentPairing: React.FC = () => {
             </form>
           )}
 
-          {stage === 'invalid' && (
+          {stage === 'invalid' && offline && (
+            <div className="grid gap-4" role="alert">
+              <h2 className="text-lg font-semibold text-slate-900">Sem conexão com o MercadoFlow</h2>
+              <p className={mutedText}>
+                {error} O código vale só por alguns minutos: se vencer, gere outro no computador do caixa.
+              </p>
+              <Button onClick={() => setRetry((n) => n + 1)}>Tentar de novo</Button>
+            </div>
+          )}
+
+          {stage === 'invalid' && !offline && (
             <div className="grid gap-4">
               <h2 className="text-lg font-semibold text-slate-900">Código inválido ou expirado</h2>
               <p className={mutedText}>
                 {error || 'Este código não é mais válido.'} Abra novamente o Agente Mercado Flow no
-                computador do PDV para gerar um novo QR Code.
+                computador do caixa para gerar um novo QR Code.
               </p>
               <Button
                 onClick={() => {
@@ -250,14 +265,14 @@ const AgentPairing: React.FC = () => {
 
           {stage === 'naming' && (
             <form onSubmit={handleApprove} className="grid gap-4">
-              <h2 className="text-lg font-semibold text-slate-900">Como se chama este PDV?</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Como se chama este caixa?</h2>
               <p className={mutedText}>
                 {name ? `Olá, ${name}. ` : ''}
                 Escolha um nome para reconhecer este caixa nos relatórios.
                 {session?.hostname ? ` Computador: ${session.hostname}.` : ''}
               </p>
               <div className="form-group">
-                <label htmlFor="pairing-pdv-name">Nome do PDV</label>
+                <label htmlFor="pairing-pdv-name">Nome do caixa</label>
                 <input
                   id="pairing-pdv-name"
                   className="input"
@@ -295,11 +310,11 @@ const AgentPairing: React.FC = () => {
               </div>
               <h2 className="text-lg font-semibold text-slate-900">Tudo pronto!</h2>
               <p className="text-sm text-slate-700">
-                O PDV <strong>{result.pdvName}</strong> foi conectado ao mercado{' '}
+                O caixa <strong>{result.pdvName}</strong> foi conectado ao mercado{' '}
                 <strong>{result.marketName}</strong>.
               </p>
               <p className={mutedText}>
-                Pode voltar ao computador do PDV: o Agente Mercado Flow já recebeu a configuração e
+                Pode voltar ao computador do caixa: o Agente Mercado Flow já recebeu a configuração e
                 está localizando sozinho as pastas de notas fiscais. Você já pode fechar esta página.
               </p>
             </div>
@@ -309,7 +324,7 @@ const AgentPairing: React.FC = () => {
         <footer className="mt-6 text-center">
           <p className="text-xs text-slate-500">
             Por segurança, a chave de acesso nunca é exibida aqui: ela vai direto para o agente
-            instalado no computador do PDV.
+            instalado no computador do caixa.
           </p>
         </footer>
       </div>

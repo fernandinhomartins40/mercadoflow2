@@ -46,6 +46,12 @@ public class WeeklyDigestJob {
         int failed = 0;
 
         for (Market market : markets) {
+            if (!com.pdv2cloud.service.billing.AccessPolicy.evaluate(market.getIsActive(), market.getBillingStatus(),
+                    market.getAccessExpiresAt()).canLogin()) {
+                // Cancelada, suspensa, pendente ou vencida: ninguém lê, e o comentário usa IA paga.
+                skipped++;
+                continue;
+            }
             try {
                 boolean created = TenantContext.runAsSystem(() ->
                     digestService.generateForLastWeek(market.getId()).isPresent());

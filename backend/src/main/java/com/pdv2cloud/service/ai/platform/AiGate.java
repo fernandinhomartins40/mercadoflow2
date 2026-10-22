@@ -98,13 +98,36 @@ public class AiGate {
         return new Decision(Reason.OK, route, key.get());
     }
 
-    /** Conta só para consulta (pagamento em aberto além da carência). */
+    /**
+     * Conta que não pode gastar IA: só para consulta (pagamento em aberto além
+     * da carência) e também cancelada, suspensa, pendente, vencida ou
+     * desativada. Antes só a restrita parava, e jobs (agentes, WhatsApp,
+     * resumo da semana) seguiam gastando para conta encerrada (REC-02).
+     */
     public boolean restricted(UUID marketId) {
         if (marketId == null) {
             return false;
         }
-        return jdbc.queryForList("select billing_status from markets where id = :m", Map.of("m", marketId), String.class)
-            .contains("RESTRICTED");
+        List<Map<String, Object>> rows = jdbc.queryForList(
+            "select is_active, billing_status, access_expires_at from markets where id = :m", Map.of("m", marketId));
+        if (rows == null || rows.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> r = rows.get(0);
+        Object status = r.get("billing_status");
+        Object expires = r.get("access_expires_at");
+        com.pdv2cloud.model.entity.MarketBillingStatus billing = null;
+        if (status != null) {
+            try {
+                billing = com.pdv2cloud.model.entity.MarketBillingStatus.valueOf(status.toString());
+            } catch (IllegalArgumentException ignored) {
+                billing = null;
+            }
+        }
+        java.time.LocalDateTime until = expires instanceof java.sql.Timestamp t ? t.toLocalDateTime()
+            : expires instanceof java.time.LocalDateTime l ? l : null;
+        return !com.pdv2cloud.service.billing.AccessPolicy.allowsPaidUse(
+            r.get("is_active") instanceof Boolean b ? b : Boolean.TRUE, billing, until);
     }
 
     /**

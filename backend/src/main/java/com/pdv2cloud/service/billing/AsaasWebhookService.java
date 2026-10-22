@@ -116,6 +116,12 @@ public class AsaasWebhookService {
                     return Outcome.INDUSTRY_LATE;
                 }
                 if (subId != null) {
+                    // Aviso fora de ordem: o vencimento de uma fatura que já foi paga
+                    // (confirmação chegou antes) não põe a conta em atraso (REC-05).
+                    if (alreadyPaid(paymentId)) {
+                        log.info("Vencimento do Asaas para fatura já paga {}: ignorado", paymentId);
+                        return Outcome.IGNORED;
+                    }
                     UUID root = activeRoot(subId);
                     if (root != null) {
                         subscriptions.paymentFailed(root, "Fatura do Asaas vencida");
@@ -220,6 +226,16 @@ public class AsaasWebhookService {
     private Outcome ignoredRef(String ref) {
         log.warn("Aviso do Asaas com referência inválida: {}", ref);
         return Outcome.IGNORED;
+    }
+
+    /** Esta cobrança já teve o pagamento registrado (billing_payments, gravado na confirmação)? */
+    private boolean alreadyPaid(String paymentId) {
+        if (paymentId == null) {
+            return false;
+        }
+        Integer n = jdbc.queryForObject("select count(*) from billing_payments where provider = :p and payment_id = :id",
+            Map.of("p", AsaasService.PROVIDER, "id", paymentId), Integer.class);
+        return n != null && n > 0;
     }
 
     private UUID anyRoot(String subId) {

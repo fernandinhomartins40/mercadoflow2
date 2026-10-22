@@ -156,6 +156,15 @@ public class PartnerApiController {
             if (!internal && (!"https".equalsIgnoreCase(u.getScheme()) || u.getHost() == null)) {
                 return ResponseEntity.badRequest().body(error("Use uma URL https."));
             }
+            // Fora da lista interna, só endereço público: o aviso é um POST do nosso
+            // servidor e não pode mirar a rede da VPS (SSRF, SEG-06).
+            if (!internal) {
+                try {
+                    com.pdv2cloud.util.OutboundUrlGuard.assertPublicHttps(url);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(error(e.getMessage()));
+                }
+            }
         }
         String secret = url == null ? null : "whsec_" + PartnerAuthService.randomToken(24);
         String finalUrl = url;

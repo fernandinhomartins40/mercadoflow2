@@ -536,9 +536,12 @@ public class AdvancedAnalyticsService {
             "  sum(case when i.data_emissao >= :curFrom then it.valor_total else 0 end) cur, " +
             "  sum(case when i.data_emissao < :curFrom then it.valor_total else 0 end) prev " +
             "from invoice_items it join invoices i on i.id = it.invoice_id " +
+            // Join com unnest, não "= any(:ids)": o JDBC passa a usar plano genérico
+            // após 5 execuções e aí o any() não é hasheado — cada item comparava com
+            // milhares de ids (medido 06-10/2026: média 287 s, pico 20 min; join: 0,3 s).
+            "join unnest(cast(:ids as uuid[])) as ids(id) on ids.id = it.product_id " +
             "where i.market_id = :m and i.data_emissao >= :prevFrom and i.data_emissao < :curTo " +
-            "  and cast(i.data_emissao as date) = any(cast(:days as date[])) " +
-            "  and it.product_id = any(cast(:ids as uuid[])) group by 1",
+            "  and cast(i.data_emissao as date) = any(cast(:days as date[])) group by 1",
             new MapSqlParameterSource("m", marketId)
                 .addValue("curFrom", curFrom.atStartOfDay())
                 .addValue("prevFrom", prevFrom.atStartOfDay())

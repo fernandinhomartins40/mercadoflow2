@@ -161,8 +161,12 @@ public class OpportunityController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
+        // Recomendação de oportunidade reservada ao pago (ex.: tracionador) não aparece no gratuito (REC-07).
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
         return ResponseEntity.ok(recommendationRepository.findPendingByMarket(marketId)
-            .stream().map(RecommendationDTO::from).toList());
+            .stream()
+            .filter(r -> r.getOpportunity() == null || planService.canSeeOpportunityType(limits, r.getOpportunity().getType()))
+            .map(RecommendationDTO::from).toList());
     }
 
     /**
@@ -205,6 +209,10 @@ public class OpportunityController {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
         Opportunity o = opportunityRepository.findByIdAndMarketId(opportunityId, marketId)
             .orElseThrow(() -> new com.pdv2cloud.exception.CustomExceptions.NotFound("Oportunidade não encontrada"));
+        // Tipo reservado ao pago fica fora do feed do gratuito; pelo id também (REC-07).
+        if (!planService.canSeeOpportunityType(planService.limitsFor(marketId), o.getType())) {
+            throw new com.pdv2cloud.exception.CustomExceptions.NotFound("Oportunidade não encontrada");
+        }
         com.pdv2cloud.service.ai.AiOrchestrator.Interpretation r = opportunityInterpreter.explainOnDemand(marketId, o);
         return ResponseEntity.ok(Map.of(
             "texto", r.content(),

@@ -252,8 +252,8 @@ const Register: React.FC = () => {
           {/* Escolha do plano */}
           {purchasablePlans.length > 0 && (
             <div className="form-group">
-              <label>Escolha seu plano</label>
-              <div className="flex flex-col gap-2">
+              <label id="reg-plan-label">Escolha seu plano</label>
+              <div className="flex flex-col gap-2" role="group" aria-labelledby="reg-plan-label">
                 {purchasablePlans.map((plan) => {
                   const active = selectedPlan === plan.code;
                   const isFree = plan.code === 'FREE';
@@ -261,6 +261,7 @@ const Register: React.FC = () => {
                     <button
                       key={plan.code}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setSelectedPlan(plan.code)}
                       className="flex items-start gap-3 rounded-xl p-3 text-left transition"
                       style={{
@@ -322,11 +323,12 @@ const Register: React.FC = () => {
 
           {error && (
             <div
+              role="alert"
               className="mt-3 flex items-start gap-2 rounded-lg p-2.5 text-xs"
               style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}
             >
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>{error}</span>
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{error}</span>
             </div>
           )}
 

@@ -58,11 +58,26 @@ public class TenantAccessFilter extends OncePerRequestFilter {
     @Autowired(required = false)
     private com.pdv2cloud.service.partner.PartnerAuthService partnerAuth;
 
+    /** Qualquer segmento depois de /markets/, para pegar o id escrito fora do formato. */
+    private static final Pattern ANY_MARKET_SEGMENT = Pattern.compile(
+        "^/api/v1(?:/super-admin|/partner)?/markets/([^/]+)(?:/.*)?$");
+
+    private static final Pattern CANONICAL_UUID = Pattern.compile(
+        "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
             TenantContext.clear();
+            // O Spring converte o {marketId} com UUID.fromString, que aceita formas
+            // fora do padrão ("+bcdef1-...", "abcdef1-...", segmento com dígito a
+            // mais). Elas escapavam das regex abaixo e pulavam a checagem de
+            // mercado, de conta restrita e de papel de equipe (SEG-01).
+            if (nonCanonicalMarketId(request.getRequestURI())) {
+                writeBadMarketId(response);
+                return;
+            }
             populateTenantContext();
 
             // ERP parceiro: só entra na loja que o autorizou (consentimento por escopo).
@@ -212,6 +227,41 @@ public class TenantAccessFilter extends OncePerRequestFilter {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.getWriter().write("{\"error\":\"account_restricted\",\"state\":\"RESTRICTED\",\"userMessage\":"
             + "\"Sua conta está só para consulta porque há um pagamento em aberto. Regularize em Assinatura para voltar a alterar.\"}");
+    }
+
+    /** Verdadeiro quando o segmento do mercado vira um UUID mas não está escrito no formato canônico. */
+    static boolean nonCanonicalMarketId(String uri) {
+        if (uri == null) {
+            return false;
+        }
+        Matcher matcher = ANY_MARKET_SEGMENT.matcher(uri);
+        if (!matcher.matches()) {
+            return false;
+        }
+        String raw = matcher.group(1);
+        if (CANONICAL_UUID.matcher(raw).matches()) {
+            return false;
+        }
+        String decoded;
+        try {
+            decoded = org.springframework.web.util.UriUtils.decode(raw, StandardCharsets.UTF_8);
+        } catch (RuntimeException ex) {
+            return true;
+        }
+        try {
+            UUID.fromString(decoded.trim());
+            return true;
+        } catch (IllegalArgumentException ex) {
+            // Não é UUID: o controller recusa na conversão; não há mercado a conferir.
+            return false;
+        }
+    }
+
+    private void writeBadMarketId(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write("{\"error\":\"bad_market_id\",\"message\":\"Identificador de mercado fora do formato\"}");
     }
 
     private UUID extractMarketId(String uri) {

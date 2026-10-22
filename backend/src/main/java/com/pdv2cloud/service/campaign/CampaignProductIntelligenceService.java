@@ -79,7 +79,12 @@ public class CampaignProductIntelligenceService {
     @Transactional(readOnly = true)
     public CampaignAnalysis analyze(UUID marketId, UUID campaignId) {
         Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
-        if (campaign == null || campaign.getStartDate() == null || campaign.getEndDate() == null) {
+        // Campanha de outro mercado vale como inexistente: o id vem da URL e o RLS
+        // não pode ser a única barreira (SEG-04).
+        if (campaign == null || campaign.getMarket() == null || !marketId.equals(campaign.getMarket().getId())) {
+            return null;
+        }
+        if (campaign.getStartDate() == null || campaign.getEndDate() == null) {
             return null;
         }
 

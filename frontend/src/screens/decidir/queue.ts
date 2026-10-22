@@ -113,6 +113,8 @@ export const useDecisionQueue = (marketId: string | null | undefined, enabled = 
   const items = sortQueue([...tino.filter(isOpen).map(fromDecision), ...recs.map(fromRecommendation)]);
   const total = items.reduce((a, i) => a + (i.value ?? 0), 0);
   const loading = on && recsQ.loading && tinoQ.loading;
+  // As duas buscas falharam e não há nada guardado: a lista vazia NÃO quer dizer "nada para decidir".
+  const failed = on && !recsQ.loading && !tinoQ.loading && !!recsQ.error && !!tinoQ.error && !recsQ.data && !tinoQ.data;
   const setTinoList = (fn: (cur: CopilotDecision[]) => CopilotDecision[]) => setTino((cur) => fn(cur ?? tinoQ.data ?? []));
-  return { items, recs, tino, setTino: setTinoList, total, loading, reload };
+  return { items, recs, tino, setTino: setTinoList, total, loading, failed, reload };
 };

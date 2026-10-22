@@ -33,6 +33,9 @@ public class CopilotBriefJob {
         List<Market> active = TenantContext.runAsSystem(markets::findAllActive);
         int ok = 0;
         for (Market m : active) {
+            if (!com.pdv2cloud.service.billing.AccessPolicy.evaluate(m.getIsActive(), m.getBillingStatus(), m.getAccessExpiresAt()).canLogin()) {
+                continue; // cancelada, suspensa, pendente ou vencida: ninguém lê; só consulta segue recebendo
+            }
             try {
                 TenantContext.runAsSystem(() -> briefs.generate(m.getId(), LocalDate.now()));
                 ok++;

@@ -82,8 +82,34 @@ public class McpKeyService {
             List<Resolved> r = jdbc.query("update ai_mcp_keys set last_used_at = now(), calls = calls + 1 "
                     + "where key_hash = :h and revoked_at is null returning id, market_id",
                 Map.of("h", hash(secret)), (rs, i) -> new Resolved((UUID) rs.getObject("id"), (UUID) rs.getObject("market_id")));
-            return r.isEmpty() ? Optional.<Resolved>empty() : Optional.of(r.get(0));
+            if (r.isEmpty()) {
+                return Optional.<Resolved>empty();
+            }
+            // A chave vale enquanto a loja pode entrar: conta cancelada, suspensa, pendente,
+            // vencida ou desativada não lê dados por integração (o login já recusa) (REC-03).
+            List<Map<String, Object>> m = jdbc.queryForList(
+                "select is_active, billing_status, access_expires_at from markets where id = :m", Map.of("m", r.get(0).marketId()));
+            if (m == null || m.isEmpty() || !canLogin(m.get(0))) {
+                return Optional.<Resolved>empty();
+            }
+            return Optional.of(r.get(0));
         });
+    }
+
+    static boolean canLogin(Map<String, Object> row) {
+        com.pdv2cloud.model.entity.MarketBillingStatus status = null;
+        Object s = row.get("billing_status");
+        if (s != null) {
+            try {
+                status = com.pdv2cloud.model.entity.MarketBillingStatus.valueOf(s.toString());
+            } catch (IllegalArgumentException ignored) {
+                status = null;
+            }
+        }
+        Object e = row.get("access_expires_at");
+        LocalDateTime until = e instanceof java.sql.Timestamp t ? t.toLocalDateTime() : e instanceof LocalDateTime l ? l : null;
+        Object active = row.get("is_active");
+        return com.pdv2cloud.service.billing.AccessPolicy.evaluate(active instanceof Boolean b ? b : Boolean.FALSE, status, until).canLogin();
     }
 
     static String hash(String secret) {

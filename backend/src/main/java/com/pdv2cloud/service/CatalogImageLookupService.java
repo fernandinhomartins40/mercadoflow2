@@ -31,15 +31,23 @@ public class CatalogImageLookupService {
         int safeLimit = Math.max(1, Math.min(limit, 500));
         // EAN iniciado em 2 é código interno da loja (pesáveis, etiqueta de balança):
         // não existe em outro mercado, então nem entra na fila.
+        // Parte dos poucos sem imagem (índice parcial de V97) e dos sem enriquecimento,
+        // em vez de testar os ~400 mil produtos: 2,4 s -> menos de 1 s a cada 5 minutos.
         return jdbc.queryForList(
             """
+            with pending as (
+                select e.product_id from product_enrichments e
+                 where coalesce(e.image_storage_key, '') = ''
+                union
+                select p.id from products p
+                 where not exists (select 1 from product_enrichments e where e.product_id = p.id)
+            )
             select p.ean as gtin, p.name as name
-              from products p
-              left join product_enrichments e on e.product_id = p.id
+              from pending
+              join products p on p.id = pending.product_id
               left join product_image_lookups l on l.product_id = p.id
              where p.ean ~ '^[0-9]{8,14}$'
                and p.ean !~ '^0*2[0-9]{12}$'
-               and coalesce(e.image_storage_key, '') = ''
                and (l.product_id is null or l.next_attempt_at <= now())
              order by p.last_seen_at desc nulls last, p.created_at desc
              limit ?

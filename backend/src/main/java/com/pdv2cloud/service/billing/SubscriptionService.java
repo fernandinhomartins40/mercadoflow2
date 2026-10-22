@@ -168,6 +168,20 @@ public class SubscriptionService {
         return after;
     }
 
+    /**
+     * Troca de plano na assinatura que já existe no Asaas (o valor foi trocado lá):
+     * muda só o plano, sem mexer no estado. Antes a troca passava por
+     * {@link #paymentConfirmed}, que zera o atraso: quem estava em carência ou só
+     * para consulta voltava a ATIVO trocando de plano, sem pagar nada (REC-01).
+     */
+    @Transactional
+    public Subscription changePlan(UUID marketId, PlanType plan, String reason) {
+        Subscription s = of(marketId);
+        jdbc.update("update subscriptions set plan_code = :p, updated_at = now() where market_id = :m",
+            new MapSqlParameterSource().addValue("m", s.marketId()).addValue("p", plan.name()));
+        return applyAndRecord(s, reason);
+    }
+
     /** Cobrança falhou ou venceu: entra em atraso (a data do primeiro atraso não muda). */
     @Transactional
     public Subscription paymentFailed(UUID marketId, String reason) {
@@ -296,12 +310,32 @@ public class SubscriptionService {
             return s;
         }
         LocalDateTime now = LocalDateTime.now();
-        jdbc.update("update subscriptions set status = 'ACTIVE', paused_from = null, paused_until = null, updated_at = now() "
-            + "where market_id = :m", Map.of("m", s.marketId()));
+        // Volta antes do fim: o período pago recua o que sobrou da pausa. Sem isso,
+        // pausar 2 meses e retomar no dia seguinte dava 2 meses de plano sem
+        // cobrança, e repetir empurrava a cobrança sem fim (REC-06).
+        LocalDateTime earlyEnd = earlyResumePeriodEnd(s, now);
+        jdbc.update("update subscriptions set status = 'ACTIVE', paused_from = null, paused_until = null, "
+            + "current_period_end = coalesce(:e, current_period_end), updated_at = now() where market_id = :m",
+            new MapSqlParameterSource().addValue("m", s.marketId())
+                .addValue("e", earlyEnd == null ? null : Timestamp.valueOf(earlyEnd)));
         Subscription after = applyAndRecord(s, reason);
         notifications.notify(s.marketId(), "RESUMED", "resumed:" + now.toLocalDate(), NotificationService.Severity.INFO,
             "Sua assinatura voltou", "Todos os recursos do plano estão liberados de novo.", null, null, true);
         return after;
+    }
+
+    /**
+     * Fim do período pago quando a pausa acaba antes do previsto: recua o tempo
+     * de pausa não usado (nunca para antes de agora). Null quando não há o que
+     * recuar (pausa no fim, sem período, ou conta não pausada).
+     */
+    public static LocalDateTime earlyResumePeriodEnd(Subscription s, LocalDateTime now) {
+        if (s == null || s.status() != Status.PAUSED || s.pausedUntil() == null || s.currentPeriodEnd() == null
+            || !s.pausedUntil().isAfter(now)) {
+            return null;
+        }
+        LocalDateTime end = s.currentPeriodEnd().minus(java.time.Duration.between(now, s.pausedUntil()));
+        return end.isBefore(now) ? now : end;
     }
 
     /** Superadmin: mais dias de teste. */

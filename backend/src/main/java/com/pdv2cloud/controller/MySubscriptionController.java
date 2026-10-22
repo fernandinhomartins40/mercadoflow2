@@ -174,8 +174,20 @@ public class MySubscriptionController {
     @PreAuthorize("hasAnyRole('MARKET_OWNER', 'MARKET_MANAGER', 'ADMIN')")
     public ResponseEntity<?> resume(@PathVariable UUID marketId, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);
-        subscriptions.resume(subscriptions.rootOf(marketId), "Pausa encerrada pelo cliente (" + auth.getName() + ")");
-        return ResponseEntity.ok(Map.of("ok", true));
+        try {
+            UUID root = subscriptions.rootOf(marketId);
+            SubscriptionService.Subscription s = subscriptions.of(root);
+            // Retomada antes do fim: a próxima cobrança no Asaas volta o que sobrou da pausa (REC-06).
+            LocalDateTime earlyEnd = SubscriptionService.earlyResumePeriodEnd(s, LocalDateTime.now());
+            if (earlyEnd != null && AsaasService.PROVIDER.equals(s.provider()) && s.providerSubscriptionId() != null) {
+                LocalDate due = earlyEnd.toLocalDate().isAfter(LocalDate.now()) ? earlyEnd.toLocalDate() : LocalDate.now();
+                asaas.reschedule(s.providerSubscriptionId(), due);
+            }
+            subscriptions.resume(root, "Pausa encerrada pelo cliente (" + auth.getName() + ")");
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "resume", "userMessage", e.getMessage()));
+        }
     }
 
     /** Cancela no fim do período pago, guardando o motivo. */

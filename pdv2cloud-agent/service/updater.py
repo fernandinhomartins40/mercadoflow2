@@ -22,6 +22,7 @@ Progresso:
   Atualiza status.json com fase e percentual para o Electron UI exibir.
 """
 
+import contextlib
 import hashlib
 import logging
 import os
@@ -167,6 +168,7 @@ class UpdateChecker:
         self._latest_version: Optional[str] = None
         self._latest_sha256:  Optional[str] = None
         self._pending_installer: Optional[Path] = None   # baixado mas aguardando janela
+        self._download_dir: Optional[Path] = None        # pasta privada do download (mkdtemp)
 
     # ── API pública ──────────────────────────────────────────────────────────
 
@@ -269,7 +271,7 @@ class UpdateChecker:
         url = f"{self.base_url}{DOWNLOAD_PATH}?arch={self.arch}"
         version_tag = self._latest_version or "latest"
         arch_suffix = "-x86" if self.arch == "x86" else ""
-        target = Path(tempfile.gettempdir()) / f"AgenteMercadoFlow-Setup{arch_suffix}-{version_tag}.exe"
+        target = self._private_download_dir() / f"AgenteMercadoFlow-Setup{arch_suffix}-{version_tag}.exe"
 
         logger.info("Baixando atualização %s → %s", version_tag, target)
         self._report("baixando", 0)
@@ -327,6 +329,24 @@ class UpdateChecker:
 
         self._report("validado", 100)
         return target
+
+    def _private_download_dir(self) -> Path:
+        """
+        Pasta exclusiva deste processo para o installer.
+
+        O serviço roda como LocalSystem, e o temp dele (C:/Windows/Temp) aceita
+        arquivos criados por qualquer usuário. Com nome fixo, um usuário comum
+        podia deixar ali um arquivo com o nome esperado: o agente "retomava" o
+        download sobre ele (o dono continuava sendo o usuário) e, entre a
+        validação do SHA-256 e a janela de manutenção, o conteúdo podia ser
+        trocado e executado como SYSTEM. mkdtemp cria a pasta com nome
+        imprevisível, e o que o SYSTEM cria nela herda acesso só de
+        SYSTEM/Administradores. A retomada continua valendo entre as tentativas
+        do mesmo processo, que usam a mesma pasta.
+        """
+        if self._download_dir is None or not self._download_dir.is_dir():
+            self._download_dir = Path(tempfile.mkdtemp(prefix="mf-update-"))
+        return self._download_dir
 
     def _verify_checksum(self, path: Path) -> bool:
         """
@@ -424,6 +444,8 @@ class UpdateChecker:
             time.sleep(90)
             try:
                 path.unlink(missing_ok=True)
+                with contextlib.suppress(OSError):
+                    path.parent.rmdir()   # a pasta mkdtemp, se ficou vazia
                 logger.debug("Installer temporário removido: %s", path)
             except Exception as exc:
                 logger.debug("Não foi possível remover installer temporário: %s", exc)

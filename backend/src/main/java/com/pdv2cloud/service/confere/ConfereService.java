@@ -238,21 +238,37 @@ public class ConfereService {
         if (apiKey == null) {
             throw new IllegalArgumentException("A leitura por crédito está indisponível no momento");
         }
-        MeuDanfeClient.Result r = meuDanfe.fetch(apiKey, key);
-        if (r.outcome() != MeuDanfeClient.Outcome.OK) {
-            if (r.outcome() == MeuDanfeClient.Outcome.UNAUTHORIZED || r.outcome() == MeuDanfeClient.Outcome.NO_BALANCE) {
-                log.error("Meu Danfe indisponível para revenda: {}", r.message());
-                throw new IllegalArgumentException("A leitura por crédito está indisponível no momento. Nenhuma leitura foi descontada.");
-            }
-            if (r.outcome() == MeuDanfeClient.Outcome.NOT_FOUND) {
-                throw new IllegalArgumentException(r.message() + ". Chave lida: " + formatKey(key)
-                    + ". Confira se é a chave impressa no DANFE (não a do boleto) ou importe o XML. Nenhuma leitura foi descontada.");
-            }
-            throw new IllegalArgumentException(r.message() + ". Nenhuma leitura foi descontada.");
+        // Reserva a leitura ANTES de chamar o Meu Danfe (pago por nós): o débito é um
+        // UPDATE condicionado ao saldo, então duas leituras ao mesmo tempo com saldo 1
+        // não passam as duas. Antes o débito vinha depois da nota já guardada, e o
+        // segundo pedido ficava com a nota sem pagar (REC-04). Falhou: devolve.
+        try {
+            credit(marketId, -1, "READ", key, "Leitura da nota " + key.substring(25, 34));
+        } catch (IllegalArgumentException semSaldo) {
+            throw new IllegalArgumentException("Suas leituras acabaram. Compre um pacote ou cadastre o certificado A1 para ler de graça.");
         }
-        UUID id = store(marketId, r.xml(), "MEUDANFE");
-        credit(marketId, -1, "READ", key, "Leitura da nota " + key.substring(25, 34));
-        return new ReadResult(id, key, "MEUDANFE", true, balanceOf(marketId));
+        boolean done = false;
+        try {
+            MeuDanfeClient.Result r = meuDanfe.fetch(apiKey, key);
+            if (r.outcome() != MeuDanfeClient.Outcome.OK) {
+                if (r.outcome() == MeuDanfeClient.Outcome.UNAUTHORIZED || r.outcome() == MeuDanfeClient.Outcome.NO_BALANCE) {
+                    log.error("Meu Danfe indisponível para revenda: {}", r.message());
+                    throw new IllegalArgumentException("A leitura por crédito está indisponível no momento. Nenhuma leitura foi descontada.");
+                }
+                if (r.outcome() == MeuDanfeClient.Outcome.NOT_FOUND) {
+                    throw new IllegalArgumentException(r.message() + ". Chave lida: " + formatKey(key)
+                        + ". Confira se é a chave impressa no DANFE (não a do boleto) ou importe o XML. Nenhuma leitura foi descontada.");
+                }
+                throw new IllegalArgumentException(r.message() + ". Nenhuma leitura foi descontada.");
+            }
+            UUID id = store(marketId, r.xml(), "MEUDANFE");
+            done = true;
+            return new ReadResult(id, key, "MEUDANFE", true, balanceOf(marketId));
+        } finally {
+            if (!done) {
+                credit(marketId, 1, "REFUND", key, "Leitura não concluída: devolvida");
+            }
+        }
     }
 
     /** consChNFe; se vier só o resumo, registra a ciência e tenta de novo. */

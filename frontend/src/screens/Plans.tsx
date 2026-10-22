@@ -81,6 +81,9 @@ const Plans: React.FC = () => {
         setBilling(billingData);
         setSub(subData);
         setNotices(noticeData);
+      } catch (err: any) {
+        // Sem a lista de planos a tela ficava em branco, sem explicação.
+        if (!cancelled) setError(err?.message || 'Não foi possível carregar os planos. Tente de novo em instantes.');
       } finally {
         if (!cancelled) setLoading(false);
       }

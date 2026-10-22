@@ -37,7 +37,7 @@ public class SuperAdminAuthController {
     @Autowired
     private UserProfileService userProfileService;
 
-    @Value("${auth.cookie.same-site:None}")
+    @Value("${auth.cookie.same-site:Lax}")
     private String sameSite;
 
     @PostMapping("/login")

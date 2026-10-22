@@ -17,14 +17,37 @@ const PublicEncarte: React.FC = () => {
   const { slug } = useParams();
   const [data, setData] = useState<PublicCampaign | null>(null);
   const [missing, setMissing] = useState(false);
+  // Internet fraca ou servidor fora não quer dizer que o encarte saiu do ar.
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!slug) return;
+    setFailed(false);
     artService.publicCampaign(slug).then((d) => {
       setData(d);
       document.title = `${d.title} | ${d.marketName}`;
-    }).catch(() => setMissing(true));
-  }, [slug]);
+    }).catch((err: any) => {
+      const status = err?.response?.status;
+      if (status === 404 || status === 410) setMissing(true);
+      else setFailed(true);
+    });
+  }, [slug, retry]);
+
+  if (failed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-stone-50 p-6 text-center">
+        <div role="alert">
+          <h1 className="text-xl font-bold text-stone-900">Não foi possível abrir as ofertas agora</h1>
+          <p className="mt-2 text-stone-600">Confira a internet e tente de novo.</p>
+          <button type="button" onClick={() => setRetry((n) => n + 1)}
+            className="mt-4 min-h-[44px] rounded-xl bg-red-600 px-5 font-semibold text-white">
+            Tentar de novo
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (missing) {
     return (

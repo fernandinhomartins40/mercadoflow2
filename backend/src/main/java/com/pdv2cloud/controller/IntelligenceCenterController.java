@@ -90,7 +90,14 @@ public class IntelligenceCenterController {
         Authentication authentication
     ) {
         marketAccessService.assertCanAccessMarket(marketId, authentication);
-        return ResponseEntity.ok(intelligenceCenterService.getFeed(marketId, limit));
+        IntelligenceCenterService.IntelligenceFeed feed = intelligenceCenterService.getFeed(marketId, limit);
+        // Tipos reservados ao pago (tracionador, combo) saem da lista do gratuito, como no
+        // feed de oportunidades; o resumo segue contando, para mostrar o que o plano destrava (REC-07).
+        PlanService.EffectiveLimits limits = planService.limitsFor(marketId);
+        java.util.List<IntelligenceCenterService.Opportunity> visible = feed.opportunities().stream()
+            .filter(o -> planService.canSeeOpportunityType(limits, o.type()))
+            .toList();
+        return ResponseEntity.ok(new IntelligenceCenterService.IntelligenceFeed(visible, feed.summary(), feed.totalAvailable()));
     }
 
     /**

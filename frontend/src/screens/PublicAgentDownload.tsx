@@ -174,12 +174,12 @@ const PublicAgentDownload: React.FC = () => {
             <p>Execute como administrador no Windows 10/11 ou Windows Server.</p>
           </div>
           <div className="feature-card">
-            <h3>2. Configure a chave</h3>
-            <p>Use a chave gerada no painel (Configurações) para autenticar o agente.</p>
+            <h3>2. Ligue à sua conta</h3>
+            <p>Entre com o e-mail e a senha do MercadoFlow quando o programa pedir, ou cole a chave que fica em Loja › Caixas e agente › Chaves do agente.</p>
           </div>
           <div className="feature-card">
             <h3>3. Aponte as pastas</h3>
-            <p>Selecione as pastas onde o PDV salva os XMLs e valide o healthcheck.</p>
+            <p>Escolha a pasta onde o sistema do caixa guarda as notas fiscais (arquivos XML). O programa avisa quando a conexão estiver funcionando.</p>
           </div>
         </div>
       </section>

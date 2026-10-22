@@ -18,7 +18,7 @@
 - `JWT_SECRET` (obrigatorio em producao)
 - `JWT_EXPIRATION_MS`
 - `CORS_ALLOWED_ORIGINS`
-- `AUTH_COOKIE_SAMESITE` (recomendado None em producao)
+- `AUTH_COOKIE_SAMESITE` (padrao Lax; o frontend usa /api na mesma origem. None so se a API for chamada de outro dominio, e entao com protecao CSRF)
 - `INSTALLER_DIR` (diretorio com `PDV2Cloud-Setup.exe` para download)
 - `APP_PUBLIC_BASE_URL` (URL publica usada em QR code/setup do agente)
 - `JOBS_ENABLED` (padrao `false`; no profile `jobs` ja fica `true`)

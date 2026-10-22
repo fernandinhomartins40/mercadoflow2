@@ -238,9 +238,12 @@ services:
       --koch-store-id \"${SUPERKOCH_STORE_ID:-}\" 
       --api-base http://mercadoflow-backend:8080/api
       --login-endpoint /v1/super-admin/auth/login
-      --config-endpoint /v1/super-admin/catalog/crawler/config
-      --email ${SUPER_ADMIN_EMAIL}
-      --password ${SUPER_ADMIN_PASSWORD}"
+      --config-endpoint /v1/super-admin/catalog/crawler/config"
+    # Credencial por ambiente, nao na linha de comando: no comando ela aparecia
+    # em `ps` do host e no Cmd do `docker inspect` (o script le estas variaveis).
+    environment:
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
     volumes:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog
@@ -272,8 +275,9 @@ services:
       --poll-seconds ${IMAGE_LOOKUP_POLL_SECONDS:-300}
       --api-base http://mercadoflow-backend:8080/api
       --login-endpoint /v1/super-admin/auth/login
-      --email ${SUPER_ADMIN_EMAIL}
-      --password ${SUPER_ADMIN_PASSWORD}
+    environment:
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
     volumes:
       - ./scripts/catalog:/workspace/scripts/catalog:ro
       - ./data/catalog:/workspace/data/catalog

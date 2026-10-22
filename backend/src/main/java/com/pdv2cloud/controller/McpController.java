@@ -34,6 +34,9 @@ public class McpController {
     /** Chamadas por minuto, por chave. */
     static final int RATE_PER_MINUTE = 60;
 
+    /** Chamadas por lote JSON-RPC: sem teto, um lote de mil itens contava como uma chamada só (SEG-07). */
+    static final int MAX_BATCH = 20;
+
     private final McpKeyService keys;
     private final McpServer server;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -69,8 +72,18 @@ public class McpController {
         }
         UUID market = key.get().marketId();
         if (msg.isArray()) {
+            if (msg.size() > MAX_BATCH) {
+                return ResponseEntity.badRequest().body(json(server.error(null, -32600, "Lote acima de " + MAX_BATCH + " chamadas")));
+            }
             ArrayNode out = mapper.createArrayNode();
+            boolean first = true;
             for (JsonNode m : msg) {
+                // Cada item do lote conta no limite por minuto (o primeiro já foi contado acima).
+                if (!first && !allow(key.get().keyId())) {
+                    out.add(server.error(m.get("id"), -32002, "Limite de " + RATE_PER_MINUTE + " chamadas por minuto"));
+                    continue;
+                }
+                first = false;
                 ObjectNode r = server.handle(m, market);
                 if (r != null) {
                     out.add(r);

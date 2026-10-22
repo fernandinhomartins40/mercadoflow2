@@ -83,7 +83,7 @@ const StockCount: React.FC = () => {
                     <b style={{ display: 'block', fontSize: 15, lineHeight: 1.25 }}>{p.name}</b>
                     <span className="fx-muted" style={{ fontSize: 12.5 }}>vende {String(p.perDay).replace('.', ',')} por dia{p.ean ? ` · ${p.ean}` : ''}</span>
                   </span>
-                  <input className="fx-input fx-num" inputMode="decimal" placeholder="0" aria-label={`Unidades de ${p.name} na loja`}
+                  <input className="fx-input fx-num" inputMode="decimal" placeholder="Qtd." aria-label={`Unidades de ${p.name} na loja`}
                     value={counts[p.productId] ?? ''} onChange={(e) => setCounts({ ...counts, [p.productId]: e.target.value })}
                     style={{ width: 84, textAlign: 'right' }} />
                 </li>

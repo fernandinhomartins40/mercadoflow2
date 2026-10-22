@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -50,8 +51,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--login-endpoint", default="/v1/super-admin/auth/login")
     parser.add_argument("--pending-endpoint", default="/v1/super-admin/catalog/image-lookups/pending")
     parser.add_argument("--not-found-endpoint", default="/v1/super-admin/catalog/image-lookups/not-found")
-    parser.add_argument("--email", default="")
-    parser.add_argument("--password", default="")
+    # Credencial por variável de ambiente: na linha de comando ela aparecia em
+    # `ps` e no `docker inspect` do host. O argumento continua aceito.
+    parser.add_argument("--email", default=os.environ.get("SUPER_ADMIN_EMAIL", ""))
+    parser.add_argument("--password", default=os.environ.get("SUPER_ADMIN_PASSWORD", ""))
     parser.add_argument("--images-dir", default="data/catalog/images")
     # Foto de fabricante passa facil de 3 MB; como e reduzida para 1000 px, o teto so limita o download.
     parser.add_argument("--max-image-bytes", type=int, default=8_000_000)

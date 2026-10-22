@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -43,8 +44,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoints-list-endpoint", default="/v1/super-admin/catalog/crawler/checkpoints")
     parser.add_argument("--checkpoints-batch-endpoint", default="/v1/super-admin/catalog/crawler/checkpoints/batch")
     parser.add_argument("--catalog-image-status-endpoint", default="/v1/super-admin/catalog/crawler/catalog-image-status")
-    parser.add_argument("--email", required=True)
-    parser.add_argument("--password", required=True)
+    # Credencial por variável de ambiente: na linha de comando ela aparecia em
+    # `ps` e no `docker inspect` do host. O argumento continua aceito.
+    parser.add_argument("--email", default=os.environ.get("SUPER_ADMIN_EMAIL", ""))
+    parser.add_argument("--password", default=os.environ.get("SUPER_ADMIN_PASSWORD", ""))
     parser.add_argument("--confidence", type=float, default=0.96)
     parser.add_argument("--batch-size", type=int, default=300)
     parser.add_argument("--download-images", action=argparse.BooleanOptionalAction, default=True)
@@ -63,7 +66,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--nissei-product-workers", type=int, default=12)
     parser.add_argument("--nissei-max-products", type=int, default=0)
     parser.add_argument("--drogaraia-max-pages", type=int, default=0)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.email or not args.password:
+        parser.error("informe --email/--password ou SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD")
+    return args
 
 
 def login(api_base: str, login_endpoint: str, email: str, password: str) -> str:

@@ -88,8 +88,8 @@ public class BillingController {
                 var current = subscriptions.of(root);
                 var checkout = asaas.checkout(root, request.getPlan(), method, current);
                 if (checkout.changedInPlace()) {
-                    subscriptions.paymentConfirmed(root, request.getPlan(), com.pdv2cloud.service.billing.AsaasService.PROVIDER,
-                        null, null, null, null, "Troca de plano (" + authentication.getName() + ")");
+                    // Só o plano muda: atraso e restrição continuam até o pagamento (REC-01).
+                    subscriptions.changePlan(root, request.getPlan(), "Troca de plano (" + authentication.getName() + ")");
                     return ResponseEntity.ok(Map.of("url", "/app/planos?checkout=alterado"));
                 }
                 return ResponseEntity.ok(Map.of("url", checkout.url()));

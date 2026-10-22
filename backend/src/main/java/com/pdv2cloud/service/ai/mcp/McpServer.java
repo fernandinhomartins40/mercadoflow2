@@ -129,7 +129,10 @@ public class McpServer {
             usage.recordFull(marketId, "MCP_CONSULTA", "MCP", name, "mcp-v1", null, 0, 0,
                 (int) (System.currentTimeMillis() - started), AiUsageLog.Outcome.OK, null, 0d, "TEMPLATE", 0, false);
         } catch (Exception e) {
-            r.putArray("content").addObject().put("type", "text").put("text", "Não foi possível consultar agora: " + e.getMessage());
+            // A mensagem da exceção (SQL, nomes internos) fica no log e no registro de uso,
+            // nunca na resposta: o cliente MCP é um agente externo.
+            r.putArray("content").addObject().put("type", "text").put("text", "Não foi possível consultar agora. Tente de novo em instantes.");
+            log.warn("MCP ferramenta {} falhou: {}", name, e.getMessage());
             r.put("isError", true);
             usage.recordFull(marketId, "MCP_CONSULTA", "MCP", name, "mcp-v1", null, 0, 0,
                 (int) (System.currentTimeMillis() - started), AiUsageLog.Outcome.ERRO, e.getMessage(), 0d, "TEMPLATE", 0, false);

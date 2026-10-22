@@ -39,7 +39,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             && StringUtils.hasText(token)
             && tokenProvider.validateToken(token)) {
             String username = tokenProvider.getUsernameFromToken(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            UserDetails userDetails;
+            try {
+                userDetails = userDetailsService.loadUserByUsername(username);
+            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+                // Usuário excluído com token ainda válido: segue sem sessão (401 adiante).
+                filterChain.doFilter(request, response);
+                return;
+            }
+            // Mesma regra do login (AccessPolicy): usuário desativado, loja bloqueada,
+            // suspensa, encerrada ou com acesso vencido perde a sessão já aberta, em
+            // vez de seguir usando o token por até 30 dias.
+            if (!userDetails.isEnabled()) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

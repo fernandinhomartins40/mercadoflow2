@@ -53,7 +53,7 @@ const AiCreditsCard: React.FC<{ marketId: string }> = ({ marketId }) => {
         <div>
           <h2 id="ai-credits-title" className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Créditos de IA</h2>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            O Copiloto usa créditos para responder perguntas, explicar oportunidades e montar planos. Sem créditos, tudo continua funcionando com o texto do sistema.
+            O Tino usa créditos para responder perguntas, explicar oportunidades e montar planos. Sem créditos, tudo continua funcionando com o texto do sistema.
           </p>
         </div>
       </div>
