@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import api from './api';
 
 /**
@@ -49,6 +52,23 @@ export function saveFile(file: File) {
  * ou mandar o arquivo; se não houver, cai no download comum.
  */
 export async function shareOrSave(file: File) {
+  // App Android (1.0.2+): o WebView não baixa blob; grava no cache do app e abre
+  // a folha de compartilhar nativa. Na 1.0.1 os plugins não existem e segue abaixo.
+  if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Filesystem') && Capacitor.isPluginAvailable('Share')) {
+    try {
+      const written = await Filesystem.writeFile({
+        path: file.name,
+        data: await file.text(),
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8,
+      });
+      await Share.share({ title: 'Meus dados no MercadoFlow', files: [written.uri], dialogTitle: 'Salvar ou enviar os seus dados' });
+      return;
+    } catch (e) {
+      // Fechar a folha sem escolher não é erro.
+      if (/cancel/i.test((e as Error)?.message || '')) return;
+    }
+  }
   const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
   if (nav.canShare?.({ files: [file] }) && nav.share) {
     try {
