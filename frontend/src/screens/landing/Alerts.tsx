@@ -56,9 +56,15 @@ const EXAMPLES: ExampleAlert[] = [
 ];
 
 const Alerts: React.FC = () => (
-  <section className="py-16 sm:py-20" style={{ background: LANDING.navy }} aria-labelledby="alertas-titulo">
-    <Container>
-      <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+  <section className="relative overflow-hidden py-12 sm:py-16" style={{ background: LANDING.navy }} aria-labelledby="alertas-titulo">
+    {/* Brilho verde discreto no canto, só decoração. */}
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      style={{ background: 'radial-gradient(50% 70% at 0% 0%, rgba(34,197,94,0.10), transparent 70%)' }}
+    />
+    <Container className="relative">
+      <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
         <div className="min-w-0">
           <SectionBadge dark>Oportunidades do dia</SectionBadge>
           <h2
@@ -72,7 +78,7 @@ const Alerts: React.FC = () => (
             Toda madrugada o MercadoFlow analisa as vendas do seu PDV e monta a lista do que fazer hoje: o que comprar,
             o que promover e onde há dinheiro parado.
           </p>
-          <ul className="mt-6 space-y-2.5">
+          <ul className="mt-6 grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
             {DETECTORS.map((d) => (
               <li key={d} className="flex items-start gap-3 text-sm sm:text-[15px]" style={{ color: '#e2e8f0' }}>
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: LANDING.green500 }} aria-hidden="true" />
@@ -84,9 +90,9 @@ const Alerts: React.FC = () => (
 
         <div className="min-w-0">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
-            Exemplos
+            Exemplos com dados fictícios
           </p>
-          <ul className="space-y-4">
+          <ul className="space-y-3 sm:space-y-4">
             {EXAMPLES.map(({ icon: Icon, color, label, time, title, hint }) => (
               <li
                 key={title}
@@ -99,7 +105,7 @@ const Alerts: React.FC = () => (
               >
                 <div
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: `${color}26` }}
+                  style={{ background: `${color}22`, border: `1px solid ${color}33` }}
                   aria-hidden="true"
                 >
                   <Icon className="h-5 w-5" style={{ color }} strokeWidth={2.4} />
@@ -112,7 +118,7 @@ const Alerts: React.FC = () => (
                     >
                       {label}
                     </span>
-                    <span className="text-xs" style={{ color: '#94a3b8' }}>
+                    <span className="rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: '#334155', color: '#cbd5e1' }}>
                       {time}
                     </span>
                   </div>

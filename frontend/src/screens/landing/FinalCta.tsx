@@ -6,7 +6,7 @@ import { Container, LANDING } from './theme';
 /** Chamado final em faixa azul-marinho, antes do rodapé. */
 const FinalCta: React.FC = () => (
   <section
-    className="relative overflow-hidden py-16 sm:py-20"
+    className="relative overflow-hidden py-12 sm:py-16"
     style={{ background: LANDING.navy }}
     aria-labelledby="cta-final-titulo"
   >

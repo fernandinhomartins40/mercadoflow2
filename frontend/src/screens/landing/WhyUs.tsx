@@ -11,15 +11,35 @@ const BENEFITS = [
 ];
 
 /* Números de demonstração (fictícios), apresentados como exemplo de tela. */
-const KPIS: Array<{ label: string; value: string; delta: string; icon: React.ElementType; color: string; bg: string }> = [
-  { label: 'Faturamento do dia', value: 'R$ 24.380', delta: '+12%', icon: BarChart3, color: LANDING.green600, bg: LANDING.green50 },
-  { label: 'Transações', value: '279', delta: '+5%', icon: ShoppingCart, color: LANDING.red, bg: '#fef2f2' },
-  { label: 'Lucro', value: 'R$ 5.120', delta: '+8%', icon: Percent, color: LANDING.green700, bg: LANDING.green50 },
-  { label: 'Ticket médio', value: 'R$ 87,40', delta: '+3%', icon: Receipt, color: LANDING.orange, bg: '#fff7ed' },
+const KPIS: Array<{
+  label: string;
+  value: string;
+  delta: string;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  /** Pontos do mini gráfico (0 a 10), também fictícios. */
+  trend: number[];
+}> = [
+  { label: 'Faturamento do dia', value: 'R$ 24.380', delta: '+12%', icon: BarChart3, color: LANDING.green600, bg: LANDING.green50, trend: [3, 4, 3.5, 5, 4.5, 6, 7.5] },
+  { label: 'Transações', value: '279', delta: '+5%', icon: ShoppingCart, color: LANDING.red, bg: '#fef2f2', trend: [4, 3.5, 5, 4, 5.5, 5, 6.5] },
+  { label: 'Lucro', value: 'R$ 5.120', delta: '+8%', icon: Percent, color: LANDING.green700, bg: LANDING.green50, trend: [2.5, 3.5, 3, 4.5, 4, 5.5, 6] },
+  { label: 'Ticket médio', value: 'R$ 87,40', delta: '+3%', icon: Receipt, color: LANDING.orange, bg: '#fff7ed', trend: [5, 4.5, 5.5, 5, 6, 5.5, 6.5] },
 ];
 
+/** Mini gráfico de linha feito em SVG, só decoração (os números estão no texto do card). */
+const Sparkline: React.FC<{ points: number[]; color: string }> = ({ points, color }) => {
+  const step = 60 / (points.length - 1);
+  const coords = points.map((v, i) => `${(i * step).toFixed(1)},${(26 - v * 2.4).toFixed(1)}`).join(' ');
+  return (
+    <svg aria-hidden focusable="false" viewBox="0 0 60 28" className="absolute right-4 top-5 hidden h-7 w-16 sm:block">
+      <polyline points={coords} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
 const WhyUs: React.FC = () => (
-  <section id="por-que-mercadoflow" className="scroll-mt-20 py-16 sm:py-20" style={{ background: LANDING.surface }}>
+  <section id="por-que-mercadoflow" className="scroll-mt-20 py-12 sm:py-16" style={{ background: LANDING.surface }}>
     <Container>
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
         <div className="min-w-0">
@@ -45,13 +65,13 @@ const WhyUs: React.FC = () => (
         </div>
 
         <figure className="m-0 min-w-0">
-          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
             {KPIS.map((k) => {
               const Icon = k.icon;
               return (
                 <div
                   key={k.label}
-                  className="flex min-w-0 items-start gap-3 rounded-2xl p-3 min-[360px]:flex-col min-[360px]:gap-2 sm:flex-row sm:gap-3 sm:p-5"
+                  className="relative flex min-w-0 flex-col items-start gap-2 rounded-2xl p-3 sm:gap-3 sm:p-5"
                   style={{ background: LANDING.surface, border: `1px solid ${LANDING.line}`, boxShadow: LANDING.shadow }}
                 >
                   <span
@@ -61,15 +81,16 @@ const WhyUs: React.FC = () => (
                   >
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </span>
-                  <div className="min-w-0">
+                  <div className="w-full min-w-0">
                     <h3 className="text-xs font-medium" style={{ color: LANDING.muted }}>{k.label}</h3>
-                    <p className="mt-1 whitespace-nowrap text-lg font-extrabold tracking-tight min-[414px]:text-xl sm:text-2xl" style={{ color: LANDING.ink }}>
+                    <p className="mt-1 whitespace-nowrap text-[17px] font-extrabold tracking-tight min-[414px]:text-xl sm:text-2xl" style={{ color: LANDING.ink }}>
                       {k.value}
                     </p>
                     <p className="mt-1 break-words text-[11px] font-semibold leading-snug sm:text-xs" style={{ color: LANDING.green600 }}>
                       {k.delta} <span className="font-normal" style={{ color: LANDING.muted }}>vs. período anterior</span>
                     </p>
                   </div>
+                  <Sparkline points={k.trend} color={k.color} />
                 </div>
               );
             })}

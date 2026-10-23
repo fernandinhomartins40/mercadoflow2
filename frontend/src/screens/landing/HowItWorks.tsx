@@ -30,7 +30,7 @@ const STEPS: Array<{ num: string; title: string; text: string; icon: React.Eleme
 ];
 
 const HowItWorks: React.FC = () => (
-  <section id="como-funciona" className="scroll-mt-20 py-16 sm:py-20" style={{ background: LANDING.soft }}>
+  <section id="como-funciona" className="scroll-mt-20 py-12 sm:py-16" style={{ background: LANDING.soft }}>
     <Container>
       <SectionTitle
         badge="Como funciona"
@@ -38,12 +38,13 @@ const HowItWorks: React.FC = () => (
         subtitle="Sem trocar de sistema. Sem TI. Sem complicação."
       />
 
-      <ol className="mt-12 grid list-none gap-10 p-0 md:grid-cols-3 md:gap-8">
+      {/* Celular: lista vertical (número, ícone e texto na mesma linha). Do tablet em diante: 3 colunas com seta. */}
+      <ol className="mt-8 grid list-none gap-5 p-0 sm:mt-12 md:grid-cols-3 md:gap-8">
         {STEPS.map((step, i) => {
           const Icon = step.icon;
           return (
-            <li key={step.num} className="relative">
-              <div className="flex items-center gap-3">
+            <li key={step.num} className="relative flex items-start gap-3 md:block">
+              <div className="flex shrink-0 items-center gap-2 md:gap-3">
                 <span
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
                   style={{ background: LANDING.green600, boxShadow: '0 4px 14px rgba(22,163,74,0.30)' }}
@@ -52,7 +53,7 @@ const HowItWorks: React.FC = () => (
                   {step.num}
                 </span>
                 <span
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl md:h-11 md:w-11"
                   style={{ background: LANDING.green50, color: LANDING.green600 }}
                   aria-hidden="true"
                 >
@@ -65,22 +66,24 @@ const HowItWorks: React.FC = () => (
                   </span>
                 )}
               </div>
-              <h3 className="mt-4 text-base font-bold" style={{ color: LANDING.ink }}>
+              <div className="min-w-0">
+              <h3 className="mt-1 text-base font-bold md:mt-4" style={{ color: LANDING.ink }}>
                 <span className="sr-only">Passo {step.num}: </span>
                 {step.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: LANDING.muted }}>
+              <p className="mt-1 text-sm leading-relaxed md:mt-2" style={{ color: LANDING.muted }}>
                 {step.text}
               </p>
+              </div>
             </li>
           );
         })}
       </ol>
 
-      <div className="mt-12 text-center">
+      <div className="mt-8 text-center sm:mt-12">
         <Link
           to="/register"
-          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-7 py-3 text-sm font-bold text-white no-underline transition hover:opacity-90"
+          className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full px-7 py-3 sm:inline-flex sm:w-auto text-sm font-bold text-white no-underline transition hover:opacity-90"
           style={{ background: LANDING.green900, boxShadow: LANDING.shadow }}
         >
           Começar grátis agora <ArrowRight className="h-4 w-4" aria-hidden="true" />

@@ -96,7 +96,7 @@ const DemoDashboard: React.FC = () => (
       {/* Topo */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="m-0 text-[11px] font-medium" style={{ color: LANDING.muted }}>
-          Demonstração <span aria-hidden>·</span> Dados fictícios
+          <span className="font-bold" style={{ color: LANDING.ink }}>Demonstração</span> <span aria-hidden>·</span> Dados de exemplo
         </p>
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
@@ -191,7 +191,7 @@ const DemoDashboard: React.FC = () => (
               </span>
               <div className="min-w-0 flex-1">
                 <p className="m-0 text-[11px] font-semibold leading-snug" style={{ color: LANDING.ink }}>{a.title}</p>
-                <p className="m-0 text-[10px] leading-snug" style={{ color: LANDING.muted }}>{a.hint}</p>
+                <p className="m-0 hidden text-[10px] leading-snug min-[400px]:block" style={{ color: LANDING.muted }}>{a.hint}</p>
               </div>
               <span className="shrink-0 text-[10px]" style={{ color: LANDING.muted }}>{a.when}</span>
             </li>
@@ -217,18 +217,13 @@ const Hero: React.FC = () => (
   <section
     id="inicio"
     aria-labelledby="hero-titulo"
-    className="relative overflow-hidden pb-12 pt-8 sm:pt-12 lg:pb-16 lg:pt-14"
-    style={{ background: `linear-gradient(180deg, ${LANDING.green50} 0%, #ffffff 70%)` }}
+    className="relative overflow-hidden bg-white bg-cover bg-top bg-no-repeat pb-10 pt-6 sm:pt-10 lg:pb-12 lg:pt-12 bg-[url('/landing/fundo-vertical.webp')] md:bg-[url('/landing/fundo-16x9.webp')]"
   >
-    {/* Brilho verde sutil, só decoração */}
-    <div
-      aria-hidden
-      className="pointer-events-none absolute -right-32 -top-32 h-[420px] w-[420px] rounded-full blur-3xl"
-      style={{ background: 'rgba(34,197,94,0.10)' }}
-    />
+    {/* O fundo em degradê verde-claro termina em branco para emendar com a faixa da indústria. */}
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 100%)' }} />
 
     <Container className="relative">
-      <div className="grid items-center gap-10 xl:grid-cols-[1fr_1.08fr] xl:gap-12">
+      <div className="grid items-center gap-8 xl:grid-cols-[1fr_1.08fr] xl:gap-12">
         {/* Texto */}
         <div className="min-w-0">
           <span
@@ -271,9 +266,14 @@ const Hero: React.FC = () => (
             </a>
           </div>
 
-          <ul className="m-0 mt-8 flex list-none flex-col gap-3 p-0 sm:flex-row sm:flex-wrap sm:gap-x-7">
+          {/* No celular viram três cartõezinhos lado a lado; do tablet em diante, uma linha simples. */}
+          <ul className="m-0 mt-6 grid list-none grid-cols-3 gap-2 p-0 sm:mt-8 sm:flex sm:flex-wrap sm:gap-x-7 sm:gap-y-3">
             {TRUST.map((t) => (
-              <li key={t.label} className="flex items-center gap-2 text-sm font-medium" style={{ color: LANDING.text }}>
+              <li
+                key={t.label}
+                className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl bg-white/80 px-1.5 py-2.5 text-center text-[11px] font-medium leading-tight shadow-sm sm:flex-row sm:gap-2 sm:bg-transparent sm:p-0 sm:text-left sm:text-sm sm:shadow-none"
+                style={{ color: LANDING.text }}
+              >
                 <t.icon className="h-5 w-5 shrink-0" style={{ color: LANDING.green600 }} aria-hidden />
                 {t.label}
               </li>

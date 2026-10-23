@@ -34,7 +34,7 @@ export const LANDING = {
 
 /** Largura e respiro laterais de todas as seções (16 px no celular). */
 export const Container: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>
+  <div className={`mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>
 );
 
 /** Selo verde em caixa alta acima dos títulos ("FUNCIONALIDADES", "PLANOS"...). */
@@ -59,7 +59,7 @@ export const SectionTitle: React.FC<{
   dark?: boolean;
   align?: 'center' | 'left';
 }> = ({ badge, title, subtitle, dark = false, align = 'center' }) => (
-  <div className={align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-xl'}>
+  <div className={align === 'center' ? 'mx-auto max-w-3xl text-center' : 'max-w-xl'}>
     {badge && <SectionBadge dark={dark}>{badge}</SectionBadge>}
     <h2
       className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl"

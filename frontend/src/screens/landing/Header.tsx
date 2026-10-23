@@ -66,7 +66,7 @@ const Header: React.FC = () => {
         borderBottom: `1px solid ${solid ? LANDING.line : 'transparent'}`,
       }}
     >
-      <div className="mx-auto flex h-[68px] w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[68px] w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link to="/" className={`flex min-h-[44px] items-center rounded-md no-underline ${FOCUS_RING}`} aria-label="MercadoFlow, página inicial">
           <img src="/logomercadoflow-color.png" alt="MercadoFlow" className="h-7 w-auto sm:h-8" />
         </Link>
@@ -128,7 +128,7 @@ const Header: React.FC = () => {
           className="border-t lg:hidden"
           style={{ borderColor: LANDING.line, background: '#ffffff' }}
         >
-          <ul className="mx-auto flex w-full max-w-6xl flex-col px-4 py-3 sm:px-6">
+          <ul className="mx-auto flex w-full max-w-7xl flex-col px-4 py-3 sm:px-6">
             {NAV.map((n) => (
               <li key={n.href}>
                 <a
