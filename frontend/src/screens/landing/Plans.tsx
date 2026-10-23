@@ -38,7 +38,7 @@ const Plans: React.FC = () => {
   }, []);
 
   const loading = !plans && !plansFailed;
-  const grid = plans && plans.length >= 4 ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2 lg:grid-cols-3';
+  const grid = plans && plans.length >= 4 ? 'sm:grid-cols-2 lg:grid-cols-4 lg:gap-4' : 'sm:grid-cols-2 lg:grid-cols-3';
 
   return (
     <section id="planos" className="scroll-mt-20 py-16 sm:py-20 lg:py-24" style={{ background: LANDING.surface }}>
@@ -80,7 +80,7 @@ const Plans: React.FC = () => {
                 return (
                   <article
                     key={p.code}
-                    className="relative flex min-w-0 flex-col rounded-2xl p-6"
+                    className="relative flex min-w-0 flex-col rounded-2xl p-6 lg:p-5 xl:p-6"
                     style={
                       highlight
                         ? {
@@ -109,7 +109,7 @@ const Plans: React.FC = () => {
                     )}
                     <div className="mt-5 flex flex-wrap items-baseline gap-1">
                       <span
-                        className="text-3xl font-extrabold tracking-tight"
+                        className="text-3xl font-extrabold tracking-tight lg:text-[1.65rem] xl:text-3xl"
                         style={{ color: LANDING.ink, fontFamily: 'var(--font-display)' }}
                       >
                         {formatPrice(p.monthlyPriceCents)}
@@ -137,7 +137,7 @@ const Plans: React.FC = () => {
                     <div className="mt-auto pt-6">
                       <Link
                         to="/register"
-                        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full px-5 text-center text-sm font-semibold no-underline transition-colors"
+                        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full px-5 text-center text-sm font-semibold no-underline transition-colors lg:px-3 lg:text-[13px] xl:px-5 xl:text-sm"
                         style={
                           highlight
                             ? { background: LANDING.green900, color: '#ffffff', border: `1px solid ${LANDING.green900}` }

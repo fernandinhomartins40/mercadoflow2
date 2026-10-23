@@ -41,7 +41,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
 const LINK_COLOR = '#94a3b8';
 const LINK_HOVER = '#f1f5f9';
 const linkClass =
-  'inline-flex min-h-[44px] max-w-full items-center break-all text-sm no-underline transition-colors sm:break-normal';
+  'inline-flex min-h-[44px] max-w-full items-center text-sm no-underline transition-colors [overflow-wrap:anywhere]';
 
 const FooterAnchor: React.FC<{ link: FooterLink }> = ({ link }) => {
   const handlers = {
@@ -63,8 +63,8 @@ const FooterAnchor: React.FC<{ link: FooterLink }> = ({ link }) => {
 const Footer: React.FC = () => (
   <footer style={{ background: LANDING.navy, borderTop: `1px solid ${LANDING.navy800}` }} className="pb-8 pt-14">
     <Container>
-      <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1.2fr_1.2fr] lg:gap-8">
-        <div className="min-w-0">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4 md:gap-8 lg:grid-cols-[1.4fr_1fr_1.2fr_1.2fr]">
+        <div className="col-span-2 min-w-0 md:col-span-1">
           <Link to="/" className="inline-flex min-h-[44px] items-center no-underline" aria-label="MercadoFlow, início">
             <img src="/logomercadoflow-branco.png" alt="MercadoFlow" className="h-7 w-auto" />
           </Link>
@@ -73,8 +73,12 @@ const Footer: React.FC = () => (
           </p>
         </div>
 
-        {COLUMNS.map((col) => (
-          <nav key={col.title} aria-label={col.title} className="min-w-0">
+        {COLUMNS.map((col, i) => (
+          <nav
+            key={col.title}
+            aria-label={col.title}
+            className={`min-w-0 ${i === COLUMNS.length - 1 ? 'col-span-2 md:col-span-1' : ''}`}
+          >
             <h3 className="text-sm font-semibold text-white">{col.title}</h3>
             <ul className="mt-2 flex flex-col">
               {col.links.map((l) => (

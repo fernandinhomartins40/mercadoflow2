@@ -45,28 +45,28 @@ const WhyUs: React.FC = () => (
         </div>
 
         <figure className="m-0 min-w-0">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4">
             {KPIS.map((k) => {
               const Icon = k.icon;
               return (
                 <div
                   key={k.label}
-                  className="flex min-w-0 items-start gap-3 rounded-2xl p-4 sm:p-5"
+                  className="flex min-w-0 items-start gap-3 rounded-2xl p-3 min-[360px]:flex-col min-[360px]:gap-2 sm:flex-row sm:gap-3 sm:p-5"
                   style={{ background: LANDING.surface, border: `1px solid ${LANDING.line}`, boxShadow: LANDING.shadow }}
                 >
                   <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10"
                     style={{ background: k.bg, color: k.color }}
                     aria-hidden="true"
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </span>
                   <div className="min-w-0">
                     <h3 className="text-xs font-medium" style={{ color: LANDING.muted }}>{k.label}</h3>
-                    <p className="mt-1 text-xl font-extrabold tracking-tight sm:text-2xl" style={{ color: LANDING.ink }}>
+                    <p className="mt-1 whitespace-nowrap text-lg font-extrabold tracking-tight min-[414px]:text-xl sm:text-2xl" style={{ color: LANDING.ink }}>
                       {k.value}
                     </p>
-                    <p className="mt-1 text-xs font-semibold" style={{ color: LANDING.green600 }}>
+                    <p className="mt-1 break-words text-[11px] font-semibold leading-snug sm:text-xs" style={{ color: LANDING.green600 }}>
                       {k.delta} <span className="font-normal" style={{ color: LANDING.muted }}>vs. período anterior</span>
                     </p>
                   </div>

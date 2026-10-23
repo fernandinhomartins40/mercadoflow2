@@ -122,10 +122,10 @@ const DemoDashboard: React.FC = () => (
                 <BarChart3 className="h-3.5 w-3.5" />
               </span>
             </div>
-            <p className="m-0 mt-1 truncate text-[13px] font-extrabold sm:text-base" style={{ color: LANDING.green800 }}>
+            <p className="m-0 mt-1 whitespace-nowrap text-[12px] font-extrabold tabular-nums min-[360px]:text-[13px] sm:text-base" style={{ color: LANDING.green800 }}>
               {k.value}
             </p>
-            <p className="m-0 mt-0.5 truncate text-[10px] font-semibold" style={{ color: LANDING.green700 }}>
+            <p className="m-0 mt-0.5 break-words text-[10px] font-semibold leading-snug" style={{ color: LANDING.green700 }}>
               {k.change}
               <span className="hidden font-normal xl:inline" style={{ color: LANDING.muted }}> vs. período anterior</span>
             </p>
@@ -228,7 +228,7 @@ const Hero: React.FC = () => (
     />
 
     <Container className="relative">
-      <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.08fr] lg:gap-12">
+      <div className="grid items-center gap-10 xl:grid-cols-[1fr_1.08fr] xl:gap-12">
         {/* Texto */}
         <div className="min-w-0">
           <span
@@ -240,7 +240,7 @@ const Hero: React.FC = () => (
 
           <h1
             id="hero-titulo"
-            className="mt-5 text-[2.25rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.4rem]"
+            className="mt-5 text-[2.25rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl xl:text-[3.4rem]"
             style={{ color: LANDING.ink, fontFamily: 'var(--font-display)' }}
           >
             Inteligência de verdade <span style={{ color: LANDING.green600 }}>para o seu supermercado</span>
@@ -253,7 +253,7 @@ const Hero: React.FC = () => (
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               to="/register"
-              className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-7 text-base font-semibold text-white no-underline shadow-sm transition-colors hover:bg-[#065f46] ${FOCUS_RING}`}
+              className={`inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-full px-7 text-base font-semibold text-white no-underline shadow-sm transition-colors hover:bg-[#065f46] ${FOCUS_RING}`}
               style={{ background: LANDING.green900 }}
             >
               Começar grátis <ArrowRight className="h-4 w-4" aria-hidden />
@@ -261,7 +261,7 @@ const Hero: React.FC = () => (
             <a
               href="#como-funciona"
               onClick={(e) => scrollToSection(e, '#como-funciona')}
-              className={`inline-flex min-h-[48px] items-center justify-center gap-2.5 rounded-full bg-white px-6 text-base font-semibold no-underline transition-colors hover:bg-slate-50 ${FOCUS_RING}`}
+              className={`inline-flex min-h-[48px] items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-white px-6 text-base font-semibold no-underline transition-colors hover:bg-slate-50 ${FOCUS_RING}`}
               style={{ color: LANDING.ink, border: `1px solid ${LANDING.line}` }}
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: LANDING.green600 }} aria-hidden>
@@ -282,7 +282,7 @@ const Hero: React.FC = () => (
         </div>
 
         {/* Card de demonstração */}
-        <div className="min-w-0">
+        <div className="mx-auto w-full min-w-0 max-w-2xl xl:max-w-none">
           <DemoDashboard />
         </div>
       </div>

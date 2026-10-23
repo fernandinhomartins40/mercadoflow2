@@ -94,26 +94,28 @@ const Features: React.FC = () => (
         subtitle="Tudo o que você precisa para comprar, precificar e gerir o seu estoque com base em dados reais do seu PDV."
       />
 
-      <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+      <ul className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
         {FEATURES.map(({ icon: Icon, title, text, color, bg }) => (
           <li
             key={title}
-            className="group rounded-2xl border p-5 transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="group flex items-start gap-3 rounded-2xl border px-3.5 py-3 transition sm:block sm:p-5 duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             style={{ background: LANDING.surface, borderColor: LANDING.line, boxShadow: LANDING.shadow }}
           >
             <div
-              className="flex h-11 w-11 items-center justify-center rounded-xl"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11"
               style={{ background: bg }}
               aria-hidden="true"
             >
               <Icon className="h-5 w-5" style={{ color }} strokeWidth={2.2} />
             </div>
-            <h3 className="mt-4 text-base font-bold" style={{ color: LANDING.ink }}>
-              {title}
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: LANDING.text }}>
-              {text}
-            </p>
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-bold leading-snug sm:mt-4 sm:text-base" style={{ color: LANDING.ink }}>
+                {title}
+              </h3>
+              <p className="mt-0.5 text-[13px] leading-snug sm:mt-2 sm:text-sm sm:leading-relaxed" style={{ color: LANDING.text }}>
+                {text}
+              </p>
+            </div>
           </li>
         ))}
       </ul>
