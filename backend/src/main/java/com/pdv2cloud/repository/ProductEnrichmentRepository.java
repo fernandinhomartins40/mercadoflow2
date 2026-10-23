@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -108,18 +107,6 @@ public interface ProductEnrichmentRepository extends JpaRepository<ProductEnrich
         @Param("categoryPattern") String categoryPattern,
         @Param("imageStatus") String imageStatus,
         @Param("searchPattern") String searchPattern,
-        Pageable pageable
-    );
-
-    @Query("""
-        select pe
-        from ProductEnrichment pe
-        where (:provider = '' or pe.provider = :provider)
-          and coalesce(pe.imageStorageKey, '') <> ''
-        order by pe.fetchedAt desc
-        """)
-    Slice<ProductEnrichment> findLatestWithImageStorageKeyForRepair(
-        @Param("provider") String provider,
         Pageable pageable
     );
 }

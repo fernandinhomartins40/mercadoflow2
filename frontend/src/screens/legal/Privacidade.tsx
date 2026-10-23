@@ -74,6 +74,7 @@ const Privacidade: React.FC = () => (
         <li><strong>Hostinger:</strong> servidor onde o MercadoFlow roda, no Brasil.</li>
         <li><strong>Asaas</strong> (Brasil): cobrança. Recebe nome, CPF ou CNPJ e e-mail de quem paga.</li>
         <li><strong>Resend</strong> (Estados Unidos): envio dos e-mails da conta. Recebe nome, e-mail e o texto do e-mail.</li>
+        <li><strong>Google</strong> (Gmail, Estados Unidos): caixa de e-mail do encarregado e do suporte. Recebe o que você escrever para nós.</li>
         <li><strong>Meta / WhatsApp</strong> (Estados Unidos): envio dos avisos para o número cadastrado.</li>
         <li><strong>Inteligência artificial:</strong> OpenRouter e OpenAI (Estados Unidos) e DeepSeek (China), só em planos pagos, com as opções que impedem o uso dos dados para treinar modelos sempre que o provedor as oferece. Eles recebem a pergunta e os números da loja necessários para responder. Não enviamos o CPF dos consumidores. A voz é transcrita pelo Deepgram (Estados Unidos), com a opção de não uso do áudio para melhoria do serviço. Se o mercado cadastrar a própria chave de um provedor, vale o contrato do mercado com ele.</li>
         <li><strong>Sefaz e Meu Danfe:</strong> para buscar notas de entrada (o Meu Danfe recebe só a chave de acesso da nota).</li>
@@ -87,7 +88,7 @@ const Privacidade: React.FC = () => (
     <LegalSection id="transferencia-internacional" title="Dados enviados para fora do Brasil">
       <p>Os dados ficam guardados no Brasil. Alguns serviços acima, porém, processam dados em outros países:</p>
       <ul style={ul}>
-        <li><strong>Estados Unidos:</strong> OpenRouter e OpenAI (pergunta e números da loja), Deepgram (áudio da pergunta por voz), Resend (e-mails) e Meta/WhatsApp (avisos).</li>
+        <li><strong>Estados Unidos:</strong> OpenRouter e OpenAI (pergunta e números da loja), Deepgram (áudio da pergunta por voz), Resend (e-mails), Google (caixa de e-mail do encarregado e do suporte) e Meta/WhatsApp (avisos).</li>
         <li><strong>China:</strong> DeepSeek (pergunta e números da loja).</li>
       </ul>
       <p><strong>Como e por quanto tempo:</strong> o envio é feito por conexão criptografada, no momento do uso (uma pergunta, um e-mail, um aviso, um pagamento), e só com os dados necessários para aquela tarefa. O tempo que cada provedor guarda os dados segue o contrato dele com a {CONTROLLER}; nos provedores de inteligência artificial, usamos só planos pagos e as opções que impedem o uso dos dados para treinar modelos, quando oferecidas.</p>

@@ -1,16 +1,16 @@
 package com.pdv2cloud.service;
 
 import com.pdv2cloud.model.dto.CatalogImageRepairResponseDTO;
-import com.pdv2cloud.model.entity.ProductEnrichment;
-import com.pdv2cloud.repository.ProductEnrichmentRepository;
+import com.pdv2cloud.repository.CatalogImageRepairStore;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,9 +18,13 @@ import org.springframework.stereotype.Service;
 public class CatalogImageRepairService {
 
     private static final String ALL_PROVIDERS = "ALL_PROVIDERS";
+    static final String SCHEDULED_JOB_NAME = "SCHEDULED_CATALOG_IMAGE_REPAIR";
+    // Teto do disparo agendado, mesmo que CATALOG_IMAGE_REPAIR_MAX_ITEMS_PER_RUN
+    // venha maior (a VPS usa 250000): a varredura completa anda em janelas.
+    static final int SCHEDULED_MAX_ITEMS_CAP = 20000;
 
     @Autowired
-    private ProductEnrichmentRepository productEnrichmentRepository;
+    private CatalogImageRepairStore catalogImageRepairStore;
 
     @Autowired
     private CatalogImageStorageService catalogImageStorageService;
@@ -46,17 +50,38 @@ public class CatalogImageRepairService {
         );
     }
 
+    /**
+     * Uma janela por disparo: retoma do product_id guardado no cursor, confere no
+     * disco no máximo SCHEDULED_MAX_ITEMS_CAP itens e grava onde parou. Ao chegar
+     * ao fim da tabela zera o cursor, e a próxima execução começa outra volta.
+     */
     public CatalogImageRepairResponseDTO runScheduledRepairIfIdle() {
         if (!running.compareAndSet(false, true)) {
             return null;
         }
         try {
-            return executeRepair(
+            Optional<CatalogImageRepairStore.Cursor> cursor = catalogImageRepairStore.loadCursor(SCHEDULED_JOB_NAME);
+            UUID after = cursor.map(CatalogImageRepairStore.Cursor::lastProductId).orElse(null);
+            LocalDateTime passStartedAt = cursor
+                .map(CatalogImageRepairStore.Cursor::passStartedAt)
+                .filter(started -> after != null)
+                .orElse(LocalDateTime.now());
+            int scheduledMaxItems = Math.min(defaultMaxItems, SCHEDULED_MAX_ITEMS_CAP);
+            RepairOutcome outcome = executeRepair(
                 defaultProvider,
-                defaultMaxItems,
+                scheduledMaxItems,
                 defaultBatchSize,
-                "SCHEDULED_CATALOG_IMAGE_REPAIR"
+                "SCHEDULED_CATALOG_IMAGE_REPAIR",
+                after
             );
+            CatalogImageRepairResponseDTO result = outcome.response();
+            catalogImageRepairStore.saveCursor(
+                SCHEDULED_JOB_NAME,
+                result.isCompleted() ? null : outcome.lastProductId(),
+                result.isCompleted() ? null : passStartedAt,
+                result.getScannedEnrichments()
+            );
+            return result;
         } finally {
             running.set(false);
         }
@@ -76,17 +101,23 @@ public class CatalogImageRepairService {
             return null;
         }
         try {
-            return executeRepair(provider, maxItems, batchSize, triggeredBy);
+            // O manual sempre começa do início e não mexe no cursor do agendado.
+            return executeRepair(provider, maxItems, batchSize, triggeredBy, null).response();
         } finally {
             running.set(false);
         }
     }
 
-    private CatalogImageRepairResponseDTO executeRepair(
+    /** Resposta e o último product_id conferido (nulo se nada foi lido). */
+    record RepairOutcome(CatalogImageRepairResponseDTO response, UUID lastProductId) {
+    }
+
+    private RepairOutcome executeRepair(
         String provider,
         Integer maxItems,
         Integer batchSize,
-        String triggeredBy
+        String triggeredBy,
+        UUID afterProductId
     ) {
         String normalizedProvider = normalizeProvider(provider);
         String responseProvider = normalizedProvider.isBlank() ? ALL_PROVIDERS : normalizedProvider;
@@ -100,25 +131,22 @@ public class CatalogImageRepairService {
         int repairedImages = 0;
         int failedRepairs = 0;
         boolean completed = true;
-        int page = 0;
+        UUID cursor = afterProductId;
+        UUID lastScanned = null;
 
+        // Paginação por chave: cada lote pede product_id > último visto, nunca OFFSET.
         while (scannedEnrichments < safeMaxItems) {
-            Slice<ProductEnrichment> slice = productEnrichmentRepository.findLatestWithImageStorageKeyForRepair(
-                normalizedProvider,
-                PageRequest.of(page, safeBatchSize)
-            );
-            if (!slice.hasContent()) {
+            int limit = Math.min(safeBatchSize, safeMaxItems - scannedEnrichments);
+            List<CatalogImageRepairStore.Candidate> batch =
+                catalogImageRepairStore.findCandidatesAfter(cursor, normalizedProvider, limit);
+            if (batch.isEmpty()) {
                 break;
             }
 
-            for (ProductEnrichment enrichment : slice.getContent()) {
-                if (scannedEnrichments >= safeMaxItems) {
-                    completed = false;
-                    break;
-                }
-
+            for (CatalogImageRepairStore.Candidate candidate : batch) {
                 scannedEnrichments++;
-                String imageStorageKey = enrichment.getImageStorageKey();
+                lastScanned = candidate.productId();
+                String imageStorageKey = candidate.imageStorageKey();
                 if (imageStorageKey == null || imageStorageKey.isBlank()) {
                     continue;
                 }
@@ -130,7 +158,7 @@ public class CatalogImageRepairService {
 
                 attemptedRepairs++;
                 boolean repaired = catalogImageStorageService.ensureManagedImageAvailable(
-                    enrichment.getImageUrl(),
+                    candidate.imageUrl(),
                     imageStorageKey
                 );
                 if (repaired && catalogImageStorageService.hasStoredImage(imageStorageKey)) {
@@ -140,14 +168,14 @@ public class CatalogImageRepairService {
                 }
             }
 
-            if (!slice.hasNext()) {
+            cursor = lastScanned;
+            if (batch.size() < limit) {
                 break;
             }
             if (scannedEnrichments >= safeMaxItems) {
                 completed = false;
                 break;
             }
-            page++;
         }
 
         LocalDateTime finishedAt = LocalDateTime.now();
@@ -182,7 +210,7 @@ public class CatalogImageRepairService {
                 completed
             );
         }
-        return response;
+        return new RepairOutcome(response, lastScanned);
     }
 
     private String normalizeProvider(String provider) {
