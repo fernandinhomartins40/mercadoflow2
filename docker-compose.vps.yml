@@ -182,7 +182,10 @@ services:
       # Reparo de fotos do catalogo (CatalogImageRepairJob e @Profile("jobs")):
       # ficava no contêiner web, onde a classe nem carrega, e nunca rodou (PERF-06).
       - APP_CATALOG_IMAGES_DIR=/opt/pdv2cloud/catalog-data/images
-      - CATALOG_IMAGE_REPAIR_ENABLED=${CATALOG_IMAGE_REPAIR_ENABLED:-true}
+      # Desligado (23/10/2026): varre os 2,8 GB de product_enrichments e ocupava
+      # ~1 núcleo do banco direto, deixando o painel lento. O barcode-enricher já
+      # busca as fotos que faltam. Religar só depois de reescrever a consulta.
+      - CATALOG_IMAGE_REPAIR_ENABLED=${CATALOG_IMAGE_REPAIR_ENABLED:-false}
       - CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS=${CATALOG_IMAGE_REPAIR_INITIAL_DELAY_MS:-60000}
       - CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS=${CATALOG_IMAGE_REPAIR_FIXED_DELAY_MS:-21600000}
       - CATALOG_IMAGE_REPAIR_BATCH_SIZE=${CATALOG_IMAGE_REPAIR_BATCH_SIZE:-300}
