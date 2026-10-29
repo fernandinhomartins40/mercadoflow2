@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { useSuperAdminAuth } from './context/SuperAdminAuthContext';
 import { buildOffersUrl, resolveOffersWorkspace } from './lib/offersApp';
 import { FEATURE_OFFER_TEMPLATES_ENABLED, FEATURE_STATE_PRICES_ENABLED } from './config/features';
+import { IS_GESTAO_APP } from './lib/nativeApp';
 
 const Login = lazy(() => import('./screens/Login'));
 const IndustryHome = lazy(() => import('./screens/industria/IndustryHome'));
@@ -61,6 +62,7 @@ const SuperAdminCustomers = lazy(() => import('./screens/SuperAdminCustomers'));
 const SuperAdminCollections = lazy(() => import('./screens/SuperAdminCollections'));
 const Plans = lazy(() => import('./screens/Plans'));
 const MySubscription = lazy(() => import('./screens/MySubscription'));
+const AppPlanInfo = lazy(() => import('./screens/AppPlanInfo'));
 const Team = lazy(() => import('./screens/Team'));
 const Integrations = lazy(() => import('./screens/Integrations'));
 const StockCount = lazy(() => import('./screens/StockCount'));
@@ -215,7 +217,8 @@ const App: React.FC = () => {
         <Route path="/aceitar-convite" element={<AcceptInvite />} />
         <Route path="/register" element={<Register />} />
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-        <Route path="/" element={<Landing />} />
+        {/* App MercadoFlow Gestão: abre direto no painel (sem login, o painel manda para /login). */}
+        <Route path="/" element={IS_GESTAO_APP ? <Navigate to="/app" replace /> : <Landing />} />
         <Route path="/para-industria" element={<IndustryLanding />} />
         <Route path="/download-agente" element={<PublicAgentDownload />} />
         <Route path="/baixar-agente" element={<Navigate to="/download-agente" replace />} />
@@ -255,8 +258,9 @@ const App: React.FC = () => {
         <Route path="/app/promocoes" element={secure(<Promocoes />)} />
         <Route path="/app/configuracoes" element={secure(<Settings />)} />
         <Route path="/app/privacidade-clientes" element={secure(<PrivacyRequests />)} />
-        <Route path="/app/planos" element={secure(<Plans />)} />
-        <Route path="/app/assinatura" element={secure(<MySubscription />)} />
+        {/* No app, plano só informativo: as lojas não deixam vender a assinatura por fora delas. */}
+        <Route path="/app/planos" element={secure(IS_GESTAO_APP ? <AppPlanInfo /> : <Plans />)} />
+        <Route path="/app/assinatura" element={secure(IS_GESTAO_APP ? <AppPlanInfo /> : <MySubscription />)} />
         <Route path="/app/equipe" element={secure(<Team />)} />
         <Route path="/app/integracoes" element={secure(<Integrations />)} />
         <Route path="/app/contar" element={secure(<StockCount />)} />

@@ -7,7 +7,11 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit -p .",
     "build": "tsc --noEmit -p . && vite build",
-    "start": "vite preview --host 0.0.0.0 --port 3000"
+    "start": "vite preview --host 0.0.0.0 --port 3000",
+    "build:gestao": "tsc --noEmit -p . && vite build --mode gestao --outDir dist-gestao",
+    "cap:gestao": "node scripts/cap.mjs gestao",
+    "android:gestao": "npm run build:gestao && node scripts/cap.mjs gestao sync android",
+    "ios:gestao": "npm run build:gestao && node scripts/cap.mjs gestao sync ios"
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^7.5.0",
@@ -15,6 +19,8 @@
     "@capacitor/core": "^7.6.9",
     "@capacitor/filesystem": "^7.1.9",
     "@capacitor/haptics": "^7.0.5",
+    "@capacitor/ios": "^7.6.10",
+    "@capacitor/preferences": "^7.0.4",
     "@capacitor/share": "^7.0.4",
     "@capacitor/splash-screen": "^7.0.5",
     "@capacitor/status-bar": "^7.0.6",

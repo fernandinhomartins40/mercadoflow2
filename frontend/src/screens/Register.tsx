@@ -19,6 +19,7 @@ import {
   maskPhone,
   onlyDigits,
 } from '../utils/formMasks';
+import { IS_GESTAO_APP } from '../lib/nativeApp';
 
 /**
  * Cadastro do supermercadista.
@@ -258,7 +259,8 @@ const Register: React.FC = () => {
           />
 
           {/* Escolha do plano */}
-          {purchasablePlans.length > 0 && (
+          {/* App MercadoFlow Gestão: a conta nasce no Grátis e a loja não vende plano dentro do app. */}
+          {!IS_GESTAO_APP && purchasablePlans.length > 0 && (
             <div className="form-group">
               <label id="reg-plan-label">Escolha seu plano</label>
               <div className="flex flex-col gap-2" role="group" aria-labelledby="reg-plan-label">

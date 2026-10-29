@@ -4,6 +4,7 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import ButtonLink from '../components/common/ButtonLink';
 import { CONNECT_STEPS, PAIRING_PATH } from '../components/activation/ConnectCashierSteps';
+import { apiHref } from '../lib/nativeApp';
 
 interface InstallerInfo {
   filename: string;
@@ -26,7 +27,7 @@ const PublicAgentDownload: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/downloads/agent-installer/info');
+      const response = await fetch(apiHref('/api/v1/downloads/agent-installer/info'));
       if (!response.ok) {
         throw new Error('Instalador não disponível no momento');
       }
@@ -49,7 +50,7 @@ const PublicAgentDownload: React.FC = () => {
     setDownloading(true);
     try {
       const link = document.createElement('a');
-      link.href = '/api/v1/downloads/agent-installer';
+      link.href = apiHref('/api/v1/downloads/agent-installer');
       link.download = installerInfo.filename;
       document.body.appendChild(link);
       link.click();

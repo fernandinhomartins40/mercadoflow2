@@ -1,6 +1,7 @@
 import type { CampaignItem, Palette } from '../../types/art.types';
 import { FONT_NAME, FONT_PRICE, FONT_TEXT } from './assets';
 import { Scene, formatPrice, mixHex, priceParts, renderScene } from './render';
+import { saveBlob } from '../../lib/nativeApp';
 
 /**
  * Exportação: a arte é desenhada de novo, em tamanho real, num canvas fora da
@@ -21,16 +22,8 @@ export const canvasBlob = (canvas: HTMLCanvasElement, type: 'image/png' | 'image
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Falha ao gerar a imagem'))), type, quality);
   });
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
-};
+/** Download no navegador; no app, folha de compartilhar do celular (src/lib/nativeApp.ts). */
+export const downloadBlob = (blob: Blob, filename: string) => saveBlob(blob, filename, 'Encarte do MercadoFlow');
 
 export const slugify = (text: string) =>
   text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'encarte';

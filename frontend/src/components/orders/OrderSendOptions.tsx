@@ -3,6 +3,7 @@ import { Check, Copy, Mail, MessageCircle, Printer, Send } from 'lucide-react';
 import { marketService } from '../../services/market.service';
 import type { Supplier, SupplierOrder } from '../../types/analytics.types';
 import { buildOrderText, buildPrintHtml, mailtoUrl, whatsappNumber, whatsappUrl } from '../../utils/orderMessage';
+import { IS_GESTAO_APP } from '../../lib/nativeApp';
 
 type Channel = 'whatsapp' | 'email' | 'copy' | 'print' | 'status';
 
@@ -89,7 +90,8 @@ const OrderSendOptions: React.FC<{
     },
     ...(email ? [{ key: 'email' as Channel, icon: Mail, style: { border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }, label: 'E-mail', hint: email }] : []),
     { key: 'copy', icon: Copy, style: { border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }, label: 'Copiar texto', hint: 'para colar onde quiser' },
-    { key: 'print', icon: Printer, style: { border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }, label: 'Imprimir ou PDF', hint: 'lista de conferência para o representante' },
+    // No app, o WebView não abre janela de impressão: WhatsApp, e-mail e copiar resolvem.
+    ...(IS_GESTAO_APP ? [] : [{ key: 'print' as Channel, icon: Printer, style: { border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }, label: 'Imprimir ou PDF', hint: 'lista de conferência para o representante' }]),
   ];
 
   return (

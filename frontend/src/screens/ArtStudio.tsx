@@ -856,7 +856,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
     setBusy('png');
     try {
       const canvas = sceneCanvas(await buildScene(input));
-      downloadBlob(await canvasBlob(canvas, 'image/png'), `${slugify(campaign.title)}-${format}.png`);
+      await downloadBlob(await canvasBlob(canvas, 'image/png'), `${slugify(campaign.title)}-${format}.png`);
     } catch { setError('Não foi possível gerar a imagem. Tente de novo.'); } finally { setBusy(null); }
   };
 
@@ -866,7 +866,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
     setBusy('pdf');
     try {
       const canvas = sceneCanvas(await buildScene(input));
-      downloadBlob(await jpegPagesToPdf([canvas]), `${slugify(campaign.title)}-a4.pdf`);
+      await downloadBlob(await jpegPagesToPdf([canvas]), `${slugify(campaign.title)}-a4.pdf`);
     } catch { setError('Não foi possível gerar o PDF. Tente de novo.'); } finally { setBusy(null); }
   };
 
@@ -877,7 +877,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
       const seal = !campaign.content.hideSeal ? await loadImage(theme.sealUrl) : null;
       const validity = campaign.validUntil ? `Válido até ${brDate(campaign.validUntil)}` : '';
       const pages = posterPages(items, { palette: scene?.palette ?? theme.palette, brandName: brand.displayName || brand.marketName || '', seal, validity, perPage });
-      downloadBlob(await jpegPagesToPdf(pages), `${slugify(campaign.title)}-cartazes.pdf`);
+      await downloadBlob(await jpegPagesToPdf(pages), `${slugify(campaign.title)}-cartazes.pdf`);
       setDialog(null);
     } catch { setError('Não foi possível gerar os cartazes. Tente de novo.'); } finally { setBusy(null); }
   };

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
 import authService, { TeamRole } from '../services/auth.service';
 import { clearCached } from '../hooks/useCached';
+import { IS_GESTAO_APP, setSessionToken } from '../lib/nativeApp';
 
 interface AuthState {
   teamRole?: TeamRole | null;
@@ -120,7 +121,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await authService.logout();
+    try {
+      await authService.logout();
+    } finally {
+      // App MercadoFlow Gestão: sair sem internet também esquece o token do aparelho.
+      if (IS_GESTAO_APP) await setSessionToken(null);
+    }
     clearCached();
     setState({ role: null, marketId: null, userId: null, email: null, name: null });
   };

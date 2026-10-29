@@ -4,7 +4,7 @@ import { ArrowLeft, FileUp, Keyboard, ScanBarcode } from 'lucide-react';
 import { confereService } from '../../services/confere.service';
 import Scanner from './Scanner';
 import { BigButton, Field, Stepper, errorText, keyFrom, validKey } from './ui';
-import { buzz, isNativeApp, scanWithNative } from './native';
+import { buzz, hasNativeScanner, scanWithNative } from './native';
 
 /**
  * Passo 1 — Ler a nota: câmera no código de barras do DANFE ou a chave
@@ -37,7 +37,7 @@ const ReadScreen: React.FC<{ marketId: string; onBalance: (b: number) => void }>
     }
   }, [marketId, navigate, onBalance]);
 
-  const native = isNativeApp();
+  const native = hasNativeScanner();
   const scanNota = useCallback(async () => {
     setError(null);
     try {

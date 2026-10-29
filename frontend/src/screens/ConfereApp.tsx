@@ -20,6 +20,7 @@ import { TabLayout } from '../features/confere/TabBar';
 import LegalAcceptanceGate from '../components/LegalAcceptanceGate';
 import '../styles/liquid-glass.css';
 import '../features/confere/confere.css';
+import { IS_GESTAO_APP } from '../lib/nativeApp';
 
 /**
  * Bipaê (PWA e app Android): conferência de mercadoria pela nota do
@@ -38,7 +39,8 @@ const ConfereApp: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    // No app MercadoFlow Gestão as telas já vêm dentro do app: não há o que guardar em cache.
+    if (!IS_GESTAO_APP && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/confere-sw.js', { scope: '/confere/' }).catch(() => {});
     }
   }, []);

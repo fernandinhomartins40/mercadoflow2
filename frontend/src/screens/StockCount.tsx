@@ -11,6 +11,7 @@ import LoadError, { errorText } from '../components/common/LoadError';
 import { useTeamPermission } from '../lib/teamPermissions';
 import RoleNotice from '../components/common/RoleNotice';
 import { COUNT_TEXT as T, isBarcode, parseUnits } from '../lib/stockCount';
+import { buzz, hasNativeScanner, scanWithNative } from '../features/confere/native';
 
 /**
  * Contagem rápida (F7 do plano de experiência): os produtos que mais vendem e
@@ -64,6 +65,17 @@ const StockCount: React.FC = () => {
   };
 
   /** Leitor USB ou código digitado: acha na lista ou busca no cadastro e põe no topo. */
+  const nativeScanner = hasNativeScanner();
+  const scan = async () => {
+    setLookError(null);
+    try {
+      const value = await scanWithNative('produto');
+      if (value) { void buzz('ok'); await bip(value); }
+    } catch (e) {
+      setLookError((e as Error)?.message || 'Não foi possível abrir o leitor.');
+    }
+  };
+
   const bip = async (raw: string) => {
     const code = raw.trim();
     if (!marketId || !isBarcode(code)) return;
@@ -139,6 +151,12 @@ const StockCount: React.FC = () => {
                 placeholder="Bipe o produto ou procure pelo nome" aria-label="Bipe o código de barras ou procure pelo nome"
                 style={{ flex: 1, minWidth: 0 }} />
               {looking && <Loader2 className="animate-spin" aria-label={T.searching} />}
+              {/* No app Android, o leitor de código de barras do Google pela câmera. */}
+              {nativeScanner && (
+                <button type="button" className="fx-btn dark" onClick={() => void scan()} aria-label="Ler código de barras com a câmera">
+                  <ScanBarcode aria-hidden="true" />Bipar
+                </button>
+              )}
             </form>
             {missing && (
               <p role="status" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '0 0 12px' }}>

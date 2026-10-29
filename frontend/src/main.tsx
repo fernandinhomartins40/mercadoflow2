@@ -5,6 +5,7 @@ import App from './App';
 import { DialogHost } from './components/common/Dialogs';
 import { AuthProvider } from './context/AuthContext';
 import { SuperAdminAuthProvider } from './context/SuperAdminAuthContext';
+import { loadNativeSession } from './lib/nativeApp';
 // CSS global mínimo (Tailwind, base e diálogos). O do painel vem com PanelStyles.
 import './tailwind.css';
 import './styles/flow-core.css';
@@ -14,7 +15,8 @@ document.documentElement.setAttribute('dir', 'ltr');
 document.documentElement.setAttribute('data-locale', 'pt-BR');
 document.body.setAttribute('data-locale', 'pt-BR');
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// App MercadoFlow Gestão: o token guardado no aparelho precisa estar pronto antes do primeiro /me.
+void loadNativeSession().then(() => ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
@@ -25,4 +27,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
-);
+));

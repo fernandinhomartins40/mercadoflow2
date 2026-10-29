@@ -1,4 +1,5 @@
 import api from './api';
+import { saveBlob } from '../lib/nativeApp';
 
 /**
  * Recursos do plano Profissional: base de clientes, simulação de preço e
@@ -115,7 +116,7 @@ export const exportService = {
   },
 
   /**
-   * Baixa o CSV pelo navegador.
+   * Baixa o CSV pelo navegador (no app, folha de compartilhar).
    *
    * Usa blob em vez de abrir a URL direto porque a requisição precisa do
    * cabeçalho de autenticação que o interceptor do axios injeta — uma
@@ -125,13 +126,6 @@ export const exportService = {
     const { data } = await api.get(`/v1/markets/${marketId}/export/${arquivo}`, {
       responseType: 'blob',
     });
-    const url = window.URL.createObjectURL(new Blob([data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', arquivo);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    await saveBlob(new Blob([data]), arquivo);
   },
 };

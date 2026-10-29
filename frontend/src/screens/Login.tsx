@@ -11,6 +11,7 @@ import {
 } from '../utils/rememberedLogin';
 import { ADMIN_TEST_LOGINS, type TestLoginCredentials } from '../config/testLogins';
 import { accountDeletion, deletionErrorText, isDeletionPending } from '../services/accountDeletion';
+import { IS_GESTAO_APP } from '../lib/nativeApp';
 
 const ADMIN_LOGIN_STORAGE_KEY = 'mf_admin_login';
 const ADMIN_LEGACY_EMAIL_KEY = 'mf_remember_email';
@@ -47,7 +48,8 @@ const Login: React.FC = () => {
   // Conta marcada para exclusão (LGPD-03): senha certa, a tela oferece desistir.
   const [deletionPending, setDeletionPending] = useState(false);
   const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
-  const [keepConnected, setKeepConnected] = useState(rememberedLogin.keepConnected);
+  // No app, a sessão longa (30 dias) já vem marcada: ninguém quer logar toda manhã no celular.
+  const [keepConnected, setKeepConnected] = useState(IS_GESTAO_APP || rememberedLogin.keepConnected);
 
   const fillTestLogin = (credentials: TestLoginCredentials) => {
     setEmail(credentials.email);

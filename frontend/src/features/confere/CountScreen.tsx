@@ -3,7 +3,7 @@ import { CheckCircle2, CloudOff, Keyboard, Minus, PackageX, Plus, ScanBarcode } 
 import { stockCountService, type CountProduct } from '../../services/confere.service';
 import Scanner from './Scanner';
 import { BigButton, Card, SectionTitle, TabHeader, errorText } from './ui';
-import { buzz, isNativeApp, scanWithNative } from './native';
+import { buzz, hasNativeScanner, scanWithNative } from './native';
 import { COUNT_TEXT as T, fmtUnits as qty, parseUnits as num } from '../../lib/stockCount';
 
 /**
@@ -50,7 +50,7 @@ const Stepper: React.FC<{ id: string; label: string; value: string; onChange: (v
 };
 
 const CountScreen: React.FC<{ marketId: string }> = ({ marketId }) => {
-  const native = isNativeApp();
+  const native = hasNativeScanner();
   const [product, setProduct] = useState<CountProduct | null>(null);
   const [missing, setMissing] = useState<string | null>(null);
   const [looking, setLooking] = useState(false);

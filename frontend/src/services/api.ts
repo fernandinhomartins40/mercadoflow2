@@ -1,5 +1,6 @@
 import axios, { AxiosHeaders } from 'axios';
 import { getOffersWorkspaceLoginRoute, isOffersAppPath, resolveOffersWorkspace } from '../lib/offersApp';
+import { IS_GESTAO_APP, absolutizeApiPaths, getSessionToken, setSessionToken } from '../lib/nativeApp';
 
 const AUTH_SCOPE_HEADER = 'X-Auth-Scope';
 
@@ -17,7 +18,8 @@ const shouldPreferSuperAdminScope = () => {
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 30000,
-  withCredentials: true,
+  // App MercadoFlow Gestão: a sessão vai pelo cabeçalho Authorization, não por cookie.
+  withCredentials: !IS_GESTAO_APP,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -32,9 +34,41 @@ api.interceptors.request.use((config) => {
     headers.delete(AUTH_SCOPE_HEADER);
   }
 
+  const token = IS_GESTAO_APP ? getSessionToken() : null;
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
   config.headers = headers;
   return config;
 });
+
+/** Login e segunda etapa (código do autenticador) devolvem o token da sessão. */
+const SESSION_ROUTES = ['/v1/auth/login', '/v1/auth/login/2fa'];
+
+if (IS_GESTAO_APP) {
+  api.interceptors.response.use(
+    async (response) => {
+      const url = response.config?.url ?? '';
+      if (SESSION_ROUTES.includes(url) && typeof response.data?.token === 'string' && response.data.token) {
+        await setSessionToken(response.data.token);
+      } else if (url === '/v1/auth/logout') {
+        await setSessionToken(null);
+      }
+      if (response.data && typeof response.data === 'object' && !(response.data instanceof Blob)) {
+        absolutizeApiPaths(response.data);
+      }
+      return response;
+    },
+    async (error) => {
+      // Sessão vencida ou revogada (o /me recusa o token): esquece o token para o login abrir limpo.
+      if (error.response?.status === 401 && error.config?.url === '/v1/auth/me') {
+        await setSessionToken(null);
+      }
+      return Promise.reject(error);
+    },
+  );
+}
 
 /** Mensagens do tratador global que são técnicas ou genéricas: nesses casos vale o `userMessage`. */
 const GENERIC_SERVER_MESSAGES = new Set(['Requisicao invalida', 'Unexpected server error', 'Recurso inexistente']);

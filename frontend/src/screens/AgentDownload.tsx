@@ -6,6 +6,7 @@ import ButtonLink from '../components/common/ButtonLink';
 import ConnectCashierSteps, { PAIRING_PATH } from '../components/activation/ConnectCashierSteps';
 import { Link } from 'react-router-dom';
 import { alertDialog } from '../components/common/Dialogs';
+import { apiHref } from '../lib/nativeApp';
 
 interface InstallerInfo {
   filename: string;
@@ -28,7 +29,7 @@ const AgentDownload: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/downloads/agent-installer/info');
+      const response = await fetch(apiHref('/api/v1/downloads/agent-installer/info'));
       if (!response.ok) {
         throw new Error('Instalador não disponível no momento');
       }
@@ -51,7 +52,7 @@ const AgentDownload: React.FC = () => {
     setDownloading(true);
     try {
       const link = document.createElement('a');
-      link.href = '/api/v1/downloads/agent-installer';
+      link.href = apiHref('/api/v1/downloads/agent-installer');
       link.download = installerInfo.filename;
       document.body.appendChild(link);
       link.click();

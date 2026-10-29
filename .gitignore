@@ -2,6 +2,7 @@ dist/
 tools/
 backend/target/
 frontend/dist/
+frontend/dist-gestao/
 pdv2cloud-config/dist/
 pdv2cloud-config/node_modules/
 frontend/node_modules/

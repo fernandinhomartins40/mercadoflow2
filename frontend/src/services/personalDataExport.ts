@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import api from './api';
+import { saveBlob } from '../lib/nativeApp';
 
 /**
  * "Baixar meus dados" (LGPD art. 18): arquivo JSON com os dados pessoais da
@@ -35,16 +36,9 @@ export async function fetchMyData(): Promise<File> {
   }
 }
 
-/** Salva pelo navegador (link de download). */
+/** Salva pelo navegador (link de download); no app MercadoFlow Gestão, folha de compartilhar. */
 export function saveFile(file: File) {
-  const url = window.URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', file.name);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+  return saveBlob(file, file.name, 'Meus dados no MercadoFlow');
 }
 
 /**
@@ -78,5 +72,5 @@ export async function shareOrSave(file: File) {
       if ((e as Error)?.name === 'AbortError') return;
     }
   }
-  saveFile(file);
+  await saveFile(file);
 }

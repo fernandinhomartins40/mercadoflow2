@@ -8,6 +8,12 @@ import { Capacitor } from '@capacitor/core';
 
 export const isNativeApp = () => Capacitor.isNativePlatform();
 
+/**
+ * Leitor do Google disponível: só no Android. No iPhone (MercadoFlow Gestão) o
+ * plugin do ML Kit não entra, e a leitura usa a câmera pela tela (Scanner).
+ */
+export const hasNativeScanner = () => isNativeApp() && Capacitor.isPluginAvailable('BarcodeScanner');
+
 export type BarcodeKind = 'produto' | 'nota';
 
 /** Vibração curta de "bipou" (ou longa, de erro). */

@@ -11,7 +11,7 @@ const DownloadMyDataCard: React.FC = () => {
     setBusy(true);
     setMessage(null);
     try {
-      saveFile(await fetchMyData());
+      await saveFile(await fetchMyData());
       setMessage('Pronto. O arquivo foi baixado.');
     } catch (err) {
       setMessage((err as Error).message);

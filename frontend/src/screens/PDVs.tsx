@@ -17,6 +17,7 @@ import { Card, Forest, MoreMenu, PageHero, PanelTitle } from '../components/flow
 import { Download as HxDownload, KeyRound as HxKeyRound, Monitor as HxMonitor, MonitorSmartphone as HxMonitorSmartphone } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
 import RoleNotice from '../components/common/RoleNotice';
+import { apiHref } from '../lib/nativeApp';
 
 /* ── Types ── */
 interface PDVItem {
@@ -281,7 +282,7 @@ const PDVs: React.FC = () => {
               <PanelTitle title="Ligar um caixa em 3 passos" sub="Sem copiar chave: o programa mostra um código e você digita aqui" />
               <div style={{ marginTop: 16 }}><ConnectCashierSteps /></div>
               <div className="flex flex-wrap gap-3" style={{ marginTop: 16 }}>
-                <a className="fx-btn dark" href="/api/v1/downloads/agent-installer" download>
+                <a className="fx-btn dark" href={apiHref('/api/v1/downloads/agent-installer')} download>
                   <Download aria-hidden="true" />Baixar o programa do caixa
                 </a>
                 <ButtonLink variant="secondary" to={PAIRING_PATH}>Digitar o código</ButtonLink>
