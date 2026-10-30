@@ -223,7 +223,7 @@ const Hero: React.FC = () => (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 100%)' }} />
 
     <Container className="relative">
-      <div className="grid items-center gap-8 xl:grid-cols-[1fr_1.08fr] xl:gap-12">
+      <div className="grid items-center gap-8 lg:grid-cols-[1fr_1.05fr] lg:gap-10 xl:grid-cols-[1fr_1.08fr] xl:gap-12">
         {/* Texto */}
         <div className="min-w-0">
           <span
@@ -235,13 +235,13 @@ const Hero: React.FC = () => (
 
           <h1
             id="hero-titulo"
-            className="mt-5 text-[2.25rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl xl:text-[3.4rem]"
+            className="mt-5 text-[2.25rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[2.75rem] xl:text-[3.4rem]"
             style={{ color: LANDING.ink, fontFamily: 'var(--font-display)' }}
           >
             Inteligência de verdade <span style={{ color: LANDING.green600 }}>para o seu supermercado</span>
           </h1>
 
-          <p className="mt-5 max-w-md text-base leading-relaxed sm:text-lg" style={{ color: LANDING.text }}>
+          <p className="mt-5 max-w-md text-base leading-relaxed sm:text-lg lg:text-base xl:text-lg" style={{ color: LANDING.text }}>
             Transforme dados do seu PDV em decisões de compra, preço e estoque.
           </p>
 
@@ -267,7 +267,7 @@ const Hero: React.FC = () => (
           </div>
 
           {/* No celular viram três cartõezinhos lado a lado; do tablet em diante, uma linha simples. */}
-          <ul className="m-0 mt-6 grid list-none grid-cols-3 gap-2 p-0 sm:mt-8 sm:flex sm:flex-wrap sm:gap-x-7 sm:gap-y-3">
+          <ul className="m-0 mt-6 grid list-none grid-cols-3 gap-2 p-0 sm:mt-8 sm:flex sm:flex-wrap sm:gap-x-7 sm:gap-y-3 lg:gap-x-5 xl:gap-x-7">
             {TRUST.map((t) => (
               <li
                 key={t.label}
@@ -282,7 +282,7 @@ const Hero: React.FC = () => (
         </div>
 
         {/* Card de demonstração */}
-        <div className="mx-auto w-full min-w-0 max-w-2xl xl:max-w-none">
+        <div className="mx-auto w-full min-w-0 max-w-2xl lg:max-w-none">
           <DemoDashboard />
         </div>
       </div>

@@ -71,7 +71,7 @@ const Header: React.FC = () => {
           <img src="/logomercadoflow-color.png" alt="MercadoFlow" className="h-7 w-auto sm:h-8" />
         </Link>
 
-        <nav aria-label="Navegação principal" className="hidden items-center gap-8 lg:flex">
+        <nav aria-label="Navegação principal" className="hidden items-center gap-6 lg:flex xl:gap-8">
           {NAV.map((n) => (
             <a
               key={n.href}

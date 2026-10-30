@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import AuthBrand from '../components/common/AuthBrand';
@@ -44,6 +44,9 @@ const SuperAdminLogin: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
   const [keepConnected, setKeepConnected] = useState(rememberedLogin.keepConnected);
   const [error, setError] = useState<string | null>(null);
+  // Trava o botão enquanto o servidor responde: cliques repetidos estouravam o limite de tentativas.
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   const fillTestLogin = (credentials: TestLoginCredentials) => {
     setEmail(credentials.email);
@@ -53,6 +56,9 @@ const SuperAdminLogin: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setError(null);
     try {
       const normalizedEmail = email.trim();
@@ -75,12 +81,17 @@ const SuperAdminLogin: React.FC = () => {
       navigate('/super-admin');
     } catch (err: any) {
       setError(err?.message || 'Falha ao entrar no painel do super admin');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
   const handleCode = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!challenge) return;
+    if (!challenge || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setError(null);
     try {
       await loginSecondStep(challenge, code.trim());
@@ -92,6 +103,9 @@ const SuperAdminLogin: React.FC = () => {
         setChallenge(null);
         setCode('');
       }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
@@ -111,7 +125,7 @@ const SuperAdminLogin: React.FC = () => {
                 value={code} onChange={(e) => setCode(e.target.value)} maxLength={9} required />
             </div>
             {error ? <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p> : null}
-            <Button type="submit">Confirmar</Button>
+            <Button type="submit" loading={busy}>{busy ? 'Confirmando…' : 'Confirmar'}</Button>
             <Button type="button" variant="secondary" onClick={() => { setChallenge(null); setCode(''); setError(null); }}>
               Voltar
             </Button>
@@ -201,7 +215,7 @@ const SuperAdminLogin: React.FC = () => {
             </label>
           </div>
           {error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null}
-          <Button type="submit">Entrar</Button>
+          <Button type="submit" loading={busy}>{busy ? 'Entrando…' : 'Entrar'}</Button>
         </form>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
 /**
@@ -18,6 +19,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   /** Ocupa a largura toda no mobile e volta ao tamanho natural a partir de sm. */
   fullWidthOnMobile?: boolean;
+  /** Enquanto true, o botão fica travado e mostra um ícone girando (evita cliques repetidos). */
+  loading?: boolean;
 }
 
 // Flow: floresta na ação principal, branco na secundária, limão para confirmar.
@@ -40,6 +43,8 @@ const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   fullWidthOnMobile = false,
+  loading = false,
+  disabled,
   children,
   className,
   type = 'button',
@@ -56,10 +61,14 @@ const Button: React.FC<ButtonProps> = ({
         SIZE_CLASS[size],
         VARIANT_CLASS[variant],
         fullWidthOnMobile && 'w-full sm:w-auto',
+        loading && 'disabled:cursor-wait disabled:opacity-80',
         className,
       )}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
+      {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />}
       {children}
     </button>
   );

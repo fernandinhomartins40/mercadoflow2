@@ -31,7 +31,8 @@ const Plans: React.FC = () => {
       .getPublicPlans()
       .then((list) => {
         if (cancelled) return;
-        if (list.length) setPlans(list);
+        // Resposta fora do formato (ex.: HTML de um proxy) não pode derrubar a página inteira.
+        if (Array.isArray(list) && list.length) setPlans(list);
         else setPlansFailed(true);
       })
       .catch(() => {

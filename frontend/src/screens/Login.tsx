@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/common/Button';
@@ -50,6 +50,9 @@ const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
   // No app, a sessão longa (30 dias) já vem marcada: ninguém quer logar toda manhã no celular.
   const [keepConnected, setKeepConnected] = useState(IS_GESTAO_APP || rememberedLogin.keepConnected);
+  // Trava o botão enquanto o servidor responde: cliques repetidos estouravam o limite de tentativas.
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   const fillTestLogin = (credentials: TestLoginCredentials) => {
     setEmail(credentials.email);
@@ -59,6 +62,9 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setError(null);
     setDeletionPending(false);
     try {
@@ -90,23 +96,35 @@ const Login: React.FC = () => {
       setDeletionPending(isDeletionPending(err));
       if (err?.response?.status === 429) setError('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
       else setError(data?.userMessage || (err?.response?.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar agora. Tente de novo.'));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
   const giveUpDeletion = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setError(null);
     try {
       await accountDeletion.cancelFromLogin(email.trim(), password);
       setDeletionPending(false);
-      await handleSubmit();
     } catch (err) {
       setError(deletionErrorText(err, 'Não foi possível desistir agora. Tente de novo.'));
+      return;
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
+    await handleSubmit();
   };
 
   const handleCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!challenge) return;
+    if (!challenge || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setError(null);
     try {
       await loginSecondStep(challenge, code.trim());
@@ -118,6 +136,9 @@ const Login: React.FC = () => {
         setChallenge(null);
         setCode('');
       }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
@@ -137,7 +158,7 @@ const Login: React.FC = () => {
                 value={code} onChange={(e) => setCode(e.target.value)} maxLength={9} />
             </div>
             {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
-            <Button type="submit">Confirmar</Button>
+            <Button type="submit" loading={busy}>{busy ? 'Confirmando…' : 'Confirmar'}</Button>
             <p className="login-switch" style={{ marginTop: 12 }}>
               <button type="button" className="link-button" onClick={() => { setChallenge(null); setCode(''); setError(null); }}>
                 Voltar
@@ -228,9 +249,9 @@ const Login: React.FC = () => {
           </div>
           {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
           {deletionPending && (
-            <Button type="button" variant="secondary" onClick={() => { void giveUpDeletion(); }}>Desistir da exclusão</Button>
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => { void giveUpDeletion(); }}>Desistir da exclusão</Button>
           )}
-          <Button type="submit">Entrar</Button>
+          <Button type="submit" loading={busy}>{busy ? 'Entrando…' : 'Entrar'}</Button>
           <p className="login-switch" style={{ marginTop: 12 }}><Link to="/esqueci-senha">Esqueci minha senha</Link></p>
         </form>
         <p className="login-switch">
