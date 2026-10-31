@@ -420,9 +420,15 @@ backup_database() {
   local backup_file="${APP_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S).dump"
   local container_dump="/tmp/pdv2cloud_backup.dump"
 
-  # zstd: 59% menor que o gzip padrao do -Fc na maior tabela (medido em 06/10/2026).
-  log "Gerando backup comprimido (zstd) do PostgreSQL"
-  if docker exec "$container_name" sh -lc "pg_dump -Fc -Z zstd:6 -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -f '${container_dump}'" \
+  # Backup enxuto (31/10/2026): o dump completo passou de ~5 para 46-69 min
+  # (VPS com 50% de steal) e estourava os 40 min do job, cancelando o deploy.
+  # product_enrichments (catalogo coletado das lojas, ~78% do banco) entra so
+  # com a estrutura; os dados dela ficam no backup diario completo das 03:00
+  # (deploy/backup-daily.sh). Todo o resto (lojas, vendas, notas, planos)
+  # continua com copia fresca antes das migrations. zstd:3 em vez de :6 pela
+  # CPU escassa; o arquivo fica pouco maior.
+  log "Gerando backup enxuto (zstd, sem os dados de product_enrichments) do PostgreSQL"
+  if docker exec "$container_name" sh -lc "pg_dump -Fc -Z zstd:3 --exclude-table-data=product_enrichments -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -f '${container_dump}'" \
     && docker exec "$container_name" sh -lc "pg_restore -l '${container_dump}' >/dev/null"; then
     docker cp "${container_name}:${container_dump}" "$backup_file"
     docker exec "$container_name" rm -f "${container_dump}" >/dev/null 2>&1 || true
