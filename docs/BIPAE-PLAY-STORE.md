@@ -1,5 +1,7 @@
 # Bipaê na Play Store: o que preencher no Play Console
 
+> **Revisão de 21/10/2026:** leia primeiro [a auditoria atual](bipae-play/AUDITORIA-PLAY-STORE.md) e use [os textos revisados](bipae-play/textos-loja-pt-BR.md). Este guia é histórico e as instruções abaixo sobre “só INTERNET”, ausência de identificadores, compra de créditos aberta no Android e exclusão apenas por e-mail não representam a revisão atual. A tabela de Segurança dos dados precisa de validação dos SDKs e do fluxo real. O projeto está em API 35; novos envios exigem API 36, salvo extensão concedida pelo Google. Os prints originais não atendem à proporção máxima: use as cópias em `docs/bipae-play/upload/` e complete as capturas funcionais pendentes. Título sugerido: **Bipaê Confere**. Não enviar para produção antes de resolver os bloqueios do relatório.
+
 Guia para quem vai publicar o app. Cada seção corresponde a uma tela do Play Console. Os textos já estão prontos para copiar.
 
 | Item | Valor |
@@ -65,7 +67,7 @@ Com o certificado digital A1 do mercado, o Bipaê baixa sozinho todas as notas e
 FEITO PARA O MERCADO
 O Bipaê usa a conta MercadoFlow do seu mercado. As notas e as contagens alimentam o painel MercadoFlow da loja, com custo real, estoque e sugestões de compra.
 
-Dúvidas: contato@mercadoflow.com
+Dúvidas: fuseagencia10@gmail.com
 ```
 
 **Recursos gráficos**:
@@ -74,7 +76,7 @@ Dúvidas: contato@mercadoflow.com
 - Capturas de tela do celular: mínimo 2, ideal 4 a 8, em pé (ex.: 1080 × 1920). Sugestão de telas: Início, Ler nota, Conferência de uma nota, Contar estoque com um produto bipado. [PREENCHER: usar as capturas geradas no emulador pelo outro agente, ou tirar no celular com uma conta de demonstração com dados de exemplo]
 
 **Detalhes de contato**:
-- E-mail: `contato@mercadoflow.com` [PREENCHER: confirmar]
+- E-mail: `fuseagencia10@gmail.com`
 - Site: `https://mercadoflow.com`
 - Telefone: opcional
 
@@ -87,7 +89,7 @@ Dúvidas: contato@mercadoflow.com
 
 ### Política de privacidade
 `https://mercadoflow.com/bipae/privacidade.html`
-(Antes de enviar, preencha os campos marcados com [PREENCHER] na página: razão social, CNPJ, endereço, encarregado, prazos e servidor.)
+(Os campos da página foram preenchidos em 22/10/2026: controlador FUSE AGENCIA LTDA, encarregado, prazos e servidor da Hostinger no Brasil.)
 
 ### Acesso ao app
 O app exige login. Escolha **"Todas ou algumas funcionalidades estão restritas"** e informe uma conta de demonstração:
@@ -123,7 +125,7 @@ Responda **Não** para todos.
 
 **O app coleta ou compartilha dados do usuário?** Sim.
 **Todos os dados são criptografados em trânsito?** Sim (HTTPS).
-**O usuário pode pedir a exclusão dos dados?** Sim. Informe o link: `https://mercadoflow.com/bipae/privacidade.html#exclusao` (pedido por e-mail a contato@mercadoflow.com).
+**O usuário pode pedir a exclusão dos dados?** Sim. Informe o link: `https://mercadoflow.com/bipae/privacidade.html#exclusao` (pelo botão "Excluir minha conta" no app ou por e-mail a fuseagencia10@gmail.com).
 
 Tipos de dados (marque estes):
 
@@ -180,9 +182,11 @@ Contas pessoais criadas depois de nov/2023 precisam passar por um **teste fechad
    npm run build
    npx cap sync android
    cd android
+   set JAVA_HOME=%USERPROFILE%\.jdks\jdk-21.0.13.0.2+1
    gradlew bundleRelease
    ```
-   O arquivo sai em `app/build/outputs/bundle/release/`.
+   O arquivo sai em `app/build/outputs/bundle/release/`. O build precisa do Java 21 (o Capacitor 7 não compila com o 17).
+   Antes de enviar, confira se as bibliotecas nativas 64-bit estão alinhadas a 16 KB (exigência do Google Play desde 1/11/2025). O CameraX fica fixado em 1.4.2 no `variables.gradle` por esse motivo; a versão 1.1.0, que o plugin de leitura usa por padrão, não passa.
 3. Envie como nova versão (teste interno e depois produção).
 
 Mudanças só nas telas (web) **não precisam de nova versão na loja**: o app abre o Bipaê publicado em mercadoflow.com/confere, então o deploy do site já atualiza o app. Nova versão na loja só é necessária ao mudar o nativo: ícone, plugins, permissões ou versão do Android.
@@ -191,4 +195,4 @@ Mudanças só nas telas (web) **não precisam de nova versão na loja**: o app a
 
 - **O app depende do site no ar.** Ele abre mercadoflow.com/confere. Se o site cair, o app mostra a tela "Sem internet agora". As contagens já feitas ficam guardadas no celular.
 - **Política de pagamentos:** veja a seção "Declaração de compras" acima, antes de enviar para revisão.
-- **Exclusão de conta:** o Google exige que o usuário consiga pedir a exclusão. Hoje isso é feito por e-mail (descrito na política). Responda esses pedidos dentro do prazo informado.
+- **Exclusão de conta:** o Google exige que o usuário consiga pedir a exclusão. A política descreve o botão no app e o pedido por e-mail a fuseagencia10@gmail.com (bloqueio na hora, 30 dias para desistir). Responda os pedidos por e-mail em até 15 dias.
