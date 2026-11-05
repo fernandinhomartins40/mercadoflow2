@@ -52,9 +52,15 @@ services:
     cpu_shares: 1024
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
+      # 60s (era 5s): cada checagem e um "docker exec", e os ~38 healthchecks das
+      # apps da VPS somados ocupavam ~20% de um nucleo so no containerd/dockerd
+      # (medido em 05/11/2026; a Hostinger limitou a CPU). Na subida o
+      # start_interval checa a cada 5s, entao o boot nao fica mais lento.
+      interval: 60s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 120s
+      start_interval: 5s
 
   mercadoflow-backend:
     container_name: mercadoflow-backend
@@ -121,9 +127,11 @@ services:
       # 30s em vez de 10s: o backend leva semanas no ar sem oscilar, e o
       # healthcheck a cada 10s era 3x mais wget do que o necessario para
       # detectar uma queda em tempo util.
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 5
+      # Na subida checa a cada 5s: fica healthy logo que responde.
+      start_interval: 5s
       # 600s, nao 90s. Medido no deploy de 14/09: "Started PDV2CloudApplication
       # in 501.704 seconds". Nesta VPS o boot e lento por dois motivos somados —
       # 50-63% de steal time e o Flyway rodando migracoes no start.

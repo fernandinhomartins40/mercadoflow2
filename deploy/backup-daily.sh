@@ -31,9 +31,12 @@ chmod 700 "$DEST"
 file="${DEST}/daily_$(date +%Y%m%d_%H%M%S).dump"
 tmp="${file}.partial"
 
-# Baixa prioridade de CPU e disco: a VPS é compartilhada com outras aplicações.
-if nice -n 15 ionice -c3 docker exec "$CONTAINER" sh -c \
-    'pg_dump -Fc -Z zstd:6 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$tmp"; then
+# Prioridade baixa dentro do contêiner: o pg_dump é filho do containerd, não
+# deste shell, então um nice aqui fora não o alcançava (medido em 05/11/2026:
+# ~1 h a 56% de um núcleo). zstd:3 como no deploy: zstd:6 gastava CPU de sobra
+# para um arquivo pouco menor.
+if docker exec "$CONTAINER" sh -c \
+    'nice -n 15 pg_dump -Fc -Z zstd:3 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$tmp"; then
   # Confere que o arquivo é um dump legível antes de considerá-lo válido.
   if docker exec -i "$CONTAINER" pg_restore -l < "$tmp" > /dev/null; then
     mv "$tmp" "$file"
