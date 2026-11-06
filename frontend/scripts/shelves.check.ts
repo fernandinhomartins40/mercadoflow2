@@ -16,6 +16,7 @@ assert.equal(sides[0].modules[0].shelves.length, 5);
 // Sobra menor que 30 cm junta no último módulo: 2,1 m = 100 + 110.
 assert.deepEqual(defaultSides({ ...g, h: 2.1 })[0].modules.map((m) => m.widthCm), [100, 110]);
 assert.equal(defaultSides({ ...g, type: 'geladeira' }).length, 1, 'geladeira tem um lado');
+assert.equal(defaultSides(g, 7)[1].modules[0].shelves.length, 7, 'gerador de corredores escolhe as prateleiras');
 
 // Primeiro produto ocupa a prateleira toda; o segundo, sem espaço livre, divide por igual.
 let s = addSlot([], { productId: 'nescau' });

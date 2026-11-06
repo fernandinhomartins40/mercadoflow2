@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowRightLeft, Box, CheckCircle2, Copy, Flame, Footprints, Hammer, Hand, Keyboard, LayoutGrid, Lightbulb,
+  AlertTriangle, ArrowRightLeft, Box, CheckCircle2, Copy, Flame, Footprints, Hammer, Hand, Keyboard, Layers, LayoutGrid, Lightbulb,
   Map as MapIcon, MapPin, MousePointer2, Redo2, RotateCw, Search, Snowflake, Star, Store, Trash2, Undo2,
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
@@ -13,7 +14,7 @@ import type {
   DepartmentsReport, FixtureType, InsightKind, LocatedProduct, ShelfProduct, StoreInsight, StorePlan,
 } from '../types/storeMap.types';
 import ShelfEditor from '../features/store-map/editor/ShelfEditor';
-import { describePlace, TWO_SIDED } from '../features/store-map/shelves';
+import { defaultSides, describePlace, sideStats, TWO_SIDED } from '../features/store-map/shelves';
 import { patch } from '../features/store-map/editor/actions';
 import SetupWizard from '../features/store-map/SetupWizard';
 import { DEPT_BY_KEY, FIXTURES, deptLabel, fixtureName, revenuePerFixture } from '../features/store-map/model';
@@ -23,6 +24,7 @@ import AisleGenerator from '../features/store-map/editor/AisleGenerator';
 import { usePlanHistory } from '../features/store-map/editor/usePlanHistory';
 import { addFixture, duplicate, moveBy, remove, rotate } from '../features/store-map/editor/actions';
 import IsoView from '../features/store-map/view3d/IsoView';
+import { hasWebGL } from '../features/store-map/view3d/webgl';
 import AisleWalk, { describeSide } from '../features/store-map/view3d/AisleWalk';
 import { findAisles, longestAisle } from '../features/store-map/view3d/aisles';
 import { ActionHub, PageHero } from '../components/flow/Flow';
@@ -32,11 +34,16 @@ import RoleNotice from '../components/common/RoleNotice';
 /**
  * Loja Viva (F17, D-022): a planta da loja, montada em um toque a partir do
  * tamanho da loja ou desenhada do zero, com cada produto localizado sozinho
- * pelo NCM da nota. Três tarefas (Montar, Calor de vendas, Sugestões) e três
+ * pelo NCM da nota. Quatro tarefas (Montar, Prateleiras, Calor de vendas, Sugestões) e três
  * jeitos de ver (planta, 3D e andando no corredor).
  */
 
-type Mode = 'montar' | 'calor' | 'sugestoes';
+// O 3D com WebGL (three.js) só baixa quando a aba 3D abre.
+const Store3D = React.lazy(() => import('../features/store-map/view3d/Store3D'));
+const webgl = typeof document !== 'undefined' && hasWebGL();
+
+type Mode = 'montar' | 'prateleiras' | 'calor' | 'sugestoes';
+const MODES: Mode[] = ['montar', 'prateleiras', 'calor', 'sugestoes'];
 type View = 'planta' | '3d' | 'corredor';
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 const SAVE_DELAY_MS = 1200;
@@ -80,7 +87,12 @@ const StoreMap: React.FC = () => {
   const [reportLoading, setReportLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Abre no mapa de calor, que responde à pergunta da tela; montar a planta é a segunda aba.
-  const [mode, setMode] = useState<Mode>('calor');
+  // ?aba=prateleiras abre direto numa aba (links do painel e do app).
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<Mode>(() => {
+    const aba = params.get('aba') as Mode;
+    return MODES.includes(aba) ? aba : 'calor';
+  });
   const [view, setView] = useState<View>('planta');
   const [tool, setTool] = useState<Tool>('select');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -270,6 +282,7 @@ const StoreMap: React.FC = () => {
                 tabs={[
                   { key: 'calor', label: 'Onde mais vende', icon: <Flame className="h-4 w-4" /> },
                   { key: 'montar', label: 'Editar a planta', icon: <Hammer className="h-4 w-4" /> },
+                  { key: 'prateleiras', label: 'Prateleiras', icon: <Layers className="h-4 w-4" /> },
                   { key: 'sugestoes', label: 'Sugestões', icon: <Lightbulb className="h-4 w-4" />, badge: insights?.filter((i) => i.priority >= 60).length || undefined },
                 ]}
                 value={mode}
@@ -370,7 +383,21 @@ const StoreMap: React.FC = () => {
                     onDropType={(t, x, y) => place(t, x, y)}
                   />
                 )}
-                {view === '3d' && (
+                {view === '3d' && webgl && (
+                  <React.Suspense fallback={<div className={`${stageHeight} flex items-center justify-center text-sm`} style={{ color: 'var(--text-muted)' }}>Abrindo a loja em 3D…</div>}>
+                    <Store3D
+                      className={stageHeight}
+                      plan={plan}
+                      products={products}
+                      selectedIds={validIds}
+                      onSelect={(id) => setSelectedIds(id ? [id] : [])}
+                      heat={heat}
+                      heatMode={mode === 'calor'}
+                      highlightIds={highlightSet}
+                    />
+                  </React.Suspense>
+                )}
+                {view === '3d' && !webgl && (
                   <IsoView
                     className={stageHeight}
                     plan={plan}
@@ -498,6 +525,19 @@ const StoreMap: React.FC = () => {
                   </>
                 ))}
 
+                {mode === 'prateleiras' && (
+                  <ShelvesPanel plan={plan} selectedId={validIds.length === 1 ? validIds[0] : null}
+                    onSelect={(id) => setSelectedIds([id])}
+                    onOpen={setShelvesId}
+                    onFillAll={async () => {
+                      const empty = plan.fixtures.filter((f) => !FIXTURES[f.type].noProducts && !f.sides?.length);
+                      const msg = `Montar o padrão em ${empty.length} ${empty.length === 1 ? 'móvel' : 'móveis'} (módulos de 1 m e prateleiras do jeito mais comum)? Depois é só mudar o que for diferente.`;
+                      if (!empty.length || !(await confirmDialog(msg))) return;
+                      const ids = new Set(empty.map((f) => f.id));
+                      apply({ ...plan, fixtures: plan.fixtures.map((f) => (ids.has(f.id) ? { ...f, sides: defaultSides(f) } : f)) });
+                    }} />
+                )}
+
                 {mode === 'calor' && (
                   <HeatPanel plan={plan} report={report} heat={heat} selectedId={validIds[0] ?? null} onSelect={(id) => setSelectedIds(id ? [id] : [])} />
                 )}
@@ -608,6 +648,79 @@ const LocateSearch: React.FC<{ marketId: string; plan: StorePlan; onFound: (ids:
         </ul>
       )}
     </div>
+  );
+};
+
+// ── Prateleiras ────────────────────────────────────────────────────────────
+
+const ShelvesPanel: React.FC<{
+  plan: StorePlan; selectedId: string | null;
+  onSelect: (id: string) => void; onOpen: (id: string) => void; onFillAll: () => void;
+}> = ({ plan, selectedId, onSelect, onOpen, onFillAll }) => {
+  const list = plan.fixtures
+    .filter((f) => !FIXTURES[f.type].noProducts)
+    .map((f) => ({ f, st: sideStats(f) }))
+    .sort((a, b) => fixtureName(a.f).localeCompare(fixtureName(b.f), 'pt-BR', { numeric: true }));
+  const built = list.filter((x) => x.st.modules > 0).length;
+  const placedProducts = new Set<string>();
+  plan.fixtures.forEach((f) => f.sides?.forEach((s) => s.modules.forEach((m) => m.shelves.forEach((sh) => sh.slots.forEach((sl) => {
+    if (sl.productId) placedProducts.add(sl.productId);
+  })))));
+  const selected = list.find((x) => x.f.id === selectedId);
+
+  if (!list.length) {
+    return <Panel title="Prateleiras"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Coloque gôndolas, geladeiras ou bancas na planta (aba Editar a planta) para montar as prateleiras.</p></Panel>;
+  }
+
+  return (
+    <>
+      {selected && (
+        <Panel title={fixtureName(selected.f)}>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            {selected.st.modules
+              ? `${selected.st.modules} módulo(s) · ${selected.st.shelves} prateleiras · ${selected.st.products} produto(s) com lugar`
+              : 'Prateleiras ainda não montadas.'}
+          </p>
+          <button type="button" onClick={() => onOpen(selected.f.id)}
+            className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>
+            <Layers className="h-4 w-4" aria-hidden="true" /> {selected.st.modules ? 'Abrir as prateleiras' : 'Montar as prateleiras'}
+          </button>
+        </Panel>
+      )}
+      <Panel title="Prateleiras da loja">
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Diga em que gôndola, módulo e prateleira fica cada produto, e quanto espaço ele ocupa. Dá para bipar com o celular.
+        </p>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{built} de {list.length} móveis montados · {placedProducts.size} produtos com lugar exato</span>
+          <span aria-hidden="true" className="h-2 overflow-hidden rounded-full" style={{ background: 'var(--surface-soft)' }}>
+            <span className="block h-full rounded-full" style={{ width: `${(built / list.length) * 100}%`, background: 'var(--brand-500)' }} />
+          </span>
+        </div>
+        {built < list.length && (
+          <button type="button" onClick={onFillAll}
+            className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold ${FOCUS}`} style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+            Montar o padrão nos {list.length - built} que faltam
+          </button>
+        )}
+        <ul className="flex flex-col gap-0.5">
+          {list.map(({ f, st }) => (
+            <li key={f.id} className="flex items-center gap-1">
+              <button type="button" onClick={() => onSelect(f.id)} aria-pressed={selectedId === f.id}
+                className={`flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left text-sm transition hover:bg-[var(--surface-soft)] ${FOCUS}`}>
+                <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: st.products ? 'var(--brand-500)' : st.modules ? '#f59e0b' : 'var(--border-strong)' }} />
+                <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{fixtureName(f)}</span>
+                <span className="shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>{st.modules ? `${st.products} produto${st.products === 1 ? '' : 's'}` : 'a montar'}</span>
+              </button>
+              <button type="button" onClick={() => onOpen(f.id)} aria-label={`Abrir as prateleiras de ${fixtureName(f)}`}
+                className={`inline-flex min-h-[44px] items-center rounded-lg px-3 text-sm font-semibold ${FOCUS}`} style={{ color: 'var(--brand-700)' }}>
+                Abrir
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </>
   );
 };
 

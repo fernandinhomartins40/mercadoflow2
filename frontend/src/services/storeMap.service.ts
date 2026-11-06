@@ -29,6 +29,11 @@ export const storeMapService = {
     const response = await api.get(`${base(marketId)}/locate`, { params: { q } });
     return response.data || [];
   },
+
+  /** Produto bipado: 404 quando o código não está no cadastro. */
+  async byBarcode(marketId: string, code: string): Promise<LocatedProduct> {
+    return (await api.get(`${base(marketId)}/barcode`, { params: { code } })).data;
+  },
 };
 
 export default storeMapService;

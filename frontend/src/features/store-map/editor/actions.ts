@@ -1,5 +1,6 @@
 import type { Fixture, FixtureType, StorePlan } from '../../../types/storeMap.types';
 import { FIXTURES, newId } from '../model';
+import { defaultSides } from '../shelves';
 import { boundsOf, clamp, round2, snapTo } from './geometry';
 
 /** Operações do editor sobre a planta: puras, cada uma devolve uma planta nova. */
@@ -113,6 +114,8 @@ export interface AisleSpec {
   aisle: number;
   orientation: 'vertical' | 'horizontal';
   endCaps: boolean;
+  /** Prateleiras por módulo: as gôndolas já saem com módulos de 1 m montados. 0 = sem montar. */
+  shelves?: number;
 }
 
 /**
@@ -146,6 +149,7 @@ export function generateAisles(plan: StorePlan, spec: AisleSpec): { plan: StoreP
         : { id: newId(), type: 'ponta', x: startL + length + 0.05, y: a, w: cap, h: depth, label: `Ponta ${base + i + 1}`, departments: [] }));
     }
   }
-  return { plan: { ...plan, fixtures: [...plan.fixtures, ...added] }, ids: added.map((f) => f.id) };
+  const built = spec.shelves ? added.map((f) => ({ ...f, sides: defaultSides(f, spec.shelves) })) : added;
+  return { plan: { ...plan, fixtures: [...plan.fixtures, ...built] }, ids: built.map((f) => f.id) };
 }
 

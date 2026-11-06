@@ -1,5 +1,6 @@
 package com.pdv2cloud.service.storemap;
 
+import com.pdv2cloud.exception.CustomExceptions;
 import com.pdv2cloud.model.dto.MarketBasketDTO;
 import com.pdv2cloud.model.entity.Market;
 import com.pdv2cloud.model.entity.StoreLayout;
@@ -216,6 +217,36 @@ public class StoreMapService {
             return new LocatedProduct(id, rs.getString("name"), rs.getString("image_url"), d.name(), d.label(),
                 plan == null ? List.of() : plan.placesOf(id.toString()));
         });
+    }
+
+    /**
+     * Produto bipado na prateleira: acha pelo código de barras (com ou sem os
+     * zeros da frente), com o setor e os lugares onde já está. Vale para
+     * produto que a loja ainda não vendeu.
+     */
+    @Transactional(readOnly = true)
+    public LocatedProduct byBarcode(UUID marketId, String code) {
+        String digits = code == null ? "" : code.replaceAll("\\D", "");
+        if (digits.length() < 6 || digits.length() > 14) {
+            throw new IllegalArgumentException("Código de barras inválido. Bipe de novo ou digite os números.");
+        }
+        String trimmed = digits.replaceFirst("^0+", "");
+        Map<String, Object> raw = getPlan(marketId);
+        StorePlan plan = raw == null ? null : StorePlan.from(raw);
+        List<LocatedProduct> found = jdbc.query(
+            "select p.id, p.name, p.image_url, p.category, "
+                + "  (select max(ii.ncm) from invoice_items ii where ii.product_id = p.id) as ncm "
+                + "from products p where p.ean in (:a, :b) or ltrim(p.ean, '0') = :b "
+                + "order by (p.ean = :a) desc, (p.image_url is not null) desc limit 1",
+            new MapSqlParameterSource("a", digits).addValue("b", trimmed.isEmpty() ? digits : trimmed),
+            (rs, i) -> {
+                StoreDepartment d = DepartmentClassifier.classify(rs.getString("ncm"), rs.getString("category"));
+                UUID id = (UUID) rs.getObject("id");
+                return new LocatedProduct(id, rs.getString("name"), rs.getString("image_url"), d.name(), d.label(),
+                    plan == null ? List.of() : plan.placesOf(id.toString()));
+            });
+        if (found.isEmpty()) throw new CustomExceptions.NotFound("Produto não encontrado no cadastro.");
+        return found.get(0);
     }
 
     /** Nome e foto dos produtos colocados nas prateleiras, para a tela mostrar sem outra consulta. */

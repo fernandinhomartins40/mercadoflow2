@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Copy, Layers, Minus, Plus, Search, Tag, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, Layers, Minus, Plus, ScanBarcode, Search, Tag, Trash2 } from 'lucide-react';
+import ShelfScan from './ShelfScan';
 import Modal from '../../../components/common/Modal';
 import SegmentedTabs from '../../../components/ui/SegmentedTabs';
 import ProductImage from '../../../components/product/ProductImage';
@@ -170,7 +171,9 @@ const ShelfDetail: React.FC<{
   onSlots: (slots: ShelfSlot[], dept?: string) => void;
   onKind: (k: ShelfKind) => void;
   onProduct: (id: string, p: ShelfProduct) => void;
-}> = ({ shelf, index, total, widthCm, marketId, products, onSlots, onKind, onProduct }) => {
+  /** Abre o bipar nesta prateleira (some enquanto já está bipando). */
+  onScan?: () => void;
+}> = ({ shelf, index, total, widthCm, marketId, products, onSlots, onKind, onProduct, onScan }) => {
   const bar = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<ShelfSlot[] | null>(null);
   const drag = useRef<{ i: number; x: number; base: ShelfSlot[] } | null>(null);
@@ -267,6 +270,12 @@ const ShelfDetail: React.FC<{
       )}
       {free > 0.005 && slots.length > 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Espaço livre: {pct(free)} (cerca de {Math.round(free * widthCm)} cm).</p>}
 
+      {onScan && (
+        <button type="button" onClick={onScan} className={`${BTN} min-h-[44px] text-white`} style={{ background: 'var(--brand-700)' }}>
+          <ScanBarcode className="h-5 w-5" aria-hidden="true" /> Bipar os produtos desta prateleira
+        </button>
+      )}
+
       <AddItem marketId={marketId} onAdd={(item, p) => {
         if (p) onProduct(p.id, { name: p.name, imageUrl: p.imageUrl });
         onSlots(addSlot(slots, item), item.department);
@@ -284,6 +293,7 @@ const ShelfEditor: React.FC<Props> = ({ open, onClose, fixture, marketId, produc
   const keys = sideKeys(fixture.type);
   const [sideKey, setSideKey] = useState<'A' | 'B'>('A');
   const [sel, setSel] = useState<{ moduleId: string; shelfId: string | null } | null>(null);
+  const [scanning, setScanning] = useState(false);
   const side = fixture.sides?.find((s) => s.key === sideKey);
   const mod = side?.modules.find((m) => m.id === sel?.moduleId) ?? side?.modules[0];
   const shelfIndex = mod?.shelves.findIndex((s) => s.id === sel?.shelfId) ?? -1;
@@ -298,6 +308,26 @@ const ShelfEditor: React.FC<Props> = ({ open, onClose, fixture, marketId, produc
     // Produto ou setor colocado aqui marca o setor no móvel, para o calor de vendas e o "onde fica?".
     onChange(dept && !next.departments.includes(dept) ? { ...next, departments: [...next.departments, dept] } : next);
   };
+
+  /** Produto bipado entra na prateleira selecionada, com o setor dele no móvel. */
+  const placeScanned = (p: LocatedProduct) => {
+    onProduct(p.id, { name: p.name, imageUrl: p.imageUrl });
+    commitShelf((s) => ({ ...s, slots: addSlot(s.slots, { productId: p.id, department: p.department }) }), p.department);
+  };
+
+  /** Prateleira de baixo; na última do módulo, a de cima do próximo módulo. */
+  const nextShelf = () => {
+    if (!side || !mod) return false;
+    const mi = side.modules.indexOf(mod);
+    const target = shelfIndex + 1 < mod.shelves.length
+      ? { moduleId: mod.id, shelfId: mod.shelves[shelfIndex + 1].id }
+      : side.modules[mi + 1] ? { moduleId: side.modules[mi + 1].id, shelfId: side.modules[mi + 1].shelves[0]?.id ?? null } : null;
+    if (!target?.shelfId) return false;
+    setSel(target);
+    return true;
+  };
+
+  const startScan = (moduleId: string, shelfId: string) => { setSel({ moduleId, shelfId }); setScanning(true); };
 
   return (
     <Modal open={open} onClose={onClose} size="xl" titleId="shelf-editor-title"
@@ -320,7 +350,7 @@ const ShelfEditor: React.FC<Props> = ({ open, onClose, fixture, marketId, produc
           <div className="flex flex-wrap items-center justify-between gap-2">
             {keys.length > 1 ? (
               <SegmentedTabs<'A' | 'B'> fit label="Lado do móvel" value={sideKey}
-                onChange={(k) => { setSideKey(k); setSel(null); }}
+                onChange={(k) => { setSideKey(k); setSel(null); setScanning(false); }}
                 tabs={keys.map((k) => ({ key: k, label: `Lado ${k}` }))} />
             ) : <span />}
             {keys.length > 1 && (
@@ -401,14 +431,25 @@ const ShelfEditor: React.FC<Props> = ({ open, onClose, fixture, marketId, produc
                 </button>
               </section>
 
-              <section className="min-w-0 rounded-xl p-3" style={{ border: '1px solid var(--border-soft)' }} aria-label="Prateleira selecionada">
+              <section className="flex min-w-0 flex-col gap-3 rounded-xl p-3" style={{ border: '1px solid var(--border-soft)' }} aria-label="Prateleira selecionada">
+                {shelf && scanning && (
+                  <ShelfScan marketId={marketId} where={`módulo ${(side?.modules.indexOf(mod) ?? 0) + 1}, ${shelfIndex + 1}ª prateleira de cima`}
+                    onFound={placeScanned} onNext={nextShelf} onClose={() => setScanning(false)} />
+                )}
                 {shelf ? (
-                  <ShelfDetail key={shelf.id} shelf={shelf} index={shelfIndex} total={mod.shelves.length} widthCm={mod.widthCm}
+                  <ShelfDetail onScan={scanning ? undefined : () => setScanning(true)} key={shelf.id} shelf={shelf} index={shelfIndex} total={mod.shelves.length} widthCm={mod.widthCm}
                     marketId={marketId} products={products} onProduct={onProduct}
                     onSlots={(slots, dept) => commitShelf((s) => ({ ...s, slots }), dept)}
                     onKind={(kind) => commitShelf((s) => ({ ...s, kind }))} />
                 ) : (
-                  <p className="py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Toque numa prateleira acima para dizer o que tem nela e quanto espaço cada item ocupa.</p>
+                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Toque numa prateleira acima para dizer o que tem nela e quanto espaço cada item ocupa.</p>
+                    {mod.shelves[0] && (
+                      <button type="button" onClick={() => startScan(mod.id, mod.shelves[0].id)} className={`${BTN} min-h-[44px] text-white`} style={{ background: 'var(--brand-700)' }}>
+                        <ScanBarcode className="h-5 w-5" aria-hidden="true" /> Bipar a partir da prateleira de cima
+                      </button>
+                    )}
+                  </div>
                 )}
               </section>
             </div>

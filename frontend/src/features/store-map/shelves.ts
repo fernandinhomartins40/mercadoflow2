@@ -43,8 +43,9 @@ export const newModule = (widthCm: number, count: number, kind: ShelfKind): Shel
 export const fixtureLengthCm = (f: Fixture) => Math.round(Math.max(f.w, f.h) * 100);
 
 /** Módulos de 1 m; a sobra (30 cm ou mais) vira um módulo menor no fim. */
-export function defaultSides(f: Fixture): FixtureSide[] {
-  const d = DEFAULTS[f.type] ?? { count: 4, kind: 'prateleira' as ShelfKind };
+export function defaultSides(f: Fixture, shelves?: number): FixtureSide[] {
+  const base = DEFAULTS[f.type] ?? { count: 4, kind: 'prateleira' as ShelfKind };
+  const d = { ...base, count: shelves ? Math.max(1, Math.min(12, Math.round(shelves))) : base.count };
   const len = Math.max(20, fixtureLengthCm(f));
   const widths: number[] = [];
   for (let left = len; left > 0; left -= 100) widths.push(Math.min(100, left));

@@ -71,4 +71,11 @@ public class StoreMapController {
         marketAccessService.assertCanAccessMarket(marketId, auth);
         return ResponseEntity.ok(storeMapService.locate(marketId, q));
     }
+
+    @GetMapping("/barcode")
+    public ResponseEntity<StoreMapService.LocatedProduct> barcode(
+        @PathVariable UUID marketId, @RequestParam(name = "code", defaultValue = "") String code, Authentication auth) {
+        marketAccessService.assertCanAccessMarket(marketId, auth);
+        return ResponseEntity.ok(storeMapService.byBarcode(marketId, code));
+    }
 }

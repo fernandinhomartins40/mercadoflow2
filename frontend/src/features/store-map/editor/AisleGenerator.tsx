@@ -18,6 +18,7 @@ const AisleGenerator: React.FC<{ plan: StorePlan; onApply: (next: StorePlan, ids
     aisle: 1.6,
     orientation: 'vertical',
     endCaps: true,
+    shelves: 5,
   }));
   const set = (p: Partial<AisleSpec>) => setSpec((s) => ({ ...s, ...p }));
   const preview = generateAisles({ ...plan, fixtures: [] }, spec).plan;
@@ -61,6 +62,23 @@ const AisleGenerator: React.FC<{ plan: StorePlan; onApply: (next: StorePlan, ids
         <input type="checkbox" checked={spec.endCaps} onChange={(e) => set({ endCaps: e.target.checked })} className="h-4 w-4 accent-[var(--brand-700)]" />
         Com ponta de gôndola na frente
       </label>
+      <div className="flex flex-wrap items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+        <label className="flex min-h-[36px] cursor-pointer items-center gap-2">
+          <input type="checkbox" checked={!!spec.shelves} onChange={(e) => set({ shelves: e.target.checked ? 5 : 0 })} className="h-4 w-4 accent-[var(--brand-700)]" />
+          Já montar as prateleiras:
+        </label>
+        {!!spec.shelves && (
+          <span className="flex items-center gap-1">
+            {[-1, 1].map((d) => (
+              <button key={d} type="button" onClick={() => set({ shelves: Math.max(1, Math.min(12, (spec.shelves ?? 5) + d)) })}
+                aria-label={d < 0 ? 'Uma prateleira a menos' : 'Uma prateleira a mais'}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg font-semibold ${FOCUS} ${d > 0 ? 'order-3' : ''}`}
+                style={{ border: '1px solid var(--border-strong)' }}>{d < 0 ? '−' : '+'}</button>
+            ))}
+            <output className="order-2 min-w-[5.5rem] text-center font-semibold">{spec.shelves} por módulo</output>
+          </span>
+        )}
+      </div>
       <button type="button" onClick={() => { const r = generateAisles(plan, spec); onApply(r.plan, r.ids); }}
         className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white ${FOCUS}`}
         style={{ background: 'var(--brand-700)' }}>

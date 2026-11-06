@@ -107,12 +107,12 @@ export const DESTINATIONS: Destination[] = [
   {
     key: 'vender',
     label: 'Vender',
-    hint: 'Ofertas, encartes e planta da loja',
+    hint: 'Ofertas, encartes, planta e prateleiras',
     icon: Tag,
     inDock: true,
     pages: [
       { to: '/app/promocoes', label: 'Ofertas', icon: Megaphone, alsoMatches: ['/app/encartes', '/app/encartes/'] },
-      { to: '/app/mapa-loja', label: 'Planta da loja', icon: Map },
+      { to: '/app/mapa-loja', label: 'Planta e prateleiras', icon: Map },
     ],
   },
   {
