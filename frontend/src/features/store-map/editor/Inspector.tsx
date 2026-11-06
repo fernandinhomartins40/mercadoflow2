@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter,
-  AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, Copy, RotateCw, Scaling, Trash2, X,
+  AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, Copy, Layers, RotateCw, Scaling, Trash2, X,
 } from 'lucide-react';
+import { sideStats } from '../shelves';
 import type { DepartmentsReport, Fixture, FixtureType, StorePlan } from '../../../types/storeMap.types';
 import { formatMoney } from '../../../utils/formatters';
 import { DEPARTMENTS, DEPT_BY_KEY, FIXTURES, fixtureName } from '../model';
@@ -22,6 +23,8 @@ interface Props {
   preview: (next: StorePlan) => void;
   settle: () => void;
   onSelect: (ids: string[]) => void;
+  /** Abre o editor de prateleiras do móvel. */
+  onOpenShelves?: (id: string) => void;
 }
 
 const Label: React.FC<{ children: React.ReactNode; htmlFor?: string }> = ({ children, htmlFor }) => (
@@ -75,7 +78,7 @@ const Swatch: React.FC<{ type: FixtureType; size?: number }> = ({ type, size = 1
 };
 
 /** O que está selecionado: o que é, o que tem nele, onde está e quanto mede. */
-const Inspector: React.FC<Props> = ({ plan, ids, report, apply, preview, settle, onSelect }) => {
+const Inspector: React.FC<Props> = ({ plan, ids, report, apply, preview, settle, onSelect, onOpenShelves }) => {
   const sel = plan.fixtures.filter((f) => ids.includes(f.id));
   if (!sel.length) return null;
   const actions = (
@@ -183,6 +186,23 @@ const Inspector: React.FC<Props> = ({ plan, ids, report, apply, preview, settle,
         </button>
       </div>
 
+      {!meta.noProducts && onOpenShelves && (() => {
+        const st = sideStats(f);
+        return (
+          <div className="flex flex-col gap-2 rounded-xl p-3" style={{ background: 'var(--surface-soft)' }}>
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+              {st.modules
+                ? <>{st.modules} {st.modules === 1 ? 'módulo' : 'módulos'} · {st.shelves} prateleiras · <strong>{st.products} {st.products === 1 ? 'produto' : 'produtos'}</strong></>
+                : 'Diga o que tem em cada prateleira: módulos, prateleiras e o espaço de cada produto.'}
+            </p>
+            <button type="button" onClick={() => onOpenShelves(f.id)}
+              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-white ${FOCUS}`} style={{ background: 'var(--brand-700)' }}>
+              <Layers className="h-4 w-4" aria-hidden="true" /> {st.modules ? 'Editar prateleiras' : 'Montar prateleiras'}
+            </button>
+          </div>
+        );
+      })()}
+
       {meta.noProducts ? (
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{meta.label} não expõe produtos: serve de referência no mapa e para medir distâncias.</p>
       ) : (
@@ -231,7 +251,7 @@ const Inspector: React.FC<Props> = ({ plan, ids, report, apply, preview, settle,
             const m = FIXTURES[t];
             const on = t === f.type;
             return (
-              <button key={t} type="button" aria-pressed={on} onClick={() => set({ type: t, departments: m.noProducts ? [] : f.departments })}
+              <button key={t} type="button" aria-pressed={on} onClick={() => set({ type: t, departments: m.noProducts ? [] : f.departments, sides: m.noProducts ? undefined : f.sides })}
                 className={`flex min-h-[40px] items-center gap-2 rounded-lg px-2 text-left text-xs font-medium ${FOCUS}`}
                 style={{ border: `1px solid ${on ? m.stroke : 'var(--border-soft)'}`, background: on ? m.fill : 'var(--surface-base)', color: 'var(--text-primary)' }}>
                 <Swatch type={t} size={14} /> {m.label}

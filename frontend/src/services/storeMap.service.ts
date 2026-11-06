@@ -1,12 +1,13 @@
 import api from './api';
-import type { DepartmentsReport, LocatedProduct, StoreInsight, StorePlan } from '../types/storeMap.types';
+import type { DepartmentsReport, LocatedProduct, ShelfProduct, StoreInsight, StorePlan } from '../types/storeMap.types';
 
 const base = (marketId: string) => `/v1/markets/${marketId}/store-map`;
 
 export const storeMapService = {
-  async getPlan(marketId: string): Promise<StorePlan | null> {
+  /** Planta e o nome/foto dos produtos já colocados nas prateleiras. */
+  async getPlan(marketId: string): Promise<{ plan: StorePlan | null; products: Record<string, ShelfProduct> }> {
     const response = await api.get(base(marketId));
-    return response.data?.plan ?? null;
+    return { plan: response.data?.plan ?? null, products: response.data?.products ?? {} };
   },
 
   async savePlan(marketId: string, plan: StorePlan): Promise<StorePlan> {

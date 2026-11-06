@@ -10,8 +10,11 @@ import { useAuth } from '../context/AuthContext';
 import { storeMapService } from '../services/storeMap.service';
 import { formatMoney } from '../utils/formatters';
 import type {
-  DepartmentsReport, FixtureType, InsightKind, LocatedProduct, StoreInsight, StorePlan,
+  DepartmentsReport, FixtureType, InsightKind, LocatedProduct, ShelfProduct, StoreInsight, StorePlan,
 } from '../types/storeMap.types';
+import ShelfEditor from '../features/store-map/editor/ShelfEditor';
+import { describePlace, TWO_SIDED } from '../features/store-map/shelves';
+import { patch } from '../features/store-map/editor/actions';
 import SetupWizard from '../features/store-map/SetupWizard';
 import { DEPT_BY_KEY, FIXTURES, deptLabel, fixtureName, revenuePerFixture } from '../features/store-map/model';
 import PlanCanvas, { FIXTURE_MIME, Tool } from '../features/store-map/editor/PlanCanvas';
@@ -87,6 +90,8 @@ const StoreMap: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [aisleId, setAisleId] = useState<string | null>(null);
   const [showKeys, setShowKeys] = useState(false);
+  const [shelvesId, setShelvesId] = useState<string | null>(null);
+  const [products, setProducts] = useState<Record<string, ShelfProduct>>({});
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const latestPlan = useRef<StorePlan | null>(null);
 
@@ -125,7 +130,7 @@ const StoreMap: React.FC = () => {
     let cancelled = false;
     // A planta aparece assim que chega; as vendas (mais pesadas) completam depois.
     storeMapService.getPlan(marketId)
-      .then((p) => { if (!cancelled) { history.reset(p); latestPlan.current = p; } })
+      .then(({ plan: p, products: names }) => { if (!cancelled) { history.reset(p); latestPlan.current = p; setProducts(names); } })
       .catch(() => { if (!cancelled) setError('Não foi possível abrir a planta da loja.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     storeMapService.getDepartments(marketId)
@@ -174,7 +179,8 @@ const StoreMap: React.FC = () => {
   // ── Atalhos do editor ────────────────────────────────────────────────────
   const editing = mode === 'montar' && view === 'planta' && !!plan;
   useEffect(() => {
-    if (!editing || !plan) return undefined;
+    // Com as prateleiras abertas, Delete e as setas são da janela, não do móvel por trás.
+    if (!editing || !plan || shelvesId) return undefined;
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
       if (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable) return;
@@ -197,7 +203,7 @@ const StoreMap: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editing, plan, selectedIds, history, apply]);
+  }, [editing, plan, selectedIds, history, apply, shelvesId]);
 
   // ── Derivados ────────────────────────────────────────────────────────────
   const heat = useMemo(() => (plan ? revenuePerFixture(plan, report) : {}), [plan, report]);
@@ -412,6 +418,7 @@ const StoreMap: React.FC = () => {
                       preview={history.preview}
                       settle={() => history.commit()}
                       onSelect={setSelectedIds}
+                      onOpenShelves={setShelvesId}
                     />
                   </Panel>
                 ) : (
@@ -513,6 +520,14 @@ const StoreMap: React.FC = () => {
                 )}
               </div>
             </div>
+            {(() => {
+              const f = plan.fixtures.find((x) => x.id === shelvesId);
+              return f ? (
+                <ShelfEditor open onClose={() => setShelvesId(null)} fixture={f} marketId={marketId!} products={products}
+                  onProduct={(id, p) => setProducts((prev) => ({ ...prev, [id]: p }))}
+                  onChange={(next) => apply(patch(plan, [f.id], { sides: next.sides, departments: next.departments }))} />
+              ) : null;
+            })()}
           </>
         )}
       </div>
@@ -536,6 +551,17 @@ const LocateSearch: React.FC<{ marketId: string; plan: StorePlan; onFound: (ids:
   }, [q, marketId]);
 
   const pick = (p: LocatedProduct) => {
+    if (p.places?.length) {
+      // Lugar exato, colocado pelo mercadista nas prateleiras.
+      const sided = (id: string) => TWO_SIDED.has(plan.fixtures.find((f) => f.id === id)?.type ?? 'caixa');
+      onFound(
+        [...new Set(p.places.map((pl) => pl.fixtureId))],
+        `${p.name}: ${p.places.slice(0, 2).map((pl) => describePlace(pl, sided(pl.fixtureId))).join(' | ')}${p.places.length > 2 ? ` (e mais ${p.places.length - 2})` : ''}`,
+      );
+      setOpen(false);
+      setQ(p.name);
+      return;
+    }
     const fixtures = plan.fixtures.filter((f) => f.departments.includes(p.department));
     const names = fixtures.map(fixtureName);
     onFound(

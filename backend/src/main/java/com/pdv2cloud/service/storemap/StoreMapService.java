@@ -185,13 +185,17 @@ public class StoreMapService {
 
     // ── Onde fica? ──────────────────────────────────────────────────────────
 
-    public record LocatedProduct(UUID id, String name, String imageUrl, String department, String departmentLabel) {}
+    /** {@code places}: onde o mercadista colocou o produto nas prateleiras (vazio = só o setor é conhecido). */
+    public record LocatedProduct(UUID id, String name, String imageUrl, String department, String departmentLabel,
+                                 List<StorePlan.Place> places) {}
 
-    /** Produtos vendidos nos últimos 90 dias cujo nome contém o termo, com o setor de cada um. */
+    /** Produtos vendidos nos últimos 90 dias cujo nome contém o termo, com o setor e o lugar de cada um. */
     @Transactional(readOnly = true)
     public List<LocatedProduct> locate(UUID marketId, String query) {
         String q = query == null ? "" : query.trim();
         if (q.length() < 2) return List.of();
+        Map<String, Object> raw = getPlan(marketId);
+        StorePlan plan = raw == null ? null : StorePlan.from(raw);
         String sql =
             "select p.id, p.name, p.image_url, p.category, max(ii.ncm) as ncm, sum(ii.valor_total) as revenue " +
             "from invoice_items ii " +
@@ -208,9 +212,26 @@ public class StoreMapService {
             .addValue("term", "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
         return jdbc.query(sql, params, (rs, i) -> {
             StoreDepartment d = DepartmentClassifier.classify(rs.getString("ncm"), rs.getString("category"));
-            return new LocatedProduct((UUID) rs.getObject("id"), rs.getString("name"),
-                rs.getString("image_url"), d.name(), d.label());
+            UUID id = (UUID) rs.getObject("id");
+            return new LocatedProduct(id, rs.getString("name"), rs.getString("image_url"), d.name(), d.label(),
+                plan == null ? List.of() : plan.placesOf(id.toString()));
         });
+    }
+
+    /** Nome e foto dos produtos colocados nas prateleiras, para a tela mostrar sem outra consulta. */
+    @Transactional(readOnly = true)
+    public Map<String, Map<String, String>> shelfProducts(Map<String, Object> raw) {
+        Map<String, Map<String, String>> out = new LinkedHashMap<>();
+        if (raw == null) return out;
+        Set<UUID> ids = new HashSet<>();
+        StorePlan.from(raw).productIds().forEach(id -> ids.add(UUID.fromString(id)));
+        productNames(ids).forEach((id, n) -> {
+            Map<String, String> p = new HashMap<>();
+            p.put("name", n[0]);
+            p.put("imageUrl", n[1]);
+            out.put(id.toString(), p);
+        });
+        return out;
     }
 
     // ── Planta ──────────────────────────────────────────────────────────────

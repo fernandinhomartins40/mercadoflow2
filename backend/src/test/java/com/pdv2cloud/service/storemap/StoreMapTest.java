@@ -70,6 +70,52 @@ class StoreMapTest {
         assertThrows(IllegalArgumentException.class, () -> StorePlan.sanitize(Map.of("fixtures", many), 4));
     }
 
+    private static final String NESCAU = "11111111-1111-1111-1111-111111111111";
+    private static final String TODDY = "22222222-2222-2222-2222-222222222222";
+
+    private static Map<String, Object> shelf(String id, List<Map<String, Object>> slots) {
+        return Map.of("id", id, "kind", "prateleira", "slots", slots);
+    }
+
+    @Test
+    @DisplayName("prateleiras: divisão nunca passa de 100%, lixo descartado, lugar do produto encontrado")
+    void shelvesAndPlaces() {
+        Map<String, Object> module1 = Map.of("id", "m1", "widthCm", 100, "shelves", List.of(
+            shelf("s1", List.of(Map.of("department", "BEBIDAS", "share", 1))),
+            shelf("s2", List.of(
+                Map.of("productId", NESCAU, "share", 0.8, "facings", 4),
+                Map.of("productId", TODDY, "share", 0.6),           // soma 140%: vira proporção
+                Map.of("productId", "nao-e-uuid", "share", 0.2),    // sem produto, setor nem nome: some
+                Map.of("label", "Promoção", "share", 0)))));         // sem espaço: some
+        Map<String, Object> module2 = Map.of("id", "m2", "widthCm", 9999, "shelves", List.of(
+            shelf("s1", List.of(Map.of("productId", NESCAU, "share", 0.5)))));
+        Map<String, Object> gondola = new java.util.HashMap<>(fx("g1", "gondola", 2, 2, 1, 6, "MATINAIS"));
+        gondola.put("sides", List.of(
+            Map.of("key", "A", "modules", List.of(module1, module2)),
+            Map.of("key", "A", "modules", List.of()),               // lado repetido
+            Map.of("key", "Z", "modules", List.of())));             // lado inválido
+        Map<String, Object> caixa = new java.util.HashMap<>(fx("c1", "caixa", 5, 5, 1, 1));
+        caixa.put("sides", List.of(Map.of("key", "A", "modules", List.of(module1))));
+
+        Map<String, Object> clean = StorePlan.sanitize(Map.of("width", 20, "height", 14, "fixtures", List.of(gondola, caixa)), 400);
+        StorePlan plan = StorePlan.from(clean);
+        StorePlan.Fixture g = plan.fixtures().get(0);
+        assertEquals(1, g.sides().size(), "só o primeiro lado A");
+        assertEquals(400, g.sides().get(0).modules().get(1).widthCm(), "largura limitada a 4 m");
+        List<StorePlan.Slot> s2 = g.sides().get(0).modules().get(0).shelves().get(1).slots();
+        assertEquals(2, s2.size());
+        assertEquals(1.0, s2.get(0).share() + s2.get(1).share(), 1e-9, "prateleira cheia, nunca mais que 100%");
+        assertEquals(4, s2.get(0).facings());
+        assertTrue(plan.fixtures().get(1).sides().isEmpty(), "caixa não tem prateleira");
+        assertEquals(java.util.Set.of(NESCAU, TODDY), plan.productIds());
+
+        List<StorePlan.Place> places = plan.placesOf(NESCAU);
+        assertEquals(2, places.size(), "mesmo produto em dois lugares");
+        assertEquals(new StorePlan.Place("g1", "g1", "A", 1, 2, 2, 2, 0, 0.57), places.get(0));
+        assertEquals(2, places.get(1).module());
+        assertEquals(0.57, plan.placesOf(TODDY).get(0).start(), "Toddy começa onde o Nescau termina");
+    }
+
     // ── Sugestões ───────────────────────────────────────────────────────────
 
     private static DepartmentStat stat(StoreDepartment d, double revenue, double share, int baskets) {

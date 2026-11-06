@@ -38,7 +38,9 @@ public class StoreMapController {
     public ResponseEntity<Map<String, Object>> getPlan(@PathVariable UUID marketId, Authentication auth) {
         marketAccessService.assertCanAccessMarket(marketId, auth);
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("plan", storeMapService.getPlan(marketId));
+        Map<String, Object> plan = storeMapService.getPlan(marketId);
+        body.put("plan", plan);
+        body.put("products", storeMapService.shelfProducts(plan));
         return ResponseEntity.ok(body);
     }
 
