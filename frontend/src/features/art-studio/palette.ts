@@ -44,31 +44,31 @@ const hexLum = (hex: string) => {
 const hueDist = (a: number, b: number) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-const cache = new WeakMap<HTMLImageElement, Map<string, Palette>>();
+type Source = HTMLImageElement | HTMLCanvasElement;
+const BUCKETS = 24;
 
-export const derivePalette = (img: HTMLImageElement, products?: NRect | null): Palette => {
-  const key = products ? `${products.x}:${products.y}:${products.w}:${products.h}` : '-';
-  let map = cache.get(img);
-  if (!map) { map = new Map(); cache.set(img, map); }
-  const hit = map.get(key);
-  if (hit) return hit;
+/** Histograma de matiz ponderado pela saturação, somado de uma ou mais imagens. */
+interface Histogram { weight: Float32Array; sums: number[][]; panel: number[] }
+const newHistogram = (): Histogram => ({ weight: new Float32Array(BUCKETS), sums: Array.from({ length: BUCKETS }, () => [0, 0, 0, 0]), panel: [0, 0, 0, 0] });
 
+/**
+ * Soma os pixels de `img` no histograma, multiplicados por `factor`. A área de
+ * produtos fica de fora (é o "papel" onde vão os cartões, não a cor da
+ * campanha), mas o tom dela é guardado para o cartão.
+ */
+const accumulate = (hist: Histogram, img: Source, products: NRect | null | undefined, factor: number) => {
+  const iw = img instanceof HTMLImageElement ? img.naturalWidth : img.width;
+  const ih = img instanceof HTMLImageElement ? img.naturalHeight : img.height;
   const W = 72;
-  const H = Math.max(24, Math.round((72 * img.naturalHeight) / Math.max(1, img.naturalWidth)));
+  const H = Math.max(24, Math.round((72 * ih) / Math.max(1, iw)));
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return DEFAULT_PALETTE;
+  if (!ctx) return;
   ctx.drawImage(img, 0, 0, W, H);
   const data = ctx.getImageData(0, 0, W, H).data;
-
-  // Histograma de matiz ponderado pela saturação, fora da área de produtos
-  // (ela é o "papel" onde vão os cartões, não a cor da campanha).
-  const BUCKETS = 24;
-  const weight = new Float32Array(BUCKETS);
-  const sums = Array.from({ length: BUCKETS }, () => [0, 0, 0, 0]);
-  let panel = [0, 0, 0, 0];
+  const { weight, sums, panel } = hist;
   const inside = (x: number, y: number) => !!products && x >= products.x * W && x < (products.x + products.w) * W
     && y >= products.y * H && y < (products.y + products.h) * H;
   for (let y = 0; y < H; y++) {
@@ -76,21 +76,47 @@ export const derivePalette = (img: HTMLImageElement, products?: NRect | null): P
       const i = (y * W + x) * 4;
       if (data[i + 3] < 128) continue;
       const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
-      if (inside(x, y)) { panel = [panel[0] + r, panel[1] + g, panel[2] + b, panel[3] + 1]; continue; }
+      if (inside(x, y)) { panel[0] += r; panel[1] += g; panel[2] += b; panel[3] += 1; continue; }
       const [h, s, l] = rgbToHsl(r, g, b);
       if (s < 0.28 || l < 0.12 || l > 0.9) continue;
       const bucket = Math.floor(h / (360 / BUCKETS)) % BUCKETS;
-      const w = s * (1 - Math.abs(l - 0.5));
+      const w = s * (1 - Math.abs(l - 0.5)) * factor;
       weight[bucket] += w;
       sums[bucket][0] += r * w; sums[bucket][1] += g * w; sums[bucket][2] += b * w; sums[bucket][3] += w;
     }
   }
+};
+
+const cache = new WeakMap<Source, Map<string, Palette>>();
+
+export const derivePalette = (img: Source, products?: NRect | null): Palette => {
+  const key = products ? `${products.x}:${products.y}:${products.w}:${products.h}` : '-';
+  let map = cache.get(img);
+  if (!map) { map = new Map(); cache.set(img, map); }
+  const hit = map.get(key);
+  if (hit) return hit;
+  const hist = newHistogram();
+  accumulate(hist, img, products, 1);
+  const palette = paletteFrom(hist);
+  map.set(key, palette);
+  return palette;
+};
+
+/**
+ * Paleta da composição inteira do tema (criador de temas): cada parte entra
+ * com seu peso. Enfeites e selo pesam mais que a base, porque são eles que
+ * dão a identidade visual; a base costuma ser só o "papel" de cor.
+ */
+export const compositionPalette = (parts: Array<{ image: Source; weight: number; products?: NRect | null }>): Palette => {
+  const hist = newHistogram();
+  parts.forEach((p) => accumulate(hist, p.image, p.products, p.weight));
+  return paletteFrom(hist);
+};
+
+const paletteFrom = ({ weight, sums, panel }: Histogram): Palette => {
   const order = Array.from(weight.keys()).sort((a, b) => weight[b] - weight[a]);
   const total = weight.reduce((a, b) => a + b, 0);
-  if (!total || weight[order[0]] < total * 0.08) {
-    map.set(key, DEFAULT_PALETTE);
-    return DEFAULT_PALETTE;
-  }
+  if (!total || weight[order[0]] < total * 0.08) return DEFAULT_PALETTE;
   const avg = (bk: number) => {
     const [r, g, b, w] = sums[bk];
     return rgbToHsl(r / w, g / w, b / w);
@@ -116,13 +142,11 @@ export const derivePalette = (img: HTMLImageElement, products?: NRect | null): P
   // Cartão branco com um toque da cor da campanha; sobre painel branco, um toque a mais para destacar.
   const card = hslToHex(hue1, 0.3, panelLum > 0.93 ? 0.978 : 0.992);
 
-  const palette: Palette = {
+  return {
     tag,
     tagText: hexLum(tag) > 0.62 ? '#1c1917' : '#ffffff',
     card,
     cardText,
     accent,
   };
-  map.set(key, palette);
-  return palette;
 };

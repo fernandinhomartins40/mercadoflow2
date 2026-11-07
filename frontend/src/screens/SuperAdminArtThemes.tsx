@@ -16,8 +16,9 @@ import { compositeBlob } from '../features/art-studio/export';
 import { DEFAULT_PALETTE, FORMATS, FORMAT_KEYS, REGION_META, SAMPLE_ITEMS, themeFormat } from '../features/art-studio/formats';
 import { Candidate, analyzeBackground, annotatedImage, regionsFromAssignment } from '../features/art-studio/analyze';
 import { loadImage } from '../features/art-studio/assets';
-import { derivePalette } from '../features/art-studio/palette';
-import { useScene } from '../features/art-studio/scene';
+import { compositionPalette, derivePalette } from '../features/art-studio/palette';
+import { loadLayers, useScene } from '../features/art-studio/scene';
+import { drawLayers } from '../features/art-studio/render';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
 import RegionEditor from '../features/art-studio/RegionEditor';
 import { confirmDialog } from '../components/common/Dialogs';
@@ -247,6 +248,8 @@ const STAGE_TEXT: Record<Stage, string> = {
   idle: '', uploading: 'Enviando o fundo…', measuring: 'Medindo as áreas livres do fundo…', ai: 'A IA está escolhendo as áreas…', saving: 'Salvando…',
   layers: 'Enviando as camadas…', composing: 'Montando o fundo com as camadas…',
 };
+// Objeto fixo: um `{}` novo a cada render entra nas dependências da prévia e a remonta sem parar.
+const NO_REGIONS: Regions = {};
 // React não tipa o atributo de escolher pasta.
 const FOLDER_INPUT = { webkitdirectory: '', directory: '' } as Record<string, string>;
 
@@ -300,7 +303,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   }, [id, accept]);
 
   const tf = themeFormat(theme, format);
-  const regions = live ?? tf?.regions ?? {};
+  const regions = live ?? tf?.regions ?? NO_REGIONS;
   const layers = draft ?? tf?.layers ?? [];
   const duration = animation.duration ?? DEFAULT_DURATION;
 
@@ -498,6 +501,50 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     commitRegions(next);
   };
 
+  /**
+   * Varinha das cores: monta a composição completa do formato aberto (base,
+   * enfeites, mesmo os não salvos, e o selo) e tira dela a paleta da etiqueta.
+   */
+  const [harmonizing, setHarmonizing] = useState(false);
+  const harmonize = async () => {
+    setHarmonizing(true);
+    setError(null);
+    try {
+      const { width, height } = FORMATS[format];
+      const W = 360;
+      const H = Math.round((W * height) / width);
+      const canvas = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
+      const full = canvas();
+      const decor = canvas();
+      const fctx = full.getContext('2d')!;
+      fctx.fillStyle = '#ffffff';
+      fctx.fillRect(0, 0, W, H);
+      const visible = layers.filter((l) => !l.hidden);
+      if (visible.length) {
+        const loaded = await loadLayers(visible);
+        drawLayers(fctx, loaded, W, H);
+        drawLayers(decor.getContext('2d')!, loaded.filter((l) => l.role !== 'base'), W, H);
+      } else if (tf) {
+        const bg = await loadImage(tf.backgroundUrl);
+        if (bg) fctx.drawImage(bg, 0, 0, W, H);
+      }
+      const seal = await loadImage(theme?.sealUrl);
+      const parts: Parameters<typeof compositionPalette>[0] = [
+        { image: full, weight: 1, products: regions.products },
+        { image: decor, weight: 2, products: regions.products },
+      ];
+      // Selo inteiro, sem cortar pela área de produtos: é a peça mais "da marca" do tema.
+      if (seal) parts.push({ image: seal, weight: 3 });
+      const next = compositionPalette(parts);
+      setPalette(next);
+      await patch({ palette: next }, 'Cores tiradas da composição');
+    } catch {
+      setError('Não foi possível ler as cores da composição.');
+    } finally {
+      setHarmonizing(false);
+    }
+  };
+
   const setColor = (key: keyof Palette, value: string) => {
     const next = { ...palette, [key]: value };
     setPalette(next);
@@ -618,7 +665,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
               </div>
             ) : (
               <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onLayerFiles(e.dataTransfer.files); }} className="flex flex-col gap-3">
-                <LayerEditor format={format} layers={layers} selected={selectedLayer} onSelect={setSelectedLayer}
+                <LayerEditor format={format} layers={layers} selected={selectedLayer} onSelect={setSelectedLayer} regions={tf?.regions}
                   onChange={(next) => setDraft(normalizeLayers(next))} />
                 {busy && (
                   <p role="status" className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
@@ -785,7 +832,16 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
           </section>
 
           <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="colors-title">
-            <h2 id="colors-title" className="text-base font-semibold text-slate-900">Cores da etiqueta</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="colors-title" className="text-base font-semibold text-slate-900">Cores da etiqueta</h2>
+              <button type="button" onClick={harmonize} disabled={harmonizing || (!tf && !layers.length)}
+                title={`Ler as cores da composição completa de ${FORMATS[format].label} (fundo, enfeites e selo)`}
+                aria-label="Tirar as cores da etiqueta da composição completa"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-sm font-medium text-green-800 transition hover:bg-green-100 disabled:opacity-40">
+                {harmonizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}Combinar
+              </button>
+            </div>
+            <p className="-mt-1 text-xs text-slate-500">A varinha lê fundo, enfeites e selo de {FORMATS[format].label} e deixa a etiqueta na identidade do tema.</p>
             {PALETTE_FIELDS.map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between gap-3 text-sm text-slate-700">
                 {label}
@@ -796,17 +852,6 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
                 </span>
               </label>
             ))}
-            {tf && (
-              <button type="button" onClick={async () => {
-                const img = await loadImage(tf.backgroundUrl);
-                if (!img) return;
-                const next = derivePalette(img, regions.products);
-                setPalette(next);
-                patch({ palette: next }, 'Cores tiradas do fundo');
-              }} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50">
-                <Wand2 className="h-4 w-4 text-green-700" />Tirar as cores do fundo de {FORMATS[format].label}
-              </button>
-            )}
             <p className="text-xs text-slate-500">
               Nos mercados, o padrão é &quot;cores automáticas&quot;: cada formato combina com o próprio fundo. Estas cores valem quando o mercado escolhe &quot;Do tema&quot;.
             </p>

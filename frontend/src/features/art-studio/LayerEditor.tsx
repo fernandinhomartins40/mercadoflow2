@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Lock, Pause, RotateCw, Trash2 } from 'lucide-react';
-import type { FormatKey, ThemeLayer } from '../../types/art.types';
-import { FORMATS } from './formats';
+import type { FormatKey, RegionKey, Regions, ThemeLayer } from '../../types/art.types';
+import { BUILTIN_REGIONS, FORMATS, REGION_META } from './formats';
 import { layerStill } from './render';
 
 /**
@@ -19,7 +19,12 @@ interface Props {
   selected: string | null;
   onSelect: (id: string | null) => void;
   onChange: (layers: ThemeLayer[]) => void;
+  /** Áreas já marcadas no formato. Sem elas, mostra as áreas padrão como sugestão. */
+  regions?: Regions;
 }
+
+/** Margem de segurança: corte de gráfica e bordas que o celular esconde. */
+const SAFE = 0.04;
 
 const CHECKER = 'repeating-conic-gradient(#e7e5e4 0% 25%, #fafaf9 0% 50%) 50% / 20px 20px';
 const round = (v: number) => Math.round(v * 10000) / 10000;
@@ -33,11 +38,14 @@ export const normalizeLayers = (layers: ThemeLayer[]): ThemeLayer[] => {
 
 type Drag = { id: string; mode: 'move' | 'scale' | 'rotate'; start: ThemeLayer; px: number; py: number };
 
-const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onChange }) => {
+const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onChange, regions }) => {
   const { width: W, height: H } = FORMATS[format];
   const stageRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const [dragRow, setDragRow] = useState<string | null>(null);
+  const [guides, setGuides] = useState(true);
+  const marked = !!regions && Object.keys(regions).length > 0;
+  const shownRegions: Regions = marked ? regions! : BUILTIN_REGIONS[format];
   const current = layers.find((l) => l.id === selected && l.role !== 'base') ?? null;
 
   const update = (id: string, patch: Partial<ThemeLayer>) => onChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -52,6 +60,7 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
     e.stopPropagation();
     e.preventDefault();
     onSelect(layer.id);
+    stageRef.current?.focus({ preventScroll: true });
     const p = point(e);
     drag.current = { id: layer.id, mode, start: layer, px: p.x, py: p.y };
     stageRef.current?.setPointerCapture(e.pointerId);
@@ -90,6 +99,11 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
     const delta: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     const dd = delta[e.key];
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); remove(current.id); return; }
+    // + / - aumenta e diminui, [ / ] gira.
+    const k = e.shiftKey ? 5 : 1;
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); update(current.id, { width: round(Math.min(3, current.width * (1 + 0.02 * k))) }); return; }
+    if (e.key === '-' || e.key === '_') { e.preventDefault(); update(current.id, { width: round(Math.max(0.01, current.width * (1 - 0.02 * k))) }); return; }
+    if (e.key === '[' || e.key === ']') { e.preventDefault(); update(current.id, { rotation: current.rotation + (e.key === ']' ? k : -k) }); return; }
     if (!dd) return;
     e.preventDefault();
     update(current.id, { cx: round(current.cx + dd[0]), cy: round(current.cy + dd[1]) });
@@ -132,7 +146,8 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div ref={stageRef} className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-lg"
+        <div ref={stageRef} tabIndex={0} onKeyDown={nudge} aria-label="Montagem do fundo. Clique num enfeite para editar."
+          className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           style={{ aspectRatio: `${W} / ${H}`, background: CHECKER, maxWidth: Math.min(560, 560 * (W / H) * 1.1) }}
           onPointerMove={move} onPointerUp={end} onPointerCancel={end} onPointerDown={() => onSelect(null)}>
           {layers.map((l) => (l.hidden ? null : l.role === 'base' ? (
@@ -142,9 +157,31 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
             <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={begin(l, 'move')}
               className="absolute max-w-none cursor-move" style={{ ...box(l), opacity: l.opacity }} />
           )))}
+          {guides && (
+            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+              {/* Margem de segurança e linhas de centro */}
+              <div className="absolute border border-dashed border-white/80 mix-blend-difference"
+                style={{ left: `${SAFE * 100}%`, top: `${SAFE * (W / H) * 100}%`, right: `${SAFE * 100}%`, bottom: `${SAFE * (W / H) * 100}%` }} />
+              <div className="absolute inset-y-0 left-1/2 w-px bg-fuchsia-500/50" />
+              <div className="absolute inset-x-0 top-1/2 h-px bg-fuchsia-500/50" />
+              {(Object.keys(REGION_META) as RegionKey[]).map((key) => {
+                const r = shownRegions[key];
+                if (!r) return null;
+                const color = REGION_META[key].color;
+                return (
+                  <div key={key} className="absolute rounded-sm border-2 border-dashed"
+                    style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%`, borderColor: color, background: `${color}1f` }}>
+                    <span className="absolute left-0 top-0 rounded-br px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white" style={{ background: color }}>
+                      {REGION_META[key].label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {current && !current.hidden && (
             <div className="pointer-events-none absolute outline outline-2 outline-offset-0 outline-sky-500" style={box(current)}>
-              <button type="button" tabIndex={0} onKeyDown={nudge} onPointerDown={begin(current, 'move')}
+              <button type="button" tabIndex={-1} onPointerDown={begin(current, 'move')}
                 className="pointer-events-auto absolute inset-0 cursor-move focus:outline-none" aria-label={`Mover ${current.name}. Setas movem; Delete remove.`} />
               {(['-left-1.5 -top-1.5', '-right-1.5 -top-1.5', '-left-1.5 -bottom-1.5', '-right-1.5 -bottom-1.5'] as const).map((pos) => (
                 <span key={pos} onPointerDown={begin(current, 'scale')}
@@ -157,8 +194,32 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
             </div>
           )}
         </div>
+        <div className="mx-auto mt-2 flex max-w-[560px] flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={guides} onChange={(e) => setGuides(e.target.checked)} className="h-4 w-4 accent-green-600" />
+            Mostrar áreas reservadas, margem e centro
+          </label>
+          {guides && !marked && <span className="text-amber-700">Áreas padrão (sugestão): as do tema aparecem depois de salvar.</span>}
+        </div>
         {current && (
-          <div className="mx-auto mt-3 grid max-w-[560px] gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 sm:grid-cols-3">
+          <div className="mx-auto mt-3 grid max-w-[560px] gap-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 sm:grid-cols-3">
+            <div className="flex items-center justify-between gap-2 sm:col-span-3">
+              <span className="truncate font-semibold text-slate-900">{current.name}</span>
+              <span className="flex gap-1">
+                <button type="button" onClick={() => update(current.id, { cx: 0.5 })} className="rounded border border-slate-200 bg-white px-2 py-1 text-xs hover:bg-slate-100">Centro horizontal</button>
+                <button type="button" onClick={() => update(current.id, { cy: 0.5 })} className="rounded border border-slate-200 bg-white px-2 py-1 text-xs hover:bg-slate-100">Centro vertical</button>
+                <button type="button" onClick={() => update(current.id, { rotation: 0 })} className="rounded border border-slate-200 bg-white px-2 py-1 text-xs hover:bg-slate-100">Sem giro</button>
+              </span>
+            </div>
+            <label className="flex flex-col gap-1">Posição X (%)
+              <input type="number" step={0.5} value={Math.round(current.cx * 1000) / 10} className="h-8 rounded border border-slate-300 bg-white px-2"
+                onChange={(e) => e.target.value !== '' && update(current.id, { cx: round(Number(e.target.value) / 100) })} />
+            </label>
+            <label className="flex flex-col gap-1">Posição Y (%)
+              <input type="number" step={0.5} value={Math.round(current.cy * 1000) / 10} className="h-8 rounded border border-slate-300 bg-white px-2"
+                onChange={(e) => e.target.value !== '' && update(current.id, { cy: round(Number(e.target.value) / 100) })} />
+            </label>
+            <p className="self-end text-xs text-slate-500">Arraste na arte; setas movem, + e − mudam o tamanho, [ e ] giram.</p>
             <label className="flex flex-col gap-1">Tamanho {Math.round(current.width * 100)}%
               <input type="range" min={1} max={200} value={Math.round(current.width * 100)} className="accent-sky-600"
                 onChange={(e) => update(current.id, { width: Number(e.target.value) / 100 })} />
