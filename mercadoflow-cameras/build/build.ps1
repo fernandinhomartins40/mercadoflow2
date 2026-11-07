@@ -24,11 +24,27 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller falhou" }
 $check = Start-Process dist/MercadoFlowCameras/MercadoFlowCameras.exe -ArgumentList "--check" -Wait -PassThru
 if ($check.ExitCode -ne 0) { throw "O executável não passou na autoverificação ($($check.ExitCode))" }
 
+# Assina quando há certificado (mesmos segredos do instalador do agente). Sem assinatura, o Windows
+# avisa no SmartScreen e o Controle Inteligente de Aplicativos bloqueia o app.
+function Invoke-Sign([string]$file) {
+  if (-not $env:PDV2CLOUD_CODESIGN_PFX_BASE64) { Write-Host "Sem certificado: $file sai sem assinatura"; return }
+  $pfx = Join-Path $env:RUNNER_TEMP "cameras-codesign.pfx"
+  [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PDV2CLOUD_CODESIGN_PFX_BASE64))
+  $tool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+  $stamp = if ($env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL) { $env:PDV2CLOUD_CODESIGN_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+  & $tool sign /f $pfx /p $env:PDV2CLOUD_CODESIGN_PFX_PASSWORD /fd SHA256 /tr $stamp /td SHA256 $file
+  $code = $LASTEXITCODE
+  Remove-Item $pfx -Force
+  if ($code -ne 0) { throw "Falha ao assinar $file" }
+}
+Invoke-Sign "dist/MercadoFlowCameras/MercadoFlowCameras.exe"
+
 $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
 if (-not $iscc) { $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
 & $iscc "/DAppVersion=$Version" build/setup.iss
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
 
 $setup = "build/Output/MercadoFlowCameras-Setup.exe"
+Invoke-Sign $setup
 (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower() | Out-File "$setup.sha256" -Encoding ascii -NoNewline
 Write-Host "Pronto: $setup"

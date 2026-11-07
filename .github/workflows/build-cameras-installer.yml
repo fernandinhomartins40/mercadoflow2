@@ -26,6 +26,10 @@ jobs:
       - name: Build installer
         shell: pwsh
         working-directory: mercadoflow-cameras
+        env:
+          PDV2CLOUD_CODESIGN_PFX_BASE64: ${{ secrets.PDV2CLOUD_CODESIGN_PFX_BASE64 }}
+          PDV2CLOUD_CODESIGN_PFX_PASSWORD: ${{ secrets.PDV2CLOUD_CODESIGN_PFX_PASSWORD }}
+          PDV2CLOUD_CODESIGN_TIMESTAMP_URL: ${{ secrets.PDV2CLOUD_CODESIGN_TIMESTAMP_URL }}
         run: ./build/build.ps1 -Version "1.0.${{ github.run_number }}"
       # Como no instalador do agente: o runner Windows não alcança a porta 22 da VPS, quem envia é o Ubuntu.
       - uses: actions/upload-artifact@v4
