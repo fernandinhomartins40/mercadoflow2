@@ -263,8 +263,9 @@ public class TeamService {
         String from = jdbc.queryForObject("select name from users where id = :id", Map.of("id", me), String.class);
         email.send((String) to.get("email"), "Você foi convidado para ser o dono da conta no MercadoFlow", "Titularidade da conta",
             List.of(from + " quer passar para você a titularidade da conta. Como dono, você cuida da assinatura e da equipe.",
-                "Para aceitar, entre no MercadoFlow e abra Loja → Conta. O pedido vale por 7 dias."),
-            "Abrir o MercadoFlow", email.link("/app/configuracoes"));
+                "Para aceitar, entre no MercadoFlow e abra Loja → Conta."),
+            "Abrir o MercadoFlow", email.link("/app/configuracoes"),
+            new EmailService.Look("Sua conta", EmailService.Tone.SECURITY, "O pedido vale por 7 dias. Se você não esperava por isso, é só ignorar."));
         return id;
     }
 
@@ -305,7 +306,8 @@ public class TeamService {
         jdbc.update("update ownership_transfers set status = 'ACCEPTED', decided_at = now() where id = :id", Map.of("id", transferId));
         String fromEmail = jdbc.queryForObject("select email from users where id = :id", Map.of("id", from), String.class);
         email.send(fromEmail, "A titularidade da conta foi transferida", "Titularidade transferida",
-            List.of("O novo dono aceitou. Você continua na equipe como gerente."), null, null);
+            List.of("O novo dono aceitou. Você continua na equipe como gerente."), null, null,
+            new EmailService.Look("Sua conta", EmailService.Tone.SUCCESS, null));
     }
 
     // ── Apoio ────────────────────────────────────────────────────────────
@@ -370,8 +372,9 @@ public class TeamService {
         EmailService.Sent sent = email.send(to, "Convite para a equipe " + storeName + " no MercadoFlow", "Você foi convidado",
             List.of((name == null || name.isBlank() ? "Olá!" : "Olá, " + name.trim().split("\\s+")[0] + "!")
                     + " Você foi convidado para a equipe " + storeName + " no MercadoFlow, como " + role.label() + ".",
-                role.description() + ". O convite vale por 7 dias."),
-            "Aceitar convite", link);
+                role.description() + "."),
+            "Aceitar convite", link,
+            new EmailService.Look("Convite para a equipe", EmailService.Tone.NEUTRAL, "O convite vale por 7 dias."));
         if (!sent.ok()) {
             log.warn("Convite não enviado por e-mail para a loja {}: {}", store, sent.error());
         }

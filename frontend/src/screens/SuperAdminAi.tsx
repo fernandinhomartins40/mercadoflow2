@@ -32,7 +32,7 @@ const PROVIDER_INFO: Record<string, { name: string; use: string; keyUrl: string 
   OPENROUTER: { name: 'OpenRouter', use: 'Modelos de reserva (Qwen, MiniMax, Kimi)', keyUrl: 'https://openrouter.ai/keys' },
   DEEPGRAM: { name: 'Deepgram', use: 'Voz paga (fala → texto), pacote Pro', keyUrl: 'https://console.deepgram.com' },
   WHATSAPP: { name: 'WhatsApp Business', use: 'Canal de mensagens dos agentes', keyUrl: 'https://business.facebook.com' },
-  EMAIL: { name: 'E-mail (Resend)', use: 'E-mails da plataforma: nova senha, avisos de assinatura e cobrança', keyUrl: 'https://resend.com/api-keys' },
+  EMAIL: { name: 'E-mail (VeloMail)', use: 'E-mails da plataforma: confirmação, nova senha, convites e avisos de assinatura e cobrança', keyUrl: 'https://www.velomail.com.br' },
   ASAAS: { name: 'Asaas (Pix e boleto)', use: 'Cobrança brasileira: assinatura por Pix ou boleto, créditos por Pix e nota fiscal', keyUrl: 'https://www.asaas.com/customerApiAccessToken/index' },
 };
 
@@ -282,7 +282,7 @@ const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[
               <input className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)}
                 aria-label={isWa ? 'ID do número do WhatsApp' : p.provider === 'EMAIL' ? 'Remetente dos e-mails' : p.provider === 'ASAAS' ? 'E-mail de alerta do Asaas' : `Modelo padrão de ${info.name}`} />
               {p.provider === 'ASAAS' && <span className={HINT}>Recebe os alertas do Asaas quando um aviso de pagamento falhar. Opcional.</span>}
-              {p.provider === 'EMAIL' && <span className={HINT}>Ex.: MercadoFlow &lt;nao-responda@mercadoflow.com&gt;. O domínio precisa estar verificado no Resend.</span>}
+              {p.provider === 'EMAIL' && <span className={HINT}>Ex.: MercadoFlow &lt;nao-responda@mercadoflow.com&gt;. O domínio precisa estar verificado no VeloMail.</span>}
               {p.provider === 'OPENROUTER' && <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="text-xs font-semibold text-green-700 hover:underline">Ver os ids dos modelos</a>}
               {p.provider === 'DEEPSEEK' && <span className={HINT}>deepseek-flash ou deepseek-v4-pro</span>}</label>
           </div>

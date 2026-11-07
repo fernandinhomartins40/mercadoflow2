@@ -64,7 +64,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
-                    "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/login/2fa",
+                    "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/confirm-email", "/api/v1/auth/login/2fa",
                     "/api/v1/auth/account-deletion/cancel").permitAll()
                 // Convite para a equipe: o link (token) é a credencial.
                 .requestMatchers("/api/v1/public/invites/**").permitAll()

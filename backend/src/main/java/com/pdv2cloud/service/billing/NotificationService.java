@@ -57,6 +57,19 @@ public class NotificationService {
         this.whatsapp = whatsapp;
     }
 
+    /** Etiqueta e cor do e-mail: a família do aviso e a gravidade. */
+    static EmailService.Look look(String kind, Severity severity) {
+        String k = kind == null ? "" : kind;
+        String kicker = k.startsWith("TRIAL") ? "Teste do plano"
+            : k.startsWith("PAYMENT") || k.startsWith("PAST_DUE") || k.equals("RESTRICTED") || k.equals("BACK_TO_FREE") ? "Assinatura"
+            : k.equals("WELCOME") ? "Boas-vindas" : "Aviso da loja";
+        EmailService.Tone tone = severity == Severity.DANGER ? EmailService.Tone.DANGER
+            : severity == Severity.WARNING ? EmailService.Tone.WARNING
+            : k.equals("WELCOME") || k.equals("PAYMENT_CONFIRMED") || k.equals("PAYMENT_RECOVERED") ? EmailService.Tone.SUCCESS
+            : EmailService.Tone.NEUTRAL;
+        return new EmailService.Look(kicker, tone, null);
+    }
+
     /** Aviso sem variáveis (texto pronto). */
     public boolean notify(UUID marketId, String kind, String dedupKey, Severity severity, String title, String body,
                           String actionLabel, String actionUrl, boolean sendEmail) {
@@ -89,7 +102,7 @@ public class NotificationService {
         if (mail) {
             boolean any = false;
             for (String to : owners(marketId)) {
-                any |= email.send(to, finalTitle, finalTitle, List.of(finalBody), actionLabel, actionUrl == null ? null : email.link(actionUrl)).ok();
+                any |= email.send(to, finalTitle, finalTitle, List.of(finalBody), actionLabel, actionUrl == null ? null : email.link(actionUrl), look(kind, severity)).ok();
             }
             if (any) {
                 jdbc.update("update app_notifications set emailed_at = now() where id = :id", Map.of("id", created.get(0)));

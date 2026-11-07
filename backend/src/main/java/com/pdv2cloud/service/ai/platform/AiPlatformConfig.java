@@ -39,7 +39,7 @@ public class AiPlatformConfig {
         "JEV", List.of("https://api.typesafe.ai", "https://api.apimodels.app"),
         "DEEPGRAM", List.of("https://api.deepgram.com"),
         "WHATSAPP", List.of("https://graph.facebook.com"),
-        "EMAIL", List.of("https://api.resend.com"),
+        "EMAIL", List.of("https://www.velomail.com.br/api"),
         "ASAAS", List.of("https://api.asaas.com/v3", "https://api-sandbox.asaas.com/v3"));
 
     public static final Set<String> LAYERS = Set.of("TEMPLATE", "JEV", "FLASH", "PRO", "VOZ", "CANAL");
@@ -288,11 +288,10 @@ public class AiPlatformConfig {
             HttpRequest.Builder b = HttpRequest.newBuilder().uri(URI.create(base + path)).timeout(Duration.ofSeconds(8)).GET();
             if ("ASAAS".equals(provider)) {
                 b.header("access_token", apiKey).header("User-Agent", "MercadoFlow");
+            } else if ("EMAIL".equals(provider)) {
+                b.header("x-api-key", apiKey).header("User-Agent", "MercadoFlow");
             } else {
                 b.header("Authorization", ("DEEPGRAM".equals(provider) ? "Token " : "Bearer ") + apiKey);
-            }
-            if ("EMAIL".equals(provider)) {
-                b.header("User-Agent", "MercadoFlow");
             }
             HttpResponse<String> r = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
             boolean ok = r.statusCode() >= 200 && r.statusCode() < 300;

@@ -18,6 +18,18 @@ class EmailServiceTest {
     }
 
     @Test
+    void layoutTemLogoEtiquetaEObservacao() {
+        String html = EmailService.html("Título", List.of("Corpo"), "Abrir", "https://mercadoflow.com/x",
+            new EmailService.Look("Segurança <da conta>", EmailService.Tone.SECURITY, "Nota & aviso"));
+        assertTrue(html.contains("logomercadoflow-branco.png"));
+        assertTrue(html.contains("#0F3A29"));
+        assertTrue(html.contains("Segurança &lt;da conta&gt;"));
+        assertTrue(html.contains("Nota &amp; aviso"));
+        String text = EmailService.text("Título", List.of("Corpo"), null, null, new EmailService.Look(null, EmailService.Tone.NEUTRAL, "Nota"));
+        assertTrue(text.endsWith("Nota\n\nMercadoFlow"));
+    }
+
+    @Test
     void textoTemOLinkCompleto() {
         String text = EmailService.text("Redefinir senha", List.of("Use o link."), "Criar nova senha", "https://mercadoflow.com/redefinir-senha?token=abc");
         assertTrue(text.contains("Criar nova senha: https://mercadoflow.com/redefinir-senha?token=abc"));

@@ -235,7 +235,8 @@ public class MarketIntegrationController {
             paragraphs.add("A API é aberta, documentada e tem modo de teste (dryRun). O cadastro de parceiro é gratuito.");
             if (note != null && !note.isBlank()) paragraphs.add("Recado do lojista: " + note);
             emailed = email.send(vendor, market + " pediu a integração com o MercadoFlow", "Integração pedida por um cliente seu",
-                paragraphs, "Ver a documentação", email.link("/desenvolvedores")).ok();
+                paragraphs, "Ver a documentação", email.link("/desenvolvedores"),
+                new EmailService.Look("Integração", EmailService.Tone.NEUTRAL, null)).ok();
         }
         jdbc.update("insert into erp_integration_requests (market_id, erp_name, vendor_email, note, created_by, emailed) " +
             "values (:m, :e, :v, :n, :u, :x)",

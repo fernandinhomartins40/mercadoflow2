@@ -17,6 +17,7 @@ const SuperAdminIndustryData = lazy(() => import('./screens/SuperAdminIndustryDa
 const SuperAdminIndustryBilling = lazy(() => import('./screens/SuperAdminIndustryBilling'));
 const ForgotPassword = lazy(() => import('./screens/ForgotPassword'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword'));
+const ConfirmEmail = lazy(() => import('./screens/ConfirmEmail'));
 const Register = lazy(() => import('./screens/Register'));
 const Dashboard = lazy(() => import('./screens/Dashboard'));
 const Decide = lazy(() => import('./screens/Decide'));
@@ -214,6 +215,7 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/esqueci-senha" element={<ForgotPassword />} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />
+        <Route path="/confirmar-email" element={<ConfirmEmail />} />
         <Route path="/aceitar-convite" element={<AcceptInvite />} />
         <Route path="/register" element={<Register />} />
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />

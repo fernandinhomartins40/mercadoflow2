@@ -73,9 +73,10 @@ public class PasswordResetService {
                     .addValue("m", VALID_MINUTES).addValue("ip", ip));
             EmailService.Sent sent = email.send(user.get().getEmail(), "Redefina sua senha do MercadoFlow",
                 "Redefinir senha",
-                List.of(greeting(user.get().getName()) + " Recebemos um pedido para redefinir a sua senha.",
-                    "O link vale por " + VALID_MINUTES + " minutos e só pode ser usado uma vez. Se não foi você, ignore este e-mail: a senha atual continua valendo."),
-                "Criar nova senha", email.link("/redefinir-senha?token=" + token));
+                List.of(greeting(user.get().getName()) + " Recebemos um pedido para redefinir a sua senha."),
+                "Criar nova senha", email.link("/redefinir-senha?token=" + token),
+                new EmailService.Look("Segurança da conta", EmailService.Tone.SECURITY,
+                    "O link vale por " + VALID_MINUTES + " minutos e só pode ser usado uma vez. Se não foi você, ignore este e-mail: a senha atual continua valendo."));
             if (!sent.ok()) {
                 log.warn("Link de nova senha não enviado para o usuário {}: {}", user.get().getId(), sent.error());
             }
@@ -103,9 +104,10 @@ public class PasswordResetService {
                 "Bem-vindo ao MercadoFlow",
                 List.of(greeting(user.getName()) + " O " + partnerName + " criou a conta da " + marketName
                         + " no MercadoFlow, como você pediu.",
-                    "As vendas do caixa já chegam sozinhas. Crie a sua senha para ver as decisões de compra e preço, o Confere e os encartes.",
-                    "O link vale por " + days + " dias e só pode ser usado uma vez. Depois disso, use \"Esqueci minha senha\"."),
-                "Criar minha senha", email.link("/redefinir-senha?token=" + token));
+                    "As vendas do caixa já chegam sozinhas. Crie a sua senha para ver as decisões de compra e preço, o Confere e os encartes."),
+                "Criar minha senha", email.link("/redefinir-senha?token=" + token),
+                new EmailService.Look("Boas-vindas", EmailService.Tone.SUCCESS,
+                    "O link vale por " + days + " dias e só pode ser usado uma vez. Depois disso, use \"Esqueci minha senha\"."));
             if (!sent.ok()) {
                 log.warn("Boas-vindas não enviadas para o usuário {}: {}", userId, sent.error());
             }

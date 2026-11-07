@@ -70,7 +70,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 return;
             }
             // Nova senha: mesmo teto do cadastro, por IP (evita disparo de e-mails e chute de link).
-            if ("/api/v1/auth/forgot-password".equals(path) || "/api/v1/auth/reset-password".equals(path)) {
+            if ("/api/v1/auth/forgot-password".equals(path) || "/api/v1/auth/reset-password".equals(path) || "/api/v1/auth/confirm-email".equals(path)) {
                 if (consume(authCache, "pwreset:ip:" + clientIp(request), this::createPasswordResetBucket)) {
                     filterChain.doFilter(request, response);
                 } else {

@@ -230,7 +230,8 @@ public class AccountDeletionService {
 
     private void send(String to, String subject, String title, List<String> body) {
         try {
-            EmailService.Sent sent = email.send(to, subject, title, body, "Abrir o MercadoFlow", email.link("/login"));
+            EmailService.Sent sent = email.send(to, subject, title, body, "Abrir o MercadoFlow", email.link("/login"),
+                new EmailService.Look("Sua conta", EmailService.Tone.DANGER, null));
             if (!sent.ok()) {
                 log.info("Exclusão de conta: e-mail não enviado ({})", sent.error());
             }

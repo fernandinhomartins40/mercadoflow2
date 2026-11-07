@@ -31,6 +31,9 @@ public class AuthController {
     @org.springframework.beans.factory.annotation.Autowired
     private com.pdv2cloud.service.PasswordResetService passwordResetService;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.EmailConfirmationService emailConfirmation;
+
 
     private static final String COOKIE_NAME = "pdv2cloud_token";
 
@@ -52,6 +55,8 @@ public class AuthController {
         String userAgent = http.getHeader("User-Agent");
         RegisterResponse response = TenantContext.runAsSystem(() -> authService.register(request, ip, userAgent));
         TenantContext.runAsSystem(() -> authService.sendWelcome(response.getMarketId(), request.getName()));
+        // Fora da requisição: provedor de e-mail lento não segura o cadastro.
+        java.util.concurrent.CompletableFuture.runAsync(() -> emailConfirmation.send(response.getUserId()));
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
@@ -88,6 +93,13 @@ public class AuthController {
         passwordResetService.request(body.get("email"), http.getRemoteAddr());
         return ResponseEntity.accepted().body(java.util.Map.of("message",
             "Se houver uma conta com este e-mail, enviamos um link para criar uma nova senha. Ele vale por 30 minutos."));
+    }
+
+    @PostMapping("/confirm-email")
+    public ResponseEntity<java.util.Map<String, Object>> confirmEmail(@RequestBody java.util.Map<String, String> body) {
+        com.pdv2cloud.service.EmailConfirmationService.Result r = emailConfirmation.confirm(body.get("token"));
+        return ResponseEntity.status(r.ok() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+            .body(java.util.Map.of("ok", r.ok(), "message", r.message()));
     }
 
     @PostMapping("/reset-password")
