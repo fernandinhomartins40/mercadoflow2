@@ -83,6 +83,13 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    /** Status escolhido pelo controller (401 de chave, 429 de limite); o texto é nosso, escrito para o cliente. */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        String reason = ex.getReason() == null ? "Requisicao recusada" : ex.getReason();
+        return ResponseEntity.status(ex.getStatusCode()).body(errorBody("request_refused", reason, reason));
+    }
+
     @ExceptionHandler(AccountAccessException.class)
     public ResponseEntity<Map<String, Object>> handleAccountAccess(AccountAccessException ex) {
         Map<String, Object> body = errorBody("account_blocked", ex.getMessage(), ex.getMessage());

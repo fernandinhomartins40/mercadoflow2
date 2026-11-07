@@ -77,6 +77,18 @@ export interface ArtTheme {
   updatedAt?: string;
 }
 
+/** Chave da API de temas, usada pelo MCP do Codex. O segredo só aparece na criação. */
+export interface ArtApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  createdBy: string | null;
+  lastUsedAt: string | null;
+  calls: number;
+  revokedAt: string | null;
+}
+
 export interface PlatformAiSettings {
   provider: string;
   model: string;

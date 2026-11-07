@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, CheckCircle2, Eye, EyeOff, FolderOpen, ImagePlus, KeyRound, Layers, Loader2, Plus, RefreshCw, Sparkles, Trash2, Upload, Wand2,
+  ArrowLeft, Bot, CheckCircle2, Copy, Download, Eye, EyeOff, FolderOpen, ImagePlus, KeyRound, Layers, Loader2, Plus, RefreshCw, Sparkles, Trash2, Upload, Wand2,
 } from 'lucide-react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import { artAdminService, apiMessage } from '../services/art.service';
 import type {
-  ArtTheme, FormatKey, MotionPreset, Palette, PlatformAiSettings, RegionKey, Regions, ThemeAnimation, ThemeLayer, ThemeSuggestion,
+  ArtApiKey, ArtTheme, FormatKey, MotionPreset, Palette, PlatformAiSettings, RegionKey, Regions, ThemeAnimation, ThemeLayer, ThemeSuggestion,
 } from '../types/art.types';
 import LayerEditor, { normalizeLayers } from '../features/art-studio/LayerEditor';
 import { Uploaded, findManifest, layersFromFiles, layersFromManifest, measure } from '../features/art-studio/layerImport';
@@ -154,6 +154,129 @@ const AiKeyCard: React.FC<{ settings: PlatformAiSettings | null; onChange: (s: P
       )}
       {message && (
         <p role="status" className={`mt-3 text-sm ${message.ok ? 'text-green-700' : 'text-red-700'}`}>{message.text}</p>
+      )}
+    </section>
+  );
+};
+
+// ── MCP do Codex ─────────────────────────────────────────────────────────
+
+const MCP_FILE = 'C:\\MercadoFlow\\mercadoflow-temas.mjs';
+
+const codexConfig = (secret: string) => `[mcp_servers.mercadoflow-temas]
+command = "node"
+args = ["${MCP_FILE.replace(/\\/g, '\\\\')}"]
+env = { MERCADOFLOW_URL = "${window.location.origin}", MERCADOFLOW_TEMAS_KEY = "${secret}" }`;
+
+const CodexMcpCard: React.FC = () => {
+  const [open, setOpen] = useState(false);
+  const [keys, setKeys] = useState<ArtApiKey[] | null>(null);
+  const [name, setName] = useState('Codex');
+  const [secret, setSecret] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { if (open && keys === null) artAdminService.apiKeys().then(setKeys).catch(() => setKeys([])); }, [open, keys]);
+
+  const copy = async (text: string, what: string) => {
+    try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 2000); } catch { /* sem permissão */ }
+  };
+
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      const r = await artAdminService.createApiKey(name.trim());
+      setSecret(r.secret);
+      setKeys(await artAdminService.apiKeys());
+    } catch (err) {
+      setMessage({ ok: false, text: apiMessage(err, 'Não foi possível criar a chave.') });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async (k: ArtApiKey) => {
+    if (!(await confirmDialog(`Revogar a chave "${k.name}"? O Codex que usa essa chave para de funcionar na hora.`))) return;
+    setKeys(await artAdminService.revokeApiKey(k.id));
+  };
+
+  const active = keys?.filter((k) => !k.revokedAt) ?? [];
+
+  return (
+    <section className={CARD} aria-labelledby="mcp-title">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Bot className="h-5 w-5" aria-hidden="true" /></span>
+          <div>
+            <h2 id="mcp-title" className="text-base font-semibold text-slate-900">Criar temas com o Codex (MCP)</h2>
+            <p className="text-sm text-slate-600">O Codex gera as imagens, cria o tema, posiciona as camadas, marca as áreas e escolhe cores e animações. Você confere e publica.</p>
+          </div>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>{open ? 'Fechar' : 'Configurar'}</Button>
+      </div>
+      {open && (
+        <div className="mt-4 flex flex-col gap-4 border-t border-slate-100 pt-4 text-sm text-slate-700">
+          <ol className="flex flex-col gap-4">
+            <li className="flex flex-col gap-2">
+              <span className="font-semibold text-slate-900">1. Baixe o MCP</span>
+              <span>Salve o arquivo em <code className="rounded bg-slate-100 px-1">{MCP_FILE}</code> (precisa do Node 18 ou mais novo).</span>
+              <a href="/mcp/mercadoflow-temas.mjs" download="mercadoflow-temas.mjs"
+                className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium text-slate-800 hover:bg-slate-50">
+                <Download className="h-4 w-4" />Baixar mercadoflow-temas.mjs
+              </a>
+            </li>
+            <li className="flex flex-col gap-2">
+              <span className="font-semibold text-slate-900">2. Gere a chave</span>
+              <form onSubmit={create} className="flex flex-wrap gap-2">
+                <input className={`${INPUT} max-w-xs`} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} aria-label="Nome da chave" placeholder="Ex.: Codex do notebook" />
+                <Button type="submit" disabled={busy || !name.trim()}>{busy ? 'Gerando…' : 'Gerar chave'}</Button>
+              </form>
+              {secret && (
+                <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <span className="font-medium text-amber-900">Copie agora: esta chave não aparece de novo.</span>
+                  <div className="flex items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate rounded bg-white px-2 py-1 font-mono text-xs">{secret}</code>
+                    <Button variant="secondary" size="sm" onClick={() => copy(secret, 'key')}><Copy className="mr-1 h-4 w-4" />{copied === 'key' ? 'Copiada' : 'Copiar'}</Button>
+                  </div>
+                </div>
+              )}
+            </li>
+            <li className="flex flex-col gap-2">
+              <span className="font-semibold text-slate-900">3. Cole no Codex</span>
+              <span>No arquivo <code className="rounded bg-slate-100 px-1">%USERPROFILE%\.codex\config.toml</code>:</span>
+              <pre className="overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-xs leading-relaxed text-slate-100">{codexConfig(secret ?? 'mftema_COLE_A_CHAVE_AQUI')}</pre>
+              <Button variant="secondary" size="sm" className="w-fit" onClick={() => copy(codexConfig(secret ?? 'mftema_COLE_A_CHAVE_AQUI'), 'cfg')}>
+                <Copy className="mr-1 h-4 w-4" />{copied === 'cfg' ? 'Copiado' : 'Copiar configuração'}
+              </Button>
+              <span className="text-xs text-slate-500">
+                Depois peça ao Codex, por exemplo: &quot;Crie um tema de encarte de Black Friday com o MCP mercadoflow-temas, nos cinco formatos.&quot;
+                Ele começa pelo guia_de_criacao. O tema fica em rascunho até você publicar.
+              </span>
+            </li>
+          </ol>
+          {message && <p role="alert" className={message.ok ? 'text-green-700' : 'text-red-700'}>{message.text}</p>}
+          {keys && keys.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chaves ({active.length} ativas)</span>
+              <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                {keys.map((k) => (
+                  <li key={k.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                    <span className={k.revokedAt ? 'text-slate-400 line-through' : ''}>
+                      <strong className="font-medium">{k.name}</strong> <code className="text-xs text-slate-500">{k.keyPrefix}…</code>
+                    </span>
+                    <span className="flex items-center gap-3 text-xs text-slate-500">
+                      {k.revokedAt ? 'Revogada' : k.lastUsedAt ? `${k.calls} chamadas · usada em ${new Date(k.lastUsedAt).toLocaleString('pt-BR')}` : 'Nunca usada'}
+                      {!k.revokedAt && <button type="button" onClick={() => revoke(k)} className="font-medium text-red-700 hover:underline">Revogar</button>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );
@@ -891,6 +1014,7 @@ const SuperAdminArtThemes: React.FC = () => {
         ) : (
           <>
             <AiKeyCard settings={settings} onChange={setSettings} />
+            <CodexMcpCard />
             <ThemeGallery aiReady={aiReady} />
           </>
         )}

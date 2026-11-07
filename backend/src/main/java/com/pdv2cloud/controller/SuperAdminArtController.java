@@ -1,6 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.ai.LlmClient.LlmResponse;
+import com.pdv2cloud.service.art.ArtApiKeyService;
 import com.pdv2cloud.service.art.ArtFileStorage;
 import com.pdv2cloud.service.art.ArtFormats;
 import com.pdv2cloud.service.art.ArtThemeService;
@@ -35,10 +36,12 @@ public class SuperAdminArtController {
 
     private final ArtThemeService themes;
     private final PlatformAiService ai;
+    private final ArtApiKeyService apiKeys;
 
-    public SuperAdminArtController(ArtThemeService themes, PlatformAiService ai) {
+    public SuperAdminArtController(ArtThemeService themes, PlatformAiService ai, ArtApiKeyService apiKeys) {
         this.themes = themes;
         this.ai = ai;
+        this.apiKeys = apiKeys;
     }
 
     @GetMapping("/meta")
@@ -132,7 +135,7 @@ public class SuperAdminArtController {
     @PostMapping(value = "/themes/{id}/formats/{format}/layers", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ArtThemeService.Theme saveLayers(
         @PathVariable UUID id, @PathVariable String format,
-        @RequestParam("composite") MultipartFile composite, @RequestParam("layers") String layers) {
+        @RequestParam(value = "composite", required = false) MultipartFile composite, @RequestParam("layers") String layers) {
         return themes.saveLayers(id, format, composite, layers);
     }
 
@@ -145,6 +148,23 @@ public class SuperAdminArtController {
     @DeleteMapping("/themes/{id}/formats/{format}")
     public ArtThemeService.Theme deleteFormat(@PathVariable UUID id, @PathVariable String format) {
         return themes.deleteFormat(id, format);
+    }
+
+    // ── Chaves da API de temas (MCP do Codex) ──────────────────────────────
+
+    @GetMapping("/api-keys")
+    public List<ArtApiKeyService.KeyRow> apiKeys() {
+        return apiKeys.list();
+    }
+
+    @PostMapping("/api-keys")
+    public ArtApiKeyService.Created createApiKey(@RequestBody Map<String, Object> body, Authentication auth) {
+        return apiKeys.create(String.valueOf(body.getOrDefault("name", "")), auth == null ? null : auth.getName());
+    }
+
+    @DeleteMapping("/api-keys/{keyId}")
+    public List<ArtApiKeyService.KeyRow> revokeApiKey(@PathVariable UUID keyId) {
+        return apiKeys.revoke(keyId);
     }
 
     @PostMapping("/themes/{id}/suggest")

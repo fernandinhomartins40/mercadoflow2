@@ -146,6 +146,22 @@ public class ArtFileStorage {
         return null;
     }
 
+    /** Bytes de um arquivo nosso (para montar o fundo no servidor). */
+    public byte[] read(String url) {
+        if (url == null || !url.startsWith(PUBLIC_PREFIX)) {
+            throw new IllegalArgumentException("Imagem inválida");
+        }
+        Path path = root.resolve(url.substring(PUBLIC_PREFIX.length())).normalize();
+        if (!path.startsWith(root)) {
+            throw new IllegalArgumentException("Imagem inválida");
+        }
+        try {
+            return Files.readAllBytes(path);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Imagem não encontrada: " + url);
+        }
+    }
+
     /** Apaga um arquivo nosso; URLs de fora ou inválidas são ignoradas. */
     public void delete(String url) {
         if (url == null || !url.startsWith(PUBLIC_PREFIX)) {

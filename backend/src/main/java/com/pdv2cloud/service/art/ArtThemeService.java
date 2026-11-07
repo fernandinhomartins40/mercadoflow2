@@ -227,7 +227,10 @@ public class ArtThemeService {
             throw new IllegalArgumentException("Camadas em formato inválido");
         }
         List<Object> layers = layers(id, parsed);
-        ArtFileStorage.Stored stored = storeBackground(id, format, composite);
+        // Sem imagem achatada (API do MCP, sem canvas): o servidor monta.
+        ArtFileStorage.Stored stored = composite == null || composite.isEmpty()
+            ? storage.storeBytes("themes/" + id, ArtCompositor.compose(format, layers, storage))
+            : storeBackground(id, format, composite);
         String previous = t.formats().stream().filter(f -> f.format().equals(format.key()))
             .map(ThemeFormat::backgroundUrl).findFirst().orElse(null);
         jdbc.update(

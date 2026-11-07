@@ -1,6 +1,6 @@
 import api from './api';
 import type {
-  ArtBrand, ArtCampaign, ArtProduct, ArtTheme, LibraryImage, PlatformAiSettings, PublicCampaign, Regions, SuggestionGroup,
+  ArtApiKey, ArtBrand, ArtCampaign, ArtProduct, ArtTheme, LibraryImage, PlatformAiSettings, PublicCampaign, Regions, SuggestionGroup,
   ThemeLayer, ThemeSuggestion,
 } from '../types/art.types';
 
@@ -84,6 +84,9 @@ export const artAdminService = {
   removeAiKey: async (): Promise<PlatformAiSettings> => (await api.delete(`${admin}/ai-settings/key`)).data,
   testAi: async (): Promise<{ ok: boolean; message: string; latencyMs: number }> =>
     (await api.post(`${admin}/ai-settings/test`, {}, { timeout: 60000 })).data,
+  apiKeys: async (): Promise<ArtApiKey[]> => (await api.get(`${admin}/api-keys`)).data ?? [],
+  createApiKey: async (name: string): Promise<{ key: ArtApiKey; secret: string }> => (await api.post(`${admin}/api-keys`, { name })).data,
+  revokeApiKey: async (id: string): Promise<ArtApiKey[]> => (await api.delete(`${admin}/api-keys/${id}`)).data ?? [],
   themes: async (): Promise<ArtTheme[]> => (await api.get(`${admin}/themes`)).data ?? [],
   theme: async (id: string): Promise<ArtTheme> => (await api.get(`${admin}/themes/${id}`)).data,
   createTheme: async (body: { name?: string; occasion?: string }): Promise<ArtTheme> =>

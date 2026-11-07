@@ -95,6 +95,9 @@ public class SecurityConfig {
                 // Servidor MCP: o cliente e um agente externo sem JWT. A autenticacao
                 // e a chave MCP do mercado (McpController / McpKeyService), so leitura.
                 .requestMatchers("/api/v1/mcp").permitAll()
+                // API de temas de encarte para o MCP do Codex: sem JWT; a chave da
+                // plataforma (mftema_...) é conferida em ThemeApiController.
+                .requestMatchers("/api/v1/temas-api/**").permitAll()
                 // API de integração para ERPs: token e contrato públicos; o resto exige o parceiro.
                 .requestMatchers("/api/v1/partner/oauth/token", "/api/v1/partner/openapi.yaml").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/public/partners", "/api/v1/public/partners/connect/*").permitAll()
