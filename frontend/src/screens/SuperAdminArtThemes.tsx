@@ -426,7 +426,9 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   }, [id, accept]);
 
   const tf = themeFormat(theme, format);
-  const regions = live ?? tf?.regions ?? NO_REGIONS;
+  /** Áreas mexidas num formato que ainda não foi salvo: vão junto com as camadas. */
+  const [pendingRegions, setPendingRegions] = useState<Regions | null>(null);
+  const regions = live ?? pendingRegions ?? tf?.regions ?? NO_REGIONS;
   const layers = draft ?? tf?.layers ?? [];
   const duration = animation.duration ?? DEFAULT_DURATION;
 
@@ -526,7 +528,12 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   /** Grava as camadas de um formato com a imagem achatada; formato novo já ganha as áreas. */
   const persistLayers = async (key: FormatKey, list: ThemeLayer[]) => {
     setStage('composing');
-    const t = await artAdminService.saveLayers(id, key, list, await compositeBlob(list, key));
+    let t = await artAdminService.saveLayers(id, key, list, await compositeBlob(list, key));
+    if (pendingRegions && key === format) {
+      // Áreas que o superadmin já posicionou na montagem valem mais que a sugestão automática.
+      t = await artAdminService.saveRegions(id, key, pendingRegions);
+      setPendingRegions(null);
+    }
     accept(t);
     if (!themeFormat(t, key)?.regions?.products) await analyze(t, key);
     return t;
@@ -580,6 +587,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     if (key === format) return;
     if (draft && !(await confirmDialog('Há camadas não salvas neste formato. Trocar de formato e descartar essas mudanças?'))) return;
     setDraft(null);
+    setPendingRegions(null);
     setSelectedLayer(null);
     setFormat(key);
     setLive(null);
@@ -601,6 +609,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   };
 
   const commitRegions = async (next: Regions) => {
+    if (!tf) { setPendingRegions(next); setLive(null); return; }
     setLive(next);
     setStage('saving');
     try {
@@ -788,7 +797,8 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
               </div>
             ) : (
               <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onLayerFiles(e.dataTransfer.files); }} className="flex flex-col gap-3">
-                <LayerEditor format={format} layers={layers} selected={selectedLayer} onSelect={setSelectedLayer} regions={tf?.regions}
+                <LayerEditor format={format} layers={layers} selected={selectedLayer} onSelect={setSelectedLayer}
+                  regions={regions} sealUrl={theme.sealUrl} onRegionsPreview={setLive} onRegionsCommit={commitRegions}
                   onChange={(next) => setDraft(normalizeLayers(next))} />
                 {busy && (
                   <p role="status" className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">

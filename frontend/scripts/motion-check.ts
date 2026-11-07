@@ -1,6 +1,7 @@
 // Confere o motor de animação: `node scripts/motion-check.ts` (Node 23.6+ roda TypeScript direto).
 import assert from 'node:assert/strict';
 import { IDENTITY, MOTION_KEYS, MOTION_PRESETS, poseAt, type MotionKind } from '../src/features/art-studio/motion.ts';
+import { dragRegion } from '../src/features/art-studio/layout.ts';
 
 const kinds: MotionKind[] = ['base', 'layer', 'seal', 'logo', 'card', 'footer'];
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
@@ -42,4 +43,10 @@ const layer = { kind: 'layer' as const, index: 0, count: 3, cx: 0.95, cy: 0.05 }
 assert.ok(Math.abs(poseAt('entrada', layer, 8, 8).dx) < 0.02);
 // Camada marcada como parada não anima.
 assert.deepEqual(poseAt('festa', { ...layer, still: true }, 3, 8), IDENTITY);
+// Áreas na montagem: mover não sai da arte; canto redimensiona sem inverter nem sumir.
+const area = { x: 0.7, y: 0.05, w: 0.25, h: 0.12 };
+assert.deepEqual(dragRegion(area, 'move', 0.5, -0.5), { x: 0.75, y: 0, w: 0.25, h: 0.12 });
+assert.deepEqual(dragRegion(area, 'se', 0.5, 0.1), { x: 0.7, y: 0.05, w: 0.3, h: 0.22 });
+const shrunk = dragRegion(area, 'nw', 0.9, 0.9);
+assert.ok(shrunk.w >= 0.03 && shrunk.h >= 0.03 && shrunk.x + shrunk.w <= 0.95 + 1e-9 && shrunk.y + shrunk.h <= 0.17 + 1e-9);
 console.log('motion: ok');

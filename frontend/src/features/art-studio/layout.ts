@@ -10,6 +10,25 @@
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
+export type RegionHandle = 'move' | 'nw' | 'ne' | 'sw' | 'se';
+const MIN_AREA = 0.03;
+const clampTo = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+const r4 = (v: number) => Math.round(v * 10000) / 10000;
+
+/**
+ * Área (frações de 0 a 1) depois de arrastar o meio (move) ou um canto
+ * (redimensiona) por dx, dy. Fica sempre dentro da arte e nunca menor que 3%.
+ */
+export const dragRegion = (r: Rect, handle: RegionHandle, dx: number, dy: number): Rect => {
+  let { x, y, w, h } = r;
+  if (handle === 'move') return { x: r4(clampTo(x + dx, 0, 1 - w)), y: r4(clampTo(y + dy, 0, 1 - h)), w, h };
+  if (handle.includes('w')) { const nx = clampTo(x + dx, 0, x + w - MIN_AREA); w += x - nx; x = nx; }
+  if (handle.includes('e')) w = clampTo(w + dx, MIN_AREA, 1 - x);
+  if (handle.includes('n')) { const ny = clampTo(y + dy, 0, y + h - MIN_AREA); h += y - ny; y = ny; }
+  if (handle.includes('s')) h = clampTo(h + dy, MIN_AREA, 1 - y);
+  return { x: r4(x), y: r4(y), w: r4(w), h: r4(h) };
+};
+
 /** Largura ÷ altura de um cartão que acomoda foto, nome e preço sem apertar. */
 const IDEAL = 0.82;
 /** Cartão mais largo que isto vira horizontal (foto à esquerda, preço à direita). */

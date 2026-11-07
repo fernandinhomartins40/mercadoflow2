@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Lock, Pause, RotateCw, Trash2 } from 'lucide-react';
-import type { FormatKey, RegionKey, Regions, ThemeLayer } from '../../types/art.types';
+import type { FormatKey, NRect, RegionKey, Regions, ThemeLayer } from '../../types/art.types';
 import { BUILTIN_REGIONS, FORMATS, REGION_META } from './formats';
+import { RegionHandle, dragRegion } from './layout';
 import { layerStill } from './render';
 
 /**
@@ -21,7 +22,14 @@ interface Props {
   onChange: (layers: ThemeLayer[]) => void;
   /** Áreas já marcadas no formato. Sem elas, mostra as áreas padrão como sugestão. */
   regions?: Regions;
+  /** Selo 3D do tema, desenhado na área do selo. */
+  sealUrl?: string | null;
+  /** Arrastando uma área (prévia ao vivo) e ao soltar (salvar). */
+  onRegionsPreview?: (regions: Regions | null) => void;
+  onRegionsCommit?: (regions: Regions) => void;
 }
+
+type RegionDrag = { key: RegionKey; handle: RegionHandle; start: NRect; px: number; py: number; next: Regions | null };
 
 /** Margem de segurança: corte de gráfica e bordas que o celular esconde. */
 const SAFE = 0.04;
@@ -38,14 +46,19 @@ export const normalizeLayers = (layers: ThemeLayer[]): ThemeLayer[] => {
 
 type Drag = { id: string; mode: 'move' | 'scale' | 'rotate'; start: ThemeLayer; px: number; py: number };
 
-const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onChange, regions }) => {
+const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onChange, regions, sealUrl, onRegionsPreview, onRegionsCommit }) => {
   const { width: W, height: H } = FORMATS[format];
   const stageRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
+  const rdrag = useRef<RegionDrag | null>(null);
   const [dragRow, setDragRow] = useState<string | null>(null);
   const [guides, setGuides] = useState(true);
+  /** Mover áreas (logo, produtos, rodapé, selo) em vez dos enfeites. */
+  const [areaMode, setAreaMode] = useState(false);
+  const [activeArea, setActiveArea] = useState<RegionKey | null>(null);
   const marked = !!regions && Object.keys(regions).length > 0;
   const shownRegions: Regions = marked ? regions! : BUILTIN_REGIONS[format];
+  const showGuides = guides || areaMode;
   const current = layers.find((l) => l.id === selected && l.role !== 'base') ?? null;
 
   const update = (id: string, patch: Partial<ThemeLayer>) => onChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -66,7 +79,25 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
     stageRef.current?.setPointerCapture(e.pointerId);
   };
 
+  const beginArea = (key: RegionKey, handle: RegionHandle) => (e: React.PointerEvent) => {
+    const start = shownRegions[key];
+    if (!start) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setActiveArea(key);
+    const p = point(e);
+    rdrag.current = { key, handle, start, px: p.x, py: p.y, next: null };
+    stageRef.current?.setPointerCapture(e.pointerId);
+  };
+
   const move = (e: React.PointerEvent) => {
+    const rd = rdrag.current;
+    if (rd) {
+      const p = point(e);
+      rd.next = { ...shownRegions, [rd.key]: dragRegion(rd.start, rd.handle, p.x - rd.px, p.y - rd.py) };
+      onRegionsPreview?.(rd.next);
+      return;
+    }
     const d = drag.current;
     if (!d) return;
     const p = point(e);
@@ -91,7 +122,14 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
     }
   };
 
-  const end = () => { drag.current = null; };
+  const end = () => {
+    drag.current = null;
+    const rd = rdrag.current;
+    rdrag.current = null;
+    // Áreas sugeridas viram áreas do tema na primeira mexida (todas, não só a arrastada).
+    if (rd?.next) onRegionsCommit?.(rd.next);
+    else if (rd) onRegionsPreview?.(null);
+  };
 
   const nudge = (e: React.KeyboardEvent) => {
     if (!current) return;
@@ -151,14 +189,19 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
           style={{ aspectRatio: `${W} / ${H}`, background: CHECKER, maxWidth: Math.min(560, 560 * (W / H) * 1.1) }}
           onPointerMove={move} onPointerUp={end} onPointerCancel={end} onPointerDown={() => onSelect(null)}>
           {layers.map((l) => (l.hidden ? null : l.role === 'base' ? (
-            <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={begin(l, 'move')}
+            <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={areaMode ? undefined : begin(l, 'move')}
               className="absolute inset-0 h-full w-full object-fill" style={{ opacity: l.opacity }} />
           ) : (
-            <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={begin(l, 'move')}
-              className="absolute max-w-none cursor-move" style={{ ...box(l), opacity: l.opacity }} />
+            <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={areaMode ? undefined : begin(l, 'move')}
+              className={`absolute max-w-none ${areaMode ? '' : 'cursor-move'}`} style={{ ...box(l), opacity: l.opacity }} />
           )))}
-          {guides && (
-            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          {/* Selo 3D na área dele, como sai no encarte */}
+          {sealUrl && shownRegions.seal && (
+            <img src={sealUrl} alt="" draggable={false} className="pointer-events-none absolute object-contain drop-shadow-lg"
+              style={{ left: `${shownRegions.seal.x * 100}%`, top: `${shownRegions.seal.y * 100}%`, width: `${shownRegions.seal.w * 100}%`, height: `${shownRegions.seal.h * 100}%` }} />
+          )}
+          {showGuides && (
+            <div className="pointer-events-none absolute inset-0" aria-hidden={!areaMode}>
               {/* Margem de segurança e linhas de centro */}
               <div className="absolute border border-dashed border-white/80 mix-blend-difference"
                 style={{ left: `${SAFE * 100}%`, top: `${SAFE * (W / H) * 100}%`, right: `${SAFE * 100}%`, bottom: `${SAFE * (W / H) * 100}%` }} />
@@ -168,18 +211,25 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
                 const r = shownRegions[key];
                 if (!r) return null;
                 const color = REGION_META[key].color;
+                const active = areaMode && activeArea === key;
                 return (
-                  <div key={key} className="absolute rounded-sm border-2 border-dashed"
-                    style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%`, borderColor: color, background: `${color}1f` }}>
+                  <div key={key} onPointerDown={areaMode ? beginArea(key, 'move') : undefined}
+                    className={`absolute rounded-sm border-2 ${active ? 'border-solid' : 'border-dashed'} ${areaMode ? 'pointer-events-auto cursor-move' : ''}`}
+                    style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%`, borderColor: color, background: `${color}${areaMode ? '33' : '1f'}`, zIndex: active ? 2 : 1 }}>
                     <span className="absolute left-0 top-0 rounded-br px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white" style={{ background: color }}>
                       {REGION_META[key].label}
                     </span>
+                    {areaMode && (['nw', 'ne', 'sw', 'se'] as const).map((h) => (
+                      <span key={h} onPointerDown={beginArea(key, h)}
+                        className={`absolute h-3.5 w-3.5 rounded-sm border-2 bg-white ${h === 'nw' || h === 'se' ? 'cursor-nwse-resize' : 'cursor-nesw-resize'} ${h.includes('n') ? '-top-2' : '-bottom-2'} ${h.includes('w') ? '-left-2' : '-right-2'}`}
+                        style={{ borderColor: color }} />
+                    ))}
                   </div>
                 );
               })}
             </div>
           )}
-          {current && !current.hidden && (
+          {current && !current.hidden && !areaMode && (
             <div className="pointer-events-none absolute outline outline-2 outline-offset-0 outline-sky-500" style={box(current)}>
               <button type="button" tabIndex={-1} onPointerDown={begin(current, 'move')}
                 className="pointer-events-auto absolute inset-0 cursor-move focus:outline-none" aria-label={`Mover ${current.name}. Setas movem; Delete remove.`} />
@@ -194,12 +244,45 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
             </div>
           )}
         </div>
-        <div className="mx-auto mt-2 flex max-w-[560px] flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={guides} onChange={(e) => setGuides(e.target.checked)} className="h-4 w-4 accent-green-600" />
-            Mostrar áreas reservadas, margem e centro
-          </label>
-          {guides && !marked && <span className="text-amber-700">Áreas padrão (sugestão): as do tema aparecem depois de salvar.</span>}
+        <div className="mx-auto mt-2 flex max-w-[560px] flex-col gap-2 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div role="radiogroup" aria-label="O que arrastar na montagem" className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+              {([[false, 'Mover enfeites'], [true, 'Mover áreas']] as const).map(([value, label]) => (
+                <button key={label} type="button" role="radio" aria-checked={areaMode === value}
+                  onClick={() => { setAreaMode(value); setActiveArea(null); if (value) onSelect(null); }}
+                  className={`rounded-md px-3 py-1 font-medium transition ${areaMode === value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {!areaMode && (
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={guides} onChange={(e) => setGuides(e.target.checked)} className="h-4 w-4 accent-green-600" />
+                Mostrar áreas, margem e centro
+              </label>
+            )}
+          </div>
+          {areaMode && (
+            <div className="flex flex-col gap-1.5 rounded-lg bg-slate-50 p-2">
+              <span>Arraste uma área para mudar de lugar e puxe os cantos para aumentar ou diminuir. Cada formato tem as suas.</span>
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.keys(REGION_META) as RegionKey[]).map((key) => (shownRegions[key] ? (
+                  key !== 'products' && (
+                    <button key={key} type="button" onClick={() => { const next = { ...shownRegions }; delete next[key]; onRegionsCommit?.(next); }}
+                      className="rounded-full border border-slate-200 bg-white px-2 py-0.5 hover:border-red-300 hover:text-red-700">
+                      Tirar {REGION_META[key].label.toLowerCase()}
+                    </button>
+                  )
+                ) : (
+                  <button key={key} type="button" onClick={() => onRegionsCommit?.({ ...shownRegions, [key]: BUILTIN_REGIONS[format][key] })}
+                    className="rounded-full border border-slate-200 bg-white px-2 py-0.5 hover:border-green-400">
+                    + {REGION_META[key].label}
+                  </button>
+                )))}
+              </div>
+            </div>
+          )}
+          {showGuides && !marked && <span className="text-amber-700">Áreas padrão (sugestão). Mexa nelas em &quot;Mover áreas&quot; para valer neste design.</span>}
         </div>
         {current && (
           <div className="mx-auto mt-3 grid max-w-[560px] gap-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 sm:grid-cols-3">
