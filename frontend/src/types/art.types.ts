@@ -18,12 +18,46 @@ export interface Palette {
   accent: string;
 }
 
+/**
+ * Uma camada do fundo. `base` cobre a arte inteira; `element` é posicionado
+ * pelo centro (cx, cy em fração da arte) e pela largura (fração da largura da
+ * arte, altura pela proporção do PNG). Mesmo contrato do composicao.json.
+ */
+export interface ThemeLayer {
+  id: string;
+  name: string;
+  url: string;
+  w: number;
+  h: number;
+  role: 'base' | 'element';
+  cx: number;
+  cy: number;
+  width: number;
+  /** Graus, sentido horário. */
+  rotation: number;
+  opacity: number;
+  hidden?: boolean;
+  /** Não anima (fica parada mesmo com animação ligada). */
+  still?: boolean;
+}
+
+export type MotionPreset = 'respirar' | 'parallax' | 'entrada' | 'selo' | 'zoom' | 'festa';
+
+export interface ThemeAnimation {
+  presets?: MotionPreset[];
+  defaultPreset?: MotionPreset;
+  /** Segundos. */
+  duration?: number;
+}
+
 export interface ThemeFormat {
   format: FormatKey;
   backgroundUrl: string;
   width: number;
   height: number;
   regions: Regions;
+  /** De trás para frente. Vazio: o fundo é só a imagem achatada. */
+  layers?: ThemeLayer[];
   updatedAt?: string;
 }
 
@@ -38,6 +72,7 @@ export interface ArtTheme {
   sealHeight: number | null;
   status: 'DRAFT' | 'PUBLISHED';
   sortOrder: number;
+  animation?: ThemeAnimation;
   formats: ThemeFormat[];
   updatedAt?: string;
 }
@@ -130,9 +165,11 @@ export interface CampaignContent {
   headline?: string;
   /** 'auto' (padrão): cores tiradas do fundo de cada formato. 'theme': as cores fixas do tema. */
   colorMode?: 'auto' | 'theme';
+  /** Animação escolhida entre as do tema. Ausente: encarte estático. */
+  motion?: MotionPreset | null;
 }
 
-export interface PublishedImage { format: string; url: string; width: number; height: number }
+export interface PublishedImage { format: string; url: string; width: number; height: number; type?: 'video' }
 
 export interface ArtCampaign {
   id: string;

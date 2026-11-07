@@ -1,12 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, CheckCircle2, Eye, EyeOff, ImagePlus, KeyRound, Loader2, Plus, RefreshCw, Sparkles, Trash2, Upload, Wand2,
+  ArrowLeft, CheckCircle2, Eye, EyeOff, FolderOpen, ImagePlus, KeyRound, Layers, Loader2, Plus, RefreshCw, Sparkles, Trash2, Upload, Wand2,
 } from 'lucide-react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import { artAdminService, apiMessage } from '../services/art.service';
-import type { ArtTheme, FormatKey, Palette, PlatformAiSettings, RegionKey, Regions, ThemeSuggestion } from '../types/art.types';
+import type {
+  ArtTheme, FormatKey, MotionPreset, Palette, PlatformAiSettings, RegionKey, Regions, ThemeAnimation, ThemeLayer, ThemeSuggestion,
+} from '../types/art.types';
+import LayerEditor, { normalizeLayers } from '../features/art-studio/LayerEditor';
+import { Uploaded, findManifest, layersFromFiles, layersFromManifest, measure } from '../features/art-studio/layerImport';
+import { DEFAULT_DURATION, MOTION_KEYS, MOTION_PRESETS } from '../features/art-studio/motion';
+import { compositeBlob } from '../features/art-studio/export';
 import { DEFAULT_PALETTE, FORMATS, FORMAT_KEYS, REGION_META, SAMPLE_ITEMS, themeFormat } from '../features/art-studio/formats';
 import { Candidate, analyzeBackground, annotatedImage, regionsFromAssignment } from '../features/art-studio/analyze';
 import { loadImage } from '../features/art-studio/assets';
@@ -236,10 +242,13 @@ const ThemeGallery: React.FC<{ aiReady: boolean }> = ({ aiReady }) => {
 
 // ── Editor de tema ───────────────────────────────────────────────────────
 
-type Stage = 'idle' | 'uploading' | 'measuring' | 'ai' | 'saving';
+type Stage = 'idle' | 'uploading' | 'measuring' | 'ai' | 'saving' | 'layers' | 'composing';
 const STAGE_TEXT: Record<Stage, string> = {
   idle: '', uploading: 'Enviando o fundo…', measuring: 'Medindo as áreas livres do fundo…', ai: 'A IA está escolhendo as áreas…', saving: 'Salvando…',
+  layers: 'Enviando as camadas…', composing: 'Montando o fundo com as camadas…',
 };
+// React não tipa o atributo de escolher pasta.
+const FOLDER_INPUT = { webkitdirectory: '', directory: '' } as Record<string, string>;
 
 const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] }> = ({ id, aiReady, occasions }) => {
   const navigate = useNavigate();
@@ -258,14 +267,24 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const [count, setCount] = useState(8);
   const [hero, setHero] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
+  const [mode, setMode] = useState<'layers' | 'regions'>('layers');
+  /** Camadas mexidas e ainda não salvas do formato aberto. */
+  const [draft, setDraft] = useState<ThemeLayer[] | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const [animation, setAnimation] = useState<ThemeAnimation>({});
+  const [previewMotion, setPreviewMotion] = useState<MotionPreset | null>(null);
   const paletteTimer = useRef<ReturnType<typeof setTimeout>>();
+  const animTimer = useRef<ReturnType<typeof setTimeout>>();
   const bgInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
+  const layerInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
 
   const accept = useCallback((t: ArtTheme) => {
     setTheme(t);
     setPalette({ ...DEFAULT_PALETTE, ...t.palette });
     setName(t.name);
+    setAnimation(t.animation ?? {});
   }, []);
 
   useEffect(() => {
@@ -273,11 +292,17 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
       accept(t);
       const first = FORMAT_KEYS.find((f) => themeFormat(t, f));
       if (first) setFormat(first);
+      const firstFormat = first ? themeFormat(t, first) : null;
+      // Tema antigo (fundo único, sem camadas): abre direto nas áreas.
+      if (firstFormat && !firstFormat.layers?.length) setMode('regions');
+      setPreviewMotion(t.animation?.defaultPreset ?? null);
     }).catch((err) => setError(apiMessage(err, 'Tema não encontrado.')));
   }, [id, accept]);
 
   const tf = themeFormat(theme, format);
   const regions = live ?? tf?.regions ?? {};
+  const layers = draft ?? tf?.layers ?? [];
+  const duration = animation.duration ?? DEFAULT_DURATION;
 
   const flash = (text: string) => { setSaved(text); setTimeout(() => setSaved(null), 2500); };
 
@@ -345,6 +370,9 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     try {
       const t = await artAdminService.uploadBackground(id, format, file);
       setTheme(t);
+      // Fundo numa imagem só substitui as camadas deste formato.
+      setDraft(null);
+      setMode('regions');
       await analyze(t, format);
     } catch (err) {
       setStage('idle');
@@ -361,6 +389,89 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     } catch (err) {
       setError(apiMessage(err, 'Não foi possível enviar o selo.'));
     }
+  };
+
+  const uploadLayerFile = async (file: File): Promise<Uploaded> => {
+    const r = await artAdminService.uploadAsset(id, file, file.name);
+    const size = r.width > 0 ? { w: r.width, h: r.height } : await measure(file);
+    return { url: r.url, ...size };
+  };
+
+  /** Grava as camadas de um formato com a imagem achatada; formato novo já ganha as áreas. */
+  const persistLayers = async (key: FormatKey, list: ThemeLayer[]) => {
+    setStage('composing');
+    const t = await artAdminService.saveLayers(id, key, list, await compositeBlob(list, key));
+    accept(t);
+    if (!themeFormat(t, key)?.regions?.products) await analyze(t, key);
+    return t;
+  };
+
+  /** PNGs soltos (formato aberto) ou a pasta do Codex com composicao.json (todos os formatos). */
+  const onLayerFiles = async (list: FileList | null | undefined) => {
+    const files = Array.from(list ?? []);
+    if (!files.length) return;
+    setError(null);
+    setStage('layers');
+    try {
+      const manifest = await findManifest(files);
+      if (manifest) {
+        if (draft && !(await confirmDialog('Há camadas não salvas neste formato. Importar a pasta e descartar essas mudanças?'))) { setStage('idle'); return; }
+        const { layers: byFormat, sealFile } = await layersFromManifest(manifest, files, uploadLayerFile);
+        if (sealFile) setTheme(await artAdminService.uploadSeal(id, sealFile));
+        setDraft(null);
+        for (const key of FORMAT_KEYS) {
+          const list = byFormat[key];
+          if (list) await persistLayers(key, list);
+        }
+        setMode('layers');
+        flash(`Pasta importada: ${Object.keys(byFormat).length} formatos`);
+      } else {
+        setDraft(normalizeLayers(await layersFromFiles(files, format, layers, uploadLayerFile)));
+        setMode('layers');
+      }
+    } catch (err) {
+      setError(err instanceof Error && !(err as { response?: unknown }).response ? err.message : apiMessage(err, 'Não foi possível enviar as camadas.'));
+    } finally {
+      setStage('idle');
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!draft) return;
+    setError(null);
+    try {
+      await persistLayers(format, draft);
+      setDraft(null);
+      flash('Camadas salvas');
+    } catch (err) {
+      setError(apiMessage(err, 'Não foi possível salvar as camadas.'));
+    } finally {
+      setStage('idle');
+    }
+  };
+
+  const changeFormat = async (key: FormatKey) => {
+    if (key === format) return;
+    if (draft && !(await confirmDialog('Há camadas não salvas neste formato. Trocar de formato e descartar essas mudanças?'))) return;
+    setDraft(null);
+    setSelectedLayer(null);
+    setFormat(key);
+    setLive(null);
+    setAiNote(null);
+  };
+
+  const changeAnimation = (next: ThemeAnimation) => {
+    setAnimation(next);
+    if (next.presets?.length && (!previewMotion || !next.presets.includes(previewMotion))) setPreviewMotion(next.defaultPreset ?? next.presets[0]);
+    if (animTimer.current) clearTimeout(animTimer.current);
+    animTimer.current = setTimeout(() => patch({ animation: next }, 'Animação salva'), 500);
+  };
+
+  const togglePreset = (key: MotionPreset) => {
+    const current = animation.presets ?? [];
+    const presets = current.includes(key) ? current.filter((p) => p !== key) : [...current, key];
+    const defaultPreset = presets.includes(animation.defaultPreset as MotionPreset) ? animation.defaultPreset : presets[0];
+    changeAnimation(presets.length ? { presets, defaultPreset, duration } : {});
   };
 
   const commitRegions = async (next: Regions) => {
@@ -397,11 +508,11 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const items = useMemo(() => SAMPLE_ITEMS.slice(0, count).map((it, i) => ({ ...it, hero: hero && i === 0 })), [count, hero]);
   const previewTheme = useMemo(() => (theme ? { ...theme, palette } : null), [theme, palette]);
   const scene = useScene(
-    previewTheme && tf ? {
+    previewTheme && (tf || draft?.length) ? {
       theme: previewTheme, format, items, brand: { displayName: 'Seu Mercado' }, regionsOverride: regions,
-      validFrom: '2026-10-01', validUntil: '2026-10-05', showSeal: true,
+      validFrom: '2026-10-01', validUntil: '2026-10-05', showSeal: true, layersOverride: draft,
     } : null,
-    [previewTheme, format, items, regions, tf?.backgroundUrl],
+    [previewTheme, format, items, regions, tf?.backgroundUrl, draft],
   );
 
   if (error && !theme) {
@@ -456,7 +567,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
               {FORMAT_KEYS.map((key) => {
                 const f = themeFormat(theme, key);
                 return (
-                  <button key={key} role="tab" aria-selected={format === key} onClick={() => { setFormat(key); setLive(null); setAiNote(null); }}
+                  <button key={key} role="tab" aria-selected={format === key} onClick={() => changeFormat(key)}
                     className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition ${format === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
                     <span className={`h-2 w-2 rounded-full ${f?.regions?.products ? 'bg-green-500' : f ? 'bg-amber-400' : 'bg-slate-300'}`} aria-hidden="true" />
                     {FORMATS[key].label}
@@ -468,8 +579,66 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
 
           <input ref={bgInput} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" tabIndex={-1}
             onChange={(e) => { onBackground(e.target.files?.[0]); e.target.value = ''; }} />
+          <input ref={layerInput} type="file" multiple accept="image/png,image/webp,image/jpeg,application/json,.json" className="sr-only" tabIndex={-1}
+            onChange={(e) => { onLayerFiles(e.target.files); e.target.value = ''; }} />
+          <input ref={folderInput} type="file" {...FOLDER_INPUT} className="sr-only" tabIndex={-1}
+            onChange={(e) => { onLayerFiles(e.target.files); e.target.value = ''; }} />
 
-          {!tf ? (
+          <div role="tablist" aria-label="O que editar" className="flex gap-1 self-start rounded-lg bg-slate-100 p-1">
+            {([['layers', 'Camadas do fundo'], ['regions', 'Áreas do encarte']] as const).map(([key, label]) => (
+              <button key={key} role="tab" aria-selected={mode === key} onClick={() => setMode(key)} disabled={key === 'regions' && !tf}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition disabled:opacity-40 ${mode === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'layers' ? (
+            layers.length === 0 ? (
+              <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onLayerFiles(e.dataTransfer.files); }}
+                className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center"
+                style={{ aspectRatio: `${FORMATS[format].width} / ${FORMATS[format].height}`, maxHeight: 560 }}>
+                {busy ? <Loader2 className="h-8 w-8 animate-spin text-green-600" /> : <Layers className="h-8 w-8 text-slate-400" aria-hidden="true" />}
+                <span className="text-base font-semibold text-slate-800">{busy ? STAGE_TEXT[stage] : `Fundo em camadas de ${FORMATS[format].label}`}</span>
+                {!busy && (
+                  <>
+                    <span className="max-w-sm text-sm text-slate-600">
+                      Arraste os PNGs para cá: a base ({FORMATS[format].width} × {FORMATS[format].height} px) e cada enfeite separado, com fundo transparente.
+                      A pasta do Codex com o composicao.json monta os cinco formatos de uma vez.
+                    </span>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button size="sm" onClick={() => folderInput.current?.click()}><FolderOpen className="mr-1.5 h-4 w-4" />Importar pasta do Codex</Button>
+                      <Button size="sm" variant="secondary" onClick={() => layerInput.current?.click()}><Upload className="mr-1.5 h-4 w-4" />Escolher PNGs</Button>
+                    </div>
+                    <button type="button" onClick={() => bgInput.current?.click()} className="text-sm font-medium text-slate-600 underline hover:text-slate-900">
+                      Ou enviar um fundo pronto, numa imagem só
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onLayerFiles(e.dataTransfer.files); }} className="flex flex-col gap-3">
+                <LayerEditor format={format} layers={layers} selected={selectedLayer} onSelect={setSelectedLayer}
+                  onChange={(next) => setDraft(normalizeLayers(next))} />
+                {busy && (
+                  <p role="status" className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <Loader2 className="h-4 w-4 animate-spin" />{STAGE_TEXT[stage]}
+                  </p>
+                )}
+                {!layers.some((l) => l.role === 'base') && (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Sem base: o fundo sai branco atrás dos enfeites. Envie a base deste formato.</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={saveDraft} disabled={!draft || busy}>
+                    {stage === 'composing' ? 'Salvando…' : draft ? 'Salvar camadas' : 'Camadas salvas'}
+                  </Button>
+                  {draft && <Button size="sm" variant="ghost" onClick={() => { setDraft(null); setSelectedLayer(null); }}>Descartar mudanças</Button>}
+                  <Button size="sm" variant="secondary" onClick={() => layerInput.current?.click()} disabled={busy}><Upload className="mr-1.5 h-4 w-4" />Adicionar PNGs</Button>
+                  <Button size="sm" variant="secondary" onClick={() => folderInput.current?.click()} disabled={busy}><FolderOpen className="mr-1.5 h-4 w-4" />Importar pasta</Button>
+                </div>
+              </div>
+            )
+          ) : !tf ? (
             <button type="button" onClick={() => bgInput.current?.click()} disabled={busy}
               onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onBackground(e.dataTransfer.files?.[0]); }}
               className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 text-center transition hover:border-green-500 hover:bg-green-50/40"
@@ -540,8 +709,19 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
             <span className="shrink-0">{count} {count === 1 ? 'produto' : 'produtos'}</span>
             <input type="range" min={1} max={16} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full accent-green-600" aria-label="Quantidade de produtos na prévia" />
           </label>
-          {tf ? (
-            <ArtCanvas scene={scene} label={`Prévia do tema ${theme.name} em ${FORMATS[format].label}`} maxHeight={560} />
+          {(animation.presets?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Animação da prévia">
+              {[null, ...(animation.presets ?? [])].map((key) => (
+                <button key={key ?? 'static'} type="button" onClick={() => setPreviewMotion(key)} aria-pressed={previewMotion === key}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${previewMotion === key ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}>
+                  {key ? MOTION_PRESETS[key].label : 'Estático'}
+                </button>
+              ))}
+            </div>
+          )}
+          {tf || draft?.length ? (
+            <ArtCanvas scene={scene} label={`Prévia do tema ${theme.name} em ${FORMATS[format].label}`} maxHeight={560}
+              motion={previewMotion ? { preset: previewMotion, duration } : null} />
           ) : (
             <p className="rounded-lg bg-slate-50 px-3 py-10 text-center text-sm text-slate-600">A prévia aparece depois do fundo.</p>
           )}
@@ -569,6 +749,39 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
               </div>
             )}
             <p className="text-xs text-slate-500">Vai na área de selo de cada formato. O mercado pode esconder, mas não trocar.</p>
+          </section>
+
+          <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="motion-title">
+            <h2 id="motion-title" className="text-base font-semibold text-slate-900">Animação do tema</h2>
+            <p className="text-xs text-slate-500">Marque as que este tema oferece. O mercado escolhe entre elas e baixa o vídeo (story, post, quadrado e TV).</p>
+            <ul className="flex flex-col gap-1.5">
+              {MOTION_KEYS.map((key) => {
+                const on = animation.presets?.includes(key) ?? false;
+                return (
+                  <li key={key} className={`rounded-lg border px-3 py-2 ${on ? 'border-green-600 bg-green-50/50' : 'border-slate-200'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                        <input type="checkbox" checked={on} onChange={() => togglePreset(key)} className="h-4 w-4 accent-green-600" />
+                        {MOTION_PRESETS[key].label}
+                      </label>
+                      {on && (
+                        animation.defaultPreset === key
+                          ? <span className="rounded-full bg-green-600 px-2 py-0.5 text-[11px] font-semibold text-white">Padrão</span>
+                          : <button type="button" onClick={() => changeAnimation({ ...animation, defaultPreset: key, duration })} className="text-xs font-medium text-green-700 hover:underline">Tornar padrão</button>
+                      )}
+                    </div>
+                    <p className="mt-0.5 pl-6 text-xs text-slate-500">{MOTION_PRESETS[key].hint}</p>
+                  </li>
+                );
+              })}
+            </ul>
+            {(animation.presets?.length ?? 0) > 0 && (
+              <label className="flex items-center gap-3 text-sm text-slate-700">
+                <span className="shrink-0">Duração {duration} s</span>
+                <input type="range" min={4} max={15} value={duration} onChange={(e) => changeAnimation({ ...animation, duration: Number(e.target.value) })}
+                  className="w-full accent-green-600" aria-label="Duração da animação em segundos" />
+              </label>
+            )}
           </section>
 
           <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="colors-title">

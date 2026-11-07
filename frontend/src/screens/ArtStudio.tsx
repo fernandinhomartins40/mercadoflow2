@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowDown, ArrowLeft, ArrowUp, Check, CheckCircle2, ClipboardList, Copy, Download, ExternalLink, FileText, ImagePlus, Images,
+  ArrowDown, ArrowLeft, ArrowUp, Check, CheckCircle2, Clapperboard, ClipboardList, Copy, Download, ExternalLink, FileText, ImagePlus, Images,
   Loader2, Megaphone, Plus, Printer, Search, Send, Sparkles, Star, Trash2, TrendingDown, TrendingUp, Upload, Users, X,
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
@@ -16,6 +16,8 @@ import { brDate, formatPrice } from '../features/art-studio/render';
 import { canvasBlob, downloadBlob, jpegPagesToPdf, posterPages, sceneCanvas, slugify } from '../features/art-studio/export';
 import { loadImage } from '../features/art-studio/assets';
 import ArtCanvas from '../features/art-studio/ArtCanvas';
+import { DEFAULT_DURATION, MOTION_PRESETS } from '../features/art-studio/motion';
+import { VIDEO_FORMATS, sceneVideo } from '../features/art-studio/video';
 import { ActionHub, Card, Forest, MoreMenu, PageHero, PanelTitle, StepTrack, Thumb, brl } from '../components/flow/Flow';
 import { Newspaper, Pencil } from 'lucide-react';
 import { confirmDialog } from '../components/common/Dialogs';
@@ -617,8 +619,45 @@ const VisualTab: React.FC<{
   const occasions = useMemo(() => Array.from(new Set(themes.map((t) => t.occasion).filter(Boolean))) as string[], [themes]);
   const [occasion, setOccasion] = useState<string | null>(null);
   const shown = themes.filter((t) => !occasion || t.occasion === occasion);
+  const offered = theme.animation?.presets ?? [];
+  const motion = content.motion && offered.includes(content.motion) ? content.motion : null;
   return (
     <div className="flex flex-col gap-4">
+      {offered.length > 0 && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Encarte parado ou animado</legend>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup">
+            {([[false, 'Estático', 'Imagem e PDF'], [true, 'Animado', 'Vídeo para story, status e TV']] as const).map(([animated, label, hint]) => {
+              const active = !!motion === animated;
+              return (
+                <button key={label} type="button" role="radio" aria-checked={active}
+                  onClick={() => onContent({ motion: animated ? (motion ?? theme.animation?.defaultPreset ?? offered[0]) : null })}
+                  className={`flex flex-col items-start gap-0.5 rounded-xl p-3 text-left transition ${FOCUS}`}
+                  style={{ border: `2px solid ${active ? 'var(--brand-600)' : 'var(--border-soft)'}` }}>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {animated && <Clapperboard className="h-4 w-4" aria-hidden="true" />}{label}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{hint}</span>
+                </button>
+              );
+            })}
+          </div>
+          {motion && (
+            <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Tipo de animação">
+              {offered.map((key) => (
+                <button key={key} type="button" role="radio" aria-checked={motion === key} onClick={() => onContent({ motion: key })}
+                  className={`flex flex-col items-start rounded-lg px-3 py-2 text-left transition ${FOCUS}`}
+                  style={{ border: `1px solid ${motion === key ? 'var(--brand-600)' : 'var(--border-soft)'}`, background: motion === key ? 'var(--surface-soft)' : 'transparent' }}>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {MOTION_PRESETS[key].label}{theme.animation?.defaultPreset === key ? ' · sugerida pelo tema' : ''}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{MOTION_PRESETS[key].hint}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </fieldset>
+      )}
       {occasions.length > 1 && (
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por ocasião">
           {[null, ...occasions].map((o) => (
@@ -849,6 +888,29 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
     showSeal: !campaign.content.hideSeal, colorMode: campaign.content.colorMode ?? 'auto', headline: campaign.content.headline, selectedKey: selected, proxy, imageWaitMs,
   } : null);
   const scene = useScene(sceneInput(format, selectedKey), [campaign, brand, theme, format, selectedKey]);
+  // Só vale a animação que o tema ainda oferece (o superadmin pode ter tirado).
+  const motion = campaign?.content.motion && theme.animation?.presets?.includes(campaign.content.motion) ? campaign.content.motion : null;
+  const motionDuration = theme.animation?.duration ?? DEFAULT_DURATION;
+  const [videoProgress, setVideoProgress] = useState(0);
+
+  const renderVideo = async (fmt: FormatKey) => {
+    const input = sceneInput(fmt, null, 20000);
+    if (!input || !motion) throw new Error('Sem animação');
+    return sceneVideo(await buildScene(input), motion, motionDuration, setVideoProgress);
+  };
+
+  const exportVideo = async () => {
+    if (!campaign) return;
+    setBusy('video');
+    setError(null);
+    setVideoProgress(0);
+    try {
+      const video = await renderVideo(format);
+      await downloadBlob(video.blob, `${slugify(campaign.title)}-${format}.${video.extension}`);
+    } catch (err) {
+      setError(err instanceof Error && err.message !== 'Sem animação' ? err.message : 'Não foi possível gerar o vídeo. Tente de novo.');
+    } finally { setBusy(null); }
+  };
 
   const exportPng = async () => {
     const input = sceneInput(format, null, 20000);
@@ -894,9 +956,22 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
         if (!input) continue;
         files.push({ format: fmt, blob: await canvasBlob(sceneCanvas(await buildScene(input)), 'image/jpeg', 0.9) });
       }
-      const next = await artService.publish(marketId, campaign.id, files);
+      let next = await artService.publish(marketId, campaign.id, files);
       setCampaign(next);
       latest.current = next;
+      if (motion) {
+        // As imagens já estão no ar; um vídeo que falhe não desfaz a publicação.
+        try {
+          for (const fmt of formats.filter((f) => VIDEO_FORMATS.includes(f))) {
+            setBusy(`publish-video-${fmt}`);
+            next = await artService.publishVideo(marketId, campaign.id, fmt, await renderVideo(fmt));
+          }
+        } catch (err) {
+          setError(`O encarte foi publicado, mas o vídeo não: ${err instanceof Error && !(err as { response?: unknown }).response ? err.message : apiMessage(err, 'tente de novo.')}`);
+        }
+        setCampaign(next);
+        latest.current = next;
+      }
       setDialog('published');
     } catch (err) {
       setError(apiMessage(err, 'Não foi possível publicar. Tente de novo.'));
@@ -952,12 +1027,20 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
               {busy === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}PDF A4
             </button>
           )}
+          {motion && VIDEO_FORMATS.includes(format) && (
+            <button type="button" onClick={exportVideo} disabled={!items.length || !!busy} className={BTN_SECONDARY} style={secondary}>
+              {busy === 'video' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+              {busy === 'video' ? `Vídeo ${Math.round(videoProgress * 100)}%` : 'Vídeo MP4'}
+            </button>
+          )}
           <button type="button" onClick={() => setDialog('posters')} disabled={!items.length || !!busy} className={BTN_SECONDARY} style={secondary}>
             <Printer className="h-4 w-4" />Cartazes
           </button>
           <button type="button" onClick={publish} disabled={!items.length || !!busy} className={BTN_PRIMARY}>
-            {busy === 'publish' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {campaign.status === 'PUBLISHED' ? 'Atualizar publicação' : 'Publicar'}
+            {busy?.startsWith('publish') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {busy?.startsWith('publish-video-')
+              ? `Vídeo de ${FORMATS[busy.slice(14) as FormatKey]?.label ?? ''} ${Math.round(videoProgress * 100)}%`
+              : campaign.status === 'PUBLISHED' ? 'Atualizar publicação' : 'Publicar'}
           </button>
         </div>
       </div>
@@ -1005,6 +1088,7 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
           <div className="rounded-2xl p-3 sm:p-5" style={{ background: 'var(--surface-soft)' }}>
             {items.length ? (
               <ArtCanvas scene={scene} label={`Prévia do encarte ${campaign.title}`} maxHeight={760}
+                motion={motion && VIDEO_FORMATS.includes(format) ? { preset: motion, duration: motionDuration } : null}
                 onPick={(key) => { setSelectedKey(key); if (key) setTab('produtos'); }} />
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 text-center">
@@ -1056,8 +1140,15 @@ const CampaignEditor: React.FC<{ marketId: string; id: string }> = ({ marketId, 
           </div>
           <div className="grid grid-cols-3 gap-2">
             {campaign.publishedImages.map((img) => (
-              <a key={img.url} href={img.url} download className="overflow-hidden rounded-lg" style={{ border: '1px solid var(--border-soft)' }} title={`Baixar ${FORMATS[img.format as FormatKey]?.label ?? img.format}`}>
-                <img src={img.url} alt={`Arte ${FORMATS[img.format as FormatKey]?.label ?? img.format}`} className="aspect-square w-full object-cover object-top" />
+              <a key={img.url} href={img.url} download className="relative overflow-hidden rounded-lg" style={{ border: '1px solid var(--border-soft)' }} title={`Baixar ${FORMATS[img.format as FormatKey]?.label ?? img.format}`}>
+                {img.type === 'video' ? (
+                  <>
+                    <video src={img.url} muted loop autoPlay playsInline className="aspect-square w-full object-cover object-top" aria-label={`Vídeo ${FORMATS[img.format as FormatKey]?.label ?? img.format}`} />
+                    <Clapperboard className="absolute right-1 top-1 h-4 w-4 text-white drop-shadow" aria-hidden="true" />
+                  </>
+                ) : (
+                  <img src={img.url} alt={`Arte ${FORMATS[img.format as FormatKey]?.label ?? img.format}`} className="aspect-square w-full object-cover object-top" />
+                )}
               </a>
             ))}
           </div>
@@ -1098,7 +1189,10 @@ const CampaignList: React.FC<{ marketId: string }> = ({ marketId }) => {
   };
 
   const current = (campaigns ?? []).find((c) => c.id === selected) ?? campaigns?.[0] ?? null;
-  const coverOf = (c: ArtCampaign) => c.publishedImages.find((i) => i.format === 'post') ?? c.publishedImages[0];
+  const coverOf = (c: ArtCampaign) => {
+    const images = c.publishedImages.filter((i) => i.type !== 'video');
+    return images.find((i) => i.format === 'post') ?? images[0];
+  };
 
   return (
     <div className="flex flex-col gap-5">

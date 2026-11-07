@@ -35,6 +35,12 @@ public final class ArtFormats {
 
     public static final List<String> REGION_KEYS = List.of("logo", "products", "footer", "seal");
 
+    /** Animações prontas. O navegador tem a mesma lista em features/art-studio/motion.ts. */
+    public static final List<String> MOTION_PRESETS = List.of("respirar", "parallax", "entrada", "selo", "zoom", "festa");
+
+    /** Formatos que podem sair em vídeo (A4 é só impressão). */
+    public static final List<String> VIDEO_FORMATS = List.of("story", "post", "square", "tv");
+
     private ArtFormats() {}
 
     public static Format require(String key) {

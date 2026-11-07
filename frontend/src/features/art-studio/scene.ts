@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ArtBrand, ArtTheme, CampaignItem, FormatKey, Palette, Regions } from '../../types/art.types';
+import type { ArtBrand, ArtTheme, CampaignItem, FormatKey, Palette, Regions, ThemeLayer } from '../../types/art.types';
 import { ensureFonts, loadImage, loadImageWithin } from './assets';
 import { BUILTIN_REGIONS, BUILTIN_THEME_ID, DEFAULT_PALETTE, FORMATS, themeFormat } from './formats';
-import { Scene, footerLinesFor } from './render';
+import { Scene, SceneLayer, footerLinesFor } from './render';
 import { derivePalette } from './palette';
 
 export interface SceneInput {
@@ -18,6 +18,8 @@ export interface SceneInput {
   /** Áreas e paleta ainda não gravadas (criador de temas). */
   regionsOverride?: Regions | null;
   paletteOverride?: Palette | null;
+  /** Camadas ainda não gravadas (criador de temas). */
+  layersOverride?: ThemeLayer[] | null;
   /** Cores tiradas do fundo (padrão) ou as fixas do tema. */
   colorMode?: 'auto' | 'theme';
   proxy?: (url: string) => Promise<Blob>;
@@ -37,7 +39,9 @@ export const buildScene = async (input: SceneInput): Promise<Scene> => {
   const height = Math.round(width * (size.height / size.width));
   const regions = input.regionsOverride ?? (builtin ? BUILTIN_REGIONS[format] : tf?.regions ?? {});
 
-  const [background, seal, logo, images] = await Promise.all([
+  const layerList = builtin ? [] : input.layersOverride ?? tf?.layers ?? [];
+  const [layers, background, seal, logo, images] = await Promise.all([
+    loadLayers(layerList),
     tf?.backgroundUrl ? loadImage(tf.backgroundUrl) : Promise.resolve(null),
     theme?.sealUrl ? loadImage(theme.sealUrl) : Promise.resolve(null),
     loadImageWithin(input.brand?.logoUrl ?? null, input.imageWaitMs ?? 6000, input.proxy),
@@ -59,7 +63,14 @@ export const buildScene = async (input: SceneInput): Promise<Scene> => {
     footerLines: footerLinesFor(input.brand, input.validFrom ?? null, input.validUntil ?? null),
     items: input.items.map((item, i) => ({ ...item, image: images[i] })),
     selectedKey: input.selectedKey ?? null,
+    layers,
   };
+};
+
+/** Imagens das camadas. Camada cuja imagem não abriu fica de fora (melhor que quebrar a arte). */
+export const loadLayers = async (list: ThemeLayer[]): Promise<SceneLayer[]> => {
+  const images = await Promise.all(list.map((l) => loadImage(l.url)));
+  return list.flatMap((l, i) => (images[i] ? [{ ...l, image: images[i] as HTMLImageElement }] : []));
 };
 
 /**

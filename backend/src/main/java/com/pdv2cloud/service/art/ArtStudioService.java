@@ -359,6 +359,39 @@ public class ArtStudioService {
         return campaign(marketId, id);
     }
 
+    /**
+     * Vídeo do encarte animado num formato. Vem depois de {@link #publish}
+     * (que troca as imagens) e substitui o vídeo anterior do mesmo formato.
+     */
+    @Transactional
+    public Campaign publishVideo(UUID marketId, UUID id, MultipartFile file, String format, int width, int height) {
+        Campaign c = campaign(marketId, id);
+        if (!"PUBLISHED".equals(c.status())) {
+            throw new IllegalArgumentException("Publique o encarte antes de enviar o vídeo");
+        }
+        if (!ArtFormats.VIDEO_FORMATS.contains(format)) {
+            throw new IllegalArgumentException("Formato sem vídeo: " + format);
+        }
+        String url = storage.storeVideo("campaigns/" + marketId + "/" + id, file);
+        List<Object> images = new ArrayList<>();
+        List<Object> replaced = new ArrayList<>();
+        for (Object o : c.publishedImages()) {
+            boolean sameVideo = o instanceof Map<?, ?> m && "video".equals(m.get("type")) && format.equals(m.get("format"));
+            (sameVideo ? replaced : images).add(o);
+        }
+        Map<String, Object> video = new LinkedHashMap<>();
+        video.put("format", format);
+        video.put("type", "video");
+        video.put("url", url);
+        video.put("width", Math.max(0, Math.min(4000, width)));
+        video.put("height", Math.max(0, Math.min(4000, height)));
+        images.add(video);
+        jdbc.update("update art_campaigns set published_images = cast(:images as jsonb), updated_at = now() where id = :id and market_id = :m",
+            new MapSqlParameterSource().addValue("id", id).addValue("m", marketId).addValue("images", ArtJson.write(images)));
+        deleteImages(replaced);
+        return campaign(marketId, id);
+    }
+
     @Transactional
     public Campaign unpublish(UUID marketId, UUID id) {
         campaign(marketId, id);

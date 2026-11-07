@@ -1,6 +1,8 @@
-import type { CampaignItem, Palette } from '../../types/art.types';
+import type { CampaignItem, FormatKey, Palette, ThemeLayer } from '../../types/art.types';
 import { FONT_NAME, FONT_PRICE, FONT_TEXT } from './assets';
-import { Scene, formatPrice, mixHex, priceParts, renderScene } from './render';
+import { FORMATS } from './formats';
+import { Scene, drawLayers, formatPrice, mixHex, priceParts, renderScene } from './render';
+import { loadLayers } from './scene';
 import { saveBlob } from '../../lib/nativeApp';
 
 /**
@@ -13,7 +15,7 @@ export const sceneCanvas = (scene: Scene): HTMLCanvasElement => {
   canvas.width = scene.width;
   canvas.height = scene.height;
   const ctx = canvas.getContext('2d')!;
-  renderScene(ctx, { ...scene, selectedKey: null });
+  renderScene(ctx, { ...scene, selectedKey: null, motion: null });
   return canvas;
 };
 
@@ -21,6 +23,25 @@ export const canvasBlob = (canvas: HTMLCanvasElement, type: 'image/png' | 'image
   new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Falha ao gerar a imagem'))), type, quality);
   });
+
+/**
+ * Fundo achatado das camadas, no tamanho do formato. É o que a análise de
+ * áreas, a paleta automática e as miniaturas usam.
+ */
+export const compositeBlob = async (layers: ThemeLayer[], format: FormatKey): Promise<Blob> => {
+  const { width, height } = FORMATS[format];
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.imageSmoothingQuality = 'high';
+  drawLayers(ctx, await loadLayers(layers), width, height);
+  const png = await canvasBlob(canvas, 'image/png');
+  // O servidor aceita até 25 MB; um A4 cheio de textura em PNG pode passar.
+  return png.size > 20 * 1024 * 1024 ? canvasBlob(canvas, 'image/jpeg', 0.92) : png;
+};
 
 /** Download no navegador; no app, folha de compartilhar do celular (src/lib/nativeApp.ts). */
 export const downloadBlob = (blob: Blob, filename: string) => saveBlob(blob, filename, 'Encarte do MercadoFlow');

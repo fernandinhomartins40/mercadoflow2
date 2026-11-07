@@ -177,6 +177,15 @@ public class ArtStudioController {
         return studio.publish(marketId, id, files, formats);
     }
 
+    @PostMapping(value = "/campaigns/{id}/videos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ArtStudioService.Campaign publishVideo(@PathVariable UUID marketId, @PathVariable UUID id,
+                                                  @RequestParam("file") MultipartFile file, @RequestParam("format") String format,
+                                                  @RequestParam("width") int width, @RequestParam("height") int height,
+                                                  Authentication auth) {
+        access.assertCanAccessMarket(marketId, auth);
+        return studio.publishVideo(marketId, id, file, format, width, height);
+    }
+
     @PostMapping("/campaigns/{id}/unpublish")
     public ArtStudioService.Campaign unpublish(@PathVariable UUID marketId, @PathVariable UUID id, Authentication auth) {
         access.assertCanAccessMarket(marketId, auth);

@@ -1,7 +1,7 @@
 import api from './api';
 import type {
   ArtBrand, ArtCampaign, ArtProduct, ArtTheme, LibraryImage, PlatformAiSettings, PublicCampaign, Regions, SuggestionGroup,
-  ThemeSuggestion,
+  ThemeLayer, ThemeSuggestion,
 } from '../types/art.types';
 
 const market = (marketId: string) => `/v1/markets/${marketId}/art`;
@@ -64,6 +64,13 @@ export const artService = {
     });
     return (await api.post(`${market(marketId)}/campaigns/${id}/publish`, data, multipart)).data;
   },
+  publishVideo: async (marketId: string, id: string, format: string, video: { blob: Blob; width: number; height: number; extension: string }): Promise<ArtCampaign> => {
+    const data = form(video.blob, 'file', `${format}.${video.extension}`);
+    data.append('format', format);
+    data.append('width', String(video.width));
+    data.append('height', String(video.height));
+    return (await api.post(`${market(marketId)}/campaigns/${id}/videos`, data, multipart)).data;
+  },
   unpublish: async (marketId: string, id: string): Promise<ArtCampaign> =>
     (await api.post(`${market(marketId)}/campaigns/${id}/unpublish`)).data,
   publicCampaign: async (slug: string): Promise<PublicCampaign> => (await api.get(`/v1/public/encartes/${slug}`)).data,
@@ -89,6 +96,13 @@ export const artAdminService = {
   removeSeal: async (id: string): Promise<ArtTheme> => (await api.delete(`${admin}/themes/${id}/seal`)).data,
   uploadBackground: async (id: string, format: string, file: File): Promise<ArtTheme> =>
     (await api.post(`${admin}/themes/${id}/formats/${format}/background`, form(file, 'file', file.name), multipart)).data,
+  uploadAsset: async (id: string, file: Blob, filename: string): Promise<{ url: string; width: number; height: number }> =>
+    (await api.post(`${admin}/themes/${id}/assets`, form(file, 'file', filename), multipart)).data,
+  saveLayers: async (id: string, format: string, layers: ThemeLayer[], composite: Blob): Promise<ArtTheme> => {
+    const data = form(composite, 'composite', `${format}-composto.${composite.type === 'image/jpeg' ? 'jpg' : 'png'}`);
+    data.append('layers', JSON.stringify(layers));
+    return (await api.post(`${admin}/themes/${id}/formats/${format}/layers`, data, multipart)).data;
+  },
   saveRegions: async (id: string, format: string, regions: Regions, analysis?: unknown): Promise<ArtTheme> =>
     (await api.put(`${admin}/themes/${id}/formats/${format}/regions`, { regions, analysis })).data,
   deleteFormat: async (id: string, format: string): Promise<ArtTheme> =>

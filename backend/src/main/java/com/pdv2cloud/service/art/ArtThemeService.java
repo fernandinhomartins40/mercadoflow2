@@ -55,11 +55,11 @@ public class ArtThemeService {
     // ── Leitura ────────────────────────────────────────────────────────────
 
     public record ThemeFormat(String format, String backgroundUrl, int width, int height,
-                              Map<String, Object> regions, LocalDateTime updatedAt) {}
+                              Map<String, Object> regions, List<Object> layers, LocalDateTime updatedAt) {}
 
     public record Theme(UUID id, String name, String occasion, List<Object> tags, Map<String, Object> palette,
                         String sealUrl, Integer sealWidth, Integer sealHeight, String status, int sortOrder,
-                        List<ThemeFormat> formats, LocalDateTime updatedAt) {}
+                        Map<String, Object> animation, List<ThemeFormat> formats, LocalDateTime updatedAt) {}
 
     @Transactional(readOnly = true)
     public List<Theme> list(boolean onlyPublished) {
@@ -124,6 +124,7 @@ public class ArtThemeService {
         Object tags = body.containsKey("tags") ? tags(body.get("tags")) : current.tags();
         Map<String, Object> palette = body.containsKey("palette") ? palette(body.get("palette"), current.palette()) : current.palette();
         int sort = body.containsKey("sortOrder") ? (int) ArtJson.num(body.get("sortOrder"), current.sortOrder()) : current.sortOrder();
+        Map<String, Object> animation = body.containsKey("animation") ? animation(body.get("animation")) : current.animation();
         String status = current.status();
         if (body.containsKey("status")) {
             status = String.valueOf(body.get("status")).toUpperCase(Locale.ROOT);
@@ -136,7 +137,7 @@ public class ArtThemeService {
         }
         jdbc.update(
             "update art_themes set name = :name, occasion = :occasion, tags = cast(:tags as jsonb), palette = cast(:palette as jsonb), " +
-            "status = :status, sort_order = :sort, updated_at = now() where id = :id",
+            "status = :status, sort_order = :sort, animation = cast(:animation as jsonb), updated_at = now() where id = :id",
             new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("name", name == null ? current.name() : name)
@@ -144,7 +145,8 @@ public class ArtThemeService {
                 .addValue("tags", ArtJson.write(tags))
                 .addValue("palette", ArtJson.write(palette))
                 .addValue("status", status)
-                .addValue("sort", sort));
+                .addValue("sort", sort)
+                .addValue("animation", ArtJson.write(animation)));
         return get(id);
     }
 
@@ -154,6 +156,7 @@ public class ArtThemeService {
         jdbc.update("delete from art_themes where id = :id", Map.of("id", id));
         storage.delete(t.sealUrl());
         t.formats().forEach(f -> storage.delete(f.backgroundUrl()));
+        layerUrls(t).forEach(storage::delete);
     }
 
     @Transactional
@@ -181,23 +184,14 @@ public class ArtThemeService {
     public Theme uploadBackground(UUID id, String formatKey, MultipartFile file) {
         ArtFormats.Format format = ArtFormats.require(formatKey);
         Theme t = get(id);
-        ArtFileStorage.Stored stored = storage.storeImage("themes/" + id, file);
-        if (stored.width() > 0 && stored.height() > 0) {
-            double ratio = stored.width() / (double) stored.height();
-            if (Math.abs(ratio - format.ratio()) / format.ratio() > 0.06) {
-                storage.delete(stored.url());
-                throw new IllegalArgumentException(String.format(Locale.ROOT,
-                    "O fundo de %s precisa ter a proporção de %d x %d px (enviado: %d x %d)",
-                    format.label(), format.width(), format.height(), stored.width(), stored.height()));
-            }
-        }
+        ArtFileStorage.Stored stored = storeBackground(id, format, file);
         String previous = t.formats().stream().filter(f -> f.format().equals(format.key()))
             .map(ThemeFormat::backgroundUrl).findFirst().orElse(null);
         jdbc.update(
             "insert into art_theme_formats (theme_id, format, background_url, width, height, regions) " +
             "values (:id, :format, :url, :w, :h, '{}'::jsonb) " +
             "on conflict (theme_id, format) do update set background_url = excluded.background_url, width = excluded.width, " +
-            "height = excluded.height, regions = '{}'::jsonb, analysis = null, updated_at = now()",
+            "height = excluded.height, regions = '{}'::jsonb, layers = '[]'::jsonb, analysis = null, updated_at = now()",
             new MapSqlParameterSource().addValue("id", id).addValue("format", format.key()).addValue("url", stored.url())
                 .addValue("w", stored.width() > 0 ? stored.width() : format.width())
                 .addValue("h", stored.height() > 0 ? stored.height() : format.height()));
@@ -205,7 +199,53 @@ public class ArtThemeService {
         if (previous != null) {
             storage.delete(previous);
         }
-        return get(id);
+        Theme after = get(id);
+        deleteDropped(t, after);
+        return after;
+    }
+
+    /** Imagem de uma camada. Fica no tema e pode ser usada em vários formatos. */
+    public ArtFileStorage.Stored uploadAsset(UUID id, MultipartFile file) {
+        get(id);
+        // shortcut: camada enviada e nunca salva vira arquivo órfão; limpar por varredura se o disco apertar.
+        return storage.storeImage("themes/" + id, file);
+    }
+
+    /**
+     * Grava as camadas de um formato e a imagem achatada delas (montada no
+     * navegador). Diferente de trocar o fundo, as áreas marcadas continuam:
+     * mexer numa camada não muda onde ficam produtos, logo e selo.
+     */
+    @Transactional
+    public Theme saveLayers(UUID id, String formatKey, MultipartFile composite, String layersJson) {
+        ArtFormats.Format format = ArtFormats.require(formatKey);
+        Theme t = get(id);
+        Object parsed;
+        try {
+            parsed = ArtJson.MAPPER.readValue(layersJson == null ? "" : layersJson, Object.class);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Camadas em formato inválido");
+        }
+        List<Object> layers = layers(id, parsed);
+        ArtFileStorage.Stored stored = storeBackground(id, format, composite);
+        String previous = t.formats().stream().filter(f -> f.format().equals(format.key()))
+            .map(ThemeFormat::backgroundUrl).findFirst().orElse(null);
+        jdbc.update(
+            "insert into art_theme_formats (theme_id, format, background_url, width, height, regions, layers) " +
+            "values (:id, :format, :url, :w, :h, '{}'::jsonb, cast(:layers as jsonb)) " +
+            "on conflict (theme_id, format) do update set background_url = excluded.background_url, width = excluded.width, " +
+            "height = excluded.height, layers = excluded.layers, updated_at = now()",
+            new MapSqlParameterSource().addValue("id", id).addValue("format", format.key()).addValue("url", stored.url())
+                .addValue("w", stored.width() > 0 ? stored.width() : format.width())
+                .addValue("h", stored.height() > 0 ? stored.height() : format.height())
+                .addValue("layers", ArtJson.write(layers)));
+        jdbc.update("update art_themes set updated_at = now() where id = :id", Map.of("id", id));
+        if (previous != null) {
+            storage.delete(previous);
+        }
+        Theme after = get(id);
+        deleteDropped(t, after);
+        return after;
     }
 
     @Transactional
@@ -236,6 +276,7 @@ public class ArtThemeService {
             storage.delete(f.backgroundUrl());
         });
         Theme after = get(id);
+        deleteDropped(t, after);
         if ("PUBLISHED".equals(after.status()) && after.formats().stream().noneMatch(ArtThemeService::hasProducts)) {
             jdbc.update("update art_themes set status = 'DRAFT' where id = :id", Map.of("id", id));
             after = get(id);
@@ -377,7 +418,7 @@ public class ArtThemeService {
 
     private static Theme withFormats(Theme t, List<ThemeFormat> formats) {
         return new Theme(t.id(), t.name(), t.occasion(), t.tags(), t.palette(), t.sealUrl(), t.sealWidth(), t.sealHeight(),
-            t.status(), t.sortOrder(), formats, t.updatedAt());
+            t.status(), t.sortOrder(), t.animation(), formats, t.updatedAt());
     }
 
     private static Theme mapTheme(ResultSet rs, List<ThemeFormat> formats) throws SQLException {
@@ -386,14 +427,15 @@ public class ArtThemeService {
             (UUID) rs.getObject("id"), rs.getString("name"), rs.getString("occasion"),
             ArtJson.list(rs.getString("tags")), ArtJson.map(rs.getString("palette")),
             rs.getString("seal_url"), (Integer) rs.getObject("seal_width"), (Integer) rs.getObject("seal_height"),
-            rs.getString("status"), rs.getInt("sort_order"), formats,
+            rs.getString("status"), rs.getInt("sort_order"), ArtJson.map(rs.getString("animation")), formats,
             updated == null ? null : updated.toLocalDateTime());
     }
 
     private static ThemeFormat mapFormat(ResultSet rs) throws SQLException {
         Timestamp updated = rs.getTimestamp("updated_at");
         return new ThemeFormat(rs.getString("format"), rs.getString("background_url"), rs.getInt("width"),
-            rs.getInt("height"), ArtJson.map(rs.getString("regions")), updated == null ? null : updated.toLocalDateTime());
+            rs.getInt("height"), ArtJson.map(rs.getString("regions")), ArtJson.list(rs.getString("layers")),
+            updated == null ? null : updated.toLocalDateTime());
     }
 
     private static Map<String, Object> defaultPalette() {
@@ -471,6 +513,112 @@ public class ArtThemeService {
             rect.put("h", round4(h));
             out.put(key, rect);
         }
+        return out;
+    }
+
+    private static final int MAX_LAYERS = 40;
+    private static final Pattern LAYER_ID = Pattern.compile("[^a-zA-Z0-9_-]+");
+
+    private ArtFileStorage.Stored storeBackground(UUID id, ArtFormats.Format format, MultipartFile file) {
+        ArtFileStorage.Stored stored = storage.storeImage("themes/" + id, file);
+        if (stored.width() > 0 && stored.height() > 0) {
+            double ratio = stored.width() / (double) stored.height();
+            if (Math.abs(ratio - format.ratio()) / format.ratio() > 0.06) {
+                storage.delete(stored.url());
+                throw new IllegalArgumentException(String.format(Locale.ROOT,
+                    "O fundo de %s precisa ter a proporção de %d x %d px (enviado: %d x %d)",
+                    format.label(), format.width(), format.height(), stored.width(), stored.height()));
+            }
+        }
+        return stored;
+    }
+
+    /** URLs das imagens de camada usadas em qualquer formato do tema. */
+    private static Set<String> layerUrls(Theme t) {
+        Set<String> urls = new HashSet<>();
+        for (ThemeFormat f : t.formats()) {
+            for (Object o : f.layers() == null ? List.of() : f.layers()) {
+                if (o instanceof Map<?, ?> m && m.get("url") != null) {
+                    urls.add(String.valueOf(m.get("url")));
+                }
+            }
+        }
+        return urls;
+    }
+
+    /** Apaga as imagens de camada que nenhum formato usa mais. */
+    private void deleteDropped(Theme before, Theme after) {
+        Set<String> dropped = layerUrls(before);
+        dropped.removeAll(layerUrls(after));
+        dropped.forEach(storage::delete);
+    }
+
+    static List<Object> layers(UUID themeId, Object value) {
+        if (!(value instanceof List<?> list)) {
+            throw new IllegalArgumentException("Camadas em formato inválido");
+        }
+        if (list.size() > MAX_LAYERS) {
+            throw new IllegalArgumentException("No máximo " + MAX_LAYERS + " camadas por formato");
+        }
+        // Só imagens deste tema: a camada não aponta para arquivo de outro tema ou de um mercado.
+        String prefix = ArtFileStorage.PUBLIC_PREFIX + "themes/" + themeId + "/";
+        List<Object> out = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
+        for (Object o : list) {
+            if (!(o instanceof Map<?, ?> m)) {
+                throw new IllegalArgumentException("Camada em formato inválido");
+            }
+            String url = ArtJson.str(m.get("url"), 500);
+            if (url == null || !url.startsWith(prefix) || url.contains("..")) {
+                throw new IllegalArgumentException("Imagem de camada inválida");
+            }
+            String layerId = ArtJson.str(m.get("id"), 60);
+            layerId = layerId == null ? "" : LAYER_ID.matcher(layerId).replaceAll("-");
+            if (layerId.isEmpty() || !ids.add(layerId)) {
+                layerId = "camada-" + (out.size() + 1) + "-" + UUID.randomUUID().toString().substring(0, 6);
+                ids.add(layerId);
+            }
+            Map<String, Object> layer = new LinkedHashMap<>();
+            layer.put("id", layerId);
+            String name = ArtJson.str(m.get("name"), 80);
+            layer.put("name", name == null ? layerId : name);
+            layer.put("url", url);
+            layer.put("w", (int) Math.max(0, Math.min(6000, ArtJson.num(m.get("w"), 0))));
+            layer.put("h", (int) Math.max(0, Math.min(6000, ArtJson.num(m.get("h"), 0))));
+            layer.put("role", "base".equals(m.get("role")) ? "base" : "element");
+            layer.put("cx", round4(Math.max(-1, Math.min(2, ArtJson.num(m.get("cx"), 0.5)))));
+            layer.put("cy", round4(Math.max(-1, Math.min(2, ArtJson.num(m.get("cy"), 0.5)))));
+            layer.put("width", round4(Math.max(0.005, Math.min(3, ArtJson.num(m.get("width"), 1)))));
+            layer.put("rotation", round4(Math.max(-360, Math.min(360, ArtJson.num(m.get("rotation"), 0)))));
+            layer.put("opacity", round4(clamp01(ArtJson.num(m.get("opacity"), 1))));
+            layer.put("hidden", Boolean.TRUE.equals(m.get("hidden")));
+            layer.put("still", Boolean.TRUE.equals(m.get("still")));
+            out.add(layer);
+        }
+        return out;
+    }
+
+    static Map<String, Object> animation(Object value) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (!(value instanceof Map<?, ?> m)) {
+            return out;
+        }
+        List<String> presets = new ArrayList<>();
+        if (m.get("presets") instanceof List<?> list) {
+            for (Object o : list) {
+                String key = String.valueOf(o);
+                if (ArtFormats.MOTION_PRESETS.contains(key) && !presets.contains(key)) {
+                    presets.add(key);
+                }
+            }
+        }
+        if (presets.isEmpty()) {
+            return out;
+        }
+        String def = String.valueOf(m.get("defaultPreset"));
+        out.put("presets", presets);
+        out.put("defaultPreset", presets.contains(def) ? def : presets.get(0));
+        out.put("duration", Math.max(4, Math.min(15, Math.round(ArtJson.num(m.get("duration"), 8)))));
         return out;
     }
 

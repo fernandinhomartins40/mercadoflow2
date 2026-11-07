@@ -90,6 +90,30 @@ public class ArtFileStorage {
             throw new IllegalArgumentException("A imagem passa de " + MAX_SIDE + " px de lado");
         }
 
+        return new Stored(write(folder, extension, bytes), width, height);
+    }
+
+    /** Vídeo do encarte animado (MP4 ou WebM gerado no navegador). Tamanho em px vem do cliente. */
+    public String storeVideo(String folder, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Nenhum vídeo foi enviado");
+        }
+        if (file.getSize() > MAX_BYTES) {
+            throw new IllegalArgumentException("O vídeo passa de 25 MB. Diminua a duração e tente de novo.");
+        }
+        try {
+            byte[] bytes = file.getBytes();
+            String extension = sniffVideo(bytes);
+            if (extension == null) {
+                throw new IllegalArgumentException("Envie um vídeo MP4 ou WebM");
+            }
+            return write(folder, extension, bytes);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Falha ao ler o vídeo enviado", ex);
+        }
+    }
+
+    private String write(String folder, String extension, byte[] bytes) {
         Path target = root.resolve(safeFolder(folder)).resolve(UUID.randomUUID() + "." + extension).normalize();
         if (!target.startsWith(root)) {
             throw new IllegalArgumentException("Pasta inválida");
@@ -106,7 +130,20 @@ public class ArtFileStorage {
         } catch (IOException ex) {
             throw new IllegalStateException("Falha ao gravar a imagem", ex);
         }
-        return new Stored(PUBLIC_PREFIX + root.relativize(target).toString().replace('\\', '/'), width, height);
+        return PUBLIC_PREFIX + root.relativize(target).toString().replace('\\', '/');
+    }
+
+    private static String sniffVideo(byte[] b) {
+        if (b == null || b.length < 12) {
+            return null;
+        }
+        if (b[4] == 'f' && b[5] == 't' && b[6] == 'y' && b[7] == 'p') {
+            return "mp4";
+        }
+        if ((b[0] & 0xff) == 0x1A && (b[1] & 0xff) == 0x45 && (b[2] & 0xff) == 0xDF && (b[3] & 0xff) == 0xA3) {
+            return "webm";
+        }
+        return null;
     }
 
     /** Apaga um arquivo nosso; URLs de fora ou inválidas são ignoradas. */

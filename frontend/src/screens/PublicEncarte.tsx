@@ -64,7 +64,9 @@ const PublicEncarte: React.FC = () => {
   }
 
   // No celular a arte em pé é a que se lê melhor.
-  const sorted = [...data.images].sort((a, b) => ORDER.indexOf(a.format) - ORDER.indexOf(b.format));
+  // Encarte animado: o vídeo de cada formato toca no lugar da imagem (que vira a capa).
+  const videos = new Map(data.images.filter((img) => img.type === 'video').map((v) => [v.format, v]));
+  const sorted = data.images.filter((img) => img.type !== 'video').sort((a, b) => ORDER.indexOf(a.format) - ORDER.indexOf(b.format));
   const images = sorted.some((img) => img.format !== 'tv') ? sorted.filter((img) => img.format !== 'tv') : sorted;
   const whatsapp = data.whatsapp?.replace(/\D/g, '');
   const validity = data.validUntil
@@ -99,10 +101,17 @@ const PublicEncarte: React.FC = () => {
       </section>
 
       <section className="mx-auto mt-4 flex max-w-xl flex-col gap-4 px-4" aria-label="Artes do encarte">
-        {images.map((img) => (
-          <img key={img.url} src={img.url} alt={`Encarte ${data.title}`} className="w-full rounded-xl bg-white shadow-md" loading="lazy"
-            width={img.width || undefined} height={img.height || undefined} />
-        ))}
+        {images.map((img) => {
+          const video = videos.get(img.format);
+          return video ? (
+            <video key={video.url} src={video.url} poster={img.url} muted loop autoPlay playsInline preload="metadata"
+              className="w-full rounded-xl bg-white shadow-md" aria-label={`Encarte animado ${data.title}`}
+              width={img.width || undefined} height={img.height || undefined} />
+          ) : (
+            <img key={img.url} src={img.url} alt={`Encarte ${data.title}`} className="w-full rounded-xl bg-white shadow-md" loading="lazy"
+              width={img.width || undefined} height={img.height || undefined} />
+          );
+        })}
       </section>
 
       {data.products.length > 0 && (

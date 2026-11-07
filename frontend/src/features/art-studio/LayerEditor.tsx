@@ -1,0 +1,228 @@
+import React, { useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Lock, Pause, RotateCw, Trash2 } from 'lucide-react';
+import type { FormatKey, ThemeLayer } from '../../types/art.types';
+import { FORMATS } from './formats';
+
+/**
+ * Editor das camadas do fundo de um formato (criador de temas).
+ *
+ * À esquerda, a arte: clicar escolhe a camada, arrastar move, o canto
+ * redimensiona (mantendo a proporção) e a bolinha de cima gira. À direita, a
+ * lista no estilo de programa de imagem: a de cima fica na frente. A base
+ * (fundo opaco) fica sempre embaixo de tudo e cobre a arte inteira.
+ */
+
+interface Props {
+  format: FormatKey;
+  layers: ThemeLayer[];
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  onChange: (layers: ThemeLayer[]) => void;
+}
+
+const CHECKER = 'repeating-conic-gradient(#e7e5e4 0% 25%, #fafaf9 0% 50%) 50% / 20px 20px';
+const round = (v: number) => Math.round(v * 10000) / 10000;
+
+/** Base primeiro (uma só), depois os elementos na ordem dada. */
+export const normalizeLayers = (layers: ThemeLayer[]): ThemeLayer[] => {
+  const base = layers.find((l) => l.role === 'base');
+  const rest = layers.filter((l) => l !== base).map((l) => (l.role === 'base' ? { ...l, role: 'element' as const } : l));
+  return base ? [base, ...rest] : rest;
+};
+
+type Drag = { id: string; mode: 'move' | 'scale' | 'rotate'; start: ThemeLayer; px: number; py: number };
+
+const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onChange }) => {
+  const { width: W, height: H } = FORMATS[format];
+  const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<Drag | null>(null);
+  const [dragRow, setDragRow] = useState<string | null>(null);
+  const current = layers.find((l) => l.id === selected && l.role !== 'base') ?? null;
+
+  const update = (id: string, patch: Partial<ThemeLayer>) => onChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+
+  const point = (e: React.PointerEvent) => {
+    const r = stageRef.current!.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height, r };
+  };
+
+  const begin = (layer: ThemeLayer, mode: Drag['mode']) => (e: React.PointerEvent) => {
+    if (layer.role === 'base') { onSelect(layer.id); return; }
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect(layer.id);
+    const p = point(e);
+    drag.current = { id: layer.id, mode, start: layer, px: p.x, py: p.y };
+    stageRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const p = point(e);
+    const s = d.start;
+    if (d.mode === 'move') {
+      update(d.id, { cx: round(s.cx + p.x - d.px), cy: round(s.cy + p.y - d.py) });
+    } else {
+      // Distâncias em px da tela: a arte não é quadrada.
+      const cxPx = s.cx * p.r.width;
+      const cyPx = s.cy * p.r.height;
+      const vx = p.x * p.r.width - cxPx;
+      const vy = p.y * p.r.height - cyPx;
+      if (d.mode === 'scale') {
+        const d0 = Math.hypot(d.px * p.r.width - cxPx, d.py * p.r.height - cyPx) || 1;
+        update(d.id, { width: round(Math.max(0.01, Math.min(3, s.width * (Math.hypot(vx, vy) / d0)))) });
+      } else {
+        let angle = (Math.atan2(vy, vx) * 180) / Math.PI + 90;
+        if (e.shiftKey) angle = Math.round(angle / 15) * 15;
+        if (angle > 180) angle -= 360;
+        update(d.id, { rotation: Math.round(angle * 10) / 10 });
+      }
+    }
+  };
+
+  const end = () => { drag.current = null; };
+
+  const nudge = (e: React.KeyboardEvent) => {
+    if (!current) return;
+    const step = e.shiftKey ? 0.02 : 0.002;
+    const delta: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    const dd = delta[e.key];
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); remove(current.id); return; }
+    if (!dd) return;
+    e.preventDefault();
+    update(current.id, { cx: round(current.cx + dd[0]), cy: round(current.cy + dd[1]) });
+  };
+
+  /** Move a camada na pilha: +1 vai para a frente. A base não sai do fundo. */
+  const shift = (id: string, by: number) => {
+    const i = layers.findIndex((l) => l.id === id);
+    const j = i + by;
+    const floor = layers[0]?.role === 'base' ? 1 : 0;
+    if (i < floor || j < floor || j >= layers.length) return;
+    const next = [...layers];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+
+  const dropOn = (targetId: string) => {
+    if (!dragRow || dragRow === targetId) return;
+    const moving = layers.find((l) => l.id === dragRow);
+    if (!moving || moving.role === 'base') return;
+    const rest = layers.filter((l) => l.id !== dragRow);
+    const at = rest.findIndex((l) => l.id === targetId);
+    // Soltar sobre uma linha põe a camada logo à frente dela (a lista mostra a frente em cima).
+    rest.splice(Math.max(rest[0]?.role === 'base' ? 1 : 0, at + 1), 0, moving);
+    onChange(rest);
+    setDragRow(null);
+  };
+
+  const remove = (id: string) => {
+    onChange(layers.filter((l) => l.id !== id));
+    if (selected === id) onSelect(null);
+  };
+
+  const box = (l: ThemeLayer): React.CSSProperties => ({
+    left: `${l.cx * 100}%`, top: `${l.cy * 100}%`, width: `${l.width * 100}%`,
+    aspectRatio: l.w && l.h ? `${l.w} / ${l.h}` : undefined,
+    transform: `translate(-50%, -50%) rotate(${l.rotation}deg)`,
+  });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <div ref={stageRef} className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-lg"
+          style={{ aspectRatio: `${W} / ${H}`, background: CHECKER, maxWidth: Math.min(560, 560 * (W / H) * 1.1) }}
+          onPointerMove={move} onPointerUp={end} onPointerCancel={end} onPointerDown={() => onSelect(null)}>
+          {layers.map((l) => (l.hidden ? null : l.role === 'base' ? (
+            <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={begin(l, 'move')}
+              className="absolute inset-0 h-full w-full object-fill" style={{ opacity: l.opacity }} />
+          ) : (
+            <img key={l.id} src={l.url} alt="" draggable={false} onPointerDown={begin(l, 'move')}
+              className="absolute max-w-none cursor-move" style={{ ...box(l), opacity: l.opacity }} />
+          )))}
+          {current && !current.hidden && (
+            <div className="pointer-events-none absolute outline outline-2 outline-offset-0 outline-sky-500" style={box(current)}>
+              <button type="button" tabIndex={0} onKeyDown={nudge} onPointerDown={begin(current, 'move')}
+                className="pointer-events-auto absolute inset-0 cursor-move focus:outline-none" aria-label={`Mover ${current.name}. Setas movem; Delete remove.`} />
+              {(['-left-1.5 -top-1.5', '-right-1.5 -top-1.5', '-left-1.5 -bottom-1.5', '-right-1.5 -bottom-1.5'] as const).map((pos) => (
+                <span key={pos} onPointerDown={begin(current, 'scale')}
+                  className={`pointer-events-auto absolute h-3 w-3 cursor-nwse-resize rounded-sm border-2 border-sky-500 bg-white ${pos}`} aria-hidden="true" />
+              ))}
+              <span onPointerDown={begin(current, 'rotate')} title="Girar (Shift: de 15 em 15°)"
+                className="pointer-events-auto absolute -top-7 left-1/2 flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full border-2 border-sky-500 bg-white text-sky-600">
+                <RotateCw className="h-3 w-3" aria-hidden="true" />
+              </span>
+            </div>
+          )}
+        </div>
+        {current && (
+          <div className="mx-auto mt-3 grid max-w-[560px] gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 sm:grid-cols-3">
+            <label className="flex flex-col gap-1">Tamanho {Math.round(current.width * 100)}%
+              <input type="range" min={1} max={200} value={Math.round(current.width * 100)} className="accent-sky-600"
+                onChange={(e) => update(current.id, { width: Number(e.target.value) / 100 })} />
+            </label>
+            <label className="flex flex-col gap-1">Giro {Math.round(current.rotation)}°
+              <input type="range" min={-180} max={180} value={Math.round(current.rotation)} className="accent-sky-600"
+                onChange={(e) => update(current.id, { rotation: Number(e.target.value) })} />
+            </label>
+            <label className="flex flex-col gap-1">Opacidade {Math.round(current.opacity * 100)}%
+              <input type="range" min={0} max={100} value={Math.round(current.opacity * 100)} className="accent-sky-600"
+                onChange={(e) => update(current.id, { opacity: Number(e.target.value) / 100 })} />
+            </label>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <span>Frente</span><span>{layers.length} {layers.length === 1 ? 'camada' : 'camadas'}</span>
+        </div>
+        <ol className="flex flex-col gap-1" aria-label="Camadas, da frente para o fundo">
+          {[...layers].reverse().map((l) => {
+            const base = l.role === 'base';
+            const i = layers.indexOf(l);
+            return (
+              <li key={l.id}
+                draggable={!base} onDragStart={() => setDragRow(l.id)} onDragEnd={() => setDragRow(null)}
+                onDragOver={(e) => { if (dragRow) e.preventDefault(); }} onDrop={() => dropOn(l.id)}
+                onClick={() => onSelect(l.id)}
+                className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm transition ${selected === l.id ? 'border-sky-500 bg-sky-50' : 'border-slate-200 bg-white hover:border-slate-300'} ${dragRow === l.id ? 'opacity-50' : ''}`}>
+                {base ? <Lock className="h-4 w-4 shrink-0 text-slate-400" aria-label="Base fixa no fundo" /> : <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-slate-400" aria-hidden="true" />}
+                <img src={l.url} alt="" className="h-9 w-9 shrink-0 rounded object-contain" style={{ background: CHECKER }} />
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate font-medium ${l.hidden ? 'text-slate-400' : 'text-slate-800'}`}>{l.name}</span>
+                  <span className="block text-xs text-slate-500">{base ? 'Base (fundo)' : l.still ? 'Parada' : 'Anima'}</span>
+                </span>
+                {!base && (
+                  <>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); shift(l.id, 1); }} disabled={i === layers.length - 1}
+                      className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Trazer ${l.name} para a frente`}><ArrowUp className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); shift(l.id, -1); }} disabled={i <= (layers[0]?.role === 'base' ? 1 : 0)}
+                      className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Mandar ${l.name} para trás`}><ArrowDown className="h-3.5 w-3.5" /></button>
+                  </>
+                )}
+                <button type="button" onClick={(e) => { e.stopPropagation(); update(l.id, { still: !l.still }); }}
+                  className={`rounded p-1 hover:bg-slate-100 ${l.still ? 'text-amber-600' : 'text-slate-400'}`}
+                  aria-pressed={!!l.still} aria-label={l.still ? `${l.name} parada; clique para animar` : `Deixar ${l.name} parada na animação`}>
+                  <Pause className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); update(l.id, { hidden: !l.hidden }); }}
+                  className="rounded p-1 text-slate-500 hover:bg-slate-100" aria-label={l.hidden ? `Mostrar ${l.name}` : `Esconder ${l.name}`}>
+                  {l.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); remove(l.id); }}
+                  className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-700" aria-label={`Remover ${l.name}`}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="text-xs text-slate-500">Arraste as linhas para mudar a ordem. A de cima fica na frente. A base fica sempre no fundo.</p>
+      </div>
+    </div>
+  );
+};
+
+export default LayerEditor;

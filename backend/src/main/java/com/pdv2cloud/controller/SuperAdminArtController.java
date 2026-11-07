@@ -1,6 +1,7 @@
 package com.pdv2cloud.controller;
 
 import com.pdv2cloud.service.ai.LlmClient.LlmResponse;
+import com.pdv2cloud.service.art.ArtFileStorage;
 import com.pdv2cloud.service.art.ArtFormats;
 import com.pdv2cloud.service.art.ArtThemeService;
 import com.pdv2cloud.service.art.PlatformAiService;
@@ -120,6 +121,19 @@ public class SuperAdminArtController {
     public ArtThemeService.Theme uploadBackground(
         @PathVariable UUID id, @PathVariable String format, @RequestParam("file") MultipartFile file) {
         return themes.uploadBackground(id, format, file);
+    }
+
+    @PostMapping(value = "/themes/{id}/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ArtFileStorage.Stored uploadAsset(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+        return themes.uploadAsset(id, file);
+    }
+
+    /** Camadas do fundo + a imagem achatada delas, montada no navegador. */
+    @PostMapping(value = "/themes/{id}/formats/{format}/layers", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ArtThemeService.Theme saveLayers(
+        @PathVariable UUID id, @PathVariable String format,
+        @RequestParam("composite") MultipartFile composite, @RequestParam("layers") String layers) {
+        return themes.saveLayers(id, format, composite, layers);
     }
 
     @PutMapping("/themes/{id}/formats/{format}/regions")

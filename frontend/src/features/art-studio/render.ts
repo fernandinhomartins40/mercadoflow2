@@ -1,6 +1,7 @@
-import type { CampaignItem, Palette, Regions } from '../../types/art.types';
+import type { CampaignItem, MotionPreset, Palette, Regions, ThemeLayer } from '../../types/art.types';
 import { FONT_NAME, FONT_PRICE, FONT_TEXT, regionLuminance } from './assets';
 import { Rect, WIDE_CARD, contain, inset, layoutProducts, toPx } from './layout';
+import { MotionTarget, Pose, poseAt } from './motion';
 
 /**
  * O desenhista da arte. A mesma função desenha a prévia na tela, o PNG, o
@@ -31,7 +32,14 @@ export interface Scene {
   items: SceneItem[];
   /** Cartão destacado na prévia (seleção do editor). Nunca sai na exportação. */
   selectedKey?: string | null;
+  /** Camadas do fundo, de trás para frente. Quando há, substituem o fundo achatado no desenho. */
+  layers?: SceneLayer[];
+  /** Instante da animação. Ausente: arte estática. */
+  motion?: SceneMotion | null;
 }
+
+export interface SceneLayer extends ThemeLayer { image: HTMLImageElement }
+export interface SceneMotion { preset: MotionPreset; t: number; duration: number }
 
 export interface RenderResult {
   cards: Array<{ key: string; rect: Rect }>;
@@ -417,49 +425,114 @@ const inkFor = (s: Scene, key: 'footer' | 'logo'): string => {
   return regionLuminance(s.background, region) < 0.55 ? '#ffffff' : '#1c1917';
 };
 
+// ── Camadas e animação ───────────────────────────────────────────────────
+
+/** Desenha com o deslocamento da animação, girando e escalando em torno de (px, py). */
+const withPose = (ctx: CanvasRenderingContext2D, p: Pose | null, unit: number, px: number, py: number, draw: () => void) => {
+  if (!p) { draw(); return; }
+  if (p.alpha <= 0.001 || p.scale <= 0.001) return;
+  ctx.save();
+  ctx.globalAlpha *= p.alpha;
+  ctx.translate(px + p.dx * unit, py + p.dy * unit);
+  if (p.rotate) ctx.rotate((p.rotate * Math.PI) / 180);
+  if (p.scale !== 1) ctx.scale(p.scale, p.scale);
+  ctx.translate(-px, -py);
+  draw();
+  ctx.restore();
+};
+
+const poseOf = (s: Scene, target: MotionTarget): Pose | null =>
+  (s.motion ? poseAt(s.motion.preset, target, s.motion.t, s.motion.duration) : null);
+
+/**
+ * Desenha as camadas do fundo. Também é usada para montar a imagem achatada
+ * que vai para o servidor (sem `motion`).
+ */
+export const drawLayers = (ctx: CanvasRenderingContext2D, layers: SceneLayer[], W: number, H: number, motion?: SceneMotion | null) => {
+  const unit = Math.min(W, H);
+  const elements = layers.filter((l) => l.role !== 'base');
+  layers.forEach((layer) => {
+    const img = layer.image;
+    if (layer.hidden || !img.naturalWidth) return;
+    const base = layer.role === 'base';
+    const w = base ? W : layer.width * W;
+    const h = base ? H : w * (img.naturalHeight / img.naturalWidth);
+    const cx = base ? W / 2 : layer.cx * W;
+    const cy = base ? H / 2 : layer.cy * H;
+    const target: MotionTarget = base
+      ? { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5, still: layer.still }
+      : { kind: 'layer', index: elements.indexOf(layer), count: elements.length, cx: layer.cx, cy: layer.cy, still: layer.still };
+    const p = motion ? poseAt(motion.preset, target, motion.t, motion.duration) : null;
+    withPose(ctx, p, unit, cx, cy, () => {
+      ctx.save();
+      ctx.globalAlpha *= layer.opacity ?? 1;
+      ctx.translate(cx, cy);
+      if (layer.rotation) ctx.rotate((layer.rotation * Math.PI) / 180);
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    });
+  });
+};
+
 export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResult => {
   const { width: W, height: H } = s;
+  const unit = Math.min(W, H);
+  const center = (r: Rect) => ({ cx: (r.x + r.w / 2) / W, cy: (r.y + r.h / 2) / H });
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  if (s.background) {
-    ctx.drawImage(s.background, 0, 0, W, H);
+  if (s.layers?.length) {
+    // Fundo de cor por trás: zoom e parallax afastam a base das bordas.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    drawLayers(ctx, s.layers, W, H, s.motion);
+  } else if (s.background) {
+    const bg = s.background;
+    withPose(ctx, poseOf(s, { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5 }), unit, W / 2, H / 2,
+      () => ctx.drawImage(bg, 0, 0, W, H));
   } else {
-    drawBuiltinBackground(ctx, s);
+    withPose(ctx, poseOf(s, { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5 }), unit, W / 2, H / 2,
+      () => drawBuiltinBackground(ctx, s));
   }
 
   // Logo: imagem do mercado ou o nome, quando ainda não há logo.
   if (s.regions.logo) {
     const box = toPx(s.regions.logo, W, H);
-    if (s.logo) {
-      drawContain(ctx, s.logo, inset(box, Math.min(box.w, box.h) * 0.04));
-    } else if (s.brandName) {
-      const fit = fitWrapped(ctx, s.brandName.toUpperCase(), inset(box, box.h * 0.08), 800, FONT_NAME, 2, box.h * 0.6, box.h * 0.15, 1);
-      ctx.save();
-      ctx.fillStyle = inkFor(s, 'logo');
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.font = font(800, fit.size, FONT_NAME);
-      const total = fit.lines.length * fit.size;
-      let y = box.y + (box.h - total) / 2;
-      for (const line of fit.lines) {
-        ctx.fillText(line, box.x + box.w / 2, y);
-        y += fit.size;
+    const logo = s.logo;
+    withPose(ctx, poseOf(s, { kind: 'logo', index: 0, count: 1, ...center(box) }), unit, box.x + box.w / 2, box.y + box.h / 2, () => {
+      if (logo) {
+        drawContain(ctx, logo, inset(box, Math.min(box.w, box.h) * 0.04));
+      } else if (s.brandName) {
+        const fit = fitWrapped(ctx, s.brandName.toUpperCase(), inset(box, box.h * 0.08), 800, FONT_NAME, 2, box.h * 0.6, box.h * 0.15, 1);
+        ctx.save();
+        ctx.fillStyle = inkFor(s, 'logo');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = font(800, fit.size, FONT_NAME);
+        const total = fit.lines.length * fit.size;
+        let y = box.y + (box.h - total) / 2;
+        for (const line of fit.lines) {
+          ctx.fillText(line, box.x + box.w / 2, y);
+          y += fit.size;
+        }
+        ctx.restore();
       }
-      ctx.restore();
-    }
+    });
   }
 
   if (s.showSeal && s.seal && s.regions.seal) {
     const box = toPx(s.regions.seal, W, H);
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = Math.min(box.w, box.h) * 0.06;
-    ctx.shadowOffsetY = Math.min(box.w, box.h) * 0.02;
-    drawContain(ctx, s.seal, box);
-    ctx.restore();
+    const seal = s.seal;
+    withPose(ctx, poseOf(s, { kind: 'seal', index: 0, count: 1, ...center(box) }), unit, box.x + box.w / 2, box.y + box.h / 2, () => {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.25)';
+      ctx.shadowBlur = Math.min(box.w, box.h) * 0.06;
+      ctx.shadowOffsetY = Math.min(box.w, box.h) * 0.02;
+      drawContain(ctx, seal, box);
+      ctx.restore();
+    });
   }
 
   const cards: RenderResult['cards'] = [];
@@ -471,9 +544,12 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
     const ordered = [...s.items.filter((i) => i.hero).slice(0, 2), ...s.items.filter((i) => !i.hero), ...s.items.filter((i) => i.hero).slice(2)];
     const rects = layoutProducts(area, ordered.length, Math.min(heroes, 2), gap);
     ordered.forEach((item, i) => {
-      if (!rects[i]) return;
-      drawCard(ctx, rects[i], item, s.palette, s.selectedKey === item.key);
-      cards.push({ key: item.key, rect: rects[i] });
+      const r = rects[i];
+      if (!r) return;
+      const target: MotionTarget = { kind: 'card', index: i, count: ordered.length, hero: !!item.hero, ...center(r) };
+      withPose(ctx, poseOf(s, target), unit, r.x + r.w / 2, r.y + r.h / 2,
+        () => drawCard(ctx, r, item, s.palette, s.selectedKey === item.key));
+      cards.push({ key: item.key, rect: r });
     });
   }
 
@@ -482,6 +558,12 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
     const lines = s.footerLines.filter(Boolean).slice(0, 3);
     const lineH = box.h / lines.length;
     ctx.save();
+    const fp = poseOf(s, { kind: 'footer', index: 0, count: 1, ...center(box) });
+    if (fp) {
+      // Rodapé só sobe e aparece (sem giro): desloca e esmaece o bloco.
+      ctx.globalAlpha *= fp.alpha;
+      ctx.translate(fp.dx * unit, fp.dy * unit);
+    }
     const ink = inkFor(s, 'footer');
     ctx.fillStyle = ink;
     // Fundo de designer muda de cor dentro do rodapé (faixas, ondas): uma
