@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Lock, Pause, RotateCw, Trash2 } from 'lucide-react';
 import type { FormatKey, ThemeLayer } from '../../types/art.types';
 import { FORMATS } from './formats';
+import { layerStill } from './render';
 
 /**
  * Editor das camadas do fundo de um formato (criador de temas).
@@ -192,7 +193,9 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
                 <img src={l.url} alt="" className="h-9 w-9 shrink-0 rounded object-contain" style={{ background: CHECKER }} />
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate font-medium ${l.hidden ? 'text-slate-400' : 'text-slate-800'}`}>{l.name}</span>
-                  <span className="block text-xs text-slate-500">{base ? 'Base (fundo)' : l.still ? 'Parada' : 'Anima'}</span>
+                  <span className="block text-xs text-slate-500">
+                    {base ? (layerStill(l) ? 'Fundo · travado, não anima' : 'Fundo · anima (só aproxima)') : l.still ? 'Parada' : 'Anima'}
+                  </span>
                 </span>
                 {!base && (
                   <>
@@ -202,10 +205,12 @@ const LayerEditor: React.FC<Props> = ({ format, layers, selected, onSelect, onCh
                       className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Mandar ${l.name} para trás`}><ArrowDown className="h-3.5 w-3.5" /></button>
                   </>
                 )}
-                <button type="button" onClick={(e) => { e.stopPropagation(); update(l.id, { still: !l.still }); }}
-                  className={`rounded p-1 hover:bg-slate-100 ${l.still ? 'text-amber-600' : 'text-slate-400'}`}
-                  aria-pressed={!!l.still} aria-label={l.still ? `${l.name} parada; clique para animar` : `Deixar ${l.name} parada na animação`}>
-                  <Pause className="h-3.5 w-3.5" />
+                <button type="button" onClick={(e) => { e.stopPropagation(); update(l.id, { still: !layerStill(l) }); }}
+                  className={`rounded p-1 hover:bg-slate-100 ${layerStill(l) ? 'text-amber-600' : 'text-slate-400'}`}
+                  aria-pressed={layerStill(l)}
+                  title={layerStill(l) ? 'Parada na animação (clique para animar)' : 'Anima (clique para travar)'}
+                  aria-label={layerStill(l) ? `${l.name} parada; clique para animar` : `Deixar ${l.name} parada na animação`}>
+                  {base && layerStill(l) ? <Lock className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
                 </button>
                 <button type="button" onClick={(e) => { e.stopPropagation(); update(l.id, { hidden: !l.hidden }); }}
                   className="rounded p-1 text-slate-500 hover:bg-slate-100" aria-label={l.hidden ? `Mostrar ${l.name}` : `Esconder ${l.name}`}>

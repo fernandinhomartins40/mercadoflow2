@@ -25,6 +25,15 @@ for (const preset of MOTION_KEYS) {
   }
 }
 
+// Fundo liberado para animar nunca esmaece nem encolhe (não abre borda vazia).
+for (const preset of MOTION_KEYS) {
+  for (let t = 0; t <= 8; t += 0.1) {
+    const p = poseAt(preset, { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5 }, t, 8);
+    assert.ok(p.alpha === 1 && p.scale >= 1 && p.rotate === 0, `${preset}: fundo abre borda em t=${t}`);
+    assert.ok(Math.abs(p.dx) <= (p.scale - 1) / 2 + 1e-9 && Math.abs(p.dy) <= (p.scale - 1) / 2 + 1e-9, `${preset}: fundo desliza além da margem em t=${t}`);
+  }
+}
+
 // Entrada: começa escondido e termina visível, no lugar (a menos da respiração).
 const card = { kind: 'card' as const, index: 7, count: 8, cx: 0.5, cy: 0.5 };
 assert.equal(poseAt('entrada', card, 0, 8).alpha, 0);

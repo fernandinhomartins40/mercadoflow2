@@ -441,6 +441,12 @@ const withPose = (ctx: CanvasRenderingContext2D, p: Pose | null, unit: number, p
   ctx.restore();
 };
 
+/**
+ * Camada parada na animação. A base (fundo) fica parada a menos que o
+ * superadmin libere: animar o fundo abre bordas vazias na arte.
+ */
+export const layerStill = (l: Pick<ThemeLayer, 'role' | 'still'>) => (l.role === 'base' ? l.still !== false : !!l.still);
+
 const poseOf = (s: Scene, target: MotionTarget): Pose | null =>
   (s.motion ? poseAt(s.motion.preset, target, s.motion.t, s.motion.duration) : null);
 
@@ -460,8 +466,8 @@ export const drawLayers = (ctx: CanvasRenderingContext2D, layers: SceneLayer[], 
     const cx = base ? W / 2 : layer.cx * W;
     const cy = base ? H / 2 : layer.cy * H;
     const target: MotionTarget = base
-      ? { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5, still: layer.still }
-      : { kind: 'layer', index: elements.indexOf(layer), count: elements.length, cx: layer.cx, cy: layer.cy, still: layer.still };
+      ? { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5, still: layerStill(layer) }
+      : { kind: 'layer', index: elements.indexOf(layer), count: elements.length, cx: layer.cx, cy: layer.cy, still: layerStill(layer) };
     const p = motion ? poseAt(motion.preset, target, motion.t, motion.duration) : null;
     withPose(ctx, p, unit, cx, cy, () => {
       ctx.save();
@@ -489,12 +495,10 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
     ctx.fillRect(0, 0, W, H);
     drawLayers(ctx, s.layers, W, H, s.motion);
   } else if (s.background) {
-    const bg = s.background;
-    withPose(ctx, poseOf(s, { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5 }), unit, W / 2, H / 2,
-      () => ctx.drawImage(bg, 0, 0, W, H));
+    // Fundo numa imagem só: fica parado (só selo, logo, produtos e rodapé animam).
+    ctx.drawImage(s.background, 0, 0, W, H);
   } else {
-    withPose(ctx, poseOf(s, { kind: 'base', index: 0, count: 1, cx: 0.5, cy: 0.5 }), unit, W / 2, H / 2,
-      () => drawBuiltinBackground(ctx, s));
+    drawBuiltinBackground(ctx, s);
   }
 
   // Logo: imagem do mercado ou o nome, quando ainda não há logo.

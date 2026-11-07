@@ -585,14 +585,16 @@ public class ArtThemeService {
             layer.put("url", url);
             layer.put("w", (int) Math.max(0, Math.min(6000, ArtJson.num(m.get("w"), 0))));
             layer.put("h", (int) Math.max(0, Math.min(6000, ArtJson.num(m.get("h"), 0))));
-            layer.put("role", "base".equals(m.get("role")) ? "base" : "element");
+            boolean base = "base".equals(m.get("role"));
+            layer.put("role", base ? "base" : "element");
             layer.put("cx", round4(Math.max(-1, Math.min(2, ArtJson.num(m.get("cx"), 0.5)))));
             layer.put("cy", round4(Math.max(-1, Math.min(2, ArtJson.num(m.get("cy"), 0.5)))));
             layer.put("width", round4(Math.max(0.005, Math.min(3, ArtJson.num(m.get("width"), 1)))));
             layer.put("rotation", round4(Math.max(-360, Math.min(360, ArtJson.num(m.get("rotation"), 0)))));
             layer.put("opacity", round4(clamp01(ArtJson.num(m.get("opacity"), 1))));
             layer.put("hidden", Boolean.TRUE.equals(m.get("hidden")));
-            layer.put("still", Boolean.TRUE.equals(m.get("still")));
+            // Fundo travado por padrão: animar a base abre bordas vazias na arte.
+            layer.put("still", m.get("still") == null ? base : Boolean.TRUE.equals(m.get("still")));
             out.add(layer);
         }
         return out;

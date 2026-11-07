@@ -94,8 +94,9 @@ const PRESETS: Record<MotionPreset, (m: MotionTarget, t: number, d: number) => P
     const idle = breathe(m, t, d, 0.6);
     switch (m.kind) {
       case 'base': {
+        // Só aproxima, nunca esmaece nem encolhe: o fundo não pode abrir buraco.
         const p = easeOutCubic(progress(t, 0, 0.8 * k));
-        return pose({ scale: 1.08 - 0.08 * p, alpha: clamp01(t / (0.35 * k)) });
+        return pose({ scale: 1.08 - 0.08 * p });
       }
       case 'layer': {
         const p = easeOutCubic(progress(t, (0.15 + m.index * 0.08) * k, 0.7 * k));

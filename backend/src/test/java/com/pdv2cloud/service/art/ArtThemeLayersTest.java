@@ -25,6 +25,14 @@ class ArtThemeLayersTest {
         assertThat(layer.get("width")).isEqualTo(0.005);
         assertThat(layer.get("opacity")).isEqualTo(1.0);
         assertThat(layer.get("hidden")).isEqualTo(true);
+        // Fundo chega travado quando ninguém disse o contrário; enfeite chega animando.
+        assertThat(layer.get("still")).isEqualTo(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> element = (Map<String, Object>) ArtThemeService.layers(theme, List.of(Map.of("url", own))).get(0);
+        assertThat(element.get("still")).isEqualTo(false);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> freed = (Map<String, Object>) ArtThemeService.layers(theme, List.of(Map.of("url", own, "role", "base", "still", false))).get(0);
+        assertThat(freed.get("still")).isEqualTo(false);
     }
 
     @Test
