@@ -1,5 +1,5 @@
 import api from './api';
-import type { DepartmentsReport, LocatedProduct, ShelfProduct, StoreInsight, StorePlan } from '../types/storeMap.types';
+import type { DepartmentsReport, LocatedProduct, ShelfProduct, StoreInsight, StorePlan, StoreTraffic } from '../types/storeMap.types';
 
 const base = (marketId: string) => `/v1/markets/${marketId}/store-map`;
 
@@ -28,6 +28,15 @@ export const storeMapService = {
   async locate(marketId: string, q: string): Promise<LocatedProduct[]> {
     const response = await api.get(`${base(marketId)}/locate`, { params: { q } });
     return response.data || [];
+  },
+
+  async getTraffic(marketId: string, days: number, from: number, to: number): Promise<StoreTraffic> {
+    return (await api.get(`${base(marketId)}/traffic`, { params: { days, from, to } })).data;
+  },
+
+  /** Chave do app de câmeras: aparece uma vez só. */
+  async createCameraKey(marketId: string): Promise<string> {
+    return (await api.post('/v1/agent-keys', { marketId, name: 'Câmeras (mapa de calor)' })).data.apiKey;
   },
 
   /** Produto bipado: 404 quando o código não está no cadastro. */

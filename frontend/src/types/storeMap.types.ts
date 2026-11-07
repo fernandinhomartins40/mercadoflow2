@@ -1,3 +1,13 @@
+/** Mapa de calor das câmeras: segundos de presença por célula da planta. */
+export interface StoreTraffic {
+  cellSize: number;
+  days: number;
+  cells: Array<{ x: number; y: number; seconds: number }>;
+  byHour: number[];
+  cameras: number;
+  lastAt: string | null;
+}
+
 /** Loja Viva — planta da loja, setores com vendas e sugestões (ver StoreMapService no backend). */
 
 export type FixtureType =

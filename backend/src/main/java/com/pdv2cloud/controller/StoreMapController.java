@@ -29,6 +29,9 @@ public class StoreMapController {
     private final StoreMapService storeMapService;
     private final MarketAccessService marketAccessService;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.storemap.StoreTrafficService traffic;
+
     public StoreMapController(StoreMapService storeMapService, MarketAccessService marketAccessService) {
         this.storeMapService = storeMapService;
         this.marketAccessService = marketAccessService;
@@ -70,6 +73,15 @@ public class StoreMapController {
         @PathVariable UUID marketId, @RequestParam(name = "q", defaultValue = "") String q, Authentication auth) {
         marketAccessService.assertCanAccessMarket(marketId, auth);
         return ResponseEntity.ok(storeMapService.locate(marketId, q));
+    }
+
+    /** Mapa de calor das câmeras: presença por célula no período e na faixa de horas. */
+    @GetMapping("/traffic")
+    public ResponseEntity<Map<String, Object>> traffic(
+        @PathVariable UUID marketId, @RequestParam(name = "days", defaultValue = "30") int days,
+        @RequestParam(name = "from", defaultValue = "0") int from, @RequestParam(name = "to", defaultValue = "23") int to, Authentication auth) {
+        marketAccessService.assertCanAccessMarket(marketId, auth);
+        return ResponseEntity.ok(traffic.report(marketId, days, from, to));
     }
 
     @GetMapping("/barcode")

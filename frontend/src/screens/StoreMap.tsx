@@ -13,6 +13,7 @@ import { formatMoney } from '../utils/formatters';
 import type {
   DepartmentsReport, FixtureType, InsightKind, LocatedProduct, ShelfProduct, StoreInsight, StorePlan,
 } from '../types/storeMap.types';
+import TrafficPanel, { useTraffic } from '../features/store-map/TrafficPanel';
 import ShelfEditor from '../features/store-map/editor/ShelfEditor';
 import { defaultSides, describePlace, sideStats, TWO_SIDED } from '../features/store-map/shelves';
 import { patch } from '../features/store-map/editor/actions';
@@ -42,8 +43,8 @@ import RoleNotice from '../components/common/RoleNotice';
 const Store3D = React.lazy(() => import('../features/store-map/view3d/Store3D'));
 const webgl = typeof document !== 'undefined' && hasWebGL();
 
-type Mode = 'montar' | 'prateleiras' | 'calor' | 'sugestoes';
-const MODES: Mode[] = ['montar', 'prateleiras', 'calor', 'sugestoes'];
+type Mode = 'montar' | 'prateleiras' | 'calor' | 'movimento' | 'sugestoes';
+const MODES: Mode[] = ['montar', 'prateleiras', 'calor', 'movimento', 'sugestoes'];
 type View = 'planta' | '3d' | 'corredor';
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-700)]';
 const SAVE_DELAY_MS = 1200;
@@ -129,6 +130,7 @@ const StoreMap: React.FC = () => {
   }, [persist]);
 
   const history = usePlanHistory(schedule);
+  const traffic = useTraffic(marketId, mode === 'movimento');
   const plan = history.plan;
 
   useEffect(() => () => {
@@ -283,6 +285,7 @@ const StoreMap: React.FC = () => {
                   { key: 'calor', label: 'Onde mais vende', icon: <Flame className="h-4 w-4" /> },
                   { key: 'montar', label: 'Editar a planta', icon: <Hammer className="h-4 w-4" /> },
                   { key: 'prateleiras', label: 'Prateleiras', icon: <Layers className="h-4 w-4" /> },
+                  { key: 'movimento', label: 'Movimento', icon: <Footprints className="h-4 w-4" /> },
                   { key: 'sugestoes', label: 'Sugestões', icon: <Lightbulb className="h-4 w-4" />, badge: insights?.filter((i) => i.priority >= 60).length || undefined },
                 ]}
                 value={mode}
@@ -377,6 +380,7 @@ const StoreMap: React.FC = () => {
                     revealKey={highlight?.key ?? null}
                     heat={heat}
                     heatLabel={(id) => (heat[id] != null ? compactMoney(heat[id]) : 'sem setor')}
+                    traffic={mode === 'movimento' ? traffic.layer : null}
                     onPreview={history.preview}
                     onCommit={() => history.commit()}
                     onCancel={history.cancel}
@@ -524,6 +528,8 @@ const StoreMap: React.FC = () => {
                     </Panel>
                   </>
                 ))}
+
+                {mode === 'movimento' && <TrafficPanel marketId={marketId!} plan={plan} state={traffic} onShow={(ids, note) => showHighlight(ids, note)} />}
 
                 {mode === 'prateleiras' && (
                   <ShelvesPanel plan={plan} selectedId={validIds.length === 1 ? validIds[0] : null}

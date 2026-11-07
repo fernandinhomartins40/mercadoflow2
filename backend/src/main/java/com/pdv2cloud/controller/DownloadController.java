@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class DownloadController {
 
     private static final String INSTALLER_FILENAME_X64  = "AgenteMercadoFlow-Setup.exe";
+    private static final String CAMERAS_INSTALLER = "MercadoFlowCameras-Setup.exe";
     private static final String INSTALLER_FILENAME_X86  = "AgenteMercadoFlow-Setup-x86.exe";
     private static final String LEGACY_INSTALLER_X64    = "PDV2Cloud-Setup.exe";
     private static final String LEGACY_INSTALLER_X86    = "PDV2Cloud-Setup-x86.exe";
@@ -131,6 +132,25 @@ public class DownloadController {
      * GET /api/v1/downloads/agent-installer?arch=x64   → PDV2Cloud-Setup.exe
      * GET /api/v1/downloads/agent-installer?arch=x86   → PDV2Cloud-Setup-x86.exe
      */
+    /** Instalador do app MercadoFlow Câmeras (mapa de calor), publicado junto com o do agente. */
+    @GetMapping("/cameras-installer")
+    public ResponseEntity<Resource> downloadCamerasInstaller() {
+        try {
+            Path path = Paths.get(installerDir, CAMERAS_INSTALLER);
+            if (!Files.exists(path)) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + CAMERAS_INSTALLER + "\"")
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(Files.size(path)))
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                .body(new UrlResource(path.toUri()));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/agent-installer")
     public ResponseEntity<Resource> downloadAgentInstaller(
             @RequestParam(defaultValue = "x64") String arch) {

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+assets/yolox_tiny.onnx
+build/Output/
+build/MercadoFlowCameras/
+dist/
+*.spec

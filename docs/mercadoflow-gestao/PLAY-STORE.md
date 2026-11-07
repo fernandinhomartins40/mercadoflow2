@@ -6,8 +6,8 @@ Guia para publicar o app do painel do supermercadista. Cada seção corresponde 
 |---|---|
 | Nome do app | **MercadoFlow Gestão** |
 | ID do pacote | `br.com.mercadoflow.gestao` (permanente, não muda nunca) |
-| Versão | 1.0.0 (versionCode 1) |
-| Arquivo para enviar | `C:\Users\fusea\.mercadoflow-gestao\mercadoflow-gestao-1.0.0.aab` |
+| Versão | 1.0.1 (versionCode 2) |
+| Arquivo para enviar | `C:\Users\fusea\.mercadoflow-gestao\mercadoflow-gestao-1.0.1.aab` |
 | Chave de envio | `C:\Users\fusea\.mercadoflow-gestao\gestao-upload.jks` + `keystore.properties` (**faça backup**, veja o passo 2) |
 | Política de privacidade | https://mercadoflow.com/privacidade |
 | Exclusão de conta (link) | https://mercadoflow.com/privacidade#exclusao |
@@ -136,7 +136,7 @@ Os dados são processados de forma temporária? **Não**. São criptografados em
 ## 5. Versão de produção (Teste e lançamento › Produção)
 
 1. **Criar nova versão**.
-2. Enviar `C:\Users\fusea\.mercadoflow-gestao\mercadoflow-gestao-1.0.0.aab`.
+2. Enviar `C:\Users\fusea\.mercadoflow-gestao\mercadoflow-gestao-1.0.1.aab`.
 3. Nome da versão: `1.0.0`
 4. Notas da versão:
 ```
@@ -173,4 +173,4 @@ Antes, aumente `versionCode` (+1) e `versionName` em `frontend/android-gestao/ap
 
 ## Requisito no servidor
 
-A API aceita o app porque `CORS_ORIGIN`, no `.env` da VPS (`/root/mercadoflow-web/.env`), inclui `https://localhost` (Android) e `capacitor://localhost` (iPhone). Se essa linha for refeita, mantenha as duas origens, senão o login do app para de funcionar.
+A API aceita o app porque `CORS_ALLOWED_ORIGINS`, no `docker-compose.vps.yml`, inclui `https://localhost` (Android) e `capacitor://localhost` (iPhone). Se essa linha for refeita, mantenha as duas origens, senão o login do app para de funcionar.

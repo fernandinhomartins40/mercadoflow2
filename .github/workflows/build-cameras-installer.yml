@@ -1,0 +1,72 @@
+name: Build and Upload MercadoFlow Cameras
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mercadoflow-cameras/**'
+      - '.github/workflows/build-cameras-installer.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-cameras-installer
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+      - name: Build installer
+        shell: pwsh
+        working-directory: mercadoflow-cameras
+        run: ./build/build.ps1 -Version "1.0.${{ github.run_number }}"
+      # Como no instalador do agente: o runner Windows não alcança a porta 22 da VPS, quem envia é o Ubuntu.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cameras-installer
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          path: |
+            mercadoflow-cameras/build/Output/MercadoFlowCameras-Setup.exe
+            mercadoflow-cameras/build/Output/MercadoFlowCameras-Setup.exe.sha256
+
+  publicar:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cameras-installer
+          path: installer
+      - name: Enviar para a VPS
+        env:
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+          TARGET="root@72.60.10.112"
+          DIR="/root/mercadoflow-web/pdv2cloud-agent/installer/Output"
+          OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
+          for f in MercadoFlowCameras-Setup.exe MercadoFlowCameras-Setup.exe.sha256; do
+            for n in 1 2 3; do
+              sshpass -p "$VPS_PASSWORD" scp "${OPTS[@]}" "installer/$f" "$TARGET:$DIR/$f.new" && break
+              [ "$n" = 3 ] && exit 1
+              sleep $((n * 10))
+            done
+            # Publica com mv: o download nunca enxerga um arquivo pela metade.
+            sshpass -p "$VPS_PASSWORD" ssh "${OPTS[@]}" "$TARGET" "mv -f '$DIR/$f.new' '$DIR/$f'"
+          done
+      - name: Conferir o download
+        run: |
+          EXPECTED=$(cat installer/MercadoFlowCameras-Setup.exe.sha256)
+          ACTUAL=$(curl -fsSL --retry 5 --retry-delay 10 https://mercadoflow.com/api/v1/downloads/cameras-installer | sha256sum | cut -d' ' -f1)
+          [ "$EXPECTED" = "$ACTUAL" ] || { echo "Hash do download difere: $ACTUAL"; exit 1; }

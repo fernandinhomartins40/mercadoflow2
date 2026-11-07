@@ -1,0 +1,8 @@
+MercadoFlow Câmeras usa estes componentes de terceiros:
+
+YOLOX-tiny (modelo de detecção), Megvii BaseDetection - Apache License 2.0
+  https://github.com/Megvii-BaseDetection/YOLOX
+ONNX Runtime, Microsoft - MIT
+OpenCV - Apache License 2.0 (inclui FFmpeg, LGPL 2.1)
+NumPy - BSD-3-Clause
+Pillow - MIT-CMU

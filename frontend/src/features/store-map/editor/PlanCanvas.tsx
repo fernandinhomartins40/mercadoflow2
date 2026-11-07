@@ -26,6 +26,8 @@ interface Props {
   connect?: [string, string] | null;
   heat?: Record<string, number>;
   heatLabel?: (fixtureId: string) => string;
+  /** Mapa de calor das câmeras: desenhado no piso, embaixo dos móveis. */
+  traffic?: { size: number; max: number; cells: Array<{ x: number; y: number; seconds: number }> } | null;
   onPreview?: (plan: StorePlan) => void;
   onCommit?: (plan?: StorePlan) => void;
   onCancel?: () => void;
@@ -65,7 +67,7 @@ const scaleBar = (s: number) => {
  * mudar o tamanho, seleção por laço e as paredes da loja arrastáveis.
  */
 const PlanCanvas: React.FC<Props> = ({
-  plan, mode, tool = 'select', selectedIds, onSelectionChange, highlightIds, connect, heat, heatLabel,
+  plan, mode, tool = 'select', selectedIds, onSelectionChange, highlightIds, connect, heat, heatLabel, traffic,
   onPreview, onCommit, onCancel, onDropType, revealKey, className,
 }) => {
   const content = useMemo<Rect>(() => ({ x: -1.4, y: -1.4, w: plan.width + 2.2, h: plan.height + 2.2 }), [plan.width, plan.height]);
@@ -380,6 +382,14 @@ const PlanCanvas: React.FC<Props> = ({
           <text x={W / 2} y={H + 0.9} textAnchor="middle" fontSize={Math.max(0.35, 11 * px)} fontWeight={600} fill="#7b8a82" pointerEvents="none">Frente da loja</text>
 
           {/* Móveis */}
+          {traffic && (
+            <g pointerEvents="none" aria-hidden="true">
+              {traffic.cells.map((c) => (
+                <rect key={`t${c.x}-${c.y}`} x={c.x * traffic.size} y={c.y * traffic.size} width={traffic.size} height={traffic.size}
+                  fill={heatColor(Math.sqrt(c.seconds / traffic.max))} fillOpacity={0.8} />
+              ))}
+            </g>
+          )}
           {plan.fixtures.map((f) => {
             const meta = FIXTURES[f.type];
             const value = heat?.[f.id];
