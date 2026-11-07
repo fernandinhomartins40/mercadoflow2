@@ -282,19 +282,26 @@ public class AiPlatformConfig {
 
     private TestResult simpleGet(String provider, String base, String apiKey) {
         long started = System.currentTimeMillis();
-        String path = "DEEPGRAM".equals(provider) ? "/v1/projects" : "EMAIL".equals(provider) ? "/domains"
+        String path = "DEEPGRAM".equals(provider) ? "/v1/projects" : "EMAIL".equals(provider) ? "/emails/send"
             : "ASAAS".equals(provider) ? "/myAccount" : "/v21.0/me";
         try {
-            HttpRequest.Builder b = HttpRequest.newBuilder().uri(URI.create(base + path)).timeout(Duration.ofSeconds(8)).GET();
+            HttpRequest.Builder b = HttpRequest.newBuilder().uri(URI.create(base + path)).timeout(Duration.ofSeconds(8));
+            // VeloMail: envio vazio não manda nada; 400 = chave aceita, 401 = chave recusada.
+            boolean email = "EMAIL".equals(provider);
+            if (email) {
+                b.header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString("{}"));
+            } else {
+                b.GET();
+            }
             if ("ASAAS".equals(provider)) {
                 b.header("access_token", apiKey).header("User-Agent", "MercadoFlow");
-            } else if ("EMAIL".equals(provider)) {
+            } else if (email) {
                 b.header("x-api-key", apiKey).header("User-Agent", "MercadoFlow");
             } else {
                 b.header("Authorization", ("DEEPGRAM".equals(provider) ? "Token " : "Bearer ") + apiKey);
             }
             HttpResponse<String> r = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
-            boolean ok = r.statusCode() >= 200 && r.statusCode() < 300;
+            boolean ok = email ? r.statusCode() == 400 : r.statusCode() >= 200 && r.statusCode() < 300;
             return new TestResult(ok, ok ? "Chave aceita" : "Recusada (HTTP " + r.statusCode() + ")",
                 System.currentTimeMillis() - started, null);
         } catch (Exception e) {
