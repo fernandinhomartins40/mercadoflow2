@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Bot, CheckCircle2, Copy, Download, Eye, EyeOff, FolderOpen, ImagePlus, KeyRound, Layers, Loader2, Plus, RefreshCw, Sparkles, Trash2, Upload, Wand2,
+  ArrowLeft, Bot, CheckCircle2, Copy, Download, Eye, EyeOff, FolderOpen, ImagePlus, KeyRound, Layers, Loader2, Plus, RefreshCw, Save, Sparkles, Trash2, Upload, Wand2,
 } from 'lucide-react';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
@@ -399,8 +399,6 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [animation, setAnimation] = useState<ThemeAnimation>({});
   const [previewMotion, setPreviewMotion] = useState<MotionPreset | null>(null);
-  const paletteTimer = useRef<ReturnType<typeof setTimeout>>();
-  const animTimer = useRef<ReturnType<typeof setTimeout>>();
   const bgInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
   const layerInput = useRef<HTMLInputElement>(null);
@@ -534,7 +532,8 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
       t = await artAdminService.saveRegions(id, key, pendingRegions);
       setPendingRegions(null);
     }
-    accept(t);
+    // Só o tema: nome, cores e animação na tela podem estar sendo editados agora.
+    setTheme(t);
     if (!themeFormat(t, key)?.regions?.products) await analyze(t, key);
     return t;
   };
@@ -569,23 +568,113 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     }
   };
 
-  const saveDraft = async () => {
-    if (!draft) return;
+  // ── Salvamento ─────────────────────────────────────────────────────────
+  // As camadas mexidas ficam num rascunho na tela e são gravadas sozinhas
+  // pouco depois de parar de mexer. Antes só o botão "Salvar camadas"
+  // gravava, e recarregar a página perdia a montagem inteira.
+
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const inflight = useRef<Promise<boolean> | null>(null);
+  /** Rascunho cujo salvamento falhou: o automático para de insistir até a próxima mexida. */
+  const failedDraft = useRef<ThemeLayer[] | null>(null);
+  const [savingLayers, setSavingLayers] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  const saveDraft = async (): Promise<boolean> => {
+    if (inflight.current) await inflight.current;
+    const snapshot = draftRef.current;
+    if (!snapshot?.length) return true;
+    const run = (async () => {
+      setSavingLayers(true);
+      try {
+        await persistLayers(format, snapshot);
+        // Mexeu durante o envio: o rascunho novo fica e o automático grava em seguida.
+        setDraft((d) => (d === snapshot ? null : d));
+        failedDraft.current = null;
+        setLastSaved(new Date());
+        return true;
+      } catch (err) {
+        failedDraft.current = snapshot;
+        setError(`${apiMessage(err, 'As camadas não foram salvas.')} Suas mudanças continuam na tela: clique em Salvar para tentar de novo.`);
+        return false;
+      } finally {
+        setSavingLayers(false);
+        setStage('idle');
+      }
+    })();
+    inflight.current = run;
+    try { return await run; } finally { inflight.current = null; }
+  };
+
+  useEffect(() => {
+    if (!draft?.length || savingLayers || draft === failedDraft.current) return undefined;
+    const timer = setTimeout(() => { void saveDraft(); }, 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, savingLayers]);
+
+  /** Cores e animação: juntas numa fila curta, gravadas de uma vez. */
+  const queued = useRef<Partial<ArtTheme>>({});
+  const queueTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [queuePending, setQueuePending] = useState(false);
+  const flushQueue = async (): Promise<boolean> => {
+    if (queueTimer.current) clearTimeout(queueTimer.current);
+    const body = queued.current;
+    if (!Object.keys(body).length) return true;
+    queued.current = {};
+    const t = await patch(body, 'Salvo');
+    if (!t) { queued.current = { ...body, ...queued.current }; return false; }
+    if (!Object.keys(queued.current).length) setQueuePending(false);
+    setLastSaved(new Date());
+    return true;
+  };
+  const queuePatch = (part: Partial<ArtTheme>, delay: number) => {
+    queued.current = { ...queued.current, ...part };
+    setQueuePending(true);
+    if (queueTimer.current) clearTimeout(queueTimer.current);
+    queueTimer.current = setTimeout(() => { void flushQueue(); }, delay);
+  };
+
+  const nameChanged = !!theme && !!name.trim() && name.trim() !== theme.name;
+  const unsaved = !!draft?.length || queuePending || nameChanged || !!pendingRegions;
+
+  /** Botão Salvar: grava tudo agora (nome, cores, animação e camadas). */
+  const saveAll = async (): Promise<boolean> => {
     setError(null);
-    try {
-      await persistLayers(format, draft);
-      setDraft(null);
-      flash('Camadas salvas');
-    } catch (err) {
-      setError(apiMessage(err, 'Não foi possível salvar as camadas.'));
-    } finally {
-      setStage('idle');
-    }
+    const okName = nameChanged ? !!(await patch({ name: name.trim() }, 'Nome salvo')) : true;
+    const okQueue = await flushQueue();
+    const okLayers = await saveDraft();
+    const ok = okName && okQueue && okLayers;
+    if (ok) { setLastSaved(new Date()); flash('Tudo salvo'); }
+    return ok;
+  };
+  const saveAllRef = useRef(saveAll);
+  saveAllRef.current = saveAll;
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
+
+  // Fechar ou recarregar a aba com algo por gravar: o navegador pergunta antes.
+  useEffect(() => {
+    if (!unsaved) return undefined;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsaved]);
+
+  // Saiu do editor por outro caminho do painel: grava o que faltava.
+  useEffect(() => () => { if (unsavedRef.current) void saveAllRef.current(); }, []);
+
+  const leave = async () => {
+    if (unsaved && !(await saveAll()) && !(await confirmDialog('Não foi possível salvar. Sair mesmo assim e perder as mudanças que não foram gravadas?'))) return;
+    unsavedRef.current = false;
+    navigate('/super-admin/temas');
   };
 
   const changeFormat = async (key: FormatKey) => {
     if (key === format) return;
-    if (draft && !(await confirmDialog('Há camadas não salvas neste formato. Trocar de formato e descartar essas mudanças?'))) return;
+    if (draft?.length && !(await saveDraft())
+      && !(await confirmDialog('As camadas deste formato não foram salvas. Trocar de formato e perder essas mudanças?'))) return;
     setDraft(null);
     setPendingRegions(null);
     setSelectedLayer(null);
@@ -597,8 +686,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const changeAnimation = (next: ThemeAnimation) => {
     setAnimation(next);
     if (next.presets?.length && (!previewMotion || !next.presets.includes(previewMotion))) setPreviewMotion(next.defaultPreset ?? next.presets[0]);
-    if (animTimer.current) clearTimeout(animTimer.current);
-    animTimer.current = setTimeout(() => patch({ animation: next }, 'Animação salva'), 500);
+    queuePatch({ animation: next }, 500);
   };
 
   const togglePreset = (key: MotionPreset) => {
@@ -680,8 +768,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const setColor = (key: keyof Palette, value: string) => {
     const next = { ...palette, [key]: value };
     setPalette(next);
-    if (paletteTimer.current) clearTimeout(paletteTimer.current);
-    paletteTimer.current = setTimeout(() => patch({ palette: next }, 'Cores salvas'), 600);
+    queuePatch({ palette: next }, 600);
   };
 
   const items = useMemo(() => SAMPLE_ITEMS.slice(0, count).map((it, i) => ({ ...it, hero: hero && i === 0 })), [count, hero]);
@@ -708,9 +795,9 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     <div className="flex flex-col gap-5">
       {/* Cabeçalho do tema */}
       <div className="flex flex-wrap items-center gap-3">
-        <Link to="/super-admin/temas" className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Voltar aos temas">
+        <button type="button" onClick={leave} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Voltar aos temas">
           <ArrowLeft className="h-4 w-4" />
-        </Link>
+        </button>
         <input className="h-11 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-xl font-bold text-slate-900 hover:border-slate-200 focus:border-green-600 focus:bg-white focus:outline-none"
           value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name !== theme.name && patch({ name: name.trim() })}
           aria-label="Nome do tema" />
@@ -718,12 +805,21 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
           <option value="">Ocasião…</option>
           {occasions.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
+        <span role="status" className={`text-sm ${unsaved ? 'text-amber-700' : 'text-slate-500'}`}>
+          {savingLayers || stage === 'saving' ? 'Salvando…' : unsaved ? 'Alterações não salvas'
+            : lastSaved ? `Tudo salvo às ${lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Tudo salvo'}
+        </span>
+        <Button variant={unsaved ? 'primary' : 'secondary'} onClick={() => { void saveAll(); }} disabled={savingLayers}
+          title="Grava agora nome, cores, animação e camadas. O sistema também salva sozinho.">
+          {savingLayers ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}Salvar
+        </Button>
         {theme.status === 'PUBLISHED'
           ? <Button variant="secondary" onClick={() => patch({ status: 'DRAFT' }, 'Voltou para rascunho')}>Despublicar</Button>
-          : <Button onClick={() => patch({ status: 'PUBLISHED' }, 'Tema publicado')} disabled={readyCount === 0}
+          : <Button onClick={async () => { if (await saveAll()) await patch({ status: 'PUBLISHED' }, 'Tema publicado'); }} disabled={readyCount === 0 || savingLayers}
               title={readyCount === 0 ? 'Suba ao menos um fundo com a área de produtos' : undefined}>Publicar para os mercados</Button>}
         <Button variant="ghost" aria-label="Excluir o tema" onClick={async () => {
           if (!(await confirmDialog(`Excluir o tema "${theme.name}"? Os encartes já publicados continuam no ar.`))) return;
+          unsavedRef.current = false;
           await artAdminService.deleteTheme(id);
           navigate('/super-admin/temas');
         }}><Trash2 className="h-4 w-4" /></Button>
