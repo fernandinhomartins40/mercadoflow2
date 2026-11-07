@@ -232,7 +232,7 @@ const EmailLogCard: React.FC = () => {
       <h2 id="email-log-title" className="text-base font-semibold text-slate-900">E-mails enviados</h2>
       <p className="text-sm text-slate-600">
         Últimos 7 dias: {Object.keys(EMAIL_STATUS).map((k) => `${log.totals[k] ?? 0} ${EMAIL_STATUS[k][0].toLowerCase()}`).join(' · ')}.
-        {' '}Plano grátis do VeloMail: 2 por minuto, 10 por hora, 100 por dia e 2.000 por mês; o que passar disso espera na fila por até 24 horas.
+        {' '}O que o VeloMail recusar por limite do plano ou instabilidade espera na fila por até 24 horas.
       </p>
       {log.rows.length === 0 ? <p className="text-sm text-slate-600">Nenhum e-mail ainda.</p> : (
         <ul className="flex max-h-80 flex-col divide-y divide-slate-100 overflow-y-auto">

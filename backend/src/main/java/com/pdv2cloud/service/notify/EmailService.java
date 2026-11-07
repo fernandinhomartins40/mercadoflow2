@@ -193,8 +193,8 @@ public class EmailService {
     }
 
     /**
-     * Tenta de novo os e-mails da fila, poucos por vez: o plano do VeloMail
-     * aceita 2 por minuto. Se ele recusar de novo, para e espera a próxima rodada.
+     * Tenta de novo os e-mails da fila, poucos por vez, para respeitar o
+     * limite do plano do VeloMail. Se ele recusar de novo, para e espera a próxima rodada.
      */
     public void flushQueue() {
         Optional<AiPlatformConfig.Key> key = platform.key("EMAIL");
