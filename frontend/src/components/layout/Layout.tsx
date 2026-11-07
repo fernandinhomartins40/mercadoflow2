@@ -9,6 +9,7 @@ import { activationService } from '../../services/activation.service';
 import { useCached } from '../../hooks/useCached';
 import type { ActivationStatus } from '../../types/activation.types';
 import SubscriptionBanner from '../billing/SubscriptionBanner';
+import EmailConfirmBanner from '../billing/EmailConfirmBanner';
 import HistoryNotice from '../intelligence/HistoryNotice';
 import { useTeamPermission } from '../../lib/teamPermissions';
 import { PageNameContext, PhotoViewer } from '../flow/Flow';
@@ -152,6 +153,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <PageNameContext.Provider value={pageTitle(pathname)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(14px, 1.6vw, 22px)' }}>
             <SubscriptionBanner />
+            <EmailConfirmBanner />
             <RoleBand />
             {/* Aviso de histórico só onde se lê o todo: no resto, era ruído em toda página (F1). */}
             {(pathname === '/app' || pathname === '/app/configuracoes') && <HistoryNotice detailed={pathname === '/app/configuracoes'} />}

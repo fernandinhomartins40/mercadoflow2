@@ -78,6 +78,10 @@ public class User {
     @Column(name = "credentials_changed_at")
     private LocalDateTime credentialsChangedAt;
 
+    /** Nulo enquanto a pessoa não abriu o link do e-mail (não bloqueia o acesso). */
+    @Column(name = "email_confirmed_at")
+    private LocalDateTime emailConfirmedAt;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

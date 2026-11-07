@@ -17,13 +17,14 @@ public class MeResponse {
     private boolean twoFactorEnabled;
     /** Falta aceitar a versão vigente dos Termos, da Privacidade ou do DPA (S1): o front mostra a tela de aceite. */
     private boolean legalAcceptanceRequired;
+    private boolean emailConfirmed;
 
     public MeResponse(UUID userId, String email, String name, String role, UUID marketId) {
-        this(userId, email, name, role, marketId, null, false, false);
+        this(userId, email, name, role, marketId, null, false, false, true);
     }
 
     public MeResponse(UUID userId, String email, String name, String role, UUID marketId, String teamRole,
                       boolean twoFactorEnabled) {
-        this(userId, email, name, role, marketId, teamRole, twoFactorEnabled, false);
+        this(userId, email, name, role, marketId, teamRole, twoFactorEnabled, false, true);
     }
 }

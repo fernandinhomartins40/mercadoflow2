@@ -196,7 +196,7 @@ public class AccountDeletionService {
         String mail = jdbc.queryForObject("select email from users where id = :u", Map.of("u", userId), String.class);
         send(mail, "Você desistiu de excluir a sua conta no MercadoFlow", "Exclusão cancelada",
             List.of("Recebemos a sua desistência. A sua conta continua e o acesso já foi liberado.",
-                "Se não foi você, troque a sua senha agora."));
+                "Se não foi você, troque a sua senha agora."), EmailService.Tone.SUCCESS);
         return out;
     }
 
@@ -225,13 +225,13 @@ public class AccountDeletionService {
         }
         body.add("Mudou de ideia? Até essa data, entre no MercadoFlow ou no Bipaê com o seu e-mail e senha e toque em "
             + "\"Desistir da exclusão\". Se não foi você que pediu, faça isso agora e depois troque a senha.");
-        send(to, "Pedido de exclusão da sua conta no MercadoFlow", "Pedido de exclusão recebido", body);
+        send(to, "Pedido de exclusão da sua conta no MercadoFlow", "Pedido de exclusão recebido", body, EmailService.Tone.DANGER);
     }
 
-    private void send(String to, String subject, String title, List<String> body) {
+    private void send(String to, String subject, String title, List<String> body, EmailService.Tone tone) {
         try {
             EmailService.Sent sent = email.send(to, subject, title, body, "Abrir o MercadoFlow", email.link("/login"),
-                new EmailService.Look("Sua conta", EmailService.Tone.DANGER, null));
+                new EmailService.Look("Sua conta", tone, null));
             if (!sent.ok()) {
                 log.info("Exclusão de conta: e-mail não enviado ({})", sent.error());
             }

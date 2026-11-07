@@ -30,6 +30,25 @@ class EmailServiceTest {
     }
 
     @Test
+    void assinaturaDoWebhookConfereOCorpoExato() {
+        // HMAC-SHA256 de {"a":1} com o segredo "s", calculado fora do Java.
+        String sig = "sha256=37beaf650f70b40ec9706929c2e9d835cbd63729988f48781e6383a147215f07";
+        assertTrue(EmailService.validSignature("{\"a\":1}", sig, "s"));
+        assertFalse(EmailService.validSignature("{\"a\":2}", sig, "s"));
+        assertFalse(EmailService.validSignature("{\"a\":1}", sig, "outro"));
+        assertFalse(EmailService.validSignature("{\"a\":1}", null, "s"));
+        assertFalse(EmailService.validSignature("{\"a\":1}", sig, null));
+    }
+
+    @Test
+    void soLimiteEInstabilidadeVoltamParaAFila() {
+        assertTrue(EmailService.retryable(429));
+        assertTrue(EmailService.retryable(503));
+        assertFalse(EmailService.retryable(400));
+        assertFalse(EmailService.retryable(401));
+    }
+
+    @Test
     void textoTemOLinkCompleto() {
         String text = EmailService.text("Redefinir senha", List.of("Use o link."), "Criar nova senha", "https://mercadoflow.com/redefinir-senha?token=abc");
         assertTrue(text.contains("Criar nova senha: https://mercadoflow.com/redefinir-senha?token=abc"));

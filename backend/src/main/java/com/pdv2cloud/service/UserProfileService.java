@@ -27,7 +27,8 @@ public class UserProfileService {
         boolean legalRequired = legalAcceptance != null
             && com.pdv2cloud.tenancy.TenantContext.runAsSystem(() -> legalAcceptance.required(user.getId(), user.getRole()));
         return new MeResponse(user.getId(), user.getEmail(), user.getName(), user.getRole().name(), marketId,
-            team == null ? null : team.name(), Boolean.TRUE.equals(user.getTotpEnabled()), legalRequired);
+            team == null ? null : team.name(), Boolean.TRUE.equals(user.getTotpEnabled()), legalRequired,
+            user.getEmailConfirmedAt() != null);
     }
 
     /** Registra o aceite da versão vigente. Quem chama roda em runAsSystem. */

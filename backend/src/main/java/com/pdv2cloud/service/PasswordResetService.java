@@ -151,9 +151,26 @@ public class PasswordResetService {
             user.setPassword(encoder.encode(newPassword));
             // Sessões abertas antes da troca deixam de valer (SEG-05).
             user.setCredentialsChangedAt(java.time.LocalDateTime.now());
+            // Abriu o link do e-mail: o endereço é mesmo da pessoa.
+            if (user.getEmailConfirmedAt() == null) {
+                user.setEmailConfirmedAt(java.time.LocalDateTime.now());
+            }
             users.save(user);
             // Qualquer outro link pendente deixa de valer.
             jdbc.update("update password_reset_tokens set used_at = now() where user_id = :u and used_at is null", Map.of("u", userId));
+            // Aviso de segurança: falha aqui não desfaz a troca de senha.
+            try {
+                EmailService.Sent notice = email.send(user.getEmail(), "Sua senha do MercadoFlow foi alterada", "Senha alterada",
+                    List.of(greeting(user.getName()) + " A senha da sua conta acabou de ser alterada. As sessões abertas foram encerradas."),
+                    "Entrar no MercadoFlow", email.link("/login"),
+                    new EmailService.Look("Segurança da conta", EmailService.Tone.SECURITY,
+                        "Se não foi você, peça uma nova senha agora em \"Esqueci minha senha\" e proteja também o seu e-mail."));
+                if (!notice.ok()) {
+                    log.warn("Aviso de senha alterada não enviado para o usuário {}: {}", userId, notice.error());
+                }
+            } catch (RuntimeException e) {
+                log.warn("Aviso de senha alterada falhou para o usuário {}: {}", userId, e.getMessage());
+            }
             return new Result(true, "Senha alterada. Entre com a nova senha.");
         });
     }

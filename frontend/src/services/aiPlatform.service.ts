@@ -2,6 +2,11 @@ import api from './api';
 
 /** IA da plataforma (revenda de créditos): painel do superadmin e carteira do mercado. */
 
+export interface EmailLog {
+  totals: Record<string, number>;
+  rows: Array<{ recipient: string; subject: string; status: string; error: string | null; attempts: number; createdAt: string }>;
+}
+
 export interface AiProviderRow {
   provider: 'DEEPSEEK' | 'JEV' | 'OPENROUTER' | 'DEEPGRAM' | 'WHATSAPP' | 'EMAIL' | 'ASAAS';
   baseUrl: string;
@@ -120,6 +125,7 @@ export const aiAdminService = {
   saveWhatsapp: async (body: { templateName?: string; templateLang?: string; verifyToken?: string; appSecret?: string }): Promise<WhatsAppConfig> =>
     (await api.put(`${admin}/whatsapp`, body)).data,
   overview: async (): Promise<AiOverview> => (await api.get(`${admin}/overview`)).data,
+  emails: async (): Promise<EmailLog> => (await api.get(`${admin}/emails`)).data,
   saveSettings: async (body: Partial<AiSettingsRow>): Promise<AiSettingsRow> => (await api.put(`${admin}/settings`, body)).data,
   saveProvider: async (provider: string, body: { apiKey?: string; baseUrl?: string; model?: string; enabled?: boolean; priority?: number }): Promise<AiProviderRow[]> =>
     (await api.put(`${admin}/providers/${provider}`, body)).data,

@@ -3,21 +3,28 @@ package com.pdv2cloud.service.notify;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pdv2cloud.service.ai.LlmClient;
 import com.pdv2cloud.service.ai.platform.AiPlatformConfig;
+import com.pdv2cloud.service.ai.AiCredentialCipher;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -61,6 +68,8 @@ public class EmailService {
     }
 
     private final AiPlatformConfig platform;
+    private final AiCredentialCipher cipher;
+    private final NamedParameterJdbcTemplate jdbc;
     private final String publicBaseUrl;
     private final HttpClient http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
@@ -68,8 +77,11 @@ public class EmailService {
         .build();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public EmailService(AiPlatformConfig platform, @Value("${app.public-base-url:https://mercadoflow.com}") String publicBaseUrl) {
+    public EmailService(AiPlatformConfig platform, AiCredentialCipher cipher, NamedParameterJdbcTemplate jdbc,
+                        @Value("${app.public-base-url:https://mercadoflow.com}") String publicBaseUrl) {
         this.platform = platform;
+        this.cipher = cipher;
+        this.jdbc = jdbc;
         this.publicBaseUrl = publicBaseUrl.replaceAll("/+$", "");
     }
 
@@ -111,27 +123,164 @@ public class EmailService {
         body.put("text", text(title, paragraphs, buttonLabel, buttonUrl, look));
         // Link com token não pode passar por redirecionador de clique.
         body.put("tracking_enabled", false);
+        String json;
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(key.get().baseUrl() + "/emails/send"))
+            json = mapper.writeValueAsString(body);
+        } catch (Exception e) {
+            return new Sent(false, null, "falha ao montar o e-mail");
+        }
+        Attempt attempt = deliver(key.get(), json);
+        if (attempt.ok()) {
+            record(to, subject, "sent", attempt.id(), null, null);
+            return new Sent(true, attempt.id(), null);
+        }
+        if (attempt.retry() && record(to, subject, "queued", null, attempt.error(), cipher.encrypt(json))) {
+            // Vai sair na próxima tentativa (EmailQueueJob): para quem chamou, está encaminhado.
+            log.info("E-mail na fila para nova tentativa: {}", attempt.error());
+            return new Sent(true, null, null);
+        }
+        record(to, subject, "failed", null, attempt.error(), null);
+        return new Sent(false, null, attempt.error());
+    }
+
+    private record Attempt(boolean ok, boolean retry, String id, String error) {}
+
+    private Attempt deliver(AiPlatformConfig.Key key, String json) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder(URI.create(key.baseUrl() + "/emails/send"))
                 .timeout(Duration.ofSeconds(15))
-                .header("x-api-key", key.get().apiKey())
+                .header("x-api-key", key.apiKey())
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body), StandardCharsets.UTF_8))
+                .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build();
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() >= 200 && res.statusCode() < 300) {
-                return new Sent(true, mapper.readTree(res.body()).path("message_id").asText(null), null);
+                return new Attempt(true, false, mapper.readTree(res.body()).path("message_id").asText(null), null);
             }
             String why = LlmClient.providerReason(res.body());
             log.warn("E-mail recusado ({}): {}", res.statusCode(), why);
-            return new Sent(false, null, "HTTP " + res.statusCode() + (why == null ? "" : ": " + why));
+            return new Attempt(false, retryable(res.statusCode()), null, "HTTP " + res.statusCode() + (why == null ? "" : ": " + why));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new Sent(false, null, "interrompido");
+            return new Attempt(false, true, null, "interrompido");
         } catch (Exception e) {
             log.warn("E-mail falhou: {}", e.getMessage());
-            return new Sent(false, null, "falha de comunicação");
+            return new Attempt(false, true, null, "falha de comunicação");
         }
+    }
+
+    /** Limite do plano e instabilidade passam; os outros erros (remetente, endereço, chave) não adianta repetir. */
+    static boolean retryable(int status) {
+        return status == 429 || status >= 500;
+    }
+
+    /** Histórico nunca atrapalha o envio. */
+    private boolean record(String to, String subject, String status, String messageId, String error, String payload) {
+        try {
+            jdbc.update("insert into email_messages (message_id, recipient, subject, status, error, payload, next_attempt_at) "
+                    + "values (:m, :t, :s, :st, :e, :p, case when :st = 'queued' then now() + interval '1 minute' end)",
+                new MapSqlParameterSource().addValue("m", messageId).addValue("t", cut(to, 320)).addValue("s", cut(subject, 300))
+                    .addValue("st", status).addValue("e", cut(error, 500)).addValue("p", payload));
+            return true;
+        } catch (RuntimeException e) {
+            log.warn("Histórico de e-mail não gravado: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private static String cut(String s, int max) {
+        return s == null || s.length() <= max ? s : s.substring(0, max);
+    }
+
+    /**
+     * Tenta de novo os e-mails da fila, poucos por vez: o plano do VeloMail
+     * aceita 2 por minuto. Se ele recusar de novo, para e espera a próxima rodada.
+     */
+    public void flushQueue() {
+        Optional<AiPlatformConfig.Key> key = platform.key("EMAIL");
+        if (key.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> due = jdbc.queryForList("select id, payload, attempts, created_at < now() - interval '24 hours' as stale "
+            + "from email_messages where status = 'queued' and next_attempt_at <= now() order by created_at limit 2", Map.of());
+        for (Map<String, Object> row : due) {
+            Object id = row.get("id");
+            if (Boolean.TRUE.equals(row.get("stale"))) {
+                jdbc.update("update email_messages set status = 'failed', error = 'Sem envio em 24 horas', payload = null, updated_at = now() where id = :id", Map.of("id", id));
+                continue;
+            }
+            Attempt attempt = deliver(key.get(), cipher.decrypt((String) row.get("payload")));
+            if (attempt.ok()) {
+                jdbc.update("update email_messages set status = 'sent', message_id = :m, error = null, payload = null, updated_at = now() where id = :id",
+                    new MapSqlParameterSource().addValue("m", attempt.id()).addValue("id", id));
+            } else if (attempt.retry()) {
+                int attempts = ((Number) row.get("attempts")).intValue() + 1;
+                jdbc.update("update email_messages set attempts = :a, error = :e, updated_at = now(), "
+                        + "next_attempt_at = now() + make_interval(mins => :w) where id = :id",
+                    new MapSqlParameterSource().addValue("a", attempts).addValue("e", cut(attempt.error(), 500))
+                        .addValue("w", Math.min(attempts, 30)).addValue("id", id));
+                return;
+            } else {
+                jdbc.update("update email_messages set status = 'failed', error = :e, payload = null, updated_at = now() where id = :id",
+                    new MapSqlParameterSource().addValue("e", cut(attempt.error(), 500)).addValue("id", id));
+            }
+        }
+    }
+
+    // ── Webhooks de entrega ────────────────────────────────────────────────
+
+    /** Segredo cadastrado no VeloMail: derivado da chave mestra, nada novo para guardar. */
+    public String webhookSecret() {
+        return cipher.isConfigured() ? cipher.derive("velomail-webhook") : null;
+    }
+
+    public boolean validWebhookSignature(String raw, String header) {
+        return validSignature(raw, header, webhookSecret());
+    }
+
+    static boolean validSignature(String raw, String header, String secret) {
+        if (secret == null || raw == null || header == null || !header.startsWith("sha256=")) {
+            return false;
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            String expected = HexFormat.of().formatHex(mac.doFinal(raw.getBytes(StandardCharsets.UTF_8)));
+            return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), header.substring(7).trim().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Atualiza o status. Aviso repetido ou fora de ordem não desfaz "entregue" nem "falhou". */
+    public void applyDeliveryEvent(String event, String messageId, String error) {
+        if (messageId == null || messageId.isBlank()) {
+            return;
+        }
+        String sql = switch (event) {
+            case "email.delivered" -> "update email_messages set status = 'delivered', updated_at = now() where message_id = :m and status <> 'failed'";
+            case "email.failed" -> "update email_messages set status = 'failed', error = :e, updated_at = now() where message_id = :m and status <> 'delivered'";
+            default -> null;
+        };
+        if (sql == null) {
+            return;
+        }
+        int changed = jdbc.update(sql, new MapSqlParameterSource().addValue("m", messageId).addValue("e", cut(error, 500)));
+        if (changed > 0 && event.equals("email.failed")) {
+            log.warn("VeloMail não entregou o e-mail {}: {}", messageId, error);
+        }
+    }
+
+    /** Painel: os últimos envios e o total de 7 dias por situação. */
+    public Map<String, Object> recent() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        Map<String, Object> totals = new LinkedHashMap<>();
+        jdbc.queryForList("select status, count(*) as total from email_messages where created_at > now() - interval '7 days' group by status", Map.of())
+            .forEach((r) -> totals.put((String) r.get("status"), r.get("total")));
+        out.put("totals", totals);
+        out.put("rows", jdbc.queryForList("select recipient, subject, status, error, attempts, created_at as \"createdAt\" "
+            + "from email_messages order by created_at desc limit 30", Map.of()));
+        return out;
     }
 
     static String html(String title, List<String> paragraphs, String buttonLabel, String buttonUrl) {

@@ -391,7 +391,7 @@ const Plans: React.FC = () => {
                       )
                     ) : (
                       <a
-                        href={`mailto:comercial@mercadoflow.com?subject=Plano%20${encodeURIComponent(plan.name)}`}
+                        href={`mailto:fuseagencia10@gmail.com?subject=Plano%20${encodeURIComponent(plan.name)}`}
                         className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold"
                         style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
                       >

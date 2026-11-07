@@ -16,9 +16,6 @@ import org.springframework.stereotype.Service;
 /**
  * Confirmação do e-mail do cadastro. Não bloqueia o acesso: a conta grátis
  * entra na hora, e o link só registra que o endereço é mesmo da pessoa.
- *
- * shortcut: sem "reenviar confirmação"; link vencido só avisa. Fazer quando
- * alguma função passar a exigir e-mail confirmado.
  */
 @Service
 public class EmailConfirmationService {
@@ -68,6 +65,23 @@ public class EmailConfirmationService {
         }
     }
 
+    /** Pedido pelo painel: no máximo 3 links a cada 15 minutos. */
+    public Result resend(UUID userId) {
+        return TenantContext.runAsSystem(() -> {
+            Boolean confirmed = jdbc.queryForObject("select email_confirmed_at is not null from users where id = :u", Map.of("u", userId), Boolean.class);
+            if (Boolean.TRUE.equals(confirmed)) {
+                return new Result(true, "Seu e-mail já está confirmado.");
+            }
+            Integer recent = jdbc.queryForObject("select count(*) from email_confirmation_tokens where user_id = :u "
+                + "and created_at > now() - interval '15 minutes'", Map.of("u", userId), Integer.class);
+            if (recent != null && recent >= 3) {
+                return new Result(false, "Já enviamos o link há pouco. Veja também a caixa de spam ou tente de novo em alguns minutos.");
+            }
+            send(userId);
+            return new Result(true, "Enviamos o link. Veja a sua caixa de entrada e também o spam.");
+        });
+    }
+
     public Result confirm(String token) {
         if (token == null || !token.matches("[0-9a-f]{64}")) {
             return new Result(false, "Link inválido. Abra de novo o link do e-mail.");
@@ -85,7 +99,7 @@ public class EmailConfirmationService {
                 return new Result(true, "Seu e-mail já estava confirmado.");
             }
             if (Boolean.TRUE.equals(row.get("expired"))) {
-                return new Result(false, "Este link venceu. Sua conta continua funcionando normalmente.");
+                return new Result(false, "Este link venceu. Entre no MercadoFlow e peça outro no aviso do topo da tela. Sua conta continua funcionando normalmente.");
             }
             jdbc.update("update email_confirmation_tokens set used_at = now() where id = :id", Map.of("id", row.get("id")));
             jdbc.update("update users set email_confirmed_at = coalesce(email_confirmed_at, now()) where id = :u", Map.of("u", row.get("user_id")));

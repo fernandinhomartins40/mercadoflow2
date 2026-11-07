@@ -107,7 +107,7 @@ public class PersonalDataExportService {
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("about", "Cópia dos seus dados pessoais no MercadoFlow (LGPD, art. 18). Não inclui a sua senha nem "
-            + "códigos de segurança. Dúvidas: privacidade@mercadoflow.com.");
+            + "códigos de segurança. Dúvidas: fuseagencia10@gmail.com.");
         out.put("generatedAt", now.truncatedTo(ChronoUnit.SECONDS).toString());
 
         Map<String, Object> profile = new LinkedHashMap<>();

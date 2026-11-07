@@ -10,6 +10,7 @@ interface AuthState {
   twoFactorEnabled?: boolean;
   /** S1: falta aceitar a versão vigente dos documentos legais. */
   legalAcceptanceRequired?: boolean;
+  emailConfirmed?: boolean;
   role: string | null;
   marketId: string | null;
   userId: string | null;
@@ -69,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           teamRole: me.teamRole ?? null,
           twoFactorEnabled: !!me.twoFactorEnabled,
           legalAcceptanceRequired: !!me.legalAcceptanceRequired,
+          emailConfirmed: me.emailConfirmed,
         });
       } catch {
         setState({

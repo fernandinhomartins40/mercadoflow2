@@ -5,6 +5,7 @@ import Button from '../components/common/Button';
 import {
   aiAdminService, type AiLedgerRow, type AiOrderRow, type AiOverview, type AiPlanRow, type AiProviderRow, type AiRouteRow,
   type AiSettingsRow, type AiWallet, type ConsoleResult, type ConsoleTask, type WhatsAppConfig, type AiFallbackRow,
+  type EmailLog,
 } from '../services/aiPlatform.service';
 import { confirmDialog } from '../components/common/Dialogs';
 
@@ -213,6 +214,42 @@ const BudgetCard: React.FC<{ settings: AiSettingsRow; onSaved: (s: AiSettingsRow
 };
 
 // ── Chaves ──────────────────────────────────────────────────────────────
+
+const EMAIL_STATUS: Record<string, [string, string]> = {
+  sent: ['Enviado', 'text-slate-600'],
+  delivered: ['Entregue', 'text-emerald-700'],
+  queued: ['Na fila', 'text-amber-700'],
+  failed: ['Falhou', 'text-red-700'],
+};
+
+/** Últimos e-mails da plataforma: o VeloMail avisa o que foi entregue e o que falhou. */
+const EmailLogCard: React.FC = () => {
+  const [log, setLog] = useState<EmailLog | null>(null);
+  useEffect(() => { aiAdminService.emails().then(setLog).catch(() => setLog({ totals: {}, rows: [] })); }, []);
+  if (!log) return null;
+  return (
+    <section className="lg-glass flex flex-col gap-2 rounded-2xl p-4" aria-labelledby="email-log-title">
+      <h2 id="email-log-title" className="text-base font-semibold text-slate-900">E-mails enviados</h2>
+      <p className="text-sm text-slate-600">
+        Últimos 7 dias: {Object.keys(EMAIL_STATUS).map((k) => `${log.totals[k] ?? 0} ${EMAIL_STATUS[k][0].toLowerCase()}`).join(' · ')}.
+        {' '}Plano grátis do VeloMail: 2 por minuto, 10 por hora, 100 por dia e 2.000 por mês; o que passar disso espera na fila por até 24 horas.
+      </p>
+      {log.rows.length === 0 ? <p className="text-sm text-slate-600">Nenhum e-mail ainda.</p> : (
+        <ul className="flex max-h-80 flex-col divide-y divide-slate-100 overflow-y-auto">
+          {log.rows.map((r, i) => (
+            <li key={i} className="flex flex-wrap items-baseline gap-x-3 py-2 text-sm">
+              <span className={`w-16 shrink-0 font-semibold ${EMAIL_STATUS[r.status]?.[1] ?? 'text-slate-600'}`}>{EMAIL_STATUS[r.status]?.[0] ?? r.status}</span>
+              <span className="min-w-0 flex-1 basis-48 truncate text-slate-900" title={r.subject}>{r.subject}</span>
+              <span className="min-w-0 truncate text-slate-600">{r.recipient}</span>
+              <span className="shrink-0 text-xs text-slate-500">{new Date(r.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+              {r.error && <span className="w-full text-xs text-red-700">{r.error}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
 
 const ProviderCard: React.FC<{ p: AiProviderRow; onChange: (rows: AiProviderRow[]) => void; encryptionReady: boolean }> = ({ p, onChange, encryptionReady }) => {
   const info = PROVIDER_INFO[p.provider];
@@ -1007,6 +1044,7 @@ const SuperAdminAi: React.FC = () => {
               {providers.map((p) => (
                 <React.Fragment key={p.provider}>
                   <ProviderCard p={p} encryptionReady={data.settings.encryptionReady} onChange={(rows) => patch({ providers: rows })} />
+                  {p.provider === 'EMAIL' && <EmailLogCard />}
                   {p.provider === 'WHATSAPP' && <WhatsAppConfigCard encryptionReady={data.settings.encryptionReady} pilots={data.pilots} />}
                 </React.Fragment>
               ))}

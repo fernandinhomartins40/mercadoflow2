@@ -91,6 +91,14 @@ public class SuperAdminAiController {
         return whatsapp.save(body, auth.getName());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.pdv2cloud.service.notify.EmailService emails;
+
+    @GetMapping("/emails")
+    public Map<String, Object> emails() {
+        return com.pdv2cloud.tenancy.TenantContext.runAsSystem(() -> emails.recent());
+    }
+
     @GetMapping("/overview")
     public Map<String, Object> overview() {
         Map<String, Object> out = new LinkedHashMap<>();

@@ -90,6 +90,8 @@ public class SecurityConfig {
                 // Avisos de pagamento do Asaas: o token cadastrado no Asaas vem no header
                 // asaas-access-token e é conferido em AsaasWebhookController.
                 .requestMatchers(HttpMethod.POST, "/api/v1/public/asaas/webhook").permitAll()
+                // Avisos de entrega do VeloMail: assinatura conferida em VeloMailWebhookController.
+                .requestMatchers(HttpMethod.POST, "/api/v1/public/velomail/webhook").permitAll()
                 // Servidor MCP: o cliente e um agente externo sem JWT. A autenticacao
                 // e a chave MCP do mercado (McpController / McpKeyService), so leitura.
                 .requestMatchers("/api/v1/mcp").permitAll()

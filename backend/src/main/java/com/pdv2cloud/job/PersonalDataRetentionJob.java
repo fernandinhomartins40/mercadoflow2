@@ -48,6 +48,9 @@ public class PersonalDataRetentionJob {
     static final List<Purge> PURGES = List.of(
         // Tokens e links vencidos: 90 dias depois do vencimento.
         new Purge("password_reset_tokens", "expires_at", 0, 90),
+        new Purge("email_confirmation_tokens", "expires_at", 0, 90),
+        // Histórico de e-mails (tem o endereço de quem recebeu): 90 dias.
+        new Purge("email_messages", "created_at", 0, 90),
         new Purge("team_invites", "expires_at", 0, 90),
         new Purge("mfa_challenges", "expires_at", 0, 90),
         // WhatsApp e registros de IA: 2 anos.

@@ -102,6 +102,14 @@ public class AuthController {
             .body(java.util.Map.of("ok", r.ok(), "message", r.message()));
     }
 
+    @PostMapping("/resend-confirmation")
+    public ResponseEntity<java.util.Map<String, Object>> resendConfirmation(@AuthenticationPrincipal UserDetails userDetails) {
+        com.pdv2cloud.service.EmailConfirmationService.Result r =
+            emailConfirmation.resend(userProfileService.getProfile(userDetails.getUsername()).getUserId());
+        return ResponseEntity.status(r.ok() ? HttpStatus.OK : HttpStatus.TOO_MANY_REQUESTS)
+            .body(java.util.Map.of("ok", r.ok(), "message", r.message()));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<java.util.Map<String, Object>> resetPassword(@RequestBody java.util.Map<String, String> body) {
         com.pdv2cloud.service.PasswordResetService.Result r = passwordResetService.reset(body.get("token"), body.get("password"));

@@ -53,6 +53,18 @@ public class AiCredentialCipher {
         return configured;
     }
 
+    /** Segredo estável para um uso (ex.: webhook), derivado da chave mestra: quem o vê não chega à chave. */
+    public String derive(String purpose) {
+        requireConfigured();
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
+            return java.util.HexFormat.of().formatHex(mac.doFinal(purpose.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("Falha ao derivar o segredo", e);
+        }
+    }
+
     public String encrypt(String plaintext) {
         requireConfigured();
         try {

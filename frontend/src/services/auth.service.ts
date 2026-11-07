@@ -12,6 +12,7 @@ export interface AuthProfile {
   twoFactorEnabled?: boolean;
   /** Falta aceitar a versão vigente dos Termos, da Privacidade ou do Contrato de operador. */
   legalAcceptanceRequired?: boolean;
+  emailConfirmed?: boolean;
 }
 
 export interface LoginResponse {
