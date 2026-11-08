@@ -7,9 +7,10 @@ import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 import Button from '../components/common/Button';
 import { artAdminService, apiMessage } from '../services/art.service';
 import type {
-  ArtApiKey, ArtTheme, FormatKey, MotionPreset, Palette, PlatformAiSettings, RegionKey, Regions, ThemeAnimation, ThemeLayer, ThemeSuggestion,
+  ArtApiKey, ArtTheme, FormatKey, MotionPreset, ThemeStyle, Palette, PlatformAiSettings, RegionKey, Regions, ThemeAnimation, ThemeLayer, ThemeSuggestion,
 } from '../types/art.types';
 import LayerEditor, { normalizeLayers } from '../features/art-studio/LayerEditor';
+import StyleEditor from '../features/art-studio/StyleEditor';
 import { Uploaded, findManifest, layersFromFiles, layersFromManifest, measure } from '../features/art-studio/layerImport';
 import { DEFAULT_DURATION, MOTION_KEYS, MOTION_PRESETS } from '../features/art-studio/motion';
 import { compositeBlob } from '../features/art-studio/export';
@@ -398,6 +399,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const [draft, setDraft] = useState<ThemeLayer[] | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [animation, setAnimation] = useState<ThemeAnimation>({});
+  const [style, setStyle] = useState<ThemeStyle>({});
   const [previewMotion, setPreviewMotion] = useState<MotionPreset | null>(null);
   const bgInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
@@ -409,6 +411,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     setPalette({ ...DEFAULT_PALETTE, ...t.palette });
     setName(t.name);
     setAnimation(t.animation ?? {});
+    setStyle(t.style ?? {});
   }, []);
 
   useEffect(() => {
@@ -772,7 +775,11 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   };
 
   const items = useMemo(() => SAMPLE_ITEMS.slice(0, count).map((it, i) => ({ ...it, hero: hero && i === 0 })), [count, hero]);
-  const previewTheme = useMemo(() => (theme ? { ...theme, palette } : null), [theme, palette]);
+  const previewTheme = useMemo(() => (theme ? { ...theme, palette, style } : null), [theme, palette, style]);
+  const changeStyle = (next: ThemeStyle) => {
+    setStyle(next);
+    queuePatch({ style: next }, 500);
+  };
   const scene = useScene(
     previewTheme && (tf || draft?.length) ? {
       theme: previewTheme, format, items, brand: { displayName: 'Seu Mercado' }, regionsOverride: regions,
@@ -973,7 +980,8 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
         </section>
 
         {/* Prévia */}
-        <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="preview-title">
+        {/* Fixa na tela: a prévia acompanha enquanto se mexe em estilo, cores e animação lá embaixo. */}
+        <section className={`${CARD} flex flex-col gap-3 xl:sticky xl:top-20 xl:self-start`} aria-labelledby="preview-title">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="preview-title" className="text-base font-semibold text-slate-900">Como fica no encarte</h2>
             <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -1058,6 +1066,12 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
                   className="w-full accent-green-600" aria-label="Duração da animação em segundos" />
               </label>
             )}
+          </section>
+
+          <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="style-title">
+            <h2 id="style-title" className="text-base font-semibold text-slate-900">Etiqueta, cartões e textos</h2>
+            <p className="-mt-1 text-xs text-slate-500">Fontes, formato da etiqueta de preço, cartão dos produtos, nome e rodapé deste tema. A prévia muda na hora e salva sozinho.</p>
+            <StyleEditor style={style} onChange={changeStyle} />
           </section>
 
           <section className={`${CARD} flex flex-col gap-3`} aria-labelledby="colors-title">

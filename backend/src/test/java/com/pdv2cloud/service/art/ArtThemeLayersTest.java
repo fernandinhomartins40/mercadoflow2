@@ -45,6 +45,38 @@ class ArtThemeLayersTest {
     }
 
     @Test
+    void styleKeepsValidFieldsAndRefusesBadOnes() {
+        Map<String, Object> raw = new java.util.HashMap<>();
+        raw.put("fonts", Map.of("price", "bebas", "nada", "x"));
+        Map<String, Object> tag = new java.util.HashMap<>();
+        tag.put("shape", "burst");
+        tag.put("tilt", -5);
+        tag.put("border", null);
+        tag.put("inventado", 1);
+        raw.put("tag", tag);
+        raw.put("name", Map.of("weight", 799.6, "case", "title"));
+        raw.put("grupoDesconhecido", Map.of("a", 1));
+
+        Map<String, Object> out = ArtThemeService.style(raw);
+        assertThat(out).containsOnlyKeys("fonts", "tag", "name");
+        assertThat(out.get("fonts")).isEqualTo(Map.of("price", "bebas"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> t = (Map<String, Object>) out.get("tag");
+        assertThat(t).containsEntry("shape", "burst").containsEntry("tilt", -5.0).containsKey("border").doesNotContainKey("inventado");
+        assertThat(t.get("border")).isNull();
+        assertThat(((Map<?, ?>) out.get("name")).get("weight")).isEqualTo(800);
+
+        assertThatThrownBy(() -> ArtThemeService.style(Map.of("fonts", Map.of("price", "comic-sans"))))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("fonts.price");
+        assertThatThrownBy(() -> ArtThemeService.style(Map.of("tag", Map.of("tilt", 90))))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("tag.tilt");
+        assertThatThrownBy(() -> ArtThemeService.style(Map.of("footer", Map.of("color", "vermelho"))))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("footer.color");
+        assertThatThrownBy(() -> ArtThemeService.style(Map.of("card", Map.of("shadow", "sim"))))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("card.shadow");
+    }
+
+    @Test
     void animationKeepsOnlyKnownPresets() {
         Map<String, Object> out = ArtThemeService.animation(Map.of("presets", List.of("festa", "x", "festa"), "defaultPreset", "x", "duration", 99));
         assertThat(out.get("presets")).isEqualTo(List.of("festa"));

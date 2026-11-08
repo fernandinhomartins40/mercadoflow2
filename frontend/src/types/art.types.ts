@@ -50,6 +50,26 @@ export interface ThemeAnimation {
   duration?: number;
 }
 
+/**
+ * Estilo do tema (tudo opcional; o que falta usa o padrão de
+ * features/art-studio/style.ts). Proporções são frações do tamanho do
+ * elemento: radius 0.07 = 7% do lado menor do cartão.
+ */
+export interface ThemeStyle {
+  fonts?: { price?: string; name?: string; text?: string };
+  tag?: {
+    shape?: 'rounded' | 'pill' | 'square' | 'burst' | 'ribbon'; tilt?: number; align?: 'auto' | 'left' | 'center' | 'right';
+    size?: number; currency?: boolean; cents?: 'super' | 'inline'; border?: string | null; borderWidth?: number; shadow?: boolean;
+  };
+  card?: { style?: 'solid' | 'outline' | 'none'; radius?: number; shadow?: boolean; border?: string | null; borderWidth?: number; opacity?: number };
+  name?: { case?: 'upper' | 'title' | 'none'; weight?: number; maxLines?: number | null; align?: 'auto' | 'left' | 'center'; size?: number };
+  oldPrice?: { show?: boolean };
+  footer?: {
+    color?: string | null; weight?: number; size?: number; align?: 'left' | 'center' | 'right'; case?: 'upper' | 'title' | 'none';
+    shadow?: boolean; band?: string | null; bandOpacity?: number;
+  };
+}
+
 export interface ThemeFormat {
   format: FormatKey;
   backgroundUrl: string;
@@ -73,6 +93,7 @@ export interface ArtTheme {
   status: 'DRAFT' | 'PUBLISHED';
   sortOrder: number;
   animation?: ThemeAnimation;
+  style?: ThemeStyle;
   formats: ThemeFormat[];
   updatedAt?: string;
 }

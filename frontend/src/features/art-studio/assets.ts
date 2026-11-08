@@ -8,13 +8,39 @@
  * outro site passa pelo proxy do backend e vira blob local.
  */
 
-export const FONT_PRICE = '"Anton", "Impact", "Arial Narrow", sans-serif';
+import { FontOption, googleFontsHref } from './style';
+
+export const FONT_PRICE ='"Anton", "Impact", "Arial Narrow", sans-serif';
 export const FONT_NAME = '"Barlow Condensed", "Arial Narrow", sans-serif';
 export const FONT_TEXT = '"Barlow", "Inter", Arial, sans-serif';
 
 const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@500;600;700&display=swap';
 
 let fontsReady: Promise<void> | null = null;
+const extraFonts = new Map<string, Promise<void>>();
+
+/**
+ * Fontes do estilo do tema, além das padrão. Cada família é pedida uma vez
+ * ao Google Fonts e esperada (até 5 s) antes de desenhar.
+ */
+export const ensureStyleFonts = (fonts: FontOption[]): Promise<void> => {
+  const missing = fonts.filter((f) => !extraFonts.has(f.key));
+  missing.forEach((f) => extraFonts.set(f.key, (async () => {
+    if (typeof document === 'undefined') return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = googleFontsHref([f]);
+    document.head.appendChild(link);
+    await new Promise<void>((resolve) => { link.onload = () => resolve(); link.onerror = () => resolve(); setTimeout(resolve, 4000); });
+    try {
+      await Promise.race([
+        Promise.all(f.weights.map((w) => document.fonts.load(`${w} 40px "${f.family}"`))),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    } catch { /* sem internet: desenha com a alternativa da pilha */ }
+  })()));
+  return Promise.all(fonts.map((f) => extraFonts.get(f.key))).then(() => undefined);
+};
 
 export const ensureFonts = (): Promise<void> => {
   if (fontsReady) return fontsReady;

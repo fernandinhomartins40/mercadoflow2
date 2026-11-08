@@ -38,6 +38,12 @@ public final class ArtFormats {
     /** Animações prontas. O navegador tem a mesma lista em features/art-studio/motion.ts. */
     public static final List<String> MOTION_PRESETS = List.of("respirar", "parallax", "entrada", "selo", "zoom", "festa");
 
+    /** Fontes do estilo do tema. O navegador tem a mesma lista em features/art-studio/style.ts (FONTS). */
+    public static final List<String> FONTS = List.of(
+        "anton", "bebas", "archivo-black", "alfa-slab", "passion", "titan", "oswald", "barlow-condensed", "roboto-condensed",
+        "saira-condensed", "archivo-narrow", "fjalla", "teko", "barlow", "montserrat", "poppins", "inter", "rubik",
+        "league-spartan", "fredoka", "lilita", "bangers", "luckiest", "righteous");
+
     /** Formatos que podem sair em vídeo (A4 é só impressão). */
     public static final List<String> VIDEO_FORMATS = List.of("story", "post", "square", "tv");
 

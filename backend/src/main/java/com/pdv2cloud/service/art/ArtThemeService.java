@@ -59,7 +59,7 @@ public class ArtThemeService {
 
     public record Theme(UUID id, String name, String occasion, List<Object> tags, Map<String, Object> palette,
                         String sealUrl, Integer sealWidth, Integer sealHeight, String status, int sortOrder,
-                        Map<String, Object> animation, List<ThemeFormat> formats, LocalDateTime updatedAt) {}
+                        Map<String, Object> animation, Map<String, Object> style, List<ThemeFormat> formats, LocalDateTime updatedAt) {}
 
     @Transactional(readOnly = true)
     public List<Theme> list(boolean onlyPublished) {
@@ -125,6 +125,7 @@ public class ArtThemeService {
         Map<String, Object> palette = body.containsKey("palette") ? palette(body.get("palette"), current.palette()) : current.palette();
         int sort = body.containsKey("sortOrder") ? (int) ArtJson.num(body.get("sortOrder"), current.sortOrder()) : current.sortOrder();
         Map<String, Object> animation = body.containsKey("animation") ? animation(body.get("animation")) : current.animation();
+        Map<String, Object> style = body.containsKey("style") ? style(body.get("style")) : current.style();
         String status = current.status();
         if (body.containsKey("status")) {
             status = String.valueOf(body.get("status")).toUpperCase(Locale.ROOT);
@@ -137,7 +138,8 @@ public class ArtThemeService {
         }
         jdbc.update(
             "update art_themes set name = :name, occasion = :occasion, tags = cast(:tags as jsonb), palette = cast(:palette as jsonb), " +
-            "status = :status, sort_order = :sort, animation = cast(:animation as jsonb), updated_at = now() where id = :id",
+            "status = :status, sort_order = :sort, animation = cast(:animation as jsonb), style = cast(:style as jsonb), " +
+            "updated_at = now() where id = :id",
             new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("name", name == null ? current.name() : name)
@@ -146,7 +148,8 @@ public class ArtThemeService {
                 .addValue("palette", ArtJson.write(palette))
                 .addValue("status", status)
                 .addValue("sort", sort)
-                .addValue("animation", ArtJson.write(animation)));
+                .addValue("animation", ArtJson.write(animation))
+                .addValue("style", ArtJson.write(style)));
         return get(id);
     }
 
@@ -432,7 +435,7 @@ public class ArtThemeService {
 
     private static Theme withFormats(Theme t, List<ThemeFormat> formats) {
         return new Theme(t.id(), t.name(), t.occasion(), t.tags(), t.palette(), t.sealUrl(), t.sealWidth(), t.sealHeight(),
-            t.status(), t.sortOrder(), t.animation(), formats, t.updatedAt());
+            t.status(), t.sortOrder(), t.animation(), t.style(), formats, t.updatedAt());
     }
 
     private static Theme mapTheme(ResultSet rs, List<ThemeFormat> formats) throws SQLException {
@@ -441,7 +444,8 @@ public class ArtThemeService {
             (UUID) rs.getObject("id"), rs.getString("name"), rs.getString("occasion"),
             ArtJson.list(rs.getString("tags")), ArtJson.map(rs.getString("palette")),
             rs.getString("seal_url"), (Integer) rs.getObject("seal_width"), (Integer) rs.getObject("seal_height"),
-            rs.getString("status"), rs.getInt("sort_order"), ArtJson.map(rs.getString("animation")), formats,
+            rs.getString("status"), rs.getInt("sort_order"), ArtJson.map(rs.getString("animation")),
+            ArtJson.map(rs.getString("style")), formats,
             updated == null ? null : updated.toLocalDateTime());
     }
 
@@ -612,6 +616,96 @@ public class ArtThemeService {
             out.add(layer);
         }
         return out;
+    }
+
+    /**
+     * Campos aceitos no estilo do tema e a regra de cada um. Mesmas chaves de
+     * features/art-studio/style.ts. "?" no fim aceita null (= usar o padrão).
+     */
+    private static final Map<String, Map<String, String>> STYLE_SPEC = Map.of(
+        "fonts", Map.of("price", "font", "name", "font", "text", "font"),
+        "tag", Map.of("shape", "enum:rounded|pill|square|burst|ribbon", "tilt", "num:-15:15", "align", "enum:auto|left|center|right",
+            "size", "num:0.5:1", "currency", "bool", "cents", "enum:super|inline", "border", "hex?", "borderWidth", "num:0:0.15",
+            "shadow", "bool"),
+        "card", Map.of("style", "enum:solid|outline|none", "radius", "num:0:0.5", "shadow", "bool", "border", "hex?",
+            "borderWidth", "num:0:0.06", "opacity", "num:0.1:1"),
+        "name", Map.of("case", "enum:upper|title|none", "weight", "int:400:900", "maxLines", "int?:1:5",
+            "align", "enum:auto|left|center", "size", "num:0.6:1.4"),
+        "oldPrice", Map.of("show", "bool"),
+        "footer", Map.of("color", "hex?", "weight", "int:400:900", "size", "num:0.5:1.4", "align", "enum:left|center|right",
+            "case", "enum:upper|title|none", "shadow", "bool", "band", "hex?", "bandOpacity", "num:0.1:1"));
+
+    /** Valida o estilo inteiro: campo fora da regra recusa (com o nome do campo); chave desconhecida é descartada. */
+    static Map<String, Object> style(Object value) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (!(value instanceof Map<?, ?> groups)) {
+            return out;
+        }
+        for (Map.Entry<String, Map<String, String>> group : STYLE_SPEC.entrySet()) {
+            if (!(groups.get(group.getKey()) instanceof Map<?, ?> fields)) {
+                continue;
+            }
+            Map<String, Object> clean = new LinkedHashMap<>();
+            for (Map.Entry<String, String> field : group.getValue().entrySet()) {
+                if (!fields.containsKey(field.getKey())) {
+                    continue;
+                }
+                String where = group.getKey() + "." + field.getKey();
+                clean.put(field.getKey(), styleValue(fields.get(field.getKey()), field.getValue(), where));
+            }
+            if (!clean.isEmpty()) {
+                out.put(group.getKey(), clean);
+            }
+        }
+        return out;
+    }
+
+    private static Object styleValue(Object v, String spec, String where) {
+        boolean nullable = spec.contains("?");
+        String rule = spec.replace("?", "");
+        if (v == null) {
+            if (nullable) {
+                return null;
+            }
+            throw new IllegalArgumentException("Estilo inválido em " + where + ": não pode ficar vazio");
+        }
+        String[] parts = rule.split(":");
+        switch (parts[0]) {
+            case "font" -> {
+                if (!ArtFormats.FONTS.contains(String.valueOf(v))) {
+                    throw new IllegalArgumentException("Fonte desconhecida em " + where + ": use uma de " + String.join(", ", ArtFormats.FONTS));
+                }
+                return String.valueOf(v);
+            }
+            case "bool" -> {
+                if (!(v instanceof Boolean)) {
+                    throw new IllegalArgumentException("Estilo inválido em " + where + ": use true ou false");
+                }
+                return v;
+            }
+            case "hex" -> {
+                if (!HEX.matcher(String.valueOf(v)).matches()) {
+                    throw new IllegalArgumentException("Cor inválida em " + where + ": use #RRGGBB");
+                }
+                return String.valueOf(v).toLowerCase(Locale.ROOT);
+            }
+            case "enum" -> {
+                List<String> options = List.of(parts[1].split("\\|"));
+                if (!options.contains(String.valueOf(v))) {
+                    throw new IllegalArgumentException("Estilo inválido em " + where + ": use " + String.join(", ", options));
+                }
+                return String.valueOf(v);
+            }
+            default -> {
+                double n = ArtJson.num(v, Double.NaN);
+                double min = Double.parseDouble(parts[1]);
+                double max = Double.parseDouble(parts[2]);
+                if (Double.isNaN(n) || n < min || n > max) {
+                    throw new IllegalArgumentException("Estilo inválido em " + where + ": use um número de " + parts[1] + " a " + parts[2]);
+                }
+                return "int".equals(parts[0]) ? (Object) (int) Math.round(n) : (Object) round4(n);
+            }
+        }
     }
 
     static Map<String, Object> animation(Object value) {

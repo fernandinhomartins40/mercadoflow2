@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ArtBrand, ArtTheme, CampaignItem, FormatKey, Palette, Regions, ThemeLayer } from '../../types/art.types';
-import { ensureFonts, loadImage, loadImageWithin } from './assets';
+import type { ArtBrand, ArtTheme, CampaignItem, FormatKey, Palette, Regions, ThemeLayer, ThemeStyle } from '../../types/art.types';
+import { ensureFonts, ensureStyleFonts, loadImage, loadImageWithin } from './assets';
+import { fontsOf, resolveStyle } from './style';
 import { BUILTIN_REGIONS, BUILTIN_THEME_ID, DEFAULT_PALETTE, FORMATS, themeFormat } from './formats';
 import { Scene, SceneLayer, footerLinesFor } from './render';
 import { derivePalette } from './palette';
@@ -20,6 +21,8 @@ export interface SceneInput {
   paletteOverride?: Palette | null;
   /** Camadas ainda não gravadas (criador de temas). */
   layersOverride?: ThemeLayer[] | null;
+  /** Estilo ainda não gravado (criador de temas). */
+  styleOverride?: ThemeStyle | null;
   /** Cores tiradas do fundo (padrão) ou as fixas do tema. */
   colorMode?: 'auto' | 'theme';
   proxy?: (url: string) => Promise<Blob>;
@@ -29,7 +32,10 @@ export interface SceneInput {
 
 /** Monta a cena com as imagens carregadas. Imagem é cacheada: remontar é barato. */
 export const buildScene = async (input: SceneInput): Promise<Scene> => {
+  const style = resolveStyle(input.styleOverride ?? input.theme?.style);
   await ensureFonts();
+  // As três padrão já vêm em ensureFonts; as outras do estilo, sob demanda.
+  await ensureStyleFonts(fontsOf(style).filter((f) => !['anton', 'barlow-condensed', 'barlow'].includes(f.key)));
   const { theme, format } = input;
   const builtin = !theme || theme.id === BUILTIN_THEME_ID;
   const tf = builtin ? null : themeFormat(theme, format);
@@ -64,6 +70,7 @@ export const buildScene = async (input: SceneInput): Promise<Scene> => {
     items: input.items.map((item, i) => ({ ...item, image: images[i] })),
     selectedKey: input.selectedKey ?? null,
     layers,
+    style,
   };
 };
 

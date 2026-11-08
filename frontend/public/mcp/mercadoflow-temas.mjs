@@ -28,6 +28,10 @@ const FORMATS = {
   tv: { label: 'TV da loja', width: 1920, height: 1080 },
 };
 const PRESETS = ['respirar', 'parallax', 'entrada', 'selo', 'zoom', 'festa'];
+// Mesma lista de features/art-studio/style.ts e ArtFormats.FONTS.
+const FONT_KEYS = ['anton', 'bebas', 'archivo-black', 'alfa-slab', 'passion', 'titan', 'oswald', 'barlow-condensed', 'roboto-condensed',
+  'saira-condensed', 'archivo-narrow', 'fjalla', 'teko', 'barlow', 'montserrat', 'poppins', 'inter', 'rubik', 'league-spartan',
+  'fredoka', 'lilita', 'bangers', 'luckiest', 'righteous'];
 const AREA_KEYS = { logo: 'logo', produtos: 'products', rodape: 'footer', selo: 'seal' };
 const COLOR_KEYS = { etiqueta: 'tag', numero: 'tagText', cartao: 'card', nome: 'cardText', faixa: 'accent' };
 
@@ -52,7 +56,8 @@ FLUXO
    c. corrija com ajustar_elemento (cx, cy, largura, rotacao, opacidade, ordem) e definir_areas (só a área que muda),
       sem reenviar arquivos. Cada design pede áreas próprias: mova e dimensione logo, selo, produtos e rodapé para o desenho.
    d. por último, baixar_previa com com_guias=false para ver como fica de verdade.
-6. atualizar_tema com as cores da etiqueta (combinando com a identidade) e as animações.
+6. atualizar_tema com as cores da etiqueta, o ESTILO (fontes, etiqueta, cartão, nome, rodapé) e as animações,
+   tudo combinando com a identidade do fundo.
 7. Avise o usuário para conferir e publicar na página de temas. A API não publica.
 
 ÁREAS (retângulos x, y, w, h de 0 a 1 sobre a arte)
@@ -67,7 +72,22 @@ ANIMAÇÕES (o tema oferece, o mercado escolhe): ${PRESETS.join(', ')}.
 A base fica parada; enfeites animam (passe parado: true para travar um enfeite).
 
 CORES DA ETIQUETA (#RRGGBB): etiqueta (fundo do preço), numero (número do preço, contraste alto),
-cartao (fundo do cartão, quase branco), nome (nome do produto, escuro), faixa (destaque "leve 3 pague 2").`;
+cartao (fundo do cartão, quase branco), nome (nome do produto, escuro), faixa (destaque "leve 3 pague 2").
+
+ESTILO (atualizar_tema → estilo; mande só o que muda, o resto segue o padrão):
+- fonts: { price, name, text } — fontes: ${FONT_KEYS.join(', ')}.
+  Preço pede fonte de impacto (anton, bebas, archivo-black, passion, titan...); nome, condensada; rodapé, de texto.
+- tag (etiqueta de preço): shape rounded|pill|square|burst (explosão)|ribbon (faixa); tilt -15 a 15 (graus);
+  align auto|left|center|right; size 0.5 a 1; currency (mostra R$) true/false; cents super|inline;
+  border #RRGGBB ou null; borderWidth 0 a 0.15; shadow true/false.
+- card (cartão do produto): style solid|outline|none; radius 0 a 0.5; shadow; border #RRGGBB ou null; borderWidth 0 a 0.06; opacity 0.1 a 1.
+- name (nome do produto): case upper|title|none; weight 400 a 900; maxLines 1 a 5 ou null (automático);
+  align auto|left|center; size 0.6 a 1.4.
+- oldPrice: { show } — mostra o "De R$..." riscado.
+- footer (rodapé): color #RRGGBB ou null (automática); band #RRGGBB ou null (faixa atrás do texto); bandOpacity 0.1 a 1;
+  weight 400 a 900; size 0.5 a 1.4; align left|center|right; case upper|title|none; shadow true/false.
+Combine o estilo com a identidade do fundo (ex.: Black Friday: fundo escuro, etiqueta burst amarela, cartão outline;
+hortifrúti: cantos bem arredondados, fonte divertida). O superadmin vê o resultado com produtos na prévia da página do tema.`;
 
 // ── API ──────────────────────────────────────────────────────────────────
 
@@ -108,7 +128,7 @@ const toRegions = (areas) => {
 
 const summary = (t) => ({
   id: t.id, nome: t.name, ocasiao: t.occasion, situacao: t.status === 'PUBLISHED' ? 'publicado' : 'rascunho',
-  selo: !!t.sealUrl, cores: t.palette, animacao: t.animation,
+  selo: !!t.sealUrl, cores: t.palette, animacao: t.animation, estilo: t.style || {},
   formatos: (t.formats || []).map((f) => ({
     formato: f.format, camadas: (f.layers || []).length, areas: Object.keys(f.regions || {}),
     pronto: !!f.regions?.products, previa: f.backgroundUrl ? BASE + f.backgroundUrl : null,
@@ -329,6 +349,14 @@ const TOOLS = {
         tags: { type: 'array', items: { type: 'string' } },
         cores: { type: 'object', properties: { etiqueta: { type: 'string' }, numero: { type: 'string' }, cartao: { type: 'string' }, nome: { type: 'string' }, faixa: { type: 'string' } } },
         animacoes: { type: 'object', properties: { lista: { type: 'array', items: { type: 'string', enum: PRESETS } }, padrao: { type: 'string', enum: PRESETS }, duracao: { type: 'number', description: '4 a 15 segundos.' } } },
+        estilo: {
+          type: 'object',
+          description: 'Fontes, etiqueta de preço, cartão, nome e rodapé. Veja a seção ESTILO do guia_de_criacao. Mescla com o estilo atual (null num campo volta ao padrão).',
+          properties: {
+            fonts: { type: 'object', properties: { price: { type: 'string', enum: FONT_KEYS }, name: { type: 'string', enum: FONT_KEYS }, text: { type: 'string', enum: FONT_KEYS } } },
+            tag: { type: 'object' }, card: { type: 'object' }, name: { type: 'object' }, oldPrice: { type: 'object' }, footer: { type: 'object' },
+          },
+        },
       },
       required: ['tema_id'],
     },
@@ -342,6 +370,19 @@ const TOOLS = {
         for (const [pt, key] of Object.entries(COLOR_KEYS)) if (a.cores[pt]) body.palette[key] = a.cores[pt];
       }
       if (a.animacoes) body.animation = { presets: a.animacoes.lista ?? [], defaultPreset: a.animacoes.padrao, duration: a.animacoes.duracao ?? 8 };
+      if (a.estilo) {
+        // Mescla por grupo com o estilo atual: a IA pode mandar só a etiqueta, por exemplo.
+        const current = (await call('GET', `/themes/${a.tema_id}`)).style || {};
+        body.style = { ...current };
+        // null em border/color/band/maxLines é um valor ("sem"/"automático"); nos outros campos, volta ao padrão.
+        const NULLABLE = ['border', 'color', 'band', 'maxLines'];
+        for (const [group, fields] of Object.entries(a.estilo)) {
+          if (!fields || typeof fields !== 'object') continue;
+          const merged = { ...(current[group] || {}), ...fields };
+          for (const [k, v] of Object.entries(merged)) if (v === null && !NULLABLE.includes(k)) delete merged[k];
+          body.style[group] = merged;
+        }
+      }
       return summary(await call('PATCH', `/themes/${a.tema_id}`, body));
     },
   },

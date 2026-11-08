@@ -1,5 +1,6 @@
 import type { CampaignItem, MotionPreset, Palette, Regions, ThemeLayer } from '../../types/art.types';
-import { FONT_NAME, FONT_PRICE, FONT_TEXT, regionLuminance } from './assets';
+import { regionLuminance } from './assets';
+import { DEFAULT_STYLE, ResolvedStyle, TagShape, applyCase, fontStack, nearestWeight } from './style';
 import { Rect, WIDE_CARD, contain, inset, layoutProducts, toPx } from './layout';
 import { MotionTarget, Pose, poseAt } from './motion';
 
@@ -36,6 +37,8 @@ export interface Scene {
   layers?: SceneLayer[];
   /** Instante da animação. Ausente: arte estática. */
   motion?: SceneMotion | null;
+  /** Fontes, etiqueta, cartão, nome e rodapé do tema. Ausente: o visual padrão. */
+  style?: ResolvedStyle;
 }
 
 export interface SceneLayer extends ThemeLayer { image: HTMLImageElement }
@@ -151,26 +154,68 @@ const unitLabel = (unit: string) => (unit === 'un' ? 'cada' : unit === 'kg' ? 'o
  * unidade embaixo dos centavos. Inclinada 3° — é o que dá cara de encarte.
  * Encaixa à direita da caixa e devolve o retângulo ocupado.
  */
-const drawPriceTag = (ctx: CanvasRenderingContext2D, box: Rect, item: CampaignItem, p: Palette, align: 'right' | 'center') => {
+/** Contorno da etiqueta no formato escolhido. */
+const tagPath = (ctx: CanvasRenderingContext2D, tag: Rect, shape: TagShape) => {
+  const H = tag.h;
+  if (shape === 'burst') {
+    // Explosão de encarte: estrela de muitas pontas em volta da elipse da etiqueta.
+    const cx = tag.x + tag.w / 2;
+    const cy = tag.y + tag.h / 2;
+    const n = 18;
+    ctx.beginPath();
+    for (let i = 0; i < n * 2; i++) {
+      const a = (i * Math.PI) / n - Math.PI / 2;
+      const k = i % 2 === 0 ? 0.56 : 0.47;
+      const x = cx + Math.cos(a) * tag.w * k * 1.04;
+      const y = cy + Math.sin(a) * tag.h * k * 1.18;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    return;
+  }
+  if (shape === 'ribbon') {
+    // Faixa com recorte em "V" na esquerda.
+    const notch = H * 0.32;
+    ctx.beginPath();
+    ctx.moveTo(tag.x, tag.y);
+    ctx.lineTo(tag.x + tag.w, tag.y);
+    ctx.lineTo(tag.x + tag.w, tag.y + H);
+    ctx.lineTo(tag.x, tag.y + H);
+    ctx.lineTo(tag.x + notch, tag.y + H / 2);
+    ctx.closePath();
+    return;
+  }
+  roundRect(ctx, tag, shape === 'pill' ? H / 2 : shape === 'square' ? 0 : H * 0.16);
+};
+
+const drawPriceTag = (ctx: CanvasRenderingContext2D, area: Rect, item: CampaignItem, p: Palette, autoAlign: 'right' | 'center', st: ResolvedStyle) => {
   if (item.price == null || !Number.isFinite(item.price)) return;
+  const t = st.tag;
+  const FP = fontStack(st.fonts.price);
+  const FN = fontStack(st.fonts.name);
+  const align = t.align === 'auto' ? autoAlign : t.align;
+  // Tamanho: a etiqueta encolhe dentro da faixa reservada, presa embaixo.
+  const H = area.h * Math.max(0.5, Math.min(1, t.size));
+  const box: Rect = { x: area.x, y: area.y + area.h - H, w: area.w, h: H };
   const { int, cents } = priceParts(item.price);
   const unit = unitLabel(item.unit || 'un');
-  const H = box.h;
-  let S = H * 0.78;
+  const inline = t.cents === 'inline';
+  let S = H * (t.shape === 'burst' ? 0.6 : 0.78);
   const measure = (s: number) => {
-    ctx.font = font(400, s * 0.3, FONT_PRICE);
-    const wr = ctx.measureText('R$').width;
-    ctx.font = font(400, s, FONT_PRICE);
+    ctx.font = font(400, s * 0.3, FP);
+    const wr = t.currency ? ctx.measureText('R$').width : 0;
+    ctx.font = font(400, s, FP);
     const wi = ctx.measureText(int).width;
-    ctx.font = font(400, s * 0.42, FONT_PRICE);
+    ctx.font = font(400, s * (inline ? 0.6 : 0.42), FP);
     const wc = ctx.measureText(`,${cents}`).width;
-    ctx.font = font(700, s * 0.17, FONT_NAME);
+    ctx.font = font(700, s * 0.17, FN);
     const wu = ctx.measureText(unit).width;
     const gap = s * 0.05;
-    return { wr, wi, wc: Math.max(wc, wu), gap, total: wr + gap + wi + gap + Math.max(wc, wu) };
+    const tail = inline ? wc + gap + wu : Math.max(wc, wu);
+    return { wr, wi, wc, gap, total: (t.currency ? wr + gap : 0) + wi + gap + tail };
   };
   let m = measure(S);
-  const padX = H * 0.16;
+  const padX = H * (t.shape === 'burst' ? 0.3 : t.shape === 'ribbon' ? 0.36 : 0.16);
   const maxInner = box.w - padX * 2;
   if (m.total > maxInner) {
     S *= maxInner / m.total;
@@ -178,7 +223,7 @@ const drawPriceTag = (ctx: CanvasRenderingContext2D, box: Rect, item: CampaignIt
   }
   const tagW = Math.min(box.w, m.total + padX * 2);
   const tag: Rect = {
-    x: align === 'right' ? box.x + box.w - tagW : box.x + (box.w - tagW) / 2,
+    x: align === 'right' ? box.x + box.w - tagW : align === 'left' ? box.x : box.x + (box.w - tagW) / 2,
     y: box.y, w: tagW, h: H,
   };
 
@@ -186,41 +231,62 @@ const drawPriceTag = (ctx: CanvasRenderingContext2D, box: Rect, item: CampaignIt
   const cx = tag.x + tag.w / 2;
   const cy = tag.y + tag.h / 2;
   ctx.translate(cx, cy);
-  ctx.rotate((-3 * Math.PI) / 180);
+  if (t.tilt) ctx.rotate((t.tilt * Math.PI) / 180);
   ctx.translate(-cx, -cy);
-  ctx.shadowColor = 'rgba(0,0,0,0.22)';
-  ctx.shadowBlur = H * 0.12;
-  ctx.shadowOffsetY = H * 0.04;
+  if (t.shadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.22)';
+    ctx.shadowBlur = H * 0.12;
+    ctx.shadowOffsetY = H * 0.04;
+  }
   ctx.fillStyle = p.tag;
-  roundRect(ctx, tag, H * 0.16);
+  tagPath(ctx, tag, t.shape);
   ctx.fill();
   ctx.shadowColor = 'transparent';
+  if (t.border) {
+    ctx.strokeStyle = t.border;
+    ctx.lineWidth = Math.max(1, H * t.borderWidth);
+    ctx.stroke();
+  }
 
-  // Linha de base: o número grande ocupa ~72% da etiqueta (Anton tem caixa-alta alta).
+  // Linha de base: o número grande ocupa ~72% da etiqueta (fontes de impacto têm caixa-alta alta).
   const baseline = tag.y + tag.h * 0.5 + S * 0.36;
-  let x = tag.x + (tag.w - m.total) / 2;
+  // Faixa com recorte: o texto fica no miolo, longe do "V".
+  let x = tag.x + (tag.w - m.total) / 2 + (t.shape === 'ribbon' ? H * 0.08 : 0);
   ctx.fillStyle = p.tagText;
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
-  ctx.font = font(400, S * 0.3, FONT_PRICE);
-  ctx.fillText('R$', x, baseline - S * 0.42);
-  x += m.wr + m.gap;
-  ctx.font = font(400, S, FONT_PRICE);
+  if (t.currency) {
+    ctx.font = font(400, S * 0.3, FP);
+    ctx.fillText('R$', x, baseline - S * 0.42);
+    x += m.wr + m.gap;
+  }
+  ctx.font = font(400, S, FP);
   ctx.fillText(int, x, baseline);
   x += m.wi + m.gap;
-  ctx.font = font(400, S * 0.42, FONT_PRICE);
-  ctx.fillText(`,${cents}`, x, baseline - S * 0.3);
-  ctx.font = font(700, S * 0.17, FONT_NAME);
-  ctx.globalAlpha = 0.92;
-  ctx.fillText(unit, x + S * 0.02, baseline);
+  if (inline) {
+    ctx.font = font(400, S * 0.6, FP);
+    ctx.fillText(`,${cents}`, x, baseline);
+    x += m.wc + m.gap;
+    ctx.font = font(700, S * 0.17, FN);
+    ctx.globalAlpha = 0.92;
+    ctx.fillText(unit, x, baseline);
+  } else {
+    ctx.font = font(400, S * 0.42, FP);
+    ctx.fillText(`,${cents}`, x, baseline - S * 0.3);
+    ctx.font = font(700, S * 0.17, FN);
+    ctx.globalAlpha = 0.92;
+    ctx.fillText(unit, x + S * 0.02, baseline);
+  }
   ctx.restore();
 };
 
-const drawOldPrice = (ctx: CanvasRenderingContext2D, box: Rect, value: number, color: string) => {
+const drawOldPrice = (ctx: CanvasRenderingContext2D, box: Rect, value: number, color: string, st: ResolvedStyle) => {
+  if (!st.oldPrice.show) return;
+  const FN = fontStack(st.fonts.name);
   const text = `De ${formatPrice(value)}`;
-  const size = fitLine(ctx, text, box.w, 600, FONT_NAME, box.h);
+  const size = fitLine(ctx, text, box.w, 600, FN, box.h);
   ctx.save();
-  ctx.font = font(600, size, FONT_NAME);
+  ctx.font = font(600, size, FN);
   ctx.fillStyle = color;
   ctx.globalAlpha = 0.7;
   ctx.textBaseline = 'middle';
@@ -239,19 +305,37 @@ const drawOldPrice = (ctx: CanvasRenderingContext2D, box: Rect, value: number, c
 
 // ── Cartão do produto ────────────────────────────────────────────────────
 
-const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Palette, selected: boolean) => {
+const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Palette, selected: boolean, st: ResolvedStyle) => {
   const short = Math.min(r.w, r.h);
   const pad = short * 0.06;
-  const radius = short * 0.07;
+  const c = st.card;
+  const radius = short * c.radius;
+  const FN = fontStack(st.fonts.name);
 
-  ctx.save();
-  ctx.shadowColor = 'rgba(15, 23, 42, 0.18)';
-  ctx.shadowBlur = short * 0.05;
-  ctx.shadowOffsetY = short * 0.018;
-  ctx.fillStyle = p.card;
-  roundRect(ctx, r, radius);
-  ctx.fill();
-  ctx.restore();
+  if (c.style !== 'none') {
+    ctx.save();
+    roundRect(ctx, r, radius);
+    if (c.style === 'solid') {
+      if (c.shadow) {
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.18)';
+        ctx.shadowBlur = short * 0.05;
+        ctx.shadowOffsetY = short * 0.018;
+      }
+      ctx.globalAlpha = Math.max(0.1, Math.min(1, c.opacity));
+      ctx.fillStyle = p.card;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.shadowColor = 'transparent';
+    }
+    // Contorno: borda escolhida, ou a cor do cartão quando o estilo é só contorno.
+    const stroke = c.border ?? (c.style === 'outline' ? p.card : null);
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = Math.max(1, short * (c.style === 'outline' ? Math.max(c.borderWidth, 0.012) : c.borderWidth));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   let top = r.y + pad;
   if (item.deal) {
@@ -263,8 +347,8 @@ const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Pa
     ctx.fillStyle = p.accent;
     ctx.fillRect(r.x, r.y, r.w, bandH);
     const text = item.deal.toUpperCase();
-    const size = fitLine(ctx, text, r.w - pad * 2, 800, FONT_NAME, bandH * 0.72);
-    ctx.font = font(800, size, FONT_NAME);
+    const size = fitLine(ctx, text, r.w - pad * 2, 800, FN, bandH * 0.72);
+    ctx.font = font(nearestWeight(st.fonts.name, 800), size, FN);
     ctx.fillStyle = luminance(p.accent) > 0.55 ? '#1c1917' : '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -274,7 +358,7 @@ const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Pa
   }
 
   const wide = r.w / r.h > WIDE_CARD;
-  const name = (item.name || '').toUpperCase();
+  const name = applyCase(item.name || '', st.name.case);
   const detail = item.detail?.trim() ?? '';
   const hasImage = !!item.image;
   const hasOld = item.oldPrice != null && item.price != null && item.oldPrice > item.price;
@@ -289,21 +373,21 @@ const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Pa
       const priceH = right.h * 0.42;
       const oldH = hasOld ? right.h * 0.12 : 0;
       const detailH = detail ? right.h * 0.12 : 0;
-      drawName(ctx, name, detail, { x: right.x, y: right.y, w: right.w, h: right.h - priceH - oldH - detailH - pad * 0.4 }, p, detailH, 3);
-      if (hasOld) drawOldPrice(ctx, { x: right.x, y: right.y + right.h - priceH - oldH, w: right.w, h: oldH }, item.oldPrice!, p.cardText);
-      drawPriceTag(ctx, { x: right.x, y: right.y + right.h - priceH, w: right.w, h: priceH }, item, p, 'right');
+      drawName(ctx, name, detail, { x: right.x, y: right.y, w: right.w, h: right.h - priceH - oldH - detailH - pad * 0.4 }, p, st, detailH, 3);
+      if (hasOld) drawOldPrice(ctx, { x: right.x, y: right.y + right.h - priceH - oldH, w: right.w, h: oldH }, item.oldPrice!, p.cardText, st);
+      drawPriceTag(ctx, { x: right.x, y: right.y + right.h - priceH, w: right.w, h: priceH }, item, p, 'right', st);
     } else {
       // Sem foto: nome grande à esquerda, etiqueta grande à direita.
       const nameW = col.w * 0.54;
       const detailH = detail ? col.h * 0.14 : 0;
       const nameBox: Rect = { x: col.x, y: col.y + col.h * 0.08, w: nameW, h: col.h * 0.84 - detailH };
-      drawName(ctx, name, detail, nameBox, p, detailH, 3, 'left', true);
+      drawName(ctx, name, detail, nameBox, p, st, detailH, 3, 'left', true);
       const right: Rect = { x: col.x + nameW + pad, y: col.y, w: col.w - nameW - pad, h: col.h };
       const priceH = Math.min(right.h * 0.56, right.w * 0.5);
       const oldH = hasOld ? right.h * 0.14 : 0;
       const priceY = right.y + (right.h - priceH + oldH) / 2;
-      if (hasOld) drawOldPrice(ctx, { x: right.x + right.w * 0.12, y: priceY - oldH - pad * 0.2, w: right.w * 0.88, h: oldH }, item.oldPrice!, p.cardText);
-      drawPriceTag(ctx, { x: right.x, y: priceY, w: right.w, h: priceH }, item, p, 'center');
+      if (hasOld) drawOldPrice(ctx, { x: right.x + right.w * 0.12, y: priceY - oldH - pad * 0.2, w: right.w * 0.88, h: oldH }, item.oldPrice!, p.cardText, st);
+      drawPriceTag(ctx, { x: right.x, y: priceY, w: right.w, h: priceH }, item, p, 'center', st);
     }
   } else {
     const inner: Rect = { x: r.x + pad, y: top, w: r.w - pad * 2, h: r.y + r.h - pad - top };
@@ -314,15 +398,15 @@ const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Pa
       const nameH = inner.h * 0.17;
       const imgH = inner.h - priceH - oldH - nameH - detailH - pad * 0.6;
       if (imgH > 4) drawContain(ctx, item.image!, { x: inner.x, y: inner.y, w: inner.w, h: imgH });
-      drawName(ctx, name, detail, { x: inner.x, y: inner.y + imgH + pad * 0.3, w: inner.w, h: nameH }, p, detailH, 2, 'center');
+      drawName(ctx, name, detail, { x: inner.x, y: inner.y + imgH + pad * 0.3, w: inner.w, h: nameH }, p, st, detailH, 2, 'center');
     } else {
       // Sem foto, o nome ocupa o alto do cartão, centrado no espaço livre.
       const free = inner.h - priceH - oldH - pad * 0.5;
-      drawName(ctx, name, detail, { x: inner.x, y: inner.y, w: inner.w, h: free - detailH }, p, detailH, 4, 'center', true);
+      drawName(ctx, name, detail, { x: inner.x, y: inner.y, w: inner.w, h: free - detailH }, p, st, detailH, 4, 'center', true);
     }
     const priceTop = inner.y + inner.h - priceH;
-    if (hasOld) drawOldPrice(ctx, { x: inner.x, y: priceTop - oldH, w: inner.w * 0.7, h: oldH }, item.oldPrice!, p.cardText);
-    drawPriceTag(ctx, { x: inner.x, y: priceTop, w: inner.w, h: priceH }, item, p, hasImage ? 'right' : 'center');
+    if (hasOld) drawOldPrice(ctx, { x: inner.x, y: priceTop - oldH, w: inner.w * 0.7, h: oldH }, item.oldPrice!, p.cardText, st);
+    drawPriceTag(ctx, { x: inner.x, y: priceTop, w: inner.w, h: priceH }, item, p, hasImage ? 'right' : 'center', st);
   }
 
   if (selected) {
@@ -337,16 +421,20 @@ const drawCard = (ctx: CanvasRenderingContext2D, r: Rect, item: SceneItem, p: Pa
 };
 
 const drawName = (
-  ctx: CanvasRenderingContext2D, name: string, detail: string, box: Rect, p: Palette, detailH: number,
-  maxLines: number, align: 'left' | 'center' = 'left', centerVertical = false,
+  ctx: CanvasRenderingContext2D, name: string, detail: string, box: Rect, p: Palette, st: ResolvedStyle, detailH: number,
+  autoLines: number, autoAlign: 'left' | 'center' = 'left', centerVertical = false,
 ) => {
   if (box.h <= 2 || box.w <= 2) return;
-  const fit = fitWrapped(ctx, name, box, 700, FONT_NAME, maxLines, box.h * 0.62, Math.max(6, box.h * 0.16), 1.0);
+  const FN = fontStack(st.fonts.name);
+  const weight = nearestWeight(st.fonts.name, st.name.weight);
+  const align = st.name.align === 'auto' ? autoAlign : st.name.align;
+  const maxLines = st.name.maxLines ?? autoLines;
+  const fit = fitWrapped(ctx, name, box, weight, FN, maxLines, box.h * 0.62 * st.name.size, Math.max(6, box.h * 0.16), 1.0);
   ctx.save();
   ctx.fillStyle = p.cardText;
   ctx.textBaseline = 'top';
   ctx.textAlign = align;
-  ctx.font = font(700, fit.size, FONT_NAME);
+  ctx.font = font(weight, fit.size, FN);
   const x = align === 'center' ? box.x + box.w / 2 : box.x;
   const used = fit.lines.length * fit.size;
   // Nome colado embaixo da foto (centro) ou no alto da coluna (horizontal).
@@ -356,8 +444,8 @@ const drawName = (
     y += fit.size;
   }
   if (detail && detailH > 2) {
-    const size = fitLine(ctx, detail, box.w, 500, FONT_NAME, detailH * 0.85);
-    ctx.font = font(500, size, FONT_NAME);
+    const size = fitLine(ctx, detail, box.w, 500, FN, detailH * 0.85);
+    ctx.font = font(nearestWeight(st.fonts.name, 500), size, FN);
     ctx.globalAlpha = 0.72;
     ctx.fillText(detail, x, y + size * 0.12);
   }
@@ -398,12 +486,13 @@ const drawBuiltinBackground = (ctx: CanvasRenderingContext2D, s: Scene) => {
     const logo = s.regions.logo ? toPx(s.regions.logo, W, H) : null;
     const left = logo ? logo.x + logo.w + W * 0.03 : W * 0.05;
     const box: Rect = { x: left, y: bandH * 0.12, w: W - left - W * 0.05, h: bandH * 0.62 };
-    const fit = fitWrapped(ctx, s.headline.toUpperCase(), box, 400, FONT_PRICE, 2, box.h, box.h * 0.2, 1.02);
+    const FP = fontStack((s.style ?? DEFAULT_STYLE).fonts.price);
+    const fit = fitWrapped(ctx, s.headline.toUpperCase(), box, 400, FP, 2, box.h, box.h * 0.2, 1.02);
     ctx.save();
     ctx.fillStyle = p.tagText;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = font(400, fit.size, FONT_PRICE);
+    ctx.font = font(400, fit.size, FP);
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = fit.size * 0.08;
     ctx.shadowOffsetY = fit.size * 0.04;
@@ -482,6 +571,7 @@ export const drawLayers = (ctx: CanvasRenderingContext2D, layers: SceneLayer[], 
 
 export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResult => {
   const { width: W, height: H } = s;
+  const st = s.style ?? DEFAULT_STYLE;
   const unit = Math.min(W, H);
   const center = (r: Rect) => ({ cx: (r.x + r.w / 2) / W, cy: (r.y + r.h / 2) / H });
   ctx.save();
@@ -509,12 +599,14 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
       if (logo) {
         drawContain(ctx, logo, inset(box, Math.min(box.w, box.h) * 0.04));
       } else if (s.brandName) {
-        const fit = fitWrapped(ctx, s.brandName.toUpperCase(), inset(box, box.h * 0.08), 800, FONT_NAME, 2, box.h * 0.6, box.h * 0.15, 1);
+        const FN = fontStack(st.fonts.name);
+        const weight = nearestWeight(st.fonts.name, 800);
+        const fit = fitWrapped(ctx, s.brandName.toUpperCase(), inset(box, box.h * 0.08), weight, FN, 2, box.h * 0.6, box.h * 0.15, 1);
         ctx.save();
         ctx.fillStyle = inkFor(s, 'logo');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.font = font(800, fit.size, FONT_NAME);
+        ctx.font = font(weight, fit.size, FN);
         const total = fit.lines.length * fit.size;
         let y = box.y + (box.h - total) / 2;
         for (const line of fit.lines) {
@@ -552,7 +644,7 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
       if (!r) return;
       const target: MotionTarget = { kind: 'card', index: i, count: ordered.length, hero: !!item.hero, ...center(r) };
       withPose(ctx, poseOf(s, target), unit, r.x + r.w / 2, r.y + r.h / 2,
-        () => drawCard(ctx, r, item, s.palette, s.selectedKey === item.key));
+        () => drawCard(ctx, r, item, s.palette, s.selectedKey === item.key, st));
       cards.push({ key: item.key, rect: r });
     });
   }
@@ -561,6 +653,8 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
     const box = inset(toPx(s.regions.footer, W, H), 0);
     const lines = s.footerLines.filter(Boolean).slice(0, 3);
     const lineH = box.h / lines.length;
+    const f = st.footer;
+    const FT = fontStack(st.fonts.text);
     ctx.save();
     const fp = poseOf(s, { kind: 'footer', index: 0, count: 1, ...center(box) });
     if (fp) {
@@ -568,20 +662,34 @@ export const renderScene = (ctx: CanvasRenderingContext2D, s: Scene): RenderResu
       ctx.globalAlpha *= fp.alpha;
       ctx.translate(fp.dx * unit, fp.dy * unit);
     }
-    const ink = inkFor(s, 'footer');
+    if (f.band) {
+      // Faixa atrás do texto, de borda a borda da área.
+      ctx.save();
+      ctx.globalAlpha *= Math.max(0.1, Math.min(1, f.bandOpacity));
+      ctx.fillStyle = f.band;
+      roundRect(ctx, inset(box, -box.h * 0.08), box.h * 0.12);
+      ctx.fill();
+      ctx.restore();
+    }
+    const ink = f.color ?? (f.band ? (luminance(f.band) > 0.55 ? '#1c1917' : '#ffffff') : inkFor(s, 'footer'));
     ctx.fillStyle = ink;
-    // Fundo de designer muda de cor dentro do rodapé (faixas, ondas): uma
-    // sombra no tom oposto mantém o texto legível sobre qualquer trecho.
-    ctx.shadowColor = ink === '#ffffff' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
-    ctx.shadowBlur = Math.max(2, box.h * 0.06);
-    ctx.shadowOffsetY = Math.max(1, box.h * 0.012);
-    ctx.textAlign = 'center';
+    if (f.shadow && !f.band) {
+      // Fundo de designer muda de cor dentro do rodapé (faixas, ondas): uma
+      // sombra no tom oposto mantém o texto legível sobre qualquer trecho.
+      ctx.shadowColor = luminance(ink) > 0.55 ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
+      ctx.shadowBlur = Math.max(2, box.h * 0.06);
+      ctx.shadowOffsetY = Math.max(1, box.h * 0.012);
+    }
+    ctx.textAlign = f.align;
     ctx.textBaseline = 'middle';
-    lines.forEach((line, i) => {
-      const weight = i === 0 ? 700 : 500;
-      const size = fitLine(ctx, line, box.w, weight, FONT_TEXT, lineH * 0.62);
-      ctx.font = font(weight, size, FONT_TEXT);
-      ctx.fillText(line, box.x + box.w / 2, box.y + lineH * (i + 0.5));
+    const x = f.align === 'left' ? box.x : f.align === 'right' ? box.x + box.w : box.x + box.w / 2;
+    lines.forEach((raw, i) => {
+      const line = applyCase(raw, f.case);
+      // Primeira linha (nome e endereço) mais forte que as outras.
+      const weight = nearestWeight(st.fonts.text, i === 0 ? f.weight : Math.max(400, f.weight - 200));
+      const size = fitLine(ctx, line, box.w, weight, FT, lineH * 0.62 * f.size);
+      ctx.font = font(weight, size, FT);
+      ctx.fillText(line, x, box.y + lineH * (i + 0.5));
     });
     ctx.restore();
   }
