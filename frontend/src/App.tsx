@@ -33,6 +33,7 @@ const ShoppingListPage = lazy(() => import('./screens/ShoppingList'));
 const OfferDesigner = lazy(() => import('./screens/OfferDesigner'));
 const ArtStudio = lazy(() => import('./screens/ArtStudio'));
 const PublicEncarte = lazy(() => import('./screens/PublicEncarte'));
+const ThemePreview = lazy(() => import('./screens/ThemePreview'));
 const SuperAdminArtThemes = lazy(() => import('./screens/SuperAdminArtThemes'));
 const ConfereApp = lazy(() => import('./screens/ConfereApp'));
 const SuperAdminConfere = lazy(() => import('./screens/SuperAdminConfere'));
@@ -208,6 +209,7 @@ const App: React.FC = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/encarte/:slug" element={<PublicEncarte />} />
+        <Route path="/temas/previa/:id" element={<ThemePreview />} />
         <Route path="/confere/*" element={<ConfereApp />} />
         {/* Contrato de operador (DPA): página leve, fora do CSS do painel. */}
         <Route path="/contrato-operador" element={<ContratoOperador />} />

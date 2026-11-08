@@ -14,7 +14,7 @@ import StyleEditor from '../features/art-studio/StyleEditor';
 import { Uploaded, findManifest, layersFromFiles, layersFromManifest, measure } from '../features/art-studio/layerImport';
 import { DEFAULT_DURATION, MOTION_KEYS, MOTION_PRESETS } from '../features/art-studio/motion';
 import { compositeBlob } from '../features/art-studio/export';
-import { DEFAULT_PALETTE, FORMATS, FORMAT_KEYS, REGION_META, SAMPLE_ITEMS, themeFormat } from '../features/art-studio/formats';
+import { DEFAULT_PALETTE, FORMATS, FORMAT_KEYS, REGION_META, sampleItems, themeFormat } from '../features/art-studio/formats';
 import { Candidate, analyzeBackground, annotatedImage, regionsFromAssignment } from '../features/art-studio/analyze';
 import { loadImage } from '../features/art-studio/assets';
 import { compositionPalette, derivePalette } from '../features/art-studio/palette';
@@ -393,6 +393,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
   const [name, setName] = useState('');
   const [count, setCount] = useState(8);
   const [hero, setHero] = useState(true);
+  const [photos, setPhotos] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
   const [mode, setMode] = useState<'layers' | 'regions'>('layers');
   /** Camadas mexidas e ainda não salvas do formato aberto. */
@@ -774,7 +775,7 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
     queuePatch({ palette: next }, 600);
   };
 
-  const items = useMemo(() => SAMPLE_ITEMS.slice(0, count).map((it, i) => ({ ...it, hero: hero && i === 0 })), [count, hero]);
+  const items = useMemo(() => sampleItems(count, hero, photos), [count, hero, photos]);
   const previewTheme = useMemo(() => (theme ? { ...theme, palette, style } : null), [theme, palette, style]);
   const changeStyle = (next: ThemeStyle) => {
     setStyle(next);
@@ -984,10 +985,16 @@ const ThemeEditor: React.FC<{ id: string; aiReady: boolean; occasions: string[] 
         <section className={`${CARD} flex flex-col gap-3 xl:sticky xl:top-20 xl:self-start`} aria-labelledby="preview-title">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="preview-title" className="text-base font-semibold text-slate-900">Como fica no encarte</h2>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" checked={hero} onChange={(e) => setHero(e.target.checked)} className="h-4 w-4 accent-green-600" />
-              Com destaque
-            </label>
+            <span className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} className="h-4 w-4 accent-green-600" />
+                Com fotos
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={hero} onChange={(e) => setHero(e.target.checked)} className="h-4 w-4 accent-green-600" />
+                Com destaque
+              </label>
+            </span>
           </div>
           <label className="flex items-center gap-3 text-sm text-slate-700">
             <span className="shrink-0">{count} {count === 1 ? 'produto' : 'produtos'}</span>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { ThemeStyle } from '../../types/art.types';
 import { ensureStyleFonts } from './assets';
-import { FONTS, fontOption, fontStack, resolveStyle } from './style';
+import { FONTS, LOOKS, applyLook, fontOption, fontStack, resolveStyle } from './style';
 
 /**
  * Estilo do tema no criador (superadmin): fontes, etiqueta de preço, cartão,
@@ -10,8 +10,8 @@ import { FONTS, fontOption, fontStack, resolveStyle } from './style';
  */
 
 type Group = keyof ThemeStyle;
-type Tab = 'fonts' | 'tag' | 'card' | 'name' | 'footer';
-const TABS: Array<[Tab, string]> = [['fonts', 'Fontes'], ['tag', 'Preço'], ['card', 'Cartão'], ['name', 'Nome'], ['footer', 'Rodapé']];
+type Tab = 'layout' | 'fonts' | 'tag' | 'card' | 'name' | 'footer';
+const TABS: Array<[Tab, string]> = [['layout', 'Layout'], ['fonts', 'Fontes'], ['tag', 'Preço'], ['card', 'Cartão'], ['name', 'Nome'], ['footer', 'Rodapé']];
 
 const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <label className="flex items-center justify-between gap-3 text-sm text-slate-700"><span className="shrink-0">{label}</span>{children}</label>
@@ -57,7 +57,7 @@ const WEIGHTS: Array<[number, string]> = [[400, 'Normal'], [500, 'Médio'], [600
 const CASES: Array<['upper' | 'title' | 'none', string]> = [['upper', 'MAIÚSCULAS'], ['title', 'Primeira Maiúscula'], ['none', 'Como digitado']];
 
 const StyleEditor: React.FC<{ style: ThemeStyle; onChange: (next: ThemeStyle) => void }> = ({ style, onChange }) => {
-  const [tab, setTab] = useState<Tab>('tag');
+  const [tab, setTab] = useState<Tab>('layout');
   const st = resolveStyle(style);
   useEffect(() => { if (tab === 'fonts') void ensureStyleFonts(FONTS); }, [tab]);
 
@@ -76,6 +76,47 @@ const StyleEditor: React.FC<{ style: ThemeStyle; onChange: (next: ThemeStyle) =>
           </button>
         ))}
       </div>
+
+      {tab === 'layout' && (
+        <div className="flex flex-col gap-2.5">
+          <span className="text-sm font-medium text-slate-800">Visuais prontos</span>
+          <div className="grid grid-cols-2 gap-1.5">
+            {LOOKS.map((look) => (
+              <button key={look.key} type="button" onClick={() => onChange(applyLook(style, look.key))} title={look.hint}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left transition hover:border-green-500 hover:bg-green-50">
+                <span className="block text-sm font-medium text-slate-900">{look.label}</span>
+                <span className="block text-[11px] leading-tight text-slate-500">{look.hint}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500">O visual pronto troca a grade, o cartão, a etiqueta e o selo de desconto. Depois ajuste o que quiser.</p>
+          <span className="text-sm text-slate-700">Grade dos produtos</span>
+          <Choice label="Grade dos produtos" value={st.grid.layout} onChange={(v) => set('grid', { layout: v })}
+            options={[['auto', 'Automática'], ['uniform', 'Todos iguais'], ['hero', '1º em destaque'], ['list', 'Lista'], ['mosaic', 'Mosaico']]} />
+          <Range label="Espaço entre cartões" value={st.grid.gap} min={30} max={250} step={10} onChange={(v) => set('grid', { gap: v })} />
+          <span className="text-sm text-slate-700">Montagem do cartão</span>
+          <Choice label="Montagem do cartão" value={st.card.layout} onChange={(v) => set('card', { layout: v })}
+            options={[['auto', 'Automática'], ['classic', 'Foto em cima'], ['name-top', 'Nome em cima'], ['price-top', 'Preço em cima'], ['side', 'Lado a lado'], ['photo', 'Foto grande']]} />
+          <span className="text-sm text-slate-700">Fundo da foto</span>
+          <Choice label="Fundo da foto" value={st.card.photoBg} onChange={(v) => set('card', { photoBg: v })}
+            options={[['none', 'Nenhum'], ['circle', 'Círculo'], ['blob', 'Mancha'], ['rays', 'Raios']]} />
+          <Row label="Sombra do produto no chão"><input type="checkbox" checked={st.card.photoShadow} onChange={(e) => set('card', { photoShadow: e.target.checked })} className="h-4 w-4 accent-green-600" /></Row>
+          <span className="text-sm text-slate-700">Variação entre cartões</span>
+          <Choice label="Variação entre cartões" value={st.card.vary} onChange={(v) => set('card', { vary: v })}
+            options={[['none', 'Nenhuma'], ['tilt', 'Inclinar alternado'], ['alternate', 'Cores alternadas']]} />
+          <Row label="Selo de desconto (-20%)"><input type="checkbox" checked={st.badge.show} onChange={(e) => set('badge', { show: e.target.checked })} className="h-4 w-4 accent-green-600" /></Row>
+          {st.badge.show && (
+            <>
+              <Choice label="Formato do selo de desconto" value={st.badge.shape} onChange={(v) => set('badge', { shape: v })}
+                options={[['circle', 'Círculo'], ['burst', 'Explosão'], ['tag', 'Etiqueta']]} />
+              <Choice label="Canto do selo de desconto" value={st.badge.position} onChange={(v) => set('badge', { position: v })}
+                options={[['left', 'Canto esquerdo'], ['right', 'Canto direito']]} />
+              <p className="text-xs text-slate-500">Aparece só nos produtos com preço antigo. A cor é a da faixa de destaque.</p>
+            </>
+          )}
+          <button type="button" onClick={() => onChange((({ grid: _g, badge: _b, ...rest }) => rest)(style))} className="self-start text-xs font-medium text-slate-500 hover:underline">Voltar ao padrão</button>
+        </div>
+      )}
 
       {tab === 'fonts' && (
         <div className="flex flex-col gap-3">
@@ -105,7 +146,8 @@ const StyleEditor: React.FC<{ style: ThemeStyle; onChange: (next: ThemeStyle) =>
         <div className="flex flex-col gap-2.5">
           <span className="text-sm text-slate-700">Formato</span>
           <Choice label="Formato da etiqueta" value={st.tag.shape} onChange={(v) => set('tag', { shape: v })}
-            options={[['rounded', 'Arredondada'], ['pill', 'Pílula'], ['square', 'Reta'], ['burst', 'Explosão'], ['ribbon', 'Faixa']]} />
+            options={[['rounded', 'Arredondada'], ['pill', 'Pílula'], ['square', 'Reta'], ['burst', 'Explosão'], ['ribbon', 'Faixa'], ['circle', 'Círculo'], ['hang', 'Pendurada']]} />
+          <Row label="Degradê (brilho em cima)"><input type="checkbox" checked={st.tag.gradient} onChange={(e) => set('tag', { gradient: e.target.checked })} className="h-4 w-4 accent-green-600" /></Row>
           <span className="text-sm text-slate-700">Posição no cartão</span>
           <Choice label="Posição da etiqueta" value={st.tag.align} onChange={(v) => set('tag', { align: v })}
             options={[['auto', 'Automática'], ['left', 'Esquerda'], ['center', 'Centro'], ['right', 'Direita']]} />
@@ -128,6 +170,16 @@ const StyleEditor: React.FC<{ style: ThemeStyle; onChange: (next: ThemeStyle) =>
           <span className="text-sm text-slate-700">Cartão do produto</span>
           <Choice label="Estilo do cartão" value={st.card.style} onChange={(v) => set('card', { style: v })}
             options={[['solid', 'Cheio'], ['outline', 'Só contorno'], ['none', 'Sem cartão']]} />
+          <span className="text-sm text-slate-700">Formato</span>
+          <Choice label="Formato do cartão" value={st.card.shape} onChange={(v) => set('card', { shape: v })}
+            options={[['rect', 'Retângulo'], ['ticket', 'Cupom com picote'], ['cut', 'Cantos cortados'], ['arch', 'Arco']]} />
+          {st.card.style === 'solid' && (
+            <>
+              <span className="text-sm text-slate-700">Preenchimento</span>
+              <Choice label="Preenchimento do cartão" value={st.card.fill} onChange={(v) => set('card', { fill: v })}
+                options={[['flat', 'Cor lisa'], ['gradient', 'Degradê'], ['glass', 'Vidro fosco']]} />
+            </>
+          )}
           <Range label="Cantos arredondados" value={st.card.radius} min={0} max={30} onChange={(v) => set('card', { radius: v })} />
           {st.card.style === 'solid' && <Range label="Opacidade" value={st.card.opacity} min={10} max={100} onChange={(v) => set('card', { opacity: v })} />}
           {st.card.style === 'solid' && <Row label="Sombra"><input type="checkbox" checked={st.card.shadow} onChange={(e) => set('card', { shadow: e.target.checked })} className="h-4 w-4 accent-green-600" /></Row>}
@@ -150,6 +202,8 @@ const StyleEditor: React.FC<{ style: ThemeStyle; onChange: (next: ThemeStyle) =>
           <Choice label="Alinhamento do nome" value={st.name.align} onChange={(v) => set('name', { align: v })}
             options={[['auto', 'Automático'], ['left', 'Esquerda'], ['center', 'Centro']]} />
           <Range label="Tamanho" value={st.name.size} min={60} max={140} onChange={(v) => set('name', { size: v })} />
+          <ColorOrNone label="Cor do nome" noneLabel="Automática" value={st.name.color} fallback="#1c1917" onChange={(v) => set('name', { color: v })} />
+          <ColorOrNone label="Contorno das letras" noneLabel="Sem contorno" value={st.name.stroke} fallback="#ffffff" onChange={(v) => set('name', { stroke: v })} />
           <button type="button" onClick={() => reset('name')} className="self-start text-xs font-medium text-slate-500 hover:underline">Voltar ao padrão</button>
         </div>
       )}

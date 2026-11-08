@@ -56,9 +56,9 @@ const bestGrid = (area: Rect, n: number, gap: number): Grid => {
   return best;
 };
 
-const grid = (area: Rect, n: number, gap: number): Rect[] => {
+const grid = (area: Rect, n: number, gap: number, forceCols?: number): Rect[] => {
   if (n <= 0 || area.w <= 0 || area.h <= 0) return [];
-  const { cols, rows } = bestGrid(area, n, gap);
+  const { cols, rows } = forceCols ? { cols: Math.min(forceCols, n), rows: Math.ceil(n / Math.min(forceCols, n)) } : bestGrid(area, n, gap);
   const cw = (area.w - gap * (cols - 1)) / cols;
   let ch = (area.h - gap * (rows - 1)) / rows;
   // Poucos produtos numa área enorme: não estica o cartão além de ~1,6x a largura.
@@ -85,8 +85,33 @@ const grid = (area: Rect, n: number, gap: number): Rect[] => {
  * @param heroes quantos dos primeiros produtos são destaque (no máximo 2)
  * @param gap    espaço entre cartões, em pixels da arte
  */
-export const layoutProducts = (area: Rect, n: number, heroes: number, gap: number): Rect[] => {
+export type GridLayout = 'auto' | 'uniform' | 'hero' | 'list' | 'mosaic';
+
+/** Linhas alternando 2 e 3 cartões, de ponta a ponta; as de 2 são um pouco mais altas. */
+const mosaic = (area: Rect, n: number, gap: number): Rect[] => {
+  const rows: number[] = [];
+  for (let left = n, i = 0; left > 0; i++) { const k = Math.min(left, i % 2 === 0 ? 2 : 3); rows.push(k); left -= k; }
+  const weight = (k: number) => (k <= 2 ? 1.25 : 1);
+  const total = rows.reduce((a, k) => a + weight(k), 0);
+  const free = area.h - gap * (rows.length - 1);
+  const out: Rect[] = [];
+  let y = area.y;
+  for (const k of rows) {
+    const h = (free * weight(k)) / total;
+    const w = (area.w - gap * (k - 1)) / k;
+    for (let c = 0; c < k; c++) out.push({ x: area.x + c * (w + gap), y, w, h });
+    y += h + gap;
+  }
+  return out;
+};
+
+export const layoutProducts = (area: Rect, n: number, heroes: number, gap: number, mode: GridLayout = 'auto'): Rect[] => {
   if (n <= 0) return [];
+  if (mode === 'uniform') return grid(area, n, gap);
+  // Lista: um por linha (duas colunas quando são muitos), sempre cartão largo.
+  if (mode === 'list') return grid(area, n, gap, n > 8 && area.w / area.h > 0.6 ? 2 : 1);
+  if (mode === 'mosaic') return n < 3 ? grid(area, n, gap) : mosaic(area, n, gap);
+  if (mode === 'hero') heroes = Math.max(1, heroes);
   const h = Math.max(0, Math.min(heroes, 2, n));
   if (h === 0 || n === h) {
     return grid(area, n, gap);

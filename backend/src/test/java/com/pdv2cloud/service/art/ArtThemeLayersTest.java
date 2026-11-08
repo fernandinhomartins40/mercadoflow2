@@ -74,6 +74,14 @@ class ArtThemeLayersTest {
             .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("footer.color");
         assertThatThrownBy(() -> ArtThemeService.style(Map.of("card", Map.of("shadow", "sim"))))
             .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("card.shadow");
+        // Layout: grade, montagem do cartão e selo de desconto.
+        Map<String, Object> layout = ArtThemeService.style(Map.of(
+            "grid", Map.of("layout", "mosaic", "gap", 1.5),
+            "card", Map.of("layout", "photo", "shape", "ticket", "fill", "glass", "vary", "alternate"),
+            "badge", Map.of("show", true, "shape", "burst")));
+        assertThat(layout).containsKeys("grid", "card", "badge");
+        assertThatThrownBy(() -> ArtThemeService.style(Map.of("grid", Map.of("layout", "carrossel"))))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("grid.layout");
     }
 
     @Test

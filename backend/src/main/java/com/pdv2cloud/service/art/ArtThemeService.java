@@ -624,13 +624,18 @@ public class ArtThemeService {
      */
     private static final Map<String, Map<String, String>> STYLE_SPEC = Map.of(
         "fonts", Map.of("price", "font", "name", "font", "text", "font"),
-        "tag", Map.of("shape", "enum:rounded|pill|square|burst|ribbon", "tilt", "num:-15:15", "align", "enum:auto|left|center|right",
+        "tag", Map.of("shape", "enum:rounded|pill|square|burst|ribbon|circle|hang", "tilt", "num:-15:15", "align", "enum:auto|left|center|right",
             "size", "num:0.5:1", "currency", "bool", "cents", "enum:super|inline", "border", "hex?", "borderWidth", "num:0:0.15",
-            "shadow", "bool"),
-        "card", Map.of("style", "enum:solid|outline|none", "radius", "num:0:0.5", "shadow", "bool", "border", "hex?",
-            "borderWidth", "num:0:0.06", "opacity", "num:0.1:1"),
+            "shadow", "bool", "gradient", "bool"),
+        "card", Map.ofEntries(Map.entry("style", "enum:solid|outline|none"), Map.entry("radius", "num:0:0.5"), Map.entry("shadow", "bool"),
+            Map.entry("border", "hex?"), Map.entry("borderWidth", "num:0:0.06"), Map.entry("opacity", "num:0.1:1"),
+            Map.entry("layout", "enum:auto|classic|side|photo|price-top|name-top"), Map.entry("shape", "enum:rect|ticket|cut|arch"),
+            Map.entry("fill", "enum:flat|gradient|glass"), Map.entry("photoBg", "enum:none|circle|blob|rays"),
+            Map.entry("photoShadow", "bool"), Map.entry("vary", "enum:none|tilt|alternate")),
         "name", Map.of("case", "enum:upper|title|none", "weight", "int:400:900", "maxLines", "int?:1:5",
-            "align", "enum:auto|left|center", "size", "num:0.6:1.4"),
+            "align", "enum:auto|left|center", "size", "num:0.6:1.4", "color", "hex?", "stroke", "hex?"),
+        "grid", Map.of("layout", "enum:auto|uniform|hero|list|mosaic", "gap", "num:0.3:2.5"),
+        "badge", Map.of("show", "bool", "shape", "enum:circle|burst|tag", "position", "enum:left|right"),
         "oldPrice", Map.of("show", "bool"),
         "footer", Map.of("color", "hex?", "weight", "int:400:900", "size", "num:0.5:1.4", "align", "enum:left|center|right",
             "case", "enum:upper|title|none", "shadow", "bool", "band", "hex?", "bandOpacity", "num:0.1:1"));

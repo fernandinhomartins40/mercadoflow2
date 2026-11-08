@@ -98,6 +98,32 @@ export const SAMPLE_ITEMS: CampaignItem[] = [
   { key: 's16', name: 'Queijo muçarela', detail: 'fatiado', price: 39.9, unit: 'kg' },
 ];
 
+// Uma figura por produto de exemplo, na mesma ordem de SAMPLE_ITEMS.
+const SAMPLE_EMOJI = ['🥩', '🍚', '🫘', '🫒', '☕', '🥛', '🧂', '🍌', '🧴', '🥤', '🍝', '🍗', '🧻', '🍺', '🍅', '🧀'];
+const photoCache = new Map<string, string>();
+/**
+ * Foto de exemplo desenhada no navegador (figura grande em fundo transparente),
+ * para a prévia do tema mostrar como fica com foto de produto.
+ */
+const samplePhoto = (emoji: string) => {
+  if (photoCache.has(emoji)) return photoCache.get(emoji)!;
+  const c = document.createElement('canvas');
+  c.width = 360; c.height = 360;
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  ctx.font = '300px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 180, 196);
+  const url = c.toDataURL('image/png');
+  photoCache.set(emoji, url);
+  return url;
+};
+
+/** Produtos de exemplo, com fotos de exemplo quando pedido. O primeiro pode ser destaque. */
+export const sampleItems = (count: number, hero: boolean, photos: boolean): CampaignItem[] =>
+  SAMPLE_ITEMS.slice(0, count).map((it, i) => ({ ...it, hero: hero && i === 0, imageUrl: photos ? samplePhoto(SAMPLE_EMOJI[i]) : undefined }));
+
 export const UNITS = ['un', 'kg', '100 g', 'pct', 'cx', 'L', 'dz', 'bdj'];
 
 export const themeFormat = (theme: ArtTheme | null | undefined, format: FormatKey) =>

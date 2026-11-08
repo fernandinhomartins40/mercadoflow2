@@ -58,11 +58,20 @@ export interface ThemeAnimation {
 export interface ThemeStyle {
   fonts?: { price?: string; name?: string; text?: string };
   tag?: {
-    shape?: 'rounded' | 'pill' | 'square' | 'burst' | 'ribbon'; tilt?: number; align?: 'auto' | 'left' | 'center' | 'right';
-    size?: number; currency?: boolean; cents?: 'super' | 'inline'; border?: string | null; borderWidth?: number; shadow?: boolean;
+    shape?: 'rounded' | 'pill' | 'square' | 'burst' | 'ribbon' | 'circle' | 'hang'; tilt?: number; align?: 'auto' | 'left' | 'center' | 'right';
+    size?: number; currency?: boolean; cents?: 'super' | 'inline'; border?: string | null; borderWidth?: number; shadow?: boolean; gradient?: boolean;
   };
-  card?: { style?: 'solid' | 'outline' | 'none'; radius?: number; shadow?: boolean; border?: string | null; borderWidth?: number; opacity?: number };
-  name?: { case?: 'upper' | 'title' | 'none'; weight?: number; maxLines?: number | null; align?: 'auto' | 'left' | 'center'; size?: number };
+  card?: {
+    style?: 'solid' | 'outline' | 'none'; radius?: number; shadow?: boolean; border?: string | null; borderWidth?: number; opacity?: number;
+    layout?: 'auto' | 'classic' | 'side' | 'photo' | 'price-top' | 'name-top'; shape?: 'rect' | 'ticket' | 'cut' | 'arch';
+    fill?: 'flat' | 'gradient' | 'glass'; photoBg?: 'none' | 'circle' | 'blob' | 'rays'; photoShadow?: boolean; vary?: 'none' | 'tilt' | 'alternate';
+  };
+  name?: {
+    case?: 'upper' | 'title' | 'none'; weight?: number; maxLines?: number | null; align?: 'auto' | 'left' | 'center'; size?: number;
+    color?: string | null; stroke?: string | null;
+  };
+  grid?: { layout?: 'auto' | 'uniform' | 'hero' | 'list' | 'mosaic'; gap?: number };
+  badge?: { show?: boolean; shape?: 'circle' | 'burst' | 'tag'; position?: 'left' | 'right' };
   oldPrice?: { show?: boolean };
   footer?: {
     color?: string | null; weight?: number; size?: number; align?: 'left' | 'center' | 'right'; case?: 'upper' | 'title' | 'none';

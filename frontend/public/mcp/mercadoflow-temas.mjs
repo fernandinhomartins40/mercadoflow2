@@ -13,8 +13,10 @@
 //   env = { MERCADOFLOW_URL = "https://mercadoflow.com", MERCADOFLOW_TEMAS_KEY = "mftema_..." }
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
+import { spawn } from 'node:child_process';
 
 const BASE = (process.env.MERCADOFLOW_URL || 'https://mercadoflow.com').replace(/\/+$/, '');
 const KEY = process.env.MERCADOFLOW_TEMAS_KEY || '';
@@ -32,6 +34,17 @@ const PRESETS = ['respirar', 'parallax', 'entrada', 'selo', 'zoom', 'festa'];
 const FONT_KEYS = ['anton', 'bebas', 'archivo-black', 'alfa-slab', 'passion', 'titan', 'oswald', 'barlow-condensed', 'roboto-condensed',
   'saira-condensed', 'archivo-narrow', 'fjalla', 'teko', 'barlow', 'montserrat', 'poppins', 'inter', 'rubik', 'league-spartan',
   'fredoka', 'lilita', 'bangers', 'luckiest', 'righteous'];
+// Mesmos de LOOKS em features/art-studio/style.ts.
+const VISUAIS = [
+  { nome: 'vitrine', estilo: { card: { layout: 'classic', photoBg: 'circle', photoShadow: true, radius: 0.12 }, tag: { shape: 'pill', tilt: 0, align: 'center', gradient: true }, badge: { show: true, shape: 'circle', position: 'left' } } },
+  { nome: 'foto-grande', estilo: { card: { layout: 'photo', radius: 0.05, photoShadow: true }, tag: { shape: 'burst', tilt: -6 }, badge: { show: true, shape: 'burst', position: 'left' } } },
+  { nome: 'lista', estilo: { grid: { layout: 'list' }, card: { layout: 'side', radius: 0.04 }, tag: { shape: 'ribbon', tilt: 0 } } },
+  { nome: 'cupom', estilo: { card: { shape: 'ticket', layout: 'name-top', radius: 0.06 }, tag: { shape: 'square', tilt: 0, align: 'center' }, badge: { show: true, shape: 'tag', position: 'right' } } },
+  { nome: 'mosaico', estilo: { grid: { layout: 'mosaic' }, card: { vary: 'alternate', radius: 0.08, photoBg: 'blob' }, tag: { shape: 'rounded', tilt: -4 } } },
+  { nome: 'vidro', estilo: { card: { fill: 'glass', opacity: 0.55, radius: 0.14, shadow: false, border: '#ffffff', borderWidth: 0.008 }, tag: { shape: 'pill', tilt: 0, gradient: true } } },
+  { nome: 'pendurada', estilo: { card: { style: 'none', photoShadow: true, photoBg: 'rays' }, tag: { shape: 'hang', tilt: -8 } } },
+  { nome: 'destaque', estilo: { grid: { layout: 'hero' }, card: { layout: 'price-top', shape: 'arch', fill: 'gradient' }, tag: { shape: 'circle', tilt: 0 }, badge: { show: true, shape: 'circle', position: 'right' } } },
+];
 const AREA_KEYS = { logo: 'logo', produtos: 'products', rodape: 'footer', selo: 'seal' };
 const COLOR_KEYS = { etiqueta: 'tag', numero: 'tagText', cartao: 'card', nome: 'cardText', faixa: 'accent' };
 
@@ -55,7 +68,8 @@ FLUXO
    b. revisar_formato: lista objetiva (enfeite invadindo produtos/logo/selo/rodapé, borda, margem, tamanho, áreas sobrepostas).
    c. corrija com ajustar_elemento (cx, cy, largura, rotacao, opacidade, ordem) e definir_areas (só a área que muda),
       sem reenviar arquivos. Cada design pede áreas próprias: mova e dimensione logo, selo, produtos e rodapé para o desenho.
-   d. por último, baixar_previa com com_guias=false para ver como fica de verdade.
+   d. por último, ver_encarte: print do encarte COMPLETO (fundo, selo, logo, cartões com foto, preço e rodapé),
+      igual ao que o cliente vê. Olhe e corrija cartões, etiqueta e cores com atualizar_tema → estilo.
 6. atualizar_tema com as cores da etiqueta, o ESTILO (fontes, etiqueta, cartão, nome, rodapé) e as animações,
    tudo combinando com a identidade do fundo.
 7. Avise o usuário para conferir e publicar na página de temas. A API não publica.
@@ -80,14 +94,27 @@ ESTILO (atualizar_tema → estilo; mande só o que muda, o resto segue o padrão
 - tag (etiqueta de preço): shape rounded|pill|square|burst (explosão)|ribbon (faixa); tilt -15 a 15 (graus);
   align auto|left|center|right; size 0.5 a 1; currency (mostra R$) true/false; cents super|inline;
   border #RRGGBB ou null; borderWidth 0 a 0.15; shadow true/false.
-- card (cartão do produto): style solid|outline|none; radius 0 a 0.5; shadow; border #RRGGBB ou null; borderWidth 0 a 0.06; opacity 0.1 a 1.
+  Formatos novos: circle (selo redondo), hang (etiqueta pendurada com furo). gradient true/false: brilho em degradê.
+- card (cartão do produto): style solid|outline|none; radius 0 a 0.5; shadow; border #RRGGBB ou null; borderWidth 0 a 0.06; opacity 0.1 a 1;
+  layout auto|classic (foto em cima)|name-top (nome em cima)|price-top (preço em cima)|side (lado a lado)|photo (foto grande, preço por cima);
+  shape rect|ticket (cupom com picote)|cut (cantos cortados)|arch (arco no alto); fill flat|gradient|glass (vidro fosco, desfoca o fundo;
+  use opacity ~0.5); photoBg none|circle|blob|rays (fundo atrás da foto, na cor da faixa); photoShadow true/false (sombra no chão);
+  vary none|tilt (cartões inclinados alternados)|alternate (cores alternadas).
+  Sem cartão (style none) ou vidro só funcionam se a área de produtos do fundo for calma; em fundo cheio de detalhe, use cartão cheio.
+- grid (grade dos produtos): layout auto|uniform (todos iguais)|hero (1º grande)|list (um por linha)|mosaic (linhas de 2 e 3); gap 0.3 a 2.5.
+- badge (selo "-20%" nos produtos com preço antigo): show true/false; shape circle|burst|tag; position left|right.
 - name (nome do produto): case upper|title|none; weight 400 a 900; maxLines 1 a 5 ou null (automático);
-  align auto|left|center; size 0.6 a 1.4.
+  align auto|left|center; size 0.6 a 1.4; color #RRGGBB ou null (automática); stroke #RRGGBB ou null (contorno das letras).
 - oldPrice: { show } — mostra o "De R$..." riscado.
 - footer (rodapé): color #RRGGBB ou null (automática); band #RRGGBB ou null (faixa atrás do texto); bandOpacity 0.1 a 1;
   weight 400 a 900; size 0.5 a 1.4; align left|center|right; case upper|title|none; shadow true/false.
 Combine o estilo com a identidade do fundo (ex.: Black Friday: fundo escuro, etiqueta burst amarela, cartão outline;
-hortifrúti: cantos bem arredondados, fonte divertida). O superadmin vê o resultado com produtos na prévia da página do tema.`;
+hortifrúti: cantos bem arredondados, fonte divertida). Fuja do visual de sempre: varie grade, montagem e formato do cartão.
+
+VISUAIS PRONTOS (ponto de partida; mande no estilo e ajuste):
+${VISUAIS.map((v) => `- ${v.nome}: ${JSON.stringify(v.estilo)}`).join('\n')}
+
+Depois de mudar o estilo, rode ver_encarte e olhe o resultado.`;
 
 // ── API ──────────────────────────────────────────────────────────────────
 
@@ -260,6 +287,48 @@ const element = {
   required: ['caminho', 'cx', 'cy', 'largura'],
 };
 
+/** Edge ou Chrome desta máquina (MERCADOFLOW_NAVEGADOR força um caminho). */
+const findBrowser = () => {
+  if (process.env.MERCADOFLOW_NAVEGADOR) return process.env.MERCADOFLOW_NAVEGADOR;
+  const local = process.env.LOCALAPPDATA || '';
+  const candidates = process.platform === 'win32' ? [
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    path.join(local, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+  ] : process.platform === 'darwin' ? [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ] : ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/microsoft-edge'];
+  return candidates.find((c) => c && fs.existsSync(c)) || null;
+};
+
+/** Abre a página de prévia num navegador sem janela e salva o print. */
+const screenshot = (url, out, width, height) => new Promise((resolve, reject) => {
+  const browser = findBrowser();
+  if (!browser) {
+    reject(new Error('Não achei Edge nem Chrome nesta máquina. Instale um deles ou informe o caminho em MERCADOFLOW_NAVEGADOR. Enquanto isso, use baixar_previa.'));
+    return;
+  }
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-previa-'));
+  try { fs.rmSync(out, { force: true }); } catch { /* sem arquivo antigo */ }
+  const child = spawn(browser, [
+    '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
+    `--user-data-dir=${profile}`, `--window-size=${width},${height}`, '--virtual-time-budget=25000',
+    `--screenshot=${out}`, url,
+  ], { stdio: 'ignore' });
+  const timer = setTimeout(() => child.kill(), 60000);
+  child.on('error', (e) => { clearTimeout(timer); reject(new Error(`Não consegui abrir o navegador (${browser}): ${e.message}`)); });
+  child.on('exit', () => {
+    clearTimeout(timer);
+    try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* o navegador às vezes segura a pasta */ }
+    if (fs.existsSync(out) && fs.statSync(out).size > 0) resolve(out);
+    else reject(new Error('O navegador não gerou o print. Tente de novo; se repetir, use baixar_previa.'));
+  });
+});
+
 const TOOLS = {
   guia_de_criacao: {
     description: 'Leia primeiro: regras, tamanhos, fluxo e como posicionar camadas, áreas, cores e animações dos temas de encarte.',
@@ -351,10 +420,11 @@ const TOOLS = {
         animacoes: { type: 'object', properties: { lista: { type: 'array', items: { type: 'string', enum: PRESETS } }, padrao: { type: 'string', enum: PRESETS }, duracao: { type: 'number', description: '4 a 15 segundos.' } } },
         estilo: {
           type: 'object',
-          description: 'Fontes, etiqueta de preço, cartão, nome e rodapé. Veja a seção ESTILO do guia_de_criacao. Mescla com o estilo atual (null num campo volta ao padrão).',
+          description: 'Fontes, etiqueta de preço, cartão (layout, formato, vidro, fundo da foto), grade, selo de desconto, nome e rodapé. Veja ESTILO e VISUAIS PRONTOS no guia_de_criacao. Mescla com o estilo atual (null num campo volta ao padrão).',
           properties: {
             fonts: { type: 'object', properties: { price: { type: 'string', enum: FONT_KEYS }, name: { type: 'string', enum: FONT_KEYS }, text: { type: 'string', enum: FONT_KEYS } } },
             tag: { type: 'object' }, card: { type: 'object' }, name: { type: 'object' }, oldPrice: { type: 'object' }, footer: { type: 'object' },
+            grid: { type: 'object' }, badge: { type: 'object' },
           },
         },
       },
@@ -375,7 +445,7 @@ const TOOLS = {
         const current = (await call('GET', `/themes/${a.tema_id}`)).style || {};
         body.style = { ...current };
         // null em border/color/band/maxLines é um valor ("sem"/"automático"); nos outros campos, volta ao padrão.
-        const NULLABLE = ['border', 'color', 'band', 'maxLines'];
+        const NULLABLE = ['border', 'color', 'band', 'maxLines', 'stroke'];
         for (const [group, fields] of Object.entries(a.estilo)) {
           if (!fields || typeof fields !== 'object') continue;
           const merged = { ...(current[group] || {}), ...fields };
@@ -457,6 +527,35 @@ const TOOLS = {
       }
       const t = await call('PUT', `/themes/${a.tema_id}/formats/${a.formato}/regions`, { regions });
       return revisarDepois(t, a.formato);
+    },
+  },
+  ver_encarte: {
+    description: 'Print do encarte COMPLETO como o cliente vê: fundo, enfeites, selo 3D, logo, cartões de produto com foto, nome, preço, selo de desconto e rodapé, com o estilo do tema. Abre o Edge/Chrome desta máquina sem janela. OLHE a imagem e corrija o estilo (atualizar_tema) e as áreas até ficar profissional.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) },
+        produtos: { type: 'number', description: '1 a 16 produtos de exemplo (padrão 6). Teste poucos e muitos.' },
+        destaque: { type: 'boolean', description: 'Primeiro produto em destaque (padrão true).' },
+        fotos: { type: 'boolean', description: 'Produtos com foto (padrão true).' },
+        salvar_em: { type: 'string', description: 'Caminho do PNG (padrão: ./encarte-<formato>.png).' },
+      },
+      required: ['tema_id', 'formato'],
+    },
+    run: async (a) => {
+      requireFormat(a.formato);
+      if (!KEY) throw new Error('Falta a variável MERCADOFLOW_TEMAS_KEY.');
+      // A chave vai no "#": fica só no navegador local, não chega ao servidor.
+      const q = new URLSearchParams({
+        chave: KEY, formato: a.formato, produtos: String(Math.max(1, Math.min(16, Math.round(a.produtos ?? 6)))),
+        destaque: a.destaque === false ? '0' : '1', fotos: a.fotos === false ? '0' : '1',
+      });
+      const f = FORMATS[a.formato];
+      // Janela no máximo 1350 px no lado maior; a arte é desenhada inteira e reduzida.
+      const k = Math.max(f.width, f.height) / 1350;
+      const out = path.resolve(a.salvar_em || `encarte-${a.formato}.png`);
+      await screenshot(`${BASE}/temas/previa/${a.tema_id}#${q}`, out, Math.round(f.width / k), Math.round(f.height / k));
+      return { ok: true, arquivo: out, dica: 'Abra a imagem. Confira: cartões legíveis, preço em destaque, nada cobrindo produto, cores combinando com o fundo, visual diferente do padrão.' };
     },
   },
   baixar_previa: {
