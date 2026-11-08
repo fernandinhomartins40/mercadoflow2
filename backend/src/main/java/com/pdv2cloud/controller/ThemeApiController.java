@@ -118,6 +118,15 @@ public class ThemeApiController {
         }
     }
 
+    /** Prévia para revisar: camadas + selo; com guides=true, áreas, margem e contorno/id dos enfeites. */
+    @GetMapping(value = "/themes/{id}/formats/{format}/preview", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] preview(@RequestHeader(name = "Authorization", required = false) String auth,
+                          @PathVariable UUID id, @PathVariable String format,
+                          @RequestParam(name = "guides", defaultValue = "true") boolean guides) {
+        require(auth);
+        return themes.preview(id, format, guides);
+    }
+
     @PutMapping("/themes/{id}/formats/{format}/regions")
     public ArtThemeService.Theme saveRegions(@RequestHeader(name = "Authorization", required = false) String auth,
                                              @PathVariable UUID id, @PathVariable String format, @RequestBody Map<String, Object> body) {

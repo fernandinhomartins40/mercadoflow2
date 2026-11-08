@@ -46,8 +46,12 @@ FLUXO
 4. montar_formato para cada formato: base + enfeites com posição (cx, cy = centro em fração da arte, 0 a 1;
    largura = fração da largura da arte; rotacao em graus, sentido horário). Ordem dos enfeites: de trás para frente.
    Passe as áreas junto (ou use definir_areas depois).
-5. baixar_previa e OLHE a imagem: enfeites não podem invadir a área de produtos nem cobrir logo, selo e rodapé.
-   Ajuste e monte de novo se precisar.
+5. REVISE EM CICLO, formato por formato, até não sobrar problema:
+   a. baixar_previa (com guias) e OLHE a imagem: áreas coloridas, selo 3D na área dele, contorno + id de cada enfeite.
+   b. revisar_formato: lista objetiva (enfeite invadindo produtos/logo/selo/rodapé, borda, margem, tamanho, áreas sobrepostas).
+   c. corrija com ajustar_elemento (cx, cy, largura, rotacao, opacidade, ordem) e definir_areas (só a área que muda),
+      sem reenviar arquivos. Cada design pede áreas próprias: mova e dimensione logo, selo, produtos e rodapé para o desenho.
+   d. por último, baixar_previa com com_guias=false para ver como fica de verdade.
 6. atualizar_tema com as cores da etiqueta (combinando com a identidade) e as animações.
 7. Avise o usuário para conferir e publicar na página de temas. A API não publica.
 
@@ -114,6 +118,89 @@ const summary = (t) => ({
 
 const requireFormat = (f) => { if (!FORMATS[f]) throw new Error(`Formato inválido: ${f}. Use ${Object.keys(FORMATS).join(', ')}.`); return f; };
 
+const r3 = (v) => Math.round(v * 1000) / 1000;
+const SAFE = 0.04;
+
+/**
+ * Medidas de um enfeite: centro, tamanho em px e a caixa que ele ocupa já
+ * girado (em fração da arte), para comparar com as áreas.
+ */
+const geometry = (l, formato, ordem) => {
+  const { width: W, height: H } = FORMATS[formato];
+  const w = l.width * W;
+  const h = w * ((l.h || 1) / (l.w || 1));
+  const a = ((l.rotation || 0) * Math.PI) / 180;
+  const bw = Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a));
+  const bh = Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a));
+  return {
+    id: l.id, nome: l.name, ordem, cx: l.cx, cy: l.cy, largura: l.width, rotacao: l.rotation || 0, opacidade: l.opacity ?? 1,
+    parado: !!l.still, escondido: !!l.hidden,
+    tamanho_px: { largura: Math.round(w), altura: Math.round(h) },
+    caixa: { x: r3(l.cx - bw / 2 / W), y: r3(l.cy - bh / 2 / H), w: r3(bw / W), h: r3(bh / H) },
+  };
+};
+
+const overlap = (a, b) => {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? (w * h) / (a.w * a.h) : 0;
+};
+
+const AREA_NAMES = { products: 'produtos', logo: 'logo', seal: 'selo', footer: 'rodape' };
+
+/** Problemas da montagem de um formato, em texto para a IA corrigir. */
+const review = (f) => {
+  const issues = [];
+  const regions = f.regions || {};
+  if (!regions.products) issues.push('Falta a área de produtos (obrigatória para publicar): use definir_areas.');
+  for (const key of ['logo', 'seal', 'footer']) if (!regions[key]) issues.push(`Sem área de ${AREA_NAMES[key]}: o encarte fica sem ${AREA_NAMES[key]}.`);
+  const layers = f.layers || [];
+  if (!layers.some((l) => l.role === 'base')) issues.push('Sem base: o fundo sai branco atrás dos enfeites.');
+  const elements = layers.filter((l) => l.role !== 'base' && !l.hidden);
+  elements.forEach((l, i) => {
+    const g = geometry(l, f.format, i);
+    for (const [key, r] of Object.entries(regions)) {
+      const o = overlap(g.caixa, r);
+      // Produtos precisam de fundo limpo; logo, selo e rodapé toleram um toque de enfeite.
+      if (o > (key === 'products' ? 0.02 : 0.15)) issues.push(`"${l.id}" cobre ${Math.round(o * 100)}% de si mesmo dentro da área de ${AREA_NAMES[key]}.`);
+    }
+    const c = g.caixa;
+    const outside = c.x < 0 || c.y < 0 || c.x + c.w > 1 || c.y + c.h > 1;
+    const inMargin = c.x < SAFE || c.y < SAFE || c.x + c.w > 1 - SAFE || c.y + c.h > 1 - SAFE;
+    if (outside) issues.push(`"${l.id}" passa da borda da arte (fica cortado). Se não for de propósito, traga para dentro.`);
+    else if (inMargin) issues.push(`"${l.id}" encosta na margem de segurança de 4% (pode ser cortado na impressão ou no celular).`);
+    if (c.w * c.h < 0.002) issues.push(`"${l.id}" está muito pequeno (${g.tamanho_px.largura} px): quase invisível.`);
+    if (l.w && g.tamanho_px.largura > l.w * 1.5) issues.push(`"${l.id}" está ampliado ${Math.round((g.tamanho_px.largura / l.w) * 100)}% acima do PNG original (${l.w} px): pode ficar borrado.`);
+  });
+  for (const [a, ra] of Object.entries(regions)) {
+    for (const [b, rb] of Object.entries(regions)) {
+      if (a < b && overlap(ra, rb) > 0.05) issues.push(`As áreas de ${AREA_NAMES[a]} e ${AREA_NAMES[b]} se sobrepõem.`);
+    }
+  }
+  return issues;
+};
+
+const formatOf = async (temaId, formato) => {
+  const t = await call('GET', `/themes/${temaId}`);
+  const f = t.formats.find((x) => x.format === requireFormat(formato));
+  if (!f) throw new Error(`O formato ${formato} ainda não foi montado: use montar_formato.`);
+  return { t, f };
+};
+
+/** Resposta das ferramentas que mudam a montagem: já vem com a revisão. */
+const revisarDepois = (t, formato) => {
+  const f = t.formats.find((x) => x.format === formato);
+  return { ok: true, ...describeFormat(f), dica: 'Confira com baixar_previa (com guias).' };
+};
+
+const describeFormat = (f) => ({
+  formato: f.format, tamanho_px: { largura: FORMATS[f.format].width, altura: FORMATS[f.format].height },
+  areas: Object.fromEntries(Object.entries(f.regions || {}).map(([k, v]) => [AREA_NAMES[k] || k, v])),
+  base: (f.layers || []).some((l) => l.role === 'base'),
+  enfeites: (f.layers || []).filter((l) => l.role !== 'base').map((l, i) => geometry(l, f.format, i)),
+  problemas: review(f),
+});
+
 const buildLayers = async (themeId, base, elementos = []) => {
   const layers = [];
   if (base) {
@@ -165,11 +252,67 @@ const TOOLS = {
     run: async () => (await call('GET', '/themes')).map(summary),
   },
   ver_tema: {
-    description: 'Detalhes de um tema: formatos, camadas, áreas, cores, animações e links das prévias.',
+    description: 'Detalhes de um tema: por formato, as áreas, cada enfeite com centro, largura, giro, tamanho em px e a caixa que ocupa, e os problemas encontrados.',
     inputSchema: { type: 'object', properties: { tema_id: { type: 'string' } }, required: ['tema_id'] },
     run: async (a) => {
       const t = await call('GET', `/themes/${a.tema_id}`);
-      return { ...summary(t), detalhe: t.formats };
+      return { ...summary(t), formatos: t.formats.map(describeFormat) };
+    },
+  },
+  revisar_formato: {
+    description: 'Revisa a montagem de um formato: enfeite invadindo produtos, logo, selo ou rodapé, passando da borda ou da margem de 4%, muito pequeno, ampliado demais (borrado), áreas sobrepostas ou faltando. Use depois de cada ajuste, junto com baixar_previa.',
+    inputSchema: { type: 'object', properties: { tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) } }, required: ['tema_id', 'formato'] },
+    run: async (a) => {
+      const { f } = await formatOf(a.tema_id, a.formato);
+      const d = describeFormat(f);
+      return { ...d, ok: d.problemas.length === 0 };
+    },
+  },
+  ajustar_elemento: {
+    description: 'Ajusta um enfeite já montado sem reenviar arquivos: posição (cx, cy), largura, giro, opacidade, parado, escondido e a ordem na pilha. Mande só o que muda.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) },
+        elemento: { type: 'string', description: 'id do enfeite (veja ver_tema ou o rótulo na prévia com guias).' },
+        cx: { type: 'number' }, cy: { type: 'number' }, largura: { type: 'number' }, rotacao: { type: 'number' }, opacidade: { type: 'number' },
+        parado: { type: 'boolean' }, escondido: { type: 'boolean' },
+        ordem: { description: '"frente", "tras" ou a posição (0 = mais ao fundo entre os enfeites).', anyOf: [{ type: 'string', enum: ['frente', 'tras'] }, { type: 'number' }] },
+      },
+      required: ['tema_id', 'formato', 'elemento'],
+    },
+    run: async (a) => {
+      const { f } = await formatOf(a.tema_id, a.formato);
+      const layers = [...(f.layers || [])];
+      const i = layers.findIndex((l) => l.id === a.elemento);
+      if (i < 0) throw new Error(`Enfeite "${a.elemento}" não existe em ${a.formato}. Ids: ${layers.filter((l) => l.role !== 'base').map((l) => l.id).join(', ') || 'nenhum'}.`);
+      if (layers[i].role === 'base') throw new Error('A base cobre a arte inteira e não se posiciona. Para trocar, use montar_formato.');
+      const l = { ...layers[i] };
+      if (a.cx !== undefined) l.cx = a.cx;
+      if (a.cy !== undefined) l.cy = a.cy;
+      if (a.largura !== undefined) l.width = a.largura;
+      if (a.rotacao !== undefined) l.rotation = a.rotacao;
+      if (a.opacidade !== undefined) l.opacity = a.opacidade;
+      if (a.parado !== undefined) l.still = a.parado;
+      if (a.escondido !== undefined) l.hidden = a.escondido;
+      layers.splice(i, 1);
+      const floor = layers[0]?.role === 'base' ? 1 : 0;
+      const at = a.ordem === 'frente' ? layers.length : a.ordem === 'tras' ? floor
+        : typeof a.ordem === 'number' ? Math.max(floor, Math.min(layers.length, floor + a.ordem)) : i;
+      layers.splice(at, 0, l);
+      const t = await call('PUT', `/themes/${a.tema_id}/formats/${a.formato}/layers`, { layers });
+      return revisarDepois(t, a.formato);
+    },
+  },
+  remover_elemento: {
+    description: 'Tira um enfeite de um formato.',
+    inputSchema: { type: 'object', properties: { tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) }, elemento: { type: 'string' } }, required: ['tema_id', 'formato', 'elemento'] },
+    run: async (a) => {
+      const { f } = await formatOf(a.tema_id, a.formato);
+      const layers = (f.layers || []).filter((l) => !(l.id === a.elemento && l.role !== 'base'));
+      if (layers.length === (f.layers || []).length) throw new Error(`Enfeite "${a.elemento}" não existe em ${a.formato}.`);
+      const t = await call('PUT', `/themes/${a.tema_id}/formats/${a.formato}/layers`, { layers });
+      return revisarDepois(t, a.formato);
     },
   },
   criar_tema: {
@@ -254,25 +397,51 @@ const TOOLS = {
     },
   },
   definir_areas: {
-    description: 'Marca as áreas reservadas de um formato (logo, produtos, rodapé, selo). A área de produtos é obrigatória para o tema poder ser publicado.',
-    inputSchema: { type: 'object', properties: { tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) }, areas }, required: ['tema_id', 'formato', 'areas'] },
+    description: 'Muda as áreas reservadas de um formato (logo, produtos, rodapé, selo): posição e tamanho em frações de 0 a 1. Mande só as que mudam; as outras ficam. null tira a área (produtos é obrigatória).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) },
+        areas: { type: 'object', description: 'Ex.: {"selo": {"x":0.6,"y":0.04,"w":0.34,"h":0.16}, "rodape": null}', properties: { logo: rect, produtos: rect, rodape: rect, selo: rect } },
+      },
+      required: ['tema_id', 'formato', 'areas'],
+    },
     run: async (a) => {
-      const t = await call('PUT', `/themes/${a.tema_id}/formats/${requireFormat(a.formato)}/regions`, { regions: toRegions(a.areas) });
-      return summary(t);
+      const { f } = await formatOf(a.tema_id, a.formato);
+      const regions = { ...(f.regions || {}) };
+      for (const [pt, key] of Object.entries(AREA_KEYS)) {
+        if (!(pt in a.areas)) continue;
+        if (a.areas[pt] === null) delete regions[key];
+        else regions[key] = a.areas[pt];
+      }
+      const t = await call('PUT', `/themes/${a.tema_id}/formats/${a.formato}/regions`, { regions });
+      return revisarDepois(t, a.formato);
     },
   },
   baixar_previa: {
-    description: 'Baixa a prévia achatada de um formato para um arquivo local, para você olhar e conferir a composição.',
-    inputSchema: { type: 'object', properties: { tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) }, salvar_em: { type: 'string', description: 'Caminho do arquivo (padrão: ./previa-<formato>.jpg).' } }, required: ['tema_id', 'formato'] },
+    description: 'Baixa a prévia de um formato para um arquivo local e OLHE a imagem: enfeites, selo 3D na área dele e, com guias (padrão), as áreas coloridas (produtos verde, logo azul, selo laranja, rodapé roxo), a margem de 4% e o contorno + id de cada enfeite. Sem guias, mostra como o fundo fica de verdade.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tema_id: { type: 'string' }, formato: { type: 'string', enum: Object.keys(FORMATS) },
+        com_guias: { type: 'boolean', description: 'Padrão true.' },
+        salvar_em: { type: 'string', description: 'Caminho do arquivo (padrão: ./previa-<formato>.jpg).' },
+      },
+      required: ['tema_id', 'formato'],
+    },
     run: async (a) => {
-      const t = await call('GET', `/themes/${a.tema_id}`);
-      const f = t.formats.find((x) => x.format === requireFormat(a.formato));
-      if (!f) throw new Error(`O formato ${a.formato} ainda não foi montado.`);
-      const res = await fetch(BASE + f.backgroundUrl);
-      if (!res.ok) throw new Error('Não foi possível baixar a prévia.');
-      const out = path.resolve(a.salvar_em || `previa-${a.formato}.${f.backgroundUrl.split('.').pop()}`);
+      requireFormat(a.formato);
+      if (!KEY) throw new Error('Falta a variável MERCADOFLOW_TEMAS_KEY.');
+      const res = await fetch(`${API}/themes/${a.tema_id}/formats/${a.formato}/preview?guides=${a.com_guias !== false}`, { headers: { Authorization: `Bearer ${KEY}` } });
+      if (!res.ok) {
+        let msg = `Erro ${res.status} ao gerar a prévia`;
+        try { msg = (await res.json()).message || msg; } catch { /* sem corpo */ }
+        throw new Error(msg);
+      }
+      const out = path.resolve(a.salvar_em || `previa-${a.formato}${a.com_guias === false ? '' : '-guias'}.jpg`);
       fs.writeFileSync(out, Buffer.from(await res.arrayBuffer()));
-      return { ok: true, arquivo: out, areas: f.regions, dica: 'Abra a imagem e confira se os enfeites não invadem as áreas.' };
+      const { f } = await formatOf(a.tema_id, a.formato);
+      return { ok: true, arquivo: out, problemas: review(f), dica: 'Abra a imagem e compare com os problemas listados; ajuste com ajustar_elemento e definir_areas.' };
     },
   },
 };

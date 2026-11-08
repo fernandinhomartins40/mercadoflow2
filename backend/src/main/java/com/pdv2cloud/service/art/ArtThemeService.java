@@ -204,6 +204,17 @@ public class ArtThemeService {
         return after;
     }
 
+    /** Prévia JPEG de um formato para revisão (MCP): camadas, selo e, se pedido, áreas e contornos. */
+    @Transactional(readOnly = true)
+    public byte[] preview(UUID id, String formatKey, boolean guides) {
+        ArtFormats.Format format = ArtFormats.require(formatKey);
+        Theme t = get(id);
+        ThemeFormat f = t.formats().stream().filter(x -> x.format().equals(format.key())).findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("O formato " + format.label() + " ainda não foi montado"));
+        return ArtCompositor.preview(format, f.layers() == null ? List.of() : f.layers(), f.backgroundUrl(),
+            f.regions() == null ? Map.of() : f.regions(), t.sealUrl(), guides, storage);
+    }
+
     /** Imagem de uma camada. Fica no tema e pode ser usada em vários formatos. */
     public ArtFileStorage.Stored uploadAsset(UUID id, MultipartFile file) {
         get(id);
